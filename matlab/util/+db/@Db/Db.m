@@ -139,6 +139,79 @@ classdef Db < Component
 
     end
     
+    methods (Static) % static utilities
+        function [OutString] = table2charDump(T,Args)
+            % Format table in characters dump for database insert operation
+            % Input  : - table.
+            %          * ...,key,val,... 
+            %            See code for options.
+            % Output : - String
+            % Author : Eran Ofek (2024 Oct) 
+            % Example: db.Db.table2charDump(T)
+
+            arguments
+                T
+                Args.NumFormat      = '%.18g';  % Adjust precision as needed
+                Args.Delimiter      = ',';
+                Args.LineStartChar  = '(';
+                Args.LineEndChar    = '),';
+                Args.LastLineEndChar= ')';
+                Args.LineTerminator = ''; %'\n';
+                Args.CharInQuote logical = true;
+            end
+
+            ColNames = T.Properties.VariableNames;
+
+            % Convert the table to a cell array
+            C = table2cell(T);
+            SizeC = size(C);
+
+            % Get the variable types for each column
+            VarTypes = varfun(@class, T, 'OutputFormat', 'cell');
+
+            % Initialize an empty string to store the result
+            OutString = '';
+
+            % Define a format for numeric precision
+
+
+            % Iterate over each row in the table
+            for I = 1:SizeC(1)
+                RowString = '';  % To store the row as a tab-separated string
+
+                % Iterate over each column in the row
+                for J = 1:SizeC(2)
+                    switch VarTypes{J}
+                        case {'single','double'}
+                            ValStr = sprintf(Args.NumFormat, C{I,J});
+                        case {'char','string'}
+                            if Args.CharInQuote
+                                ValStr = sprintf('''%s''', C{I,J});
+                            else
+                                ValStr = sprintf('%s', C{I,J});
+                            end
+                        otherwise
+                            % assume this is an integer or logical
+                            ValStr = sprintf('%d',C{I,J});
+                    end
+                    if J==SizeC(2)
+                        RowString = sprintf('%s%s',RowString,ValStr);
+                    else
+                        RowString = sprintf('%s%s%s ',RowString, ValStr, Args.Delimiter);
+                    end            
+                end
+                if I==SizeC(1)
+                    OutString = sprintf('%s %s %s %s %s', OutString, Args.LineStartChar, RowString, Args.LastLineEndChar, Args.LineTerminator);
+                else
+                    OutString = sprintf('%s %s %s %s %s', OutString, Args.LineStartChar, RowString, Args.LineEndChar, Args.LineTerminator);
+                end
+            end
+
+        end
+
+        
+        
+    end
     
     methods % utilities
         function Obj=disconnectCH_Java(Obj)
@@ -188,16 +261,35 @@ classdef Db < Component
     end
     
         
-    methods 
+    methods % main commands
         function [Result, Error] = query(Obj, Query, Args)
-            %
+            % Execute Query/Exec command on database/table and format the output.
+            % Input  : - self.
+            %          - A string with a query or exec command to execute.
+            %          * ...,key,val,...
+            %            'IsExec' - A logical indicating if to run the
+            %                   Query string as a query (false) or exec
+            %                   (true). If IsExec is true, then the output
+            %                   Result will be empty.
+            %                   Default is false.
+            %            'Convert2String' - A logical indicating if to
+            %                   convert the columns in cell arrays to
+            %                   string array. Default is true.
+            % Output : - Table with output result. If IsExec=true, then
+            %            this is empty.
+            %          - Error message. If ok, then this is empty.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: D.query("SELECT * FROM test_db.test_table;");
+            %          D.query("SELECT name FROM system.columns WHERE table = 'users' AND database = 'test_db'");
+            %          D.query("SELECT name, type FROM system.columns WHERE table = 'users' AND database = 'test_db'");
 
             arguments
                 Obj
-                Query     = "SELECT * FROM test_db.test_table;";
+                Query     = [];
                 
-                Args.Convert2String logical   = true;
                 Args.IsExec logical           = false;
+                Args.Convert2String logical   = true;
+                
             end
 
             if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')
@@ -212,6 +304,94 @@ classdef Db < Component
 
         end
 
+        function Error=createTable(Obj, TableName, ColNames, ColTypes, Args)
+            % Create table
+            % Input  : - self.
+            %          - Table name.
+            %          - Cell array or string array of column names.
+            %          - Cell array or string arry of column types (one
+            %            type per column name).
+            %          * ...,key,val,...
+            %            'Engine' - Search engine.
+            %                   Ask ChatGPT for more options.
+            %                   Default is 'MergeTree()'
+            %            'OrderBy' - ORDER BY column name.
+            %                   Default is 'id'.
+            % Output : - Error message.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: D.createTable('test_db',["id"; "name"; "age"], ["UInt32"; "String"; "UInt8"]);
+            
+            arguments
+                Obj
+                TableName
+                ColNames
+                ColTypes
+                Args.Engine  = 'MergeTree()';
+                Args.OrderBy = 'id';
+            end
+           
+            Ncol = numel(ColNames);
+            Command = sprintf('CREATE TABLE %s (',TableName);
+            for Icol=1:1:Ncol
+                if Icol==Ncol
+                    Command = sprintf('%s %s %s)', Command, ColNames{Icol}, ColTypes{Icol});
+                else
+                    Command = sprintf('%s %s %s,', Command, ColNames{Icol}, ColTypes{Icol});
+                end
+            end
+            Command = sprintf('%s ENGINE = %s  ORDER BY %s', Command, Args.Engine, Args.OrderBy);
+            
+            [~,Error] = Obj.query(Command, 'IsExec',true);
+            
+        end
+        
+        function Error=insert(Obj, TableName, InputTable)
+            % Insert operation to table in DB
+            %   Can either insert a table object or a csv file.
+            % Input  : - self.
+            %          - Table name to which to insert the data.
+            %          - data to insert. This is either a table which
+            %            columns corresponds to the columns in the DB
+            %            table, or this is a csv file name for bulk insert.
+            % Output : - Error message. If empty, then ok.      
+            % Author : Eran Ofek (Oct 2024)
+            % Dxample: D.insert('test_db.users',T1)
+            
+            arguments
+                Obj
+                TableName
+                InputTable    % table of csv file name
+            end
+            
+            if ischar(InputTable) || isstring(InputTable)
+                % Assume InputTable is a scv table
+                Command = sprintf("INSERT INTO %s FORMAT CSV FILE '%s'", TableName, TableName);
+                
+                [~,Error]   = Obj.query(Command, 'IsExec',true);
+            else
+                ColNames    = InputTable.Properties.VariableNames;
+                StrColNames = sprintf('%s, ',string(ColNames));
+                StrColNames = StrColNames(1:end-2);
+                ValuesStr   = db.Db.table2charDump(InputTable);
+                Command     = sprintf('INSERT INTO %s (%s) VALUES %s', TableName, StrColNames, ValuesStr);
+
+                [~,Error]   = Obj.query(Command, 'IsExec',true);
+            end
+            %         INSERT INTO test_db.users (id, name, age) VALUES (1, 'Alice', 30);
+            % 
+            %         INSERT INTO test_db.users (id, name, age) VALUES 
+            % (1, 'Alice', 30),
+            % (2, 'Bob', 25),
+            % (3, 'Charlie', 35);
+            % 
+            % INSERT INTO test_db.users (id, name, age)
+            % SELECT id, name, age FROM another_table;
+            
+        end
+    
+    end
+    
+    methods % DB, Tables information
         function [Result, Error] = showDB(Obj, Args)
             % Show all databases
             %   Using the 'SHOW DATABSES;' query.
@@ -289,7 +469,17 @@ classdef Db < Component
         end
 
         function [Result, Error] = showTables(Obj, Args)
-            %
+            % Retuen all tables in current DB
+            %       Use showCurrentDB to get the current DB.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'ReturnString' - Logical indicating if to return
+            %                   string array (true), or table (false).
+            %                   Default is true.
+            % Output : - List of tables in DB.
+            %          - Error message.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: D.showTables
 
             arguments
                 Obj
@@ -304,9 +494,15 @@ classdef Db < Component
             end
         end
 
-
         function [Result, Error] = describeTable(Obj, TableName, Args)
-            %
+            % Get table description (schema) with all column names and their properties.
+            % Input  : - self.
+            %          - Table name, or <database>.<table_name>
+            %          * ...mkey,val,...
+            %            'Convert2String' - A logical indicating if to
+            %                   convert the columns in cell arrays to
+            %                   string array. Default is true.
+            % Author : Eran Ofek (Oct 2024)
             % Example: D.describeTable('test_table')
             %          D.describeTable('test_db.test_table')
 
@@ -321,21 +517,47 @@ classdef Db < Component
 
         end
 
-
+        function [ColNames, ColTypes, Error] = getColumns(Obj, TableName)
+            % Return all column names and their type in a table.
+            % Input  : - self.
+            %          - Table name.
+            % Output : - A string array of column names.
+            %          - A string array of types of columns.
+            %          - Error message.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: [ColNames, ColTypes]=D.getColumns('test_db')
+            
+            Query = "SELECT name, type FROM system.columns WHERE table = 'users' AND database = 'test_db'";
+            [Tmp, Error] = Obj.query(Query, 'Convert2String',true);
+            ColNames = Tmp.name;
+            ColTypes = Tmp.type;
+            
+        end
+     
+    end
+    
+    methods % low level functions
         function [Result,Error]=queryCH_Java(Obj, Query, Args)
-            % Java is x2 faster
+            % Query Clickhouse DB using Java interface
+            % Input  : - self.
+            %          - A string with a query or exec command to execute.
+            %          * ...,key,val,...
+            %            'IsExec' - A logical indicating if to run the
+            %                   Query string as a query (false) or exec
+            %                   (true). If IsExec is true, then the output
+            %                   Result will be empty.
+            %                   Default is false.
+            % Output : - Output.
+            %          - Error message.
+            % Author : Eran Ofek (Oct 2024)
+            % Notes  : Java is x2 faster compared to the http interface.
+            % Example: D.queryCH_Java("SELECT * FROM test_db.test_table;");
+            
             
             arguments
                 Obj
                 Query     = "SELECT * FROM test_db.test_table;";
                 
-                    % 'db' - 'SHOW DATABASES'
-                    % '
-                
-                %"SELECT name FROM system.columns WHERE table = 'users' AND database = 'test_db'";
-
-                %SELECT name, type FROM system.columns WHERE table = 'users' AND database = 'test_db';
-
                 Args.IsExec logical           = false;
             end
             
@@ -354,7 +576,6 @@ classdef Db < Component
                     Result = struct2table(Result);
                 end
                 
-                
             else
                 Result = [];
             end
@@ -362,7 +583,7 @@ classdef Db < Component
         end
         
         function Result=queryCH_Http(Obj, TableName, Query)
-            %
+            % Query Clickhoues using the http interface [NOT FINALIZED]
             
             arguments
                 Obj
