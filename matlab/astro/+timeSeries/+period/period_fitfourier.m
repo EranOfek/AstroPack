@@ -1,4 +1,4 @@
-function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Args)
+function [PS,Par,Stat,H]=period_fitfourier(Data,FreqVec,Args)
 % Fit a Fourier series to a time series
 % Package: timeSeries.period
 % Description: Fit a polynomial and fourier series as a function of
@@ -38,6 +38,13 @@ function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Args)
 %          - Structure containing the best fit parameters and errors
 %            for each frequency.
 %            [1 T T^2 T^3,... sin(2*pi*f*H*T), ..., cos(2*pi*f*H*T),...]
+%          - Structure with the following fields:
+%            .Npar
+%            .Dof
+%            .Chi2
+%            .RMS
+%            .Ymodel
+%          - The full design matrix.
 % Tested : Matlab 7.11
 % Author : Eran Ofek (May 2011)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
@@ -121,7 +128,7 @@ for FreqInd=1:1:Nf
        otherwise
            error('Unknown Method option');
    end
-   Stat.Ymodel        = H.*P;
+   Stat.Ymodel        = H*P;
    Resid              = Data(:,2) - Stat.Ymodel;
    Stat.Chi2(FreqInd) = sum((Resid./Data(:,3)).^2);
    Stat.RMS(FreqInd)  = std(Resid);
