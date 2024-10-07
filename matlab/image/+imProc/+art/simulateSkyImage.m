@@ -1,4 +1,4 @@
-function [SimAI, InjectedCat] = simulateImage(Args)
+function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % simulate a sky image from source PSF and source magnitude distribution in the field 
         % Input:  - 
         %         * ...,key,val,... 
@@ -24,8 +24,8 @@ function [SimAI, InjectedCat] = simulateImage(Args)
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
             Args.WriteFiles = false;       % write the FITS image and a source catalog region file
-            Args.OutRegionName = 'LAST_sim.reg'; % region file name
             Args.OutImageName  = 'LAST_sim_image.fits'; % image file name
+            Args.OutRegionName = 'LAST_sim.reg'; % region file name            
             Args.OutArchName   = 'LAST_sim.mat'; % full archive file name
         end
         %
