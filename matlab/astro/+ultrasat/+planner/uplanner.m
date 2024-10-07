@@ -1,7 +1,7 @@
 classdef uplanner < Component 
     
     properties(Access = public)
-        Type
+        Type                     % HCS, LCS, AllSS, DDT, TOO 
         StartTime       
         EndTime
         Plan
@@ -50,6 +50,14 @@ classdef uplanner < Component
                 Args.TOOMaxTargets = 4; 
             end
             %
+            if ~isempty(Args.StartTime) 
+                Obj.StartTime = Args.StartTime;
+            end
+            %
+            if ~isempty(Args.EndTime)             
+                Obj.EndTime   = Args.EndTime;
+            end
+            %
             if isempty(Args.Type)
                 Obj.Type = 'DDT';
             else
@@ -67,10 +75,7 @@ classdef uplanner < Component
             if ~isempty(Args.TOOMaxTargets) 
                 Obj.TOOMaxTargets = Args.TOOMaxTargets;
             end
-            %
-            Obj.StartTime = Args.StartTime;
-            Obj.EndTime   = Args.EndTime;
-            %
+            % 
             Obj.Plan = table([],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns);
             %
             Obj.UniqTargList = table([],[],[],[],[],[],[],[],'VariableNames', Args.TargColumns);
@@ -114,7 +119,26 @@ classdef uplanner < Component
             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
-        %        
+        %
+        function buildDDT(Obj, Args)
+            %
+            arguments
+                Obj
+                Args.Coo
+            end
+            % 
+            % check visibility within the given time interval for each of
+            % the targets
+        end
+        %
+        function buildTOO(Obj, Args)
+            %
+            arguments
+                Obj 
+                Args.Map 
+            end
+        end
+        %
     end
 
     methods(Static)

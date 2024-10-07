@@ -9,7 +9,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
         %         'Back' - image background 
-        %         'WriteFiles' - logical (write output also to files)
+        %         'WriteFiles' - logical (write the output to FITS image and ds9 region files)
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
@@ -103,6 +103,6 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
              FITS.write(SimAI.Image, Args.OutImageName,'Header',SimAI.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
                 
-             save(Args.OutArchName,'SimAI','InjectedCat');                                
+             save(Args.OutArchName,'SimAI','InjectedCat');                                 
          end                
 end
