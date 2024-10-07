@@ -12,19 +12,19 @@ classdef uplanner < Component
         Cadence         
         
         % AllSS
-        AllSSHighLatThresh
-        HighLatVisits
-        LowLatVisits
-        EpochPerVisit           
-        DitherPattern
+        AllSSHighLatThresh = 30; % |RA| [deg]
+        HighLatVisits      = 16; % 1 visit = 3 x 300 s 
+        LowLatVisits       =  2;
+        EpochPerVisit      =  3;       
+        DitherPattern      = '2x2';
         
         % TOO
-        MaxTargets      
+        TOOMaxTargets      =  4;
         TOOProbMap      
         
-        Scheduled       % date or empty
-        Validated       % date or empty
-        Status          = 'draft';
+        Scheduled                % date or empty
+        Validated                % date or empty
+        Status             = 'draft';
     end
 
     properties(Access = private)
@@ -36,18 +36,36 @@ classdef uplanner < Component
             % object constructor
             % example: P = ultrasat.planner.uplanner;
             arguments                
-                Args.Type        = '';   % plan type  
+                Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
                 Args.StartTime   = '2028-01-01T00:00:01';
                 Args.EndTime     = '2031-12-31T23:23:59';
+                
                 Args.PlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
                                     'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets'};
                 Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'Vis'};
+                
+                Args.DailyWindow = [];   % length in hours
+                Args.Cadence     = [];   % cadence in days                
+                
+                Args.TOOMaxTargets = 4; 
             end
             %
             if isempty(Args.Type)
                 Obj.Type = 'DDT';
             else
                 Obj.Type = Args.Type;
+            end
+            % 
+            if ~isempty(Args.DailyWindow)
+                Obj.DailyWindow = Args.DailyWindow;
+            end
+            %
+            if ~isempty(Args.Cadence) 
+                Obj.Cadence = Args.Cadence;
+            end
+            %
+            if ~isempty(Args.TOOMaxTargets) 
+                Obj.TOOMaxTargets = Args.TOOMaxTargets;
             end
             %
             Obj.StartTime = Args.StartTime;
@@ -60,7 +78,7 @@ classdef uplanner < Component
         end
     end
     %
-    methods %  
+    methods % Building the plans  
         function calcVisibility(Obj, Args)
             % calculate visibility for the given period and time bin
             arguments
@@ -96,49 +114,7 @@ classdef uplanner < Component
             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
-        %
-        function findVisibilitySlots(Obj,Args)
-            % find visibility slots 
-            arguments
-                Obj
-                Args.UninterruptedDays = [];   % days   % later make all these different for each sky point
-                Args.NumExp            = 3;
-                Args.Expo              = 300;  % [s]   
-                Args.NSlots            = 1;  
-            end
-            SecPerDay = 86400;
-            % calculate the desired exposure in time bins 
-            if ~isempty(Args.UninterruptedDays)  % find visibility for an uninterrupted period in time bins
-                Obj.ExpBins = Args.UninterruptedDays/Obj.TimeBin; 
-            else                                 % find visibility for an uninterrupted period in exposures
-                Obj.ExpBins = Args.NumExp .* Args.Expo ./ SecPerDay /Obj.TimeBin; % [days] 
-            end
-            
-            % find first NSlots slots of length Obj.ExpD for each of the Obj.Coo points
-            Obj.StartSlot(Args.NSlots,Obj.NCoo) = 0;
-            
-            for Ip = 1:Obj.NCoo           % loop by coordinates (objects)
-                It    = 0; 
-                ISlot = 0;
-                while ISlot < Args.NSlots % loop by slots               
-                    ISlot   = ISlot + 1; 
-                    SlotVis = 0;                     
-                    while It < Obj.NumJD  % loop by time marks 
-                        It = It + 1;                         
-                        if Obj.CombVis(It,Ip) == 1
-                            SlotVis = SlotVis + 1;
-                        else
-                            SlotVis = 0;
-                        end
-                        if SlotVis > Obj.ExpBins 
-                            Obj.StartSlot(ISlot,Ip) = It-SlotVis+1;
-                            break;
-                        end
-                    end
-                end
-            end
-            Obj.StartSlotTime = Obj.StartDate + Obj.StartSlot .* Args.Expo ./ SecPerDay;  
-        end
+        %        
     end
 
     methods(Static)
