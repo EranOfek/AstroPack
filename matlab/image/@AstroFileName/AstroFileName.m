@@ -923,7 +923,7 @@ classdef AstroFileName < Component
                 end
             else
                 if Args.BreakToYMD
-                    Result = [extractBetween(Obj.Time(Ind), 1, 4), extractBetween(Obj.Time(Ind), 4, 5), extractBetween(Obj.Time(Ind), 6, 7)];
+                    Result = [extractBetween(Obj.Time(Ind), 1, 4), extractBetween(Obj.Time(Ind), 5, 6), extractBetween(Obj.Time(Ind), 7, 8)];
                 else
                     Result = extractBefore(Obj.Time(Ind), 9);
                 end
