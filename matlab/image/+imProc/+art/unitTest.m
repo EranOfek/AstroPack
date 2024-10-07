@@ -5,6 +5,7 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'imProc.art.unitTest started');
     
     %
+    cprintf('blue','Source injection test:\n');
     Nsrc = 100;
     AI0  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');     
     AI0  = imProc.sources.findMeasureSources(AI0,'Threshold', 10, 'PsfFunPar',{[0.1; 1.0; 1.5]});
@@ -23,8 +24,16 @@ function Result = unitTest()
     fprintf('Total sources: %d\n',height(AI.CatData.Catalog))
     %
     
-    
-    
+    cprintf('blue','Sky image simulation test:\n');
+    % simulate an image (by default -- based on LAST source statistics in the field 275-16)
+    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',false);
+    % extract the sources with mextractor 
+    [SimAI, SourceLess] = imProc.sources.mextractor(SimAI,'Verbose',true,...
+        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
+        'RedNoiseFactor',1.3);
+    % compare the input and output catalogs
+    SimCat.sortrows('Y1');
+    SimAI.CatData.sortrows('Y1');
     %
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
     Result = true;
