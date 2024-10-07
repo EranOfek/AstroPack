@@ -1,5 +1,24 @@
 % db.Db - A class for accessing databases
 %
+% Example: 
+% D=db.Db;  % create object
+% D.Conn;   % make Java connection
+% D.showDB  % show all DBs
+% D.useDB('test_db');   % set use for specific DB
+% D.showCurrentDB       % show current DB
+% D.showTables          % show Tables in current DB
+% D.describeTable('test_table')   % show Table columns and teir properties
+% [ColNames, ColTypes] = D.getColumns('test_table')
+%
+% T=D.query("SELECT * FROM test_db.test_table;")
+% D.query("USE test_db;", 'IsExec',true)
+% D.createTable('test_db',["id"; "name"; "age"], ["UInt32"; "String"; "UInt8"]);
+% D.insert('test_db.users',T1);
+% D.insert('test_db.users','file.csv');
+%
+% D.disconnectCH_Java % disconnect Java
+
+
 
 classdef Db < Component
     %
@@ -40,7 +59,11 @@ classdef Db < Component
             Val = Obj.DbName;
             if isempty(Val)
                 Struct     = Obj.getDbConfig;
-                Val        = Struct.DbName{1};
+                if isempty(Struct)
+                    Val = [];
+                else
+                    Val        = Struct.DbName{1};
+                end
                 Obj.DbName = Val; 
             end            
             
@@ -88,7 +111,11 @@ classdef Db < Component
         function [Conn, JarFile]=connectCH_Java(Args)
             % Connect to ClickHouse DB via Java
             %   To close connection use: close(Conn)
-            %
+            % Input  : * ...,key,val,...
+            %            See code for options
+            % Output : - Connection object.
+            %          - Jar file name.
+            % Author : Eran Ofek (Oct 2024)
             
             arguments
                 Args.DbName  = 'test_db';
@@ -248,15 +275,22 @@ classdef Db < Component
                 DbName  = [];
             end
             
-            Result = Obj.Config.Data.db.(Obj.DbType);
-            if isempty(DbName)
+            if isfield(Obj.Config.Data,'db')
+                Result = Obj.Config.Data.db.(Obj.DbType);
+                if isempty(DbName)
+                    Host = [];
+                    Port = [];
+                else
+                    Ind  = find(strcmp(Result.DbName, DbName));
+                    Host = Result.Host{Ind};
+                    Port = Result.Port{Ind};
+                end
+            else
                 Host = [];
                 Port = [];
-            else
-                Ind  = find(strcmp(Result.DbName, DbName));
-                Host = Result.Host{Ind};
-                Port = Result.Port{Ind};
+                Result = [];
             end
+
         end
     end
     
@@ -521,17 +555,29 @@ classdef Db < Component
 
         end
 
-        function [ColNames, ColTypes, Error] = getColumns(Obj, TableName)
+        function [ColNames, ColTypes, Error] = getColumns(Obj, TableName, DbName)
             % Return all column names and their type in a table.
             % Input  : - self.
             %          - Table name.
+            %          - DB name. If empty, then use current DB.
+            %            Default is [].
             % Output : - A string array of column names.
             %          - A string array of types of columns.
             %          - Error message.
             % Author : Eran Ofek (Oct 2024)
             % Example: [ColNames, ColTypes]=D.getColumns('test_db')
             
-            Query = "SELECT name, type FROM system.columns WHERE table = 'users' AND database = 'test_db'";
+            arguments
+                Obj
+                TableName
+                DbName     = [];
+            end
+
+            if isempty(DbName)
+                DbName = Obj.showCurrentDB;
+            end
+
+            Query = sprintf('SELECT name, type FROM system.columns WHERE table = ''%s'' AND database = ''%s''', TableName, DbName);
             [Tmp, Error] = Obj.query(Query, 'Convert2String',true);
             ColNames = Tmp.name;
             ColTypes = Tmp.type;
