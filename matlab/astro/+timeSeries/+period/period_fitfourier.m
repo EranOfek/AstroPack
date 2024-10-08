@@ -115,8 +115,8 @@ Par.Par   = zeros(Nf,Stat.Npar);
 Par.Err   = zeros(Nf,Stat.Npar);
 
 for FreqInd=1:1:Nf
-   Hharm = [sin(2.*pi.*FreqVec(FreqInd).*(T*Args.Harmon)),...
-            cos(2.*pi.*FreqVec(FreqInd).*(T*Args.Harmon))];
+   Hharm = [sin(2.*pi.*FreqVec(FreqInd).*(T.*Args.Harmon)),...
+            cos(2.*pi.*FreqVec(FreqInd).*(T.*Args.Harmon))];
 
    H = [Hpoly, Hharm, Hconst];
    switch lower(Args.Method)
