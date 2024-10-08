@@ -4,6 +4,10 @@ function [T] = insertImages(Obj, Args)
     % Input  : - 
     %          - 
     %          * ...,key,val,... 
+    %            'Db' - Db class handle. If empty, then will create one.
+    %                   If empty, then the db will be closed after
+    %                   insertion, otherwise it will not be closed.
+    %                   Default is [].
     %            'ColNameDic' - Either a cell array of header keywords to
     %                   extract from headers and insert to output table, or
     %                   a structure array with element per column to
@@ -27,6 +31,10 @@ function [T] = insertImages(Obj, Args)
     arguments
         Obj
 
+        Args.Db           = [];
+        Args.DbName       = [];
+        Args.DbTable      = [];   % if empty then do not insert to Db
+
         Args.ColNameDic
 
         % Unique time ID indexing
@@ -34,6 +42,10 @@ function [T] = insertImages(Obj, Args)
         Args.TimeColDB     = 'ID_Time';    % column name in DB (skip if empty)
         Args.ColJD         = 'MIDJD';      % JD column name in input table
         Args.TimeIndexFun  = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
+
+        % Unique insert time ID indexing
+        % bit encoded JD-J2000 in ms
+        Args.InsertTimeColDB     = 'ID_Time';    % column name in DB (skip if empty)
 
         % Unique instrument ID indexing
         % bit encoded instrument information
@@ -48,6 +60,18 @@ function [T] = insertImages(Obj, Args)
         Args.HealpixType   = 'nested';
         Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
         Args.HealpixColDB  = ["NSIDE_PARTITION", "NSIDE_LOW", "NSIDE_HIGH"];
+
+        % Write table
+        Args.FileName   = 'output.csv';  % tempname; % If empty, then skip this step (see writetable for more options)
+        Args.FileType   = 'text';        % see writetable for optoins
+        Args.WriteVarNames = {};
+        Args.Delimiter     = ',';
+        Args.LineEnding    = '\r\n';
+        Args.WriteVariableNames logical  = false;
+        Args.QuoteStrings                = 'minimal';
+        Args.WriteMode                   = 'overwrite';
+        Args.writetableArgs              = {};
+        Args.DeleteFile logical          = false;  % delete file after Db insertion
     end
 
     % convert headers to table
@@ -59,6 +83,13 @@ function [T] = insertImages(Obj, Args)
         % populate the TimeColDB
         T.(Args.TimeColDB) = Args.TimeIndexFun(T.(Args.ColJD));
     end
+
+    % add insert time unique ID
+    if ~isempty(Args.InsertTimeColDB)
+        InsertJD = celestial.time.julday;   % JD now
+        T.(Args.InsertTimeColDB) = Args.TimeIndexFun(repmat(InsertJD, Nt, 1));
+    end
+
 
     % add instrument uniqye ID
     if ~isempty(Args.ID_ColDB)
@@ -78,9 +109,33 @@ function [T] = insertImages(Obj, Args)
     end
 
     % write table to csv file
+    writetable(T, Args.FileName, 'FileType',Args.FileType,...
+                                 'Delimiter',Args.Delimiter,...
+                                 'LineEnding',Args.LineEnding,...
+                                 'WriteVariableNames',Args.WriteVariableNames,...
+                                 'QuoteStrings',Args.QuoteStrings,...
+                                 'WriteMode',Args.WriteMode,...
+                                 Args.writetableArgs{:});
+
 
     % insert csv to db
+    if ~isempty(Args.DbTable)
+        if isempty(Args.Db)
+            Db = db.Db;
+        else
+            Db = Args.Db;
+        end
+    
+        DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
+        Db.insert(DbTableStr, Args.FileName);
+        if isempty(Args.Db)
+            Db.disconnectCH_Java % disconnect Java
+        end
+    end
 
+    if Args.DeleteFile
+        delete(Args.FileName);
+    end
 
 end

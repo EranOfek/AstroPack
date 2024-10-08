@@ -236,8 +236,21 @@ classdef Db < Component
 
         end
 
-        
-        
+        function Result=concatDbTable(DbName, DbTable)
+            % Concat DB name and Db Table to <DbName>.<DbTable> string.
+            % Input  : - DbName. If empty, will return only DbTable.
+            %          - DbTable.
+            % Output : String of <DbName>.<DbTable>
+            % Author : Eran Ofek (Oct 2024)
+            % Example: db.Db.concatDbTable('test_db','test_table')
+            %          db.Db.concatDbTable([],'test_table')
+
+            if isempty(DbName)
+                Result = DbTable;
+            else
+                Result = sprintf('%s.%s', DbName, DbTable);
+            end
+        end
     end
     
     methods % utilities
