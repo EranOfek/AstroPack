@@ -41,7 +41,7 @@ function Gr = groupCounter(Counter, Args)
             D1(D1>1) = 0;
     
             %Diff = [Counter.',[diff(Counter),1].', [0;diff([diff(Counter),1].')], (1:1:Nc).'];
-            Diff = [Counter,D1, [0;diff(D1)], (1:1:Nc).'];
+            Diff = [Counter(:), D1, [0;diff(D1)], (1:1:Nc).'];
     
             IgroupStart = [1; find(Diff(:,3)>0)];
             Ng          = numel(IgroupStart);
