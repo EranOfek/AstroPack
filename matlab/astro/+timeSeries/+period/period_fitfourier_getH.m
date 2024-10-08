@@ -1,5 +1,5 @@
 function [Hpoly, Hharm, Hconst, Stat] = period_fitfourier_getH(Time,Frequency,Args)
-    % Construct a design matrix for time series, harmonies, polynom and constants to use for fitting a periodicity
+    % Construct a design matrix for time series, harmonies, polynomials and constants to use for fitting a periodicity
     %       The fitted series is:
     %       Y = A_ + A_*T + A_*T^3,... A_*sin(2*pi*f*T*H(1)) +
     %           A_*sin(2*pi*f*T*H(2)) + ...
