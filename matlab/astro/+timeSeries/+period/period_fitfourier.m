@@ -130,7 +130,7 @@ for FreqInd=1:1:Nf
    end
    Stat.Ymodel        = H*P;
    Resid              = Data(:,2) - Stat.Ymodel;
-   Stat.Chi2(FreqInd) = sum((Resid./Data(:,3)).^2);
+   Stat.Chi2(FreqInd) = sum((Resid./Data(:,Col.E)).^2);
    Stat.RMS(FreqInd)  = std(Resid);
    
 
