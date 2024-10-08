@@ -26,7 +26,7 @@ function [T] = insertImages(Obj, Args)
     % Author : Eran Ofek (2024 Oct) 
     % Example: A=AstroImage('LAST*coadd_Image_1.fits');
     %          ColNameDic = ["MIDJD", "RA", "DEC", "NODENUMB", "MOUNTNUM", "CAMNUM", "CROPID"]
-    %          T=imProc.db.insertImages(A,'ColNameDic',ColNameDic)
+    %          T=imProc.db.insertImages(A,'ColNameDic',ColNameDic, 'ColJD','MIDJD')
 
     arguments
         Obj
@@ -39,13 +39,13 @@ function [T] = insertImages(Obj, Args)
 
         % Unique time ID indexing
         % bit encoded JD-J2000 in ms
-        Args.TimeColDB     = 'ID_Time';    % column name in DB (skip if empty)
-        Args.ColJD         = 'MIDJD';      % JD column name in input table
-        Args.TimeIndexFun  = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
-
+        Args.ColIntTimeDB      = 'ID_TIME'; % column name in DB (skip if empty)
+        Args.ColJD             = 'JD';  % column name or numeric (if numeric, then use as is)
+        Args.IntTimeFun        = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
+        
         % Unique insert time ID indexing
         % bit encoded JD-J2000 in ms
-        Args.InsertTimeColDB     = 'ID_Time';    % column name in DB (skip if empty)
+        Args.ColInsertIntTimeDB     = 'ID_Time';    % column name in DB (skip if empty)
 
         % Unique instrument ID indexing
         % bit encoded instrument information
@@ -59,7 +59,8 @@ function [T] = insertImages(Obj, Args)
         Args.CooUnits      = 'deg';
         Args.HealpixType   = 'nested';
         Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
-        Args.HealpixColDB  = ["NSIDE_PARTITION", "NSIDE_LOW", "NSIDE_HIGH"];
+        Args.ColHealpix    = ["NSIDE_PARTITION", "NSIDE_LOW", "NSIDE_HIGH"];
+        Args.UniqueID logical = true;
 
         % Write table
         Args.FileName   = 'output.csv';  % tempname; % If empty, then skip this step (see writetable for more options)
@@ -76,37 +77,34 @@ function [T] = insertImages(Obj, Args)
 
     % convert headers to table
     T  = imProc.header.headers2table(Obj, 'OutType','table', 'ColNameDic',Args.ColNameDic);
+    T  = tools.table.table_cell2string(T);
     Nt = size(T,1);
 
     % add Time unique ID
-    if ~isempty(Args.TimeColDB)
-        % populate the TimeColDB
-        T.(Args.TimeColDB) = Args.TimeIndexFun(T.(Args.ColJD));
+    if ~isempty(Args.ColIntTimeDB)
+        T = db.util.insertIntegerTime2table(T, 'ColJD',Args.ColJD, 'ColIntTime', Args.ColIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
     end
-
+        
     % add insert time unique ID
-    if ~isempty(Args.InsertTimeColDB)
+    if ~isempty(Args.ColInsertIntTimeDB)
         InsertJD = celestial.time.julday;   % JD now
-        T.(Args.InsertTimeColDB) = Args.TimeIndexFun(repmat(InsertJD, Nt, 1));
+        T = db.util.insertIntegerTime2table(T, 'ColJD',InsertJD, 'ColIntTime', Args.ColInsertIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
     end
 
-
-    % add instrument uniqye ID
-    if ~isempty(Args.ID_ColDB)
-        Nc = numel(Args.ColID);
-        InstID = zeros(Nt, Nc);
-        for Ic=1:1:Nc
-            InstID(:,Ic) = T.(Args.ColID{Ic});
-        end
-        T.(Args.ID_ColDB) = tools.bit.bitEncode(Args.BitDigits, InstID);
-    end           
-
+    % % add instrument uniqye ID
+    % if ~isempty(Args.ID_ColDB)
+    %     Nc = numel(Args.ColID);
+    %     InstID = zeros(Nt, Nc);
+    %     for Ic=1:1:Nc
+    %         InstID(:,Ic) = T.(Args.ColID{Ic});
+    %     end
+    %     T.(Args.ID_ColDB) = tools.bit.bitEncode(Args.BitDigits, InstID);
+    % end           
 
     % add healpix ID
-    Nlevel = numel(Args.HealpixLevel);
-    for Ilevel=1:1:Nlevel
-        T.(Args.HealpixColDB{Ilevel}) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), T.(Args.ColRA), T.(Args.ColDec), 'Type',Args.HealpixType, 'CooUnits',Args.CooUnits);
-    end
+    T = db.util.insertHealpixIndex2table(T, 'ColRA',Args.ColRA, 'ColDec',Args.ColDec, 'CooUnits',Args.CooUnits,...
+                                            'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                            'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
 
     % write table to csv file
     writetable(T, Args.FileName, 'FileType',Args.FileType,...
