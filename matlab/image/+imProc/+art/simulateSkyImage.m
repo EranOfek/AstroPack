@@ -1,4 +1,4 @@
-function [SimAI, InjectedCat] = simulateImage(Args)
+function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % simulate a sky image from source PSF and source magnitude distribution in the field 
         % Input:  - 
         %         * ...,key,val,... 
@@ -9,11 +9,11 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
         %         'Back' - image background 
-        %         'WriteFiles' - logical (write output also to files)
+        %         'WriteFiles' - logical (write the output to FITS image and ds9 region files)
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
-        % Example: [SimAI, SimCat] = imProc.art.simulateImage('WriteFiles',true);
+        % Example: [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',true);
         % 
         arguments
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
@@ -24,9 +24,9 @@ function [SimAI, InjectedCat] = simulateImage(Args)
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
             Args.WriteFiles = false;       % write the FITS image and a source catalog region file
-            Args.OutRegionName = 'LAST_sim.reg'; % region file name
-            Args.OutImageName  = 'LAST_sim_image.fits'; % image file name
-            Args.OutArchName   = 'LAST_sim.mat'; % full archive file name
+            Args.OutImageName  = '~/LAST_sim_image.fits'; % image file name
+            Args.OutRegionName = '~/LAST_sim.reg';        % region file name            
+            Args.OutArchName   = '~/LAST_sim.mat';        % full archive file name
         end
         %
         SimAI = AstroImage;
@@ -86,8 +86,10 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         
         % need to set up an empty image
         SimAI.Image = repmat(0,Nx,Ny);
+        SimAI.Mask  = repmat(uint32(0),Nx,Ny);
         SimAI.setKeyVal('OBJECT','Simulated');
-        
+        SimAI.PSF   = PSF;
+         
         [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
                                                         'UpdateCat', false, ... 
                                                         'MagZP',Args.MagZP, ... 
@@ -95,6 +97,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
                                                         'Back', Back, ... 
                                                         'AddBackground',true,... 
                                                         'NoiseModel', 'normal'); 
+                                                             
          % write disk files if requested 
          if Args.WriteFiles             
              DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
@@ -103,6 +106,6 @@ function [SimAI, InjectedCat] = simulateImage(Args)
              FITS.write(SimAI.Image, Args.OutImageName,'Header',SimAI.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
                 
-             save(Args.OutArchName,'SimAI','InjectedCat');                                
+             save(Args.OutArchName,'SimAI','InjectedCat');                                 
          end                
 end

@@ -552,7 +552,7 @@ classdef AstroDiff < AstroImage
             % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
             %   Restimate Fn/Fr using various methods.
             %   This function is automatically called by the Fn/Fr getters.
-            %   Calling this function will recalculate Fr/Fn.
+            %   Calling this function will recalculate Fn/Fr.
             % Input  : - An AstroDiff object.
             %          * ...,key,val,...
             %            'NewZP' - Either Zero Point (in mag or flux), or
@@ -609,7 +609,7 @@ classdef AstroDiff < AstroImage
                     Fr = Args.Fn .* Fr./Fn;
                     Fn = Args.Fn;
                 end
-                        
+                
                 % Its important not to use the Fn/Fr getters
                 Obj(Iobj).Fr = Fr;
                 Obj(Iobj).Fn = Fn;
@@ -883,7 +883,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
-                              limits are flagged. Default is [0.1 1.5].
+                              limits are flagged. Default is [0.19 1.31].
                        'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
                               for New and Ref images. Condition requires that in
                               at least one of the images, the source is not
@@ -930,17 +930,12 @@ classdef AstroDiff < AstroImage
                        'NeighborNumThreshold' - Threshold for the number of
                               neighbors at which to filter the transients
                               candidate. Default is 2.
-                       'ExcludedNeighbors' - Flags for which not to count nearby
-                              transients candidates as neighbors. Values are
-                              names of columns in the candidate catalog, this is
-                              meant to see if the candidates fail any other
-                              filters. Default is ["BadPixel_Hard","StarMatches"].
                        'flagPeakDist' - Bool on whether to flag transients for
                               which the peak pixel coordinates deviates too far
                               from the peak sub-pixel coordinates. Default is
                               true.
                        'PeakDistThreshold' - Threshold distance for the pixel to
-                              sub-pixel peak distance filter. Default is 1.5.
+                              sub-pixel peak distance filter. Default is 1.33.
                        'PeakDistThresholdGal' - Threshold distance for the pixel to
                               sub-pixel peak distance filter if cnadidate has a 
                               galaxy match. Default is 2.0.
@@ -985,7 +980,7 @@ classdef AstroDiff < AstroImage
                 Args.flagValleys logical = true;
 
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits = [0.1 1.5];
+                Args.Chi2dofLimits = [0.19 1.31];
                 Args.MinNRChi2dof = 0.1;
                 
                 Args.flagSaturated logical = true;
@@ -993,7 +988,7 @@ classdef AstroDiff < AstroImage
                 Args.flagBadPix_Hard logical  = true;
                 Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
                     'Hole', 'CR_DeltaHT', 'Negative'};
-        
+
                 Args.flagBadPix_Soft logical  = true;
                 Args.BadPix_Soft       = {{'HighRN', 6.5, 13.0}, {'SrcNoiseDominated', 6.5, 13.0}, ...
                     {'FlatHighStd',6.5, 13.0}, {'DarkHighVal', 6.5, 13.0},...
@@ -1010,10 +1005,9 @@ classdef AstroDiff < AstroImage
                 Args.flagDensity logical = true;
                 Args.NeighborDistanceThreshold = 100;
                 Args.NeighborNumThreshold = 2;
-                Args.ExcludedNeigbhors = ["BadPixel_Hard","STAR_N"];
         
                 Args.flagPeakDist logical = true;
-                Args.PeakDistThreshold = 1.5;
+                Args.PeakDistThreshold = 1.33;
                 Args.PeakDistThresholdGal = 2.0;
     
                 Args.flagLimitingMag logical = true;
@@ -1055,7 +1049,6 @@ classdef AstroDiff < AstroImage
                     'flagDensity', Args.flagDensity,...
                     'NeighborDistanceThreshold', Args.NeighborDistanceThreshold,...
                     'NeighborNumThreshold', Args.NeighborNumThreshold,...
-                    'ExcludedNeigbhors', Args.ExcludedNeigbhors, ...
                     'flagPeakDist', Args.flagPeakDist,...
                     'PeakDistThreshold', Args.PeakDistThreshold,...
                     'PeakDistThresholdGal', Args.PeakDistThresholdGal,...

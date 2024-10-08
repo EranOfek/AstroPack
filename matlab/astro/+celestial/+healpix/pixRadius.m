@@ -1,5 +1,5 @@
 function [PixelRadius] = pixRadius(Nside)
-    % Return the healpix radius, given its NSide. 
+    % Return the healpix diameter, given its NSide. 
     % Input  : - Healpix Nside.
     % Output : - Healpix max. radius [radians].
     % Author : Eran Ofek (2024 Sep) 
