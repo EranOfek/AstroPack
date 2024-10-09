@@ -152,9 +152,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PVDistThresh = 10;
 
         Args.flagPSFShape logical = true;
-        Args.PSFShapeFWHMThreshSoft = 3.0;
-        Args.PSFShapeFWHMThreshHard = 4.0;
-        Args.PSFShape2ndMomentThresh = 2.0;
+        Args.PSFShapeFWHMThresh = 4.0;
+        Args.PSFShape2ndMomentLims = [0.6, 1.5];
         
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -432,12 +431,13 @@ function TranCat = flagNonTransients(Obj, Args)
             X2 = Cat.getCol('X2');
             Y2 = Cat.getCol('Y2');
             
-            FWHMFlaggedHard = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThreshHard);
-            FWHMFlaggedSoft = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThreshSoft);
-            SecondMomentFlagged = (X2 > Args.PSFShape2ndMomentThresh) | ...
-                (Y2 > Args.PSFShape2ndMomentThresh);
-            PSFShapeFlagged = (FWHMFlaggedHard) | ...
-                (FWHMFlaggedSoft & SecondMomentFlagged);
+            FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh);
+            SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLims(2)) | ...
+                (X2 < Args.PSFShape2ndMomentLims(1));            
+            SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLims(2)) | ...
+                (Y2 < Args.PSFShape2ndMomentLims(1)); 
+            SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY;
+            PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end
 
@@ -481,13 +481,10 @@ function TranCat = flagNonTransients(Obj, Args)
         % ----- Always last -----
         
         if Args.flagDensity
-
             XY = Cat.getXY;
             Ntran = numel(XY(:,2));
-
             % Only count neighbors that have passed all filters
             ExcludeNeighbor = (TF_Flags > 0);
-
             % Iterate through each candidate
             for Itran = Ntran:-1:1
                 % Get distance to all other candidates
@@ -500,15 +497,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 % and remove itself if it was not excluded
                 Nneighbors(Itran) = sum(IsNeighbor) - ~ExcludeNeighbor(Itran);
             end
-
             % Add number of neighbors to catalog
             Nneighbors = transpose(Nneighbors);
             TranCat(Iobj) = Obj(Iobj).CatData.insertCol(cast(Nneighbors,'double'), ...
                 'SCORE', {'N_NEIGH'}, {''});
-
             % Test number of neighbors against threshold
             Overdensity = (Nneighbors >= Args.NeighborNumThreshold);
-
             % Update flags
             OverdensityFlagged = Overdensity;
             TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
