@@ -22,8 +22,8 @@ function Result = unitTest()
     
     fprintf('Added sources: %d\n',height(InjectedCat.Catalog))
     fprintf('Total sources: %d\n',height(AI.CatData.Catalog))
-    %
-    
+    % 
+    % 
     cprintf('blue','Sky image simulation test:\n');
     % simulate an image (by default -- based on LAST source statistics in the field 275-16)
     [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',false);
