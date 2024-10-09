@@ -7,8 +7,13 @@ function [Result] = headers2table(Obj, Args)
     %                   a structure array with element per column to
     %                   extract and the following fields:
     %                   .ColName - Column name to extract.
+    %                           If the col name does not exist in input
+    %                           header, then will populate it with NaN in
+    %                           the output table.
     %                   .ColFun - A function to apply to the extracted
     %                           value. If empty, do not apply function.
+    %                           This may also include column types
+    %                           functions (e.g., @int16).
     %                           Default is empty.
     %                   .ColNameOut - The column name in the output table.
     %                           If empty, use input column name.
@@ -91,6 +96,7 @@ function [Result] = headers2table(Obj, Args)
     
     TmpTbl = cell2table(OutCell, 'VariableNames',ColName);
     
+    % execute functions on specific columns
     if all(tools.cell.isempty_cell(ColFun))
         OutTbl = TmpTbl;
         OutTbl.Properties.VariableNames = ColNameOut;
@@ -110,6 +116,9 @@ function [Result] = headers2table(Obj, Args)
         end            
         
     end  
+
+    % convert columns to specific types
+
 
     switch Args.OutType
         case 'table'

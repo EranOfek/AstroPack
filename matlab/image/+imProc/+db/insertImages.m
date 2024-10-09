@@ -25,8 +25,15 @@ function [T] = insertImages(Obj, Args)
     % Output : - 
     % Author : Eran Ofek (2024 Oct) 
     % Example: A=AstroImage('LAST*coadd_Image_1.fits');
-    %          ColNameDic = ["MIDJD", "RA", "DEC", "NODENUMB", "MOUNTNUM", "CAMNUM", "CROPID"]
+    %          ColNameDic = ["MIDJD", "RA", "DEC", "NODENUMB", "MOUNTNUM","CAMNUM", "CROPID", "ORIGSEC", "ORIGUSEC", "UNIQSEC"]
     %          T=imProc.db.insertImages(A,'ColNameDic',ColNameDic, 'ColJD','MIDJD')
+    %
+    %          [St(1:numel(ColNameDic)).ColName]=deal(ColNameDic{:});
+    %          [St(8:10).ColFun] = deal(@(x) int16(imUtil.ccdsec.ccdsecStr2num(x)));
+    %          St(8).ColNameOut = ["origsec_xmin", "origsec_xmax", "origsec_ymin", "origsec_ymax"];
+    %          St(9).ColNameOut = ["origusec_xmin", "origusec_xmax", "origusec_ymin", "origusec_ymax"];
+    %          St(10).ColNameOut = ["uniqsec_xmin", "uniqsec_xmax", "uniqsec_ymin", "uniqsec_ymax"];
+    %          T=imProc.db.insertImages(A,'ColNameDic',St, 'ColJD','MIDJD')
 
     arguments
         Obj
@@ -63,7 +70,7 @@ function [T] = insertImages(Obj, Args)
         Args.UniqueID logical = true;
 
         % Write table
-        Args.FileName   = 'output.csv';  % tempname; % If empty, then skip this step (see writetable for more options)
+        Args.FileName   = '/home/eran/output.csv';  % tempname; % If empty, then skip this step (see writetable for more options)
         Args.FileType   = 'text';        % see writetable for optoins
         Args.WriteVarNames = {};
         Args.Delimiter     = ',';
