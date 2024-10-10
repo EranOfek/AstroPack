@@ -243,3 +243,11 @@ Items:
         #        Size                 : 76
         #        SearchFile           : ''
         #        Description          : 'ULTRASAT Raw Data of Optical Design'
+
+    ClickHouseJar:
+        DataName             : 'ClickHouseJar'
+        SubDir               : 'Java/Clickhouse'
+        URL                  : ['https://github.com/ClickHouse/clickhouse-java/releases/download/v0.7.0/clickhouse-jdbc-0.7.0-all.jar']
+        Size                 : 7700000
+        SearchFile           : ''
+        Description          : 'Clickhouse JAVA Jar file'

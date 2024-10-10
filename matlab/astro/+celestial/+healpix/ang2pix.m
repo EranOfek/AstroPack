@@ -6,6 +6,9 @@ function [Pix] = ang2pix(Nside, Lon, Lat, Args)
     %          * ...,key,val,... 
     %            'Type' - 'nested'|'ring'. Default is 'nested'.
     %            'CooUnits - Units of input coordinates. Default is 'rad'.
+    %            'UniqueID' - A logical flag indicating if to return a
+    %                   unique ID (using celestial.healpix.pix2uniqueId).
+    %                   Default is false.
     % Output : - Array of healpix pixel indices (int64)
     % Compliation: mex CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" ang2pix_nested.cpp
     %              mex CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" ang2pix_ring.cpp
@@ -18,6 +21,8 @@ function [Pix] = ang2pix(Nside, Lon, Lat, Args)
         Lat
         Args.Type      = 'nested';
         Args.CooUnits  = 'rad';
+
+        Args.UniqueID logical  = false;
     end
 
     Factor = convert.angular(Args.CooUnits,'rad');
@@ -31,6 +36,10 @@ function [Pix] = ang2pix(Nside, Lon, Lat, Args)
             [Pix] = celestial.healpix.mex.ang2pix_ring(Nside, Lon, Lat);
         otherwise
             error('Unknown Type option');
+    end
+
+    if Args.UniqueID
+        Pix = celestial.healpix.pix2uniqueId(Nside, Pix);
     end
 
 end

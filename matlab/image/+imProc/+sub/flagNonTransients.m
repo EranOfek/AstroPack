@@ -11,7 +11,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
                 'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                        'filterChi2' is true, all transients candidates outside these
-                       limits are flagged. Default is [0.1 1.5].
+                       limits are flagged. Default is [0.19 1.31].
                 'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
                        for New and Ref images. Condition requires that in
                        at least one of the images, the source is not
@@ -59,17 +59,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 'NeighborNumThreshold' - Threshold for the number of
                        neighbors at which to filter the transients
                        candidate. Default is 2.
-                'ExcludedNeighbors' - Flags for which not to count nearby
-                       transients candidates as neighbors. Values are
-                       names of columns in the candidate catalog, this is
-                       meant to see if the candidates fail any other
-                       filters. Default is ["BadPixel_Hard","StarMatches"].
                 'flagPeakDist' - Bool on whether to flag transients for
                        which the peak pixel coordinates deviates too far
                        from the peak sub-pixel coordinates. Default is
                        true.
                 'PeakDistThreshold' - Threshold distance for the pixel to
-                       sub-pixel peak distance filter. Default is 1.5.
+                       sub-pixel peak distance filter. Default is 1.33.
                 'PeakDistThresholdGal' - Threshold distance for the pixel to
                        sub-pixel peak distance filter if cnadidate has a 
                        galaxy match. Default is 2.0.
@@ -120,7 +115,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagValleys logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.1 1.5];
+        Args.Chi2dofLimits = [0.19 1.31];
         Args.MinNRChi2dof = 0.1;
         
         Args.flagSaturated logical = true;
@@ -145,10 +140,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
         Args.NeighborNumThreshold = 2;
-        Args.ExcludedNeigbhors = ["BadPixel_Hard","STAR_N"];
 
         Args.flagPeakDist logical = true;
-        Args.PeakDistThreshold = 1.5;
+        Args.PeakDistThreshold = 1.33;
         Args.PeakDistThresholdGal = 2.0;
 
         Args.flagLimitingMag logical = true;
@@ -157,10 +151,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPeakValley logical = true;
         Args.PVDistThresh = 10;
 
-        Args.flagFocusing logical = true;
-        Args.FocusFWHMThreshSoft = 3.0;
-        Args.FocusFWHMThreshHard = 4.0;
-        Args.Focus2ndMomentThresh = 2.0;
+        Args.flagPSFShape logical = true;
+        Args.PSFShapeFWHMThresh = 4.0;
+        Args.PSFShape2ndMomentLims = [0.6, 1.5];
         
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -195,13 +188,11 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Initialize transients bool
         TF_Flags = zeros(CatSize,1);
-        IsTransient = true(CatSize,1);
 
         % Flag negative candidates
         if Args.flagValleys
             Score = Cat.getCol('SCORE');
 
-            IsTransient = IsTransient & ~(Score < 0.0);
             ValleyFlagged = (Score < 0.0);
             TF_Flags = TF_Flags + ValleyFlagged.*2.^BD_TF.name2bit('Negative');
         end
@@ -353,6 +344,8 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
+        %{ 
+        % Old application
         % Apply density criterium
         if Args.flagDensity
 
@@ -380,7 +373,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             Nneighbors = transpose(Nneighbors);
-            Cat(Iobj) = Cat(Iobj).insertCol(cast(Nneighbors,'double'), ...
+            Cat(Iobj) = Obj(Iobj).CatData.insertCol(cast(Nneighbors,'double'), ...
                 'SCORE', {'N_NEIGH'}, {''});
             Overdensity = (Nneighbors >= Args.NeighborNumThreshold);
 
@@ -388,6 +381,7 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
             
         end
+        %}
 
         if Args.flagPeakDist && Cat.isColumn('PEAK_DIST') 
 
@@ -430,23 +424,23 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
 
         end
-
-
-        if Args.flagFocusing
+        
+        if Args.flagPSFShape
             NFWHM = Obj(Iobj).New.PSFData.fwhm;
 
             X2 = Cat.getCol('X2');
             Y2 = Cat.getCol('Y2');
             
-            FWHMFlaggedHard = ones(CatSize,1)*(NFWHM > Args.FocusFWHMThreshHard);
-            FWHMFlaggedSoft = ones(CatSize,1)*(NFWHM > Args.FocusFWHMThreshSoft);
-            SecondMomentFlagged = (X2 > Args.Focus2ndMomentThresh) | ...
-                (Y2 > Args.Focus2ndMomentThresh);
-            FocusFlagged = (FWHMFlaggedHard) | ...
-                (FWHMFlaggedSoft & SecondMomentFlagged);
-            TF_Flags = TF_Flags + FocusFlagged.*2.^BD_TF.name2bit('Focusing');
+            FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh);
+            SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLims(2)) | ...
+                (X2 < Args.PSFShape2ndMomentLims(1));            
+            SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLims(2)) | ...
+                (Y2 < Args.PSFShape2ndMomentLims(1)); 
+            SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY;
+            PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
+            TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end
-              
+
         % ----- AstroZOGY -----
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
@@ -482,6 +476,37 @@ function TranCat = flagNonTransients(Obj, Args)
             TranslientFlagged = IsTranslient;
             TF_Flags = TF_Flags + TranslientFlagged.*2.^BD_TF.name2bit('Translient');
 
+        end
+
+        % ----- Always last -----
+        
+        if Args.flagDensity
+            XY = Cat.getXY;
+            Ntran = numel(XY(:,2));
+            % Only count neighbors that have passed all filters
+            ExcludeNeighbor = (TF_Flags > 0);
+            % Iterate through each candidate
+            for Itran = Ntran:-1:1
+                % Get distance to all other candidates
+                NeighborDist = sqrt((XY(Itran,2)-XY(:,2)).^2+(XY(Itran,1)-XY(:,1)).^2);
+                % Test distance against threshold
+                IsNeighbor = NeighborDist < Args.NeighborDistanceThreshold;
+                % Remove excluded neighbors
+                IsNeighbor = IsNeighbor & ~ExcludeNeighbor;
+                % Count remaining neighbors
+                % and remove itself if it was not excluded
+                Nneighbors(Itran) = sum(IsNeighbor) - ~ExcludeNeighbor(Itran);
+            end
+            % Add number of neighbors to catalog
+            Nneighbors = transpose(Nneighbors);
+            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(cast(Nneighbors,'double'), ...
+                'SCORE', {'N_NEIGH'}, {''});
+            % Test number of neighbors against threshold
+            Overdensity = (Nneighbors >= Args.NeighborNumThreshold);
+            % Update flags
+            OverdensityFlagged = Overdensity;
+            TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
+            
         end
 
         % Safe flags as bit value.

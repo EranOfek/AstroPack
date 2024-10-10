@@ -152,7 +152,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
             
-            % PSF fit all candidates in the Ref image
+            % PSF fit all candidates in the Ref image   
             CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1.X, M1.Y, CutHalfSize);
             % Change the sign of negative sources
