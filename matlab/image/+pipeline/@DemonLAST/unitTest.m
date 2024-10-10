@@ -14,6 +14,8 @@ function Result = unitTest(Args)
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
         Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
+        Args.NonStandardNew   = '';
+        Args.MinInGroup       = 20;
     end
     
 %     Args = tools.code.updateParFromConfig(Args,'LASTpipeline_def');
@@ -34,7 +36,9 @@ function Result = unitTest(Args)
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs,...
            'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
            'SaveEpochProduct',Args.SaveEpochProduct,...
-           'MaxInGroup',1,'MinNumImageVisit',0);
+           'NonStandardNew',Args.NonStandardNew,...
+           'MinInGroup',Args.MinInGroup,...
+           'PauseDay',1,'PauseNight',1);
     
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation
