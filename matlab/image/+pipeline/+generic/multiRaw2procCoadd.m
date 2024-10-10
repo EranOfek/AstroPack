@@ -221,6 +221,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
         Args.UpdateCounter logical            = true;
         
+        Args.DoCoadd                          = true;   % when false do not produce coadd images & catalogs 
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
         % Background and source finding
@@ -506,6 +507,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %                         'SaveFields', DataProp([Args.SaveProcIm, Args.SaveProcMask, Args.SaveProcCat, false]));
     
     
+    if Args.DoCoadd && size(AllSI,1) > 1
+    
     Args.ReturnRegisteredAllSI = false;
     % procMergeCoadd:
     % coadd the sub images of each field
@@ -595,6 +598,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % % save Asteroids MAT file
     % Igood = find(FlagGood, 1);
     % writeProduct(IP(Igood), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');
+    
+    else
+        io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: coadding is not performed');
+        [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, OnlyMP] = deal([]);
+    end
     
 end
 
