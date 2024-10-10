@@ -107,6 +107,11 @@ classdef uplanner < Component
                 Obj 
                 Args.Map 
             end
+            % read the map, prepare targets
+            %
+            % check visibility for each of the targets and prepare the plan 
+            %
+            % 
         end
         %
     end
