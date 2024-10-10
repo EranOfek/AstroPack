@@ -1,9 +1,11 @@
 function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     % Convert JD (TDB) to Barycentric JD (TDB)
-    % Input  : - JD in TDB time scale.
+    % Input  : - JD (in some time scale).
     %          - J2000.0 RA (default units radinas).
     %          - J2000.0 Dec (default units radinas).
     %          * ...,key,val,...
+    %            'InTimeScale' - Time scale of input JD: 'TT'|'TDB'|'UTC'.
+    %                   Default is 'TDB'.
     %            'GeoPos' - Geodetic position. If [], then assume geocentric position
     %                   and return zeros. Otherwise should be [Long, Lat, Height]
     %                   in [rad, rad, m]. Default is [].
@@ -23,11 +25,13 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     % Author : Eran Ofek (May 2022)
     % Example: [BJD, BVel] = celestial.time.barycentricJD(2451545,1,1)
     %          [BJD, BVel] = celestial.time.barycentricJD(2451545,1,1,'VelOutUnits','au/day')
+    %          [BJD, BVel] = celestial.time.barycentricJD(2460000,1,1,'InTimeScale','UTC')
     
     arguments
         JD
         RA
         Dec
+        Args.InTimeScale    = 'TDB'; % 'UTC'|'TDB'|'TT'
         Args.GeoPos         = [];
         Args.RefEllipsoid   = 'WGS84';
         Args.Object         = 'Ear';
@@ -36,7 +40,41 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.INPOP          = [];
     end
     
+    SECOND_DAY = 86400;
+    
     warning('not tested')
+    
+    if isempty(Args.INPOP)
+        IP = celestial.INPOP;
+        IP.populateTables(Args.Object, 'FileData', 'pos');
+        IP.populateTables(Args.Object, 'FileData', 'vel');
+        IP.populateTables('TT');
+    else
+        IP = Args.INPOP;
+    end
+
+    
+    switch Args.InTimeScale
+        case 'TDB'
+            % do nothing - already in TDB time scale.
+    
+        case 'TT'
+            TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
+            % UTC + TT - UTC - TT + TDB
+            JD       = JD - (TTmTDB)./SECOND_DAY;             
+
+        case 'UTC'
+            [TTmUTC] = celestial.time.tt_utc(JD);  % [s]
+            if isnan(TTmUTC)
+                error('TT - UTC is not available');
+            end
+            TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
+            % UTC + TT - UTC - TT + TDB
+            JD       = JD + (TTmUTC-TTmTDB)./SECOND_DAY;             
+            
+        otherwise
+            error('Unknown InTimeScale option');
+    end
     
     ConvFactor = convert.angular(Args.CooUnits, 'rad');
     RA         = RA.*ConvFactor;
@@ -50,14 +88,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     C          = constant.c;
     SEC_IN_DAY = 86400;
     
-    if isempty(Args.INPOP)
-        IP = celestial.INPOP;
-        IP.populateTables(Args.Object, 'FileData', 'pos');
-        IP.populateTables(Args.Object, 'FileData', 'vel');
-    else
-        IP = Args.INPOP;
-    end
-    
+        
     AU         = IP.Constant.AU .* 1e5;   % cm
     
     Pos = IP.getPos(Args.Object, JD, 'OutUnits','au', 'IsEclipticOut',false);  % [au]
