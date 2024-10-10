@@ -2557,6 +2557,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
+                Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2634,6 +2635,7 @@ classdef DemonLAST < Component
             % change the paths if a non-standard new directory is given
             if ~isempty(Args.NonStandardNew)
                 Args.MinNumImageVisit = 1;
+                Args.UpdateStatusFile = false;
                 CalibPath  = Obj.CalibPath;
                 FailedPath = Obj.FailedPath;
                 LogPath    = Obj.LogPath;
@@ -3041,8 +3043,10 @@ classdef DemonLAST < Component
                             io.files.moveFiles(RawImageList, RawImageListFinal);
                         
                             % Write ready-to-transfer
-                            writeStatus(Obj, FN_Proc.genPath);
-                            writeStatus(Obj, fileparts(RawImageListFinal{1}));
+                            if Args.UpdateStatusFile
+                                writeStatus(Obj, FN_Proc.genPath);
+                                writeStatus(Obj, fileparts(RawImageListFinal{1}));
+                            end
 
                             % Insert pipeline products to the DB
                             if Args.Insert2DB 
@@ -3082,7 +3086,9 @@ classdef DemonLAST < Component
                                     ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','Table',Args.DB_Table_Coadd,'FileNames',CoaddFileName(HasImageC));                                                                               
                                     
                                     FN_I_DB = FN_I.copy; OK = 1; 
-                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
+                                    if Args.UpdateStatusFile
+                                        Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
+                                    end
                                     RunTime = etime(clock, Tstart);
                                     Msg{1} = sprintf('CSV files with image header data written to disk, RunTime %.1f', RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
@@ -3094,7 +3100,9 @@ classdef DemonLAST < Component
                                     ADB.insert(ProcCat, 'Type','bulkcat', 'BulkFN',FN_Proc, 'BulkCatType','proc','BulkAI',AllSI(1));
                                     ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
                                     FN_CatProc = FN_Proc.copy;
-                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
+                                    if Args.UpdateStatusFile
+                                        Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');
+                                    end
                                     RunTime = etime(clock, Tstart);
                                     Msg{1} = sprintf('CSV files with catalog data written to disk, RunTime %.1f', RunTime);                                    
                                     Obj.writeLog(Msg, LogLevel.Info);
