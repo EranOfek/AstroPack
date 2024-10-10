@@ -6,6 +6,7 @@ classdef uplanner < Component
         EndTime
         Plan
         UniqTargList
+        Vis 
         
         % HCS, LCS
         DailyWindow     
@@ -42,7 +43,7 @@ classdef uplanner < Component
                 
                 Args.PlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
                                     'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets'};
-                Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'Vis'};
+                Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
                 
                 Args.DailyWindow = [];   % length in hours
                 Args.Cadence     = [];   % cadence in days                
@@ -76,14 +77,47 @@ classdef uplanner < Component
                 Obj.TOOMaxTargets = Args.TOOMaxTargets;
             end
             % 
-            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns);
+            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns); 
             %
-            Obj.UniqTargList = table([],[],[],[],[],[],[],[],'VariableNames', Args.TargColumns);
+            Obj.UniqTargList = table([],[],[],[],[],[],[],'VariableNames', Args.TargColumns); 
             %
         end
     end
     %
-    methods % Building the plans  
+    methods % Building the plans          
+        %
+        function buildDDT(Obj, Args)
+            % build a plan for a list of DDT targets
+            arguments
+                Obj
+                Args.Coo
+            end
+            % check visibility within the given time interval for each of the targets
+            % 
+            % fill in the target list 
+            %           
+            % show which observations in the existing plan are to be replaced 
+            % 
+            % select 1 visibility window for each of the targets and write them to Obj.Plan 
+        end
+        %
+        function buildTOO(Obj, Args)
+            % build a plan for a TOO map 
+            arguments
+                Obj 
+                Args.Map 
+            end
+            % read the map, prepare targets
+            %
+            % check visibility for each of the targets and prepare the plan 
+            %
+            % 
+        end
+        %
+    end
+    %
+    methods % Auxiliary functions
+        %
         function calcVisibility(Obj, Args)
             % calculate visibility for the given period and time bin
             arguments
@@ -119,28 +153,8 @@ classdef uplanner < Component
             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
-        %
-        function buildDDT(Obj, Args)
-            %
-            arguments
-                Obj
-                Args.Coo
-            end
-            % 
-            % check visibility within the given time interval for each of
-            % the targets
-        end
-        %
-        function buildTOO(Obj, Args)
-            %
-            arguments
-                Obj 
-                Args.Map 
-            end
-        end
-        %
     end
-
+    % 
     methods(Static)
         Result = debug()
             % unitTest

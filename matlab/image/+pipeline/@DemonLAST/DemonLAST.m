@@ -2522,13 +2522,14 @@ classdef DemonLAST < Component
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
                 Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
                 Args.NewSubDir     = 'new';          % new sub dir
-                Args.MinInGroup    = 10;              % min. number of images in visit/group to analyze.
+                Args.NonStandardNew= '';             % non-standard new dir
+                Args.MinInGroup    = 10;             % min. number of images in visit/group to analyze.
                 Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
                 Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
                 Args.StopButton logical = true;      % Display stop button
                 Args.StopDiskFull  = [];             % e.g., use 95 to abort if disk storage is above 95%
-                Args.multiRaw2procCoaddArgs = {};
+                Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;            %
@@ -2629,13 +2630,34 @@ classdef DemonLAST < Component
             end
 
             ADB = [];  % AstroDB
+            
+            % change the paths if a non-standard new directory is given
+            if ~isempty(Args.NonStandardNew)
+                Args.MinNumImageVisit = 1;
+                CalibPath  = Obj.CalibPath;
+                FailedPath = Obj.FailedPath;
+                LogPath    = Obj.LogPath;
+                BasePath   = Obj.BasePath;
+                
+                NewPath    = Args.NonStandardNew;
+                Obj.BasePath   = [];
+                
+                Obj.NewPath    = NewPath;
+                Obj.CalibPath  = CalibPath;
+                Obj.FailedPath = FailedPath;
+                Obj.LogPath    = LogPath;
+            else
+                NewPath    = Obj.NewPath;
+                BasePath   = Obj.BasePath;
+                FailedPath = Obj.FailedPath;
+            end
 
             % get path
             %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
             %[BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-            NewPath    = Obj.NewPath;
-            BasePath   = Obj.BasePath;
-            FailedPath = Obj.FailedPath;
+%             NewPath    = Obj.NewPath;
+%             BasePath   = Obj.BasePath;
+%             FailedPath = Obj.FailedPath;
 
             % convert 'all'|'cat' to cell array of data products
             Args.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveEpochProduct);
@@ -2747,7 +2769,7 @@ classdef DemonLAST < Component
                     % wait
                     Nfiles1    = FN_Sci_Groups.nfiles;
 
-                    if Nfiles1<Args.MaxInGroup
+                    if Nfiles1<Args.MaxInGroup && isempty(Args.NonStandardNew)
                         % wait for 20 s X number of images needed to finish the
                         % visit:
                         pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
@@ -2847,12 +2869,12 @@ classdef DemonLAST < Component
 
 
                             % Instead of AI, it used to be: RawImageList
-                             tic;
+                            tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
                                                                        'BasePath', BasePath,...
-                                                                       'SaveAll',false,...
+                                                                       'SaveAll',false,...                                                                       
                                                                        'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
                                                                        'GeoPos',Args.GeoPos,...
                                                                        'OrbEl',Args.OrbEl,...
@@ -2891,61 +2913,61 @@ classdef DemonLAST < Component
                             Obj.writeLog(Msg, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
-                            [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
-                                                   'Level','coadd',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir,...
-                                                   'AddSubDirKey',true,...
-                                                   'WriteMethodImages',Args.WriteMethodImages,...
-                                                   'WriteMethodTables',Args.WriteMethodTables);
-                            Obj.writeLog(Status, LogLevel.Info);
-                                                        
-                            RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipeline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
-                            Obj.writeLog(Msg, LogLevel.Info);
-
-                            [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
-                                                   'Save',UpArgs.SaveMergedCat,...
-                                                   'Level','merged',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir,...
-                                                   'WriteMethodImages',Args.WriteMethodImages,...
-                                                   'WriteMethodTables',Args.WriteMethodTables);
-                            Obj.writeLog(Status, LogLevel.Info);                            
-
-                            [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
-                                                   'Save',UpArgs.SaveMergedMat,...
-                                                   'Level','merged',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir,...
-                                                   'WriteMethodImages',Args.WriteMethodImages,...
-                                                   'WriteMethodTables',Args.WriteMethodTables);
-                            Obj.writeLog(Status, LogLevel.Info);
-                            
-                            RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipeline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
-                            Obj.writeLog(Msg, LogLevel.Info);
-
-                            if ~isempty(ResultAsteroids)
-                                if numel(ResultAsteroids)>200
-                                    % number of asteroids is too large -
-                                    % probably a problem - skip
-                                    Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
-                                    Obj.writeLog(Status, LogLevel.Info);
-                                    clear ResultAsteroids;
-                                else
-                                    SaveAst.MP = ResultAsteroids;
-                                    [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                                       'Save',UpArgs.SaveAsteroids,...
-                                                       'Level','merged',...
-                                                       'LevelPath','proc',...
-                                                       'SubDir',FN_Proc.SubDir,...
-                                                       'WriteMethodImages',Args.WriteMethodImages,...
-                                                       'WriteMethodTables',Args.WriteMethodTables);
-                                    Obj.writeLog(Status, LogLevel.Info);
+                            if ~isempty(Coadd)                                
+                                [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
+                                    'Level','coadd',...
+                                    'LevelPath','proc',...
+                                    'SubDir',FN_Proc.SubDir,...
+                                    'AddSubDirKey',true,...
+                                    'WriteMethodImages',Args.WriteMethodImages,...
+                                    'WriteMethodTables',Args.WriteMethodTables);
+                                Obj.writeLog(Status, LogLevel.Info);
+                                
+                                RunTime = etime(clock, Tstart);
+                                Msg{1} = sprintf('pipeline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                                
+                                [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
+                                    'Save',UpArgs.SaveMergedCat,...
+                                    'Level','merged',...
+                                    'LevelPath','proc',...
+                                    'SubDir',FN_Proc.SubDir,...
+                                    'WriteMethodImages',Args.WriteMethodImages,...
+                                    'WriteMethodTables',Args.WriteMethodTables);
+                                Obj.writeLog(Status, LogLevel.Info);
+                                
+                                [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                                    'Save',UpArgs.SaveMergedMat,...
+                                    'Level','merged',...
+                                    'LevelPath','proc',...
+                                    'SubDir',FN_Proc.SubDir,...
+                                    'WriteMethodImages',Args.WriteMethodImages,...
+                                    'WriteMethodTables',Args.WriteMethodTables);
+                                Obj.writeLog(Status, LogLevel.Info);
+                                
+                                RunTime = etime(clock, Tstart);
+                                Msg{1} = sprintf('pipeline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                                
+                                if ~isempty(ResultAsteroids)
+                                    if numel(ResultAsteroids)>200
+                                        % number of asteroids is too large - probably a problem - skip
+                                        Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
+                                        Obj.writeLog(Status, LogLevel.Info);
+                                        clear ResultAsteroids;
+                                    else
+                                        SaveAst.MP = ResultAsteroids;
+                                        [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                            'Save',UpArgs.SaveAsteroids,...
+                                            'Level','merged',...
+                                            'LevelPath','proc',...
+                                            'SubDir',FN_Proc.SubDir,...
+                                            'WriteMethodImages',Args.WriteMethodImages,...
+                                            'WriteMethodTables',Args.WriteMethodTables);
+                                        Obj.writeLog(Status, LogLevel.Info);
+                                    end
                                 end
                             end
-
                             % Known Matched asteroids
                             if ~isempty(OnlyMP)
                                 MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
