@@ -5,10 +5,10 @@ function Data=sunAzAlt(Date, Args)
     arguments
         Date
         Args.Time       = 2;    % [days]
-        Args.Lon        = 35.02;
-        Args.Lat        = 32.04;
+        Args.Lon        = 34.815; %35.02;
+        Args.Lat        = 31.9; %32.04;
         Args.TimeStep   = 5./1440;
-        Args.MinAlt     = 15;   % [deg]
+        Args.MinAlt     = 0; %15;   % [deg]
         Args.TimeZone   = 2;    % [h]
         Args.FileName   = '';
     end
