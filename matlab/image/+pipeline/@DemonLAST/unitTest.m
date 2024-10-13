@@ -16,6 +16,9 @@ function Result = unitTest(Args)
         Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
         Args.NonStandardNew   = '';
         Args.MinInGroup       = 20;
+        Args.UpdateStatusFile = false;
+        Args.UnpackRaw        = false;
+        Args.RepackRaw        = false;
     end
     
 %     Args = tools.code.updateParFromConfig(Args,'LASTpipeline_def');
@@ -38,7 +41,9 @@ function Result = unitTest(Args)
            'SaveEpochProduct',Args.SaveEpochProduct,...
            'NonStandardNew',Args.NonStandardNew,...
            'MinInGroup',Args.MinInGroup,...
-           'PauseDay',1,'PauseNight',1);
+           'UnpackRaw',Args.UnpackRaw,'RepackRaw',Args.RepackRaw,...
+           'PauseDay',1,'PauseNight',1,...
+           'UpdateStatusFile',Args.UpdateStatusFile);
     
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation

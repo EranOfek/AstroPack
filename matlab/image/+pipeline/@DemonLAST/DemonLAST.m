@@ -2558,6 +2558,8 @@ classdef DemonLAST < Component
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
                 Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
+                Args.UnpackRaw         = false;             % unpack raw FITS images before processing
+                Args.RepackRaw         = false;             % pack raw FITS images after processing 
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2667,6 +2669,10 @@ classdef DemonLAST < Component
 
             PWD = pwd;
             cd(NewPath);
+            
+            if Args.UnpackRaw 
+                !funpack -D *raw*fits.fz 
+            end
 
             if numel(Args.StartJD)>1
                 Args.StartJD = celestial.time.julday(Args.StartJD);
@@ -3179,6 +3185,9 @@ classdef DemonLAST < Component
 
             end
             
+            if Args.RepackRaw 
+                !fpack -D -Y *raw*fits 
+            end
             cd(PWD);
 
         end
