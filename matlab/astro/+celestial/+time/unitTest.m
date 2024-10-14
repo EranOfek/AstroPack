@@ -33,8 +33,14 @@ function Result = unitTest()
 
     assert(abs(Delt-DeltAstropy)<1e-5);
     
-    func_unitTest();
+    JD = celestial.time.date2jd([2010 08 01 10 30 0]);
+    [BJD, BVel] = celestial.time.barycentricJD(JD,180,-20,'CooUnits','deg','InTimeScale','UTC');
+    BJD1 = 2455409.935445962; % from https://astroutils.astronomy.osu.edu/time/utc2bjd.html
+    assert(abs(BJD-BJD1)<1e-5);    
     
+    
+    
+    func_unitTest();    
     
     
     Result = true;
