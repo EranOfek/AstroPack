@@ -16,7 +16,7 @@ function Result = ransacLinear(Data, Args)
     %            .Found - if false, then this is the only available field.
     %            .FlagGoodPt - Flag of selected points in best fit.
     %            .Npt - Number of points in best fit.
-    %            .Par - Paramaeters of best fit.
+    %            .Par - Parameters of best fit.
     %            .Resid - Residuals of all points.
     %            .RMS - RMS of points in best fit.
     % Author : Eran Ofek (Feb 2022)

@@ -154,6 +154,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPSFShape logical = true;
         Args.PSFShapeFWHMThresh = 4.0;
         Args.PSFShape2ndMomentLims = [0.6, 1.5];
+
+        Args.flagStreak logical = true;
         
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -439,6 +441,32 @@ function TranCat = flagNonTransients(Obj, Args)
             SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY;
             PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
+        end
+
+        if Args.flagStreak
+            [X,Y] = Cat.getXY();
+            BPHard = BD_TF.findBit(TF_Flags,'BadPixelHard');
+            StarMatch = BD_TF.findBit(TF_Flags,'StarMatch');
+            SubSel = (~BPHard) & (~StarMatch);
+            Xt = X(SubSel);
+            Yt = Y(SubSel);
+            TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
+
+            MinNpts = [5 7 10 13 17 20 23 27 30];
+            NMinNpts = numel(MinNpts);
+            for IMinNpts = NMinNpts:-1:1
+                Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 10000, ...
+                    'MinRMS', 0.5,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
+                if Res.Found
+                    break
+                end
+            end
+
+            if Res.Found
+                ModY = Res.Par(1)+Xt.*Res.Par(2);
+                Streaked = abs(ModY - Yt) < 10;
+                TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('PSFShape');
+            end
         end
 
         % ----- AstroZOGY -----

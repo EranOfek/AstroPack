@@ -61,7 +61,7 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
                             'CatName',Args.AstrometricCat, 'RA',[], 'Dec',[], 'SortCat',SortCat,...
                             'EpochOut',JD);
 
-    if 1==0
+     if 1==0
         % Comparison between the astromery of ZTF and astrometryRefine
         % astrometryRefine is much better
         %TT = ObjCat.copy;
