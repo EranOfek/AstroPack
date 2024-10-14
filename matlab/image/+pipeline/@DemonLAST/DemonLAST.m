@@ -2581,6 +2581,7 @@ classdef DemonLAST < Component
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
                                 
+                Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
@@ -2597,6 +2598,13 @@ classdef DemonLAST < Component
 
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
+            end
+
+            IsRunningOnLAST = false;
+            if numel(Args.HostName)>=4
+                if strcmp(Args.HostName,'last')
+                    IsRunningOnLAST = true;
+                end
             end
 
             if Args.Insert2DB
@@ -3010,8 +3018,8 @@ classdef DemonLAST < Component
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end
 
-                                Args.DoTransientsAlerting = false;
-                                if exist('TransientCutouts','var') && Args.DoTransientsAlerting
+                                
+                                if exist('TransientCutouts','var') && Args.SendTransientAlerts && IsRunningOnLAST
                                     Msg{1} = sprintf('pipeline.DemonLAST - Alerting / group %d', Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     try
