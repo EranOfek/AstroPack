@@ -17,7 +17,7 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
     %                   '1962' - 1962 till now.
     %            'NearFutureInterp' - A logical indicating if to perform
     %                   interpolation into the near future.
-    %                   Default is false.
+    %                   Default is true.
     %                   This should be used only if you need TT-UT1 in the
     %                   present or up to a few months into the future.
     % Output : - TT - UTC [s]
@@ -32,12 +32,13 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
         Args.WhereToGet                = 'use';   % 'use' | 'get'
         Args.FillVal                   = NaN;
         Args.SourceFile                = '1992';  % '1992' | '1962'
-        Args.NearFutureInterp logical  = false;
+        Args.NearFutureInterp logical  = true;
     end
     TTmTAI = 32.184;   % TT = TAI + 32.184
 
     if Args.NearFutureInterp
-        JDnear = celestial.time.julday - [30;60];
+        JDnow    = celestial.time.julday;
+        JDnear   = JDnow - [30;60];
         AllJD    = [JDnear(:); JD(:)];
         [UT1mTAI, ~] = celestial.time.ut1_tai(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal);
         [UT1mUTC, ~] = celestial.time.ut1_utc(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal, 'SourceFile',Args.SourceFile);
@@ -45,6 +46,9 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
         UT1mUTC =interp1(JDnear, UT1mUTC(1:2), JD, 'linear', 'extrap');
         TTmUT1 = TTmTAI - UT1mTAI;
         TTmUTC = TTmUT1 + UT1mUTC;
+        if (max(JD)-JDnow)>60
+            warniing('UT1-UTC interpolation is larger than 60 days');
+        end
     else
         [UT1mTAI, ~] = celestial.time.ut1_tai(JD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal);
         [UT1mUTC, ~] = celestial.time.ut1_utc(JD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal, 'SourceFile',Args.SourceFile);

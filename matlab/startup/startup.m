@@ -84,6 +84,7 @@ function startup(Args)
     end
     
     
+    
     % get HomeDir
     if (ismac || isunix)
         % Linux / Mac
@@ -92,7 +93,7 @@ function startup(Args)
         HomeDir = getenv('HOMEPATH');
     end
     
-    %
+    
     if isempty(Args.AstroPack_BasePath)
         % set to default value
         Args.AstroPack_BasePath = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'AstroPack');
@@ -157,6 +158,18 @@ function startup(Args)
     end
     fprintf('AstroPack startup addpath count: %d\n', PathCount);
     fprintf('AstroPack startup done: %s\n', mfilename('fullpath'));
+    
+    
+    
+    % update Time tables
+    I = Installer;
+    TimeTable = I.readIERS_EOP;
+    Ilast = find(strcmp(TimeTable.Type, 'final'),1,'last');
+    if (max(convert.time(TimeTable.MJD(Ilast),'MJD','JD'))-celestial.time.julday)>32
+        % download Time tables
+        fprintf('Downloading Time tables - may take about 30 s\n');
+        I.install('Time');
+    end
     
     
     cd(PWD);
