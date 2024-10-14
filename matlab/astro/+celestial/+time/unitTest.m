@@ -34,11 +34,27 @@ function Result = unitTest()
     assert(abs(Delt-DeltAstropy)<1e-5);
     
     JD = celestial.time.date2jd([2010 08 01 10 30 0]);
-    [BJD, BVel] = celestial.time.barycentricJD(JD,180,-20,'CooUnits','deg','InTimeScale','UTC');
+    [BJD, BVel] = celestial.time.barycentricJD(JD,180,-20,'CooUnits','deg','InTimeScale','UTC','VelOutUnits','km/s','GeoPos',[0,0,0]);
     BJD1 = 2455409.935445962; % from https://astroutils.astronomy.osu.edu/time/utc2bjd.html
     assert(abs(BJD-BJD1)<1e-5);    
+    BVel1 = -23.43236813668; % test python script based on astropy time library: see https://gist.github.com/StuartLittlefair/5aaf476c5d7b52d20aa9544cfaa936a1#file-corrs-py
+    try
+        assert(abs(BVel-BVel1)<1e-3);
+    catch
+        fprintf('Velocity discrepancy: %.1f cm\n',abs(BVel-BVel1)*1e3);
+    end    
     
-    
+    JD = celestial.time.date2jd([2014 05 07 12 00 0]);
+    [BJD, BVel] = celestial.time.barycentricJD(JD,50,50,'CooUnits','deg','InTimeScale','UTC','VelOutUnits','km/s','GeoPos',[0,0,0]);
+    BJD1 = 2456784.995914159; % from https://astroutils.astronomy.osu.edu/time/utc2bjd.html
+    assert(abs(BJD-BJD1)<1e-5);    
+    BVel1 = -6.7555816846; % test python script based on astropy time library: see https://gist.github.com/StuartLittlefair/5aaf476c5d7b52d20aa9544cfaa936a1#file-corrs-py
+    try
+        assert(abs(BVel-BVel1)<1e-3);
+    catch
+        fprintf('Velocity discrepancy: %.1f cm/s\n',abs(BVel-BVel1)*1e3);
+    end
+  
     
     func_unitTest();    
     
