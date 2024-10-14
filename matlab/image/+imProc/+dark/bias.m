@@ -85,6 +85,12 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %            'SumExpTime' - A logical indicating if to sum
     %                   (true) or take the mean (false) of the
     %                   EXPTIME header keyword. Default is false.
+    %            'GenerateID' - A logical indicating if to generate image
+    %                   ID (using imProc.db.generateImageID) and to insert
+    %                   it to header. Default is true.
+    %            'ArgsGenerateID' - A cell array of additional arguments to
+    %                   pass to imProc.db.generateImageID
+    %                   Default is {'KeyID','ID_DARK'}.
     % Output : - An AstroImage containing the bias/dark image.
     %          - A vector of logical indicating which images were
     %            used.
@@ -129,6 +135,8 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         Args.AddHeaderPos               = 'end';
         Args.SumExpTime(1,1) logical    = false;
 
+        Args.GenerateID logical         = true;
+        Args.ArgsGenerateID cell        = {'KeyID','ID_DARK'};
     end
 
     Nim = numel(ImObj);
@@ -219,6 +227,11 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
      % Update Header
      if ~isempty(Args.AddHeader)
         Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
+     end
+
+     % Add Image ID to header
+     if Args.GenerateID
+        [Result] = imProc.db.generateImageID(Result, Args.ArgsGenerateID{:});
      end
 
 end

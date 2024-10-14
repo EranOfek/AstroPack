@@ -70,7 +70,7 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
         %
         semilogy(R1.Mag, R1.DeltaDist.*RAD.*3600,'.')
         hold on
-        semilogy(R2.Mag, R2.DeltaDist.*RAD.*3600,'o')
+        semilogy(R2.Mag, R2.DeltaDist.*RAD.*3600,'.')
     end
 
     % Add MergedCat

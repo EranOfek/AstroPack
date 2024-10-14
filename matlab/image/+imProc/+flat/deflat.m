@@ -43,6 +43,9 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
     %                   This means that IC.fun, will modify IC,
     %                   while IB=IC.fun will generate a new copy in
     %                   IB.
+    %            'KeyFlatID' - If not empty, then will search for this
+    %                   header keyword in the flat image and copy it to the
+    %                   deflat image. Default is 'ID_FLAT'.
     % Output : - An AstroImage object containing the non-flat
     %            images after division by flat and mask propagation.
     %          - A flat image.
@@ -69,6 +72,8 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
         Args.FlatFileNameInHeader logical = true;
         Args.KeyFlat                      = 'FLAT_IM';
         Args.CreateNewObj                 = [];
+
+        Args.KeyFlatID                    = 'ID_FLAT';
     end
 
     if isempty(Args.CreateNewObj)
@@ -121,4 +126,10 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
             Result.funHeader(@insertKey, {Args.KeyFlat, FileName{1}}, Inf);
         end
     end
+
+    if ~isempty(Args.KeyFlatID)
+        FlatID = Flat.HeaderData.getVal(Args.KeyFlatID);
+        Result.setKeyVal(Args.KeyFlatID, FlatID);
+    end
+
 end

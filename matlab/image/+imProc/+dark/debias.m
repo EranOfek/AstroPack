@@ -40,6 +40,9 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
     %                   This means that IC.fun, will modify IC,
     %                   while IB=IC.fun will generate a new copy in
     %                   IB.
+    %            'KeyBiasID' - If not empty, then will search for this
+    %                   header keyword in the bias image and copy it to the debias
+    %                   image. Default is 'ID_DARK'.
     % Output : - An AstroImage object containing the non-bias
     %            images after bias subtraction and mask propagation.
     %          - A bias image.
@@ -59,6 +62,8 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
         Args.BiasFileNameInHeader logical = true;
         Args.KeyBias                      = 'BIAS_IM';
         Args.CreateNewObj                 = [];
+
+        Args.KeyBiasID                    = 'ID_DARK';
     end
 
     if isempty(Args.CreateNewObj)
@@ -111,5 +116,10 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
         if ~isempty(FileName)
             Result.funHeader(@insertKey, {Args.KeyBias, FileName{1}}, Inf);
         end
+    end
+
+    if ~isempty(Args.KeyBiasID)
+        BiasID = Bias.HeaderData.getVal(Args.KeyBiasID);
+        Result.setKeyVal(Args.KeyBiasID, BiasID);
     end
 end

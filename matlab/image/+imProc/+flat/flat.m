@@ -60,6 +60,12 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'SumExpTime' - A logical indicating if to sum
     %                   (true) or take the mean (false) of the
     %                   EXPTIME header keyword. Default is false.
+    %            'GenerateID' - A logical indicating if to generate image
+    %                   ID (using imProc.db.generateImageID) and to insert
+    %                   it to header. Default is true.
+    %            'ArgsGenerateID' - A cell array of additional arguments to
+    %                   pass to imProc.db.generateImageID
+    %                   Default is {'KeyID','ID_FLAT'}.
     % Output : - An arrray of AstroImage containing the Flat image per
     %            filter.
     %          - A vector of logical indicating which images were
@@ -110,6 +116,8 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.AddHeaderPos               = 'end';
         Args.SumExpTime(1,1) logical    = false;
 
+        Args.GenerateID logical         = true;
+        Args.ArgsGenerateID cell        = {'KeyID','ID_FLAT'};
     end
 
     Nim = numel(ImObj);
@@ -209,6 +217,11 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
          if ~isempty(Args.AddHeader)
             Result(Iufilt).HeaderData = insertKey(Result(Iufilt).HeaderData, Args.AddHeader, Args.AddHeaderPos);
          end
+    end
+
+    % Add Image ID to header
+    if Args.GenerateID
+        [Result] = imProc.db.generateImageID(Result, Args.ArgsGenerateID{:});
     end
             
 end

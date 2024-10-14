@@ -91,10 +91,11 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         
     AU         = IP.Constant.AU .* 1e5;   % cm
     
-    Pos = IP.getPos(Args.Object, JD, 'OutUnits','au', 'IsEclipticOut',false);  % [au]
-    Vel = IP.getVel(Args.Object, JD, 'OutUnits','au', 'IsEclipticOut',false);  % [au/day]
+    Pos = IP.getPos(Args.Object, JD, 'OutUnits','au', 'IsEclipticOut',false);  % [au]   Equoatorial
+    Vel = IP.getVel(Args.Object, JD, 'OutUnits','au', 'IsEclipticOut',false);  % [au/day]   Equoatorial
     
     [G, Gdot] = celestial.coo.topocentricVector(JD, Args.GeoPos, 'OutUnits','au',...
+                                                             'TimeOutUnits','day',...
                                                              'RefEllipsoid',Args.RefEllipsoid,...
                                                              'Convert2ecliptic',false,...
                                                              'Equinox','J2000');

@@ -20,6 +20,9 @@ function [Obj, ID] = generateImageID(Obj, Args)
     %            'KeyID' - If not empty, then this is the header keyword
     %                   name in which the generated ID will be written into.
     %                   Default is 'ID_PROC'.
+    %            'ErrorOnNaN' - A logical indicating if to generate error
+    %                   if keyword value is NaN. If false, will insert 0.
+    %                   Default is true.
     % Output : - An AstroImage object with the updated header.
     %          - A vector of IDs (one per image).
     % Author : Eran Ofek (2024 Oct) 
@@ -39,6 +42,7 @@ function [Obj, ID] = generateImageID(Obj, Args)
                                                 @(jd) uint64((jd-2451545.5).*86400.*10)});
 
         Args.KeyID             = 'ID_PROC';
+        Args.ErrorOnNaN logical = true;
 
     end
 
@@ -54,8 +58,12 @@ function [Obj, ID] = generateImageID(Obj, Args)
                 % include in keyword value in ID
                 TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
                 BitVal(Isub) = Args.FormatSt(Isub).Fun(TmpVal);
-                if isnan(BitVal(Isub))
+                if isnan(BitVal(Isub)) && Args.ErrorOnNaN
                     error('Keyword %s value is NaN', Args.FormatSt(Isub).Key);
+                elseif isnan(BitVal(Isub)) && ~Args.ErrorOnNaN
+                    BitVal(Isub) = 0;
+                else
+                    % do nothing
                 end
             end
         end

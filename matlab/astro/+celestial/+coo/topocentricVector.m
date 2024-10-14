@@ -81,7 +81,8 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
             RotRot = [-sin(LAST), -cos(LAST), 0; cos(LAST), -sin(LAST), 0; 0, 0, 0];
             Gdot = W.*RotRot*RotXY*GeocCart.';  % [m/s]
             if Args.Convert2ecliptic
-                G = RotMatEq2Ec * G;
+                G    = RotMatEq2Ec * G;
+                Gdot = RotMatEq2Ec * Gdot;
             end
 
             switch lower(Args.Equinox)
@@ -94,7 +95,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
                     error('Unknown Equinox option');
             end
             Gdot = convert.length('m',Args.OutUnits, Gdot);
-            Gdot = convert.timeUnits('s',Args.TimeOutUnits, Gdot);
+            Gdot = convert.timeUnits(Args.TimeOutUnits, 's', Gdot);  % divide by time
         end
 
         G = convert.length('m',Args.OutUnits, G);
