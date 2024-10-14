@@ -446,15 +446,17 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagStreak
             [X,Y] = Cat.getXY();
             BPHard = BD_TF.findBit(TF_Flags,'BadPixelHard');
-            Xt = X(~BPHard);
-            Yt = Y(~BPHard);
+            StarMatch = BD_TF.findBit(TF_Flags,'StarMatch');
+            SubSel = (~BPHard) & (~StarMatch);
+            Xt = X(SubSel);
+            Yt = Y(SubSel);
             TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
 
-            MinNpts = [7 10 13 17 20 23 27 30];
+            MinNpts = [5 7 10 13 17 20 23 27 30];
             NMinNpts = numel(MinNpts);
             for IMinNpts = NMinNpts:-1:1
                 Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 10000, ...
-                    'MinRMS', 1.0,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
+                    'MinRMS', 0.5,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
                 if Res.Found
                     break
                 end
@@ -463,7 +465,7 @@ function TranCat = flagNonTransients(Obj, Args)
             if Res.Found
                 ModY = Res.Par(1)+Xt.*Res.Par(2);
                 Streaked = abs(ModY - Yt) < 10;
-                TF_Flags(~BPHard) = TF_Flags(~BPHard) + Streaked.*2.^BD_TF.name2bit('PSFShape');
+                TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('PSFShape');
             end
         end
 
