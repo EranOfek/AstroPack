@@ -54,8 +54,7 @@ function Result = unitTest()
     catch
         fprintf('Velocity discrepancy: %.1f cm/s\n',abs(BVel-BVel1)*1e3);
     end
-  
-    
+      
     func_unitTest();    
     
     

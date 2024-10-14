@@ -66,7 +66,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         case 'UTC'
             [TTmUTC] = celestial.time.tt_utc(JD);  % [s]
             if isnan(TTmUTC)
-                error('TT - UTC is not available');
+                error('TT - UTC is not available, need to update via I = Installer; I.Install("Time")');
             end
             TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
             % UTC + TT - UTC - TT + TDB
