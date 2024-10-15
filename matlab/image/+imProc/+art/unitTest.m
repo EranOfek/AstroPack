@@ -35,6 +35,16 @@ function Result = unitTest()
     SimCat.sortrows('Y1');
     SimAI.CatData.sortrows('Y1');
     %
+    % figure; histogram(SimAI.Table.MAG_PSF,'BinWidth',0.3); hold on;
+    % histogram(SimCat.Table.MAG_PSF,'BinWidth',0.3); 
+    % gca('YAxis','log'); xlabel Mag;ylabel N_{objects} 
+    % 
+    % ds9(SimAI.Image,5)
+    %
+    % RAD = 180/pi;  
+    % need to add WCS to the images and catalogs! 
+    % MatchRes = VO.search.search_sortedlat_multi([ObjLon, ObjLat], RA, Dec, Args.SearchRadius*Arcsec2Rad);
+    %
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
     Result = true;
 end
