@@ -2646,37 +2646,22 @@ classdef DemonLAST < Component
             if ~isempty(Args.NonStandardNew)
                 Args.MinNumImageVisit = 1;
                 Args.UpdateStatusFile = false;
-                CalibPath  = Obj.CalibPath;
-                FailedPath = Obj.FailedPath;
-                LogPath    = Obj.LogPath;
-                BasePath   = Obj.BasePath;
-                
-                NewPath    = Args.NonStandardNew;
-                Obj.BasePath   = [];
-                
-                Obj.NewPath    = NewPath;
-                Obj.CalibPath  = CalibPath;
-                Obj.FailedPath = FailedPath;
-                Obj.LogPath    = LogPath;
-            else
-                NewPath    = Obj.NewPath;
-                BasePath   = Obj.BasePath;
-                FailedPath = Obj.FailedPath;
+                Obj.DefNewPath = Args.NonStandardNew;                 
             end
 
             % get path
             %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
             %[BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-%             NewPath    = Obj.NewPath;
-%             BasePath   = Obj.BasePath;
-%             FailedPath = Obj.FailedPath;
+            NewPath    = Obj.NewPath;
+            BasePath   = Obj.BasePath;
+            FailedPath = Obj.FailedPath;
 
             % convert 'all'|'cat' to cell array of data products
             Args.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveEpochProduct);
             Args.SaveVisitProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveVisitProduct);
 
             PWD = pwd;
-            cd(NewPath);
+            cd(Obj.NewPath);
             
             if Args.UnpackRaw 
                 !funpack -D *raw*fits.fz 
