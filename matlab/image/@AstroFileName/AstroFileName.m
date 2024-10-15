@@ -1492,6 +1492,110 @@ classdef AstroFileName < Component
             end
             
         end
+    
+        function Result = insertWildCards(Obj, Ind, Args)
+            % Generate file names with wild cards at specific literals
+            % Input  : - self.
+            %          - Indices of lines (file names) in the AstroFileName
+            %            object for which to generate file names.
+            %            If empty, use all. Default is [].
+            %          * ...,key,val,...
+            %            * 'List' - A string array or cell array of the literals (e.g., 'ProjName',
+            %                   'Time',...) - Each one of the literals in
+            %                   this list will be replaced with the wild card character (default is "*").
+            %              'WildCard' - Wild crad character.
+            %                   Default is "*".
+            % Output : - A string array of file names.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST*.fits');
+            %          A.genFile     % generate for all files
+            
+            arguments
+                Obj
+                Ind            = [];
+                Args.List      = ["Time","Counter"];
+                % ProjName, Time, Filter, FieldID, Counter, CCDID, CropID,
+                % Type, Level, Product Version, FileType
+                Args.WildCard  = "*";
+               
+            end
+            
+            N = numel(Args.List);
+            ArgsList = strings(1,2.*N);
+            for I=1:2:2.*N-1
+                IndL = (I + 1).*0.5;
+                ArgsList(I)   = string(Args.List{IndL});
+                ArgsList(I+1) = Args.WildCard;
+            end
+            
+            Result = genFile(Obj, Ind, ArgsList{:});
+            
+        end
+        
+        function Result = findImagesOfVisit(Obj, Ind, Args)
+            % Given a single image name, find in current dir all images in the same visit.
+            %   Here visit is defined to images with take at roughly the
+            %   same time and that their counter is running from 1 to N
+            % Input  : - An AstroFileName object.
+            %          - A scalar for one specific image in the object.
+            %            Default is 1.
+            %          * 'Path' - If [], then look for images in the
+            %                   current dir.
+            %                     If NaN, then use genPath.
+            %                     If char array, then dir name.
+            %            'genPathArgs' - Cell array of additional arguments
+            %                   to send to genPath. Default is {}.
+            %            'MinInGroup' - Minimum number of elements in
+            %                   group. Default is 10.
+            %            'MaxInGroup' - Maximum number of elements in
+            %                   group. Default is 20.
+            % Output : - An AstroFileName object with all the images
+            %            belongs to the requested group.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          G=A.findImagesOfVisit(1);
+            
+            arguments
+                Obj(1,1)
+                Ind(1,1)                 = 1;
+                Args.Path                = [];  % [] - current dir, NaN - genPath
+                Args.genPathArgs cell    = {};
+                Args.MinInGroup          = 10;
+                Args.MaxInGroup          = 20;
+            end
+            
+            if isempty(Args.Path)
+                % read from current dir
+                Path = pwd;
+            elseif isnan(Args.Path)
+                Path = genPath(Obj, Ind, Args.genPathArgs{:});
+            else
+                Path = Args.Path;
+            end
+            
+            PWD = pwd;
+            cd(Path);
+            
+            VisitPat = insertWildcard(Obj, Ind, 'List', ["Time","Counter"]);
+            % get JD of the requested image
+            JD       = Obj.julday;
+            JD       = JD(Ind);
+            
+            % get all images in current dir
+            ImagesInDir = AstroFileName.dir(VisitPat);       
+            % group by counter
+            [~, GroupResult] = groupByCounter(ImagesInDir, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
+            
+            GroupMinJD = B.juldayFun(@min);
+            GroupMaxJD = B.juldayFun(@max);
+            
+            % look for relevant group
+            Igr = find(JD>=GroupMinJD & JD<=GroupMaxJD);
+            Result = GroupResult(Igr);
+            
+            cd(PWD);
+            
+        end
     end
 
     methods % SubDir (Visit) utilities
