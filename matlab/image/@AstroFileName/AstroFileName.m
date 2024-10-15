@@ -1533,7 +1533,7 @@ classdef AstroFileName < Component
         end
         
         function Result = findImagesOfVisit(Obj, Ind, Args)
-            % Given a single image name, find in current dir all images in the same visit.
+            % Given a single image name, find in the current dir all images in the same visit.
             %   Here visit is defined to images with take at roughly the
             %   same time and that their counter is running from 1 to N
             % Input  : - An AstroFileName object.
