@@ -6,7 +6,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'VarMethod' - variance estimation method
     %         'RedNoiseFactor' - variance increase around found sources (for the next iterations)
     %         'UseInterpolant' - (logical) interpolate the measured PSF (errors in flux estimation) or use FFT shifts (artifacts) 
-    % Output: - the input AI's with catalogs filled by the data on revealed and measured sources   
+    % Output: - the input AI's with catalogs filled by the data on discovered and measured sources   
     %         - (optional) same as above, but with AI.Image replaced by the sourceless image (result of consecutive subtractions)
     % Example: AI = imProc.sources.mextractor(AI, 'Threshold', [30 10 5]);
     % 
