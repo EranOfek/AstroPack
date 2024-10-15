@@ -134,7 +134,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'Time'
         SubDir               : 'SolarSystem/Time'
-        URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv','https://datacenter.iers.org/data/latestVersion/EOP_14_C04_IAU1980_one_file_1962-now.txt','https://datacenter.iers.org/data/latestVersion/EOP_C01_IAU2000_1846-now.txt']
+        URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv','https://datacenter.iers.org/data/csv/finals2000A.daily.csv','https://datacenter.iers.org/data/latestVersion/EOP_14_C04_IAU1980_one_file_1962-now.txt','https://datacenter.iers.org/data/latestVersion/EOP_C01_IAU2000_1846-now.txt']
         Size                 : 1805
         SearchFile           : ''
         Description          : 'Time and Earth Rotation Orientation Parameters'
