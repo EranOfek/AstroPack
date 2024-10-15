@@ -47,7 +47,7 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
         TTmUT1 = TTmTAI - UT1mTAI;
         TTmUTC = TTmUT1 + UT1mUTC;
         if (max(JD)-JDnow)>60
-            warniing('UT1-UTC interpolation is larger than 60 days');
+            warning('UT1-UTC interpolation is larger than 60 days');
         end
     else
         [UT1mTAI, ~] = celestial.time.ut1_tai(JD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal);
