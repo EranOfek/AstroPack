@@ -861,7 +861,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                     tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
-                                         ' , see the generated images')                                     
+                                         ' , see the generated images')   
+                                     
     %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
     if Args.PostModelingFindSources
     %     
