@@ -39,7 +39,10 @@ function Result = unitTest()
     % histogram(SimCat.Table.MAG_PSF,'BinWidth',0.3); 
     % gca('YAxis','log'); xlabel Mag;ylabel N_{objects} 
     % 
-    % ds9(SimAI.Image,5)
+    % ds9(SimAI.Image,5) + add source regions
+    % InSrc = SimCat.Table(SimCat.Table.MAG_PSF<18,:); % make source region
+%     DS9_new.regionWrite([InSrc(:,1) InSrc(:,2)],'FileName','~/insrc18.reg','Color','blue','Marker','b','Size',1,'Width',4,...
+%                             'Precision','%.2f','PrintIndividualProp',0); 
     %    
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
             'Radius', 1.0,'CooType','pix','ColCatX','X1','ColCatY','Y1','ColRefX','X1','ColRefY','Y1'); 
