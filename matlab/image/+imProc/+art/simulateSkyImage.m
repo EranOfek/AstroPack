@@ -22,7 +22,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
             Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point
-            Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
+            Args.Back       = 220;         % [cts] [the default number is for a moderately dense field of LAST]
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
             Args.CRPIX      = [1 1];       % WCS CRPIX

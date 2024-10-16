@@ -2,10 +2,27 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % Multi-iteration PSF fitting and source extractor 
     % Input:  - a stack of AstroImage objects with Proc or Coadd images and (optionally) filled masks
     %         * ...,key,val,...
-    %         'BackPar'   - parameters of background estimation
-    %         'VarMethod' - variance estimation method
-    %         'RedNoiseFactor' - variance increase around found sources (for the next iterations)
+    %         'ReCalcBack' - (logical) recalculate background at each iteration (def. true)
+    %         'BackPar'    - parameters of background estimation
+    %         'VarMethod'  - variance estimation method
+    %         'MomRadius'  - radius to calculate image momentum (vector, component per iteration)
+    %         'RedNoiseFactor' - factor of variance increase around found sources 
+    %         'populatePSFArgs' - parameters of PSF estimation (cell array)
+    %         'ThresholdPSF'    - threshold of object selection for PSF estimation
+    %         'RangeSN'         - range of object SNRs selected for PSF estimation
+    %         'InitPsf'         - initial PSF form employed to find objects for further empiric PSF measurements
+    %         'InitPsfArgs'     - parameters of initial PSF form used to find objects for PSF measurements
     %         'UseInterpolant' - (logical) interpolate the measured PSF (errors in flux estimation) or use FFT shifts (artifacts) 
+    %         'FindWithEmpiricalPSF' - (logical) find sources with empirical PSF or a set of gaussians (def. false)
+    %         'PsfFunPar'      - PSF widths to be employed for source search
+    %         'Threshold'      - a vector of threshold significance employed for source search: one component per iteration
+    %                            NB: this parameter also sets the number of iterations!
+    %         'ReCalcPSF'      - (logical) remeasure PSF at each iteration (def. false)
+    %         'RemoveMasked'   - (logical) put the pixels masked in the original AI to the bkg level (def. false)
+    %         'RemovePSFCore'  - (logical) put the pixels with some radius from found sources to the bkg level (def. false)
+    %         'CreateNewObj'   - (logical) create a deep copy of the input AI (def. false)
+    %         'Verbose'        - (logical) be verbous (def. false)
+    %         'WriteDs9Regions'- (logical) at each iteration save the extracted source positions as ds9 region files (def. false)  
     % Output: - the input AI's with catalogs filled by the data on discovered and measured sources   
     %         - (optional) same as above, but with AI.Image replaced by the sourceless image (result of consecutive subtractions)
     % Example: AI = imProc.sources.mextractor(AI, 'Threshold', [30 10 5]);
@@ -51,7 +68,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
 %         Args.PrelimCleanSrcArgs cell = {'ColSN_sharp',1, 'ColSN_psf',2, 'SNdiff',0, 'MinEdgeDist',15, 'RemoveBadSources',true};
 
         % cleaning of the subtracted image:        
-        Args.RemoveMasked              = true;   % the iput AI.Mask should be filled, but seems like this filter does not influence the result much ? 
+        Args.RemoveMasked              = false;   % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
                               
         % miscellaneous:
