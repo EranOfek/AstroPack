@@ -9,9 +9,13 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
         %         'Back' - image background 
-        %         'WriteFiles' - logical (write the output to FITS image and ds9 region files)
+        %         'WriteFiles'    - logical (write the output to FITS image and ds9 region files)
+        %         'OutImageName'  - output FITS image file name
+        %         'OutRegionName' - output ds9 region file name
+        %         'OutArchName'   - output .mat archive file name
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
+        %         - (optional) output disk files: FITS image, ds9 region, .mat object 
         % Author: A.M. Krassilchtchikov (Sep 2024)
         % Example: [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',true);
         % 
