@@ -23,13 +23,32 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
+            Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
+            Args.CRVAL      = [215 53];    % WCS CRVAL
+            Args.CRPIX      = [1 1];       % WCS CRPIX
             Args.WriteFiles = false;       % write the FITS image and a source catalog region file
             Args.OutImageName  = '~/LAST_sim_image.fits'; % image file name
             Args.OutRegionName = '~/LAST_sim.reg';        % region file name            
             Args.OutArchName   = '~/LAST_sim.mat';        % full archive file name
         end
-        %
+        % make an empty AI
         SimAI = AstroImage;
+        
+        % add WCS
+        SimWCS = AstroWCS();
+        SimWCS.ProjType  = 'TAN';
+        SimWCS.ProjClass = 'ZENITHAL';
+        SimWCS.CooName   = {'RA'  'DEC'};
+        SimWCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        SimWCS.CUNIT     = {'deg', 'deg'};
+        SimWCS.CD(1,1)   = Args.PixSizeDeg;
+        SimWCS.CD(2,2)   = Args.PixSizeDeg;
+        SimWCS.CRVAL     = Args.CRVAL;        
+        SimWCS.CRPIX     = Args.CRPIX;        
+        SimWCS.populate_projMeta;        
+        AH = SimWCS.wcs2header;  % make a header from the WCS
+        SimAI.HeaderData.Data = AH.Data; % add the WC data to the AI header       
+        SimAI.WCS        = SimWCS;                
         
         if numel(Args.Size) > 1
             Nx = Args.Size(1);
