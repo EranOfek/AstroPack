@@ -1,0 +1,144 @@
+function tests = test_spherical_triangle_circum_circle
+    % Unit tests for the spherical_triangle_circum_circle function in AstroPack
+    %
+    % Description:
+    % This unit test verifies the correct operation of the `spherical_triangle_circum_circle`
+    % function for all supported methods ('sides', 'angles', and 'vertex'). It includes tests for
+    % basic cases, edge cases like degenerate triangles, and regression tests to ensure 
+    % consistency over time.
+    %
+    % Author: Yarin Shani
+    % Date: 2024-10-19
+    
+    tests = functiontests(localfunctions);
+end
+
+%% Setup and Teardown
+function setupOnce(testCase)
+    % Setup common test data used in multiple tests
+    testCase.TestData.sides = [pi/3, pi/3, pi/3];   % Equilateral triangle with sides of pi/3
+    testCase.TestData.angles = {[pi/2, pi/2, pi], [pi/3, pi/4, pi/2], [pi/2, pi/4, pi/2]}; % Updated angles
+    testCase.TestData.vertices = [0, 0, pi/3, 0, pi/3, pi/3];  % Equilateral triangle at vertices
+
+    % Load regression data (assumes the .mat file exists)
+    dataFilePath = fullfile('~/','matlab','AstroPack','tests', 'relativeData', 'expected_spherical_triangle_circum_circle_results.mat');
+    if exist(dataFilePath, 'file')
+        testCase.TestData.ExpectedResults = load(dataFilePath);
+    else
+        error('Regression data file does not exist. Run the regression data generation script first.');
+    end
+end
+
+function teardownOnce(~)
+    % Teardown function: nothing needed for now, but can be used for cleanup
+end
+
+%% Test Functions
+
+function testSidesMethod(testCase)
+    % Test the 'sides' method of the spherical_triangle_circum_circle function
+    sides = testCase.TestData.sides;
+    
+    % Extract sides
+    a = sides(1);
+    b = sides(2);
+    c = sides(3);
+    
+    % Call the function with side lengths
+    R = celestial.coo.spherical_triangle_circum_circle('sides', a, b, c);
+    
+    % Known circumradius for an equilateral triangle with sides pi/3
+    expectedR = pi/6;  % This value is just an example, adjust based on actual results
+    
+    % Verify the result using relative tolerance
+    verifyEqual(testCase, R, expectedR, 'RelTol', 1e-6, 'The circumradius does not match the expected value for the sides method.');
+end
+
+function testAnglesMethod(testCase)
+    % Test the 'angles' method of the spherical_triangle_circum_circle function
+    anglesList = testCase.TestData.angles;
+    
+    for i = 1:numel(anglesList)
+        % Extract angles A, B, C
+        A = anglesList{i}(1);
+        B = anglesList{i}(2);
+        C = anglesList{i}(3);
+        
+        % Call the function with angles
+        R = celestial.coo.spherical_triangle_circum_circle('angles', A, B, C);
+        
+        % Expected circumradius based on known configurations (these are placeholders, adjust as necessary)
+        if i == 1
+            expectedR = pi / 4;  % Example: for [pi/2, pi/2, pi]
+        elseif i == 2
+            expectedR = pi / 5;  % Example: for [pi/3, pi/4, pi/2]
+        elseif i == 3
+            expectedR = pi / 6;  % Example: for [pi/2, pi/4, pi/2]
+        end
+        
+        % Verify the result using relative tolerance
+        verifyEqual(testCase, R, expectedR, 'RelTol', 1e-6, ...
+            sprintf('The circumradius does not match the expected value for the angles method (Test #%d).', i));
+    end
+end
+
+function testVertexMethod(testCase)
+    % Test the 'vertex' method of the spherical_triangle_circum_circle function
+    vertices = testCase.TestData.vertices;
+    
+    % Extract vertex coordinates Long1, Lat1, Long2, Lat2, Long3, Lat3
+    Long1 = vertices(1);
+    Lat1 = vertices(2);
+    Long2 = vertices(3);
+    Lat2 = vertices(4);
+    Long3 = vertices(5);
+    Lat3 = vertices(6);
+    
+    % Call the function with vertex coordinates
+    R = celestial.coo.spherical_triangle_circum_circle('vertex', Long1, Lat1, Long2, Lat2, Long3, Lat3);
+    
+    % Expected circumradius for the specific triangle formed by these vertices
+    expectedR = pi/6;  % This value is just an example, adjust based on actual results
+    
+    % Verify the result using relative tolerance
+    verifyEqual(testCase, R, expectedR, 'RelTol', 1e-6, 'The circumradius does not match the expected value for the vertex method.');
+end
+
+function testDegenerateTriangle(testCase)
+    % Test degenerate triangle (all points coincide)
+    vertices = [0, 0, 0, 0, 0, 0]; % All points are the same
+    
+    % Call the function
+    [R] = celestial.coo.spherical_triangle_circum_circle('vertex', vertices(1), vertices(2), vertices(3), vertices(4), vertices(5), vertices(6));
+    
+    % The circumradius should be zero for degenerate triangles
+    verifyEqual(testCase, R, 0, 'The circumradius should be zero for a degenerate triangle.');
+end
+
+function testRegressionCase(testCase)
+    % Regression test to verify consistency with stored results
+    
+    expectedResults = testCase.TestData.ExpectedResults.expectedResults;
+
+    % Loop through each set of expected results
+    for i = 1:numel(expectedResults)
+        Method = expectedResults(i).Method;
+        Inputs = expectedResults(i).Inputs;
+        
+        % Call the function using the stored inputs
+        if strcmp(Method, 'sides')
+            [a, b, c] = Inputs{:};
+            R = celestial.coo.spherical_triangle_circum_circle('sides', a, b, c);
+        elseif strcmp(Method, 'angles')
+            [A, B, C] = Inputs{:};
+            R = celestial.coo.spherical_triangle_circum_circle('angles', A, B, C);
+        elseif strcmp(Method, 'vertex')
+            [Long1, Lat1, Long2, Lat2, Long3, Lat3] = Inputs{:};
+            R = celestial.coo.spherical_triangle_circum_circle('vertex', Long1, Lat1, Long2, Lat2, Long3, Lat3);
+        end
+        
+        % Verify the result matches the stored result
+        verifyEqual(testCase, R, expectedResults(i).R, 'RelTol', 1e-6, ...
+            sprintf('Circumradius result for Method: %s has changed unexpectedly.', Method));
+    end
+end

@@ -1,6 +1,9 @@
 function tests = test_area_sphere_polygon
     % Unit tests for the area_sphere_polygon function, which calculates the area of a polygon on a sphere.
     %
+    % This Test is incomplete due to an unclear result of the function.
+    % in testTriangle Area : permutation to the tirangle vertices is not
+    % consistent.
     % Author: Yarin Shani
     % 
 
@@ -21,6 +24,46 @@ function testTriangleArea(testCase)
     expectedArea = pi / 2;  % Expected approximate area for the triangle
     verifyEqual(testCase, Area, expectedArea, 'RelTol', 0.1, 'Failed to calculate correct area for spherical triangle.');
 end
+
+function testTriangleAreaPermutation(testCase)
+    % Test if the function correctly calculates the area of a simple spherical triangle.
+    PolyLon = [ pi/4;0; pi/2];  % Longitude values in radians
+    PolyLat = [pi/2; 0; 0];     % Latitude values in radians
+    
+    % Call area_sphere_polygon function
+    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    
+    % Verify the result is within a reasonable expected range
+    expectedArea = pi / 2;  % Expected approximate area for the triangle
+    verifyEqual(testCase, Area, expectedArea, 'RelTol', 0.1, 'Failed to calculate correct area for spherical triangle.');
+end
+
+function testTriangleAreaPermutation2(testCase)
+    % Test if the function correctly calculates the area of a simple spherical triangle.
+    PolyLon = [ pi/2; pi/4;0];  % Longitude values in radians
+    PolyLat = [0; pi/2; 0];     % Latitude values in radians
+    
+    % Call area_sphere_polygon function
+    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    
+    % Verify the result is within a reasonable expected range
+    expectedArea = pi / 2;  % Expected approximate area for the triangle
+    verifyEqual(testCase, Area, expectedArea, 'RelTol', 0.1, 'Failed to calculate correct area for spherical triangle.');
+end
+
+function testTriangleAreaPermutation3(testCase)
+    % Test if the function correctly calculates the area of a simple spherical triangle.
+    PolyLon = [ 0; pi/4;pi/2];  % Longitude values in radians
+    PolyLat = [0; pi/2; 0];     % Latitude values in radians
+    
+    % Call area_sphere_polygon function
+    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    
+    % Verify the result is within a reasonable expected range
+    expectedArea = pi / 2;  % Expected approximate area for the triangle
+    verifyEqual(testCase, Area, expectedArea, 'RelTol', 0.1, 'Failed to calculate correct area for spherical triangle.');
+end
+
 
 function testClosedPolygon(testCase)
     % Test if the function handles closed polygons properly.
