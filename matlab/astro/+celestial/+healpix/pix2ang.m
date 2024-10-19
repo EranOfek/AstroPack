@@ -19,6 +19,7 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
         Args.CooUnits = 'rad';              
     end
 
+    Pix = double(Pix);
     switch Args.Type
         case 'nested'
             [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(Nside, Pix); % Get longitude and latitude
