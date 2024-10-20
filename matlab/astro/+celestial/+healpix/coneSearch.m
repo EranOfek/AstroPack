@@ -16,14 +16,23 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
 
     arguments
         Nside
-        Lon
-        Lat
+        Lon(1,1)
+        Lat(1,1)
         Radius
         Args.Type        = 'nested';
         Args.CooUnits    = 'rad';
         Args.RadiusUnits = 'rad';
     end
 
+    switch Args.Type
+        case 'nested'
+            IsNested = true;
+        case 'ring'
+            IsNested = false;
+            
+        otherwise
+            error('Unknown Type option');
+    end
     Factor = convert.angular(Args.CooUnits,'rad');
     Lon    = Factor.*Lon;
     Lat    = Factor.*Lat;
@@ -43,18 +52,24 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
     
     Result = [];
     for Pix = TopLevelPixels
-        [Result] = recursiveConeSearch(Nside, 1, Pix, Lon, Lat, Radius, Result, Args.Type);
+        [Result] = recursiveConeSearch(Nside, 1, Pix, Lon, Lat, Radius, Result, IsNested); %FunType); %Args.Type);
         %(Pix, 1, NSide, Radius, CenterVec, Idx, PixelIndices);
     end
 
 end
 
-function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, Lat, Radius, PixelIndices, Type)
+function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, Lat, Radius, PixelIndices, IsNested)
     % Recursive cone search
 
   
     % Calculate the center of the current pixel in Cartesian coordinates
-    [PixLon, PixLat] = celestial.healpix.pix2ang(CurrentNside, Pix, 'Type',Type,'CooUnits','rad');
+    %[PixLon, PixLat] = celestial.healpix.pix2ang(CurrentNside, Pix, 'Type',Type,'CooUnits','rad');
+    if IsNested
+        [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(CurrentNside, Pix);
+    else
+        [PixLon, PixLat] = celestial.healpix.mex.pix2ang_ring(CurrentNside, Pix);
+    end
+    %[PixLon, PixLat] = FunType(CurrentNside, Pix);
 
     PixelRadius = pi ./ (sqrt(3) .* CurrentNside);
 
@@ -84,7 +99,7 @@ function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, L
             SubNside = 2 .* CurrentNside;
             SubPixels = 4 .* Pix; % Each parent pixel divides into 4 subpixels
             for SubPix = SubPixels:(SubPixels + 3)
-                [PixelIndices] = recursiveConeSearch(TargetNside, SubNside, SubPix, Lon, Lat, Radius, PixelIndices, Type);
+                [PixelIndices] = recursiveConeSearch(TargetNside, SubNside, SubPix, Lon, Lat, Radius, PixelIndices, IsNested); %FunType); %Type);
             end
         end
     end
