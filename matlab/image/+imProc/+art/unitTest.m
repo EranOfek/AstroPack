@@ -26,7 +26,7 @@ function Result = unitTest()
     % 
     cprintf('blue','Sky image simulation test:\n');
     % simulate an image (by default -- based on LAST source statistics in the field 275-16)
-    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',true,'AddBack',true,'Back',220,'AddNoise',true);
+    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',false,'DensityFactor',3e-1,'AddBack',true,'Back',200,'AddNoise',true);
     % extract the sources with mextractor 
     [SimAI, SourceLess] = imProc.sources.mextractor(SimAI,'Verbose',true,...
         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
@@ -48,7 +48,7 @@ function Result = unitTest()
     ds9.load_region('~/insrc.reg');
     %    
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
-            'Radius', 1.0,'CooType','pix','ColCatX','X1','ColCatY','Y1','ColRefX','X1','ColRefY','Y1'); 
+            'Radius', 1.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1'); 
     A = ~isnan(Result1.Catalog); NMatched = sum(A,1)
     %
     % RAD = 180/pi;  

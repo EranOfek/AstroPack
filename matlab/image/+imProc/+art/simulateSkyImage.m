@@ -32,7 +32,8 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point            
             Args.AddBack  logical = true;  % whether to add backgorund to the source image
-            Args.Back       = 220;         % [cts] [the default number is for a moderately dense field of LAST]
+            Args.Back       = 220;         % [cts] [this default value is for a moderately dense field of LAST]
+            Args.DensityFactor = 1;        % source density scaling: 1 corresponds to a moderately dense field of LAST
             Args.AddNoise logical = true;  % whether to add noise to the source image
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
@@ -71,9 +72,11 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         if isempty(Args.Mag)            
             % source distribution by optical magnitude (taken from LAST) 
-            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01; % (MaxMag = 19 if the laptop memory is insufficient)
+            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01; % (MaxMag = 21, 19 if the laptop memory is insufficient)
             Mags    = MinMag:DeltaMag:MaxMag;
             Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
+            
+            Nstars  = Args.DensityFactor .* Nstars;
             
             Nsrc = 0;
             for Imag = 1:numel(Mags)
