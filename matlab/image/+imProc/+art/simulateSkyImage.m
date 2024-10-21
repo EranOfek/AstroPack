@@ -8,7 +8,12 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'Nsrc' - number of objects ([] be def.); if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
-        %         'Back' - image background 
+        %         'AddBack' - (logical) whether to add backgorund to the source image
+        %         'Back' - image background (in cts)
+        %         'AddNoise' - (logical) whether to add noise to the source image
+        %         'PixSizeDeg'    - WCS parameters: image pixel size [deg]
+        %         'CRVAL'         - WCS parameters: reference coordinates [RA Dec]
+        %         'CRPIX'         - WCS parameters: reference pixels [X Y]
         %         'WriteFiles'    - logical (write the output to FITS image and ds9 region files)
         %         'OutImageName'  - output FITS image file name
         %         'OutRegionName' - output ds9 region file name
@@ -25,8 +30,10 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
             Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
-            Args.MagZP      = 25;          % photometric zero point
+            Args.MagZP      = 25;          % photometric zero point            
+            Args.AddBack  logical = true;  % whether to add backgorund to the source image
             Args.Back       = 220;         % [cts] [the default number is for a moderately dense field of LAST]
+            Args.AddNoise logical = true;  % whether to add noise to the source image
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
             Args.CRPIX      = [1 1];       % WCS CRPIX
@@ -64,7 +71,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         if isempty(Args.Mag)            
             % source distribution by optical magnitude (taken from LAST) 
-            MinMag  = 11; MaxMag = 19; DeltaMag = 0.01; % MaxMag = 21
+            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01; % (MaxMag = 19 if the laptop memory is insufficient)
             Mags    = MinMag:DeltaMag:MaxMag;
             Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
             
@@ -117,8 +124,9 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
                                                         'UpdateCat', false, ... 
                                                         'MagZP',Args.MagZP, ... 
                                                         'PositivePSF', true, ... 
-                                                        'Back', Back, ... 
-                                                        'AddBackground',true,... 
+                                                        'AddBackground',Args.AddBack,...
+                                                        'Back', Back, ...                                                         
+                                                        'AddNoise',Args.AddNoise, ...
                                                         'NoiseModel', 'normal'); 
                                                              
          % write disk files if requested 
@@ -126,7 +134,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
              DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
                  'Precision','%.2f','PrintIndividualProp',0);
              
-             FITS.write(SimAI.Image, Args.OutImageName,'Header',SimAI.HeaderData.Data,...
+             FITS.write(SimAI.Image', Args.OutImageName,'Header',SimAI.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
                 
              save(Args.OutArchName,'SimAI','InjectedCat');                                 

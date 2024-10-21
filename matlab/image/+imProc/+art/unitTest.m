@@ -26,7 +26,7 @@ function Result = unitTest()
     % 
     cprintf('blue','Sky image simulation test:\n');
     % simulate an image (by default -- based on LAST source statistics in the field 275-16)
-    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',false);
+    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',true,'AddBack',true,'Back',220,'AddNoise',true);
     % extract the sources with mextractor 
     [SimAI, SourceLess] = imProc.sources.mextractor(SimAI,'Verbose',true,...
         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
@@ -42,7 +42,7 @@ function Result = unitTest()
     ds9(SimAI.Image,5); ds9.load_region('~/Simulated_it1.reg'); 
     ds9.load_region('~/Simulated_it2.reg');ds9.load_region('~/Simulated_it3.reg');
     %
-    InSrc = SimCat.Table(SimCat.Table.MAG_PSF<19,:); % make source region
+    InSrc = SimCat.Table(SimCat.Table.MAG_PSF<18.5,:); % make source region with objects brighter than m = 18.5 
     DS9_new.regionWrite([InSrc.Y1 InSrc.X1],'FileName','~/insrc.reg','Color','yellow','Marker','b','Size',1,'Width',4,...
                             'Precision','%.2f','PrintIndividualProp',0); 
     ds9.load_region('~/insrc.reg');
