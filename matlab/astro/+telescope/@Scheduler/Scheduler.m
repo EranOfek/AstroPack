@@ -1166,7 +1166,9 @@ classdef Scheduler < Component
                 case 'MaxCounter'
                     %ColVal = FunColVal(ColName);
 
-                    GlobalCounter = Obj.List.getCol('GlobalCounter');
+                    %GlobalCounter = Obj.List.getCol('GlobalCounter');
+                    GlobalCounter = Obj.List.Catalog.GlobalCounter;
+
                     if isnan(GlobalCounter)
                         error('GlobalCounter is missing');
                     end
@@ -1187,7 +1189,9 @@ classdef Scheduler < Component
                     %ColVal = FunColVal(ColName);
 
                     LeftTime = Obj.leftVisibilityTime(JD);
-                    NightCounter = Obj.List.getCol('NightCounter');
+                    %NightCounter = Obj.List.getCol('NightCounter');
+                    NightCounter = Obj.List.Catalog.NightCounter;
+
                     if isnan(NightCounter)
                         error('NightCounter is not available');
                     end
