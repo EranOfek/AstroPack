@@ -29,7 +29,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Cat        = [];          % input catalog (source positions) 
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
-            Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
+            Args.PSF        = '~/matlab/data/TestImages/unitTest/LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point            
             Args.AddBack  logical = true;  % whether to add backgorund to the source image
             Args.Back       = 220;         % [cts] [this default value is for a moderately dense field of LAST]
@@ -109,7 +109,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         % read an empirical LAST PSF 
         if ischar(Args.PSF)
-            PSF = readmatrix(Args.PSF);
+            PSF = readmatrix(tools.os.relPath2absPath(Args.PSF));
         else
             PSF = Args.PSF; 
         end
