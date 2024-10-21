@@ -918,8 +918,8 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
-                Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]
-                Args.FunTargetInfo function_handle             % F(Mount, Field, RA, Dec, Nexp, ExpTime)
+                Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]=F() - check if there is a request from a mount
+                Args.FunTargetInfo function_handle             % [Sucess]=F(Mount, Field, RA, Dec, Nexp, ExpTime) - write variable to mount
             end
 
             S = telescope.Scheduler;
@@ -945,6 +945,7 @@ classdef Scheduler < Component
                 end
 
                 % Check if scheduling is required and if so for which mount
+                % Enrico's function #1
                 [SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
                 %=========
                 %SchedIsNeeded = true;
@@ -957,11 +958,8 @@ classdef Scheduler < Component
                     [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD, 'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
 
                     % write the following arguments to mount:
-                    Args
-                    
-                    
-                    
-                    .FunTargetInfo(Mount,...
+                    % Enrico's function #2
+                    Success = Args.FunTargetInfo(Mount,...
                                        Struct.FieldName,...
                                        Struct.RA,...
                                        Struct.Dec,...
@@ -969,20 +967,24 @@ classdef Scheduler < Component
                                        Struct.ExpTime);
                     
 
-                    % update counters and LastJD
-                    S.increaseCounter(TargetInd);
-
-                    % backup latest version of target list
-                    Tbl = S.List.Table;
-                    save('-v7.3','TargetList.mat','Tbl');
-
-
-                    % observation log
-                    LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
-                                                                                                             Struct.RA, Struct.Dec,...
-                                                                                                             Priority,...
-                                                                                                             Struct.Nexp, Struct.ExpTime);
-                    S.Logger.msgLog(Level, LogLine);
+                    if Success
+                        % update counters and LastJD
+                        S.increaseCounter(TargetInd);
+    
+                        % backup latest version of target list
+                        Tbl = S.List.Table;
+                        save('-v7.3','TargetList.mat','Tbl');
+    
+    
+                        % observation log
+                        LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
+                                                                                                                 Struct.RA, Struct.Dec,...
+                                                                                                                 Priority,...
+                                                                                                                 Struct.Nexp, Struct.ExpTime);
+                        S.Logger.msgLog(Level, LogLine);
+                    else
+                        % Unit didn't recieve the requested target
+                    end
                 end
                 
 
