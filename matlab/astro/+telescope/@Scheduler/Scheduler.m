@@ -92,6 +92,14 @@ classdef Scheduler < Component
         GeoPos                     = [35.041201 30.053014 415];  %
        
         FileName                   = [];
+        
+        Mailbox % Communication store for the Scheduler. E.g. Redis
+        % Mailbox contains hashes TargetRequest:MountNumber, with fields:
+        %         Status - 'requesting', 'provided', 'acquired',
+        %                  'refused', 'observed', 'failed'
+        %         JD  - the time the last operation was performed
+        %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
+        %                    Nexp, ExpTime
     end
     
     properties (Hidden)
@@ -136,7 +144,7 @@ classdef Scheduler < Component
     end
     
     methods % constructor
-        function Obj = Targets(FileName)
+        function Obj = Scheduler(FileName)
             % Constructor for Targets
             % Input  : - If not given and the FileName property is empty
             %            then will return an empty Targets
@@ -168,6 +176,11 @@ classdef Scheduler < Component
                 Obj = io.files.load2(Obj.FileName);
             end
             
+            try
+                Obj.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+            catch
+                warning('cannot connect to Redis, will work without a request Mailbox')
+            end
         end
     end
     
@@ -918,8 +931,9 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
-                Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]=F() - check if there is a request from a mount
-                Args.FunTargetInfo function_handle             % [Sucess]=F(Mount, Field, RA, Dec, Nexp, ExpTime) - write variable to mount
+%                 Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]=F() - check if there is a request from a mount
+%                 Args.FunTargetInfo function_handle             % [Success]=F(Mount, Field, RA, Dec, Nexp, ExpTime) - write variable to mount
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
 
             S = telescope.Scheduler;
@@ -938,6 +952,7 @@ classdef Scheduler < Component
             % infinte loop
             Cont = true;
             while Cont
+                pause(0.5) % don't run full throttle
                 % check for ToO
                 if isfile(Args.ToO_File)
                     S.loadTable(Args.ToO_File, 'merge_replace');
@@ -946,47 +961,63 @@ classdef Scheduler < Component
 
                 % Check if scheduling is required and if so for which mount
                 % Enrico's function #1
-                [SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
-                %=========
-                %SchedIsNeeded = true;
-                %Mount = [];
-                %JD    = celestial.time.julday;
+                %[SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
+                if ~isempty(S.Mailbox)
+                    Req=S.Mailbox.keys('TargetRequest:*'); % warning: blocking
+                    for i=1:numel(Req)
+                        SchedIsNeeded=strcmpi(S.Mailbox.hget(Req{i},'Status'),...
+                                             'requesting');
+                        if SchedIsNeeded
+                            Mount=sscanf(Req{i},'TargetRequest:%d');
+                            % get an appropriate target
+                            [TargetInd, Priority, Tbl, Struct] = S.selectTarget(S.JD,...
+                                    'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
+                            % write the following arguments to mount:
+                            % Enrico's function #2
+                            try
+                                target=struct('FieldName',Struct.FieldName,...
+                                              'RA',Struct.RA,...
+                                              'Dec',Struct.Dec,...
+                                              'Nexp',Struct.Nexp,...
+                                              'ExpTime',Struct.ExpTime);
+                                S.Mailbox.hset(Req{i},'Status','provided',...
+                                    'Target',jsonencode(target),...
+                                    'JD',S.JD);
+                            catch
+                            end
+ 
+                            % now should we stand here polling till we get
+                            %  a confirmation that the unit acknowledged?
+                            t0=now;
+                            Success=false;
+                            ReqStatus='';
+                            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                                  ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                                ReqStatus=S.Mailbox.hget(Req{1},'Status');
+                                Success=strcmpi(ReqStatus,'acquired');
+                            end
+                            if Success
+                                % update counters and LastJD
+                                S.increaseCounter(TargetInd);
 
+                                % backup latest version of target list
+                                Tbl = S.List.Table;
+                                save('-v7.3','TargetList.mat','Tbl');
 
-                if SchedIsNeeded
-                    % search for target
-                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD, 'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
-
-                    % write the following arguments to mount:
-                    % Enrico's function #2
-                    Success = Args.FunTargetInfo(Mount,...
-                                       Struct.FieldName,...
-                                       Struct.RA,...
-                                       Struct.Dec,...
-                                       Struct.Nexp,...
-                                       Struct.ExpTime);
-                    
-
-                    if Success
-                        % update counters and LastJD
-                        S.increaseCounter(TargetInd);
-    
-                        % backup latest version of target list
-                        Tbl = S.List.Table;
-                        save('-v7.3','TargetList.mat','Tbl');
-    
-    
-                        % observation log
-                        LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
-                                                                                                                 Struct.RA, Struct.Dec,...
-                                                                                                                 Priority,...
-                                                                                                                 Struct.Nexp, Struct.ExpTime);
-                        S.Logger.msgLog(Level, LogLine);
-                    else
-                        % Unit didn't recieve the requested target
+                                % observation log
+                                LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
+                                                                                                                         Struct.RA, Struct.Dec,...
+                                                                                                                         Priority,...
+                                                                                                                       Struct.Nexp, Struct.ExpTime);
+                                S.Logger.msgLog(Level, LogLine);
+                            else
+                                % Unit didn't receive the requested target
+                                warning('Unit %d has not acknowledged the new target within %g sec',...
+                                       Mount,Args.AcknowledgeTimeout)
+                            end
+                        end
                     end
-                end
-                
+                end % isempty(Mailbox)
 
                 if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
                     delete(Args.AbortFile);
