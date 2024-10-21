@@ -896,6 +896,106 @@ classdef Scheduler < Component
         
     end
 
+    methods (Static) % real time Scheduler demon
+        function S=demon(Args)
+            % Execute scheduler in listening mode
+            %   This method execute the telescope.Scheduler in an infinite
+            %   loop. In each loop, checks if a new ToO file exist, and if
+            %   so load it. Look for new target for mount and send it to
+            %   mount. The communication with mounts is done using a user
+            %   provided functions.
+            % Input  : * ...,key,val,...
+            %            See code for options
+            % Output : - telescope.Scheduler object.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: telescope.Scheduler.demon;
+
+            arguments
+                Args.TargetList    = []; % current target list: file name or table
+                Args.AbortFile     = [];                      % abort file name including path
+                Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
+                Args.ObsLogFile    = 'observations_log.txt'   % log file name
+                Args.ToO_File      = 'ToO.csv';               % ToO file name
+                Args.SelectMethod  = 'minam';                 % Target selection method.
+
+                Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]
+                Args.FunTargetInfo function_handle             % F(Mount, Field, RA, Dec, Nexp, ExpTime)
+            end
+
+            S = telescope.Scheduler;
+            if isempty(Args.TargetList)
+                % generate regular grid
+                S.generateRegularGrid;
+            else
+                S.loadTable(Args.TargetList);
+      
+            end
+
+            % log file
+            LogFileName = sprintf('%s%s%s', Args.ObsLogPath, filesep, Args.ObsLogFile);
+            S.Logger.LogF.FileName = LogFileName;
+
+            % infinte loop
+            Cont = true;
+            while Cont
+                % check for ToO
+                if isfile(Args.ToO_File)
+                    S.loadTable(Args.ToO_File, 'merge_replace');
+                    delete(rgs.ToO_File);
+                end
+
+                % Check if scheduling is required and if so for which mount
+                [SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
+                %=========
+                %SchedIsNeeded = true;
+                %Mount = [];
+                %JD    = celestial.time.julday;
+
+
+                if SchedIsNeeded
+                    % search for target
+                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD, 'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
+
+                    % write the following arguments to mount:
+                    Args
+                    
+                    
+                    
+                    .FunTargetInfo(Mount,...
+                                       Struct.FieldName,...
+                                       Struct.RA,...
+                                       Struct.Dec,...
+                                       Struct.Nexp,...
+                                       Struct.ExpTime);
+                    
+
+                    % update counters and LastJD
+                    S.increaseCounter(TargetInd);
+
+                    % backup latest version of target list
+                    Tbl = S.List.Table;
+                    save('-v7.3','TargetList.mat','Tbl');
+
+
+                    % observation log
+                    LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
+                                                                                                             Struct.RA, Struct.Dec,...
+                                                                                                             Priority,...
+                                                                                                             Struct.Nexp, Struct.ExpTime);
+                    S.Logger.msgLog(Level, LogLine);
+                end
+                
+
+                if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
+                    delete(Args.AbortFile);
+                    Cont = false;
+                end
+            end
+
+        end
+    
+    end
+
     
     methods  % setters to Data table
         function Obj = insertColList(Obj, ColName, Val, Index)
