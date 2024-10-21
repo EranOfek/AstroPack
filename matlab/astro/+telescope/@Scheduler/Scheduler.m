@@ -1133,6 +1133,7 @@ classdef Scheduler < Component
             end
             SEC_DAY = 86400;
             
+            %FunColVal = @(x) Obj.List.Catalog.(x);
             if isempty(ColVal)
                 %ColVal = Obj.List.getCol(ColName);
                 ColVal = Obj.List.Catalog.(ColName);  % faster
@@ -1145,30 +1146,46 @@ classdef Scheduler < Component
             
             switch ColName
                 case 'MinAlt'
+                    %ColVal = FunColVal(ColName);
+
                     [~,Alt] = Obj.azalt(JD);
                     [~,Alt1] = Obj.azalt(JD1);
                     Flag = Alt>ColVal & Alt1>ColVal;
                 case 'MaxAlt'
+                    %ColVal = FunColVal(ColName);
+
                     [~,Alt] = Obj.azalt(JD);
                     Flag = Alt<=ColVal;
                 case 'MaxHA'
+                    %ColVal = FunColVal(ColName);
+
                     [HA] = Obj.halst(JD);
                     [HA1] = Obj.halst(JD1);
                     
                     Flag = abs(HA)<ColVal & abs(HA1)<ColVal;
                 case 'MaxCounter'
+                    %ColVal = FunColVal(ColName);
+
                     GlobalCounter = Obj.List.getCol('GlobalCounter');
                     if isnan(GlobalCounter)
                         error('GlobalCounter is missing');
                     end
                     Flag = ColVal>GlobalCounter;
                 case 'MinMoonDist'
+                    %ColVal = FunColVal(ColName);
+
                     Flag = Obj.moonDist(JD)>ColVal;
                 case 'StartJD'
+                    %ColVal = FunColVal(ColName);
+
                     Flag = JD>ColVal;
                 case 'StopJD'
+                    %ColVal = FunColVal(ColName);
+
                     Flag = JD<ColVal;
                 case 'MinVisibility'
+                    %ColVal = FunColVal(ColName);
+
                     LeftTime = Obj.leftVisibilityTime(JD);
                     NightCounter = Obj.List.getCol('NightCounter');
                     if isnan(NightCounter)
