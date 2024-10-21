@@ -96,7 +96,7 @@ classdef Scheduler < Component
         Mailbox % Communication store for the Scheduler. E.g. Redis
         % Mailbox contains hashes TargetRequest:MountNumber, with fields:
         %         Status - 'requesting', 'provided', 'acquired',
-        %                  'observed', 'failed'
+        %                  'refused', 'observed', 'failed'
         %         JD  - the time the last operation was performed
         %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
         %                    Nexp, ExpTime
@@ -970,18 +970,18 @@ classdef Scheduler < Component
                         if SchedIsNeeded
                             Mount=sscanf(Req{i},'TargetRequest:%d');
                             % get an appropriate target
-                            [TargetInd, Priority, Tbl, Struct] = S.selectTarget(S.JD, 'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
+                            [TargetInd, Priority, Tbl, Struct] = S.selectTarget(S.JD,...
+                                    'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
                             % write the following arguments to mount:
                             % Enrico's function #2
-    %                         Success = Args.FunTargetInfo(Mount,...
-    %                                            Struct.FieldName,...
-    %                                            Struct.RA,...
-    %                                            Struct.Dec,...
-    %                                            Struct.Nexp,...
-    %                                            Struct.ExpTime);
                             try
+                                target=struct('FieldName',Struct.FieldName,...
+                                              'RA',Struct.RA,...
+                                              'Dec',Struct.Dec,...
+                                              'Nexp',Struct.Nexp,...
+                                              'ExpTime',Struct.ExpTime);
                                 S.Mailbox.hset(Req{i},'Status','provided',...
-                                    'Target',jsonencode(Struct),...
+                                    'Target',jsonencode(target),...
                                     'JD',S.JD);
                             catch
                             end
@@ -992,7 +992,7 @@ classdef Scheduler < Component
                             Success=false;
                             ReqStatus='';
                             while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                                  ~strcmpi(ReqStatus,{'acquired','failed'})
+                                  ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
                                 ReqStatus=S.Mailbox.hget(Req{1},'Status');
                                 Success=strcmpi(ReqStatus,'acquired');
                             end
@@ -1004,17 +1004,16 @@ classdef Scheduler < Component
                                 Tbl = S.List.Table;
                                 save('-v7.3','TargetList.mat','Tbl');
 
-
                                 % observation log
                                 LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
                                                                                                                          Struct.RA, Struct.Dec,...
                                                                                                                          Priority,...
-                                                                                                                         Struct.Nexp, Struct.ExpTime);
+                                                                                                                       Struct.Nexp, Struct.ExpTime);
                                 S.Logger.msgLog(Level, LogLine);
                             else
                                 % Unit didn't receive the requested target
                                 warning('Unit %d has not acknowledged the new target within %g sec',...
-                                       Args.AcknowledgeTimeout)
+                                       Mount,Args.AcknowledgeTimeout)
                             end
                         end
                     end
