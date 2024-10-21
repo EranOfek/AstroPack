@@ -1134,7 +1134,8 @@ classdef Scheduler < Component
             SEC_DAY = 86400;
             
             if isempty(ColVal)
-                ColVal = Obj.List.getCol(ColName);
+                %ColVal = Obj.List.getCol(ColName);
+                ColVal = Obj.List.Catalog.(ColName);  % faster
             end
             if isempty(JD)
                 JD = Obj.JD;
