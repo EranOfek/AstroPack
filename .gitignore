@@ -8,6 +8,7 @@ matlab/startup/startup.m
 # **/mexa64/*
 **/_bkp/*
 **/_backup/*
+*.asv
 
 # config files
 config
