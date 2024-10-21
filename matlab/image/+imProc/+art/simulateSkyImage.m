@@ -64,7 +64,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         if isempty(Args.Mag)            
             % source distribution by optical magnitude (taken from LAST) 
-            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01;
+            MinMag  = 11; MaxMag = 19; DeltaMag = 0.01; % MaxMag = 21
             Mags    = MinMag:DeltaMag:MaxMag;
             Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
             
