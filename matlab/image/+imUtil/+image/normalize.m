@@ -82,7 +82,7 @@ function [Image] = normalize(Image, Args)
                 Args.AddFunArgs  = {};
                 Args.AddVal      = 0;
                 Args.MultFun     = @tools.math.stat.rstd;
-                Args.MultFunArgs = {'all'};
+                Args.MultFunArgs = {'all',3};
                 Args.MultVal     = 1;
             case 'norm_robust'
                 Args.AddFun      = @fast_median;
