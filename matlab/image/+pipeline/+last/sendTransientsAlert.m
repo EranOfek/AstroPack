@@ -137,7 +137,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         for Icat = Ncats:-1:1
             TC = merge(TranCats(Icat));
-            Match = TC.coneSearch(RA, Dec, 1);
+            Match = TC.coneSearch(RA, Dec, 3);
 
             % LC points
             if Match.Nsrc > 0

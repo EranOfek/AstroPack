@@ -81,6 +81,13 @@ function [Image] = normalize(Image, Args)
                 Args.AddFun      = @fast_median;
                 Args.AddFunArgs  = {};
                 Args.AddVal      = 0;
+                Args.MultFun     = @tools.math.stat.rstd;
+                Args.MultFunArgs = {'all'};
+                Args.MultVal     = 1;
+            case 'norm_mad'
+                Args.AddFun      = @fast_median;
+                Args.AddFunArgs  = {};
+                Args.AddVal      = 0;
                 Args.MultFun     = @tools.math.stat.std_mad;
                 Args.MultFunArgs = {0,'all'};
                 Args.MultVal     = 1;

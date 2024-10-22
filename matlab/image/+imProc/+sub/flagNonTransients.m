@@ -83,6 +83,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 'PVDistThresh' - Distance threshold in pixels between 
                        peaks and valleys below which to flag candidates. 
                        Default is 10.
+                'flagStreak' - Bool on whether to flag candidates induced
+                       by streaks (e.g. satellites). Default is true.
                 --- AstroZOGY ---
                 'flagTranslients' - Bool on whether to flag transients 
                        candidates which score higher in Z2 than S2.
