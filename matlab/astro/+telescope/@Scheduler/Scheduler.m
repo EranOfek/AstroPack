@@ -95,13 +95,6 @@ classdef Scheduler < Component
        
         FileName                   = [];
         
-        Mailbox % Communication store for the Scheduler. E.g. Redis
-        % Mailbox contains hashes TargetRequest:MountNumber, with fields:
-        %         Status - 'requesting', 'provided', 'acquired',
-        %                  'refused', 'observed', 'failed'
-        %         JD  - the time the last operation was performed
-        %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
-        %                    Nexp, ExpTime
     end
     
     properties (Hidden)
@@ -178,11 +171,6 @@ classdef Scheduler < Component
                 Obj = io.files.load2(Obj.FileName);
             end
             
-            try
-                Obj.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
-            catch
-                warning('cannot connect to Redis, will work without a request Mailbox')
-            end
         end
     end
     
@@ -937,8 +925,8 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
-%                 Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]=F() - check if there is a request from a mount
-%                 Args.FunTargetInfo function_handle             % [Success]=F(Mount, Field, RA, Dec, Nexp, ExpTime) - write variable to mount
+                Args.FunSchedRequested function_handle = @unitsAskingTargets % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
+                Args.FunTargetDispatch function_handle = @dispatchTargetToUnit  % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
 
@@ -967,72 +955,134 @@ classdef Scheduler < Component
 
                 % Check if scheduling is required and if so for which mount
                 % Enrico's function #1
-                %[SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
-                if ~isempty(S.Mailbox)
-                    Req=S.Mailbox.keys('TargetRequest:*'); % warning: blocking
-                    for i=1:numel(Req)
-                        SchedIsNeeded=strcmpi(S.Mailbox.hget(Req{i},'Status'),...
-                                             'requesting');
-                        if SchedIsNeeded
-                            Mount=sscanf(Req{i},'TargetRequest:%d');
-                            % get an appropriate target
-                            [TargetInd, Priority, Tbl, Struct] = S.selectTarget(S.JD,...
-                                    'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
-                            % write the following arguments to mount:
-                            % Enrico's function #2
-                            try
-                                target=struct('FieldName',Struct.FieldName,...
-                                              'RA',Struct.RA,...
-                                              'Dec',Struct.Dec,...
-                                              'Nexp',Struct.Nexp,...
-                                              'ExpTime',Struct.ExpTime);
-                                S.Mailbox.hset(Req{i},'Status','provided',...
-                                    'Target',jsonencode(target),...
-                                    'JD',S.JD);
-                            catch
-                            end
- 
-                            % now should we stand here polling till we get
-                            %  a confirmation that the unit acknowledged?
-                            t0=now;
-                            Success=false;
-                            ReqStatus='';
-                            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                                  ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                                ReqStatus=S.Mailbox.hget(Req{1},'Status');
-                                Success=strcmpi(ReqStatus,'acquired');
-                            end
-                            if Success
-                                % update counters and LastJD
-                                S.increaseCounter(TargetInd);
-
-                                % backup latest version of target list
-                                Tbl = S.List.Table;
-                                save('-v7.3','TargetList.mat','Tbl');
-
-                                % observation log
-                                LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
-                                                                                                                         Struct.RA, Struct.Dec,...
-                                                                                                                         Priority,...
-                                                                                                                       Struct.Nexp, Struct.ExpTime);
-                                S.Logger.msgLog(Level, LogLine);
-                            else
-                                % Unit didn't receive the requested target
-                                warning('Unit %d has not acknowledged the new target within %g sec',...
-                                       Mount,Args.AcknowledgeTimeout)
-                            end
-                        end
-                    end
-                end % isempty(Mailbox)
-
-                if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
-                    delete(Args.AbortFile);
-                    Cont = false;
-                end
+               [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
+               for i=1:numel(Mounts)
+                   % get an appropriate target
+                   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JDs(i),...
+                       'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
+                   % write the following arguments to mount:
+                   % Enrico's function #2
+                   Success=Args.FunTargetDispatch(Struct,...
+                       'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                   if Success
+                       % update counters and LastJD
+                       S.increaseCounter(TargetInd);
+                       
+                       % backup latest version of target list
+                       Tbl = S.List.Table;
+                       save('-v7.3','TargetList.mat','Tbl');
+                       
+                       % observation log
+                       % FIXME
+                       LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
+                           Mount, Struct.FieldName, Struct.RA, Struct.Dec,...
+                           Struct.Priority, Struct.Nexp, Struct.ExpTime,...
+                           S.Logger.msgLog(Level, LogLine));
+                   else
+                       % Unit didn't receive the requested target
+                       warning('Unit %d has not acknowledged the new target within %g sec',...
+                           Mount,Args.AcknowledgeTimeout)
+                   end
+               end
+               
+               if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
+                   delete(Args.AbortFile);
+                   Cont = false;
+               end
             end
 
         end
     
+        function [Units,JDs]=unitsAskingTargets(Args)
+            % poll the Mailbox (here the Redis cache on localhost by
+            % default), and return the number of the units which have asked
+            % for a target, together with the JD of their request. The
+            % results are sorted from oldest to newest
+            arguments
+                Args.Mailbox;
+            % Mailbox contains hashes TargetRequest:MountNumber, with fields:
+            %         Status - 'requesting', 'provided', 'acquired',
+            %                  'refused', 'observed', 'failed'
+            %         JD  - the time the last operation was performed
+            %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
+            %                    Nexp, ExpTime
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+            end
+            if isempty(Args.Mailbox)
+                try
+                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+                catch
+                    warning('cannot connect to Redis and cannot check for incoming requests')
+                    return
+                end
+            end
+            
+            if ~isempty(S.Mailbox)
+                % scan the Mailbox for messages from Units demanding a
+                %  target
+                Req=S.Mailbox.keys('TargetRequest:*'); % warning: blocking
+                NReq=numel(Req);
+                Units=nan(1,Nreq);
+                JDs=nan(1,Nreq);
+                for i=1:NReq
+                    SchedIsNeeded=strcmpi(S.Mailbox.hget(Req{i},'Status'),...
+                        'requesting');
+                        if SchedIsNeeded
+                            Units(i)=sscanf(Req{i},'TargetRequest:%d');
+                            JDs(i)=S.Mailbox.hget(Req{i},'JD');
+                        end
+                end
+                % filter out Units not in 'requesting' state and sort the
+                %  results in ascending order of JD
+                Units=Units(~isnan(JDs));
+                JDs=JDs(~isnan(JDs));
+                [JDs,k]=sort(JDs);
+                Units=Units(k);
+            end
+        end
+        
+        function Success=dispatchTargetToUnit(Unit,TargetStruct,Args)
+            %
+            arguments
+                Unit double;
+                TargetStruct structure;
+                Args.Mailbox;
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+            end
+            if isempty(Args.Mailbox)
+                try
+                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+                catch
+                    warning('cannot connect to Redis and cannot dispatch targets to units')
+                    return
+                end
+            end
+            
+            Req=sprintf('TargetRequest:%d',Unit);
+            try
+                target=struct('FieldName',TargetStruct.FieldName,...
+                    'RA',TargetStruct.RA,...
+                    'Dec',TargetStruct.Dec,...
+                    'Nexp',TargetStruct.Nexp,...
+                    'ExpTime',TargetStruct.ExpTime);
+                Mailbox.hset(Req,'Status','provided',...
+                    'Target',jsonencode(target),...
+                    'JD',celestial.time.julday);
+            catch
+            end
+            
+            % now should we stand here polling till we get
+            %  a confirmation that the unit acknowledged?
+            t0=now;
+            Success=false;
+            ReqStatus='';
+            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                ReqStatus=S.Mailbox.hget(Req,'Status');
+                Success=strcmpi(ReqStatus,'acquired');
+            end
+        end
+        
     end
 
     
