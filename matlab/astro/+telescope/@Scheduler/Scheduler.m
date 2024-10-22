@@ -925,18 +925,26 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
-                Args.FunSchedRequested function_handle = @unitsAskingTargets % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
-                Args.FunTargetDispatch function_handle = @dispatchTargetToUnit  % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
+                Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
+                Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
 
             S = telescope.Scheduler;
+            
             if isempty(Args.TargetList)
                 % generate regular grid
                 S.generateRegularGrid;
             else
                 S.loadTable(Args.TargetList);
-      
+            end
+            
+            if ~isfield(Args,'FunTargetDispatch')
+               Args.FunTargetDispatch =  @S.dispatchTargetToUnit;
+            end
+            
+            if ~isfield(Args,'FunSchedRequested')
+               Args.FunSchedRequested =  @S.unitsAskingTargets;
             end
 
             % log file
@@ -959,10 +967,10 @@ classdef Scheduler < Component
                for i=1:numel(Mounts)
                    % get an appropriate target
                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JDs(i),...
-                       'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
+                       'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                    % write the following arguments to mount:
                    % Enrico's function #2
-                   Success=Args.FunTargetDispatch(Struct,...
+                   Success=Args.FunTargetDispatch(Mounts(i),Struct,...
                        'AcknowledgeTimeout',Args.AcknowledgeTimeout);
                    if Success
                        % update counters and LastJD
@@ -1008,7 +1016,7 @@ classdef Scheduler < Component
             %                    Nexp, ExpTime
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
-            if isempty(Args.Mailbox)
+            if ~isfield(Args,'Mailbox')
                 try
                     Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                 catch
@@ -1017,19 +1025,19 @@ classdef Scheduler < Component
                 end
             end
             
-            if ~isempty(S.Mailbox)
+            if ~isempty(Args.Mailbox)
                 % scan the Mailbox for messages from Units demanding a
                 %  target
-                Req=S.Mailbox.keys('TargetRequest:*'); % warning: blocking
+                Req=Args.Mailbox.keys('TargetRequest:*'); % warning: blocking
                 NReq=numel(Req);
-                Units=nan(1,Nreq);
-                JDs=nan(1,Nreq);
+                Units=nan(1,NReq);
+                JDs=nan(1,NReq);
                 for i=1:NReq
-                    SchedIsNeeded=strcmpi(S.Mailbox.hget(Req{i},'Status'),...
+                    SchedIsNeeded=strcmpi(Args.Mailbox.hget(Req{i},'Status'),...
                         'requesting');
                         if SchedIsNeeded
                             Units(i)=sscanf(Req{i},'TargetRequest:%d');
-                            JDs(i)=S.Mailbox.hget(Req{i},'JD');
+                            JDs(i)=str2double(Args.Mailbox.hget(Req{i},'JD'));
                         end
                 end
                 % filter out Units not in 'requesting' state and sort the
@@ -1045,11 +1053,11 @@ classdef Scheduler < Component
             %
             arguments
                 Unit double;
-                TargetStruct structure;
+                TargetStruct struct;
                 Args.Mailbox;
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
-            if isempty(Args.Mailbox)
+            if ~isfield(Args,'Mailbox')
                 try
                     Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                 catch
@@ -1065,7 +1073,7 @@ classdef Scheduler < Component
                     'Dec',TargetStruct.Dec,...
                     'Nexp',TargetStruct.Nexp,...
                     'ExpTime',TargetStruct.ExpTime);
-                Mailbox.hset(Req,'Status','provided',...
+                Args.Mailbox.hset(Req,'Status','provided',...
                     'Target',jsonencode(target),...
                     'JD',celestial.time.julday);
             catch
@@ -1078,7 +1086,7 @@ classdef Scheduler < Component
             ReqStatus='';
             while (now-t0)*86400<Args.AcknowledgeTimeout && ...
                     ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                ReqStatus=S.Mailbox.hget(Req,'Status');
+                ReqStatus=Args.Mailbox.hget(Req,'Status');
                 Success=strcmpi(ReqStatus,'acquired');
             end
         end
