@@ -1,4 +1,4 @@
-function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
+function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     % Build a cube / cell array of fluxed PSF stamps, optionally rescaled, rotated, and shifted to whole pixel positions
     %     This is a low-level function to be used for source injection into
     %     an astronomical image or source removal therefrom 
@@ -26,7 +26,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     %          X1Y1 = 100.*rand(3,2); Flux = 100.*rand(3,1);
     %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
     arguments
-        PSF
+        PSF0
         X1Y1
         Flux
         Args.Oversample          = 0;
@@ -52,16 +52,18 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     end
     
     % check the size and type of PSF stamps
-    if ismatrix(PSF) 
-        PSF = repmat(PSF, [1 1 Nsrc]);
-    elseif iscell(PSF)
-        if numel(PSF) ~= Nsrc
+    if ismatrix(PSF0) 
+        PSF = repmat(PSF0, [1 1 Nsrc]);
+    elseif iscell(PSF0)
+        if numel(PSF0) ~= Nsrc
             error ('The size of the PSF array does not match that of the coordinate matrix');
         end
+        PSF = PSF0;
     else 
-        if size(PSF,3) ~= Nsrc
+        if size(PSF0,3) ~= Nsrc
            error ('The size of the PSF stack does not match that of the coordinate matrix');
         end 
+        PSF = PSF0;
     end        
     
     % shift and resample the PSF stamps, forcing odd-sized and normalized stamps  

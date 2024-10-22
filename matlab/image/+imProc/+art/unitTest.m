@@ -50,6 +50,11 @@ function Result = unitTest()
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
             'Radius', 1.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1'); 
     A = ~isnan(Result1.Catalog(:,1)); NMatched = sum(A,1)
+    [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
+            'Radius', 3.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1');     
+    Ind = ~isnan(Result1.Catalog(:,1));
+    semilogy(Result1.Table.MAG_PSF(Ind),ResInd.Obj2_Dist(Ind),'*')
+    
     %
     % RAD = 180/pi;  
     % need to add WCS to the images and catalogs! 
