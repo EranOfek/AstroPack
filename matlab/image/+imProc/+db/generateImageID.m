@@ -23,6 +23,10 @@ function [Obj, ID] = generateImageID(Obj, Args)
     %            'ErrorOnNaN' - A logical indicating if to generate error
     %                   if keyword value is NaN. If false, will insert 0.
     %                   Default is true.
+    %            'WriteAsStr' - A logical indicating if to write the ID as
+    %                   string (true), ir integer (false).
+    %                   Default is true because FITS writeKey diesnt
+    %                   support uint64
     % Output : - An AstroImage object with the updated header.
     %          - A vector of IDs (one per image).
     % Author : Eran Ofek (2024 Oct) 
@@ -43,6 +47,7 @@ function [Obj, ID] = generateImageID(Obj, Args)
 
         Args.KeyID             = 'ID_PROC';
         Args.ErrorOnNaN logical = true;
+        Args.WriteAsStr logical = true;
     end
 
     Nobj = numel(Obj);
@@ -69,7 +74,11 @@ function [Obj, ID] = generateImageID(Obj, Args)
 
         ID(Iobj) = tools.bit.bitEncode(BitNum, BitVal);
         if ~isempty(Args.KeyID)
-            Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), ID(Iobj));
+            if Args.WriteAsStr
+                Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+            else
+                Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), ID(Iobj));
+            end
         end
     end
 
