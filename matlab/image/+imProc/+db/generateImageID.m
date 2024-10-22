@@ -43,7 +43,6 @@ function [Obj, ID] = generateImageID(Obj, Args)
 
         Args.KeyID             = 'ID_PROC';
         Args.ErrorOnNaN logical = true;
-
     end
 
     Nobj = numel(Obj);
