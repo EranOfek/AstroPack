@@ -53,6 +53,8 @@ classdef Scheduler < Component
         ListName 
         JD
         List AstroCatalog
+        Ntarget        = 0;
+        Ncol           = 0;
         % units deg/days
         Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
                                 'MountNum',NaN,...
@@ -205,6 +207,10 @@ classdef Scheduler < Component
                     Obj.TotalExpTime = Val;
                 end
             end
+            % set Ntarget
+            [Nt,Nc]     = Obj.List.sizeCatalog;
+            Obj.Ntarget = Nt;
+            Obj.Ncol    = Nc;
         end
         
         function Val=get.FieldName(Obj)
@@ -658,7 +664,7 @@ classdef Scheduler < Component
             
             HalfSize  = Args.HalfSize./RAD;
             
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
             FieldRA  = Obj.RA./RAD;
             FieldDec = Obj.Dec./RAD;
             FlagCoo  = false(Nsrc,1);
@@ -723,7 +729,7 @@ classdef Scheduler < Component
                
             end
 
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
             DefFN = fieldnames(Obj.Defaults);
             Ndef  = numel(DefFN);
             for Idef=1:1:Ndef
@@ -1058,7 +1064,7 @@ classdef Scheduler < Component
                 error('ColName and Val must be provided');
             end
 
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
 
             
             ColInd = colname2ind(Obj.List, ColName);
@@ -1150,6 +1156,9 @@ classdef Scheduler < Component
             %          - Column name.
             %          - Column vector of values. If empty, then extract
             %            from List using ColName. Default is [].
+            %          - Lines on which to apply the constraints. The rest
+            %            will be set to false. If empty, use all lines.
+            %            Default is [].
             % Output : - A vector of logicals indicatins (per target)
             %            indicating if the target passes the criterion specified in
             %            the column.
@@ -1161,6 +1170,7 @@ classdef Scheduler < Component
                 ColName
                 ColVal    = [];
                 JD        = [];
+                %Lines     = [];
             end
             SEC_DAY = 86400;
             
@@ -1175,6 +1185,11 @@ classdef Scheduler < Component
             
             JD1 = JD + Obj.TotalExpTime./SEC_DAY;  % predicted end of visit
             
+            Nline = Obj.Ntarget; %Obj.List.sizeCatalog;
+            %if isempty(Lines)
+            %    Lines = (1:1:Nline).';
+            %end
+            %Flag = false(Nline, 1);
             switch ColName
                 case 'MinAlt'
                     %ColVal = FunColVal(ColName);
@@ -1230,7 +1245,7 @@ classdef Scheduler < Component
                     
                 otherwise
                     % skip
-                    Flag = true(Obj.List.sizeCatalog, 1);
+                    Flag = true(Nline, 1);
             end
                     
             
@@ -1288,7 +1303,7 @@ classdef Scheduler < Component
             [FlagsIn.Moon, Summary.MoonIllum]= Obj.checkMoonConstraints(JD);
             
             % go over all columns in List
-            [~,Ncol] = Obj.List.sizeCatalog;
+            Ncol = Obj.Ncol; %[~,Ncol] = Obj.List.sizeCatalog;
             for Icol=1:1:Ncol
                 ColName = Obj.List.ColNames{Icol};
                 if Args.SkipMinVisibility && strcmp(ColName, 'MinVisibility')
@@ -1302,7 +1317,7 @@ classdef Scheduler < Component
             % Merge all flags
             FN   = fieldnames(FlagsIn);
             Nfn  = numel(FN);
-            Nsrc = Obj.List.sizeCatalog; 
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog; 
             Flag = true(Nsrc,1);
             for Ifn=1:1:Nfn
                 Flag = Flag & FlagsIn.(FN{Ifn});
@@ -1341,7 +1356,7 @@ classdef Scheduler < Component
             
             [SunCrossingTime, NextIsRise] = telescope.Scheduler.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.MaxSunAlt);
             
-            Ntarget = Obj.List.sizeCatalog;
+            Ntarget = Obj.Ntarget; %Obj.List.sizeCatalog;
             
             if NextIsRise
                 VecJD = (JD:Args.TimeRes:SunCrossingTime).';
@@ -1383,7 +1398,7 @@ classdef Scheduler < Component
             
             VecJD = (SunSet:Obj.TimeRes:SunRise).';
             Njd   = numel(VecJD);
-            Nsrc  = Obj.List.sizeCatalog;
+            Nsrc  = Obj.Ntarget; %Obj.List.sizeCatalog;
             
             Obj.NightVis = false(Nsrc, Njd);
             for Ijd=1:1:Njd
@@ -1515,7 +1530,7 @@ classdef Scheduler < Component
             end
 
             if InitC
-                Nsrc = Obj.List.sizeCatalog;
+                Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
                 Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
             end
         end
@@ -1665,7 +1680,7 @@ classdef Scheduler < Component
             
             LastJD = Obj.List.Catalog.(Args.ColLastJD);
             
-            Nsrc         = Obj.List.sizeCatalog;
+            Nsrc         = Obj.Ntarget; %Obj.List.sizeCatalog;
             NightCounter = Obj.List.Catalog.NightCounter;
             
             W            = zeros(Nsrc,1);
@@ -1872,6 +1887,44 @@ classdef Scheduler < Component
     
     
     methods (Static)  % static utilities
+        function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
+            % Return Sun geometric Alt and Az [no refraction] (Static)
+            % Input  : - Vector of JD
+            %          - Geo pos [Lon, Lat] in deg.
+            % Output : - Sun Alt [deg].
+            %          - Sun Az [deg]
+            %          - Sun dAlt/dt [deg/sec]
+            %          - Sun dAz/dt [deg/sec]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: [Alt, Az] = telescope.Scheduler.sunAlt(2451545, [1 1])
+            
+            RAD = 180./pi;
+            
+            [RA, Dec] = celestial.SolarSys.suncoo(JD, 'a');
+            RA  = RA.*RAD;
+            Dec = Dec.*RAD;
+            LST     = celestial.time.lst(JD, GeoPos(1)./RAD, 'm').*360;  % [deg]
+            HA      = LST - RA;
+            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+            Az  = Az.*RAD;
+            Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1 = JD + 1./86400;
+                [RA, Dec] = celestial.SolarSys.suncoo(JD1, 'a');
+                RA  = RA.*RAD;
+                Dec = Dec.*RAD;
+                LST     = celestial.time.lst(JD1, GeoPos(1)./RAD, 'm').*360;  % [deg]
+                HA      = LST - RA;
+                [Az1,Alt1] = celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAlt = Alt1 - Alt;
+                dAz  = Az1 - Az;
+            end
+            
+        end
+
         function TargetName = radec2name(RA,Dec, Fun)
             % given RA/Dec [deg] generate names in cell array %03d+%02d
             % Input  : - RA [deg].
@@ -1880,7 +1933,7 @@ classdef Scheduler < Component
             %            Default is @round.
             % Output : - Cell array of strings of the format %03d+%02d.
             % Author : Eran Ofek (Dec 2022)
-            % Example: celestial.Targets.radec2name(20,10)
+            % Example: telescope.Scheduler.radec2name(20,10)
 
             arguments
                 RA
@@ -1924,12 +1977,13 @@ classdef Scheduler < Component
                 Args.AltThreshold  = -0.83333;  % [deg]
                 Args.Step          = 10;    % [min]
             end
-            
+            RAD           = 180./pi;
             MIN_IN_DAY    = 1440;
             
             VecJD = JD + (0:Args.Step:MIN_IN_DAY).'./MIN_IN_DAY;
-            
-            SunAlt = celestial.Targets.sunAlt(VecJD, GeoPos);
+
+            [SunAlt] = telescope.Scheduler.sunAlt(VecJD, GeoPos);
+            %SunAlt1 = celestial.Targets.sunAlt(VecJD, GeoPos);
             
             DiffSign  = [0; diff(sign(SunAlt))];
             Iapprox   = find(abs(DiffSign) == 2, 1, 'first');
