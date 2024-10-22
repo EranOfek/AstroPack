@@ -53,6 +53,8 @@ classdef Scheduler < Component
         ListName 
         JD
         List AstroCatalog
+        Ntarget        = 0;
+        Ncol           = 0;
         % units deg/days
         Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
                                 'MountNum',NaN,...
@@ -93,13 +95,6 @@ classdef Scheduler < Component
        
         FileName                   = [];
         
-        Mailbox % Communication store for the Scheduler. E.g. Redis
-        % Mailbox contains hashes TargetRequest:MountNumber, with fields:
-        %         Status - 'requesting', 'provided', 'acquired',
-        %                  'refused', 'observed', 'failed'
-        %         JD  - the time the last operation was performed
-        %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
-        %                    Nexp, ExpTime
     end
     
     properties (Hidden)
@@ -176,11 +171,6 @@ classdef Scheduler < Component
                 Obj = io.files.load2(Obj.FileName);
             end
             
-            try
-                Obj.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
-            catch
-                warning('cannot connect to Redis, will work without a request Mailbox')
-            end
         end
     end
     
@@ -205,6 +195,10 @@ classdef Scheduler < Component
                     Obj.TotalExpTime = Val;
                 end
             end
+            % set Ntarget
+            [Nt,Nc]     = Obj.List.sizeCatalog;
+            Obj.Ntarget = Nt;
+            Obj.Ncol    = Nc;
         end
         
         function Val=get.FieldName(Obj)
@@ -658,7 +652,7 @@ classdef Scheduler < Component
             
             HalfSize  = Args.HalfSize./RAD;
             
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
             FieldRA  = Obj.RA./RAD;
             FieldDec = Obj.Dec./RAD;
             FlagCoo  = false(Nsrc,1);
@@ -723,7 +717,7 @@ classdef Scheduler < Component
                
             end
 
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
             DefFN = fieldnames(Obj.Defaults);
             Ndef  = numel(DefFN);
             for Idef=1:1:Ndef
@@ -931,18 +925,26 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
-%                 Args.FunSchedIsNeeded function_handle          % Function that returns [IsNeeded, Mount]=F() - check if there is a request from a mount
-%                 Args.FunTargetInfo function_handle             % [Success]=F(Mount, Field, RA, Dec, Nexp, ExpTime) - write variable to mount
+                Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
+                Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
 
             S = telescope.Scheduler;
+            
             if isempty(Args.TargetList)
                 % generate regular grid
                 S.generateRegularGrid;
             else
                 S.loadTable(Args.TargetList);
-      
+            end
+            
+            if ~isfield(Args,'FunTargetDispatch')
+               Args.FunTargetDispatch =  @S.dispatchTargetToUnit;
+            end
+            
+            if ~isfield(Args,'FunSchedRequested')
+               Args.FunSchedRequested =  @S.unitsAskingTargets;
             end
 
             % log file
@@ -961,72 +963,157 @@ classdef Scheduler < Component
 
                 % Check if scheduling is required and if so for which mount
                 % Enrico's function #1
-                %[SchedIsNeeded, Mount] = Args.FunSchedIsNeeded();
-                if ~isempty(S.Mailbox)
-                    Req=S.Mailbox.keys('TargetRequest:*'); % warning: blocking
-                    for i=1:numel(Req)
-                        SchedIsNeeded=strcmpi(S.Mailbox.hget(Req{i},'Status'),...
-                                             'requesting');
-                        if SchedIsNeeded
-                            Mount=sscanf(Req{i},'TargetRequest:%d');
-                            % get an appropriate target
-                            [TargetInd, Priority, Tbl, Struct] = S.selectTarget(S.JD,...
-                                    'MountNum',Mount, 'SelectMethod',Args.SelectMethod);
-                            % write the following arguments to mount:
-                            % Enrico's function #2
-                            try
-                                target=struct('FieldName',Struct.FieldName,...
-                                              'RA',Struct.RA,...
-                                              'Dec',Struct.Dec,...
-                                              'Nexp',Struct.Nexp,...
-                                              'ExpTime',Struct.ExpTime);
-                                S.Mailbox.hset(Req{i},'Status','provided',...
-                                    'Target',jsonencode(target),...
-                                    'JD',S.JD);
-                            catch
-                            end
- 
-                            % now should we stand here polling till we get
-                            %  a confirmation that the unit acknowledged?
-                            t0=now;
-                            Success=false;
-                            ReqStatus='';
-                            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                                  ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                                ReqStatus=S.Mailbox.hget(Req{1},'Status');
-                                Success=strcmpi(ReqStatus,'acquired');
-                            end
-                            if Success
-                                % update counters and LastJD
-                                S.increaseCounter(TargetInd);
-
-                                % backup latest version of target list
-                                Tbl = S.List.Table;
-                                save('-v7.3','TargetList.mat','Tbl');
-
-                                % observation log
-                                LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f', Mount, Struct.FieldName,...
-                                                                                                                         Struct.RA, Struct.Dec,...
-                                                                                                                         Priority,...
-                                                                                                                       Struct.Nexp, Struct.ExpTime);
-                                S.Logger.msgLog(Level, LogLine);
-                            else
-                                % Unit didn't receive the requested target
-                                warning('Unit %d has not acknowledged the new target within %g sec',...
-                                       Mount,Args.AcknowledgeTimeout)
-                            end
-                        end
-                    end
-                end % isempty(Mailbox)
-
-                if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
-                    delete(Args.AbortFile);
-                    Cont = false;
-                end
+               [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
+               for i=1:numel(Mounts)
+                   % get an appropriate target
+                   % Which time to use for not-yey-serviced requests? On
+                   %  one hand we would choose the best target available
+                   %  *now*, not at the time of the former request; on the
+                   %  other using the request time we can run in simualted
+                   %  time mode. Perhaps add an option for choosing.
+                   %JD=celestial.time.julday;
+                   JD=JDs(i);
+                   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
+                       'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                   % write the following arguments to mount:
+                   % Enrico's function #2
+                   if isempty(TargetInd)
+                       % this can happpen if the scheduler has no target to
+                       %  dispatch - for instance at daytime
+                       warning('No target for unit %d at this time',Mounts(i))
+                       % report, log, etc.?
+                   else
+                       Success=Args.FunTargetDispatch(Mounts(i),Struct,...
+                           'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                       if Success
+                           % update counters and LastJD
+                           S.increaseCounter(TargetInd);
+                           
+                           % backup latest version of target list
+                           Tbl = S.List.Table;
+                           save('-v7.3','TargetList.mat','Tbl');
+                           
+                           % observation log
+                           % FIXME: format? Level?
+                           LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
+                               Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
+                               Struct.Priority, Struct.Nexp, Struct.ExpTime);
+                           Level=1;
+                           S.Logger.msgLog(Level, LogLine);
+                       else
+                           % Unit didn't receive the requested target
+                           warning('Unit %d has not acknowledged the new target within %g sec',...
+                               Mounts(i),Args.AcknowledgeTimeout)
+                       end
+                   end
+               end
+               
+               if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
+                   delete(Args.AbortFile);
+                   Cont = false;
+               end
             end
 
         end
     
+        function [Units,JDs]=unitsAskingTargets(Args)
+            % poll the Mailbox (here the Redis cache on localhost by
+            % default), and return the number of the units which have asked
+            % for a target, together with the JD of their request. The
+            % results are sorted from oldest to newest
+            arguments
+                Args.Mailbox;
+            % Mailbox contains hashes TargetRequest:MountNumber, with fields:
+            %         Status - 'requesting', 'provided', 'acquired',
+            %                  'refused', 'observed', 'failed'
+            %         JD  - the time the last operation was performed
+            %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
+            %                    Nexp, ExpTime
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+            end
+            if ~isfield(Args,'Mailbox')
+                try
+                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+                catch
+                    warning('cannot connect to Redis and cannot check for incoming requests')
+                    return
+                end
+            end
+            
+            if ~isempty(Args.Mailbox)
+                % scan the Mailbox for messages from Units demanding a
+                %  target
+                Req=Args.Mailbox.keys('TargetRequest:*'); % warning: blocking
+                NReq=numel(Req);
+                Units=nan(1,NReq);
+                JDs=nan(1,NReq);
+                for i=1:NReq
+                    SchedIsNeeded=strcmpi(Args.Mailbox.hget(Req{i},'Status'),...
+                        'requesting');
+                        if SchedIsNeeded
+                            Units(i)=sscanf(Req{i},'TargetRequest:%d');
+                            JDs(i)=str2double(Args.Mailbox.hget(Req{i},'JD'));
+                        end
+                end
+                % filter out Units not in 'requesting' state and sort the
+                %  results in ascending order of JD
+                Units=Units(~isnan(JDs));
+                JDs=JDs(~isnan(JDs));
+                [JDs,k]=sort(JDs);
+                Units=Units(k);
+            end
+        end
+        
+        function Success=dispatchTargetToUnit(Unit,TargetStruct,Args)
+            %
+            arguments
+                Unit double;
+                TargetStruct struct;
+                Args.Mailbox;
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+            end
+            
+            Success=false;
+            
+            if isempty(TargetStruct)
+                % this can happpen if the scheduler has no target to
+                %  dispatch - for instance at daytime
+                return
+            else
+                if ~isfield(Args,'Mailbox')
+                    try
+                        Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+                    catch
+                        warning('cannot connect to Redis and cannot dispatch targets to units')
+                        return
+                    end
+                end
+                
+                Req=sprintf('TargetRequest:%d',Unit);
+                try
+                    target=struct('FieldName',TargetStruct.FieldName,...
+                        'RA',TargetStruct.RA,...
+                        'Dec',TargetStruct.Dec,...
+                        'Nexp',TargetStruct.Nexp,...
+                        'ExpTime',TargetStruct.ExpTime);
+                    Args.Mailbox.hset(Req,'Status','provided',...
+                        'Target',jsonencode(target),...
+                        'JD',celestial.time.julday);
+                catch
+                end
+                
+                % now should we stand here polling till we get
+                %  a confirmation that the unit acknowledged?
+                t0=now;
+                ReqStatus='';
+                while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                        ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                    ReqStatus=Args.Mailbox.hget(Req,'Status');
+                    Success=strcmpi(ReqStatus,'acquired');
+                end
+            end
+        end
+        
     end
 
     
@@ -1058,7 +1145,7 @@ classdef Scheduler < Component
                 error('ColName and Val must be provided');
             end
 
-            Nsrc = Obj.List.sizeCatalog;
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
 
             
             ColInd = colname2ind(Obj.List, ColName);
@@ -1150,6 +1237,9 @@ classdef Scheduler < Component
             %          - Column name.
             %          - Column vector of values. If empty, then extract
             %            from List using ColName. Default is [].
+            %          - Lines on which to apply the constraints. The rest
+            %            will be set to false. If empty, use all lines.
+            %            Default is [].
             % Output : - A vector of logicals indicatins (per target)
             %            indicating if the target passes the criterion specified in
             %            the column.
@@ -1161,6 +1251,7 @@ classdef Scheduler < Component
                 ColName
                 ColVal    = [];
                 JD        = [];
+                %Lines     = [];
             end
             SEC_DAY = 86400;
             
@@ -1175,6 +1266,11 @@ classdef Scheduler < Component
             
             JD1 = JD + Obj.TotalExpTime./SEC_DAY;  % predicted end of visit
             
+            Nline = Obj.Ntarget; %Obj.List.sizeCatalog;
+            %if isempty(Lines)
+            %    Lines = (1:1:Nline).';
+            %end
+            %Flag = false(Nline, 1);
             switch ColName
                 case 'MinAlt'
                     %ColVal = FunColVal(ColName);
@@ -1230,7 +1326,7 @@ classdef Scheduler < Component
                     
                 otherwise
                     % skip
-                    Flag = true(Obj.List.sizeCatalog, 1);
+                    Flag = true(Nline, 1);
             end
                     
             
@@ -1288,7 +1384,7 @@ classdef Scheduler < Component
             [FlagsIn.Moon, Summary.MoonIllum]= Obj.checkMoonConstraints(JD);
             
             % go over all columns in List
-            [~,Ncol] = Obj.List.sizeCatalog;
+            Ncol = Obj.Ncol; %[~,Ncol] = Obj.List.sizeCatalog;
             for Icol=1:1:Ncol
                 ColName = Obj.List.ColNames{Icol};
                 if Args.SkipMinVisibility && strcmp(ColName, 'MinVisibility')
@@ -1302,7 +1398,7 @@ classdef Scheduler < Component
             % Merge all flags
             FN   = fieldnames(FlagsIn);
             Nfn  = numel(FN);
-            Nsrc = Obj.List.sizeCatalog; 
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog; 
             Flag = true(Nsrc,1);
             for Ifn=1:1:Nfn
                 Flag = Flag & FlagsIn.(FN{Ifn});
@@ -1341,7 +1437,7 @@ classdef Scheduler < Component
             
             [SunCrossingTime, NextIsRise] = telescope.Scheduler.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.MaxSunAlt);
             
-            Ntarget = Obj.List.sizeCatalog;
+            Ntarget = Obj.Ntarget; %Obj.List.sizeCatalog;
             
             if NextIsRise
                 VecJD = (JD:Args.TimeRes:SunCrossingTime).';
@@ -1383,7 +1479,7 @@ classdef Scheduler < Component
             
             VecJD = (SunSet:Obj.TimeRes:SunRise).';
             Njd   = numel(VecJD);
-            Nsrc  = Obj.List.sizeCatalog;
+            Nsrc  = Obj.Ntarget; %Obj.List.sizeCatalog;
             
             Obj.NightVis = false(Nsrc, Njd);
             for Ijd=1:1:Njd
@@ -1515,7 +1611,7 @@ classdef Scheduler < Component
             end
 
             if InitC
-                Nsrc = Obj.List.sizeCatalog;
+                Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
                 Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
             end
         end
@@ -1665,7 +1761,7 @@ classdef Scheduler < Component
             
             LastJD = Obj.List.Catalog.(Args.ColLastJD);
             
-            Nsrc         = Obj.List.sizeCatalog;
+            Nsrc         = Obj.Ntarget; %Obj.List.sizeCatalog;
             NightCounter = Obj.List.Catalog.NightCounter;
             
             W            = zeros(Nsrc,1);
@@ -1872,6 +1968,44 @@ classdef Scheduler < Component
     
     
     methods (Static)  % static utilities
+        function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
+            % Return Sun geometric Alt and Az [no refraction] (Static)
+            % Input  : - Vector of JD
+            %          - Geo pos [Lon, Lat] in deg.
+            % Output : - Sun Alt [deg].
+            %          - Sun Az [deg]
+            %          - Sun dAlt/dt [deg/sec]
+            %          - Sun dAz/dt [deg/sec]
+            % Author : Eran Ofek (Jan 2022)
+            % Example: [Alt, Az] = telescope.Scheduler.sunAlt(2451545, [1 1])
+            
+            RAD = 180./pi;
+            
+            [RA, Dec] = celestial.SolarSys.suncoo(JD, 'a');
+            RA  = RA.*RAD;
+            Dec = Dec.*RAD;
+            LST     = celestial.time.lst(JD, GeoPos(1)./RAD, 'm').*360;  % [deg]
+            HA      = LST - RA;
+            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+            Az  = Az.*RAD;
+            Alt = Alt.*RAD;
+            
+            if nargout>2
+                JD1 = JD + 1./86400;
+                [RA, Dec] = celestial.SolarSys.suncoo(JD1, 'a');
+                RA  = RA.*RAD;
+                Dec = Dec.*RAD;
+                LST     = celestial.time.lst(JD1, GeoPos(1)./RAD, 'm').*360;  % [deg]
+                HA      = LST - RA;
+                [Az1,Alt1] = celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
+                Az1  = Az1.*RAD;
+                Alt1 = Alt1.*RAD;
+                dAlt = Alt1 - Alt;
+                dAz  = Az1 - Az;
+            end
+            
+        end
+
         function TargetName = radec2name(RA,Dec, Fun)
             % given RA/Dec [deg] generate names in cell array %03d+%02d
             % Input  : - RA [deg].
@@ -1880,7 +2014,7 @@ classdef Scheduler < Component
             %            Default is @round.
             % Output : - Cell array of strings of the format %03d+%02d.
             % Author : Eran Ofek (Dec 2022)
-            % Example: celestial.Targets.radec2name(20,10)
+            % Example: telescope.Scheduler.radec2name(20,10)
 
             arguments
                 RA
@@ -1924,12 +2058,13 @@ classdef Scheduler < Component
                 Args.AltThreshold  = -0.83333;  % [deg]
                 Args.Step          = 10;    % [min]
             end
-            
+            RAD           = 180./pi;
             MIN_IN_DAY    = 1440;
             
             VecJD = JD + (0:Args.Step:MIN_IN_DAY).'./MIN_IN_DAY;
-            
-            SunAlt = celestial.Targets.sunAlt(VecJD, GeoPos);
+
+            [SunAlt] = telescope.Scheduler.sunAlt(VecJD, GeoPos);
+            %SunAlt1 = celestial.Targets.sunAlt(VecJD, GeoPos);
             
             DiffSign  = [0; diff(sign(SunAlt))];
             Iapprox   = find(abs(DiffSign) == 2, 1, 'first');

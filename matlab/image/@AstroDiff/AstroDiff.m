@@ -954,6 +954,8 @@ classdef AstroDiff < AstroImage
                        'PVDistThresh' - Distance threshold in pixels between 
                               peaks and valleys below which to flag candidates. 
                               Default is 10.
+                       'flagStreak' - Bool on whether to flag candidates induced
+                              by streaks (e.g. satellites). Default is true.
                        --- AstroZOGY ---
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
@@ -1015,6 +1017,8 @@ classdef AstroDiff < AstroImage
 
                 Args.flagPeakValley logical = true;
                 Args.PVDistThresh = 10;
+
+                Args.flagStreak logical = true;
                 
                 % --- AstroZOGY ---
                 Args.flagScorr logical = true;
@@ -1056,6 +1060,7 @@ classdef AstroDiff < AstroImage
                     'LimitingMagOverwriteVal', Args.LimitingMagOverwriteVal,...
                     'flagPeakValley', Args.flagPeakValley,...
                     'PVDistThresh',  Args.PVDistThresh,...
+                    'flagStreak', Args.flagStreak,...
                     'flagScorr', Args.flagScorr, ...
                     'ScorrThreshold', Args.ScorrThreshold,...
                     'flagTranslients', Args.flagTranslients,...

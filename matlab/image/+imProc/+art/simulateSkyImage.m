@@ -8,6 +8,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'Nsrc' - number of objects ([] be def.); if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
+        %         'MaxMag' - lower limit of injected source distribution
         %         'AddBack' - (logical) whether to add backgorund to the source image
         %         'Back' - image background (in cts)
         %         'AddNoise' - (logical) whether to add noise to the source image
@@ -29,10 +30,12 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Cat        = [];          % input catalog (source positions) 
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
-            Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
+            Args.PSF        = '~/matlab/data/TestImages/unitTest/LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point            
+            Args.MaxMag     = 21;          % lower limit of source distribution (influences the number of objects and effective background)
             Args.AddBack  logical = true;  % whether to add backgorund to the source image
-            Args.Back       = 220;         % [cts] [the default number is for a moderately dense field of LAST]
+            Args.Back       = 220;         % [cts] [this default value is for a moderately dense field of LAST]
+            Args.DensityFactor = 1;        % source density scaling: 1 corresponds to a moderately dense field of LAST
             Args.AddNoise logical = true;  % whether to add noise to the source image
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
@@ -71,9 +74,11 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         if isempty(Args.Mag)            
             % source distribution by optical magnitude (taken from LAST) 
-            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01; % (MaxMag = 19 if the laptop memory is insufficient)
+            MinMag  = 11; MaxMag = Args.MaxMag; DeltaMag = 0.01; % (MaxMag = 21, 19 if the laptop memory is insufficient)
             Mags    = MinMag:DeltaMag:MaxMag;
             Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
+            
+            Nstars  = Args.DensityFactor .* Nstars;
             
             Nsrc = 0;
             for Imag = 1:numel(Mags)
@@ -106,7 +111,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         % read an empirical LAST PSF 
         if ischar(Args.PSF)
-            PSF = readmatrix(Args.PSF);
+            PSF = readmatrix(tools.os.relPath2absPath(Args.PSF));
         else
             PSF = Args.PSF; 
         end
