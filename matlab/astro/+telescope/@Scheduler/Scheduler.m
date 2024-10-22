@@ -966,30 +966,45 @@ classdef Scheduler < Component
                [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
                for i=1:numel(Mounts)
                    % get an appropriate target
-                   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JDs(i),...
+                   % Which time to use for not-yey-serviced requests? On
+                   %  one hand we would choose the best target available
+                   %  *now*, not at the time of the former request; on the
+                   %  other using the request time we can run in simualted
+                   %  time mode. Perhaps add an option for choosing.
+                   %JD=celestial.time.julday;
+                   JD=JDs(i);
+                   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                        'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                    % write the following arguments to mount:
                    % Enrico's function #2
-                   Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                       'AcknowledgeTimeout',Args.AcknowledgeTimeout);
-                   if Success
-                       % update counters and LastJD
-                       S.increaseCounter(TargetInd);
-                       
-                       % backup latest version of target list
-                       Tbl = S.List.Table;
-                       save('-v7.3','TargetList.mat','Tbl');
-                       
-                       % observation log
-                       % FIXME
-                       LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
-                           Mount, Struct.FieldName, Struct.RA, Struct.Dec,...
-                           Struct.Priority, Struct.Nexp, Struct.ExpTime,...
-                           S.Logger.msgLog(Level, LogLine));
+                   if isempty(TargetInd)
+                       % this can happpen if the scheduler has no target to
+                       %  dispatch - for instance at daytime
+                       warning('No target for unit %d at this time',Mounts(i))
+                       % report, log, etc.?
                    else
-                       % Unit didn't receive the requested target
-                       warning('Unit %d has not acknowledged the new target within %g sec',...
-                           Mount,Args.AcknowledgeTimeout)
+                       Success=Args.FunTargetDispatch(Mounts(i),Struct,...
+                           'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                       if Success
+                           % update counters and LastJD
+                           S.increaseCounter(TargetInd);
+                           
+                           % backup latest version of target list
+                           Tbl = S.List.Table;
+                           save('-v7.3','TargetList.mat','Tbl');
+                           
+                           % observation log
+                           % FIXME: format? Level?
+                           LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
+                               Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
+                               Struct.Priority, Struct.Nexp, Struct.ExpTime);
+                           Level=1;
+                           S.Logger.msgLog(Level, LogLine);
+                       else
+                           % Unit didn't receive the requested target
+                           warning('Unit %d has not acknowledged the new target within %g sec',...
+                               Mounts(i),Args.AcknowledgeTimeout)
+                       end
                    end
                end
                
@@ -1057,37 +1072,45 @@ classdef Scheduler < Component
                 Args.Mailbox;
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
-            if ~isfield(Args,'Mailbox')
-                try
-                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
-                catch
-                    warning('cannot connect to Redis and cannot dispatch targets to units')
-                    return
-                end
-            end
             
-            Req=sprintf('TargetRequest:%d',Unit);
-            try
-                target=struct('FieldName',TargetStruct.FieldName,...
-                    'RA',TargetStruct.RA,...
-                    'Dec',TargetStruct.Dec,...
-                    'Nexp',TargetStruct.Nexp,...
-                    'ExpTime',TargetStruct.ExpTime);
-                Args.Mailbox.hset(Req,'Status','provided',...
-                    'Target',jsonencode(target),...
-                    'JD',celestial.time.julday);
-            catch
-            end
-            
-            % now should we stand here polling till we get
-            %  a confirmation that the unit acknowledged?
-            t0=now;
             Success=false;
-            ReqStatus='';
-            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                ReqStatus=Args.Mailbox.hget(Req,'Status');
-                Success=strcmpi(ReqStatus,'acquired');
+            
+            if isempty(TargetStruct)
+                % this can happpen if the scheduler has no target to
+                %  dispatch - for instance at daytime
+                return
+            else
+                if ~isfield(Args,'Mailbox')
+                    try
+                        Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
+                    catch
+                        warning('cannot connect to Redis and cannot dispatch targets to units')
+                        return
+                    end
+                end
+                
+                Req=sprintf('TargetRequest:%d',Unit);
+                try
+                    target=struct('FieldName',TargetStruct.FieldName,...
+                        'RA',TargetStruct.RA,...
+                        'Dec',TargetStruct.Dec,...
+                        'Nexp',TargetStruct.Nexp,...
+                        'ExpTime',TargetStruct.ExpTime);
+                    Args.Mailbox.hset(Req,'Status','provided',...
+                        'Target',jsonencode(target),...
+                        'JD',celestial.time.julday);
+                catch
+                end
+                
+                % now should we stand here polling till we get
+                %  a confirmation that the unit acknowledged?
+                t0=now;
+                ReqStatus='';
+                while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                        ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                    ReqStatus=Args.Mailbox.hget(Req,'Status');
+                    Success=strcmpi(ReqStatus,'acquired');
+                end
             end
         end
         
