@@ -2602,7 +2602,7 @@ classdef DemonLAST < Component
 
             IsRunningOnLAST = false;
             if numel(Args.HostName)>=4
-                if strcmp(Args.HostName,'last')
+                if contains(Args.HostName,'last')
                     IsRunningOnLAST = true;
                 end
             end
