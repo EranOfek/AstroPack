@@ -671,7 +671,7 @@ classdef AstroZOGY < AstroDiff
                 Obj
                 Args.PopS_hat logical       = true;
                 
-                Args.NormMethod             = 'norm_robustrstd';
+                Args.NormMethod             = 'norm_robust_rstd3';
                         
                 Args.PopS2 logical           = true;
                 Args.PopSflux logical        = true;

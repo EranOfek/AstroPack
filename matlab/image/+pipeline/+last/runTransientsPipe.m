@@ -1,4 +1,4 @@
-function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
+function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     %{
     Performs the subtraction and transient search algorithms using 
     AstroDiff on images within a visit directory. 
@@ -367,6 +367,7 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
             Mount = Header.getVal('MOUNTNUM')*ones(NumTran,1);
             Cam = Header.getVal('CAMNUM')*ones(NumTran,1);
             CropID = Header.getVal('CROPID')*ones(NumTran,1);
+            Object = Header.getVal('OBJECT')*ones(NumTran,1);
             FWHM_new = AD(Iobj).New.PSFData.fwhm*ones(NumTran,1);
             FWHM_ref = AD(Iobj).Ref.PSFData.fwhm*ones(NumTran,1);
             LIMMAG_new = AD(Iobj).New.HeaderData.getVal('LIMMAG')*ones(NumTran,1);
@@ -381,39 +382,39 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     
             AD(Iobj).CatData.insertCol(...
                 cell2mat({cast(Mount,'double'), cast(Cam,'double'), cast(CropID,'double'), ...
+                cast(Object,'double'),...
                 cast(FWHM_new,'double'), cast(FWHM_ref,'double'), cast(LIMMAG_new,'double'),...
                 cast(LIMMAG_ref,'double'),cast(ZP_D,'double'),cast(ZP_new,'double'),...
                 cast(ZP_ref,'double'),cast(PH_COL1_new,'double'),cast(PH_COL1_ref,'double'), ...
                 cast(Exposure_new,'double'),cast(Exposure_ref,'double')}), ...
                 'SCORE',...
-                {'MOUNT','CAM','CROPID','N_FWHM','R_FWHM','N_LIMMAG',...
+                {'MOUNT','CAM','CROPID','OBJECT','N_FWHM','R_FWHM','N_LIMMAG',...
                 'R_LIMMAG','ZP','N_ZP','R_ZP', 'N_PH_COL1', 'R_PH_COL1', ...
                 'N_EXPTIME','R_EXPTIME'}, ...
-                {'','','','','','mag','mag','','','','','','s','s'});
+                {'','','','','','','mag','mag','','','','','','s','s'});
         end
     end
 
     % If SaveProducts true, save desired products in desired path
+   for Iobj=Nobj:-1:1
+        TranCat(Iobj) = AD(Iobj).CatData;
+   end
+   MergedTranCat = merge(TranCat);
+    
     if Args.SaveProducts
-        for Iobj=Nobj:-1:1
-
-            TranCat(Iobj) = AD(Iobj).CatData;
-
-            if isempty(Args.Product)
-                continue
-            end
-
-            FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
-            % Set AD name
-            FNad = FN.copy();
-            FNad.Level = {'coadd.zogyD'};
-            FNad.FullPath = Args.SavePath;
-            AD(Iobj).ImageData.FileName = FNad.genFull{1};
-
-            [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
-                'Level', 'coadd.zogyD', 'Product', Args.Product,...
-                'WriteHeader',Args.WriteHeader,'Overwrite', true);
-
+        if ~isempty(Args.Product)
+            for Iobj=Nobj:-1:1
+                FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
+                % Set AD name
+                FNad = FN.copy();
+                FNad.Level = {'coadd.zogyD'};
+                FNad.FullPath = Args.SavePath;
+                AD(Iobj).ImageData.FileName = FNad.genFull{1};
+    
+                [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
+                    'Level', 'coadd.zogyD', 'Product', Args.Product,...
+                    'WriteHeader',Args.WriteHeader,'Overwrite', true);
+            end                
         end
 
         if Args.SaveMergedCat
@@ -423,8 +424,6 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
             FN_merged.CropID = 0;
             FN_merged.Product = {'Cat'};
             FN_merged.FullPath = Args.SavePath;
-
-            MergedTranCat = merge(TranCat);
 
             [~,~,~]=imProc.io.writeProduct(MergedTranCat, FN_merged, ...
                 'Level', 'coadd.zogyD', 'Product', {'Cat'},...

@@ -77,12 +77,26 @@ function [Image] = normalize(Image, Args)
     if ~isempty(Args.PreDef)
         % overrid input argumnets
         switch Args.PreDef
-            case 'norm_robustrstd'
+            case 'norm_robust_rstd1'
                 Args.AddFun      = @fast_median;
                 Args.AddFunArgs  = {};
                 Args.AddVal      = 0;
                 Args.MultFun     = @tools.math.stat.rstd;
-                Args.MultFunArgs = {'all',3};
+                Args.MultFunArgs = {1,1};
+                Args.MultVal     = 1;
+            case 'norm_robust_rstd2'
+                Args.AddFun      = @fast_median;
+                Args.AddFunArgs  = {};
+                Args.AddVal      = 0;
+                Args.MultFun     = @tools.math.stat.rstd;
+                Args.MultFunArgs = {1,2};
+                Args.MultVal     = 1;
+            case 'norm_robust_rstd3'
+                Args.AddFun      = @fast_median;
+                Args.AddFunArgs  = {};
+                Args.AddVal      = 0;
+                Args.MultFun     = @tools.math.stat.rstd;
+                Args.MultFunArgs = {1,3};
                 Args.MultVal     = 1;
             case 'norm_robust'
                 Args.AddFun      = @fast_median;
