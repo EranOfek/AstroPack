@@ -20,9 +20,10 @@ function Rstd=rstd(Mat,Dim,Algo)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if (nargin==1)
-    Dim  = 1;
-    Algo = 3;
+arguments
+    Mat
+    Dim   = 1;
+    Algo  = 3;
 end
 
 Factor = 1.4826;  % = 1./norminv(0.75,0,1)
