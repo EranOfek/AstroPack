@@ -6,10 +6,10 @@ function Rstd=rstd(Mat,Dim,Algo)
 % Input  : - Matrix.
 %          - Dimension along to calculate the std. Default is 1.
 %          - Algorithm:
-%            3 - use prctile.
 %            1 - use direct prctile after sorting and taking the mean
 %               up/down.
 %            2 - use direct prctile after sorting
+%            3 - use prctile.
 %            Default is 3. Best and fastest is 1.
 % Output : - Robust std.
 % License: GNU general public license version 3
@@ -29,7 +29,7 @@ end
 Factor = 1.4826;  % = 1./norminv(0.75,0,1)
 
 if Algo==1
-    Mat     = sort(Mat, Dim);
+    Mat     = sort(Mat);
     SizeMat = size(Mat);
     N       = SizeMat(Dim);
     Ilow    = floor(N.*0.25);
@@ -42,7 +42,7 @@ if Algo==1
         ValHigh = mean(Mat(:,Ihigh:Ihigh+1),Dim);
     end
 elseif Algo==2
-    Mat     = sort(Mat, Dim);
+    Mat     = sort(Mat);
     SizeMat = size(Mat);
     N       = SizeMat(Dim);
     if Dim==1
