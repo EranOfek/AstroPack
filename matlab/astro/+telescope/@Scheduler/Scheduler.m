@@ -902,6 +902,79 @@ classdef Scheduler < Component
         end
         
     end
+    
+    methods
+        % service target requests posted by Units, single call
+        function serviceTargetRequests(S, Args)
+            arguments
+                S
+                Args.TargetList    = []; % current target list: file name or table
+                Args.AbortFile     = [];                      % abort file name including path
+                Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
+                Args.ObsLogFile    = 'observations_log.txt'   % log file name
+                Args.ToO_File      = 'ToO.csv';               % ToO file name
+                Args.SelectMethod  = 'minam';                 % Target selection method.
+
+                Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
+                Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
+                Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+            end
+
+            % check for ToO
+            if isfile(Args.ToO_File)
+                S.loadTable(Args.ToO_File, 'merge_replace');
+                delete(Args.ToO_File);
+            end
+            
+            % Check if scheduling is required and if so for which mount
+            % Enrico's function #1
+            [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
+            for i=1:numel(Mounts)
+                % get an appropriate target
+                % Which time to use for not-yey-serviced requests? On
+                %  one hand we would choose the best target available
+                %  *now*, not at the time of the former request; on the
+                %  other using the request time we can run in simualted
+                %  time mode. Perhaps add an option for choosing.
+                %JD=celestial.time.julday;
+                JD=JDs(i);
+                [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
+                    'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                % write the following arguments to mount:
+                % Enrico's function #2
+                if isempty(TargetInd)
+                    % this can happpen if the scheduler has no target to
+                    %  dispatch - for instance at daytime
+                    warning('No target for unit %d at this time',Mounts(i))
+                    % report, log, etc.?
+                else
+                    Success=Args.FunTargetDispatch(Mounts(i),Struct,...
+                        'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                    if Success
+                        % update counters and LastJD
+                        S.increaseCounter(TargetInd);
+                        
+                        % backup latest version of target list
+                        Tbl = S.List.Table;
+                        save('-v7.3','TargetList.mat','Tbl');
+                        
+                        % observation log
+                        % FIXME: format? Level?
+                        LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
+                            Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
+                            Struct.Priority, Struct.Nexp, Struct.ExpTime);
+                        Level=1;
+                        S.Logger.msgLog(Level, LogLine);
+                    else
+                        % Unit didn't receive the requested target
+                        warning('Unit %d has not acknowledged the new target within %g sec',...
+                            Mounts(i),Args.AcknowledgeTimeout)
+                    end
+                end
+            end
+            
+        end
+    end
 
     methods (Static) % real time Scheduler demon
         function S=demon(Args)
@@ -930,6 +1003,7 @@ classdef Scheduler < Component
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
 
+            % initialize scheduler
             S = telescope.Scheduler;
             
             if isempty(Args.TargetList)
@@ -955,63 +1029,17 @@ classdef Scheduler < Component
             Cont = true;
             while Cont
                 pause(0.5) % don't run full throttle
-                % check for ToO
-                if isfile(Args.ToO_File)
-                    S.loadTable(Args.ToO_File, 'merge_replace');
-                    delete(rgs.ToO_File);
+                
+                S.serviceTargetRequests('ToO_File',Args.ToO_File,...
+                                'FunSchedRequested',Args.FunSchedRequested,...
+                                'FunTargetDispatch',Args.FunTargetDispatch,...
+                                'SelectMethod',Args.SelectMethod,...
+                                'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                
+                if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
+                    delete(Args.AbortFile);
+                    Cont = false;
                 end
-
-                % Check if scheduling is required and if so for which mount
-                % Enrico's function #1
-               [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
-               for i=1:numel(Mounts)
-                   % get an appropriate target
-                   % Which time to use for not-yey-serviced requests? On
-                   %  one hand we would choose the best target available
-                   %  *now*, not at the time of the former request; on the
-                   %  other using the request time we can run in simualted
-                   %  time mode. Perhaps add an option for choosing.
-                   %JD=celestial.time.julday;
-                   JD=JDs(i);
-                   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
-                       'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
-                   % write the following arguments to mount:
-                   % Enrico's function #2
-                   if isempty(TargetInd)
-                       % this can happpen if the scheduler has no target to
-                       %  dispatch - for instance at daytime
-                       warning('No target for unit %d at this time',Mounts(i))
-                       % report, log, etc.?
-                   else
-                       Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                           'AcknowledgeTimeout',Args.AcknowledgeTimeout);
-                       if Success
-                           % update counters and LastJD
-                           S.increaseCounter(TargetInd);
-                           
-                           % backup latest version of target list
-                           Tbl = S.List.Table;
-                           save('-v7.3','TargetList.mat','Tbl');
-                           
-                           % observation log
-                           % FIXME: format? Level?
-                           LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
-                               Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
-                               Struct.Priority, Struct.Nexp, Struct.ExpTime);
-                           Level=1;
-                           S.Logger.msgLog(Level, LogLine);
-                       else
-                           % Unit didn't receive the requested target
-                           warning('Unit %d has not acknowledged the new target within %g sec',...
-                               Mounts(i),Args.AcknowledgeTimeout)
-                       end
-                   end
-               end
-               
-               if ~isempty(Args.AbortFile) && isfile(Args.AbortFile)
-                   delete(Args.AbortFile);
-                   Cont = false;
-               end
             end
 
         end
