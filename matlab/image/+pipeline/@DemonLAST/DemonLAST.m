@@ -29,6 +29,8 @@ classdef DemonLAST < Component
         FailedPath   = 'failed'; % if start with '/' then abs path
         LogPath      = 'log';    % if start with '/' then abs path
 
+        SciPath      = 'science';
+
         RefPath      = [];
         
 
@@ -166,6 +168,25 @@ classdef DemonLAST < Component
             end
 
         end
+
+        function Result=get.SciPath(Obj)
+            % getter fore SciPath
+
+            if isempty(Obj.SciPath)
+                Result = [];
+            else
+                if strcmp(Obj.SciPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.SciPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.SciPath = fullfile(Obj.BasePath,Obj.SciPath);
+                    Result      = Obj.SciPath;
+                end
+            end
+
+        end
+
 
         function set.DataDir(Obj, Val)
             % Set DataDir and modify BasePath

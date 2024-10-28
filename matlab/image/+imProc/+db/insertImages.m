@@ -46,19 +46,23 @@ function [T] = insertImages(Obj, Args)
 
         % Unique time ID indexing
         % bit encoded JD-J2000 in ms
-        Args.ColIntTimeDB      = 'ID_TIME'; % column name in DB (skip if empty)
-        Args.ColJD             = 'JD';  % column name or numeric (if numeric, then use as is)
-        Args.IntTimeFun        = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
+        %Args.ColIntTimeDB      = 'ID_TIME'; % column name in DB (skip if empty)
+        %Args.ColJD             = 'JD';  % column name or numeric (if numeric, then use as is)
+        %Args.IntTimeFun        = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
         
         % Unique insert time ID indexing
         % bit encoded JD-J2000 in ms
-        Args.ColInsertIntTimeDB     = 'ID_Time';    % column name in DB (skip if empty)
+        %Args.ColInsertIntTimeDB     = 'ID_Time';    % column name in DB (skip if empty)
 
         % Unique instrument ID indexing
         % bit encoded instrument information
-        Args.ID_ColDB      = 'ID_Inst';     % column name in DB (skip if empty)
-        Args.ColID         = ["NODENUMB", "MOUNTNUM", "CAMNUM", "CROPID"];  % Columns in input table from which to compose the ID
-        Args.BitDigits     = [16 16 16 16];  % number of bits per ColID
+        %Args.ID_ColDB      = 'ID_Inst';     % column name in DB (skip if empty)
+        %Args.ColID         = ["NODENUMB", "MOUNTNUM", "CAMNUM", "CROPID"];  % Columns in input table from which to compose the ID
+        %Args.BitDigits     = [16 16 16 16];  % number of bits per ColID
+
+        Args.ColNameID     = 'id_proc';
+        Args.ID_Origin     = [];   % [] - no ID; NaN - generate; number
+        Args.FormatStID    = [];
 
         % Healpix indexing
         Args.ColRA         = 'RA';
@@ -66,7 +70,7 @@ function [T] = insertImages(Obj, Args)
         Args.CooUnits      = 'deg';
         Args.HealpixType   = 'nested';
         Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
-        Args.ColHealpix    = ["NSIDE_PARTITION", "NSIDE_LOW", "NSIDE_HIGH"];
+        Args.ColHealpix    = ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"];
         Args.UniqueID logical = true;
 
         % Write table
@@ -88,15 +92,30 @@ function [T] = insertImages(Obj, Args)
     Nt = size(T,1);
 
     % add Time unique ID
-    if ~isempty(Args.ColIntTimeDB)
-        T = db.util.insertIntegerTime2table(T, 'ColJD',Args.ColJD, 'ColIntTime', Args.ColIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
-    end
+    %if ~isempty(Args.ColIntTimeDB)
+    %    T = db.util.insertIntegerTime2table(T, 'ColJD',Args.ColJD, 'ColIntTime', Args.ColIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
+    %end
         
     % add insert time unique ID
-    if ~isempty(Args.ColInsertIntTimeDB)
-        InsertJD = celestial.time.julday;   % JD now
-        T = db.util.insertIntegerTime2table(T, 'ColJD',InsertJD, 'ColIntTime', Args.ColInsertIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
+    %if ~isempty(Args.ColInsertIntTimeDB)
+    %    InsertJD = celestial.time.julday;   % JD now
+    %    T = db.util.insertIntegerTime2table(T, 'ColJD',InsertJD, 'ColIntTime', Args.ColInsertIntTimeDB, 'IntTimeFun',Args.IntTimeFun);
+    %end
+
+    if isempty(Args.ID_Origin)
+        % skip - d onot add ID
+    else
+        if isnan(Args.ID_Origin)
+            % Generate ID using: imProc.db.generateImageID
+            [~,ID] = imProc.db.generateImageID(Obj, 'KeyID',[], 'FormatSt',Args.FormatStID);
+        else
+            % User provided ID
+            ID = Args.ID_Origin;
+        end
+        % insert ID to table
+        T.(Args.ColNameID) = ID;
     end
+
 
     % % add instrument uniqye ID
     % if ~isempty(Args.ID_ColDB)
