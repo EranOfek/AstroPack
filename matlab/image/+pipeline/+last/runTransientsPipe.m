@@ -30,6 +30,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
                 by the algorithm.
               - AstroDiff cutouts around each single transients candidate 
                 which passes the flagging criteria.
+              - AstroCat of all found transient candidates.
               - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'

@@ -45,7 +45,9 @@ classdef AstroDiff < AstroImage
         SigmaR
 
         % Gabor SN of difference image
-        GaborSN       
+        GaborSN
+
+        ULCatData
     end
     
     properties (Hidden)  % auxilary images
@@ -208,7 +210,7 @@ classdef AstroDiff < AstroImage
             end
             Val = Obj.VarR;
             
-        end
+        end     
 
     end
     

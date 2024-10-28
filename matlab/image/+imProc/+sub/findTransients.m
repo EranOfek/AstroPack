@@ -40,7 +40,7 @@ function TranCat=findTransients(AD, Args)
     Output  : - An AstroCatalog containing the found transients candidates
                 with the following columns;
                 TODO: Update this once sure about the final catalog
-                columns.
+                columns. This might be an eternal TODO.
                 .XPEAK - Image x-coordinate of the peak position.
                 .YPEAK - Image y-coordinate of the peak position.
                 .RA - Sky RA-coordinate of the peak position. In deg.
