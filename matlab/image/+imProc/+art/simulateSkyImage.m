@@ -11,11 +11,14 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'MaxMag' - lower limit of injected source distribution
         %         'AddBack' - (logical) whether to add backgorund to the source image
         %         'Back' - image background (in cts)
+        %         'DensityFactor' - linearly scaled source density: 1 corresponds to a moderately dense field of LAST
         %         'AddNoise' - (logical) whether to add noise to the source image
         %         'PixSizeDeg'    - WCS parameters: image pixel size [deg]
         %         'CRVAL'         - WCS parameters: reference coordinates [RA Dec]
         %         'CRPIX'         - WCS parameters: reference pixels [X Y]
-        %         'WriteFiles'    - logical (write the output to FITS image and ds9 region files)
+        %         'WriteFITS'     - logical (write the output to FITS image)
+        %         'WriteReg'      - logical (write the output ds9 region file)
+        %         'WriteMat'      - logical (write the output .mat archive with all the results)
         %         'OutImageName'  - output FITS image file name
         %         'OutRegionName' - output ds9 region file name
         %         'OutArchName'   - output .mat archive file name
@@ -40,7 +43,9 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
             Args.CRPIX      = [1 1];       % WCS CRPIX
-            Args.WriteFiles = false;       % write the FITS image and a source catalog region file
+            Args.WriteFITS  = false;       % write the FITS image 
+            Args.WriteReg   = false;       % write the source catalog region file
+            Args.WriteMat   = false;       % write a full .mat archive
             Args.OutImageName  = '~/LAST_sim_image.fits'; % image file name
             Args.OutRegionName = '~/LAST_sim.reg';        % region file name            
             Args.OutArchName   = '~/LAST_sim.mat';        % full archive file name
@@ -108,7 +113,11 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         else
             Cat = Args.Cat;
         end
-        
+                % write disk files if requested 
+                 if Args.WriteReg            
+                     DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,...
+                         'Color','cyan','Marker','s','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+                 end        
         % read an empirical PSF 
         if ischar(Args.PSF)
             PSF = readmatrix(tools.os.relPath2absPath(Args.PSF));
@@ -135,14 +144,12 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
                                                         'AddNoise',Args.AddNoise, ...
                                                         'NoiseModel', 'normal'); 
                                                              
-         % write disk files if requested 
-         if Args.WriteFiles             
-             DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
-                 'Precision','%.2f','PrintIndividualProp',0);
-             
+         % write disk files if requested            
+         if Args.WriteFITS
              FITS.write(SimAI.Image', Args.OutImageName,'Header',SimAI.HeaderData.Data,...
-                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
-                
-             save(Args.OutArchName,'SimAI','InjectedCat');                                 
-         end                
+                 'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+         end
+         if Args.WriteMat
+             save(Args.OutArchName,'SimAI','InjectedCat');
+         end
 end
