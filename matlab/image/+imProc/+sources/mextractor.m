@@ -178,7 +178,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
             [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             
-            % use either a) interpolation or b) FFT shift + edge suppression
+            % use either a) interpolation or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
             if Args.UseInterpolant
                 F = griddedInterpolant(AI.PSF,'linear','previous'); %
                 Nx = size(AI.PSF,1);
@@ -197,7 +197,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % 2. subtract the source image from the current image
             [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                         'Recenter', false,'PositivePSF',true);
-            SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,...
+            SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),permute(CubePSF,[2,1,3]),XY,...
                                                                         'Oversample',[],'Subtract',false);                                                                                          
             Subtracted                   = AI.Image - SourceImage(:,:,Iiter);  
             

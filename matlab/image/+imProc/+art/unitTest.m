@@ -26,26 +26,28 @@ function Result = unitTest()
     % 
     cprintf('blue','Sky image simulation test:\n');
     % simulate an image (by default -- based on LAST source statistics in the field 275-16)
-    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',false,'DensityFactor',1.0,'AddBack',true,'Back',200,'AddNoise',true);
+    [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteReg',true,'DensityFactor',1,...
+        'AddBack',true,'Back',200,'AddNoise',false);
     % extract the sources with mextractor 
-    [SimAI, SourceLess] = imProc.sources.mextractor(SimAI,'Threshold',[30 10 5],...
+    [SimAI, SourceLess] = imProc.sources.mextractor(SimAI,'Threshold',[30 12 5],...
         'Verbose',true,'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
         'RedNoiseFactor',1.3);
     % compare the input and output catalogs
     SimCat.sortrows('Y1');
     SimAI.CatData.sortrows('Y1');
     %
-    figure(1); clf; histogram(SimAI.Table.MAG_PSF,'BinWidth',0.3); hold on;
+    figure(1); clf; histogram(SimAI.Table.MAG_PSF,'BinWidth',0.3); ylim([1,numel(SimAI.Table.MAG_PSF)]); hold on;
     histogram(SimCat.Table.MAG_PSF,'BinWidth',0.3); 
     set(gca,'YScale','log'); xlabel Mag;ylabel N_{objects} 
     % 
-    ds9(SimAI.Image,5); ds9.load_region('~/Simulated_it1.reg'); 
-    ds9.load_region('~/Simulated_it2.reg');ds9.load_region('~/Simulated_it3.reg');
+    ds9(SimAI.Image,5) 
+    ds9.load_region('~/Simulated_it1.reg'); ds9.load_region('~/Simulated_it2.reg');ds9.load_region('~/Simulated_it3.reg');
     %
-    InSrc = SimCat.Table(SimCat.Table.MAG_PSF<18,:); % make source region with objects brighter than m = 18 
+    InSrc = SimCat.Table(SimCat.Table.MAG_PSF < 19,:); % make source region with objects brighter than m 
     DS9_new.regionWrite([InSrc.Y1 InSrc.X1],'FileName','~/insrc.reg','Color','yellow','Marker','b','Size',1,'Width',4,...
                             'Precision','%.2f','PrintIndividualProp',0); 
-    ds9.load_region('~/insrc.reg');
+    ds9.load_region('~/insrc.reg')
+    ds9(SourceLess.Image,6); ds9.load_region('~/insrc.reg')
     %    
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
             'Radius', 1.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1'); 
@@ -53,7 +55,7 @@ function Result = unitTest()
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
             'Radius', 3.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1');     
     Ind = ~isnan(Result1.Catalog(:,1));
-    semilogy(Result1.Table.MAG_PSF(Ind),ResInd.Obj2_Dist(Ind),'*')
+    figure(2); semilogy(Result1.Table.MAG_PSF(Ind),ResInd.Obj2_Dist(Ind),'*')
     
     %
     % RAD = 180/pi;  

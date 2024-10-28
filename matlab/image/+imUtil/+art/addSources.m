@@ -2,7 +2,8 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     % Inject odd-sized fluxed source images (PSFs) into whole pixel positions of an image  
     %     NB: first one needs to prepare fluxed and shifted source PSFs with imUtil.art.createSourceCube   
     % Input  : - an image matrix  
-    %          - a prepared cube or cell array of fluxed source PSFs whose scaling fits to that of the Image  
+    %          - a prepared cube or cell array of fluxed source PSFs 
+    %            whose spatial scaling fits to that of the Image with account of the 'Oversample' parameter 
     %          - a prepared list of whole pixel positions   
     %          * ...,key,val,... 
     %          'ImSize' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    
@@ -33,7 +34,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     if strcmpi(Args.Method,'ns') 
         Flux = repmat(1.0,1,size(SrcPSF,3));   
         Cat = [XY(:,1) XY(:,2) Flux'];
-        Image = injectSources_NS(Image,Cat,SrcPSF,Args);
+        Image = injectSources_NS(Image,Cat,SrcPSF,'RecenterPSF',false);
         return
     end
     % if the PSF is yet not to scale, call the old directInjectSources function:
@@ -113,17 +114,18 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         end
         %
         if iscell(SrcPSF)
-            SrcImage(X1:X2,Y1:Y2) = SrcImage(X1:X2,Y1:Y2) + SrcPSF{Isrc}(X11:X21,Y11:Y21);
-%             tools.array.updateMatrixInplace(Image, SrcPSF{Isrc}, X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
+            S = SrcPSF{Isrc}';
         else
-            SrcImage(X1:X2,Y1:Y2) = SrcImage(X1:X2,Y1:Y2) + SrcPSF(X11:X21,Y11:Y21,Isrc); 
-             % this is quite slow, can to be replaced by a mex-function of Chen Tishler?
-%              try
-%                  tools.array.updateMatrixInplace(Image, SrcPSF(:,:,Isrc), X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
-%              catch
-%                  X1;
-%              end
+            S = SrcPSF(:,:,Isrc)';
         end
+        % this is the main injection line:
+        SrcImage(X1:X2,Y1:Y2) = SrcImage(X1:X2,Y1:Y2) + S(X11:X21,Y11:Y21);
+        % this appears quite slow, can be replaced by a mex-function of Chen Tishler?
+%         try
+%             tools.array.updateMatrixInplace(SrcImage, S, X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
+%         catch
+%             X1;
+%         end
     end
     
     % add or subract the source image from the sky image:    
