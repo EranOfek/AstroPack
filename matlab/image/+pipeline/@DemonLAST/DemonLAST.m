@@ -3036,11 +3036,11 @@ classdef DemonLAST < Component
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
 
                                     if ~exist(Obj.SciPath, 'dir')
-                                        mkdir(Obj.SciPath)
+                                        mkdir(Obj.SciPath);
                                     end
 
                                     TranDB = strcat(Obj.SciPath,'/TranDB.mat');
-                                    [TransientCutouts, MultiEpochStatus] = pipeline.last.matchTransientsToMultiEpoch(...
+                                    [TransientCutouts, MultiEpochStatus] = pipeline.last.matchTransientsToMultiEpochs(...
                                         TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                 catch MEtran
