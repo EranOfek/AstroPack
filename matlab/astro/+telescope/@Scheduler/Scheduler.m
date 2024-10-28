@@ -1615,6 +1615,8 @@ classdef Scheduler < Component
             TimeSinceLastSunSet = Obj.timeSinceSunSet(JD);
             if TimeSinceLastSunSet>0.9
                 Result = true;
+            else
+                Result = false;
             end
 
         end
