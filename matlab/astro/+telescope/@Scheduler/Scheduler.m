@@ -998,6 +998,8 @@ classdef Scheduler < Component
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
+%                 Args.FunSchedRequested function_handle = @telescope.Scheduler.dispatchTargetToUnit% Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
+%                 Args.FunTargetDispatch function_handle = @telescope.Scheduler.unitsAskingTargets% [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
                 Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
@@ -1124,9 +1126,9 @@ classdef Scheduler < Component
                         'Dec',TargetStruct.Dec,...
                         'Nexp',TargetStruct.Nexp,...
                         'ExpTime',TargetStruct.ExpTime);
-                    Args.Mailbox.hset(Req,'Status','provided',...
-                        'Target',jsonencode(target),...
-                        'JD',celestial.time.julday);
+                    Args.Mailbox.hset(Req,'Target',jsonencode(target),...
+                        'JD',celestial.time.julday,...
+                        'Status','provided');
                 catch
                 end
                 
