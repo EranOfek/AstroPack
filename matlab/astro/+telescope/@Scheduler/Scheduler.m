@@ -931,7 +931,7 @@ classdef Scheduler < Component
             [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
             for i=1:numel(Mounts)
                 % get an appropriate target
-                % Which time to use for not-yey-serviced requests? On
+                % Which time to use for not-yet-serviced requests? On
                 %  one hand we would choose the best target available
                 %  *now*, not at the time of the former request; on the
                 %  other using the request time we can run in simualted
