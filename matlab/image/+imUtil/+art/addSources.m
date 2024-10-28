@@ -2,7 +2,8 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     % Inject odd-sized fluxed source images (PSFs) into whole pixel positions of an image  
     %     NB: first one needs to prepare fluxed and shifted source PSFs with imUtil.art.createSourceCube   
     % Input  : - an image matrix  
-    %          - a prepared cube or cell array of fluxed source PSFs whose scaling fits to that of the Image  
+    %          - a prepared cube or cell array of fluxed source PSFs 
+    %            whose spatial scaling fits to that of the Image with account of the 'Oversample' parameter 
     %          - a prepared list of whole pixel positions   
     %          * ...,key,val,... 
     %          'ImSize' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    
@@ -33,7 +34,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     if strcmpi(Args.Method,'ns') 
         Flux = repmat(1.0,1,size(SrcPSF,3));   
         Cat = [XY(:,1) XY(:,2) Flux'];
-        Image = injectSources_NS(Image,Cat,SrcPSF,Args);
+        Image = injectSources_NS(Image,Cat,SrcPSF,'RecenterPSF',false);
         return
     end
     % if the PSF is yet not to scale, call the old directInjectSources function:

@@ -101,6 +101,8 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
         % do the injection/subtraction and merge catalogs, if requested
         if ~Args.Subtract
             AI(Iobj).Image = imUtil.art.addSources(AI(Iobj).Image,CubePSF,XY);
+%             AI(Iobj).Image = imUtil.art.addSources(AI(Iobj).Image,CubePSF,XY,'Oversample',Args.Oversample);
+%             AI(Iobj).Image = imUtil.art.addSources(AI(Iobj).Image,CubePSF,XY,'Method','ns');
             if Args.UpdateCat
               AC(1) = AI(Iobj).CatData;
               AC(2) = InjectedCat;

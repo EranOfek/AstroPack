@@ -41,9 +41,8 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     Nsrc = size(X1Y1,1);           % the number of input sources
     
     % whole pixel coordinates and subpixel shifts 
-%     XY      = max(round(X1Y1), 1); % the rounding should not produce 0
-    XY      = max(floor(X1Y1), 1); % the rounding should not produce 0
-    XYshift = X1Y1 - XY;
+    XY      = max(round(X1Y1), 1); % the rounding should not produce 0
+    XYshift = X1Y1 - XY; 
     
     % check the number of input flux values 
     if numel(Flux) == 1 
