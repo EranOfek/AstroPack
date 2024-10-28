@@ -30,7 +30,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Cat        = [];          % input catalog (source positions) 
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
-            Args.PSF        = '~/matlab/data/TestImages/unitTest/LAST_PSF.txt';% input PSF: either a file name or stamp
+            Args.PSF        = '~/matlab/data/TestImages/unitTest/LAST_PSF.txt';% input PSF: either a file name or a stamp
             Args.MagZP      = 25;          % photometric zero point            
             Args.MaxMag     = 21;          % lower limit of source distribution (influences the number of objects and effective background)
             Args.AddBack  logical = true;  % whether to add backgorund to the source image
@@ -109,12 +109,13 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Cat = Args.Cat;
         end
         
-        % read an empirical LAST PSF 
+        % read an empirical PSF 
         if ischar(Args.PSF)
             PSF = readmatrix(tools.os.relPath2absPath(Args.PSF));
         else
             PSF = Args.PSF; 
         end
+%         PSF = imUtil.kernel2.gauss(2,[25 25]); % for tests only
                 
         % add background with some spatial variations
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));  
