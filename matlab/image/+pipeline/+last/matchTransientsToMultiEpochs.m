@@ -40,6 +40,12 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
     
     Status = 'Uncontrolled exit.';
 
+    % Return if catalog is empty
+    if TranCatLevel1.sizeCatalog < 1
+        Status = 'Transients catalog empty.';
+        return
+    end
+
     % Match to DB if Args.useDB is true, otherwise look for old single
     % epoch catalogs.
     if Args.useDB
