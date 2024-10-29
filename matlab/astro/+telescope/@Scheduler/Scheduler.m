@@ -946,8 +946,8 @@ classdef Scheduler < Component
                 if isempty(TargetInd)
                     % this can happpen if the scheduler has no target to
                     %  dispatch - for instance at daytime
-                    warning('No target for unit %d at this time',Mounts(i))
-                    % report, log, etc.?
+                    LogLine=sprintf('No target for unit %d at this time',Mounts(i));
+                    S.Logger.msgLog(LogLevel.Warning, LogLine);
                 else
                     Success=Args.FunTargetDispatch(Mounts(i),Struct,...
                         'AcknowledgeTimeout',Args.AcknowledgeTimeout);
@@ -964,12 +964,12 @@ classdef Scheduler < Component
                         LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
                             Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
                             Struct.Priority, Struct.Nexp, Struct.ExpTime);
-                        Level=1;
-                        S.Logger.msgLog(Level, LogLine);
+                        S.Logger.msgLog(LogLevel.Info, LogLine);
                     else
                         % Unit didn't receive the requested target
-                        warning('Unit %d has not acknowledged the new target within %g sec',...
-                            Mounts(i),Args.AcknowledgeTimeout)
+                        LogLine=sprintf('Unit %d has not acknowledged the new target within %g sec',...
+                            Mounts(i),Args.AcknowledgeTimeout);
+                        S.Logger.msgLog(LogLevel.Warning, LogLine);
                     end
                 end
             end
@@ -1066,8 +1066,9 @@ classdef Scheduler < Component
                 try
                     Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                 catch
-                    warning('cannot connect to Redis and cannot check for incoming requests')
-                    return
+                    LogLine='cannot connect to Redis and cannot check for incoming requests';
+                    S.Logger.msgLog(LogLevel.Fatal, LogLine);
+                   return
                 end
             end
             
@@ -1115,7 +1116,8 @@ classdef Scheduler < Component
                     try
                         Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                     catch
-                        warning('cannot connect to Redis and cannot dispatch targets to units')
+                        LogLine='cannot connect to Redis and cannot dispatch targets to units';
+                        S.Logger.msgLog(LogLevel.Fatal, LogLine);
                         return
                     end
                 end
