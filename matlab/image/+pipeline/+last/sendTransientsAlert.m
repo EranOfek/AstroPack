@@ -9,6 +9,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 'SavePath' - Path to directory in which to save products in
                        case SaveProducts is true. If empty, prodcuts won't 
                        be saved. Default is the ''.
+                'SingleEpochThresh' - Score threshold for a passing
+                       candidate to be reported if it passes only once.
+                       Default is 8.0.
     Output  : - Result message.
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
@@ -23,6 +26,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.SaveProducts logical = false;
         Args.UseLASTtools logical = false;
         Args.SavePath = '';
+
+        Args.SingleEpochThresh = 8.0;
 
     end
 
@@ -41,6 +46,23 @@ function [Status] = sendTransientsAlert(ADc, Args)
     for Iadc = 1:Nadc
         Transient = ADc(Iadc);
 
+        Flags = Transient.CatData.getCol('FLAGS_TRANSIENT');
+        PassingTran = (Flags == 0);
+        NumPassingTran = sum(PassingTran);
+
+        Score = Transient.CatData.getCol('SCORE');
+
+        % Report only if transient candidate has been detected at least
+        % twice of with a > Args.SingeEpochThresh sigma significance 
+        % within a single epoch
+
+        if NumPassingTran == 1 
+            SingleEpochScore = Score(PassingTran);
+            if SingleEpochScore < Args.SingleEpochThresh
+                continue
+            end
+        end
+
         % Get meta data
         RA = Transient.CatData.getCol('RA');
         Dec = Transient.CatData.getCol('Dec');
@@ -51,7 +73,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
             '-',sprintf('%02.0f',DT(3)),{' '},sprintf('%02.0f',DT(4)), ...
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
-        Score = Transient.CatData.getCol('SCORE');
         Mag = Transient.CatData.getCol('MAG_PSF');
 
         Ind0 = find(JD == JD0);
