@@ -60,8 +60,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitPath);
     elseif isa(VisitPath, 'AstroImage')
         New = VisitPath;
-        NonEmptyCellNew = ~cellfun('isempty',{New{:}.Image});
-	New = New(:, NonEmptyCellNew);
+        NonEmptyCellNew = ~cellfun('isempty',{New(:).Image});
+    	New = New(:, NonEmptyCellNew);
     end
 
     % Get path of reference images
