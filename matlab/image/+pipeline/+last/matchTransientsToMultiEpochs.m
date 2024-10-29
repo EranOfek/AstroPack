@@ -7,7 +7,8 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
                 'SubselectionFalse' - Cell of filter names. All candidates
                        with TranCatLevel1 that failed these filters will be
                        removed before multi-epoch matching.
-                       Default is {'BadPixelHard', 'StarMatch'}.
+                       Default is {'BadPixelHard', 'StarMatch', 'LIMMAG', 
+                       'MPMatch', 'Negative'}.
                 'useDB' - Bool on wether to use the DB for multi-epoch
                        matching. When false, matching is done by searching 
                        for single epoch catalogs. Default is false.
@@ -29,7 +30,8 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
         ADc
         TranCatLevel1
 
-        Args.SubselectionFalse = {'BadPixelHard', 'StarMatch'};
+        Args.SubselectionFalse = {'BadPixelHard', 'StarMatch', ...
+            'LIMMAG', 'MPMatch', 'Negative'};
         Args.useDB logical = false;
         Args.TranDB = '';
 
@@ -68,7 +70,8 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         ADc
         TranCatLevel1
         
-        Args.SubselectionFalse = {'BadPixelHard', 'StarMatch'};
+        Args.SubselectionFalse = {'BadPixelHard', 'StarMatch', ...
+            'LIMMAG', 'MPMatch', 'Negative'};
         Args.TranDB = '';
     end
 
