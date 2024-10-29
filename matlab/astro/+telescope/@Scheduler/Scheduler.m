@@ -938,6 +938,7 @@ classdef Scheduler < Component
                 %  time mode. Perhaps add an option for choosing.
                 %JD=celestial.time.julday;
                 JD=JDs(i);
+                S.initNightCounter(false);
                 [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                     'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                 % write the following arguments to mount:
@@ -952,7 +953,7 @@ classdef Scheduler < Component
                         'AcknowledgeTimeout',Args.AcknowledgeTimeout);
                     if Success
                         % update counters and LastJD
-                        S.increaseCounter(TargetInd);
+                        S.increaseCounter(TargetInd,JD);
                         
                         % backup latest version of target list
                         Tbl = S.List.Table;
