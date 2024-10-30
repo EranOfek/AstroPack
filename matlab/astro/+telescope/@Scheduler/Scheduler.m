@@ -172,7 +172,10 @@ classdef Scheduler < Component
             end
             
         end
+        
     end
+
+   
     
     methods % setters/getters
         function set.List(Obj,Tbl)
