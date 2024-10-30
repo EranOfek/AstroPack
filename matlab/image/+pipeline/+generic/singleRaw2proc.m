@@ -160,6 +160,10 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.PsfPhot logical                  = false;
         Args.psfFitPhotArgs cell              = {'FitRadius',3};         
         
+        Args.MultiIterationPSFphot logical    = false;     % currently not activated: under tests
+        Args.MultiIterationThresholds         = [30 10 5]; % multi-iteration PSF photometry thresholds per iteration (in sigma)
+        Args.MultiIterationRedNoiseFactor     = 1.3;       % red-noise factor increasing variance around found sources for the next iterations
+        
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
                               
@@ -343,25 +347,30 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
-        % Estimate PSF
-        if Args.AddPSF
-            [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:}); 
-
-            if any(isemptyPSF(SI))
-                % If no PSF found for one sub image - fails all
-                % FFU: need to change in the future
-                N_noPSF = sum(~isemptyPSF(SI));
-                N_SubImages = numel(SI);
-                N_totSrc    = sum(SI.sizeCatalog);
-                N_minSrc    = min(SI.sizeCatalog);
-                error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+        % Estimate PSF and do PSF photometry
+        if Args.AddPSF            
+            if Args.MultiIterationPSFphot
+                [SI, ~] = imProc.sources.mextractor(SI,'Threshold',Args.MultiIterationThresholds,...
+                                                    'FindWithEmpiricalPSF',true,...
+                                                    'RedNoiseFactor',Args.MultiIterationRedNoiseFactor);
+            else
+                [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:});
+                
+                if any(isemptyPSF(SI))
+                    % If no PSF found for one sub image - fails all
+                    % FFU: need to change in the future
+                    N_noPSF = sum(~isemptyPSF(SI));
+                    N_SubImages = numel(SI);
+                    N_totSrc    = sum(SI.sizeCatalog);
+                    N_minSrc    = min(SI.sizeCatalog);
+                    error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+                end
+                
+                if Args.PsfPhot
+                    % PSF photometry
+                    [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});
+                end
             end
-
-            if Args.PsfPhot
-                % PSF photometry
-                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});                                   
-            end
-
         end
 
         

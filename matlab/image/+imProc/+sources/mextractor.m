@@ -96,7 +96,16 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                                       'RangeSN',Args.RangeSN,...
                                                       'InitPsf',Args.InitPsf,...
                                                       'InitPsfArgs',Args.InitPsfArgs);
-                                                              
+                                                  
+                                                  if any(isemptyPSF(Result))
+                                                      % If no PSF found for one sub image - fails all                                                      
+                                                      N_noPSF = sum(~isemptyPSF(Result));
+                                                      N_SubImages = numel(Result);
+                                                      N_totSrc    = sum(Result.sizeCatalog);
+                                                      N_minSrc    = min(Result.sizeCatalog);
+                                                      error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+                                                  end
+                                                  
     % find and measure sources using multi-iteration PSF fitting
     Niter = numel(Args.Threshold);
     Nobj  = numel(Obj);   
