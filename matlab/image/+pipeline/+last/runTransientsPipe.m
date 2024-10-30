@@ -30,6 +30,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
                 by the algorithm.
               - AstroDiff cutouts around each single transients candidate 
                 which passes the flagging criteria.
+              - AstroCat of all found transient candidates.
               - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'
@@ -52,6 +53,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     % Set default status.
     Status = 'Uncontrolled exit.';
 
+    % Initialize empty output arguments
+    AD = AstroZOGY();
+    ADc = AstroZOGY();
+    MergedTranCat = AstroCatalog();  
+
     % Find New image coadds and load
     
     if isa(VisitPath, 'char') || isa(VisitPath, 'string')
@@ -61,6 +67,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         New = VisitPath;
     end
 
+    NonEmptyNew = ~New.isemptyImage;
+
+    if ~any(NonEmptyNew)
+      Status = 'All New images are empty.';
+      return
+    end
+    New = New(NonEmptyNew);
+    
     % Get path of reference images
     if isempty(Args.RefPath)
         Computer = tools.os.get_computer;
@@ -75,9 +89,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     % Track number of found reference images
     NRefsFound = 0;
 
-    % Initialize empty output arguments
-    AD = AstroZOGY();
-    ADc = AstroZOGY();
     
     for Iobj=Nobj:-1:1
         % Get name of new image and search for ref image via wildcards

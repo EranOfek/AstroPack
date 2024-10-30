@@ -8,14 +8,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
                        false, alert will be text only. Default is false.
                 'SavePath' - Path to directory in which to save products in
                        case SaveProducts is true. If empty, prodcuts won't 
-                       be saved. Default is the ''.       
-                'BasePath' - Path under which telescope data can be found.
-                       If empty, BasePath will be constructed assuming LAST
-                       site infrastructure. Default is ''.
+                       be saved. Default is the ''.
+                'SingleEpochThresh' - Score threshold for a passing
+                       candidate to be reported if it passes only once.
+                       Default is 8.0.
     Output  : - Result message.
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
-              [AD, ADc] = runTransientsPipe(VisitPath)
+              [AD, ADc, TCL1, Status] = runTransientsPipe(VisitPath)
+              ADc = matchTransientsToMultiEpochs(ADc, TCL1)
               sendTransientsAlert(ADc)
     %}
 
@@ -25,7 +26,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.SaveProducts logical = false;
         Args.UseLASTtools logical = false;
         Args.SavePath = '';
-        Args.BasePath = '';
+
+        Args.SingleEpochThresh = 8.0;
 
     end
 
@@ -35,7 +37,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
     if isempty(ADc(1).Table)
         Status = 'No transients found.';
         return
-    end    
+    end
 
     % Get number of transient cutouts.
     Nadc = numel(ADc);
@@ -44,169 +46,112 @@ function [Status] = sendTransientsAlert(ADc, Args)
     for Iadc = 1:Nadc
         Transient = ADc(Iadc);
 
+        Flags = Transient.CatData.getCol('FLAGS_TRANSIENT');
+        PassingTran = (Flags == 0);
+        NumPassingTran = sum(PassingTran);
+
+        Score = Transient.CatData.getCol('SCORE');
+
+        % Report only if transient candidate has been detected at least
+        % twice of with a > Args.SingeEpochThresh sigma significance 
+        % within a single epoch
+
+        if NumPassingTran == 1 
+            SingleEpochScore = Score(PassingTran);
+            if SingleEpochScore < Args.SingleEpochThresh
+                continue
+            end
+        end
+
         % Get meta data
         RA = Transient.CatData.getCol('RA');
         Dec = Transient.CatData.getCol('Dec');
-        JD = Transient.New.julday;
-        DT = celestial.time.jd2date(JD,'H','YMD');
+        JD = Transient.CatData.getCol('JD');
+        JD0 = Transient.New.julday;
+
+        DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
             '-',sprintf('%02.0f',DT(3)),{' '},sprintf('%02.0f',DT(4)), ...
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
-        Score = Transient.CatData.getCol('SCORE');
         Mag = Transient.CatData.getCol('MAG_PSF');
-        Mount = Transient.CatData.getCol('MOUNT');
-        Cam = Transient.CatData.getCol('CAM');
-        CropID = Transient.CatData.getCol('CROPID');
+
+        Ind0 = find(JD == JD0);
+
+        if numel(Ind0) > 1
+            Ind0 = Ind0(1);
+        end
+
+        RA0 = RA(Ind0);
+        Dec0 = Dec(Ind0);
+        Score0 = Score(Ind0);
+        Mag0 = Mag(Ind0);
 
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
             DateString{1}, {' '},...
-            'and RA, Dec =',{' '},sprintf('%.7f',RA),',',sprintf('%.7f',Dec),{' '}, ...
-            'with a score of',{' '},sprintf('%.2f',Score),{' '},...
-            'and magnitude of',{' '},sprintf('%.2f',Mag),'.');
-
-        % Find transient catalogs on the same field observed within one
-        % month interval of transient detection.
-        FN = FileNames.generateFromFileName(Transient.New.ImageData.FileName);
-
-        FNzogy = FN.copy();
-        FNzogy.Time = {'*.*.*'};
-        FNzogy.Level = {'coadd.zogyD'};
-        FNzogy.Product = {'Cat'};
-        FNzogy.CropID = 0;
-        MonthTransient = DT(2);
-        YearTransient = DT(1);
-
-        if MonthTransient == 1
-            MonthBefore = 12;
-            YearBefore = YearTransient - 1;
-        else
-            MonthBefore = MonthTransient-1;
-            YearBefore = YearTransient;
-        end
-
-        if MonthTransient == 12
-            MonthAfter = 1;
-            YearAfter = YearTransient + 1;
-        else
-            MonthAfter = MonthTransient + 1;
-            YearAfter = YearTransient;
-        end
-
-        if isempty(Args.BasePath)
-            DataDir = strcat('data',num2str(2-mod(Cam,2)));
-            Args.BasePath = strcat('/',tools.os.get_computer, ...
-                '/',DataDir,'/archive');
-        end
-
-        SearchStringBefore = strcat(Args.BasePath,'/',FNzogy.ProjName, ...
-            '/',num2str(YearBefore),'/',sprintf('%02.0f',MonthBefore), ...
-            '/*/proc/*/',FNzogy.genFile);
-        SearchStringTransient = strcat(Args.BasePath,'/',FNzogy.ProjName, ...
-            '/',num2str(YearTransient),'/',sprintf('%02.0f',MonthTransient), ...
-            '/*/proc/*/',FNzogy.genFile);
-        SearchStringAfter = strcat(Args.BasePath,'/',FNzogy.ProjName, ...
-            '/',num2str(YearAfter),'/',sprintf('%02.0f',MonthAfter), ...
-            '/*/proc/*/',FNzogy.genFile);
-
-        TranCats = AstroCatalog(SearchStringTransient{1});
-        TranCatsBefore = AstroCatalog(SearchStringBefore{1});
-        TranCatsAfter = AstroCatalog(SearchStringAfter{1});
-
-        if numel(TranCatsBefore) > 1
-            TranCats = [TranCatsBefore, TranCats];
-        elseif numel(TranCatsBefore) == 1 && ~isempty(TranCatsBefore(1).Table)
-            TranCats = [TranCatsBefore, TranCats];
-        end
-
-        if numel(TranCatsAfter) > 1
-            TranCats = [TranCats, TranCatsAfter];
-        elseif numel(TranCatsAfter) == 1 && ~isempty(TranCatsAfter(1).Table)
-            TranCats = [TranCats, TranCatsAfter];
-        end
-
-        % Get number of catalogs
-        Ncats = numel(TranCats);
+            'and RA, Dec =',{' '},sprintf('%.7f',RA0),',',sprintf('%.7f',Dec0),{' '}, ...
+            'with a score of',{' '},sprintf('%.2f',Score0),{' '},...
+            'and magnitude of',{' '},sprintf('%.2f',Mag0),'.');
 
         % Construct a LC with points and upper limits
-        LC_Point = 0;
         LC_UL = 0;
-
-        LastUL_JD = 0;
-        LastUL_Mag = 0;
-
-        for Icat = Ncats:-1:1
-            TC = merge(TranCats(Icat));
-            Match = TC.coneSearch(RA, Dec, 3);
-
-            % LC points
-            if Match.Nsrc > 0
-                LC_Point = LC_Point + 1;
-                Idx = Match.Ind(find(Match.Dist == min(Match.Dist)));
-                TC_Row = TC.selectRows(Idx);
-                LC_Mag(LC_Point) = TC_Row.getCol('MAG_PSF');
-                LC_JD(LC_Point) = TC_Row.getCol('JD') - JD;
-                LC_MagErr(LC_Point) = TC_Row.getCol('MAGERR_PSF');
-            % LC upper limits
-            else
-                if ~TC.isColumn('FLAGS_TRANSIENT') || ~TC.isColumn('MOUNT')
-                    continue
-                end
-                
-                LC_UL = LC_UL + 1;
-                Query_Mount = TC.getCol('MOUNT');
-                Query_Cam = TC.getCol('CAM');
-                Query_CropID = TC.getCol('CROPID');
-
-                SubSelect = (Query_Mount == Mount) ...
-                            & (Query_Cam == Cam) ...
-                            & (Query_CropID == CropID);
-
-                TC_SubSelect = TC.selectRows(SubSelect);
-
-                QJD = median(TC_SubSelect.getCol('JD'), 'all');
-                QMag = median(TC_SubSelect.getCol('N_LIMMAG'), 'all');
-
-                % Remember the last non-detection before transient
-                % detection
-                if QJD > LastUL_JD && QJD < JD
-                    LastUL_JD = QJD;
-                    LastUL_Mag = QMag;
-                end
-
-                LC_UL_Mag(LC_UL) = QMag;
-
-                LC_UL_JD(LC_UL) = QJD - JD;
-
+    
+        % LC points
+        LC_Mag = Transient.CatData.getCol('MAG_PSF');
+        LC_JD = Transient.CatData.getCol('JD') - JD0;
+        LC_MagErr = Transient.CatData.getCol('MAGERR_PSF');
+        % LC upper limits
+        if isprop(Transient,'ULCatData') && ~isempty(Transient.ULCatData)
+            LC_UL = Transient.ULCatData.sizeCatalog;
+            if LC_UL > 0
+                LC_UL_JD = Transient.ULCatData.getCol('JD');
+                LC_UL_Mag = Transient.ULCatData.getCol('MagUL');
             end
-
         end
 
-        if LC_Point < 1
-            continue
-        end
+        % Construct last non-detection message.
+        % If available, use a recent observations, 
+        % otherwise use reference image.
+        if LC_UL > 0
+            RelJD = JD0 - LC_UL_JD;
+            T0mT = min(RelJD);
+            LastUL_JD = LC_UL_JD(find(RelJD == T0mT,1));
+            LastUL_Mag = LC_UL_Mag(find(RelJD == T0mT,1));
+            LC_UL_JD = -RelJD;
 
-        % If a non-detection is found, construct non-detection message.
-        if LastUL_JD > 0
             LastUL_DT = celestial.time.jd2date(LastUL_JD,'H','YMD');
             LastUL_DateString = strcat(num2str(LastUL_DT(1)),'-',sprintf('%02.0f',LastUL_DT(2)), ...
                 '-',sprintf('%02.0f',LastUL_DT(3)),{' '},sprintf('%02.0f',LastUL_DT(4)), ...
                 ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',LastUL_DT(6)),' UTC');
-            T0mT = JD - LastUL_JD;
-            LastUL_Msg = strcat('Last non-detection was on',{' '}, ...
+            LastUL_Msg = strcat('Last non-detection (observation) was on',{' '}, ...
                 LastUL_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
                 {' '},sprintf('%.2f',LastUL_Mag),'.');
             Msg{1} = strcat(Msg{1},'\n',LastUL_Msg{1});
+        else
+            Ref_JD = Transient.Ref.HeaderData.getVal('JD');
+            T0mT = JD0 - Ref_JD;
+            Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
+
+            Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
+            Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
+                '-',sprintf('%02.0f',Ref_DT(3)),{' '},sprintf('%02.0f',Ref_DT(4)), ...
+                ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',Ref_DT(6)),' UTC');
+            RefUL_Msg = strcat('Last non-detection (reference) was on',{' '}, ...
+                Ref_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
+                {' '},sprintf('%.2f',Ref_LimMag),'.');
+            Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
 
         end
 
         % If there is a galaxy match, construct potential host match message.
         GalN = Transient.CatData.getCol('GAL_N');
 
-        if GalN > 0
-            GalDist = Transient.CatData.getCol('GAL_DIST');
+        if any(GalN > 0)
+            GalDists = Transient.CatData.getCol('GAL_DIST');
+            GalDists = GalDists(GalDists>0);
+            GalDist = mean(GalDists);
     
-            [GLADEpCat,~,~] = catsHTM.cone_search('GLADEp', RA*pi/180, Dec*pi/180, ...
+            [GLADEpCat,~,~] = catsHTM.cone_search('GLADEp', RA0*pi/180, Dec0*pi/180, ...
                 GalDist*1.5, 'OutType','AstroCatalog');
     
             if GLADEpCat.sizeCatalog > 0
@@ -221,15 +166,37 @@ function [Status] = sendTransientsAlert(ADc, Args)
             end
         end
 
-        % Add a SDDS SkyServer link.
+        if RA0 < 0
+            RA0 = 360 + RA0;
+        end
 
-        SDSSLink = imProc.vo.getLinkForSource(Transient,[], @VO.SDSS.navigator_link);
+        % Add a SDDS SkyServer link.
+        TranCat0 = Transient.CatData.selectRows(Ind0);
+        SDSSLink = imProc.vo.getLinkForSource(TranCat0,[], @VO.SDSS.navigator_link);
         SDSS_Msg = strcat('<',SDSSLink.Link,'|','Check ', {' '},'SkyServer>');
         Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
 
+        % Add a PS1 link.
+        PlusSign = '';
+        if Dec0 > 0
+            PlusSign = '+';
+        end
+        PS1Link =  strcat('https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=', ...
+            num2str(RA0),PlusSign,num2str(Dec0),'&filter=color&size=720');
+        PS1_Msg = strcat('<',PS1Link,'|','Check ', {' '},'PS1>');
+        Msg{1} = strcat(Msg{1},'\n',PS1_Msg{1});
+
+        % Add a Simbad link.
+        SimbadLink =  strcat('http://simbad.u-strasbg.fr/simbad/',...
+            'sim-coo?protocol=html&NbIdent=1&Radius=1&Radius.unit=arcmin',...
+            '&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=', ...
+            num2str(RA0),PlusSign,num2str(Dec0));
+        Simbad_Msg = strcat('<',SimbadLink,'|','Check ', {' '},'Simbad>');
+        Msg{1} = strcat(Msg{1},'\n',Simbad_Msg{1});
+
         % Add a TNS link.
         TNSLink = strcat('https://www.wis-tns.org/search?ra=', ...
-            num2str(RA),'&decl=',num2str(Dec),'&radius=10&coords_unit=arcsec');
+            num2str(RA0),'&decl=',num2str(Dec0),'&radius=10&coords_unit=arcsec');
         TNS_Msg = strcat('<',TNSLink,'|','Check ', {' '},'TNS>');
         Msg{1} = strcat(Msg{1},'\n',TNS_Msg{1});
 
@@ -237,11 +204,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if ~isempty(Args.SavePath)
 
             % Construct image name
+            FN = FileNames.generateFromFileName(Transient.New.ImageData.FileName);
             ImageFN = FN.copy();
             ImageFN.Level = {'coadd.zogyD'};
             ImageFN.Product = {'Image'};
             ImageFN.FileType = {'png'};
-            ImageFN.Version = Icat;
+            ImageFN.Version = Iadc;
             Image_FilenameCell = ImageFN.genFile;
             Image_Filename = Image_FilenameCell{1};
             Image_DirFilenameCell = strcat(Args.SavePath,'/',ImageFN.genFile);
@@ -286,7 +254,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             set(gca, 'YDir','reverse');
             xlim([XlimMin 5]);
             set(gca,'fontsize',14)
-    
+
             % If Args.SaveProducts true, save image
             if Args.SaveProducts
                 saveas(Fig, Image_DirFilename);

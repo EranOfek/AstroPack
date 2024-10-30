@@ -1,12 +1,14 @@
 function [Result] = read_xls2tableFormat(FileName, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Read xls file containing DB table definitions and prepare structre
+    %   which is the input for: imProc.db.insertImages
+    % Input  : - xls file name to read.
+    %            Default is 'Design-Database-Pipeline-ClickHouse.xlsx'.
     %          * ...,key,val,... 
-    % Output : - 
+    %            See code for options.
+    % Output : - A structure array with the information regarding the 
+    %            columns in the table.
     % Author : Eran Ofek (2024 Oct) 
-    % Example: 
+    % Example: R=db.util.read_xls2tableFormat
 
     arguments
         FileName                = 'Design-Database-Pipeline-ClickHouse.xlsx';
@@ -19,6 +21,7 @@ function [Result] = read_xls2tableFormat(FileName, Args)
         Args.TypeColName        = 'Type';
         Args.FunColName         = 'Fun';
 
+        Args.Convert2Upper logical = true;   % convert ColName and ColNameOut to upper case.
 
     end
 
@@ -38,9 +41,19 @@ function [Result] = read_xls2tableFormat(FileName, Args)
         IU = Iunique(Iun);
         Imulti = find(strcmp(UnCol(Iun), TT.(Args.HeadColName)));
 
-        Result(Iun).ColName    = UnCol{Iun};
-        Result(Iun).ColNameOut = string(TT.(Args.TableColName)(Imulti));
-        Result(Iun).ColFun     = TT.(Args.FunColName)(Imulti(1));
+        if Args.Convert2Upper
+            Result(Iun).ColName    = upper(UnCol{Iun});
+            Result(Iun).ColNameOut = upper(string(TT.(Args.TableColName)(Imulti)));
+        else
+            Result(Iun).ColName    = UnCol{Iun};
+            Result(Iun).ColNameOut = string(TT.(Args.TableColName)(Imulti));
+        end
+        
+        if isempty(TT.(Args.FunColName){Imulti(1)})
+            Result(Iun).ColFun = [];
+        else
+            Result(Iun).ColFun     = str2func(TT.(Args.FunColName){Imulti(1)});
+        end
 
         % if numel(Imulti)>1
         %     Iun

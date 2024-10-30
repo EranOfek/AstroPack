@@ -156,6 +156,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPSFShape logical = true;
         Args.PSFShapeFWHMThresh = 4.0;
         Args.PSFShape2ndMomentLims = [0.6, 1.5];
+        Args.PSFShape2ndMomentLimsDiag = [1.0, 1.8];
 
         Args.flagStreak logical = true;
         
@@ -434,13 +435,17 @@ function TranCat = flagNonTransients(Obj, Args)
 
             X2 = Cat.getCol('X2');
             Y2 = Cat.getCol('Y2');
+            Diag2 = sqrt(X2.^2+Y2.^2);
             
             FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh);
             SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLims(2)) | ...
-                (X2 < Args.PSFShape2ndMomentLims(1));            
+                (X2 < Args.PSFShape2ndMomentLims(1));
             SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLims(2)) | ...
                 (Y2 < Args.PSFShape2ndMomentLims(1)); 
-            SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY;
+            SecondMomentFlaggedDiag = (Diag2 > Args.PSFShape2ndMomentLimsDiag(2)) | ...
+                (Diag2 < Args.PSFShape2ndMomentLimsDiag(1)); 
+            SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY...
+                            | SecondMomentFlaggedDiag;
             PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end

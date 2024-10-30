@@ -1,8 +1,13 @@
 function [T] = insertImages(Obj, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Insert images (headers) to DB
+    %       Including the following steps:
+    %       1. Convert AstroImages headers to table with the requested
+    %       columns.
+    %       2. Add Image ID based on time stamp and other info.
+    %       3. Add healpix indices
+    %       4. write table to csv file.
+    %       5. Insert to DB.
+    % Input  : - AstroImage array of images with headers.
     %          * ...,key,val,... 
     %            'Db' - Db class handle. If empty, then will create one.
     %                   If empty, then the db will be closed after
@@ -22,6 +27,9 @@ function [T] = insertImages(Obj, Args)
     %                           If the ColFun returns more then one input,
     %                           then this should be a cell array of output
     %                           column names, per each one of the outputs.
+    %                  This argument must be provided.
+    %                  You can use: db.util.read_xls2tableFormat to
+    %                  generate it.
     % Output : - 
     % Author : Eran Ofek (2024 Oct) 
     % Example: A=AstroImage('LAST*coadd_Image_1.fits');
@@ -34,6 +42,9 @@ function [T] = insertImages(Obj, Args)
     %          St(9).ColNameOut = ["origusec_xmin", "origusec_xmax", "origusec_ymin", "origusec_ymax"];
     %          St(10).ColNameOut = ["uniqsec_xmin", "uniqsec_xmax", "uniqsec_ymin", "uniqsec_ymax"];
     %          T=imProc.db.insertImages(A,'ColNameDic',St, 'ColJD','MIDJD')
+    %
+    %          R=db.util.read_xls2tableFormat;
+    %          T=imProc.db.insertImages(A,'ColNameDic',R);
 
     arguments
         Obj
@@ -61,7 +72,7 @@ function [T] = insertImages(Obj, Args)
         %Args.BitDigits     = [16 16 16 16];  % number of bits per ColID
 
         Args.ColNameID     = 'id_proc';
-        Args.ID_Origin     = [];   % [] - no ID; NaN - generate; number
+        Args.ID_Origin     = NaN; %[];   % [] - no ID; NaN - generate; number
         Args.FormatStID    = [];
 
         % Healpix indexing
