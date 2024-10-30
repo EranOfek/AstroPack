@@ -377,7 +377,7 @@ function [Selected, NotUsed] = find_unique_set2(VisTable,Av_ext,Args)
         
         for Iper = 1:Args.NumPeriods
             
-            Ind     = find(Avail(Iper,Flds) > 0); % find fields of availability W accesible in periof Iper
+            Ind     = find(Avail(Iper,Flds) > 0); % find fields of availability W accesible in period Iper
             FldsPer = Flds(Ind);
             
             for iF = 1:numel(FldsPer)
