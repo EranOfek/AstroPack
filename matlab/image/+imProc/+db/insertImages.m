@@ -13,6 +13,9 @@ function [T] = insertImages(Obj, Args)
     %                   If empty, then the db will be closed after
     %                   insertion, otherwise it will not be closed.
     %                   Default is [].
+    %            'DbName' - DB name. Default is [].
+    %            'DbTable' - DB table. If empty, then will not write table
+    %                   to DB. Default is [].
     %            'ColNameDic' - Either a cell array of header keywords to
     %                   extract from headers and insert to output table, or
     %                   a structure array with element per column to
@@ -30,7 +33,52 @@ function [T] = insertImages(Obj, Args)
     %                  This argument must be provided.
     %                  You can use: db.util.read_xls2tableFormat to
     %                  generate it.
-    % Output : - 
+    %            'ID_Origin' - Behaviore regardind adding image ID to
+    %                   table. The ID is writen into column name defined in
+    %                   'ColNameID'.
+    %                   If [], then do not add image ID to table.
+    %                   If vector then add it to table as image ID.
+    %                   If NaN, then generate image ID using:
+    %                           imProc.db.generateImageID
+    %                   Default is NaN.
+    %            'ColNameID' - Column name in which to write the image ID.
+    %                   Default is 'id_proc'.
+    %            'FormatStID' - A structure array containing information on how
+    %                   to construct the ID. The following fields should be
+    %                   provided:
+    %                   .Key - Header keyword name from which to retrieve
+    %                       the ID that will be stored in a sub array of
+    %                       bits corresponding to this key.
+    %                   .BitNum - The number of bits in the sub array.
+    %                   .Fun - A function handle to apply to the keyword
+    %                       value in order to get the value to enode in the
+    %                       sub array of bits.
+    %                   Default: see code.
+    %             'ColRA' - Table column name containing J2000 RA.
+    %                   Used for BJD and Healpix. Default is 'RA'.
+    %             'ColDec' - Table column name containing J2000 Dec.
+    %                   Used for BJD and Healpix. Default is 'DEC'.
+    %             'CooUnits' - RA/Dec coo units. Default is 'deg'.
+    %             'HealpixType' - Healpix type. If empty, then do not add
+    %                   healpix index.
+    %                   Default is 'nested'.
+    %             'HealpixLevel' - Healpix level.
+    %                   Default is 2.^[3, 8, 16]
+    %             'ColHealpix' - Column names of healpix indices.
+    %                   Default is ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"]
+    %             'UniqueID' - A logical indicating if healpix index is
+    %                   unique ID. Default is true.
+    %
+    %             'FileName' - The csv file name that will be created.
+    %                   Default is tempname.
+    %             'DeleteFile' - A logical indicating if to delete
+    %                   the csv file after insertion.
+    %                   Default is false.
+    %             'table2csvArgs' - A cell array of additional
+    %                   arguments to pass to db.Db.table2csv.
+    %                   Default is {}.
+    %
+    % Output : - A table object with the additional columns.
     % Author : Eran Ofek (2024 Oct) 
     % Example: A=AstroImage('LAST*coadd_Image_1.fits');
     %          ColNameDic = ["MIDJD", "RA", "DEC", "NODENUMB", "MOUNTNUM","CAMNUM", "CROPID", "ORIGSEC", "ORIGUSEC", "UNIQSEC"]
@@ -55,24 +103,10 @@ function [T] = insertImages(Obj, Args)
 
         Args.ColNameDic
 
-        % Unique time ID indexing
-        % bit encoded JD-J2000 in ms
-        %Args.ColIntTimeDB      = 'ID_TIME'; % column name in DB (skip if empty)
-        %Args.ColJD             = 'JD';  % column name or numeric (if numeric, then use as is)
-        %Args.IntTimeFun        = @(jd) uint64((jd-2451545.5).*86400.*1000);  % number of ms since J2000
-        
-        % Unique insert time ID indexing
-        % bit encoded JD-J2000 in ms
-        %Args.ColInsertIntTimeDB     = 'ID_Time';    % column name in DB (skip if empty)
-
-        % Unique instrument ID indexing
-        % bit encoded instrument information
-        %Args.ID_ColDB      = 'ID_Inst';     % column name in DB (skip if empty)
-        %Args.ColID         = ["NODENUMB", "MOUNTNUM", "CAMNUM", "CROPID"];  % Columns in input table from which to compose the ID
-        %Args.BitDigits     = [16 16 16 16];  % number of bits per ColID
-
-        Args.ColNameID     = 'id_proc';
+        %
         Args.ID_Origin     = NaN; %[];   % [] - no ID; NaN - generate; number
+        Args.ColNameID     = 'id_proc';
+        
         Args.FormatStID    = [];
 
         % Healpix indexing
@@ -85,16 +119,10 @@ function [T] = insertImages(Obj, Args)
         Args.UniqueID logical = true;
 
         % Write table
-        Args.FileName   = '/home/eran/output.csv';  % tempname; % If empty, then skip this step (see writetable for more options)
-        Args.FileType   = 'text';        % see writetable for optoins
-        Args.WriteVarNames = {};
-        Args.Delimiter     = ',';
-        Args.LineEnding    = '\r\n';
-        Args.WriteVariableNames logical  = false;
-        Args.QuoteStrings                = 'minimal';
-        Args.WriteMode                   = 'overwrite';
-        Args.writetableArgs              = {};
+        Args.FileName   = tempname; % If empty, then skip this step (see writetable for more options)
         Args.DeleteFile logical          = false;  % delete file after Db insertion
+        Args.table2csvArgs = {};
+        
     end
 
     % convert headers to table
@@ -114,7 +142,7 @@ function [T] = insertImages(Obj, Args)
     %end
 
     if isempty(Args.ID_Origin)
-        % skip - d onot add ID
+        % skip - do not add ID
     else
         if isnan(Args.ID_Origin)
             % Generate ID using: imProc.db.generateImageID
@@ -128,31 +156,16 @@ function [T] = insertImages(Obj, Args)
     end
 
 
-    % % add instrument uniqye ID
-    % if ~isempty(Args.ID_ColDB)
-    %     Nc = numel(Args.ColID);
-    %     InstID = zeros(Nt, Nc);
-    %     for Ic=1:1:Nc
-    %         InstID(:,Ic) = T.(Args.ColID{Ic});
-    %     end
-    %     T.(Args.ID_ColDB) = tools.bit.bitEncode(Args.BitDigits, InstID);
-    % end           
 
     % add healpix ID
-    T = db.util.insertHealpixIndex2table(T, 'ColRA',Args.ColRA, 'ColDec',Args.ColDec, 'CooUnits',Args.CooUnits,...
+    if ~isempty(Args.HealpixType)
+        T = db.util.insertHealpixIndex2table(T, 'ColRA',Args.ColRA, 'ColDec',Args.ColDec, 'CooUnits',Args.CooUnits,...
                                             'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
                                             'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+    end
 
-    % write table to csv file
-    writetable(T, Args.FileName, 'FileType',Args.FileType,...
-                                 'Delimiter',Args.Delimiter,...
-                                 'LineEnding',Args.LineEnding,...
-                                 'WriteVariableNames',Args.WriteVariableNames,...
-                                 'QuoteStrings',Args.QuoteStrings,...
-                                 'WriteMode',Args.WriteMode,...
-                                 Args.writetableArgs{:});
-
-
+        
+    
     % insert csv to db
     if ~isempty(Args.DbTable)
         if isempty(Args.Db)
@@ -163,7 +176,7 @@ function [T] = insertImages(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        Db.insert(DbTableStr, Args.FileName);
+        [Error, FileName]=Db.insertCsv(DbTableStr, T, 'FileName',Args.FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
         if isempty(Args.Db)
             Db.disconnectCH_Java % disconnect Java
         end

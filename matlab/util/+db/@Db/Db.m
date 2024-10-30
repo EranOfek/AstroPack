@@ -236,6 +236,45 @@ classdef Db < Component
 
         end
 
+        function FileName=table2csv(T, Args)
+            % Convert table to csv file
+            % Input  : - A table.
+            %          * ...,key,val,...
+            %            'FileName' - File name to write.
+            %                   Default is tempname
+            %            See code for additional options.
+            % Output : - File Name.
+            % Author : Eran Ofek (Oct 2024)
+
+            arguments
+                T  %table
+                % Write table
+                Args.FileName         = tempname; % /home/eran/output.csv';
+                Args.FileType         = 'text';        % see writetable for optoins
+                Args.WriteVarNames    = {};
+                Args.Delimiter        = ',';
+                Args.LineEnding       = '\r\n';
+                Args.WriteVariableNames logical  = false;
+                Args.QuoteStrings                = 'minimal';
+                Args.WriteMode                   = 'overwrite';
+                Args.writetableArgs              = {};
+                %Args.DeleteFile logical          = false;  % delete file after Db insertion
+            end
+
+            FileName = Args.FileName;
+
+            % write table to csv file
+            writetable(T, Args.FileName, 'FileType',Args.FileType,...
+                                 'Delimiter',Args.Delimiter,...
+                                 'LineEnding',Args.LineEnding,...
+                                 'WriteVariableNames',Args.WriteVariableNames,...
+                                 'QuoteStrings',Args.QuoteStrings,...
+                                 'WriteMode',Args.WriteMode,...
+                                 Args.writetableArgs{:});
+
+
+        end
+        
         function Result=concatDbTable(DbName, DbTable)
             % Concat DB name and Db Table to <DbName>.<DbTable> string.
             % Input  : - DbName. If empty, will return only DbTable.
@@ -391,53 +430,81 @@ classdef Db < Component
             [~,Error] = Obj.query(Command, 'IsExec',true);
             
         end
-        
-        function Error=insert(Obj, TableName, InputTable)
-            % Insert operation to table in DB
-            %   Can either insert a table object or a csv file.
+
+        function Error=insertCharDump(Obj, TableName, InputTable)
+            % Insert entries in table object into ClickHouse table using char dump (direct insert)
+            %   Good for insertion of small tables.
+            %   See also db.Db/insertCsv and db.Db/insert
             % Input  : - self.
             %          - Table name to which to insert the data.
-            %          - data to insert. This is either a table which
-            %            columns corresponds to the columns in the DB
-            %            table, or this is a csv file name for bulk insert.
+            %          - An object table containing the data to insert.
             % Output : - Error message. If empty, then ok.      
             % Author : Eran Ofek (Oct 2024)
-            % Dxample: D.insert('test_db.users',T1)
+            % Dxample: D.insertCharDump('Images',T)
             
+            ColNames    = InputTable.Properties.VariableNames;
+            StrColNames = sprintf('%s, ',string(ColNames));
+            StrColNames = StrColNames(1:end-2);
+            ValuesStr   = db.Db.table2charDump(InputTable);
+            Command     = sprintf('INSERT INTO %s (%s) VALUES %s', TableName, StrColNames, ValuesStr);
+
+            [~,Error]   = Obj.query(Command, 'IsExec',true);
+
+        end
+
+        function [Error,FileName]=insertCsv(Obj, TableName, Data, Args)
+            % Insert table object or csv file into ClickHouse table using csv format insert (bulk)
+            %   Good for insertion of big tables.
+            %   See also db.Db/insertCharDump and db.Db/insert
+            % Input  : - self.
+            %          - Table name to which to insert the data.
+            %          - An object table containing the data to insert,
+            %            or a csv file name.
+            %          * ...,key,val,...
+            %            'FileName' - If the data input is table, then this
+            %                   is the csv file name that will be created.
+            %                   Default is tempname.
+            %            'DeleteFile' - A logical indicating if to delete
+            %                   the csv file after insertion.
+            %                   Default is false.
+            %            'table2csvArgs' - A cell array of additional
+            %                   arguments to pass to db.Db.table2csv.
+            %                   Default is {}.
+            % Output : - Error message. If empty, then ok.     
+            %          - CSV file name.
+            % Author : Eran Ofek (Oct 2024)
+            % Dxample: D.insertCsv('Images',T)
+
             arguments
                 Obj
                 TableName
-                InputTable    % table of csv file name
+                Data
+                Args.FileName             = tempname;
+                Args.DeleteFile logical   = false;
+                Args.table2csvArgs        = {};
             end
-            
-            if ischar(InputTable) || isstring(InputTable)
-                % Assume InputTable is a scv table
-                %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
-                %[~,Error]   = Obj.query(Command, 'IsExec',true);
-                
-                Command = sprintf('clickhouse-client --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
-                                  Obj.User, Obj.Password, TableName, InputTable);
-                [~,Error] = system(Command);
-                
-            else
-                ColNames    = InputTable.Properties.VariableNames;
-                StrColNames = sprintf('%s, ',string(ColNames));
-                StrColNames = StrColNames(1:end-2);
-                ValuesStr   = db.Db.table2charDump(InputTable);
-                Command     = sprintf('INSERT INTO %s (%s) VALUES %s', TableName, StrColNames, ValuesStr);
 
-                [~,Error]   = Obj.query(Command, 'IsExec',true);
+            if istable(Data)
+                % convert table to csv file
+                FileName = Args.FileName;
+                db.Db.table2csv(Data, 'FileName',Args.FileName, Args.table2csvArgs{:});
+            else
+                % assume Data is a csv file name
+                FileName = Data;
             end
-            %         INSERT INTO test_db.users (id, name, age) VALUES (1, 'Alice', 30);
-            % 
-            %         INSERT INTO test_db.users (id, name, age) VALUES 
-            % (1, 'Alice', 30),
-            % (2, 'Bob', 25),
-            % (3, 'Charlie', 35);
-            % 
-            % INSERT INTO test_db.users (id, name, age)
-            % SELECT id, name, age FROM another_table;
-            
+
+            % Assume InputTable is a scv table
+            %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
+            %[~,Error]   = Obj.query(Command, 'IsExec',true);
+                
+            Command = sprintf('clickhouse-client --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
+                                  Obj.User, Obj.Password, TableName, FileName);
+            [~,Error] = system(Command);
+
+            if Args.DeleteFile
+                delete(FileName);
+            end
+
         end
     
     end

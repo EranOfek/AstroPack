@@ -1,0 +1,67 @@
+#include "mex.h"
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <omp.h>
+
+// Helper function to convert a C-string to uint64 safely
+uint64_t strToUint64(const char* str) {
+    try {
+        return std::stoull(str);
+    } catch (const std::exception& e) {
+        mexErrMsgIdAndTxt("MATLAB:str2uint64:conversionError", "Error converting string to uint64.");
+    }
+    return 0; // Should not reach here
+}
+
+// Main MEX function
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+    if (nrhs != 1) {
+        mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidNumInputs", "One input required.");
+    }
+    if (nlhs > 1) {
+        mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidNumOutputs", "One output allowed.");
+    }
+
+    const mxArray *input = prhs[0];
+    mwSize numElements = mxGetNumberOfElements(input);
+    const mwSize *inputDims = mxGetDimensions(input);
+
+    if (mxIsChar(input)) {
+        // Single character array input
+        char *inputStr = mxArrayToString(input);
+        if (inputStr && *inputStr != '\0') {
+            uint64_t result = strToUint64(inputStr);
+            mxFree(inputStr);
+            plhs[0] = mxCreateNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
+            *static_cast<uint64_t*>(mxGetData(plhs[0])) = result;
+        } else {
+            mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidChar", "Empty or invalid char input.");
+        }
+    } else if (mxIsCell(input)) {
+        // Cell array input
+        std::vector<uint64_t> results(numElements);
+        #pragma omp parallel for
+        for (mwSize i = 0; i < numElements; i++) {
+            mxArray *element = mxGetCell(input, i);
+            if (element && mxIsChar(element)) {
+                char *elementStr = mxArrayToString(element);
+                if (elementStr && *elementStr != '\0') {
+                    results[i] = strToUint64(elementStr);
+                    mxFree(elementStr);
+                } else {
+                    mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidCellElement", "Empty or invalid string in cell array.");
+                }
+            } else {
+                mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidCellElementType", "All elements in cell array must be strings.");
+            }
+        }
+
+        // Create output with the same dimensions as the input cell array
+        plhs[0] = mxCreateNumericArray(mxGetNumberOfDimensions(input), inputDims, mxUINT64_CLASS, mxREAL);
+        uint64_t *outputPtr = static_cast<uint64_t*>(mxGetData(plhs[0]));
+        std::copy(results.begin(), results.end(), outputPtr);
+    } else {
+        mexErrMsgIdAndTxt("MATLAB:str2uint64:invalidInputType", "Input must be a char array or cell array of chars.");
+    }
+}
