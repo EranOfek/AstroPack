@@ -1,8 +1,8 @@
 function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     % Convert JD (TDB) to Barycentric JD (TDB)
-    % Input  : - JD (in some time scale).
-    %          - J2000.0 RA (default units radinas).
-    %          - J2000.0 Dec (default units radinas).
+    % Input  : - Vector of JD (in some time scale).
+    %          - Vector of J2000.0 RA (default units radinas).
+    %          - Vector of J2000.0 Dec (default units radinas).
     %          * ...,key,val,...
     %            'InTimeScale' - Time scale of input JD: 'TT'|'TDB'|'UTC'.
     %                   Default is 'TDB'.
@@ -41,9 +41,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     end
     
     SECOND_DAY = 86400;
-    
-    warning('not tested')
-    
+        
     if isempty(Args.INPOP)
         IP = celestial.INPOP;
         IP.populateTables(Args.Object, 'FileData', 'pos');
@@ -107,8 +105,8 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     DelJD  = norm(TopoPos).*dot(ObjPos./norm(ObjPos),TopoPos./norm(TopoPos)).*AU./(C.*SEC_IN_DAY);  % [day]
     ObjVel = norm(TopoVel).*dot(ObjPos./norm(ObjPos),TopoVel./norm(TopoVel)).*AU./SEC_IN_DAY;       % [cm/s]
    
-    BJD  = JD + DelJD;
-    BVel = ObjVel;
+    BJD  = JD(:) + DelJD(:);
+    BVel = ObjVel(:);
     
     if ~strcmp(BVel,'cm/s')
         BVel = convert.velocity('cm/s',Args.VelOutUnits, BVel);
