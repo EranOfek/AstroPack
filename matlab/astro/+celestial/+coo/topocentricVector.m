@@ -44,14 +44,15 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         N    = numel(JD_UT1);
         G    = zeros(3,N);
         Gdot = zeros(3,N);
+        LAST = zeros(1,N);
         for I=1:1:N
             
             [~,GeocCart] = celestial.earth.geod2geoc(GeoPos, Args.RefEllipsoid);
 
-            LAST = celestial.time.lst(JD_UT1(I), 0, 'a');     % calculate app. sidereal time at Greenwich
-            LAST = LAST.*2.*pi;             % convert to radians
+            LAST(I) = celestial.time.lst(JD_UT1(I), 0, 'a');     % calculate app. sidereal time at Greenwich
+            LAST(I) = LAST(I).*2.*pi;             % convert to radians
 
-            RotMat = tools.math.geometry.rotm(LAST,3);   % and not -LAST !!!
+            RotMat = tools.math.geometry.rotm(LAST(I),3);   % and not -LAST !!!
             if ~isempty(Args.Xp) && ~isempty(Args.Yp)
                 RotXY = tools.math.geometry.rotm(Args.Yp,1)*tools.math.geometry.rotm(Args.Xp,2);
             else
@@ -78,10 +79,13 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
 
         if nargout>1
             W = 7.2921151467e-5;  % [rad/s]
-            RotRot = [-sin(LAST), -cos(LAST), 0; cos(LAST), -sin(LAST), 0; 0, 0, 0];
-            Gdot = W.*RotRot*RotXY*GeocCart.';  % [m/s]
+            for I=1:1:N
+                RotRot    = [-sin(LAST(I)), -cos(LAST(I)), 0; cos(LAST(I)), -sin(LAST(I)), 0; 0, 0, 0];
+                Gdot(:,I) = W.*RotRot*RotXY*GeocCart.';  % [m/s]
+
+            end
             if Args.Convert2ecliptic
-                G    = RotMatEq2Ec * G;
+                %G    = RotMatEq2Ec * G; - already done
                 Gdot = RotMatEq2Ec * Gdot;
             end
 

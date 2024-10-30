@@ -4,6 +4,9 @@ function [Result] = insertCatalog(Obj, Args)
     % Input  : - 
     %          - 
     %          * ...,key,val,... 
+    %            'GeoPos' - Geodetic position. If [], then assume geocentric position
+    %                   and return zeros. Otherwise should be [Long, Lat, Height]
+    %                   in [rad, rad, m]. Default is [].
     % Output : - 
     % Author : Eran Ofek (2024 Oct) 
     % Example: 
@@ -11,6 +14,17 @@ function [Result] = insertCatalog(Obj, Args)
     arguments
         Obj
         Args.ColNameDic      
+        Args.GeoPos       = [];
+        Args.InTimeScale  = 'UTC';
+        Args.ColJD        = 'JD';
+        Args.ColRA        = 'RA';   % J2000
+        Args.ColDec       = 'Dec';  % J2000
+        Args.CooUnits     = 'deg';
+        Args.VelOutUnits  = 'cm/s';
+        Args.INPOP        = [];
+
+        Args.ColBJD       = 'BJD'; % if [] - do not add
+        Args.ColBaryVel   = 'BARYVEL'; % if [] - do not add
         
     end
 
@@ -46,8 +60,24 @@ function [Result] = insertCatalog(Obj, Args)
     % insert additional global columns
 
     % insert BJD
+    if ~isempty(Args.ColBJD)
+        if ~isempty(Args.ColBaryVel)
+            [BJD, BVel] = celestial.time.barycentricJD(T.(Args.ColJD), T.(Args.ColRA), T.(Args.ColDec), 'INPOP',Args.INPOP,...
+                                            'GeoPos',Args.GeoPos,...
+                                            'InTimeScale',Args.InTimeScale,...
+                                            'CooUnits',Args.CooUnits,...
+                                            'VelOutUnits',Args.VelOutUnits);
+            T.(Args.ColBaryVel) = BVel;
+        else
+            [BJD] = celestial.time.barycentricJD(T.(Args.ColJD), T.(Args.ColRA), T.(Args.ColDec), 'INPOP',Args.INPOP,...
+                                            'GeoPos',Args.GeoPos,...
+                                            'InTimeScale',Args.InTimeScale,...
+                                            'CooUnits',Args.CooUnits,...
+                                            'VelOutUnits',Args.VelOutUnits);
+        end
+        T.(Args.ColBJD) = BJD;
+    end
 
-    
 
 
 end
