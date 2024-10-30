@@ -1008,8 +1008,9 @@ classdef AstroDiff < AstroImage
         
                 Args.flagDensity logical = true;
                 Args.NeighborDistanceThreshold = 100;
-                Args.NeighborNumThreshold = 4;
-                Args.NeighborExclude = {'BadPixelHard', 'StarMatch'};
+                Args.NeighborNumThreshold = 36;
+                Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
+                    'Ringing', 'Translient', 'Streak'};
         
                 Args.flagPeakDist logical = true;
                 Args.PeakDistThreshold = 1.33;
