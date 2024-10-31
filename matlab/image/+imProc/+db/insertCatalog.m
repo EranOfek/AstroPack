@@ -1,4 +1,4 @@
-function [Result] = insertCatalog(Obj, Args)
+function [T,FileName] = insertCatalog(Obj, Args)
     % Insert catalogs in AstroImage to DB
     %       Including the following steps:
     %       1. Convert AstroImages catalog to table with the requested
@@ -72,6 +72,8 @@ function [Result] = insertCatalog(Obj, Args)
     %             'UniqueID' - A logical indicating if healpix index is
     %                   unique ID. Default is true.
     %
+    %             'CreateCsv' - A logical indicating if to create A CSV file.
+    %                   Default is true.
     %             'FileName' - The csv file name that will be created.
     %                   Default is tempname.
     %             'DeleteFile' - A logical indicating if to delete
@@ -82,6 +84,9 @@ function [Result] = insertCatalog(Obj, Args)
     %                   Default is {}.
     %
     % Output : - A table object with the additional columns.
+    %          - The CSV file name.
+    %            If you want to see this file you have to set:
+    %            'DeleteFile',false, 'CreateCsv',true
     % Author : Eran Ofek (2024 Oct) 
     % Example: 
 
@@ -119,6 +124,7 @@ function [Result] = insertCatalog(Obj, Args)
         Args.ColBaryVel   = 'BARYVEL'; % if [] - do not add
 
         % Write table
+        Args.CreateCsv logical    = true;
         Args.FileName   = tempname; % If empty, then skip this step (see writetable for more options)
         Args.table2csvArgs = {};
         Args.DeleteFile logical          = false;  % delete file after Db insertion
@@ -200,6 +206,13 @@ function [Result] = insertCatalog(Obj, Args)
                                           'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
 
 
+    if Args.CreateCsv
+        db.Db.table2csv(Data, 'FileName',Args.FileName, Args.table2csvArgs{:});
+        FileName = Args.FileName;
+    else
+        FileName = [];
+    end
+
     % insert csv to db
     if ~isempty(Args.DbTable)
         if isempty(Args.Db)
@@ -210,7 +223,7 @@ function [Result] = insertCatalog(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        [Error, FileName]=Db.insertCsv(DbTableStr, T, 'FileName',Args.FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
+        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
         if isempty(Args.Db)
             Db.disconnectCH_Java % disconnect Java
         end

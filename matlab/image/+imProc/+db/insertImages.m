@@ -1,4 +1,4 @@
-function [T] = insertImages(Obj, Args)
+function [T,FileName] = insertImages(Obj, Args)
     % Insert images (headers) to DB
     %       Including the following steps:
     %       1. Convert AstroImages headers to table with the requested
@@ -69,6 +69,8 @@ function [T] = insertImages(Obj, Args)
     %             'UniqueID' - A logical indicating if healpix index is
     %                   unique ID. Default is true.
     %
+    %             'CreateCsv' - A logical indicating if to create A CSV file.
+    %                   Default is true.
     %             'FileName' - The csv file name that will be created.
     %                   Default is tempname.
     %             'DeleteFile' - A logical indicating if to delete
@@ -79,6 +81,9 @@ function [T] = insertImages(Obj, Args)
     %                   Default is {}.
     %
     % Output : - A table object with the additional columns.
+    %          - The CSV file name.
+    %            If you want to see this file you have to set:
+    %            'DeleteFile',false, 'CreateCsv',true
     % Author : Eran Ofek (2024 Oct) 
     % Example: A=AstroImage('LAST*coadd_Image_1.fits');
     %          ColNameDic = ["MIDJD", "RA", "DEC", "NODENUMB", "MOUNTNUM","CAMNUM", "CROPID", "ORIGSEC", "ORIGUSEC", "UNIQSEC"]
@@ -119,6 +124,7 @@ function [T] = insertImages(Obj, Args)
         Args.UniqueID logical = true;
 
         % Write table
+        Args.CreateCsv logical    = true;
         Args.FileName   = tempname; % If empty, then skip this step (see writetable for more options)
         Args.DeleteFile logical          = false;  % delete file after Db insertion
         Args.table2csvArgs = {};
@@ -164,7 +170,12 @@ function [T] = insertImages(Obj, Args)
                                             'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
     end
 
-        
+    if Args.CreateCsv
+        db.Db.table2csv(Data, 'FileName',Args.FileName, Args.table2csvArgs{:});
+        FileName = Args.FileName;
+    else
+        FileName = [];
+    end
     
     % insert csv to db
     if ~isempty(Args.DbTable)
@@ -176,7 +187,7 @@ function [T] = insertImages(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        [Error, FileName]=Db.insertCsv(DbTableStr, T, 'FileName',Args.FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
+        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
         if isempty(Args.Db)
             Db.disconnectCH_Java % disconnect Java
         end
