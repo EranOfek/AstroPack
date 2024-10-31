@@ -1126,7 +1126,7 @@ classdef AstroTable < Component
             %            cell array, a table or another AstroTable
             %            object. However, the data types should be
             %            consistent.
-            %            If AstroTable then numver of elements should be
+            %            If AstroTable then number of elements should be
             %            1 or equal to the number of elements in the first
             %            input.
             %          - Column names to replace insert.
