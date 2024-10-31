@@ -172,10 +172,7 @@ classdef Scheduler < Component
             end
             
         end
-        
     end
-
-   
     
     methods % setters/getters
         function set.List(Obj,Tbl)
@@ -932,6 +929,7 @@ classdef Scheduler < Component
             % Check if scheduling is required and if so for which mount
             % Enrico's function #1
             [Mounts,JDs] = Args.FunSchedRequested('AcknowledgeTimeout',Args.AcknowledgeTimeout);
+            %display(Mounts)
             for i=1:numel(Mounts)
                 % get an appropriate target
                 % Which time to use for not-yet-serviced requests? On
@@ -939,8 +937,11 @@ classdef Scheduler < Component
                 %  *now*, not at the time of the former request; on the
                 %  other using the request time we can run in simualted
                 %  time mode. Perhaps add an option for choosing.
-                %JD=celestial.time.julday;
+                JDnow=celestial.time.julday;
                 JD=JDs(i);
+                LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f\n',...
+                    Mounts(i),JD,JDnow);
+                S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
                 [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                     'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
@@ -966,7 +967,7 @@ classdef Scheduler < Component
                         % FIXME: format? Level?
                         LogLine = sprintf('Mount=%3d  Target = %20s  RA=%10.6f  Dec=%10.6f Priority=%6.2f  Nexp=%3d ExpTime=%5.1f',...
                             Mounts(i), Struct.FieldName, Struct.RA, Struct.Dec,...
-                            Struct.Priority, Struct.Nexp, Struct.ExpTime);
+                            Priority(TargetInd), Struct.Nexp, Struct.ExpTime);
                         S.Logger.msgLog(LogLevel.Info, LogLine);
                     else
                         % Unit didn't receive the requested target
@@ -1133,7 +1134,7 @@ classdef Scheduler < Component
                         'Nexp',TargetStruct.Nexp,...
                         'ExpTime',TargetStruct.ExpTime);
                     Args.Mailbox.hset(Req,'Target',jsonencode(target),...
-                        'JD',celestial.time.julday,...
+                        'JD',sprintf('%.8f',celestial.time.julday),...
                         'Status','provided');
                 catch
                 end
