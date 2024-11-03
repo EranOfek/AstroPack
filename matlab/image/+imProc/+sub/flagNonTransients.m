@@ -425,7 +425,7 @@ function TranCat = flagNonTransients(Obj, Args)
             MinNpts = [5 7 10 13 17 20 23 27 30];
             NMinNpts = numel(MinNpts);
             for IMinNpts = NMinNpts:-1:1
-                Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 10000, ...
+                Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
                     'MinRMS', 0.5,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
                 if Res.Found
                     break

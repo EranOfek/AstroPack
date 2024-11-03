@@ -196,7 +196,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     StarCat.sortrows('Dec');
 
     % Search for star matches on cutdown catalog
-    imProc.match.match2Stars(AD,'StarCat',StarCat);
+    imProc.match.match2Stars(AD, StarCat);
     % Clear for memory
     clear StarCat;
 

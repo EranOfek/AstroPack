@@ -1,4 +1,4 @@
-function match2Stars(Obj, Args)
+function match2Stars(Obj, StarCat, Args)
     %{
     Matches AstroCatalog entries to stars using external GAIA catalog. 
       Appends columns with match results.
@@ -43,8 +43,7 @@ function match2Stars(Obj, Args)
     
     arguments
         Obj
-
-        Args.StarCat = [];
+        StarCat
 
         Args.StarCatName = 'GAIADR3';
         Args.ColNmatchName = 'STAR_N';
@@ -78,39 +77,44 @@ function match2Stars(Obj, Args)
     Rad2Arcsec = 206265;
     Arcsec2Rad = 4.84814e-6;
 
-
     % TODO: Do an actual study on effective star size, look at brightness
     % vs 2sig, 3sig contamination radii.
 
     % If StarCat is given, derive distance thresholds
     % considering a star's brightness and excess noise.
 
-    if ~isempty(Args.StarCat)
-        StarCat = Args.StarCat;
-        BpMags = StarCat.Table.(Args.ColBpMagGAIA);
-        RpMags = StarCat.Table.(Args.ColRpMagGAIA);
-        DistThresholdPerStar = max(max(1.5*(20.0-RpMags), ...
-            1.5*(20.0-BpMags)), ...
-            3+StarCat.Table.(Args.ColAstExcessNoiseGAIA)*0.001);
+    BpMags = StarCat.Table.(Args.ColBpMagGAIA);
+    RpMags = StarCat.Table.(Args.ColRpMagGAIA);
+    DistThresholdPerStar = max(max(1.5*(20.0-RpMags), ...
+        1.5*(20.0-BpMags)), ...
+        3+StarCat.Table.(Args.ColAstExcessNoiseGAIA)*0.001);
 
-        % Estimate threshold for bright stars.
-        if Args.UseSpecialBright
-            DistThresholdPerStar(BpMags < Args.BpBrightTresh) = ...
-                max(1.5*(Args.BpBrightParams(1).*exp(-Args.BpBrightParams(2).*...
-                BpMags(BpMags<Args.BpBrightTresh))+Args.BpBrightParams(3)),...
-                DistThresholdPerStar(BpMags < Args.BpBrightTresh));
-            DistThresholdPerStar(RpMags < Args.RpBrightTresh) = ...
-                max(1.5*(Args.RpBrightParams(1).*exp(-Args.RpBrightParams(2).*...
-                RpMags(RpMags<Args.RpBrightTresh))+Args.RpBrightParams(3)),...
-                DistThresholdPerStar(RpMags < Args.RpBrightTresh));
-        end
-
-        [ObjLon, ObjLat] = StarCat.getLonLat('rad');
-
+    % Estimate threshold for bright stars.
+    if Args.UseSpecialBright
+        DistThresholdPerStar(BpMags < Args.BpBrightTresh) = ...
+            max(1.5*(Args.BpBrightParams(1).*exp(-Args.BpBrightParams(2).*...
+            BpMags(BpMags<Args.BpBrightTresh))+Args.BpBrightParams(3)),...
+            DistThresholdPerStar(BpMags < Args.BpBrightTresh));
+        DistThresholdPerStar(RpMags < Args.RpBrightTresh) = ...
+            max(1.5*(Args.RpBrightParams(1).*exp(-Args.RpBrightParams(2).*...
+            RpMags(RpMags<Args.RpBrightTresh))+Args.RpBrightParams(3)),...
+            DistThresholdPerStar(RpMags < Args.RpBrightTresh));
     end
+
+    StarCat.insertCol(cast(DistThresholdPerStar,'double'), ...
+            Inf, {'DistThresh'}, {''})
+
+    MeanDist = mean(DistThresholdPerStar);
+    StdDist = std(DistThresholdPerStar);
+    CatSepDist = MeanDist + 3*StdDist;
+
+    StarCatClose = StarCat.selectRows(DistThresholdPerStar <= CatSepDist);
+    DistThresholdClose = DistThresholdPerStar(DistThresholdPerStar <= CatSepDist);
+    [ObjLonClose, ObjLatClose] = StarCatClose.getLonLat('rad');
 
     Nobj = numel(ACObj);
 
+    
     for Iobj=1:1:Nobj
 
         CatSize = size(ACObj(Iobj).Catalog,1);
@@ -123,46 +127,9 @@ function match2Stars(Obj, Args)
         RA = RADec(:,1);
         Dec = RADec(:,2);
 
-        % If StarCat not given, get StarCat for image.
-        if isempty(Args.StarCat)
-            
-            MidRA = median(RA);
-            MidDec = median(Dec);
-
-            MaxDist = max(celestial.coo.sphere_dist(RA, Dec,...
-                MidRA*ones(CatSize,1), MidDec*ones(CatSize,1)));
-
-            MaxDistAngle = AstroAngle(MaxDist, 'rad');
-            SearchRadius = MaxDistAngle.convert(Args.SearchRadiusUnits).Angle...
-                + Args.SearchRadius;
-
-            StarCat = catsHTM.cone_search(Args.StarCatName, ...
-                MidRA, MidDec, SearchRadius, ...
-                'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-
-            DistThresholdPerStar = max(max(1.5*(20.0-StarCat.Table.(Args.ColRpMagGAIA)),...
-                1.5*(20.0-StarCat.Table.(Args.ColBpMagGAIA))), ...
-                3+StarCat.Table.(Args.ColAstExcessNoiseGAIA)*0.001);
-
-            % Estimate threshold for bright stars.
-            if Args.UseSpecialBright
-                DistThresholdPerStar(BpMags < Args.BpBrightTresh) = ...
-                    max(1.5*(Args.BpBrightParams(1).*exp(-Args.BpBrightParams(2).*...
-                    BpMags(BpMags<Args.BpBrightTresh))+Args.BpBrightParams(3)),...
-                    DistThresholdPerStar(BpMags < Args.BpBrightTresh));
-                DistThresholdPerStar(RpMags < Args.RpBrightTresh) = ...
-                    max(1.5*(Args.RpBrightParams(1).*exp(-Args.RpBrightParams(2).*...
-                    RpMags(RpMags<Args.RpBrightTresh))+Args.RpBrightParams(3)),...
-                    DistThresholdPerStar(RpMags < Args.RpBrightTresh));
-            end
-
-            [ObjLon, ObjLat] = StarCat.getLonLat('rad');
-
-        end
-
         % Find initial rough matches
         MatchRes = VO.search.search_sortedlat_multi( ...
-            [ObjLon, ObjLat], RA, Dec, Args.SearchRadius*Arcsec2Rad);
+            [ObjLonClose, ObjLatClose], RA, Dec, CatSepDist*Arcsec2Rad);
 
         Matches = vertcat(MatchRes.Nmatch);
         Distances = NaN(CatSize,1);
@@ -178,12 +145,12 @@ function match2Stars(Obj, Args)
             end
             
             Dist    = celestial.coo.sphere_dist_fast( ...
-                ObjLon(Match.Ind), ObjLat(Match.Ind), RA(Isrc), Dec(Isrc));
-            Dist = Dist * Rad2Arcsec;
+                ObjLonClose(Match.Ind), ObjLatClose(Match.Ind), RA(Isrc), Dec(Isrc));
+            Dist = Dist * Rad2Arcsec;   
 
             % Flag as match if catalog entry within a star's distance
             % threshold.
-            FlagM   = Dist<DistThresholdPerStar(Match.Ind);
+            FlagM   = Dist<DistThresholdClose(Match.Ind);
     
             % Update match results with the results of the finer search
             Matches(Isrc) = sum(FlagM);
@@ -197,5 +164,68 @@ function match2Stars(Obj, Args)
         ACObj(Iobj).insertCol(Matches, inf, Args.ColNmatchName);
         ACObj(Iobj).insertCol(Distances, inf, Args.ColDistName);
     end
+
+
+    StarCatFar = StarCat.selectRows(DistThresholdPerStar > CatSepDist);
+    DistThresholdFar = DistThresholdPerStar(DistThresholdPerStar > CatSepDist);
+    [ObjLonFar, ObjLatFar] = StarCatFar.getLonLat('rad');
+    MaxDistThresh = max(DistThresholdFar);
+
+    for Iobj=1:1:Nobj
+
+        CatSize = size(ACObj(Iobj).Catalog,1);
+        if CatSize < 1
+            continue
+        end
+
+        RADec = ACObj(Iobj).getLonLat('rad');
+
+        RA = RADec(:,1);
+        Dec = RADec(:,2);
+
+        % Find initial rough matches
+        MatchRes = VO.search.search_sortedlat_multi( ...
+            [ObjLonFar, ObjLatFar], RA, Dec, MaxDistThresh*Arcsec2Rad);
+
+        Matches = vertcat(MatchRes.Nmatch);
+        Distances = NaN(CatSize,1);
+
+        % Perform finer search
+        for Isrc = 1:1:CatSize
+
+            Match = MatchRes(Isrc);
+            
+            % Skip entries with no matches
+            if Match.Nmatch < 1
+                continue
+            end
+            
+            Dist    = celestial.coo.sphere_dist_fast( ...
+                ObjLonFar(Match.Ind), ObjLatFar(Match.Ind), RA(Isrc), Dec(Isrc));
+            Dist = Dist * Rad2Arcsec;   
+
+            % Flag as match if catalog entry within a star's distance
+            % threshold.
+            FlagM   = Dist<DistThresholdFar(Match.Ind);
+    
+            % Update match results with the results of the finer search
+            Matches(Isrc) = sum(FlagM);
+            if any(FlagM)
+                Distances(Isrc) = min(Dist);
+            end
+    
+        end
+
+        MatchesClose = ACObj(Iobj).getCol(Args.ColNmatchName);
+        DistancesClose = ACObj(Iobj).getCol(Args.ColDistName);
+
+        MatchesAll = MatchesClose + Matches;
+        DistancesAll = min(DistancesClose, Distances);
+
+        % Update catalog with updated matches
+        ACObj(Iobj).replaceCol(MatchesAll, Args.ColNmatchName)
+        ACObj(Iobj).replaceCol(DistancesAll, Args.ColDistName);
+    end
+
 
 end
