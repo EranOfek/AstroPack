@@ -831,7 +831,8 @@ classdef Scheduler < Component
             Tbl = telescope.Scheduler.read2table(Data);
             switch lower(Type)
                 case 'replace'
-                    Obj.List.Catalog = Tbl;
+                    Obj.List = AstroCatalog;
+                    Obj.List.Catalog=Tbl;
                 case 'concat'
                     Obj.List.Catalog = [Obj.List.Catalog; Tbl];
                 case 'merge'
@@ -1017,7 +1018,7 @@ classdef Scheduler < Component
                 % generate regular grid
                 S.generateRegularGrid;
             else
-                S.loadTable(Args.TargetList);
+                S.loadTable(Args.TargetList,'replace');
             end
             
             if ~isfield(Args,'FunTargetDispatch')

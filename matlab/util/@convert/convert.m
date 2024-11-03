@@ -1393,30 +1393,33 @@ classdef convert
                  error('Unknown InType option');
             end
 
-
-            switch lower(OutType)
-                case 'j'
-                    % convert JD to Julian years
-                    Output = 2000 + (JD-2451545.0)./365.25;
-                case 'b'
-                    % convert JD to Besselian years
-                    Output = 1900 + (JD-2415020.3135)./365.2421988;
-                case 'jd'
-                    Output = JD;
-                case 'mjd'
-                    Output = JD - 2400000.5;
-                case 'date'
-                    Output = convert.jd2date(JD);
-                case 'strdate'
-                    Output = convert.date2str(convert.jd2date(JD,'H'));
-                case 'strdateo'
-                    Output = convert.date2str(convert.jd2date(JD,'H'));
-                    Nout= numel(Output);
-                    for Iout=1:1:Nout
-                        Output{Iout} = Output{Iout}(1:10);
-                    end
-             otherwise
-                error('Unknown OutType option');
+            if isempty(JD)
+                Output = [];
+            else
+                switch lower(OutType)
+                    case 'j'
+                        % convert JD to Julian years
+                        Output = 2000 + (JD-2451545.0)./365.25;
+                    case 'b'
+                        % convert JD to Besselian years
+                        Output = 1900 + (JD-2415020.3135)./365.2421988;
+                    case 'jd'
+                        Output = JD;
+                    case 'mjd'
+                        Output = JD - 2400000.5;
+                    case 'date'
+                        Output = convert.jd2date(JD);
+                    case 'strdate'
+                        Output = convert.date2str(convert.jd2date(JD,'H'));
+                    case 'strdateo'
+                        Output = convert.date2str(convert.jd2date(JD,'H'));
+                        Nout= numel(Output);
+                        for Iout=1:1:Nout
+                            Output{Iout} = Output{Iout}(1:10);
+                        end
+                 otherwise
+                    error('Unknown OutType option');
+                end
             end
 
         end % convert.time function
