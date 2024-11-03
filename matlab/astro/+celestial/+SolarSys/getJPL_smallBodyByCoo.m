@@ -5,6 +5,8 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     %          - Scalar J2000 Dec. Sexagesimal string or number.
     %          - JD (scalar) or [D M Y H M S].
     %          * ...,key,val,... 
+    %            'Kind' - kind of objects to search: 'a'-asteroid;
+    %                   'c'-comet. Default is 'a'.
     %            'CooUnits' - Units of input coordinates.
     %                   Default is 'deg'.
     %            'ObsCode' - Observatory code.
@@ -12,15 +14,15 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     %            'SearchRadius' - Search radius. Default is 1000.
     %            'SearchRadiusUnits' - Search radius units.
     %                   Default is 'arcsec'
-    %            'Timeout' - webread timeout. Default is 60s.
+    %            'Timeout' - webread timeout. Default is 120s.
     %            'ColNames' - Column names in out table.
-    % Output : - 
+    % Output : - A table of objects found near coordinates and time.
     % Author : Eran Ofek (2024 Nov) 
     % Reference: https://ssd-api.jpl.nasa.gov/doc/sb_ident.html
     %            https://ssd.jpl.nasa.gov/tools/sb_ident.html#/
     % Example: T=celestial.SolarSys.getJPL_smallBodyByCoo(0,0)
 
-    
+
     arguments
         RA(1,1)
         Dec(1,1)
@@ -30,7 +32,8 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         Args.LimMag            = 22;
         Args.SearchRadius      = 1000;
         Args.SearchRadiusUnits = 'arcsec';
-        Args.Timeout           = 60;  % [s]
+        Args.Timeout           = 120;  % [s]
+        Args.Kind              = 'a';
 
         Args.ColNames          = {'Object','RA','Dec','DistRA','DistDec','Dist','Mag','RateRA','RateDec'};
     end
@@ -71,8 +74,8 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     
 
     % https://ssd-api.jpl.nasa.gov/sb_ident.api?sb-kind=a&mpc-code=568&obs-time=2021-02-09_00:00:00&mag-required=true&two-pass=true&suppress-first-pass=true&req-elem=false&vmag-lim=20&fov-ra-lim=10-10-00%2C10-20-00&fov-dec-lim=10-00-00,10-30-00
-    URL = sprintf('https://ssd-api.jpl.nasa.gov/sb_ident.api?sb-kind=a&mpc-code=%s&obs-time=%s&mag-required=true&two-pass=true&suppress-first-pass=true&req-elem=false&vmag-lim=%4.1f&fov-ra-center=%s&fov-dec-center=%s&fov-ra-hwidth=%7.5f&fov-dec-hwidth=%7.5f',...
-                Args.ObsCode, TimeStr, Args.LimMag, StrRA, StrDec, RA_HalfWidthDeg, Dec_HalfWidthDeg);
+    URL = sprintf('https://ssd-api.jpl.nasa.gov/sb_ident.api?sb-kind=%s&mpc-code=%s&obs-time=%s&mag-required=true&two-pass=true&suppress-first-pass=true&req-elem=false&vmag-lim=%4.1f&fov-ra-center=%s&fov-dec-center=%s&fov-ra-hwidth=%7.5f&fov-dec-hwidth=%7.5f',...
+                Args.Kind, Args.ObsCode, TimeStr, Args.LimMag, StrRA, StrDec, RA_HalfWidthDeg, Dec_HalfWidthDeg);
 
     Cmd = sprintf('%s',(URL));
     WebOpt = weboptions('Timeout',Args.Timeout);
