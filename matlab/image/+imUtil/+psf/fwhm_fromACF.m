@@ -13,6 +13,8 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     %                   [XhalfWidth YhalfWidth] relative to the image
     %                   center, or [X Y XhalfWidth YhalfWidth].
     %                   Default is [1000 1000].
+    %            'CorrFrac' - Correlation fraction that defines the FWHM.
+    %                   Default is 0.84.
     %            'Nsigma0' - Number of sigmas above image std which will be
     %                   set to zero. Default is 10.
     %            'MaxRadius' - Max radius [pix] for which to calculate the
@@ -32,6 +34,7 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         Image
         Args.TrimMethod        = 'center';
         Args.Trim              = [1000 1000]; % [] - no trim
+        Args.CorrFrac          = 0.84;
         
         Args.Nsigma0           = 10;
         Args.MaxRadius         = 200;
@@ -68,7 +71,7 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     CumVal = cumsum(RR.MeanV(2:end));
     CumVal = CumVal./CumVal(end);
     
-    FWHM = interp1(CumVal, Rad, 0.9);
+    FWHM = interp1(CumVal, Rad, Args.CorrFrac);
     
     
     Result.Rad = Rad;
