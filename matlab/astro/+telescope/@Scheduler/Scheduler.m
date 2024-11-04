@@ -365,6 +365,9 @@ classdef Scheduler < Component
                 end
             end
         end
+    
+
+       
     end
     
     
@@ -848,6 +851,10 @@ classdef Scheduler < Component
                         Obj.List   = AC;
                     else
                         ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
+
+                        % convert FieldName to strings array
+                        Tbl.(Obj.ColFieldName) = tools.string.convert2strings(Tbl.(Obj.ColFieldName));
+
                         NewFieldName   = Tbl.(Obj.ColFieldName);
                         
                         %returns the values in A that are not in B with no repetitions. C will be sorted.
@@ -885,16 +892,9 @@ classdef Scheduler < Component
             end
             [Obj.Ntarget, Obj.Ncol] = Obj.List.sizeCatalog;
             
-            % convert to string
-            if isnumeric(Obj.List.Catalog.FieldName)
-                Obj.List.Catalog.FieldName = string(arrayfun(@num2str, Obj.List.Catalog.FieldName, 'UniformOutput', false));
-            elseif ischar(Obj.List.Catalog.FieldName)
-                Obj.List.Catalog.FieldName = string(Obj.List.Catalog.FieldName);
-            else
-                % do nothing
-            end
-            % trim spaces from FieldName
-            Obj.List.Catalog.FieldName = strtrim(Obj.List.Catalog.FieldName);
+            % convert to string & trim spaces from FieldName
+            Obj.List.Catalog.FieldName = tools.string.convert2strings(Obj.List.Catalog.FieldName);
+           
         end
         
     end
