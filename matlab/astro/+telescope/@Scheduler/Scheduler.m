@@ -831,8 +831,11 @@ classdef Scheduler < Component
             Tbl = telescope.Scheduler.read2table(Data);
             switch lower(Type)
                 case 'replace'
-                    Obj.List = AstroCatalog;
-                    Obj.List.Catalog=Tbl;
+                    AC = AstroCatalog;
+                    AC.Catalog = Tbl;
+                    Obj.List   = AC;
+                    %Obj.List = AstroCatalog;
+                    %Obj.List.Catalog = Tbl;
                 case 'concat'
                     Obj.List.Catalog = [Obj.List.Catalog; Tbl];
                 case 'merge'
@@ -872,6 +875,8 @@ classdef Scheduler < Component
                 otherwise
                     error('Unknown Type option');
             end
+            [Obj.Ntarget, Obj.Ncol] = Obj.List.sizeCatalog;
+            
             
         end
         
@@ -941,11 +946,11 @@ classdef Scheduler < Component
                 JDnow=celestial.time.julday;
                 JD=JDs(i);
                 LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f\n',...
-                    Mounts(i),JD,JDnow);
+                            Mounts(i),JD,JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
                 [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
-                    'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                            'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                 % write the following arguments to mount:
                 % Enrico's function #2
                 if isempty(TargetInd)
@@ -955,7 +960,7 @@ classdef Scheduler < Component
                     S.Logger.msgLog(LogLevel.Warning, LogLine);
                 else
                     Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                        'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                                'AcknowledgeTimeout',Args.AcknowledgeTimeout);
                     if Success
                         % update counters and LastJD
                         S.increaseCounter(TargetInd,JD);
