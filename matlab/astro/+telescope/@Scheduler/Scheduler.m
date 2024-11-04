@@ -839,26 +839,31 @@ classdef Scheduler < Component
                 case 'concat'
                     Obj.List.Catalog = [Obj.List.Catalog; Tbl];
                 case 'merge'
-                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
-                    NewFieldName   = Tbl.(Obj.ColFieldName);
-                    
-                    %returns the values in A that are not in B with no repetitions. C will be sorted.
-                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
-                    
-                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
-                    
-                    %Priority  NightCounter       GlobalCounter      LastJD 
-                    NcolKeep = numel(Obj.ColKeep);
-                    Val      = cell(NcolKeep,1);
-                    for IcolKeep=1:1:NcolKeep
-                        Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
+                    if Obj.Ntarget==0
+                        AC = AstroCatalog;
+                        AC.Catalog = Tbl;
+                        Obj.List   = AC;
+                    else
+                        ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
+                        NewFieldName   = Tbl.(Obj.ColFieldName);
+                        
+                        %returns the values in A that are not in B with no repetitions. C will be sorted.
+                        [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
+                        
+                        [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
+                        
+                        %Priority  NightCounter       GlobalCounter      LastJD 
+                        NcolKeep = numel(Obj.ColKeep);
+                        Val      = cell(NcolKeep,1);
+                        for IcolKeep=1:1:NcolKeep
+                            Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
+                        end
+                        Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
+                        for IcolKeep=1:1:NcolKeep
+                            Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
+                        end
+                        Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
                     end
-                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
-                    for IcolKeep=1:1:NcolKeep
-                        Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
-                    end
-                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
-                    
                 case 'merge_replace'
                     ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
                     NewFieldName   = Tbl.(Obj.ColFieldName);
@@ -877,7 +882,11 @@ classdef Scheduler < Component
             end
             [Obj.Ntarget, Obj.Ncol] = Obj.List.sizeCatalog;
             
-            
+            if ~isa(Obj.List.Catalog.FieldName,'string')
+                % convert to string
+                
+                Obj.List.Catalog.FieldName = string(arrayfun(@num2str, Obj.List.Catalog.FieldName, 'UniformOutput', false));
+            end
         end
         
     end
