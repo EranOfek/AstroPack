@@ -831,7 +831,7 @@ classdef Scheduler < Component
             Tbl = telescope.Scheduler.read2table(Data);
             % dirty fix for tables containing only numeric FieldNames
             % see https://github.com/EranOfek/AstroPack/issues/513#issuecomment-2454310814
-            Tbl.FieldName=num2str(Tbl.FieldName);
+            
             switch lower(Type)
                 case 'replace'
                     AC = AstroCatalog;
