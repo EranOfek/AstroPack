@@ -885,11 +885,16 @@ classdef Scheduler < Component
             end
             [Obj.Ntarget, Obj.Ncol] = Obj.List.sizeCatalog;
             
-            if ~isa(Obj.List.Catalog.FieldName,'string')
-                % convert to string
-                
+            % convert to string
+            if isnumeric(Obj.List.Catalog.FieldName)
                 Obj.List.Catalog.FieldName = string(arrayfun(@num2str, Obj.List.Catalog.FieldName, 'UniformOutput', false));
+            elseif ischar(Obj.List.Catalog.FieldName)
+                Obj.List.Catalog.FieldName = string(Obj.List.Catalog.FieldName);
+            else
+                % do nothing
             end
+            % trim spaces from FieldName
+            Obj.List.Catalog.FieldName = strtrim(Obj.List.Catalog.FieldName);
         end
         
     end
@@ -2023,6 +2028,54 @@ classdef Scheduler < Component
         
     end
     
+    methods % plots
+        function Hp=plot(Obj, Args)
+            % plot a sky map with fields position in Aitoff projection.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'FieldAndVal' - a cell array of pairs of
+            %                   arguments: field name and its value.
+            %                   Only fields with these values will be
+            %                   selected. Default is {}.
+            %            'MarkerSize' - Default is 14.
+            %            'Color' - Default is 'b'.
+            % Output : - Figure handle. The figure is in hold on mode.
+            % Example: S.plot
+            %          S.plot('FieldAndVal',{'MountNum',1})    
+
+            arguments
+                Obj
+                Args.FieldAndVal  = {};
+                Args.MarkerSize   = 14;
+                Args.Color        = 'b';
+            end
+
+            if isempty(Args.FieldAndVal)
+                F = true(Obj.Ntarget,1);
+            else
+                Nf = numel(Args.FieldAndVal);
+                F = true(Obj.Ntarget,1);
+                for If=1:2:Nf-1
+                    Field = Args.FieldAndVal{If};
+                    Val   = Args.FieldAndVal{If+1};
+                    F = F & Obj.List.Catalog.(Field) == Val;
+                end
+            end
+
+            axesm ('aitoff', 'Frame', 'on', 'Grid', 'on');
+            hold on;
+               
+            if any(F)    
+                Hp=plotm(Obj.Dec(F), Obj.RA(F),'.');
+                Hp.MarkerSize = Args.MarkerSize;
+                Hp.Color      = Args.Color;
+            end
+            %Hp.Color = ColorV(mod(Inc, Ncolor) + 1,:);
+            %Hp.Color = ColorV(mod(TargetNC, Ncolor) + 1,:);
+            %drawnow;
+        end
+    end
+
     
     methods (Static)  % static utilities
         function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
