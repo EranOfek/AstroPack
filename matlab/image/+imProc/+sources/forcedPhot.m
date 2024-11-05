@@ -149,6 +149,8 @@ function [Result] = forcedPhot(Obj, Args)
     %                   'off' - only background noise. 
     %                   Default is 'off'.
     %            'ZP' - ZP for magnitude calculations. Default is 25.
+    %            'HeaderZP' - Use ZP from image header (PH_ZP). If header
+    %                         ZP is NaN will use Args.ZP. Default is false.
     % Output : - A MatchedSources object with the forced photometry data
     %            for each epoch and source.
     %            The 'ColNames' input arguments controls which data will be
@@ -193,6 +195,8 @@ function [Result] = forcedPhot(Obj, Args)
         Args.MaxIter                 = 10;      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
         Args.ZP                      = 25; 
+        Args.HeaderZP                = false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
+        
     end
 
     RAD  = 180./pi;
@@ -283,6 +287,15 @@ function [Result] = forcedPhot(Obj, Args)
     end
     
     for Iobj=1:1:Nobj
+        
+        
+        if Args.HeaderZP % Use ZP from image header (if not NaN) 
+           if isfield(Obj(Iobj).Key,'PH_ZP')  
+              if ~isnan(Obj(Iobj).Key.PH_ZP)
+                    Args.ZP = Obj(Iobj).Key.PH_ZP;
+              end
+           end
+        end
         
        
         if IsSpherical
