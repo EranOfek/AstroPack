@@ -962,7 +962,7 @@ classdef Scheduler < Component
                 %  time mode. Perhaps add an option for choosing.
                 JDnow=celestial.time.julday;
                 JD=JDs(i);
-                LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f\n',...
+                LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f',...
                             Mounts(i),JD,JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
