@@ -15,6 +15,7 @@ config
 
 # Log files
 *.log
+wget-log*
 
 # Simulation outputs
 SimImage*

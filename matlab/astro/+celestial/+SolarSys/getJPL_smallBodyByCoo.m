@@ -1,4 +1,4 @@
-function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
+function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     % Search for small bodies near position and time using JPL horizons
     %     See also imProc.match.match2SolarSystem
     % Input  : - Scalar J2000 RA. Sexagesimal string or number.
@@ -15,8 +15,12 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     %            'SearchRadiusUnits' - Search radius units.
     %                   Default is 'arcsec'
     %            'Timeout' - webread timeout. Default is 120s.
+    %            'Execute' - A logical indicating if to execute the search.
+    %                   If false, then will just return the search URL.
+    %                   Default is true.
     %            'ColNames' - Column names in out table.
     % Output : - A table of objects found near coordinates and time.
+    %          - The URL for the request.
     % Author : Eran Ofek (2024 Nov) 
     % Reference: https://ssd-api.jpl.nasa.gov/doc/sb_ident.html
     %            https://ssd.jpl.nasa.gov/tools/sb_ident.html#/
@@ -34,6 +38,7 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         Args.SearchRadiusUnits = 'arcsec';
         Args.Timeout           = 120;  % [s]
         Args.Kind              = 'a';
+        Args.Execute logical   = true;
 
         Args.ColNames          = {'Object','RA','Dec','DistRA','DistDec','Dist','Mag','RateRA','RateDec'};
     end
@@ -79,41 +84,45 @@ function [T] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
 
     Cmd = sprintf('%s',(URL));
     WebOpt = weboptions('Timeout',Args.Timeout);
-    [Output] = webread(Cmd, WebOpt);
 
-    if isfield(Output, 'data_second_pass')
-        Nsrc = numel(Output.data_second_pass);
-        for Isrc=1:1:Nsrc
-            %Output.data_secod_pass{Isrc}
-            if Isrc==1
-                Cell = Output.data_second_pass{Isrc}.';
-            else
-                Cell = [Cell; Output.data_second_pass{Isrc}.'];
-            end
-        end
-        
-        T = cell2table(Cell);
-        if isempty(Args.ColNames)
-            T.Properties.VariableNames = Output.fields_second.';
-        else
-            T.Properties.VariableNames = Args.ColNames;
-            T.Dist     = str2double(T.Dist);
-            T.DistRA   = str2double(T.DistRA);
-            T.DistDec  = str2double(T.DistDec);
-            T.Mag      = str2double(T.Mag);
-            T.RateRA   = str2double(T.RateRA);
-            T.RateDec  = str2double(T.RateDec);
-            T.RA       = celestial.coo.convertdms(T.RA,'SH','d');
-            Tmp=strrep(T.Dec, ' ', '');
-            Tmp=strrep(Tmp, '''', ''); 
-            Tmp=strrep(Tmp, '"', '');
-            T.Dec = celestial.coo.convertdms(Tmp,'SDn','d');
-            T.Object = string(T.Object);
-        end
-    else
+    if ~Args.Execute
         T = [];
+    else
+        [Output] = webread(Cmd, WebOpt);
+    
+        if isfield(Output, 'data_second_pass')
+            Nsrc = numel(Output.data_second_pass);
+            for Isrc=1:1:Nsrc
+                %Output.data_secod_pass{Isrc}
+                if Isrc==1
+                    Cell = Output.data_second_pass{Isrc}.';
+                else
+                    Cell = [Cell; Output.data_second_pass{Isrc}.'];
+                end
+            end
+            
+            T = cell2table(Cell);
+            if isempty(Args.ColNames)
+                T.Properties.VariableNames = Output.fields_second.';
+            else
+                T.Properties.VariableNames = Args.ColNames;
+                T.Dist     = str2double(T.Dist);
+                T.DistRA   = str2double(T.DistRA);
+                T.DistDec  = str2double(T.DistDec);
+                T.Mag      = str2double(T.Mag);
+                T.RateRA   = str2double(T.RateRA);
+                T.RateDec  = str2double(T.RateDec);
+                T.RA       = celestial.coo.convertdms(T.RA,'SH','d');
+                Tmp=strrep(T.Dec, ' ', '');
+                Tmp=strrep(Tmp, '''', ''); 
+                Tmp=strrep(Tmp, '"', '');
+                T.Dec = celestial.coo.convertdms(Tmp,'SDn','d');
+                T.Object = string(T.Object);
+            end
+        else
+            T = [];
+        end
     end
-
     
 
 end

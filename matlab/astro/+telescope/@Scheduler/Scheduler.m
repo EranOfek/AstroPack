@@ -365,6 +365,9 @@ classdef Scheduler < Component
                 end
             end
         end
+    
+
+       
     end
     
     
@@ -829,32 +832,48 @@ classdef Scheduler < Component
             end
             
             Tbl = telescope.Scheduler.read2table(Data);
+            % dirty fix for tables containing only numeric FieldNames
+            % see https://github.com/EranOfek/AstroPack/issues/513#issuecomment-2454310814
+            
             switch lower(Type)
                 case 'replace'
-                    Obj.List.Catalog = Tbl;
+                    AC = AstroCatalog;
+                    AC.Catalog = Tbl;
+                    Obj.List   = AC;
+                    %Obj.List = AstroCatalog;
+                    %Obj.List.Catalog = Tbl;
                 case 'concat'
                     Obj.List.Catalog = [Obj.List.Catalog; Tbl];
                 case 'merge'
-                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
-                    NewFieldName   = Tbl.(Obj.ColFieldName);
-                    
-                    %returns the values in A that are not in B with no repetitions. C will be sorted.
-                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
-                    
-                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
-                    
-                    %Priority  NightCounter       GlobalCounter      LastJD 
-                    NcolKeep = numel(Obj.ColKeep);
-                    Val      = cell(NcolKeep,1);
-                    for IcolKeep=1:1:NcolKeep
-                        Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
+                    if Obj.Ntarget==0
+                        AC = AstroCatalog;
+                        AC.Catalog = Tbl;
+                        Obj.List   = AC;
+                    else
+                        ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
+
+                        % convert FieldName to strings array
+                        Tbl.(Obj.ColFieldName) = tools.string.convert2strings(Tbl.(Obj.ColFieldName));
+
+                        NewFieldName   = Tbl.(Obj.ColFieldName);
+                        
+                        %returns the values in A that are not in B with no repetitions. C will be sorted.
+                        [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
+                        
+                        [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
+                        
+                        %Priority  NightCounter       GlobalCounter      LastJD 
+                        NcolKeep = numel(Obj.ColKeep);
+                        Val      = cell(NcolKeep,1);
+                        for IcolKeep=1:1:NcolKeep
+                            Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
+                        end
+                        Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
+                        for IcolKeep=1:1:NcolKeep
+                            Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
+                        end
+                        Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
                     end
-                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
-                    for IcolKeep=1:1:NcolKeep
-                        Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
-                    end
-                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
-                    
                 case 'merge_replace'
                     ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
                     NewFieldName   = Tbl.(Obj.ColFieldName);
@@ -871,7 +890,11 @@ classdef Scheduler < Component
                 otherwise
                     error('Unknown Type option');
             end
+            [Obj.Ntarget, Obj.Ncol] = Obj.List.sizeCatalog;
             
+            % convert to string & trim spaces from FieldName
+            Obj.List.Catalog.FieldName = tools.string.convert2strings(Obj.List.Catalog.FieldName);
+           
         end
         
     end
@@ -940,11 +963,11 @@ classdef Scheduler < Component
                 JDnow=celestial.time.julday;
                 JD=JDs(i);
                 LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f\n',...
-                    Mounts(i),JD,JDnow);
+                            Mounts(i),JD,JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
                 [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
-                    'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                            'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                 % write the following arguments to mount:
                 % Enrico's function #2
                 if isempty(TargetInd)
@@ -954,7 +977,7 @@ classdef Scheduler < Component
                     S.Logger.msgLog(LogLevel.Warning, LogLine);
                 else
                     Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                        'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                                'AcknowledgeTimeout',Args.AcknowledgeTimeout);
                     if Success
                         % update counters and LastJD
                         S.increaseCounter(TargetInd,JD);
@@ -1017,7 +1040,7 @@ classdef Scheduler < Component
                 % generate regular grid
                 S.generateRegularGrid;
             else
-                S.loadTable(Args.TargetList);
+                S.loadTable(Args.TargetList,'replace');
             end
             
             if ~isfield(Args,'FunTargetDispatch')
@@ -2005,6 +2028,54 @@ classdef Scheduler < Component
         
     end
     
+    methods % plots
+        function Hp=plot(Obj, Args)
+            % plot a sky map with fields position in Aitoff projection.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'FieldAndVal' - a cell array of pairs of
+            %                   arguments: field name and its value.
+            %                   Only fields with these values will be
+            %                   selected. Default is {}.
+            %            'MarkerSize' - Default is 14.
+            %            'Color' - Default is 'b'.
+            % Output : - Figure handle. The figure is in hold on mode.
+            % Example: S.plot
+            %          S.plot('FieldAndVal',{'MountNum',1})    
+
+            arguments
+                Obj
+                Args.FieldAndVal  = {};
+                Args.MarkerSize   = 14;
+                Args.Color        = 'b';
+            end
+
+            if isempty(Args.FieldAndVal)
+                F = true(Obj.Ntarget,1);
+            else
+                Nf = numel(Args.FieldAndVal);
+                F = true(Obj.Ntarget,1);
+                for If=1:2:Nf-1
+                    Field = Args.FieldAndVal{If};
+                    Val   = Args.FieldAndVal{If+1};
+                    F = F & Obj.List.Catalog.(Field) == Val;
+                end
+            end
+
+            axesm ('aitoff', 'Frame', 'on', 'Grid', 'on');
+            hold on;
+               
+            if any(F)    
+                Hp=plotm(Obj.Dec(F), Obj.RA(F),'.');
+                Hp.MarkerSize = Args.MarkerSize;
+                Hp.Color      = Args.Color;
+            end
+            %Hp.Color = ColorV(mod(Inc, Ncolor) + 1,:);
+            %Hp.Color = ColorV(mod(TargetNC, Ncolor) + 1,:);
+            %drawnow;
+        end
+    end
+
     
     methods (Static)  % static utilities
         function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
