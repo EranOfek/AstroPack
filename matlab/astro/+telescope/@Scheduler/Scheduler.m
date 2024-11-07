@@ -689,7 +689,10 @@ classdef Scheduler < Component
                     Data = io.files.load2(Data);
                 else
                     % assume input is csv file
-                    Data = readtable(Data);
+                    Opts = detectImportOptions(Data);
+                    Ifn = find(strcmp(Opts.VariableNames, 'FieldName'));
+                    Opts.VariableTypes{Ifn} = 'string';
+                    Data = readtable(Data, Opts);
                 end
             end
             
