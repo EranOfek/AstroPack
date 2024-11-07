@@ -436,35 +436,39 @@ classdef MovingSource < Component
                         Tmp = Tmp.AstCrop;
                     end
                     
-                    if isa(Tmp, 'MovingSource')
-                        Tmp.insertPropVal('FileName', FileName);
-                        Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
-                        if If==1
-                            Obj = Tmp;
-                        else
-                            Obj = [Obj(:); Tmp];
-                        end
-                    elseif isa(Tmp, 'struct')
-                        FieldsName = fieldnames(Tmp);
-                        if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
-                            Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
-                            Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
-                            if If==1
-                                Obj = Tmp.(FieldsName{1});
-                            else
-                                
-                                Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
-                            end
-                        else
-                            % Assume an AstCrop object
-                            Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                             'FileName',FileName,...
-                                                             'ConcatObj',Obj,...
-                                                             'Id',[]);
-                        end
-                    
+                    if isempty(Tmp)
+                        Obj = MovingSource;
                     else
-                        error('Unknown content format in file %s', FileName);
+                        if isa(Tmp, 'MovingSource')
+                            Tmp.insertPropVal('FileName', FileName);
+                            Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
+                            if If==1
+                                Obj = Tmp;
+                            else
+                                Obj = [Obj(:); Tmp];
+                            end
+                        elseif isa(Tmp, 'struct')
+                            FieldsName = fieldnames(Tmp);
+                            if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                                Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                                Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
+                                if If==1
+                                    Obj = Tmp.(FieldsName{1});
+                                else
+                                    
+                                    Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
+                                end
+                            else
+                                % Assume an AstCrop object
+                                Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                                 'FileName',FileName,...
+                                                                 'ConcatObj',Obj,...
+                                                                 'Id',[]);
+                            end
+                        
+                        else
+                            error('Unknown content format in file %s', FileName);
+                        end
                     end
                 end
                 
