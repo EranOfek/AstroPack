@@ -929,12 +929,20 @@ classdef Scheduler < Component
         
     end
     
-    methods
+    methods % read time services
         % service target requests posted by Units, single call
         function serviceTargetRequests(S, Args)
+            % Treat target requests by deamon
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code
+            % Output : null
+            % Author : Enrico Segre (Nov 2024)
+            
             arguments
                 S
                 Args.TargetList    = []; % current target list: file name or table
+                Args.SaveTargetList logical  = true;
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
@@ -992,8 +1000,10 @@ classdef Scheduler < Component
                         S.increaseCounter(TargetInd,JD);
                         
                         % backup latest version of target list
-                        Tbl = S.List.Table;
-                        save('-v7.3','TargetList.mat','Tbl');
+                        if Args.SaveTargetList
+                            Tbl = S.List.Table;
+                            save('-v7.3','TargetList.mat','Tbl');
+                        end
                         
                         % observation log
                         % FIXME: format? Level?
@@ -1029,6 +1039,10 @@ classdef Scheduler < Component
 
             arguments
                 Args.TargetList    = []; % current target list: file name or table
+                Args.SaveTargetList logical  = true;  % Save TargetList after each update.
+                Args.SetLastJD     = []; % if given than value will be inserted to LastJD
+                Args.SetGlobalCounter = [];
+                Args.SetNightCounter  = [];
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
@@ -1052,6 +1066,18 @@ classdef Scheduler < Component
                 S.loadTable(Args.TargetList,'replace');
             end
             
+            if ~isempty(Args.SetLastJD)
+                S = insertColList(S, 'LastJD',Args.SetLastJD, []);
+            end
+            
+            if ~isempty(Args.SetGlobalCounter)
+                S = insertColList(S, 'GlobalCounter',Args.SetGlobalCounter, []);
+            end
+            if ~isempty(Args.SetNightCounter)
+                S = insertColList(S, 'NightCounter',Args.SetNightCounter, []);
+            end
+            
+            
             if ~isfield(Args,'FunTargetDispatch')
                Args.FunTargetDispatch =  @S.dispatchTargetToUnit;
             end
@@ -1070,6 +1096,7 @@ classdef Scheduler < Component
                 pause(0.5) % don't run full throttle
                 
                 S.serviceTargetRequests('ToO_File',Args.ToO_File,...
+                                'SaveTargetList',Args.SaveTargetList,...
                                 'FunSchedRequested',Args.FunSchedRequested,...
                                 'FunTargetDispatch',Args.FunTargetDispatch,...
                                 'SelectMethod',Args.SelectMethod,...
