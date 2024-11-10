@@ -249,6 +249,14 @@ function ULTRASAT_visibility_maps_LCS(Args)
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
         save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2','L2_240','L3_240');
+        
+        T = table(AllSky.Var1,AllSky.Var2,int8(Lenp>180),int8(Lenp>45),int8(Extp<1),Extp);
+        writetable(T,'LCS_fields.csv');
+
+%         [Ebv]=astro.extinction.sky_ebv(359.46,2.40);
+%         I = Installer; UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_Properties'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');
+%         io.files.load1(UP_db,'UP'); Filter = UP.U_AstFilt(1);
+%         A = astro.extinction.extinction(Ebv,Filter)
     end
    
 end
