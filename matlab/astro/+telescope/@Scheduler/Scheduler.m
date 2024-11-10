@@ -961,7 +961,7 @@ classdef Scheduler < Component
                 % Which time to use for not-yet-serviced requests? On
                 %  one hand we would choose the best target available
                 %  *now*, not at the time of the former request; on the
-                %  other using the request time we can run in simualted
+                %  other using the request time we can run in simulated
                 %  time mode. Perhaps add an option for choosing.
                 JDnow=celestial.time.julday;
                 JD=JDs(i);
@@ -978,9 +978,15 @@ classdef Scheduler < Component
                     %  dispatch - for instance at daytime
                     LogLine=sprintf('No target for unit %d at this time',Mounts(i));
                     S.Logger.msgLog(LogLevel.Warning, LogLine);
-                else
-                    Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                                'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                end
+                % dispatch the target even if there is none, it will be the
+                %  responsibility of the Unit to request one again later.
+                %  This way no request is left pending
+                Success=Args.FunTargetDispatch(Mounts(i),Struct,...
+                            'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                % However, increase counter and update the persistence file
+                %  only if a real target was provided
+                if ~isempty(TargetInd)
                     if Success
                         % update counters and LastJD
                         S.increaseCounter(TargetInd,JD);
@@ -1140,40 +1146,41 @@ classdef Scheduler < Component
             if isempty(TargetStruct)
                 % this can happpen if the scheduler has no target to
                 %  dispatch - for instance at daytime
-                return
+                target=[];
             else
-                if ~isfield(Args,'Mailbox')
-                    try
-                        Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
-                    catch
-                        LogLine='cannot connect to Redis and cannot dispatch targets to units';
-                        S.Logger.msgLog(LogLevel.Fatal, LogLine);
-                        return
-                    end
-                end
-                
-                Req=sprintf('TargetRequest:%d',Unit);
+                target=struct('FieldName',TargetStruct.FieldName,...
+                    'RA',TargetStruct.RA,...
+                    'Dec',TargetStruct.Dec,...
+                    'Nexp',TargetStruct.Nexp,...
+                    'ExpTime',TargetStruct.ExpTime);
+            end
+            
+            if ~isfield(Args,'Mailbox')
                 try
-                    target=struct('FieldName',TargetStruct.FieldName,...
-                        'RA',TargetStruct.RA,...
-                        'Dec',TargetStruct.Dec,...
-                        'Nexp',TargetStruct.Nexp,...
-                        'ExpTime',TargetStruct.ExpTime);
-                    Args.Mailbox.hset(Req,'Target',jsonencode(target),...
-                        'JD',sprintf('%.8f',celestial.time.julday),...
-                        'Status','provided');
+                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                 catch
+                    LogLine='cannot connect to Redis and cannot dispatch targets to units';
+                    S.Logger.msgLog(LogLevel.Fatal, LogLine);
+                    return
                 end
-                
-                % now should we stand here polling till we get
-                %  a confirmation that the unit acknowledged?
-                t0=now;
-                ReqStatus='';
-                while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                        ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                    ReqStatus=Args.Mailbox.hget(Req,'Status');
-                    Success=strcmpi(ReqStatus,'acquired');
-                end
+            end
+            
+            Req=sprintf('TargetRequest:%d',Unit);
+            try
+                Args.Mailbox.hset(Req,'Target',jsonencode(target),...
+                    'JD',sprintf('%.8f',celestial.time.julday),...
+                    'Status','provided');
+            catch
+            end
+            
+            % now should we stand here polling till we get
+            %  a confirmation that the unit acknowledged?
+            t0=now;
+            ReqStatus='';
+            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                ReqStatus=Args.Mailbox.hget(Req,'Status');
+                Success=strcmpi(ReqStatus,'acquired');
             end
         end
         
