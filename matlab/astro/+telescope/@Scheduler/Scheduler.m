@@ -1146,40 +1146,41 @@ classdef Scheduler < Component
             if isempty(TargetStruct)
                 % this can happpen if the scheduler has no target to
                 %  dispatch - for instance at daytime
-                return
+                target=[];
             else
-                if ~isfield(Args,'Mailbox')
-                    try
-                        Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
-                    catch
-                        LogLine='cannot connect to Redis and cannot dispatch targets to units';
-                        S.Logger.msgLog(LogLevel.Fatal, LogLine);
-                        return
-                    end
-                end
-                
-                Req=sprintf('TargetRequest:%d',Unit);
+                target=struct('FieldName',TargetStruct.FieldName,...
+                    'RA',TargetStruct.RA,...
+                    'Dec',TargetStruct.Dec,...
+                    'Nexp',TargetStruct.Nexp,...
+                    'ExpTime',TargetStruct.ExpTime);
+            end
+            
+            if ~isfield(Args,'Mailbox')
                 try
-                    target=struct('FieldName',TargetStruct.FieldName,...
-                        'RA',TargetStruct.RA,...
-                        'Dec',TargetStruct.Dec,...
-                        'Nexp',TargetStruct.Nexp,...
-                        'ExpTime',TargetStruct.ExpTime);
-                    Args.Mailbox.hset(Req,'Target',jsonencode(target),...
-                        'JD',sprintf('%.8f',celestial.time.julday),...
-                        'Status','provided');
+                    Args.Mailbox= Redis('localhost', 6379, 'password', 'foobared');
                 catch
+                    LogLine='cannot connect to Redis and cannot dispatch targets to units';
+                    S.Logger.msgLog(LogLevel.Fatal, LogLine);
+                    return
                 end
-                
-                % now should we stand here polling till we get
-                %  a confirmation that the unit acknowledged?
-                t0=now;
-                ReqStatus='';
-                while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                        ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
-                    ReqStatus=Args.Mailbox.hget(Req,'Status');
-                    Success=strcmpi(ReqStatus,'acquired');
-                end
+            end
+            
+            Req=sprintf('TargetRequest:%d',Unit);
+            try
+                Args.Mailbox.hset(Req,'Target',jsonencode(target),...
+                    'JD',sprintf('%.8f',celestial.time.julday),...
+                    'Status','provided');
+            catch
+            end
+            
+            % now should we stand here polling till we get
+            %  a confirmation that the unit acknowledged?
+            t0=now;
+            ReqStatus='';
+            while (now-t0)*86400<Args.AcknowledgeTimeout && ...
+                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                ReqStatus=Args.Mailbox.hget(Req,'Status');
+                Success=strcmpi(ReqStatus,'acquired');
             end
         end
         
