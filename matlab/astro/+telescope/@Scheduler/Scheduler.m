@@ -961,7 +961,7 @@ classdef Scheduler < Component
                 % Which time to use for not-yet-serviced requests? On
                 %  one hand we would choose the best target available
                 %  *now*, not at the time of the former request; on the
-                %  other using the request time we can run in simualted
+                %  other using the request time we can run in simulated
                 %  time mode. Perhaps add an option for choosing.
                 JDnow=celestial.time.julday;
                 JD=JDs(i);
@@ -978,9 +978,15 @@ classdef Scheduler < Component
                     %  dispatch - for instance at daytime
                     LogLine=sprintf('No target for unit %d at this time',Mounts(i));
                     S.Logger.msgLog(LogLevel.Warning, LogLine);
-                else
-                    Success=Args.FunTargetDispatch(Mounts(i),Struct,...
-                                'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                end
+                % dispatch the target even if there is none, it will be the
+                %  responsibility of the Unit to request one again later.
+                %  This way no request is left pending
+                Success=Args.FunTargetDispatch(Mounts(i),Struct,...
+                            'AcknowledgeTimeout',Args.AcknowledgeTimeout);
+                % However, increase counter and update the persistence file
+                %  only if a real target was provided
+                if ~isempty(TargetInd)
                     if Success
                         % update counters and LastJD
                         S.increaseCounter(TargetInd,JD);
