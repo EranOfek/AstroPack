@@ -125,9 +125,9 @@ function [T,FileName] = insertImages(Obj, Args)
 
         % Write table
         Args.CreateCsv logical    = true;
-        Args.FileName   = tempname; % If empty, then skip this step (see writetable for more options)
-        Args.DeleteFile logical          = false;  % delete file after Db insertion
-        Args.table2csvArgs = {};
+        Args.FileName             = tempname; % If empty, then skip this step (see writetable for more options)
+        Args.DeleteFile logical   = false;  % delete file after Db insertion
+        Args.table2csvArgs        = {};
         
     end
 
