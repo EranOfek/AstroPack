@@ -90,11 +90,11 @@ function Result = addCoordinates2catalog(Obj, Args)
         if UpdateCoo
             [X, Y] = getXY(Cat, 'ColX',Args.DicNamesX, 'ColY',Args.DicNamesY);
             
-           [Alpha, Delta]  = xy2sky(WCS, X, Y, 'OutUnits',Args.OutUnits,...
+            [Alpha, Delta]  = xy2sky(WCS, X, Y, 'OutUnits',Args.OutUnits,...
                                                'includeDistortion',Args.includeDistortion,...
                                                'useTran2D',Args.useTran2D);
             % replace or insert coordinates
-            Cat = replaceCol(Cat, [Alpha, Delta], {Args.ColNameRA, Args.ColNameDec}, Args.Pos);
+            Cat = replaceCol(Cat, [Alpha, Delta], {Args.ColNameRA, Args.ColNameDec}, Args.Pos, {Args.OutUnits, Args.OutUnits});
             
             % update catalog
             if isa(Obj, 'AstroCatalog')

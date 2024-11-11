@@ -1174,6 +1174,9 @@ classdef AstroTable < Component
                         insertCol(Obj(Iobj), NewData, Pos, ColNames, ColUnits);
                     else
                         Obj(Iobj).Catalog(:,ColInd) = NewData;
+                        if ~isempty(ColUnits)
+                            Obj(Iobj).ColUnits(ColInd) = ColUnits;
+                        end
                     end
                 end
             end
