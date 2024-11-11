@@ -293,6 +293,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.HostName              = [];
 
         Args.MaxFWHM               = 5.5;  % max of median(FWHM) - if larger stop processing
+
+        Args.KeyRawID              = 'ID_RAW';  % if empty, do not insert ID_RAW
     end
     
     if ~isempty(Args.SaveAll)
@@ -356,8 +358,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             SplitStr = split(FileNameStr,'_');
             AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
         end
-    end        
-    
+    end  
+
+    % Add Image ID (ID_RAW) to header
+    if ~isempty(Args.KeyRawID)
+        [AI]=imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+    end
         
     % make sure images are in single format
     AI = AI.cast('single');
