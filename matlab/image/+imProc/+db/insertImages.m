@@ -171,7 +171,7 @@ function [T,FileName] = insertImages(Obj, Args)
     end
 
     if Args.CreateCsv
-        db.Db.table2csv(Data, 'FileName',Args.FileName, Args.table2csvArgs{:});
+        db.Db.table2csv(T, 'FileName',Args.FileName, Args.table2csvArgs{:});
         FileName = Args.FileName;
     else
         FileName = [];
