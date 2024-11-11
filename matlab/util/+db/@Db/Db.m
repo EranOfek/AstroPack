@@ -253,9 +253,9 @@ classdef Db < Component
                 Args.FileType         = 'text';        % see writetable for optoins
                 Args.WriteVarNames    = {};
                 Args.Delimiter        = ',';
-                Args.LineEnding       = '\r\n';
+%                 Args.LineEnding       = '\r\n';
                 Args.WriteVariableNames logical  = false;
-                Args.QuoteStrings                = 'minimal';
+                Args.QuoteStrings                = true; % 'minimal';
                 Args.WriteMode                   = 'overwrite';
                 Args.writetableArgs              = {};
                 %Args.DeleteFile logical          = false;  % delete file after Db insertion
@@ -266,12 +266,11 @@ classdef Db < Component
             % write table to csv file
             writetable(T, Args.FileName, 'FileType',Args.FileType,...
                                  'Delimiter',Args.Delimiter,...
-                                 'LineEnding',Args.LineEnding,...
                                  'WriteVariableNames',Args.WriteVariableNames,...
                                  'QuoteStrings',Args.QuoteStrings,...
                                  'WriteMode',Args.WriteMode,...
                                  Args.writetableArgs{:});
-
+%                                  'LineEnding',Args.LineEnding,...                                 
 
         end
         
