@@ -929,12 +929,20 @@ classdef Scheduler < Component
         
     end
     
-    methods
+    methods % read time services
         % service target requests posted by Units, single call
         function serviceTargetRequests(S, Args)
+            % Treat target requests by deamon
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code
+            % Output : null
+            % Author : Enrico Segre (Nov 2024)
+            
             arguments
                 S
-                Args.TargetList    = []; % current target list: file name or table
+                %Args.TargetList     % current target list: file name or table | must be provided
+                Args.SaveTargetList  = [];  % if empty, will not save target list - otherwise path and file name of file to save
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
@@ -969,8 +977,17 @@ classdef Scheduler < Component
                             Mounts(i),JD,JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
-                [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
+                TargetInd=[];
+                try
+                    % this can fail because of nearly concomitant requests
+                    %  serviced out of order, and give "JD must be larger then LastJD"
+                    %  See https://github.com/EranOfek/AstroPack/issues/510
+                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                             'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                catch exc
+                    S.Logger.msgLog(LogLevel.Error,exc.message)
+                    Struct=[];
+                end
                 % write the following arguments to mount:
                 % Enrico's function #2
                 if isempty(TargetInd)
@@ -992,8 +1009,11 @@ classdef Scheduler < Component
                         S.increaseCounter(TargetInd,JD);
                         
                         % backup latest version of target list
-                        Tbl = S.List.Table;
-                        save('-v7.3','TargetList.mat','Tbl');
+                        if Args.SaveTargetList
+                            Tbl = S.List.Table;
+                            %save('-v7.3','TargetList.mat','Tbl');
+                            save('-v7.3',Args.SaveTargetList,'Tbl');
+                        end
                         
                         % observation log
                         % FIXME: format? Level?
@@ -1028,7 +1048,11 @@ classdef Scheduler < Component
             % Example: telescope.Scheduler.demon;
 
             arguments
-                Args.TargetList    = []; % current target list: file name or table
+                Args.TargetList       = '/home/ocs/Scheduler/TargetList.mat'; % current target list: file name or table, if [] then generate default LAST tiles
+                Args.SaveTargetList   = '/home/ocs/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
+                Args.SetLastJD        = []; % if given than value will be inserted to LastJD
+                Args.SetGlobalCounter = [];
+                Args.SetNightCounter  = [];
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
@@ -1052,6 +1076,18 @@ classdef Scheduler < Component
                 S.loadTable(Args.TargetList,'replace');
             end
             
+            if ~isempty(Args.SetLastJD)
+                S = insertColList(S, 'LastJD',Args.SetLastJD, []);
+            end
+            
+            if ~isempty(Args.SetGlobalCounter)
+                S = insertColList(S, 'GlobalCounter',Args.SetGlobalCounter, []);
+            end
+            if ~isempty(Args.SetNightCounter)
+                S = insertColList(S, 'NightCounter',Args.SetNightCounter, []);
+            end
+            
+            
             if ~isfield(Args,'FunTargetDispatch')
                Args.FunTargetDispatch =  @S.dispatchTargetToUnit;
             end
@@ -1070,6 +1106,7 @@ classdef Scheduler < Component
                 pause(0.5) % don't run full throttle
                 
                 S.serviceTargetRequests('ToO_File',Args.ToO_File,...
+                                'SaveTargetList',Args.SaveTargetList,...
                                 'FunSchedRequested',Args.FunSchedRequested,...
                                 'FunTargetDispatch',Args.FunTargetDispatch,...
                                 'SelectMethod',Args.SelectMethod,...
@@ -1233,7 +1270,11 @@ classdef Scheduler < Component
                     Index = (1:1:Nsrc).';
                 end
 
-                Obj.List.Catalog(Index, ColInd) = Val;
+                if numel(Val)==1
+                    Val = repmat(Val, Nsrc, 1);
+                end
+                Obj.List.Catalog.(ColName)(Index) = Val;
+
             end
             
         end
