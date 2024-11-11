@@ -792,8 +792,9 @@ classdef MovingSource < Component
             for Iobj=1:1:Nobj
                 Obj(Iobj).PopKA = true;
                 if ~isemptyCatalog(Obj(Iobj).KnownAst)
-                    Dist(Iobj) = Obj(Iobj).KnownAst.Table.Dist;
-                    Mag(Iobj)  = Obj(Iobj).KnownAst.Table.Mag;
+                    [DistD,Ind] = min(Obj(Iobj).KnownAst.Table.Dist);
+                    Dist(Iobj) = DistD; %Obj(Iobj).KnownAst.Table.Dist;
+                    Mag(Iobj)  = Obj(Iobj).KnownAst.Table.Mag(Ind);
                 end
             end
 
