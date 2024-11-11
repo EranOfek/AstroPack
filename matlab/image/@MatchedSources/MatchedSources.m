@@ -2410,6 +2410,7 @@ classdef MatchedSources < Component
                 MatchedCat(Ims) = Cat.selectRows(Ind(Ims).IndTable(:,1), 'IgnoreNaN',false, 'CreateNewObj',true);
             end
         end
+    
         
     end
     
