@@ -1269,10 +1269,7 @@ classdef Scheduler < Component
                 if isempty(Index)
                     Index = (1:1:Nsrc).';
                 end
-                if numel(Val)==1
-                    Val = repmat(Val, Nsrc, 1);
-                end
-                Obj.List.Catalog(Index, ColInd) = Val;
+                Obj.List.Catalog{Index, ColInd} = Val;
             end
             
         end
