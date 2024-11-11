@@ -977,8 +977,17 @@ classdef Scheduler < Component
                             Mounts(i),JD,JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
-                [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
+                TargetInd=[];
+                try
+                    % this can fail because of nearly concomitant requests
+                    %  serviced out of order, and give "JD must be larger then LastJD"
+                    %  See https://github.com/EranOfek/AstroPack/issues/510
+                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                             'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
+                catch exc
+                    S.Logger.msgLog(LogLevel.Error,exc.message)
+                    Struct=[];
+                end
                 % write the following arguments to mount:
                 % Enrico's function #2
                 if isempty(TargetInd)
