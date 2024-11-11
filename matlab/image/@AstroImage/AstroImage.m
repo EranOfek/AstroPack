@@ -1937,7 +1937,7 @@ classdef AstroImage < Component
                     warning('Note that the IsBackSubtracted property in the ImageComponent of AstroImage %d is set to true - subtracting anyhow',Iobj);
                     Sub = true;
                 else
-                    if Args.Obj(Iobj).ImageData.IsBackSubtracted
+                    if Obj(Iobj).ImageData.IsBackSubtracted
                         Sub = false;
                     else
                         Sub = true;
