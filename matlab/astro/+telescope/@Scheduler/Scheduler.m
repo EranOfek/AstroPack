@@ -941,8 +941,8 @@ classdef Scheduler < Component
             
             arguments
                 S
-                Args.TargetList    = []; % current target list: file name or table
-                Args.SaveTargetList logical  = true;
+                %Args.TargetList     % current target list: file name or table | must be provided
+                Args.SaveTargetList  = [];  % if empty, will not save target list - otherwise path and file name of file to save
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
@@ -1002,7 +1002,8 @@ classdef Scheduler < Component
                         % backup latest version of target list
                         if Args.SaveTargetList
                             Tbl = S.List.Table;
-                            save('-v7.3','TargetList.mat','Tbl');
+                            %save('-v7.3','TargetList.mat','Tbl');
+                            save('-v7.3',Args.SaveTargetList,'Tbl');
                         end
                         
                         % observation log
@@ -1038,9 +1039,9 @@ classdef Scheduler < Component
             % Example: telescope.Scheduler.demon;
 
             arguments
-                Args.TargetList    = []; % current target list: file name or table
-                Args.SaveTargetList logical  = true;  % Save TargetList after each update.
-                Args.SetLastJD     = []; % if given than value will be inserted to LastJD
+                Args.TargetList       = '/home/ocs/Scheduler/TargetList.mat'; % current target list: file name or table, if [] then generate default LAST tiles
+                Args.SaveTargetList   = '/home/ocs/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
+                Args.SetLastJD        = []; % if given than value will be inserted to LastJD
                 Args.SetGlobalCounter = [];
                 Args.SetNightCounter  = [];
                 Args.AbortFile     = [];                      % abort file name including path
