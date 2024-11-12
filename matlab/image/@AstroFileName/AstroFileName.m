@@ -133,7 +133,7 @@ classdef AstroFileName < Component
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
         FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
-        
+        PATH_FIELDS     = ["SubDir", "BasePath", "BasePathRef", "Path"];
     end
     
     
@@ -151,6 +151,8 @@ classdef AstroFileName < Component
             %           file names based on the table columns (e.g., if the
             %           table have a 'CropID' column, then its content will
             %           be stored in the AstroFileName CropID property).
+            %           If this is an AstroFileName object, then it will be
+            %           returned as is as output.
             %          * ...,key,val,...
             %            'Path' - cd to this path prior to start the file
             %                   name ingestion (e.g., files location).
@@ -169,7 +171,9 @@ classdef AstroFileName < Component
             %                   'Files' - Treat the first input as a cell array,
             %                           a string array, or char array of
             %                           file names that will be parsed.
-            %                   Default is 'Files'.
+            %                   'auto' - If files contains '*', then will
+            %                           set to 'template', otherwise 'files'.
+            %                   Default is 'auto'.
             %            'ReadJD' - If input is a table, then this is a
             %                   logical indicating if to try and read a
             %                   table column nmae JD, into the JD property.
@@ -216,7 +220,7 @@ classdef AstroFileName < Component
             arguments
                 Files                = 1;  
                 Args.Path            = [];
-                Args.Method          = 'files';
+                Args.Method          = 'auto'; %'files';
                 Args.ReadJD logical  = true;
                 Args.JD2Time logical = false;
                 Args.TableCol        = [];
@@ -239,6 +243,7 @@ classdef AstroFileName < Component
                 if numel(Files)>1
                     Obj = reshape(Obj, Files);
                 end
+            
             elseif istable(Files)
                 % Input is a table
               
@@ -306,9 +311,18 @@ classdef AstroFileName < Component
                         end
                     end
                 end
-                
+            elseif isa(Files, 'AstroFileName')
+                Obj = Files;
             else
                 % Input is a string, char, cell
+                if strcmpi(Args.Method, 'auto')
+                    if any(contains(Files, '*'))
+                        Args.Method = 'template';
+                    else
+                        Args.Method = 'files';
+                    end
+                end
+
                 switch lower(Args.Method)
                     case 'files'
                         [Obj] = AstroFileName.parseString2AstroFileName(Files, true);
@@ -634,6 +648,128 @@ classdef AstroFileName < Component
             
         end
         
+        function Result=fileTemplate(Args)
+            % Generate (a single) file template name with optional wild cards based on specific literals.
+            % Input  : * ...,key,val,...
+            %            All the literals with their values:
+            %            'ProjName' - Default is 'LAST.*'
+            %            'Time' - Default is '*'
+            %            'Filter' - Default is '*'
+            %            'FieldID' - Default is '*'
+            %            'Counter' - Default is '*'
+            %            'CCDID' - Default is '*'
+            %            'CropID' - Default is '*'
+            %            'Type' - Default is 'sci'
+            %            'Level' - Default is 'coadd'
+            %            'Product' - Default is 'Image'
+            %            'Version' - Default is '*'
+            %            'FileType' - Default is 'fit*'
+            %             
+            %            'Path' - If not empty, then will concat this path
+            %                   to the file name. Default is ''.
+            % Output : - A char array of template file name.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: AstroFileName.fileTemplate
+            %          AstroFileName.fileTemplate('Level','proc')
+
+            arguments
+                Args.ProjName = "LAST.*"
+                Args.Time     = '*';
+                Args.Filter   = '*';
+                Args.FieldID  = '*';
+                Args.Counter  = '*';
+                Args.CCDID    = '*';
+                Args.CropID   = '*';
+                Args.Type     = 'sci';
+                Args.Level    = 'coadd';
+                Args.Product  = 'Image';
+                Args.Version  = '*';
+                Args.FileType = 'fit*';
+                Args.Path     = '';
+            end
+
+            %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+
+            Result = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s', Args.ProjName, Args.Time, Args.Filter, Args.FieldID, Args.Counter, Args.CCDID, Args.CropID, Args.Type, Args.Level, Args.Product, Args.Version, Args.FileType);
+
+            if ~isempty(Args.Path)
+                Result = sprintf('%s%s%s',Args.Path, filesep, Result);
+            end
+        end
+
+        function [Result,FileTemplate] = dirLiteral(Args)
+            % dir like function with user provided literals that returns a populated AstroFileName.
+            %   While in the dir command the user specify the file
+            %   template, in this command the user specify required literals
+            %   e.g., 'Level'='proc'.
+            % Input  : * ...,key,val,...
+            %            All the literals with their values:
+            %            'ProjName' - Default is 'LAST.*'
+            %            'Time' - Default is '*'
+            %            'Filter' - Default is '*'
+            %            'FieldID' - Default is '*'
+            %            'Counter' - Default is '*'
+            %            'CCDID' - Default is '*'
+            %            'CropID' - Default is '*'
+            %            'Type' - Default is 'sci'
+            %            'Level' - Default is 'coadd'
+            %            'Product' - Default is 'Image'
+            %            'Version' - Default is '*'
+            %            'FileType' - Default is 'fit*'
+            %             
+            %            'Path' - If not empty, then will concat this path
+            %                   to the file name. Default is ''.
+            % Output : - An AstroFileName object array with element per
+            %            requested directory in path.
+            %          - A char array of template file name.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: AstroFileName.dirLiteral
+            %          AstroFileName.dirLiteral('Level','proc')
+            %          AstroFileName.dirLiteral('Level','proc', 'Path',P)
+            
+            arguments
+                Args.ProjName = "LAST.*"
+                Args.Time     = '*';
+                Args.Filter   = '*';
+                Args.FieldID  = '*';
+                Args.Counter  = '*';
+                Args.CCDID    = '*';
+                Args.CropID   = '*';
+                Args.Type     = 'sci';
+                Args.Level    = 'coadd';
+                Args.Product  = 'Image';
+                Args.Version  = '*';
+                Args.FileType = 'fit*';
+                Args.Path     = '';
+            end
+            
+            ArgsCell = namedargs2cell(Args);
+
+            if isempty(Args.Path)
+                
+                FileTemplate = AstroFileName.fileTemplate(ArgsCell{:});
+                Result = AstroFileName.dir(FileTemplate);
+            else
+                if ischar(Args.Path)
+                    Args.Path = {Args.Path};
+                end
+                Npath = numel(Args.Path);
+                
+                PWD = pwd;
+                
+                FileTemplate = AstroFileName.fileTemplate(ArgsCell{:}, 'Path','');
+
+                for Ipath=1:1:Npath
+                    cd(Args.Path{Ipath});
+                    
+                    Result(Ipath) = AstroFileName.dir(FileTemplate);
+                end
+                cd(PWD);
+            end
+
+        end
+
+
         % Done
         function Result=getValFromFileName(File,Prop)
             % Get specific proprty from file name
@@ -1197,6 +1333,31 @@ classdef AstroFileName < Component
             end
 
         end
+    
+        function repProp(Obj)
+            % Make sure that the length of all FIELDS and PATH_FIELDS is the same by repmat these fields.
+            % Input  : - self.
+            % Output : - An AstroFileName object in which all the file/path
+            %            literal fields have the same length as the 'Time'
+            %            field.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: A.repProp
+
+            AllFields = [AstroFileName.FIELDS, AstroFileName.PATH_FIELDS];
+            Nf        = numel(AllFields);
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Ntime = nFiles(Obj(Iobj));
+                for If=1:1:Nf
+                    if numel(Obj(Iobj).(AllFields{If}))==1
+                        Obj(Iobj).(AllFields{If}) = repmat(Obj(Iobj).(AllFields{If}), Ntime, 1);
+                    end
+                end
+            end
+
+        end
+    
     end
 
     methods % generate file names and path
@@ -1632,7 +1793,7 @@ classdef AstroFileName < Component
             PWD = pwd;
             cd(Path);
             
-            VisitPat = insertWildcard(Obj, Ind, 'List', ["Time","Counter"]);
+            VisitPat = insertWildCards(Obj, Ind, 'List', ["Time","Counter"]);
             % get JD of the requested image
             JD       = Obj.julday;
             JD       = JD(Ind);

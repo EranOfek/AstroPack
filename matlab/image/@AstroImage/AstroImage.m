@@ -669,6 +669,21 @@ classdef AstroImage < Component
             end
         end
         
+        function Result = readProducts(Files, Args)
+            % Read all products associated with an image
+
+            arguments
+                Files      % AstroFileName object
+                Args.Level  = 'coadd';
+                Args.CropID = [];
+                Args.CCDID  = [];
+            end
+
+            
+
+
+        end
+
         function Result = readFileNamesObj(ObjFN, Args)
             % Read the images and products associated with an image contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
