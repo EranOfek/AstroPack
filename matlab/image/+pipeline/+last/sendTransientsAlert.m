@@ -68,6 +68,10 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Dec = Transient.CatData.getCol('Dec');
         JD = Transient.CatData.getCol('JD');
         JD0 = Transient.New.julday;
+        Mount = Transient.CatData.getCol('MOUNT');
+        Camera = Transient.CatData.getCol('CAM');
+        CropID = Transient.CatData.getCol('CROPID');
+        Object = Transient.CatData.getCol('OBJECT');
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
@@ -86,12 +90,24 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Score0 = Score(Ind0);
         Mag0 = Mag(Ind0);
 
+        Mount0 = Mount(Ind0);
+        Camera0 = Camera(Ind0);
+        CropID0 = CropID(Ind0);
+        Object0 = Object(Ind0);
+
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
             DateString{1}, {' '},...
             'and RA, Dec =',{' '},sprintf('%.7f',RA0),',',sprintf('%.7f',Dec0),{' '}, ...
             'with a score of',{' '},sprintf('%.2f',Score0),{' '},...
             'and magnitude of',{' '},sprintf('%.2f',Mag0),'.');
+
+        TelTarget_Msg = strcat('Discovered by M',sprintf('%.0i',Mount0),...
+            'C',sprintf('%.0i',Camera0),{' '},'in sub-image',{' '},...
+            sprintf('%.0i',CropID0),{' '},'of field',{' '},...
+            sprintf('%.0i',Object0),'.');
+
+        Msg{1} = strcat(Msg{1},'\n',TelTarget_Msg{1});
 
         % Construct a LC with points and upper limits
         LC_UL = 0;
@@ -155,13 +171,32 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 GalDist*1.5, 'OutType','AstroCatalog');
     
             if GLADEpCat.sizeCatalog > 0
+
+                Rad2Arcsec = 206265;
+                Arcsec2Rad = 4.84814e-6;
+
+                GLADEpCat.sortrows('Dec');
+    
+                [GladeLon, GladeLat] = GLADEpCat.getLonLat('rad');
+        
+                MatchResGlade = VO.search.search_sortedlat_multi( ...
+                    [GladeLon, GladeLat], RA0*pi/180, Dec0*pi/180, ...
+                    -GalDist*1.5*Arcsec2Rad);
+        
+                MatchesGlade = vertcat(MatchResGlade.Nmatch);
+    
+                DistsGlade = arrayfun(@(a)min(a.Dist),MatchResGlade(MatchesGlade > 0));
+        
+                GalDists = Rad2Arcsec * DistsGlade;
+                GalDist = min(GalDists);
+
                 Bmag = GLADEpCat.getCol('B');
                 Redshift = GLADEpCat.getCol('z_cmb');
 
                 Gal_Msg = strcat('Potential host;', {' '}, ...
                     sprintf('%.2f',GalDist), {' '},'arcsec away,', {' '}, ...
-                    sprintf('%.2f',Bmag),{' '},'quiescient Bmag,',{' '}, ...
-                    sprintf('%.3f',Redshift),{' '},'redshift.');
+                    sprintf('%.2f',Bmag(GalDists==GalDist)),{' '},'quiescient Bmag,',{' '}, ...
+                    sprintf('%.3f',Redshift(GalDists==GalDist)),{' '},'redshift.');
                 Msg{1} = strcat(Msg{1},'\n',Gal_Msg{1});
             end
         end

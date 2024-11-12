@@ -102,7 +102,12 @@ function match2Stars(Obj, StarCat, Args)
     end
 
     StarCat.insertCol(cast(DistThresholdPerStar,'double'), ...
-            Inf, {'DistThresh'}, {''})
+            Inf, {'DistThresh'}, {''});
+
+    % For performance, split initial catalog in two; 1) stars with smaller
+    % distance thresholds (< mean+3std; majority), and 2) stars with larger
+    % distance thresholds (rest, minority). This way we do not appy the
+    % initial rough match with the largest threshold on all stars (very slow).
 
     MeanDist = mean(DistThresholdPerStar);
     StdDist = std(DistThresholdPerStar);
@@ -114,7 +119,6 @@ function match2Stars(Obj, StarCat, Args)
 
     Nobj = numel(ACObj);
 
-    
     for Iobj=1:1:Nobj
 
         CatSize = size(ACObj(Iobj).Catalog,1);

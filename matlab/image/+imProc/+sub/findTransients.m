@@ -272,7 +272,6 @@ function TranCat=findTransients(AD, Args)
                 cell2mat({N_JD, R_JD}), 'SCORE',...
                 {'JD', 'R_JD'}, ...
                 {'JD','JD'});
-            
         end
 
         if Args.includeGaborSN && ~isempty(AD(Iobj).GaborSN)

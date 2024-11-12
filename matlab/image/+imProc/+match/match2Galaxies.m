@@ -57,6 +57,7 @@ function match2Galaxies(Obj, Args)
             warning('Object class not supported.')
     end
 
+    Rad2Arcsec = 206265;
     Arcsec2Rad = 4.84814e-6;
 
     Nobj = numel(ACObj);
@@ -96,6 +97,9 @@ function match2Galaxies(Obj, Args)
                 MidRA, MidDec, SearchRadiusGlade, ...
                 'RadiusUnits',Args.RadiusGladeUnits, 'OutType','AstroCatalog');
 
+        MatchesGlade = zeros(CatSize,1);
+        DistancesGlade = NaN(CatSize,1);
+
         if GladeCat.sizeCatalog > 0
         
             GladeCat.sortrows('Dec');
@@ -106,15 +110,10 @@ function match2Galaxies(Obj, Args)
                 [GladeLon, GladeLat], RA, Dec, -Args.RadiusGlade*Arcsec2Rad);
     
             MatchesGlade = vertcat(MatchResGlade.Nmatch);
-            DistancesGlade = NaN(CatSize,1);
+
+            DistsGlade = arrayfun(@(a)min(a.Dist),MatchResGlade(MatchesGlade > 0));
     
-            if any(MatchesGlade > 0)
-                DistancesGlade(MatchesGlade > 0) = arrayfun(@(a)min(a.Dist), ...
-                    MatchResGlade(MatchesGlade > 0));
-            end
-        else
-            MatchesGlade = zeros(CatSize,1);
-            DistancesGlade = NaN(CatSize,1);
+            DistancesGlade(MatchesGlade > 0) = Rad2Arcsec * DistsGlade;
         end
        
         % PGC matches will be refined for roughly matched entries
@@ -126,26 +125,20 @@ function match2Galaxies(Obj, Args)
                 MidRA, MidDec, SearchRadiusPGC, ...
                 'RadiusUnits',Args.RadiusPGCUnits, 'OutType','AstroCatalog');
 
+        MatchesPGC = zeros(CatSize,1);
+        DistancesPGC = NaN(CatSize,1);
+        
         if PGCCat.sizeCatalog > 0
 
             PGCCat.sortrows('Dec');
     
-            [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
+            [PGCLon, PGCLat] = PGCCat.getLonLat();
             
             MatchResPGC = VO.search.search_sortedlat_multi( ...
                 [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC*Arcsec2Rad);
     
             MatchesPGC = vertcat(MatchResPGC.Nmatch);
-            DistancesPGC = NaN(CatSize,1);
-            
-            if any(MatchesPGC > 0)
-                DistancesPGC(MatchesPGC > 0) = arrayfun(@(a)min(a.Dist), ...
-                    MatchResPGC(MatchesPGC > 0));
-            end
-        else
-            MatchesPGC = zeros(CatSize,1);
-            DistancesPGC = NaN(CatSize,1);
-        end
+         end
         
         % Skip entries that have no rough PGC matches
         if ~any(MatchesPGC>0)
@@ -161,32 +154,30 @@ function match2Galaxies(Obj, Args)
             continue
         end
 
-        for Itran = 1:1:CatSize
+        GalRadius = 3.*10.^(PGCCat.Table.LogD25);
+        
+        for Isrc = 1:1:CatSize
 
-            if MatchesPGC(Itran) < 1
+            Match = MatchResPGC(Isrc);
+
+            if MatchesPGC(Isrc) < 1
                 continue
             end
-    
-            % Cone search for each rough PGC match.
-            CatPGC = catsHTM.cone_search(Args.PGCCatName, ...
-                RA(Itran), Dec(Itran), Args.RadiusPGC, ...
-                'RadiusUnits',Args.RadiusPGCUnits, 'OutType','AstroCatalog');
 
             % Compare the distance to galaxy size
-            if ~CatPGC.isemptyCatalog
-                Dist    = CatPGC.sphere_dist(...
-                    RA(Itran), Dec(Itran), 'rad', 'arcsec');
-                
-                GalRadius = 3.*10.^(CatPGC.Table.LogD25);
+            DistsPGC    = celestial.coo.sphere_dist_fast(...
+               PGCLon(Match.Ind), PGCLat(Match.Ind), RA(Isrc), Dec(Isrc));
+            DistsPGC = DistsPGC * Rad2Arcsec; 
 
-                % Update matches
-                % If there are no matches, update nearest distance to NaN.
-                MatchesPGC(Itran) = sum(Dist<GalRadius);
-                if isempty(Dist) || ~any(Dist<GalRadius)
-                    DistancesPGC(Itran) = NaN;
-                end
-            end 
+            GalRadIsrc = GalRadius(Match.Ind);
+            
+            % Update matches
+            % If there are no matches, update nearest distance to NaN.
+            MatchesPGC(Isrc) = sum(DistsPGC<GalRadIsrc);
 
+            if any(DistsPGC<GalRadIsrc)
+                DistancesPGC(Isrc) = min(DistsPGC);
+            end
         end
 
         % If GLADE and PGC results should be merged, take the sum for
