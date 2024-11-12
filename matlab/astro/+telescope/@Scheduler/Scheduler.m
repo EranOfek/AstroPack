@@ -958,6 +958,8 @@ classdef Scheduler < Component
             if isfile(Args.ToO_File)
                 S.loadTable(Args.ToO_File, 'merge_replace');
                 delete(Args.ToO_File);
+                S.Logger.msgLog(LogLevel.Info,...
+                  sprintf('New targets from %s have been ingested',Args.ToO_File))
             end
             
             % Check if scheduling is required and if so for which mount
@@ -980,7 +982,7 @@ classdef Scheduler < Component
                 TargetInd=[];
                 try
                     % this can fail because of nearly concomitant requests
-                    %  serviced out of order, and give "JD must be larger then LastJD"
+                    %  serviced out of order, and give "JD must be larger than LastJD"
                     %  See https://github.com/EranOfek/AstroPack/issues/510
                     [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
                             'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
@@ -1313,7 +1315,7 @@ classdef Scheduler < Component
             % Input  : - Self.
             %          - JD. If empty, use object JD. Default is [].
             % Output : - A vector of logical flags (per target) indicating
-            %            if each target distance from the Moon is larger then
+            %            if each target distance from the Moon is larger than
             %            the minium distance interpolated from the
             %            MoonConstraints property (distance as a function
             %            of illumination).
@@ -1883,7 +1885,7 @@ classdef Scheduler < Component
             In0          = find(~Fnc0);
             
             if any((JD-LastJD)<0)
-                error('JD must be larger then LastJD');
+                error('JD must be larger than LastJD');
             end
             W(Inc0) = telescope.Scheduler.fermiExpWeight(JD-LastJD(Inc0), 'Cadence', Obj.List.Catalog.Cadence(Inc0),...
                                                             'WeightHigh',Obj.List.Catalog.WeightHigh(Inc0),...
