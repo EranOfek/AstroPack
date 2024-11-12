@@ -10,7 +10,7 @@ function MS=forcedPhotAll(Args)
     % MS=pipeline.last.forcedPhotAll('Coo',[50.0452635724,+8.748787337]);
    
     arguments
-        Args.BasePath       = @pipeline.last.constructCamDir;  % if empty use pwd
+        Args.BasePath       = @pipeline.last.path.constructCamDir;  % if empty use pwd
         Args.DataDir        = 1;
         Args.BasePathArgs   = {'SubDir','2023/03/'};
         Args.FileTemp       = 'LAST*_089+48_*_sci_proc_Image_*.fits';

@@ -31,7 +31,10 @@ function [CI, AI] = coaddVisits(In, Args)
     %          F=strcmp(T.FieldID,"1441");
     %
     %          CI=pipeline.last.coaddVisits(T(F,:),'CropID',10);
-    %          
+    %       
+    %          load LAST_Visits.mat
+    %          F=strcmp(OT.FieldID,"1441") &OT.CropID==10 & OT.FWHM<2.8;
+    %          CI=pipeline.last.coaddVisits(OT(F,:),'CropID',10);
 
     arguments
         In
@@ -50,23 +53,25 @@ function [CI, AI] = coaddVisits(In, Args)
 
     % Construct paths for visits
     if istable(In)
-        Mount = In.MountNum;
-        Cam   = In.CamNum;
-        Visit = In.Visit;
-        Year  = In.Year;
-        Month = In.Month;
-        Day   = In.Day;
-        N = numel(Day);
-        List = strings(N,1);
-        for I=1:1:N
-            ProjectID = sprintf('%s.%02d.%02d.%02d', Args.ProjName, Args.NodeNum, Mount(I), Cam(I));
-            List(I) = fullfile(Args.BasePath, ProjectID, sprintf('%04d',Year(I)), sprintf('%02d',Month(I)), sprintf('%02d',Day(I)), 'proc', Visit(I));
-        end
+        % Mount = In.Mount; %In.MountNum;
+        % Cam   = In.Camera; %In.CamNum;
+        % Visit = In.Visit;
+        % Year  = In.Year;
+        % Month = In.Month;
+        % Day   = In.Day;
+        % N = numel(Day);
+        % List = strings(N,1);
+        % for I=1:1:N
+        %     ProjectID = sprintf('%s.%02d.%02d.%02d', Args.ProjName, Args.NodeNum, Mount(I), Cam(I));
+        %     List(I) = fullfile(Args.BasePath, ProjectID, sprintf('%04d',Year(I)), sprintf('%02d',Month(I)), sprintf('%02d',Day(I)), 'proc', Visit(I));
+        % end
 
+        AFN  = AstroFileName(In, 'JDCol','MIDJD', 'SubDirCol','Visit');
+        List = AFN.genPath([],'AddSubDir',true);
     else
         List = In;
-        N    = numel(List);
     end
+    N    = numel(List);
 
     Ncrop = numel(Args.CropID);
 

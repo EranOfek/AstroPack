@@ -17,7 +17,7 @@ function [BasePath, CalibDir, NewFilesDir, ProjName] = constructArchiveDir(Args)
     %          - NewFilesDir
     %          - ProjName
     % AUthor : Eran Ofek (Sep 2022)
-    % Example: [BasePath, CalibDir, NewFilesDir, ProjName] = pipeline.last.constructArchiveDir
+    % Example: [BasePath, CalibDir, NewFilesDir, ProjName] = pipeline.last.path.constructArchiveDir
 
     
     arguments

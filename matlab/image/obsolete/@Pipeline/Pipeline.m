@@ -27,9 +27,9 @@ classdef Pipeline < Component
 %%%% change name to PipelineOp
 
         % ???
-        ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+        ImagesPath         = @pipeline.last.path.constructCamDir;  % bias images are in this dir ('.'=current dir)
         ArgsImagesPath     = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
-        CalibPath          = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+        CalibPath          = @pipeline.last.path.constructCamDir;  % bias images are in this dir ('.'=current dir)
         ArgsCalibPath      = {1,'Node',1, 'SubDir','calib', 'ProjNamebase','LAST'};
         
         BasePath           

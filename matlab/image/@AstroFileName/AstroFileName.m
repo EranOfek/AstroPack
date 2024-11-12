@@ -56,6 +56,12 @@
 % % move/copy/delete images
 % A.moveImages
 %
+% % Example with tables - read from visit table:
+% load LAST_Visits.mat;                    
+% F=strcmp(OT.FieldID,"1441") &OT.CropID==10 & OT.FWHM<2.8;
+% A=AstroFileName(OT(F,:),'JDCol','MIDJD');
+% A.genPath([],'AddSubDir',true)
+%
 
 classdef AstroFileName < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
@@ -181,6 +187,19 @@ classdef AstroFileName < Component
             %            'JDCol' - If input is table or AstroCatalog,
             %                   then this is the JD column name in the
             %                   table. Default is 'JD'.
+            %            'SubDirCol' - If input is table or AstroCatalog,
+            %                   then this is the SubDir column name in the
+            %                   table. Default is 'Visit'.
+            %            'ProjNameBase' - A string containing the base
+            %                   ProjName. This string will be concat to the
+            %                   columns in ProjNameCols to create the
+            %                   ProjName. Default is 'LAST'.
+            %            'ProjNameCols' - A string array of column names
+            %                   containing the literals of project names
+            %                   following the base.
+            %                   If ProjNameBase and ProjNameCols are empty,
+            %                   then ProjName will not be populated.
+            %                   Default is ["Node","Mount","Camera"]
             %
             % Output : - An AstroFileName object.
             % Author : Eran Ofek (Oct 2024)
@@ -195,13 +214,16 @@ classdef AstroFileName < Component
             %          A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
             
             arguments
-                Files       = 1;  
-                Args.Path   = [];
-                Args.Method = 'files';
+                Files                = 1;  
+                Args.Path            = [];
+                Args.Method          = 'files';
                 Args.ReadJD logical  = true;
                 Args.JD2Time logical = false;
                 Args.TableCol        = [];
-                Args.JDCol           = 'JD'
+                Args.JDCol           = 'JD';
+                Args.SubDirCol       = 'Visit';
+                Args.ProjNameBase    = 'LAST';
+                Args.ProjNameCols    = ["Node","Mount","Camera"];
             end
           
 
@@ -234,6 +256,7 @@ classdef AstroFileName < Component
                         Obj.(Fields{Ifield}) = Files.(TableCol{Ifield});
                     end
                 end
+                % Read JD
                 if Args.ReadJD
                     Field = 'JD';
                     if tools.table.isColumn(Files, Args.JDCol)
@@ -243,6 +266,19 @@ classdef AstroFileName < Component
                         end
                     end
                 end
+                % Read SubDir
+                Field = 'SubDir';
+                if tools.table.isColumn(Files, Args.SubDirCol)
+                    Obj.(Field) = Files.(Args.SubDirCol);
+                end
+                % Read ProjName
+                if ~isempty(Args.ProjNameBase) && ~isempty(Args.ProjNameCols)
+                    % Return a cell array of numeric columns:
+                    CellArray = tools.table.table2cellOfCols(Files(:,Args.ProjNameCols));
+                    
+                    Obj.ProjName = [Args.ProjNameBase, CellArray];
+                end
+
                 
             elseif isa(Files, 'AstroCatalog')
                 % Input is an AstroCatalog
@@ -455,21 +491,37 @@ classdef AstroFileName < Component
             % Format project name strings array
             %   convert {"LAST",1,2,3} to: "LAST.01.02.03"
             % Input  : - Cellarray ProjName. E.g., {"LAST",1,2,3}
+            %            Numeric values can be either scalars or vectors.
+            %            If vectors then will generate an array of
+            %            ProjName.
             %          - Format. E.g., "%02d"
             % Output : - ProjName string
             % Author : Eran Ofek (Oct 2024)
             % Example: AstroFileName.formatCellProjName({"LAST",1,2,3},"%02d")
+            %          A.ProjName = {'LAST',1,[2 1],[1 2]}
 
             if ~iscell(ProjName)
                 error('Works only on cell ProjName input');
             end
             
             N = numel(ProjName);
+            
             if N>1
-                Result = ProjName{1};
+                IsNumeric = cellfun(@isnumeric, ProjName);
+                Nel       = cellfun(@numel, ProjName);
+                NelNum    = IsNumeric.*Nel;
+                Nproj     = max(1, max(NelNum));
+
                 Format = sprintf("%%s.%s", Format);
-                for I=2:1:N
-                    Result = sprintf(Format, Result, ProjName{I});
+
+                Result = strings(Nproj,1);
+                for Iproj=1:1:Nproj
+                    Result(Iproj) = ProjName{1};
+
+                    for I=2:1:N
+                        Iline = min(NelNum(I), Iproj);
+                        Result(Iproj) = sprintf(Format, Result(Iproj), ProjName{I}(Iline));
+                    end
                 end
             end
         end
@@ -1306,7 +1358,7 @@ classdef AstroFileName < Component
             %          A.genPath([], 'PathType','ref')
            
             arguments
-                Obj
+                Obj(1,1)
                 Ind                   = 1;
                 Args.PathType         = 'proc';  % 'new'|'calib'|'failed'|'proc'|'raw'|'ref'
                 Args.BasePathIncludeProjName = [];
@@ -1323,6 +1375,10 @@ classdef AstroFileName < Component
                 AddSubDir = Args.AddSubDir;
             end
             
+            if isempty(Obj.Time)
+                Obj.julday2time;
+            end
+
             if isempty(Obj.Path)
                 % Construct Path based on available properties:
                 

@@ -7,10 +7,10 @@ function [ResultAllCams] = pointingModel_Solve(Files, Args)
     %          * ...,key,val,...
     %            see code.
     % Author : Eran Ofek & Nora Strotjohann (Jan 2024)
-    % Example: [R] = pipeline.last.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[25 01 2024 18 33 00],'EndDate',[25 01 2024 19 00 00]);
+    % Example: [R] = pipeline.last.pointing.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[25 01 2024 18 33 00],'EndDate',[25 01 2024 19 00 00]);
     %          To test an existing pointing model solve astrometry for data 
     %          with applied pointing model and quantify the size of the residuals.
-    %          [R] = pipeline.last.pointingModel_Solve('LAST*_withPM*sci*.fits','StartDate',[25 01 2024 22 00 00],'EndDate',[25 01 2024 23 10 00],'SaveName','/home/ocs/PMResidualsAstrometry.mat');
+    %          [R] = pipeline.last.pointing.pointingModel_Solve('LAST*_withPM*sci*.fits','StartDate',[25 01 2024 22 00 00],'EndDate',[25 01 2024 23 10 00],'SaveName','/home/ocs/PMResidualsAstrometry.mat');
    
     arguments
         Files             = 'LAST*_PointingModel*sci*.fits';

@@ -7,7 +7,7 @@ function Path = constructCamDir(CameraNumber, Args)
     %            'ProjNameBase' - Default is 'LAST'.
     % Output : - Path to camera data.
     % Author : Eran Ofek (Dec 2022)
-    % Example: Path = pipeline.last.constructCamDir(1)
+    % Example: Path = pipeline.last.path.constructCamDir(1)
     
     arguments
         CameraNumber       = 1;

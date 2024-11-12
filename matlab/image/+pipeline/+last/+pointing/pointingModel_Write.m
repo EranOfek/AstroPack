@@ -10,8 +10,8 @@ function [Result] = pointingModel_Write(R1, Args)
     %            See code
     % Output : - 
     % Author : Eran Ofek & Nora Strotjohann (2024 Jan) 
-    % Example: Res=pipeline.last.pointingModel_Write(R1);
-    %          Res=pipeline.last.pointingModel_Write(R1, 'SaveName','/home/ocs/PMResiduals.txt');
+    % Example: Res=pipeline.last.pointing.pointingModel_Write(R1);
+    %          Res=pipeline.last.pointing.pointingModel_Write(R1, 'SaveName','/home/ocs/PMResiduals.txt');
 
     arguments
         R1                    

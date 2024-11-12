@@ -11,7 +11,7 @@ function cleanVisitsVer(Args)
     %
     % Output : null
     % Author : Eran Ofek (2024 Jul) 
-    % Example: pipeline.last.cleanVisitsVer
+    % Example: pipeline.last.archiveMaintenance.cleanVisitsVer
 
     arguments
         Args.BasePath                 = '/marvin/LAST.01.01.01';
