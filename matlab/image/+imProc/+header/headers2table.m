@@ -86,6 +86,9 @@ function [Result] = headers2table(Obj, Args)
         
         for Icol=1:1:Ncol
             Tmp = AH.getVal(ColName{Icol});
+            if isempty(Tmp)
+                Tmp = NaN;
+            end
             if ~isempty(ColFun{Icol})
                 Tmp = ColFun{Icol}(Tmp);     
             end
