@@ -1,16 +1,16 @@
 classdef uplanner < Component 
-    
+    % 
     properties(Access = public)
         Type                     % HCS, LCS, AllSS, DDT, TOO 
-        StartTime       
-        EndTime
-        Plan
-        UniqTargList
-        Vis 
+        StartTime                % start of the whole plan
+        EndTime                  %   end of the whole plan
+        Plan                     % target list 
+        UniqTargList             % unique target list
+        Vis                      % visibility matrix 
         
         % HCS, LCS
-        DailyWindow     
-        Cadence         
+        DailyWindow              % [hrs]    
+        Cadence                  % [hrs] 
         
         % AllSS
         AllSSHighLatThresh = 30; % |RA| [deg]
@@ -23,15 +23,18 @@ classdef uplanner < Component
         TOOMaxTargets      =  4;
         TOOProbMap      
         
+        N0                       % number of unique targets
+        Ntarg                    % number of targets
+        
         Scheduled                % date or empty
         Validated                % date or empty
         Status             = 'draft';
     end
-
+    % 
     properties(Access = private)
-        
-    end
-    %
+         
+    end 
+    % 
     methods  % Constructor
         function Obj = uplanner(Args)
             % object constructor
@@ -42,7 +45,7 @@ classdef uplanner < Component
                 Args.EndTime     = '2031-12-31T23:23:59';
                 
                 Args.PlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
-                                    'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets'};
+                                    'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets','Zody','Limmag'};
                 Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
                 
                 Args.DailyWindow = [];   % length in hours
@@ -52,11 +55,11 @@ classdef uplanner < Component
             end
             %
             if ~isempty(Args.StartTime) 
-                Obj.StartTime = Args.StartTime;
+                Obj.StartTime = Args.StartTime; 
             end
             %
             if ~isempty(Args.EndTime)             
-                Obj.EndTime   = Args.EndTime;
+                Obj.EndTime   = Args.EndTime; 
             end
             %
             if isempty(Args.Type)
@@ -77,14 +80,45 @@ classdef uplanner < Component
                 Obj.TOOMaxTargets = Args.TOOMaxTargets;
             end
             % 
-            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns); 
+            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns); 
             %
             Obj.UniqTargList = table([],[],[],[],[],[],[],'VariableNames', Args.TargColumns); 
             %
         end
-    end
+    end 
     %
     methods % Building the plans          
+        %
+        function buildHCS(Obj, RA, Dec, Args)
+            % build a plan for a list of DDT targets
+            arguments
+                Obj
+                RA               = 0; 
+                Dec              = 0;  
+                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
+                Args.Start 
+                Args.Stop 
+                Args.CooFile     = '';   % coordinate file name % ~/test.coo 
+            end
+            % read the coordinates of the HCS field 
+            if ~isempty(Args.CooFile)
+                Coo = readmatrix(Args.CooFile,'FileType','text');
+                Obj.UniqueTargList.RA = Coo(:,1); Obj.UniqueTargList.Dec = Coo(:,2);                
+            else
+                Obj.UniqueTargList.RA = RA;       Obj.UniqueTargList.Dec = Dec;
+            end              
+            Obj.N0 = numel(Obj.UniqueTargList.RA); % count the number of unique targets 
+            % given unique object coordinates, fill in the unique target list properties              
+            Obj.fillFieldProp                       
+            % set survey properties  
+            Obj.Cadence     = 300 / 3600; 
+            
+            Obj.DailyWindow = Args.DailyWindow;            
+            %
+            % show which observations in the existing plan are to be replaced 
+            % 
+            % 
+        end
         %
         function buildDDT(Obj, Args)
             % build a plan for a list of DDT targets
@@ -152,6 +186,18 @@ classdef uplanner < Component
             
             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
+        end
+        %
+        function fillFieldProp(Obj)
+            % given unique object coordinates, fill in the unique target list properties
+            RA = Obj.UniqueTargList.RA; Dec = Obj.UniqueTargList.Dec;
+            for iT = Obj.N0
+%             Obj.UniqueTargList.A_U    = 
+%             Obj.UniqueTargList.CalObj = 
+%             Obj.UniqueTargList.RefImageIDs = 
+%             Obj.UniqueTargList.ExtSurveys =
+%             Obj.UniqueTargList.FieldObj = 
+            end
         end
     end
     % 
