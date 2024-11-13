@@ -227,7 +227,7 @@ function match2Stars(Obj, StarCat, Args)
         DistancesAll = min(DistancesClose, Distances);
 
         % Update catalog with updated matches
-        ACObj(Iobj).replaceCol(MatchesAll, Args.ColNmatchName)
+        ACObj(Iobj).replaceCol(MatchesAll, Args.ColNmatchName);
         ACObj(Iobj).replaceCol(DistancesAll, Args.ColDistName);
     end
 

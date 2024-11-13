@@ -28,6 +28,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.SavePath = '';
 
         Args.SingleEpochThresh = 8.0;
+        Args.thisIsATest = false;
 
     end
 
@@ -102,10 +103,14 @@ function [Status] = sendTransientsAlert(ADc, Args)
             'with a score of',{' '},sprintf('%.2f',Score0),{' '},...
             'and magnitude of',{' '},sprintf('%.2f',Mag0),'.');
 
-        TelTarget_Msg = strcat('Discovered by M',sprintf('%.0i',Mount0),...
-            'C',sprintf('%.0i',Camera0),{' '},'in sub-image',{' '},...
+        if Args.thisIsATest
+            Msg{1} = strcat(':wrench: This is a test :wrench:\n',Msg{1});
+        end
+
+        TelTarget_Msg = strcat('Discovered in sub-image',{' '},...
             sprintf('%.0i',CropID0),{' '},'of field',{' '},...
-            sprintf('%.0i',Object0),'.');
+            sprintf('%.0i',Object0),{' '},'by M',sprintf('%.0i',Mount0),...
+            'C',sprintf('%.0i',Camera0),{' '},'.');
 
         Msg{1} = strcat(Msg{1},'\n',TelTarget_Msg{1});
 
@@ -193,10 +198,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 Bmag = GLADEpCat.getCol('B');
                 Redshift = GLADEpCat.getCol('z_cmb');
 
-                Gal_Msg = strcat('Potential host;', {' '}, ...
-                    sprintf('%.2f',GalDist), {' '},'arcsec away,', {' '}, ...
-                    sprintf('%.2f',Bmag(GalDists==GalDist)),{' '},'quiescient Bmag,',{' '}, ...
-                    sprintf('%.3f',Redshift(GalDists==GalDist)),{' '},'redshift.');
+                Gal_Msg = strcat('There is a potential host', {' '}, ...
+                    sprintf('%.2f',GalDist), {' '},'arcsec away.', {' '},...
+                    'It has a redshift of', {' '}, sprintf('%.3f',Redshift(GalDists==GalDist)),{' '},...
+                    'and a quiescient Bmag of', {' '}, sprintf('%.2f',Bmag(GalDists==GalDist)),...
+                    '.');
                 Msg{1} = strcat(Msg{1},'\n',Gal_Msg{1});
             end
         end
@@ -208,8 +214,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         % Add a SDDS SkyServer link.
         TranCat0 = Transient.CatData.selectRows(Ind0);
         SDSSLink = imProc.vo.getLinkForSource(TranCat0,[], @VO.SDSS.navigator_link);
-        SDSS_Msg = strcat('<',SDSSLink.Link,'|','Check ', {' '},'SkyServer>');
-        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
+        SDSS_Msg = strcat('<',SDSSLink.Link,'|','SkyServer>');
+        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg);
 
         % Add a PS1 link.
         PlusSign = '';
@@ -218,22 +224,29 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
         PS1Link =  strcat('https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=', ...
             num2str(RA0),PlusSign,num2str(Dec0),'&filter=color&size=720');
-        PS1_Msg = strcat('<',PS1Link,'|','Check ', {' '},'PS1>');
-        Msg{1} = strcat(Msg{1},'\n',PS1_Msg{1});
+        PS1_Msg = strcat('<',PS1Link,'|','PS1>');
+        Msg{1} = strcat(Msg{1},'-',PS1_Msg);
 
         % Add a Simbad link.
         SimbadLink =  strcat('http://simbad.u-strasbg.fr/simbad/',...
             'sim-coo?protocol=html&NbIdent=1&Radius=1&Radius.unit=arcmin',...
             '&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=', ...
             num2str(RA0),PlusSign,num2str(Dec0));
-        Simbad_Msg = strcat('<',SimbadLink,'|','Check ', {' '},'Simbad>');
-        Msg{1} = strcat(Msg{1},'\n',Simbad_Msg{1});
+        Simbad_Msg = strcat('<',SimbadLink,'|','Simbad>');
+        Msg{1} = strcat(Msg{1},'-',Simbad_Msg);
+
+        % Add a JPL horizons link.
+        [~,HorizonsLink] = celestial.SolarSys.getJPL_smallBodyByCoo(...
+            RA0,Dec0,[DT(3) DT(2) DT(1) DT(4) DT(5) floor(DT(6))],...
+            'Execute',false);
+        Horizons_Msg = strcat('<',HorizonsLink,'|','Horizons>');
+        Msg{1} = strcat(Msg{1},'-',Horizons_Msg);
 
         % Add a TNS link.
         TNSLink = strcat('https://www.wis-tns.org/search?ra=', ...
             num2str(RA0),'&decl=',num2str(Dec0),'&radius=10&coords_unit=arcsec');
-        TNS_Msg = strcat('<',TNSLink,'|','Check ', {' '},'TNS>');
-        Msg{1} = strcat(Msg{1},'\n',TNS_Msg{1});
+        TNS_Msg = strcat('<',TNSLink,'|','TNS>');
+        Msg{1} = strcat(Msg{1},'-',TNS_Msg);
 
         % If SavePath is given, make a stamp image.
         if ~isempty(Args.SavePath)
@@ -389,7 +402,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
             % Authorize post to slack channel.
         
-            CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg,'" }',"' https://slack.com/api/files.completeUploadExternal");
+            CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg{1},'" }',"' https://slack.com/api/files.completeUploadExternal");
         
             [~,CMD3out] = system(CMD3);
 

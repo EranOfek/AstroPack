@@ -10,7 +10,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     %            'CooUnits' - Units of input coordinates.
     %                   Default is 'deg'.
     %            'ObsCode' - Observatory code.
-    %                   Default is '972'
+    %                   Default is '097'
     %            'SearchRadius' - Search radius. Default is 1000.
     %            'SearchRadiusUnits' - Search radius units.
     %                   Default is 'arcsec'
@@ -32,7 +32,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         Dec(1,1)
         JD                     = [9 2 2021 0 0 0];
         Args.CooUnits          = 'deg';
-        Args.ObsCode           = '972';  % Wise observatory
+        Args.ObsCode           = '097';  % Wise observatory
         Args.LimMag            = 22;
         Args.SearchRadius      = 1000;
         Args.SearchRadiusUnits = 'arcsec';
@@ -49,7 +49,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         RA     = convert.angular(Args.CooUnits, 'rad', RA);
         RA_HMS = celestial.coo.convertdms(RA, 'r', 'H');
     end
-    StrRA = sprintf('%02d-%02d-%02d',RA_HMS);
+    StrRA = sprintf('%02d-%02d-%02.2f',RA_HMS);
 
     if ischar(Dec) || isstring(Dec)
         Dec_DMS = celestial.coo.convertdms(Dec, 'SD', 'D');
@@ -62,7 +62,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     else
         DecSign = '';
     end
-    StrDec = sprintf('%s%02d-%02d-%02d',DecSign, Dec_DMS(2:end));
+    StrDec = sprintf('%s%02d-%02d-%02.2f',DecSign, Dec_DMS(2:end));
 
 
     SearchRadius     = convert.angular(Args.SearchRadiusUnits,'deg', Args.SearchRadius);
