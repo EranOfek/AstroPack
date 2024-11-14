@@ -8,7 +8,7 @@ classdef uplanner < Component
         UniqTargList             % unique target list
         Vis                      % visibility matrix 
         
-        % HCS, LCS
+        % HCS, LCS 
         DailyWindow              % [hrs]    
         Cadence                  % [hrs] 
         
