@@ -29,6 +29,8 @@ classdef uplanner < Component
         Scheduled                % date or empty
         Validated                % date or empty
         Status             = 'draft';
+        
+        AstPlanner         = 'YS'; % name of the Astronomer-Planner
     end
     % 
     properties(Access = private)
@@ -52,6 +54,8 @@ classdef uplanner < Component
                 Args.Cadence     = [];   % cadence in days                
                 
                 Args.TOOMaxTargets = 4; 
+                
+                Args.AstPlanner  = [];
             end
             %
             if ~isempty(Args.StartTime) 
@@ -60,6 +64,10 @@ classdef uplanner < Component
             %
             if ~isempty(Args.EndTime)             
                 Obj.EndTime   = Args.EndTime; 
+            end
+            %            
+            if ~isempty(Args.AstPlanner)             
+                Obj.AstPlanner= Args.AstPlanner; 
             end
             %
             if isempty(Args.Type)
@@ -95,29 +103,34 @@ classdef uplanner < Component
                 Obj
                 RA               = 0; 
                 Dec              = 0;  
-                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
-                Args.Start 
-                Args.Stop 
                 Args.CooFile     = '';   % coordinate file name % ~/test.coo 
-            end
-            % read the coordinates of the HCS field 
-            if ~isempty(Args.CooFile)
-                Coo = readmatrix(Args.CooFile,'FileType','text');
-                Obj.UniqueTargList.RA = Coo(:,1); Obj.UniqueTargList.Dec = Coo(:,2);                
-            else
-                Obj.UniqueTargList.RA = RA;       Obj.UniqueTargList.Dec = Dec;
-            end              
-            Obj.N0 = numel(Obj.UniqueTargList.RA); % count the number of unique targets 
-            % given unique object coordinates, fill in the unique target list properties              
-            Obj.fillFieldProp                       
+                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
+                Args.StartTime   = [];
+                Args.EndTime     = [];                
+            end  
             % set survey properties  
-            Obj.Cadence     = 300 / 3600; 
-            
+            Obj.Type        = 'HCS';            
+            Obj.Cadence     = 300 / 3600;             
             Obj.DailyWindow = Args.DailyWindow;            
+            % change start and stop time, if requested
+            if ~isempty(Args.StartTime) 
+                Obj.StartTime = Args.StartTime; 
+            end
             %
+            if ~isempty(Args.EndTime)             
+                Obj.EndTime   = Args.EndTime; 
+            end            
+            % load unique targets 
+            Obj.loadUniqTargCoo(RA, Dec, 'File', Args.CooFile)                                   
+            % fill porperties of unique target fields
+            Obj.fillFieldProp                        
+            % schedule targets and fill the plan
+            Obj.schedule
             % show which observations in the existing plan are to be replaced 
-            % 
-            % 
+            % validate the plan
+            Obj.validate
+            % submit the plan as JSON and save the plan in a .mat object
+            Obj.submit
         end
         %
         function buildDDT(Obj, Args)
@@ -151,6 +164,25 @@ classdef uplanner < Component
     end
     %
     methods % Auxiliary functions
+        %
+        function loadUniqTargCoo(Obj, RA, Dec, Args)
+            % read unique target coordinates
+            arguments
+                Obj
+                RA        = 0; % [deg]
+                Dec       = 0; % [deg]
+                Args.File = ''; % coordinate file name % ~/test.coo
+            end
+            %
+            if ~isempty(Args.File)
+                Coo = readmatrix(Args.File,'FileType','text');
+                RA  = Coo(:,1); Dec = Coo(:,2);
+            end
+            %
+            Obj.N0 = numel(RA); % the number of unique targets
+            %
+            Obj.UniqTargList.RA(1:Obj.N0) = RA(1:Obj.N0); Obj.UniqTargList.Dec(1:Obj.N0) = Dec(1:Obj.N0);
+        end
         %
         function calcVisibility(Obj, Args)
             % calculate visibility for the given period and time bin
@@ -188,16 +220,59 @@ classdef uplanner < Component
             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
-        function fillFieldProp(Obj)
+        function fillFieldProp(Obj, Args)
+            %
+            arguments
+                Obj
+                Args.GridFile    = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt'
+                Args.AveragedExt = '~/matlab/data/ULTRASAT/aver_ext_hp49152.mat'
+            end
+            % load the averaged extinction map
+            Grid = readmatrix(Args.GridFile); RA0 = Grid(:,1); Dec0 = Grid(:,2); 
+            load(Args.AveragedExt);
+            Fext = scatteredInterpolant(RA0, Dec0, Averaged_extinction, 'linear', 'none');  
             % given unique object coordinates, fill in the unique target list properties
-            RA = Obj.UniqueTargList.RA; Dec = Obj.UniqueTargList.Dec;
+            RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;            
+            Obj.UniqTargList.A_U = Fext(RA, Dec);
+
             for iT = Obj.N0
-%             Obj.UniqueTargList.A_U    = 
 %             Obj.UniqueTargList.CalObj = 
 %             Obj.UniqueTargList.RefImageIDs = 
 %             Obj.UniqueTargList.ExtSurveys =
 %             Obj.UniqueTargList.FieldObj = 
             end
+            
+        end
+        %
+        function schedule(Obj,Args)
+            %
+            arguments
+                Obj
+                Args.A
+            end
+            %
+            Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
+        end
+        %
+        function validate(Obj,Args)
+            %
+            arguments
+                Obj
+                Args.A
+            end
+            %
+            Obj.Status    = 'validated';
+            Obj.Validated = datetime('now','TimeZone', 'UTC');     
+        end        
+        %
+        function submit(Obj,Args)
+            %
+            arguments
+                Obj
+                Args.A
+            end
+            %
+            Obj.Status    = 'submitted';            
         end
     end
     % 
