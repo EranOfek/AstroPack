@@ -56,7 +56,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                           requested apertures.
     %                   'BACK_ANNULUS','STD_ANNULUS' - back and std in annulus.
     %                   Default is:
-    %                   {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
+    %                   {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
     %            'CooOutUnits' - Output J2000.0 RA/Dec units.
     %                   Default is 'deg'.
     %            'MinEdgeDist' - Number of pixels of source from image edge
@@ -164,7 +164,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.Moving logical          = false;
-        Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
+        Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
         Args.CooOutUnits             = 'deg';
         Args.MinEdgeDist             = 20;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition

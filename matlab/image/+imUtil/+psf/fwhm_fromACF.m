@@ -23,10 +23,16 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     %                   Default is 1.
     %            'Convert2single' - If true, then will convert input to
     %                   single. Default is true.
+    %            'SatLevel' - Saturation level. If the median of pixels are above
+    %                   this value, then declare the image as saturated.
+    %                   Default is 30000
+    %
     % Output : - The estimated FWHM.
     %            This is not formally the FWHM, but a factor that scales
     %            like the FWHM.
     %          - A structure with additional information.
+    %            .Status field indicate if the image is not saturated and
+    %                   ACF is not NaN.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
 
@@ -40,6 +46,8 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         Args.MaxRadius         = 200;
         Args.Step              = 1;
         Args.Convert2single logical = true;
+
+        Args.SatLevel          = 30000;
     end
     
     
@@ -51,32 +59,47 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         Image = single(Image);
     end
     
-    % quick background subtraction
-    Image(isnan(Image)) = 0;
-    Image = Image - median(Image,'all');
+    % check if image is saturated
+    if median(Image,'all','omitnan')>Args.SatLevel
+        % image is saturated
+        FWHM = NaN;
+        Result.Status = false;
+    else
+
+        % quick background subtraction
+        Image(isnan(Image)) = 0;
+        Image = Image - median(Image,'all');
+        
+        % std
+        Std = tools.math.stat.rstd(Image(:),1,1);
+        Image(Image<(Args.Nsigma0.*Std)) = 0;
+        %Image = Image - Args.Nsigma0.*Std;
+        %Image = log10(Image);
+        
+        %ACF = fftshift(fft2(Image).*conj(fft2(Image)));
+        ACF = fftshift(ifft2(fft2(Image).*conj(fft2(Image))));
+        %ACF = ACF./(Std.^2);
+        %ACF = ACF - median(ACF(:));
+        
+        RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
+        Rad = RR.MeanR(2:end);
+        CumVal = cumsum(RR.MeanV(2:end));
+        CumVal = CumVal./CumVal(end);
+        
+        if any(isnan(CumVal))
+            FWHM = NaN;
+            Result.Status = false;
+        else
+
+            FWHM = interp1(CumVal, Rad, Args.CorrFrac);
+            
+            
+            Result.Rad = Rad;
+            Result.CumVal = CumVal;
+            %plot(Result.Rad, RR.MeanV(2:end)); %Result.CumVal)
     
-    % std
-    Std = tools.math.stat.rstd(Image(:),1,1);
-    Image(Image<(Args.Nsigma0.*Std)) = 0;
-    %Image = Image - Args.Nsigma0.*Std;
-    %Image = log10(Image);
-    
-    %ACF = fftshift(fft2(Image).*conj(fft2(Image)));
-    ACF = fftshift(ifft2(fft2(Image).*conj(fft2(Image))));
-    %ACF = ACF./(Std.^2);
-    %ACF = ACF - median(ACF(:));
-    
-    RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
-    Rad = RR.MeanR(2:end);
-    CumVal = cumsum(RR.MeanV(2:end));
-    CumVal = CumVal./CumVal(end);
-    
-    FWHM = interp1(CumVal, Rad, Args.CorrFrac);
-    
-    
-    Result.Rad = Rad;
-    Result.CumVal = CumVal;
-    %plot(Result.Rad, RR.MeanV(2:end)); %Result.CumVal)
-    
+            Result.Status = true;
+        end
+    end
 
 end
