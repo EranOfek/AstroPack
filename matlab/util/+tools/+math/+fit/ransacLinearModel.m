@@ -1,6 +1,7 @@
 function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     % Fit a general linear model using a simplified RANSAC-like scheme
     % Input  : - Design matrix of linear model [f(x), g(x), h(x),...]
+    %            This must be non-empty.
     %          - Vector of observables.
     %          * ...,key,val,...
     %            'Nsim' - Number of simulations. Default is 100.
