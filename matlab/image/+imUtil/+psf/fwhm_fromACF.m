@@ -31,7 +31,8 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     %            This is not formally the FWHM, but a factor that scales
     %            like the FWHM.
     %          - A structure with additional information.
-    %            .Status field indicate if the image is not saturated.
+    %            .Status field indicate if the image is not saturated and
+    %                   ACF is not NaN.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
 
@@ -59,7 +60,7 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     end
     
     % check if image is saturated
-    if median(Image,'all','omitnan')
+    if median(Image,'all','omitnan')>Args.SatLevel
         % image is saturated
         FWHM = NaN;
         Result.Status = false;
@@ -85,14 +86,20 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         CumVal = cumsum(RR.MeanV(2:end));
         CumVal = CumVal./CumVal(end);
         
-        FWHM = interp1(CumVal, Rad, Args.CorrFrac);
-        
-        
-        Result.Rad = Rad;
-        Result.CumVal = CumVal;
-        %plot(Result.Rad, RR.MeanV(2:end)); %Result.CumVal)
+        if any(isnan(CumVal))
+            FWHM = NaN;
+            Result.Status = false;
+        else
 
-        Result.Status = true;
+            FWHM = interp1(CumVal, Rad, Args.CorrFrac);
+            
+            
+            Result.Rad = Rad;
+            Result.CumVal = CumVal;
+            %plot(Result.Rad, RR.MeanV(2:end)); %Result.CumVal)
+    
+            Result.Status = true;
+        end
     end
 
 end
