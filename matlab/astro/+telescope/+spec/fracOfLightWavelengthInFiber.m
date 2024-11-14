@@ -1,5 +1,5 @@
 function [MeanEff, EffMat, CentralWave, Alt] = fracOfLightWavelengthInFiber(SeeingSigma, FiberRadius, Args)
-    % Calculate the effect of color refraction on spectrum using circuler slit (fiber).
+    % Calculate the effect of color refraction on the spectrum using circular slit (fiber).
     %     Color refraction will smear the PSF such that the blue and red
     %     parts may go out of the fiber.
     %     This function can be used to estimate the transmission effiency
