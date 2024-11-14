@@ -673,12 +673,14 @@ classdef AstroImage < Component
             % Read all products associated with an image
 
             arguments
-                Files      % AstroFileName object
+                Files       = [];  % AstroFileName object
+                Args.Path   = [];
                 Args.Level  = 'coadd';
                 Args.CropID = [];
                 Args.CCDID  = [];
             end
 
+            
             
 
 

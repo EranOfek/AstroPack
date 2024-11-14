@@ -190,7 +190,12 @@ classdef AstroFileName < Component
             %                   Default is [].
             %            'JDCol' - If input is table or AstroCatalog,
             %                   then this is the JD column name in the
-            %                   table. Default is 'JD'.
+            %                   table.
+            %                   Alternatively, if this is a 3 elements
+            %                   string array, then the elements corresponds
+            %                   to the year, month, day column names -
+            %                   e.g., ["Year", "Month", "Day"]
+            %                   Default is 'JD'.
             %            'SubDirCol' - If input is table or AstroCatalog,
             %                   then this is the SubDir column name in the
             %                   table. Default is 'Visit'.
@@ -216,6 +221,7 @@ classdef AstroFileName < Component
             %          T.Product=["Image","PSF"].' ; T.JD=2451545+(0:1).';
             %          A = AstroFileName(T)
             %          A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
+            %          A = AstroFileName(OT(F,:), 'JD2Time',true, 'JDCol',["Year", "Month", "Day"]);
             
             arguments
                 Files                = 1;  
@@ -224,7 +230,7 @@ classdef AstroFileName < Component
                 Args.ReadJD logical  = true;
                 Args.JD2Time logical = false;
                 Args.TableCol        = [];
-                Args.JDCol           = 'JD';
+                Args.JDCol           = 'JD'; % 'MIDJD', if Triplet ["Year", "Month", "Day"] then use these columns
                 Args.SubDirCol       = 'Visit';
                 Args.ProjNameBase    = 'LAST';
                 Args.ProjNameCols    = ["Node","Mount","Camera"];
@@ -264,10 +270,23 @@ classdef AstroFileName < Component
                 % Read JD
                 if Args.ReadJD
                     Field = 'JD';
-                    if tools.table.isColumn(Files, Args.JDCol)
-                        Obj.(Field) = Files.(Args.JDCol);
+                    if numel(Args.JDCol)==3
+                        % assume JDCol is a triplet of Year, Month, Day
+                        Year  = Files.(Args.JDCol(1));
+                        Month = Files.(Args.JDCol(2));
+                        Day   = Files.(Args.JDCol(3));
+
+                        Obj.JD = celestial.time.julday([Day Month Year]);
                         if Args.JD2Time
                             Obj.julday2time;
+                        end
+
+                    else
+                        if tools.table.isColumn(Files, Args.JDCol)
+                            Obj.(Field) = Files.(Args.JDCol);
+                            if Args.JD2Time
+                                Obj.julday2time;
+                            end
                         end
                     end
                 end
@@ -769,6 +788,7 @@ classdef AstroFileName < Component
 
         end
 
+        
 
         % Done
         function Result=getValFromFileName(File,Prop)
