@@ -16,20 +16,17 @@ function Result = unitTest()
     
     % read a LAST Coadd object from .mat archive or 24 FITS image files
 
-%     load('~/coadd_db_test.mat'); % 'Coadd','FN_Coadd','RawImageList' 
-    
+%     load('~/coadd_db_test.mat'); % 'Coadd','FN_Coadd','RawImageList'
+
     Dir = pwd;
+    
     cd('/mnt/marvin/LAST.01.01.01/2024/11/01/proc/001225v0/'); 
-    Coadd=AstroImage('LAST*coadd_Image_1.fits');
-    cd(Dir);
+    Coadd=AstroImage('LAST*coadd_Image_1.fits');   
 
 %  sasha@WRX80:~$ ls -1 /mnt/marvin/LAST.*/202*/*/*/proc/ |wc
 %  140582  137986 1470802  % number of visits 
 %  sasha@WRX80:~$ ls -1 /mnt/marvin/LAST.*/202*/*/*/proc |grep -v v0 |wc
 %    5529    2933  117737  % number of visits with reprocessed proc versions
-
-    
-    % convert the headers into a CSV 
 
     CoaddImageTable = 'visit_images';
     
@@ -67,5 +64,7 @@ function Result = unitTest()
     % disconnect DB
     
     DB.disconnectCH_Java
+    
+    cd(Dir);
 
 end
