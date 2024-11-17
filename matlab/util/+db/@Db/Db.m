@@ -259,7 +259,8 @@ classdef Db < Component
                 Args.WriteMode                   = 'overwrite';
                 Args.writetableArgs              = {};
                 %Args.DeleteFile logical          = false;  % delete file after Db insertion
-                Args.LowerCaseHeaders            = true;
+                Args.LowerCaseHeaders            = true; 
+                Args.ReplaceNaN                  = true;  
             end
 
             FileName = Args.FileName;
@@ -275,7 +276,14 @@ classdef Db < Component
                                  'QuoteStrings',Args.QuoteStrings,...
                                  'WriteMode',Args.WriteMode,...
                                  Args.writetableArgs{:});
-%                                  'LineEnding',Args.LineEnding,...                                 
+%                                  'LineEnding',Args.LineEnding,...  
+
+            % replace NaN values with 'NULL's
+            if Args.ReplaceNaN
+%                 Command = sprintf('sed -i ''s/\\b[Nn][Aa][Nn]\\b/null/g'' %s',Args.FileName); % this does not work with CH DB
+                Command = sprintf('sed -i ''s/\\b[Nn][Aa][Nn]\\b//g'' %s',Args.FileName); % looks like CH DB needs empty instead of NULL in the CSV 
+                [~,Error] = system(Command);
+            end
 
         end
         
