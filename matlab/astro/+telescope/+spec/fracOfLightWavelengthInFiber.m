@@ -17,12 +17,15 @@ function [MeanEff, EffMat, CentralWave, Alt] = fracOfLightWavelengthInFiber(Seei
     %            'CentralWave' - Central wavelength [Ang].
     %                   If empty, then estimate optimal value.
     %            'Plot' - Default is true.
+    %            'LineStyle' - Plot line style. Default is '-'.
+    %            'AddLegend' - Default is true.
     % Output : - Mean eff. as a function of Alt.
     %          - Eff(Wave,Alt)
     %          - Central wavelength [Ang].
     %          - Vector of Alt.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [MeanEff, Eff, CW, Alt] = telescope.spec.fracOfLightWavelengthInFiber;
+    %          [MeanEff, Eff, CW, Alt] = telescope.spec.fracOfLightWavelengthInFiber('LineStyle','--','AddLegend',0,'CentralWave',6000)
 
     arguments
         SeeingSigma            = sqrt((1.4./2.35).^2 + 0.3.^2);  % 
@@ -31,6 +34,8 @@ function [MeanEff, EffMat, CentralWave, Alt] = fracOfLightWavelengthInFiber(Seei
         Args.Wave              = (4000:100:8500)';
         Args.CentralWave       = []; %5100;
         Args.Plot logical      = true;
+        Args.LineStyle         = '-';
+        Args.AddLegend logical = true;
     end    
     RAD = 180./pi;
     
@@ -93,7 +98,12 @@ function [MeanEff, EffMat, CentralWave, Alt] = fracOfLightWavelengthInFiber(Seei
         MeanEff(Ialt) = mean(Eff);
         
         if Args.Plot
-            plot(Wave, Eff, 'LineWidth',2)
+            if Ialt==1
+                CO = colororder;
+            end
+            H = plot(Wave, Eff, 'LineWidth',2);
+            H.LineStyle = Args.LineStyle;
+            H.Color     = CO(Ialt,:);
             hold on
            
             LG{Ialt} = sprintf('%4.1f deg, %4.2f',Alt(Ialt), MeanEff(Ialt));
@@ -109,7 +119,9 @@ function [MeanEff, EffMat, CentralWave, Alt] = fracOfLightWavelengthInFiber(Seei
         H.FontSize = 18;
         H.Interpreter = 'latex';
         
-        legend(LG{:});
+        if Args.AddLegend
+            legend(LG{:}, 'AutoUpdate', 'off');
+        end
     end
 
 end
