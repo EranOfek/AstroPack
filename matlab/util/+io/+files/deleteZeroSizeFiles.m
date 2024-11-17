@@ -11,7 +11,7 @@ function [List] = deleteZeroSizeFiles(Del)
     end
 
     F = dir;
-    Flag = ~F.isdir & F.bytes==0;
+    Flag = ~[F.isdir] & [F.bytes]==0;
     List = {F(Flag).name};
     
     if Del
