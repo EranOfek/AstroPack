@@ -33,8 +33,8 @@ function Result = unitTest()
                                         Coadd.setKeyVal('PIPEVER',int16(999));
                                         Coadd.setKeyVal('COADDOP',int16(999));
                                         
-                                        Coadd.setKeyVal('ID_DARK',int16(999)); % dealing with NaNs 
-                                        Coadd.setKeyVal('ID_FLAT',int16(999));
+%                                         Coadd.setKeyVal('ID_DARK',int16(999)); % dealing with NaNs is in db.Db.table2csv 
+%                                         Coadd.setKeyVal('ID_FLAT',int16(999));
     
     T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName','last','DbTable',...
                              CoaddImageTable,'CreateCsv',true,'FileName',CsvFN,...
