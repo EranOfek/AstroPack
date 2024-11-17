@@ -28,6 +28,13 @@ function Result = unitTest()
         
     Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
                                             'Sheet','Images','TableName','visit_images');
+                                        
+                                        Coadd.setKeyVal('CAMNAME',int16(999)); % column type mismatch
+                                        Coadd.setKeyVal('PIPEVER',int16(999));
+                                        Coadd.setKeyVal('COADDOP',int16(999));
+                                        
+                                        Coadd.setKeyVal('ID_DARK',int16(999)); % dealing with NaNs 
+                                        Coadd.setKeyVal('ID_FLAT',int16(999));
     
     T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName','last','DbTable',...
                              CoaddImageTable,'CreateCsv',true,'FileName',CsvFN,...
