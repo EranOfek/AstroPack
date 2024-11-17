@@ -254,16 +254,21 @@ classdef Db < Component
                 Args.WriteVarNames    = {};
                 Args.Delimiter        = ',';
 %                 Args.LineEnding       = '\r\n';
-                Args.WriteVariableNames logical  = false;
+                Args.WriteVariableNames logical  = true;
                 Args.QuoteStrings                = true; % 'minimal';
                 Args.WriteMode                   = 'overwrite';
                 Args.writetableArgs              = {};
                 %Args.DeleteFile logical          = false;  % delete file after Db insertion
+                Args.LowerCaseHeaders            = true;
             end
 
             FileName = Args.FileName;
 
             % write table to csv file
+            if Args.LowerCaseHeaders
+                T.Properties.VariableNames = lower(T.Properties.VariableNames); % the DB sometimes require lowercase headers
+            end
+            
             writetable(T, Args.FileName, 'FileType',Args.FileType,...
                                  'Delimiter',Args.Delimiter,...
                                  'WriteVariableNames',Args.WriteVariableNames,...
@@ -496,7 +501,7 @@ classdef Db < Component
             %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
             %[~,Error]   = Obj.query(Command, 'IsExec',true);
                 
-            Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
+            Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s  --input_format_with_names_use_header=1 --query="INSERT INTO %s FORMAT CSVWithNames" < %s',...
                                   Obj.Host, Obj.User, Obj.Password, TableName, FileName);
             [~,Error] = system(Command);
 
