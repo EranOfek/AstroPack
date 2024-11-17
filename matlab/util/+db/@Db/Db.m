@@ -496,8 +496,8 @@ classdef Db < Component
             %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
             %[~,Error]   = Obj.query(Command, 'IsExec',true);
                 
-            Command = sprintf('clickhouse-client --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
-                                  Obj.User, Obj.Password, TableName, FileName);
+            Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
+                                  Obj.Host, Obj.User, Obj.Password, TableName, FileName);
             [~,Error] = system(Command);
 
             if Args.DeleteFile
