@@ -33,6 +33,9 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %                   If number of ACF pixels above ThresholdACF, exceed
     %                   this value, then the image will be declared as bad.
     %                   Default is 20.
+    %            'N32768' - Max. Number of pixels with value exactly 32768
+    %                   which are allowed in image. Default is 1e4.
+    %
     %            'backgroundArgs' - A cell array of arguments to pass to
     %                   the imUtil.background.background.
     %                   This will be used only if the 'Back' field in the
@@ -61,6 +64,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         Args.ThresholdVal           = 5000;
         Args.MaxFracAboveVal        = 0.3;
         Args.MaxPixAboveACF         = 20;
+        Args.N32768                 = 1e4;
         
         Args.backgroundArgs cell    = {'BackFun',@median, 'BackFunPar',{[1 2],'omitnan'}, 'SubSizeXY',[]};
         Args.PopulateBack logical   = false;
@@ -116,6 +120,10 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         Result(Iobj).NpixAboveThresholdVal =  sum(Image > Args.ThresholdVal, 'all');
         
         
+        % many pixels with the same value
+        Result(Iobj).N32768 = sum(Obj(Iobj).Image(:)==32768);
+       
+        
         % background
         if isempty(Back)
             Back = imUtil.background.background(Image, Args.backgroundArgs{:});
@@ -146,6 +154,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         
         Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF || ...
-                                    Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF;
+                                    Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF || ...
+                                    Result(Iobj).N32768>Args.N32768;
     end
 end
