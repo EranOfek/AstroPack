@@ -5,13 +5,14 @@ function Result = unitTest()
     % create a DB object and connect
 
     DB = db.Db;
-    DB.Host   = 'socsrv';
-    DB.DbName = '';
-    DB.User   = 'default';
+    DB.Host     = 'socsrv';
+    DB.DbName   = 'last';
+    DB.User     = 'default';
     DB.Password = 'PassRoot';
     DB.Conn;
+    DB.useDB('last');
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: %s\n',DB.showTables);
+    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');
     
     % read a LAST Coadd object from .mat archive or 24 FITS image files
 
@@ -21,14 +22,16 @@ function Result = unitTest()
     
     % convert the headers into a CSV 
 
-    CoaddImageTable = [];
+    CoaddImageTable = 'visit_images';
     
     CsvFN = 'test.csv'; % should be created with the AstroFileName 
         
     Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
                                             'Sheet','Images','TableName','visit_images');
     
-    T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbTable',CoaddImageTable,'CreateCsv',true,'FileName',CsvFN);
+    T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName','last','DbTable',...
+                             CoaddImageTable,'CreateCsv',true,'FileName',CsvFN,...
+                             'ColNameID','id_visit');
     
     % disconnect DB
     
