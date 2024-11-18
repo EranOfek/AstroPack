@@ -200,6 +200,10 @@ classdef Scheduler < Component
             [Nt,Nc]     = Obj.List.sizeCatalog;
             Obj.Ntarget = Nt;
             Obj.Ncol    = Nc;
+
+            % delete info from affected properties:
+            Obj.RA  = [];
+            Obj.Dec = [];
         end
         
         function Val=get.FieldName(Obj)
@@ -225,11 +229,11 @@ classdef Scheduler < Component
                 if isempty(Obj.List) || Obj.List.sizeCatalog==0
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColRA);
-                if isnan(ColInd)
-                    error('can not find %s column in List',Obj.ColRA);
-                end
-                Obj.RA = Obj.List.Catalog(:,ColInd);
+                %ColInd = Obj.List.colname2ind(Obj.ColRA);
+                %if isnan(ColInd)
+                %    error('can not find %s column in List',Obj.ColRA);
+                %end
+                Obj.RA = Obj.List.Catalog.(Obj.ColRA); %(:,ColInd);
             end
             Val = Obj.RA;
         end
@@ -241,11 +245,11 @@ classdef Scheduler < Component
                 if isempty(Obj.List) || Obj.List.sizeCatalog==0
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColDec);
-                if isnan(ColInd)
-                    error('can not find %s column in List',Obj.ColDec);
-                end
-                Obj.Dec = Obj.List.Catalog(:,ColInd);
+                %ColInd = Obj.List.colname2ind(Obj.ColDec);
+                %if isnan(ColInd)
+                %    error('can not find %s column in List',Obj.ColDec);
+                %end
+                Obj.Dec = Obj.List.Catalog.(Obj.ColDec); %(:,ColInd);
             end
             Val = Obj.Dec;
         end
