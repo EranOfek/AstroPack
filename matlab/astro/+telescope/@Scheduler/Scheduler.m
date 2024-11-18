@@ -371,7 +371,22 @@ classdef Scheduler < Component
             end
         end
     
-
+        function HA = getHA(RA, JD, Long)
+            % Calculate HA 
+            % Input  : - RA [deg]
+            %          - JD
+            %          - Geodetic Longitude [deg].
+            % Output : - HA [deg] (-180 to 180).
+            % Author : Eran Ofek (Nov 2024)
+            
+            HA = celestial.convert.convert_ha(RA, JD, 'InUnits','deg',...
+                                                      'OutUnits','deg',...
+                                                      'Long',Long,...
+                                                      'LongUnits','deg',...
+                                                      'TypeLST','m',...
+                                                      'OutRange','pi');
+                                                  
+        end
        
     end
     
@@ -669,7 +684,9 @@ classdef Scheduler < Component
             end
             
         end
-                
+        
+        
+        
     end
     
     methods (Static)  % read files
@@ -1913,6 +1930,7 @@ classdef Scheduler < Component
             % Add extra priority to targets in HA range
             % only if this is the first observation during the night
             HA_Day  = Obj.HA./360;  % [day]
+            
             Flag_HA = HA_Day> Obj.List.Catalog.MinHA1 & HA_Day<Obj.List.Catalog.MaxHA1 & Obj.List.Catalog.NightCounter==0;
             W(Flag_HA) = W(Flag_HA) + Obj.List.Catalog.ExtraPriorityHA(Flag_HA);
             
