@@ -36,42 +36,47 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
         Args.MinNunique         = 4;
     end
     
-    if Args.CleanNaN
-        Flag = ~isnan(Y) & all(~isnan(H),2);
-        H    = H(Flag,:);
-        Y    = Y(Flag);
-    end
-    
-    Npt = numel(Y);
-    if isempty(Args.NptSim)
-        NptSim = ceil(Npt.*Args.FracPoints);
+    if isempty(H)
+        FlagGood = [];
+        BestPar  = [];
+        BestStd  = [];
     else
-        NptSim = Args.NptSim;
-    end
-    
-    PrevStd = Inf;
-    for Isim=1:1:Args.Nsim
-        IndRand = randi([1 Npt], NptSim, 1);
-        if numel(unique(IndRand))>=Args.MinNunique
-            Par     = H(IndRand,:)\Y(IndRand);
-            Resid   = Y(IndRand) - H(IndRand,:)*Par;
-            Std     = std(Resid);
-            if ~isnan(Std) && Std<PrevStd
-                PrevStd     = Std;
-                BestIndRand = IndRand;
-                BestPar     = Par;
-                BestStd     = Std;
+        if Args.CleanNaN
+            Flag = ~isnan(Y) & all(~isnan(H),2);
+            H    = H(Flag,:);
+            Y    = Y(Flag);
+        end
+        
+        Npt = numel(Y);
+        if isempty(Args.NptSim)
+            NptSim = ceil(Npt.*Args.FracPoints);
+        else
+            NptSim = Args.NptSim;
+        end
+        
+        PrevStd = Inf;
+        for Isim=1:1:Args.Nsim
+            IndRand = randi([1 Npt], NptSim, 1);
+            if numel(unique(IndRand))>=Args.MinNunique
+                Par     = H(IndRand,:)\Y(IndRand);
+                Resid   = Y(IndRand) - H(IndRand,:)*Par;
+                Std     = std(Resid);
+                if ~isnan(Std) && Std<PrevStd
+                    PrevStd     = Std;
+                    BestIndRand = IndRand;
+                    BestPar     = Par;
+                    BestStd     = Std;
+                end
             end
         end
+        
+        
+        % remove outliers
+        Resid   = Y - H*BestPar;
+        FlagGood = Resid<(BestStd.*Args.NsigmaClip(2)) & Resid>(-BestStd.*Args.NsigmaClip(1));
+        
+        BestPar = H(FlagGood,:)\Y(FlagGood);
+        Resid   = Y(FlagGood) - H(FlagGood,:)*BestPar;
+        BestStd = std(Resid);
     end
-    
-    
-    % remove outliers
-    Resid   = Y - H*BestPar;
-    FlagGood = Resid<(BestStd.*Args.NsigmaClip(2)) & Resid>(-BestStd.*Args.NsigmaClip(1));
-    
-    BestPar = H(FlagGood,:)\Y(FlagGood);
-    Resid   = Y(FlagGood) - H(FlagGood,:)*BestPar;
-    BestStd = std(Resid);
-    
 end
