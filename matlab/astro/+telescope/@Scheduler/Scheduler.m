@@ -1921,11 +1921,13 @@ classdef Scheduler < Component
                                                             'CadenceRiseTime',Obj.List.Catalog.NightCadenceRiseTime(In0),...
                                                             'WeightDecayTime',Obj.List.Catalog.NightWeightDecayTime(In0));
             
+            % Add BasePriority
+            W = W + Obj.List.Catalog.BasePriority;
+            
             MaxNC = Obj.List.Catalog.MaxNightN;
             FlagNC = NightCounter>=MaxNC;
             W(FlagNC) = Obj.List.Catalog.BasePriority(FlagNC);
-            % Add BasePriority
-            %W = W + Obj.List.Catalog.BasePriority;
+            
                         
             % Add extra priority to targets in HA range
             % only if this is the first observation during the night
