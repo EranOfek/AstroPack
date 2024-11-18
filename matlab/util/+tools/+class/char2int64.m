@@ -1,11 +1,11 @@
 function Result = char2int64(X)
     % convert an array of numerical values written as char to int64
     %     Optional detailed description
-    % Input  : - an array of numerical values written as char
+    % Input  : - an array of numerical values written as char (or double)
     %          * ...,key,val,... 
     % Output : - an array of int64 values 
     % Author : A.M. Krassilchtchikov (2024 Nov) 
-    % Example: A = '12345687696786'; A = tools.class.char2int64(A);
+    % Example: A = '12345687696786'; A = tools.class.char2int64(A) 
     %
     arguments
         X        

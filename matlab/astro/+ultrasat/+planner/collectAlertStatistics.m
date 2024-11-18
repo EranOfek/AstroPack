@@ -4,6 +4,7 @@ function collectAlertStatistics(Args)
         Args.MaxTargets     = 4;              % maximal number of ULTRASAT targets covering the object 
         Args.MinCoveredProb = [0.5 0.8 0.9];  % the minimal cumulative probability to be covered 
         Args.ProbThresh     = 0.01;           % the limiting (cleaning) probability per ULTRASAT pointing 
+        Args.FARThresh      = 1;  % 1.3e-7 ~ one false alarm in 3 months, 1 -- all the events        
         Args.MockAlerts     = false;
         Args.FirstAndLast   = true;        
         Args.UpdateAndInitialOnly = false;
@@ -21,7 +22,7 @@ function collectAlertStatistics(Args)
         try
             File = strcat(Alerts(Ialert).folder,'/',Alerts(Ialert).name);
             Result(Ialert) = ultrasat.planner.plannerToO(File,...
-                'MaxTargets',Args.MaxTargets,'ProbThresh',Args.ProbThresh,'DrawMaps',false,...
+                'MaxTargets',Args.MaxTargets,'ProbThresh',Args.ProbThresh,'ThresholdFAR',Args.FARThresh,'DrawMaps',false,...
                 'Verbosity',0,'ShowCoverageCurve',1,'MinCoveredProb',Args.MinCoveredProb,'MockAlerts',Args.MockAlerts,...
                 'StatisticsOnly',1);
         catch ME

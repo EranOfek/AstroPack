@@ -74,6 +74,7 @@ function Result = unitTest()
     DB.disconnectCH_Java;    
 end
 
+
             % Coadd.setKeyVal('CAMNAME',int16(999)); % column type mismatch
             % Coadd.setKeyVal('ID_DARK',int16(999)); % dealing with NaNs is in db.Db.table2csv
             
