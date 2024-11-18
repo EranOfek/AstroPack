@@ -47,9 +47,8 @@ function Result = unitTest()
             A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
             A.JD       = Coadd(1).getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
-            A.FileType = "csv";
-            A.julday2time;
-            CsvFN = sprintf("%s.csv",A.genFile);
+            A.FileType = "csv"; A.julday2time;
+            CsvFN = A.genFile;
             
             Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
                 'Sheet','Images','TableName','visit_images');            
