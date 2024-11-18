@@ -45,9 +45,10 @@ function Result = unitTest()
             A.SubDir   = Coadd(1).getStructKey('SUBDIR').SUBDIR;
             A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
             A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
-            % A.Time = Coadd(1).getStructKey('DATEOBS').DATEOBS;
-            A.CCDID = 1; A.Counter = 0;
+            A.JD       = Coadd(1).getStructKey('JD').JD; 
+            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv";
+            A.julday2time;
             CsvFN = sprintf("%s.csv",A.genFile);
             
             Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
