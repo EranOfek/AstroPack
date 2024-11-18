@@ -1455,7 +1455,8 @@ classdef AstroFileName < Component
                 Literals(:,I) = Tmp;
             end
 
-            Result = join(Literals, Obj.SEPERATOR);
+            Delim = [repmat(Obj.SEPERATOR,1,Nfields-2), "."];
+            Result = join(Literals, Delim); %Obj.SEPERATOR);
 
         end
 
