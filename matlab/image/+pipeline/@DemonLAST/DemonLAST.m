@@ -2699,6 +2699,12 @@ classdef DemonLAST < Component
             PWD = pwd;
             cd(NewPath);
             
+            % remove files with zero size (claening)
+            Fsize0 = io.files.deleteZeroSizeFiles(true);
+            if numel(Fsize0)>0
+                warning('Files with zero size where found in new/ dir (N=%d) - deleted',numel(Fsize0));
+            end
+            
             if Args.UnpackRaw 
                 !funpack -D *raw*fits.fz 
             end

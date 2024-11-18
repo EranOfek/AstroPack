@@ -362,6 +362,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
     % Add Image ID (ID_RAW) to header
     if ~isempty(Args.KeyRawID)
+        % populate LEVEL and CROPID
+        AI = AI.setKeyVal('LEVEL','raw');
+        AI = AI.setKeyVal('CROPID',0);
         [AI]=imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
     end
         

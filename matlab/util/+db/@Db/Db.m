@@ -254,23 +254,36 @@ classdef Db < Component
                 Args.WriteVarNames    = {};
                 Args.Delimiter        = ',';
 %                 Args.LineEnding       = '\r\n';
-                Args.WriteVariableNames logical  = false;
+                Args.WriteVariableNames logical  = true;
                 Args.QuoteStrings                = true; % 'minimal';
                 Args.WriteMode                   = 'overwrite';
                 Args.writetableArgs              = {};
                 %Args.DeleteFile logical          = false;  % delete file after Db insertion
+                Args.LowerCaseHeaders            = true; 
+                Args.ReplaceNaN                  = true;  
             end
 
             FileName = Args.FileName;
 
             % write table to csv file
+            if Args.LowerCaseHeaders
+                T.Properties.VariableNames = lower(T.Properties.VariableNames); % the DB sometimes require lowercase headers
+            end
+            
             writetable(T, Args.FileName, 'FileType',Args.FileType,...
                                  'Delimiter',Args.Delimiter,...
                                  'WriteVariableNames',Args.WriteVariableNames,...
                                  'QuoteStrings',Args.QuoteStrings,...
                                  'WriteMode',Args.WriteMode,...
                                  Args.writetableArgs{:});
-%                                  'LineEnding',Args.LineEnding,...                                 
+%                                  'LineEnding',Args.LineEnding,...  
+
+            % replace NaN values with 'NULL's
+            if Args.ReplaceNaN
+%                 Command = sprintf('sed -i ''s/\\b[Nn][Aa][Nn]\\b/null/g'' %s',Args.FileName); % this does not work with CH DB
+                Command = sprintf('sed -i ''s/\\b[Nn][Aa][Nn]\\b//g'' %s',Args.FileName); % looks like CH DB needs empty instead of NULL in the CSV 
+                [~,Error] = system(Command);
+            end
 
         end
         
@@ -496,8 +509,8 @@ classdef Db < Component
             %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
             %[~,Error]   = Obj.query(Command, 'IsExec',true);
                 
-            Command = sprintf('clickhouse-client --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
-                                  Obj.User, Obj.Password, TableName, FileName);
+            Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s  --input_format_with_names_use_header=1 --query="INSERT INTO %s FORMAT CSVWithNames" < %s',...
+                                  Obj.Host, Obj.User, Obj.Password, TableName, FileName);
             [~,Error] = system(Command);
 
             if Args.DeleteFile
