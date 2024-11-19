@@ -1606,10 +1606,14 @@ classdef FileNames < Component
                 
                 if nargout>1
                     Ngr    = numel(Groups);
-                    for Igr=1:1:Ngr
-                        Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
-                        if ~isempty(Args.BasePath)
-                            Result(Igr).BasePath = Args.BasePath;
+                    if Ngr==0
+                        Result = FileNames;
+                    else
+                        for Igr=1:1:Ngr
+                            Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                            if ~isempty(Args.BasePath)
+                                Result(Igr).BasePath = Args.BasePath;
+                            end
                         end
                     end
                 end
