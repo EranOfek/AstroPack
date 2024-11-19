@@ -1894,6 +1894,9 @@ classdef Scheduler < Component
            
             if isempty(JD)
                 JD = Obj.JD;
+                HA = Obj.HA;
+            else
+                HA = getHA(Obj.RA, JD, Obj.GeoPos(1));
             end
             
             LastJD = Obj.List.Catalog.(Args.ColLastJD);
@@ -1931,7 +1934,7 @@ classdef Scheduler < Component
                         
             % Add extra priority to targets in HA range
             % only if this is the first observation during the night
-            HA_Day  = Obj.HA./360;  % [day]
+            HA_Day  = HA./360;  % [day]
             
             Flag_HA = HA_Day> Obj.List.Catalog.MinHA1 & HA_Day<Obj.List.Catalog.MaxHA1 & Obj.List.Catalog.NightCounter==0;
             W(Flag_HA) = W(Flag_HA) + Obj.List.Catalog.ExtraPriorityHA(Flag_HA);
