@@ -954,7 +954,15 @@ classdef Scheduler < Component
     methods % read time services
         % service target requests posted by Units, single call
         function serviceTargetRequests(S, Args)
-            % Treat target requests by deamon
+            % Treat target requests posted (currently, only via the redis
+            %  Mailbox)
+            %
+            % If the request is stamped with a JD more than OuttaTime away,
+            %   act as if it is intended as a simulated request:
+            %   - set S.UseRealTime = false
+            %   - use the time of the request for S.JD
+            %   - don't save the updated persistence file
+            %
             % Input  : - self.
             %          * ...,key,val,...
             %            See code
@@ -970,7 +978,7 @@ classdef Scheduler < Component
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
                 Args.ToO_File      = 'ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
-
+                Args.OuttaTime = 1/48; % fraction of a day, to consider it a simulated time request
                 Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
                 Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
@@ -996,9 +1004,18 @@ classdef Scheduler < Component
                 %  other using the request time we can run in simulated
                 %  time mode. Perhaps add an option for choosing.
                 JDnow=celestial.time.julday;
-                JD=JDs(i);
+                if abs(JDs(i)-JDnow)<Args.OuttaTime
+                    % real time request
+                    JD=JDs(i);
+                    S.UseRealTime = true;
+                else
+                   % given the time discrepancy, assumed it's a request in
+                   %  simulated time
+                   JD=[];
+                   S.UseRealTime = false;
+                end
                 LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f',...
-                            Mounts(i),JD,JDnow);
+                            Mounts(i),JDs(i),JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
                 S.initNightCounter(false);
                 TargetInd=[];
@@ -1033,7 +1050,7 @@ classdef Scheduler < Component
                         S.increaseCounter(TargetInd,JD);
                         
                         % backup latest version of target list
-                        if Args.SaveTargetList
+                        if Args.SaveTargetList && S.UseRealTime
                             Tbl = S.List.Table;
                             %save('-v7.3','TargetList.mat','Tbl');
                             save('-v7.3',Args.SaveTargetList,'Tbl');
