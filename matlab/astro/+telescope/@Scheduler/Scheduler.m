@@ -1050,7 +1050,7 @@ classdef Scheduler < Component
                         S.increaseCounter(TargetInd,JD);
                         
                         % backup latest version of target list
-                        if Args.SaveTargetList && S.UseRealTime
+                        if ~isempty(Args.SaveTargetList) && S.UseRealTime
                             Tbl = S.List.Table;
                             %save('-v7.3','TargetList.mat','Tbl');
                             save('-v7.3',Args.SaveTargetList,'Tbl');
