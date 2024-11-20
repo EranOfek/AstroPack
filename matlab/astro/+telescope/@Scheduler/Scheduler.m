@@ -1051,7 +1051,7 @@ classdef Scheduler < Component
                         S.increaseCounter(TargetInd,[]);
                         
                         % backup latest version of target list
-                        if Args.SaveTargetList && S.UseRealTime
+                        if ~isempty(Args.SaveTargetList) && S.UseRealTime
                             Tbl = S.List.Table;
                             %save('-v7.3','TargetList.mat','Tbl');
                             save('-v7.3',Args.SaveTargetList,'Tbl');
@@ -1914,7 +1914,7 @@ classdef Scheduler < Component
                 JD = Obj.JD;
                 HA = Obj.HA;
             else
-                HA = getHA(Obj.RA, JD, Obj.GeoPos(1));
+                HA = Obj.getHA(Obj.RA, JD, Obj.GeoPos(1));
             end
             
             LastJD = Obj.List.Catalog.(Args.ColLastJD);
