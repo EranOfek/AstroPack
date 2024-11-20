@@ -1,5 +1,8 @@
 function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     % Estimate the FWHM of stars in image by finding stars and measure their 2nd moment.
+    %   This function is useful when the system is near focus.
+    %   For out of focus images use: imUtil.psf.fwhm_fromACF
+    %   See also: imUtil.psf.fwhm_fromBank
     % Input  : - An image in 2D matrix format.
     %          * ...,key,val,... 
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
