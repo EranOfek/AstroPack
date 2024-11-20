@@ -1006,15 +1006,15 @@ classdef Scheduler < Component
                 JDnow=celestial.time.julday;
                 if abs(JDs(i)-JDnow)<Args.OuttaTime
                     % real time request
-                    JD=JDs(i);
+                    % will take JD from computer
                     S.UseRealTime = true;
                 else
                    % given the time discrepancy, assumed it's a request in
                    %  simulated time
-                   JD=[];
                    S.JD = JDs(i);
                    S.UseRealTime = false;
                 end
+                
                 LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f',...
                             Mounts(i),JDs(i),JDnow);
                 S.Logger.msgLog(LogLevel.Info, LogLine);
@@ -1024,7 +1024,7 @@ classdef Scheduler < Component
                     % this can fail because of nearly concomitant requests
                     %  serviced out of order, and give "JD must be larger than LastJD"
                     %  See https://github.com/EranOfek/AstroPack/issues/510
-                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD,...
+                    [TargetInd, Priority, Tbl, Struct] = S.selectTarget([],...
                             'MountNum',Mounts(i), 'SelectMethod',Args.SelectMethod);
                 catch exc
                     S.Logger.msgLog(LogLevel.Error,exc.message)
@@ -1048,7 +1048,7 @@ classdef Scheduler < Component
                 if ~isempty(TargetInd)
                     if Success
                         % update counters and LastJD
-                        S.increaseCounter(TargetInd,JD);
+                        S.increaseCounter(TargetInd,[]);
                         
                         % backup latest version of target list
                         if Args.SaveTargetList && S.UseRealTime
