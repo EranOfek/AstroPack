@@ -1038,11 +1038,13 @@ classdef FITS < handle
             end
         end
         
-        function correctHeaders(DirName,NameTemplate,Keys)
+        function correctHeaders(DirName,NameTemplate,Keys,Args)
             % Check and correct headers of FITS files in a given directory  
             % Input : - full path of the directory
             %         - template of a file name 
             %         - a cell array of keywords and values 
+            %         key,val
+            %         'Overwrite' - logical whether to correct the values of the existing keywords  
             % Output: - updated headers in all the FITS files 
             % Author: A.M. Krassilchtchikov (2024 Nov)
             % Example: Dir = '/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
@@ -1053,6 +1055,7 @@ classdef FITS < handle
                 DirName
                 NameTemplate = '*';
                 Keys         = {};
+                Args.Overwrite logical = false;
             end
             %
             FN     = AstroFileName(strcat(DirName,'/',NameTemplate));
@@ -1064,13 +1067,16 @@ classdef FITS < handle
                 Fptr = matlab.io.fits.openFile(Files{Ifile},'readwrite');
                 for Ikey = 1:Nkeys
                     try
-                        K = matlab.io.fits.readKey(Fptr,Keys{Ikey,1});
-                    catch
-                        K = '';
+                        matlab.io.fits.readKey(Fptr,Keys{Ikey,1});
+                        if Args.Overwrite
+                            matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'corrected by FITS.correctHeaders');
+                        end
+                    catch                        
+                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'added by FITS.correctHeaders');
                     end
-                    if ~strcmpi(K,Keys{Ikey,2})
-                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'corrected');
-                    end
+%                     if ~strcmpi(K,Keys{Ikey,2})
+%                         matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'corrected');
+%                     end
                 end
                 matlab.io.fits.closeFile(Fptr);
             end
