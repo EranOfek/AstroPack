@@ -1914,7 +1914,7 @@ classdef Scheduler < Component
                 JD = Obj.JD;
                 HA = Obj.HA;
             else
-                HA = getHA(Obj.RA, JD, Obj.GeoPos(1));
+                HA = Obj.getHA(Obj.RA, JD, Obj.GeoPos(1));
             end
             
             LastJD = Obj.List.Catalog.(Args.ColLastJD);
