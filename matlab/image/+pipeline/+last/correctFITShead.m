@@ -26,7 +26,7 @@ function [Result] = correctFITShead(RootDir, FileNameTemplate, Keys, Args)
     N = numel(Dirs);
     for i = 1:N
         ProcFolder = strcat(Dirs(i).folder,'/',Dirs(i).name);
-        FITS.correctHeaders(ProcFolder,FileNameTemplate,Keys,'Overwrite',true);
+        FITS.correctHeaders(ProcFolder,FileNameTemplate,Keys,'CheckKeyExist',true);
     end
 
 end
