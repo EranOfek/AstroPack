@@ -1043,18 +1043,18 @@ classdef FITS < handle
             % Input : - full path of the directory
             %         - template of a file name 
             %         - a cell array of keywords and values 
-            %         key,val
+            %         * ...,key,val,... 
             %         'Overwrite' - logical whether to correct the values of the existing keywords  
             % Output: - updated headers in all the FITS files 
             % Author: A.M. Krassilchtchikov (2024 Nov)
             % Example: Dir = '/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
             %          Template = '*coadd*Ima*fits';
-            %          Keys = {'NODENUMB',1 ; 'MOUNTNUM', str2num(Dir(14:15))};
-            %          FITS.correctHeaders(Dir,Template,Keys);
+            %          Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM', str2num(Dir(14:15)),'mount number'};
+            %          FITS.correctHeaders(Dir,Template,Keys,'Overwrite',false);
             arguments
                 DirName
                 NameTemplate = '*';
-                Keys         = {};
+                Keys         = [];
                 Args.Overwrite logical = false;
             end
             %
@@ -1067,16 +1067,13 @@ classdef FITS < handle
                 Fptr = matlab.io.fits.openFile(Files{Ifile},'readwrite');
                 for Ikey = 1:Nkeys
                     try
-                        matlab.io.fits.readKey(Fptr,Keys{Ikey,1});
+                        K = matlab.io.fits.readKey(Fptr,Keys{Ikey,1}); 
                         if Args.Overwrite
-                            matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'corrected by FITS.correctHeaders');
+                            matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', corrected by FITS.correctHeaders'));
                         end
                     catch                        
-                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'added by FITS.correctHeaders');
+                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', added by FITS.correctHeaders'));
                     end
-%                     if ~strcmpi(K,Keys{Ikey,2})
-%                         matlab.io.fits.writeKey(Fptr,Keys{Ikey,:},'corrected');
-%                     end
                 end
                 matlab.io.fits.closeFile(Fptr);
             end

@@ -31,7 +31,8 @@ function Result = unitTest()
         
 %         DataDir = ProcDirs(Idir);
         
-        DataDir = '/mnt/marvin/LAST.01.01.01/2024/11/01/proc/001225v0/';
+%         DataDir = '/mnt/marvin/LAST.01.01.01/2024/11/01/proc/001225v0/';
+        DataDir = '/home/sasha/185438v0/';
         
         cd(DataDir);
         
