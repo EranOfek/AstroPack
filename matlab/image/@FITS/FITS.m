@@ -1038,6 +1038,55 @@ classdef FITS < handle
             end
         end
         
+        function correctHeaders(DirName,NameTemplate,Keys,Args)
+            % Check and correct headers of FITS files in a given directory  
+            % Input : - full path of the directory
+            %         - template of a file name 
+            %         - a 3-column cell array of keywords, values, and comment lines (see Example) 
+            %           NB: the value can be also a function handle; in this case the function will be used 
+            %               to produce the actual value given the filename
+            %               as an argument
+            %         * ...,key,val,... 
+            %         'CheckKeyExist' - logical whether to correct the values of the existing keywords  
+            % Output: - updated headers in all the FITS files 
+            % Author: A.M. Krassilchtchikov (2024 Nov)
+            % Example: Dir = '/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
+            %          Template = '*coadd*Ima*fits';
+            %          Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM',1,'mount number'};
+            %          or: Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM', @(x) str2num(x(14:15)),'mount number'};
+            %          FITS.correctHeaders(Dir,Template,Keys,'CheckKeyExist',false);
+            arguments
+                DirName
+                NameTemplate = '*';
+                Keys         = [];
+                Args.CheckKeyExist logical = true;
+            end
+            %
+            FN     = AstroFileName(strcat(DirName,'/',NameTemplate));
+            Files  = FN.genFull;
+            Nfiles = numel(Files);
+            Nkeys  = size(Keys,1);
+            
+            for Ifile = 1:Nfiles
+                Fptr = matlab.io.fits.openFile(Files{Ifile},'readwrite');
+                for Ikey = 1:Nkeys
+                    if ishandle(Keys{Ikey,2}) % if there is a function handle instead of a value, it should be evaluated 
+                        Val = Keys{Ikey,2}(Files{Ifile}); 
+                        Keys{Ikey,2} = Val;
+                    end
+                    try
+                        K = matlab.io.fits.readKey(Fptr,Keys{Ikey,1}); 
+                        if ~Args.CheckKeyExist
+                            matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', corrected by FITS.correctHeaders'));
+                        end
+                    catch                        
+                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', added by FITS.correctHeaders'));
+                    end
+                end
+                matlab.io.fits.closeFile(Fptr);
+            end
+        end
+        
         function Result = write(Image, FileName, Args)
             % Write or append an image into FITS file.
             % Static function
