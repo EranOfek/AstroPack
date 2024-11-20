@@ -1012,6 +1012,7 @@ classdef Scheduler < Component
                    % given the time discrepancy, assumed it's a request in
                    %  simulated time
                    JD=[];
+                   S.JD = JDs(i);
                    S.UseRealTime = false;
                 end
                 LogLine=sprintf('selecting target for mount %d, requested at JD=%.6f, now %.6f',...
