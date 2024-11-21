@@ -16,7 +16,7 @@
 %   S.TotalExpTime
 %   S.LST
 %   S.Alt
-%   S.EclLat
+%   S.EclLon
 %   S.GalLat
 %   S.GalExt
 %   ...
