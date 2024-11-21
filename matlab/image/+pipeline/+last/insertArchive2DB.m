@@ -13,6 +13,8 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Ima*fits';
     %          pipeline.last.insertArchive2DB(RootDir,Template)    
+    %
+    %          pipeline.last.insertArchive2DB('/mnt/marvin/LAST.01.01.01/2023/','ProcDirTemplate','*/*/proc/*')
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
