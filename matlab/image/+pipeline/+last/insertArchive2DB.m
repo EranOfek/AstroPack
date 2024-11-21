@@ -51,20 +51,21 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
         cd(DataDir);        
         if ~contains(fileread('.status'), "injected into the visit image DB")
             Coadd=AstroImage(FileNameTemplate); % read the data
+            Nobj = numel(Coadd);
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
             
-            % check and add essential KEYWORDS if they are missing 
+            % check and add essential KEYWORDS if they are missing             
             Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
             if isnan(Coadd(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(Pname(6:7));
-                for Crop=1:24
+                for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('NODENUMB',NODENUMB);
                 end
             end
             if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
                 MOUNTNUM = str2num(Pname(9:10));
-                for Crop=1:24
+                for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('MOUNTNUM',MOUNTNUM);
                 end
             end
@@ -72,7 +73,7 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
             if isempty(Subdir)          
                 Parts = strsplit(DataDir, '/');
                 Subdir = Parts{end};    % Extract the last part of the full dir name
-                for Crop=1:24
+                for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
                 end
             end
