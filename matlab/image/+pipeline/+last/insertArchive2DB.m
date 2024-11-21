@@ -1,0 +1,97 @@
+function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
+    % insert the archived LAST data to DB 
+    %     this is post-processing, not intended to be used in real time within the pipeline 
+    % Input  : - root directory from where to inject the data
+    %          - template of the data file name
+    %          * ...,key,val,... 
+    % Output : - data injected into the DB
+    % Author : A.M. Krassilchtchikov (2024 Nov) 
+    % Example: RootDir = '/Data1/LAST.01.01.01/'; 
+    %          Template = '*coadd*Ima*fits';
+    %          pipeline.last.insertArchive2DB(RootDir,Template)    
+    arguments
+        RootDir                = '/Data1/LAST.01.01.01/';
+        FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
+        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        
+        Args.DbHost = 'socsrv';
+        Args.DbName = 'last';   
+        Args.DbUser = 'default';
+        Args.DbPass = 'PassRoot';         
+        Args.DbTable= 'visit_images'; 
+        
+        Args.ColNameID = 'id_visit';
+    end    
+    % create a DB object and connect
+    DB          = db.Db;
+    DB.Host     = Args.DbHost;
+    DB.DbName   = Args.DbName;
+    DB.User     = Args.DbUser;
+    DB.Password = Args.DbPass;
+    DB.Conn;
+    DB.useDB(Args.DbName);
+    fprintf('DB in use: %s\n',DB.showCurrentDB);
+    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
+    %
+    Dir = pwd; 
+    tic
+    % find all the directories according to the template
+    D = dir(fullfile(RootDir, Args.ProcDirTemplate));
+    Dirs = D([D.isdir]);
+    Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    % 
+    Ndir = numel(Dirs);
+    for i = 1:Ndir
+        DataDir = strcat(Dirs(i).folder,'/',Dirs(i).name);         
+        cd(DataDir);        
+        if ~contains(fileread('.status'), "injected into the visit image DB")
+            Coadd=AstroImage(FileNameTemplate); % read the data
+            cd(Dir);
+            fprintf('Injecting from %s ..',DataDir);
+            
+            % check and add essential KEYWORDS if they are missing 
+            Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
+            if isnan(Coadd(1).getStructKey('NODENUM').NODENUM)
+                NODENUMB = str2num(Pname(6:7));
+                for i=1:24
+                    Coadd(i).HeaderData.insertKey({'NODENUMB',NODENUMB,'node number'});
+                end
+            end
+            if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
+                MOUNTNUM = str2num(Pname(9:10));
+                for i=1:24
+                    Coadd(i).HeaderData.insertKey({'MOUNTNUM',MOUNTNUM,'mount number'});
+                end
+            end
+            % prepare file name for the CSV dump 
+            A = AstroFileName;
+            A.ProjName = Coadd(1).getStructKey('PROJNAME').PROJNAME;
+            A.SubDir   = Coadd(1).getStructKey('SUBDIR').SUBDIR;
+            A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
+            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
+            A.JD       = Coadd(1).getStructKey('JD').JD; 
+            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
+            A.FileType = "csv"; A.julday2time;
+            CsvFN = A.genFile;
+            
+            Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
+                'Sheet','Images','TableName',Args.DbTable);            
+
+            T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                                    'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
+            
+            % copy the CSV file into the proc catalog and edit the .status file
+            CopyCSV = sprintf('su - samar -c "cp ~sasha/%s %s"',CsvFN,DataDir);
+            [~, Err1] = system(CopyCSV);            
+            UpdateStatus = sprintf('su - samar -c "echo ''%s injected into the visit image DB'' >> %s/.status"',tools.timeStamp.getTimeStamp,DataDir);
+            [~, Err2] = system(UpdateStatus); 
+            % system(rm fprintf('%s',CsvFN));
+            fprintf(' ..done\n');  
+        else
+            cd(Dir); 
+        end                 
+    end
+    toc
+    % disconnect the DB     
+    DB.disconnectCH_Java;  
+end
