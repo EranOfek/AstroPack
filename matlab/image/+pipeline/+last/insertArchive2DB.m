@@ -4,6 +4,10 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
     % Input  : - root directory from where to inject the data
     %          - template of the data file name
     %          * ...,key,val,... 
+    %        'ProcDirTemplate' - template of dir name containing the results of data reduction 
+    %        'Db*'             - database parameters
+    %        'DbTable'         - DB table name
+    %        'ColNameID'       - column name for the file unique ID
     % Output : - data injected into the DB
     % Author : A.M. Krassilchtchikov (2024 Nov) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
@@ -17,7 +21,8 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
-        Args.DbPass = 'PassRoot';         
+        Args.DbPass = 'PassRoot'; 
+        
         Args.DbTable= 'visit_images'; 
         
         Args.ColNameID = 'id_visit';
@@ -41,8 +46,8 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
     % 
     Ndir = numel(Dirs);
-    for i = 1:Ndir
-        DataDir = strcat(Dirs(i).folder,'/',Dirs(i).name);         
+    for Crop = 1:Ndir
+        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);        
         if ~contains(fileread('.status'), "injected into the visit image DB")
             Coadd=AstroImage(FileNameTemplate); % read the data
@@ -51,22 +56,30 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
             
             % check and add essential KEYWORDS if they are missing 
             Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
-            if isnan(Coadd(1).getStructKey('NODENUM').NODENUM)
+            if isnan(Coadd(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(Pname(6:7));
-                for i=1:24
-                    Coadd(i).HeaderData.insertKey({'NODENUMB',NODENUMB,'node number'});
+                for Crop=1:24
+                    Coadd(Crop).HeaderData.replaceVal('NODENUMB',NODENUMB);
                 end
             end
             if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
                 MOUNTNUM = str2num(Pname(9:10));
-                for i=1:24
-                    Coadd(i).HeaderData.insertKey({'MOUNTNUM',MOUNTNUM,'mount number'});
+                for Crop=1:24
+                    Coadd(Crop).HeaderData.replaceVal('MOUNTNUM',MOUNTNUM);
+                end
+            end
+            Subdir = Coadd(1).getStructKey('SUBDIR').SUBDIR; 
+            if isempty(Subdir)          
+                Parts = strsplit(DataDir, '/');
+                Subdir = Parts{end};    % Extract the last part of the full dir name
+                for Crop=1:24
+                    Coadd(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
                 end
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
-            A.ProjName = Coadd(1).getStructKey('PROJNAME').PROJNAME;
-            A.SubDir   = Coadd(1).getStructKey('SUBDIR').SUBDIR;
+            A.ProjName = Pname;
+            A.SubDir   = Subdir;
             A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
             A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
             A.JD       = Coadd(1).getStructKey('JD').JD; 
@@ -81,11 +94,14 @@ function [Result] = insertArchive2DB(RootDir, FileNameTemplate, Args)
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
             
             % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su - samar -c "cp ~sasha/%s %s"',CsvFN,DataDir);
+            CopyCSV = sprintf('su - samar -c "cp -f ~sasha/%s %s"',CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
             UpdateStatus = sprintf('su - samar -c "echo ''%s injected into the visit image DB'' >> %s/.status"',tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
-            % system(rm fprintf('%s',CsvFN));
+            if isempty(Err1) && isempty(Err2)
+                RemLocalFile = sprintf('rm %s',CsvFN);
+                [~, Err3] = system(RemLocalFile);
+            end
             fprintf(' ..done\n');  
         else
             cd(Dir); 
