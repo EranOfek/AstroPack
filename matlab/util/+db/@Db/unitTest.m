@@ -32,7 +32,7 @@ function Result = unitTest()
 %         DataDir = ProcDirs(Idir);
         
 %         DataDir = '/mnt/marvin/LAST.01.01.01/2024/11/01/proc/001225v0/';
-        DataDir = '/home/sasha/185438v0/';
+        DataDir = '/Data1/LAST.01.01.01/2023/04/24/proc/185438v0/';
         
         cd(DataDir);
         
@@ -40,6 +40,21 @@ function Result = unitTest()
             Coadd=AstroImage('LAST*coadd_Image_1.fits'); % read the data
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
+            
+            % check and add essential KEYWORDS if they are missing 
+            Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
+            if isnan(Coadd(1).getStructKey('NODENUM').NODENUM)
+                NODENUMB = str2num(Pname(6:7));
+                for i=1:24
+                    Coadd(i).HeaderData.insertKey({'NODENUMB',NODENUMB,'node number'});
+                end
+            end
+            if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
+                MOUNTNUM = str2num(Pname(9:10));
+                for i=1:24
+                    Coadd(i).HeaderData.insertKey({'MOUNTNUM',MOUNTNUM,'mount number'});
+                end
+            end
             
             A = AstroFileName;
             A.ProjName = Coadd(1).getStructKey('PROJNAME').PROJNAME;

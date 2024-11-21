@@ -1050,7 +1050,7 @@ classdef FITS < handle
             %         'CheckKeyExist' - logical whether to correct the values of the existing keywords  
             % Output: - updated headers in all the FITS files 
             % Author: A.M. Krassilchtchikov (2024 Nov)
-            % Example: Dir = '/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
+            % Example: Dir = '/mnt/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
             %          Template = '*coadd*Ima*fits';
             %          Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM',1,'mount number'};
             %          or: Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM', @(x) str2num(x(14:15)),'mount number'};

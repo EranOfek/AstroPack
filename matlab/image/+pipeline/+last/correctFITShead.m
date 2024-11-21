@@ -1,5 +1,5 @@
 function [Result] = correctFITShead(RootDir, FileNameTemplate, Keys, Args)
-    % correct FITS file headers in the LAST archive
+    % correct FITS file headers in a LAST archive
     %     Optional detailed description
     % Input  : - root directory from where to check the headers
     %          - template of a file name
