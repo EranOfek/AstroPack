@@ -925,7 +925,7 @@ classdef Scheduler < Component
            
         end
         
-        function Obj=populateMountAltConstraints(Obj, Data)
+        function Obj=populateMountAltConstraints(Obj, Data, Path)
             % populate MountAltConstraints
             % Input  : - self.
             %          - Data - options are:
@@ -935,11 +935,24 @@ classdef Scheduler < Component
             %            A mat file name containing the structure.
             %            A cell array of string array of file names (one
             %            per mount).
+            %          - Path of files. If empty use current dir.
+            %            Default is [].
             % Output : - self. Populated with MountAltConstraints.
             % Author : Eran Ofek (Nov 2024)
             % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
             %          S.populateMountAltConstraints(CMC);
            
+            arguments
+                Obj
+                data
+                Path = [];
+            end
+            
+            if ~isempty(Path)
+                PWD = pwd;
+                cd(Path);
+            end
+                
             if isstruct(Data)
                 Obj.MountAltConstraints = Data;
             elseif ischar(Data)
@@ -959,6 +972,10 @@ classdef Scheduler < Component
                     Tmp(:,1) = Tmp(:,1) + (1:1:Nt).'.*100.*eps;
                     Obj.MountAltConstraints(If).Con = Tmp;
                 end
+            end
+            
+            if ~isempty(Path)
+                cd(PWD);
             end
             
         end
