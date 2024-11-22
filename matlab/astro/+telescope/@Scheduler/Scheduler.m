@@ -83,8 +83,11 @@ classdef Scheduler < Component
         CadenceMethodMap  = {"periodic", "continous", "cycleAllNonZero"}
         %CadenceArgs      = 
         AltConstraints  = [0 15; 90 15; 180 15; 270 15; 360 15];
+        MountAltConstraints  = [];
+        
         MoonConstraints = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];
-
+        
+        
         % boost priority to ecliptic/galactic latitude
 
         UseRealTime logical = true;
@@ -922,6 +925,43 @@ classdef Scheduler < Component
            
         end
         
+        function Obj=populateMountAltConstraints(Obj, Data)
+            % populate MountAltConstraints
+            % Input  : - self.
+            %          - Data - options are:
+            %            A structure array with Con field and elemnt per
+            %            mount. Each element contains a two column matrix
+            %            of [Az, Alt].
+            %            A mat file name containing the structure.
+            %            A cell array of string array of file names (one
+            %            per mount).
+            % Output : - self. Populated with MountAltConstraints.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            %          S.populateMountAltConstraints(CMC);
+           
+            if isstruct(Data)
+                Obj.MountAltConstraints = Data;
+            elseif ischar(Data)
+                % assume mat file with struct inside
+                Data = io.files.load2(Data);
+            else
+                % assume string array or cell array
+                % each element contains file to load (per mount)
+                Nf = numel(Data);
+                Obj.MountAltConstraints = struct('Con',cell(Nf,1));
+                for If=1:1:Nf
+                    Tmp    = load(Data{If});
+                    [~,SI] = sort(Tmp(:,1));
+                    Tmp    = Tmp(SI,:);
+                    Tmp    = [[-1; Tmp(:,1); 361], [Tmp(1,2); Tmp(:,2); Tmp(end,2)]];
+                    Nt     = size(Tmp,1);
+                    Tmp(:,1) = Tmp(:,1) + (1:1:Nt).'.*100.*eps;
+                    Obj.MountAltConstraints(If).Con = Tmp;
+                end
+            end
+            
+        end
     end
 
     methods % write lists and tables
@@ -1078,8 +1118,8 @@ classdef Scheduler < Component
     methods (Static) % real time Scheduler demon
         function S=demon(Args)
             % Execute scheduler in listening mode
-            %   This method execute the telescope.Scheduler in an infinite
-            %   loop. In each loop, checks if a new ToO file exist, and if
+            %   This method executes the telescope.Scheduler in an infinite
+            %   loop. In each loop, checks if a new ToO file exists, and if
             %   so load it. Look for new target for mount and send it to
             %   mount. The communication with mounts is done using a user
             %   provided functions.
@@ -1325,10 +1365,12 @@ classdef Scheduler < Component
     
     
     methods % visibility
-        function [Flag, Alt, AltLimit]=checkAltConstraints(Obj, JD)
+        function [Flag, Alt, AltLimit]=checkAltConstraints(Obj, JD, Mount)
             % Check Alt of targets agains the AltConstraints property.
             % Input  : - Self..
             %          - JD. If empty, use object JD. Default is [].
+            %          - Mount number. If not empty, then check agains
+            %            MountAltConstraints using the mount number.
             % Output : - A vector of logical flags (per target) indicating
             %            if each target is above the Alt limit in the
             %            AltConstraints property.
@@ -1341,13 +1383,18 @@ classdef Scheduler < Component
             arguments
                 Obj
                 JD    = [];
+                Mount = [];
             end
             
             [Az, Alt] = Obj.azalt(JD);
             
-            AltLimit = interp1(Obj.AltConstraints(:,1), Obj.AltConstraints(:,2), Az);
-            Flag     = Alt>AltLimit;
-            
+            if isempty(Mount)
+                AltLimit = interp1(Obj.AltConstraints(:,1), Obj.AltConstraints(:,2), Az);
+                Flag     = Alt>AltLimit;
+            else
+                AltLimit = interp1(Obj.MountAltConstraints(Mount).Con(:,1), Obj.MountAltConstraints(Mount).Con(:,2), Az);
+                Flag     = Alt>AltLimit;
+            end
         end
         
         function [Flag,MoonIllum,MoonAlt,MinMoonDist]=checkMoonConstraints(Obj, JD)
@@ -1491,7 +1538,7 @@ classdef Scheduler < Component
             %          - JD. If empty, use object JD. Default is [].
             %          * ...,key,val,...
             %            'MountNum' - Mount number. If given, then choose
-            %                   only targts assigned to this specif mount.
+            %                   only targts assigned to this specific mount.
             %                   If empty, then ignore.
             %                   Default is [].
             %            'SkipMinVisibility' - Default is false.
@@ -1528,10 +1575,21 @@ classdef Scheduler < Component
             SunDist1          = Obj.sunDist(JD1);
             FlagsIn.SunDist   = Summary.SunDist>Obj.MinSunDist & SunDist1>Obj.MinSunDist;
             
-            % AltConstraints
-            [FlagsIn.Alt, Summary.Alt] = Obj.checkAltConstraints(JD);
-            [FAlt1]                    = Obj.checkAltConstraints(JD1);
-            FlagsIn.Alt                = FlagsIn.Alt & FAlt1;
+            
+            % Alt constraints per mount
+            if ~isempty(Obj.MountAltConstraints) && ~isempty(Args.MountNum) && ~isnan(Args.MountNum)
+                % assign individual mounts constraints
+                                
+                [FlagsIn.Alt, Summary.Alt] = Obj.checkAltConstraints(JD, Args.MountNum);
+                [FAlt1]                    = Obj.checkAltConstraints(JD1, Args.MountNum);
+                FlagsIn.Alt                = FlagsIn.Alt & FAlt1;
+            else
+                % AltConstraints (regular)
+                [FlagsIn.Alt, Summary.Alt] = Obj.checkAltConstraints(JD);
+                [FAlt1]                    = Obj.checkAltConstraints(JD1);
+                FlagsIn.Alt                = FlagsIn.Alt & FAlt1;
+            end
+                
             
             % MoonConstraints
             [FlagsIn.Moon, Summary.MoonIllum]= Obj.checkMoonConstraints(JD);
@@ -1599,6 +1657,8 @@ classdef Scheduler < Component
                 VisibilityCounter = zeros(Ntarget,1);
                 VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
                 for Ijd=1:1:Njd
+                    % FFU: note that here we do not use MountNum
+                    % This is incorrect and should be fixed
                     [FlagAll] = isVisible(Obj, VecJD(Ijd), 'SkipMinVisibility',true);
                     VisibilityStatus  = VisibilityStatus & FlagAll;
                     VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
@@ -1636,6 +1696,7 @@ classdef Scheduler < Component
             
             Obj.NightVis = false(Nsrc, Njd);
             for Ijd=1:1:Njd
+                % FFU: need to add MountNum
                 Obj.NightVis(:, Ijd) = Obj.isVisible(VecJD(Ijd));
             end
             Obj.NightSunSet  = SunSet;
