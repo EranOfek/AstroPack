@@ -944,7 +944,7 @@ classdef Scheduler < Component
            
             arguments
                 Obj
-                data
+                Data
                 Path = [];
             end
             
