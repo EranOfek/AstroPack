@@ -2151,6 +2151,79 @@ classdef Scheduler < Component
         end
     end
     
+    methods % targets search
+        function Ind=searchFieldName(Obj, SearchFN, Args)
+            % Search target list by FieldName (exact or substring)
+            % Input  : - self.
+            %          - FieldName string to search.
+            %            If numeric, then will be converted to string.
+            %          * ...,key,val,...
+            %            'Exact' - If true use strcmpi, else use contains.
+            %                   Default is false.
+            % Output : - Vector of indices of found targets.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: S.searchFieldName(1000)
+            
+            arguments
+                Obj(1,1)
+                SearchFN
+                Args.Exact logical   = false;
+            end
+            
+            if isnumeric(SearchFN)
+                SearchFN = num2str(SearchFN);
+            end
+            
+            if Args.Exact
+                Ind = find(strcmpi(Obj.List.Catalog.FieldName, SearchFN));
+            else
+                Ind = find(contains(Obj.List.Catalog.FieldName, SearchFN));
+            end
+        end
+            
+        function Ind=coneSearch(Obj, RA, Dec, SearchRadius, Args)
+            % Search indices of targets in list by coordinates
+            % Input  : - self.
+            %          - J2000.0 RA. Sexagesimal char array or numeric.
+            %          - J2000.0 Dec. Sexagesimal char array or numeric.
+            %          - Search radius. Default is 1000.
+            %          * ...,key,val,...
+            %            'CooUnits' - Input coordinates units: 'rad'|'deg'.
+            %                   Default is 'deg'.
+            %            'SearchRadiusUnits' - Search radius units.
+            %                   Default is 'arcsec'.
+            % Output : - Indices of targets in list found in conde serch.
+            % Author : Eran Ofek (Nov 2024)
+            % Example: S.coneSearch(1,1,1e4)
+            
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                SearchRadius             = 1000;
+                Args.CooUnits            = 'deg';
+                Args.SearchRadiusUnits   = 'arcsec';
+            end
+           
+            RAD = 180./pi;
+            
+            SearchRadiusRad = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+            if ischar(RA) && ischar(Dec)
+                % assume input coo is in sexagesimal
+                
+                RA  = celestial.coo.convertdms(RA, 'gH', 'r');
+                Dec = celestial.coo.convertdms(Dec, 'gD', 'r');
+            else
+                Conv = convert.angular(Args.CooUnits, 'rad');
+                RA   = RA.*Conv;
+                Dec  = Dec.*Conv;
+            end
+            
+            D = celestial.coo.sphere_dist_fast(RA, Dec, Obj.List.Catalog.RA./RAD, Obj.List.Catalog.Dec./RAD);
+            Ind = find(D<SearchRadiusRad);
+            
+        end
+    end
     
     
     methods % plots
