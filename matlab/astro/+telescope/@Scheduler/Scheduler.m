@@ -2046,7 +2046,7 @@ classdef Scheduler < Component
     
     methods % simulations
         function [TargetSt]=simulate(Obj, Args)
-            %
+            % Simulate scheduler and target selection
             % Example: S = telescope.Scheduler;
             %          S.generateRegularGrid;
             %          S.simulate;
