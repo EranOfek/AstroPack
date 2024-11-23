@@ -1778,6 +1778,8 @@ classdef Scheduler < Component
                 ColLastJD    = 'LastJD';
             end
                         
+            Obj.initNightCounter(false);
+            
             if ~isnumeric(Ind)
                 Ind = strcmp(Obj.List.Catalog.(Obj.ColFieldName), Ind);
             end
@@ -1793,7 +1795,7 @@ classdef Scheduler < Component
             if ~isnan(LastJD)
                 Obj.List.Catalog.(ColLastJD)(Ind) = LastJD;
             end
-            
+           
         end
         
         function Result=isNewNight(Obj, JD)
