@@ -99,9 +99,10 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
             
             % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su - samar -c "cp -f ~sasha/%s %s"',CsvFN,DataDir);
+            CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - samar -c "echo ''%s injected into the visit image DB'' >> %s/.status"',tools.timeStamp.getTimeStamp,DataDir);
+            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the visit image DB'' >> %s/.status"',...
+                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
                 RemLocalFile = sprintf('rm %s',CsvFN);
