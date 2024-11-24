@@ -33,7 +33,7 @@ function [AllData] = obstractionModelLAST(Itel, Args)
         Args.Plot              = 1;
         Args.CombPlot logical  = true;
 
-        Args.ObstractionFile   = 'MountObs3111.txt';  % write obstraction [Az,Alt] to this file. If empty, no file is written.
+        Args.ObstractionFile   = []; %'MountObs3111.txt';  % write obstraction [Az,Alt] to this file. If empty, no file is written.
     end
     
       
@@ -264,9 +264,9 @@ function [AllData] = obstractionModelLAST(Itel, Args)
     end
 
     if ~isempty(Args.ObstractionFile)
-        AltMax = max([AllData.TT_Aligned, AllData.TT_NotAlighned, AllData.TT_Aligned15deg],[],2);
+        AltMax = max([AllData.TT_Aligned, AllData.TT_NotAligned, AllData.TT_Aligned15deg],[],2);
         FID = fopen(Args.ObstractionFile, 'w');
-        fprintf(FID, '%5.1f %5.1f\n', [AllData.RealZ(:), AltMax(:)].');
+        fprintf(FID, '%5.1f %5.1f\n', [AllData.RealAz(:), AltMax(:)].');
         fclose(FID);
     end
 
