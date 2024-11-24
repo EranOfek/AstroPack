@@ -423,7 +423,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         % add PSF FWHM to the header after the astrometry, as it employs WCS.CD
         if Args.AddPSF
-            imProc.psf.fwhm(SI); 
+            [SI, Tmp] = imProc.psf.fwhm(SI, 'Scale',Args.Scale); 
         end
 
         % Photometric ZP
