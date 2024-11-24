@@ -223,17 +223,14 @@ classdef uplanner < Component
         function fillFieldProp(Obj, Args)
             %
             arguments
-                Obj
-                Args.GridFile    = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt'
-                Args.AveragedExt = '~/matlab/data/ULTRASAT/aver_ext_hp49152.mat'
-            end
-            % load the averaged extinction map
-            Grid = readmatrix(Args.GridFile); RA0 = Grid(:,1); Dec0 = Grid(:,2); 
-            load(Args.AveragedExt);
-            Fext = scatteredInterpolant(RA0, Dec0, Averaged_extinction, 'linear', 'none');  
+                Obj                
+                Args.AveragedExt = '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152.mat'; % interpolation function
+            end              
             % given unique object coordinates, fill in the unique target list properties
-            RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;            
-            Obj.UniqTargList.A_U = Fext(RA, Dec);
+            RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;  
+            
+            load(Args.AveragedExt); % load the interpolation function A_Uaver7deg
+            Obj.UniqTargList.A_U = A_Uaver7deg(RA, Dec);
 
             for iT = Obj.N0
 %             Obj.UniqueTargList.CalObj = 
