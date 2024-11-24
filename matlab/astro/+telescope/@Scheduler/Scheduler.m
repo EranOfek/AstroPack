@@ -1043,10 +1043,17 @@ classdef Scheduler < Component
 
             % check for ToO
             if isfile(Args.ToO_File)
-                S.loadTable(Args.ToO_File, 'merge_replace');
-                delete(Args.ToO_File);
-                S.Logger.msgLog(LogLevel.Info,...
-                  sprintf('New targets from %s have been ingested',Args.ToO_File))
+                try
+                    S.loadTable(Args.ToO_File, 'merge_replace');
+                    delete(Args.ToO_File);
+                    S.Logger.msgLog(LogLevel.Info,...
+                        sprintf('New targets from %s have been ingested',...
+                                 Args.ToO_File))
+                catch
+                    S.Logger.msglog(LogLevel.Err,...
+                      sprintf('file %s cannot be ingested, check format and permissions',...
+                      Args.ToO_File)
+                end
             end
             
             % Check if scheduling is required and if so for which mount
@@ -1175,18 +1182,25 @@ classdef Scheduler < Component
                 S.loadTable(Args.TargetList,'replace');
             end
             
+            % load mount obstruction files:
+            PathMC = '/home/ocs/Scheduler';  % modify to the scheduler dir...
+            CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            S.populateMountAltConstraints(CMC,PathMC);
+
             if ~isempty(Args.SetLastJD)
                 S = insertColList(S, 'LastJD',Args.SetLastJD, []);
             end
             
+            % set global counters if passed by argument
             if ~isempty(Args.SetGlobalCounter)
                 S = insertColList(S, 'GlobalCounter',Args.SetGlobalCounter, []);
             end
             if ~isempty(Args.SetNightCounter)
                 S = insertColList(S, 'NightCounter',Args.SetNightCounter, []);
             end
-            
-            
+
+            % set target service functions using redis if not specified
+            % otherwise via argments
             if ~isfield(Args,'FunTargetDispatch')
                Args.FunTargetDispatch =  @S.dispatchTargetToUnit;
             end
