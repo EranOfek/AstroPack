@@ -1033,7 +1033,7 @@ classdef Scheduler < Component
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
-                Args.ToO_File      = 'ToO.csv';               % ToO file name
+                Args.ToO_File      = '~/Scheduler/ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
                 Args.OuttaTime = 1/48; % fraction of a day, to consider it a simulated time request
                 Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
@@ -1050,9 +1050,14 @@ classdef Scheduler < Component
                         sprintf('New targets from %s have been ingested',...
                                  Args.ToO_File))
                 catch
-                    S.Logger.msglog(LogLevel.Err,...
+                    % delete the file anyway, otherwise the error is
+                    %  repeated forever
+                    delete(Args.ToO_File);
+                    S.Logger.msgLog(LogLevel.Error,...
                       sprintf('file %s cannot be ingested, check format and permissions',...
                       Args.ToO_File))
+                    S.Logger.msgLog(LogLevel.Info,...
+                        sprintf('offending file %s removed',Args.ToO_File))
                 end
             end
             
@@ -1154,15 +1159,15 @@ classdef Scheduler < Component
             % Example: telescope.Scheduler.demon;
 
             arguments
-                Args.TargetList       = '/home/ocs/Scheduler/TargetList.mat'; % current target list: file name or table, if [] then generate default LAST tiles
-                Args.SaveTargetList   = '/home/ocs/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
+                Args.TargetList       = '~/Scheduler/TargetList.mat'; % current target list: file name or table, if [] then generate default LAST tiles
+                Args.SaveTargetList   = '~/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
                 Args.SetLastJD        = []; % if given than value will be inserted to LastJD
                 Args.SetGlobalCounter = [];
                 Args.SetNightCounter  = [];
                 Args.AbortFile     = [];                      % abort file name including path
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
-                Args.ToO_File      = 'ToO.csv';               % ToO file name
+                Args.ToO_File      = '~/Scheduler/ToO.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
 
 %                 Args.FunSchedRequested function_handle = @telescope.Scheduler.dispatchTargetToUnit% Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
@@ -1183,7 +1188,7 @@ classdef Scheduler < Component
             end
             
             % load mount obstruction files:
-            PathMC = '/home/ocs/Scheduler';  % modify to the scheduler dir...
+            PathMC = '~/Scheduler';  % modify to the scheduler dir...
             CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
             S.populateMountAltConstraints(CMC,PathMC);
 
