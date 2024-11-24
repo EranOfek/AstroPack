@@ -1,12 +1,12 @@
-function [AllData] = obstractionModelLAST(Itel, Args)
+function [AllData] = obstructionModelLAST(Itel, Args)
     % Construct and plot enclosure and telescope obstraction model for LAST
     % Input  : - Telescope index. Default is 3.
     %          * ...,key,val,... 
     %            See code for options.
     % Output : - 
     % Author : Eran Ofek (2022 Nov) 
-    % Example: R=telescope.geometry.obstractionModelLAST
-    %          R=telescope.geometry.obstractionModelLAST('Step',0.01)
+    % Example: R=telescope.geometry.obstructionModelLAST
+    %          R=telescope.geometry.obstructionModelLAST('Step',0.01)
 
 
     arguments
