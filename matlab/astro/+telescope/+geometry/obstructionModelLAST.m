@@ -1,5 +1,5 @@
 function [AllData] = obstructionModelLAST(Itel, Args)
-    % Construct and plot enclosure and telescope obstraction model for LAST
+    % Construct and plot enclosure and telescope obstruction model for LAST
     % Input  : - Telescope index. Default is 3.
     %          * ...,key,val,... 
     %            See code for options.
@@ -33,7 +33,7 @@ function [AllData] = obstructionModelLAST(Itel, Args)
         Args.Plot              = 1;
         Args.CombPlot logical  = true;
 
-        Args.ObstractionFile   = []; %'MountObs3111.txt';  % write obstraction [Az,Alt] to this file. If empty, no file is written.
+        Args.ObstructionFile   = []; %'MountObs3111.txt';  % write obstruction [Az,Alt] to this file. If empty, no file is written.
     end
     
       
