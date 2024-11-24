@@ -5,9 +5,12 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          - template of the data file name
     %          * ...,key,val,... 
     %        'ProcDirTemplate' - template of dir name containing the results of data reduction 
+    %        'Template'        - template of tables' structure
     %        'Db*'             - database parameters
     %        'DbTable'         - DB table name
     %        'ColNameID'       - column name for the file unique ID
+    %        'RemoteUser'      - the name of the user who has a permission to write into the archive folders
+    %                           
     % Output : - data injected into the DB
     % Author : A.M. Krassilchtchikov (2024 Nov) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
@@ -15,10 +18,15 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
     %
     %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.01/2023/','ProcDirTemplate','*/*/proc/*')
+    %
+    %          /mnt/marvin/LAST.01.01.01/2024/10/22/proc/162733v0 caused
+    %          a crash of imProc.header.headers2table
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        
+        Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
@@ -41,6 +49,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
+    % read the column list from the xls template
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName',Args.DbTable);      
     %
     Dir = pwd; 
     tic
@@ -90,10 +100,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             A.JD       = Coadd(1).getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;
-            
-            Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
-                'Sheet','Images','TableName',Args.DbTable);            
+            CsvFN = A.genFile;                              
 
             T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);

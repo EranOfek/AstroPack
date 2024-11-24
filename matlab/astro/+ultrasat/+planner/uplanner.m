@@ -225,6 +225,7 @@ classdef uplanner < Component
             arguments
                 Obj                
                 Args.AveragedExt = '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152.mat'; % interpolation function
+                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';         % a list of calibration objects' properties
             end              
             % given unique object coordinates, fill in the unique target list properties
             RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;  
@@ -233,7 +234,11 @@ classdef uplanner < Component
             Obj.UniqTargList.A_U = A_Uaver7deg(RA, Dec);
 
             for iT = Obj.N0
+                RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
+                
+                load(Args.CalObj); % load CalibObj table
 %             Obj.UniqueTargList.CalObj = 
+
 %             Obj.UniqueTargList.RefImageIDs = 
 %             Obj.UniqueTargList.ExtSurveys =
 %             Obj.UniqueTargList.FieldObj = 
