@@ -21,6 +21,7 @@ function [Result,FlagGood] = maskCR(Obj, Args)
     %            'SN_2' - Column name for S/N of PSF function.
     %                   Default is SN_2.
     %            'DeltaSN' - min difference between S/N. Default is 0.
+    %                   Such that: FlagGood = SN1<(SN2+Args.DeltaSN);
     %            'BitNameCR' - CR bit name to flag.
     %                   Default is 'CR_DeltaHT'.
     %            'SetMask' - If truem then will set bit mask.

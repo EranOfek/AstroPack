@@ -32,6 +32,8 @@ function [AllData] = obstractionModelLAST(Itel, Args)
 
         Args.Plot              = 1;
         Args.CombPlot logical  = true;
+
+        Args.ObstractionFile   = 'MountObs3111.txt';  % write obstraction [Az,Alt] to this file. If empty, no file is written.
     end
     
       
@@ -256,9 +258,16 @@ function [AllData] = obstractionModelLAST(Itel, Args)
         Table  = Table(UI,:);
         Ntable = size(Table,1);
         AltLimitRand = interp1(Table(:,1),Table(:,2),AzRand);
-        AccessibleSkyFrac = sum(AltRand>AltLimitRand)./Nrand
+        AccessibleSkyFrac = sum(AltRand>AltLimitRand)./Nrand;
         
     
+    end
+
+    if ~isempty(Args.ObstractionFile)
+        AltMax = max([AllData.TT_Aligned, AllData.TT_NotAlighned, AllData.TT_Aligned15deg],[],2);
+        FID = fopen(Args.ObstractionFile, 'w');
+        fprintf(FID, '%5.1f %5.1f\n', [AllData.RealZ(:), AltMax(:)].');
+        fclose(FID);
     end
 
 end
