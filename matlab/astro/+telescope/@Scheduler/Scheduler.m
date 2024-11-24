@@ -1043,10 +1043,17 @@ classdef Scheduler < Component
 
             % check for ToO
             if isfile(Args.ToO_File)
-                S.loadTable(Args.ToO_File, 'merge_replace');
-                delete(Args.ToO_File);
-                S.Logger.msgLog(LogLevel.Info,...
-                  sprintf('New targets from %s have been ingested',Args.ToO_File))
+                try
+                    S.loadTable(Args.ToO_File, 'merge_replace');
+                    delete(Args.ToO_File);
+                    S.Logger.msgLog(LogLevel.Info,...
+                        sprintf('New targets from %s have been ingested',...
+                                 Args.ToO_File))
+                catch
+                    S.Logger.msglog(LogLevel.Err,...
+                      sprintf('file %s cannot be ingested, check format and permissions',...
+                      Args.ToO_File)
+                end
             end
             
             % Check if scheduling is required and if so for which mount
