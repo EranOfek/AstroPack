@@ -17,7 +17,15 @@
 % D.insert('test_db.users','file.csv');
 %
 % D.disconnectCH_Java % disconnect Java
-
+%
+% LAST example:
+% D=db.Db;
+% D.Password = <>
+% D.Conn;
+% D.useDB('ast');
+% D.showCurrentDB
+% D.showTables
+% T=D.query("SELECT * FROM last.visit_images;");
 
 
 classdef Db < Component
@@ -27,8 +35,8 @@ classdef Db < Component
         DbType   = "Clickhouse"; % 'Postgress'|'Clickhouse'
         DbName   = []; %"test_db";
         User     = "default"; %"";
-        Password = "spotpot"; %[];  % if empty, then use the PasswordsManager class to find and populate the password
-        Host     = "localhost"; %[];
+        Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
+        Host     = "socsrv"; %"localhost"; %[];
         Port     = "8123"; %[];
         
         ConnType = 'java';  % 'java'|'http'
