@@ -1052,7 +1052,7 @@ classdef Scheduler < Component
                 catch
                     S.Logger.msglog(LogLevel.Err,...
                       sprintf('file %s cannot be ingested, check format and permissions',...
-                      Args.ToO_File)
+                      Args.ToO_File))
                 end
             end
             
