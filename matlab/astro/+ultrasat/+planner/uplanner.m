@@ -28,6 +28,8 @@ classdef uplanner < Component
         
         Rfov               =  7; % FOV radius [deg] 
         
+        CalibObj           = []; % table of calibration objects 
+        
         Scheduled                % date or empty
         Validated                % date or empty
         Status             = 'draft';
@@ -58,6 +60,8 @@ classdef uplanner < Component
                 Args.TOOMaxTargets = 4; 
                 
                 Args.AstPlanner  = [];
+                
+                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objectss' list 
             end
             %
             if ~isempty(Args.StartTime) 
@@ -94,6 +98,8 @@ classdef uplanner < Component
             %
             Obj.UniqTargList = table([],[],[],[],[],[],[],'VariableNames', Args.TargColumns); 
             %
+            load(Args.CalObj); % load the calibration objects' table
+            Obj.CalibObj = CalibObj;
         end
     end 
     %
@@ -225,37 +231,32 @@ classdef uplanner < Component
         function fillFieldProp(Obj, Args)
             %
             arguments
-                Obj                                
-                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';         % a list of calibration objects' properties
+                Obj    
+                Args.A
             end              
             % given unique object coordinates, fill in the unique target list properties
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;
             
             % fill in the extinction for all the pointings
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec);
-                
-            load(Args.CalObj); % load CalibObj table
-            NCal = height(CalibObj);
-            
+                            
             for iT = Obj.N0 % loop over pointings 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);                
                 
                 % select calibration objects 
-                for i=1:NCal
-                    Ind(i) = celestial.search.isPointInsidePolygon(CalibObj.RA(i), CalibObj.Dec(i), FOV);
-                end                                                
-                Obj.UniqueTargList.CalObj = num2cell(Ind);
+                Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
+                Obj.UniqTargList.CalObj = num2cell(find(Ind>0));
 
                 % select reference images
-%                 Obj.UniqueTargList.RefImageIDs =
+%                 Obj.UniqTargList.RefImageIDs =
 
                 % select external surveys
-%                 Obj.UniqueTargList.ExtSurveys =
+%                 Obj.UniqTargList.ExtSurveys =
 
                 % select specific objects falling into the FOV
-%                 Obj.UniqueTargList.FieldObj =
+%                 Obj.UniqTargList.FieldObj =
             end
             
         end
