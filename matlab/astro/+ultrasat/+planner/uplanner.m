@@ -26,6 +26,8 @@ classdef uplanner < Component
         N0                       % number of unique targets
         Ntarg                    % number of targets
         
+        Rfov               =  7; % FOV radius [deg] 
+        
         Scheduled                % date or empty
         Validated                % date or empty
         Status             = 'draft';
@@ -237,6 +239,8 @@ classdef uplanner < Component
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 
                 load(Args.CalObj); % load CalibObj table
+                Ind = find(dist < Rfov);
+                
 %             Obj.UniqueTargList.CalObj = 
 
 %             Obj.UniqueTargList.RefImageIDs = 
