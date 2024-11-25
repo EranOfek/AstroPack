@@ -132,11 +132,13 @@ classdef uplanner < Component
             end            
             % load unique targets 
             Obj.loadUniqTargCoo(RA, Dec, 'File', Args.CooFile)                                   
-            % fill porperties of unique target fields
+            % fill properties of unique target fields
             Obj.fillUniqTargProp                        
             % schedule targets and fill the plan
             Obj.schedule
+            % make a schedule 
             % show which observations in the existing plan are to be replaced 
+                % this is not needed for the HCS?
             % validate the plan
             Obj.validate
             % submit the plan as JSON and save the plan in a .mat object
@@ -228,9 +230,10 @@ classdef uplanner < Component
                 Obj.UniqTargList.CalObj = num2cell(find(Ind>0));
 
                 % select reference images
-%                 Obj.UniqTargList.RefImageIDs =
+%                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
+%                 Obj.UniqTargList.RefImageIDs = num2cell(find(Ind>0));
 
-                % select external surveys
+                % select external surveys 
 %                 Obj.UniqTargList.ExtSurveys =
 
                 % select specific objects falling into the FOV

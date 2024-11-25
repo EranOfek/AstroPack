@@ -23,7 +23,7 @@ function Circle = getFOVcircle(RA, Dec, Args)
     if Args.Plot
         figure; clf
         axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
-        plotm(RA/RAD,Dec/RAD,'.','Color','red');
-        plotm(Circle(:,2)/RAD,Circle(:,1)/RAD,'.','Color',Args.Color);
+        plotm(RA./RAD,Dec./RAD,'.','Color','red');
+        plotm(Circle(:,2)./RAD,Circle(:,1)./RAD,'.','Color',Args.Color);
     end
 end
