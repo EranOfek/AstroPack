@@ -229,16 +229,22 @@ classdef uplanner < Component
                 Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';         % a list of calibration objects' properties
             end              
             % given unique object coordinates, fill in the unique target list properties
-            RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;  
+            RA   = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;
             
-            % extinction 
+            % fill in the extinction 
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec);
-
+            
+            % make a circular FOV region
+            FOV = ultrasat.tools.getFOVcircle(RA,Dec,'Radius',7,'Plot',0);
+            
             for iT = Obj.N0
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 
                 load(Args.CalObj); % load CalibObj table
-                Ind = find(dist < Rfov);
+                NCal = height(CalibObj);
+                for i=1:NCal
+                    Ind(i) = celestial.search.isPointInsidePolygon(CalibObj.RA(i), CalibObj.Dec(i), FOV);
+                end
                 
 %             Obj.UniqueTargList.CalObj = 
 
