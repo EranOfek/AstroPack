@@ -350,16 +350,20 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % Estimate PSF and do PSF photometry
         if Args.AddPSF            
             if Args.MultiIterationPSFphot
+                % This is not the place for mextractor...
                 [SI, ~] = imProc.sources.mextractor(SI,'Threshold',Args.MultiIterationThresholds,...
                                                     'FindWithEmpiricalPSF',true,...
                                                     'RedNoiseFactor',Args.MultiIterationRedNoiseFactor);
             else
                 [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:});
                 
-                if any(isemptyPSF(SI))
+                NotEmptyPSF = ~isemptyPSF(SI);
+                if sum(NotEmptyPSF)<5
+                    % less than 5 good images
+                %if any(isemptyPSF(SI))
                     % If no PSF found for one sub image - fails all
                     % FFU: need to change in the future
-                    N_noPSF = sum(~isemptyPSF(SI));
+                    N_noPSF = sum(isemptyPSF(SI));
                     N_SubImages = numel(SI);
                     N_totSrc    = sum(SI.sizeCatalog);
                     N_minSrc    = min(SI.sizeCatalog);
@@ -368,7 +372,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                 
                 if Args.PsfPhot
                     % PSF photometry
-                    [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});
+                    [SI(NotEmptyPSF), ResPSF] = imProc.sources.psfFitPhot(SI(NotEmptyPSF), 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});
                 end
             end
         end
@@ -423,7 +427,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         % add PSF FWHM to the header after the astrometry, as it employs WCS.CD
         if Args.AddPSF
-            imProc.psf.fwhm(SI); 
+            [SI, Tmp] = imProc.psf.fwhm(SI, 'Scale',Args.Scale); 
         end
 
         % Photometric ZP

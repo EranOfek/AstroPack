@@ -1,4 +1,4 @@
-function Obj = fwhm(Obj, Args)
+function [Obj,AllFWHM] = fwhm(Obj, Args)
     % Measure the FWHM from the PSF in an AstroImage and write in Header.
     %   If the AstroPSF is not pupulated, this function will populate it.
     %   Also add the median A, B, Theta of sources.
@@ -24,6 +24,7 @@ function Obj = fwhm(Obj, Args)
     % Output : - The AstroImage object with the populated PSF object and FWHM in
     %            the header [arcsec].
     %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
+    %          - FWHM_C.
     % Author : Eran Ofek (Jan 2022)
     % Example: imProc.psf.fwhm(Coadd);
     
@@ -40,6 +41,7 @@ function Obj = fwhm(Obj, Args)
     ARCSEC_DEG = 3600;    
     
     Nobj = numel(Obj);
+    AllFWHM = zeros(size(Obj));
     for Iobj=1:1:Nobj
         if isemptyPSF(Obj(Iobj).PSFData)
             % construct the PSF
@@ -63,6 +65,7 @@ function Obj = fwhm(Obj, Args)
             % NO PSF - put NaNs in header
             FWHM_C = NaN;
         end
+        AllFWHM(Iobj) = FWHM_C;
 
         % add FWHM to header
         if Args.AddToHeader
