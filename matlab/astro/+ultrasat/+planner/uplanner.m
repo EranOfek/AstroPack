@@ -23,8 +23,8 @@ classdef uplanner < Component
         TOOMaxTargets      =  4;
         TOOProbMap      
         
-        N0                       % number of unique targets
-        Ntarg                    % number of targets
+        N0                 =  0; % number of unique targets
+        Ntarg              =  0; % number of targets in the plan
         
         Rfov               =  7; % FOV radius [deg] 
         
@@ -134,7 +134,7 @@ classdef uplanner < Component
             % load unique targets 
             Obj.loadUniqTargCoo(RA, Dec, 'File', Args.CooFile)                                   
             % fill porperties of unique target fields
-            Obj.fillFieldProp                        
+            Obj.fillUniqTargProp                        
             % schedule targets and fill the plan
             Obj.schedule
             % show which observations in the existing plan are to be replaced 
@@ -142,6 +142,18 @@ classdef uplanner < Component
             Obj.validate
             % submit the plan as JSON and save the plan in a .mat object
             Obj.submit
+        end
+        %
+        function buildLCS(Obj, Args)
+            % build a plan for a list of DDT targets
+            arguments
+                Obj
+                Args.Coo
+            end
+            % check visibility within the given time interval for each of the targets
+            % 
+            % fill in the target list 
+            %                       
         end
         %
         function buildDDT(Obj, Args)
@@ -195,43 +207,7 @@ classdef uplanner < Component
             Obj.UniqTargList.RA(1:Obj.N0) = RA(1:Obj.N0); Obj.UniqTargList.Dec(1:Obj.N0) = Dec(1:Obj.N0);
         end
         %
-        function calcVisibility(Obj, Args)
-            % calculate visibility for the given period and time bin
-            arguments
-                Obj
-                Args.Coo               = []; % 2-column matrix of [RA, Dec] in [deg]               
-                Args.TimeBin           = []; % [days] 
-                Args.SunDist           = 70; % [deg]
-                Args.MoonDist          = 34; % [deg]
-                Args.EarthDist         = 56; % [deg]
-            end
-            %
-            RAD = 180/pi;
-            %
-            if ~isempty(Args.TimeBin)
-                Obj.TimeBin = Args.TimeBin;
-            end
-            %
-            if ~isempty(Args.Coo)
-                Obj.Coo = Args.Coo;            
-            end
-            if isempty(Obj.Coo)
-                error('No coordinates found as function input or object property')
-            else
-                Obj.NCoo = size(Obj.Coo,1); % number of sky points 
-            end
-            %
-            Obj.JD    = Obj.StartDate + (0:Obj.TimeBin:(Obj.EndDate-Obj.StartDate))';
-            Obj.NumJD = numel(Obj.JD);
-            
-            Obj.Vis  = ultrasat.ULTRASAT_restricted_visibility(Obj.JD,Obj.Coo/RAD,...
-                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);
-            
-            Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
-            Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
-        end
-        %
-        function fillFieldProp(Obj, Args)
+        function fillUniqTargProp(Obj, Args)
             %
             arguments
                 Obj    
@@ -243,7 +219,7 @@ classdef uplanner < Component
             % fill in the extinction for all the pointings
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec);
                             
-            for iT = Obj.N0 % loop over pointings 
+            for iT = Obj.N0 % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);                
@@ -293,6 +269,44 @@ classdef uplanner < Component
                 errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda, A'; ylabel 'F, erg/cm(2)/s/A'; set(gca, 'YScale', 'log');
                 Title = sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG); title(Title)        
             end            
+        end
+        %
+        %
+        %
+        function calcVisibility(Obj, Args)
+            % calculate visibility for the given period and time bin
+            arguments
+                Obj
+                Args.Coo               = []; % 2-column matrix of [RA, Dec] in [deg]               
+                Args.TimeBin           = []; % [days] 
+                Args.SunDist           = 70; % [deg]
+                Args.MoonDist          = 34; % [deg]
+                Args.EarthDist         = 56; % [deg]
+            end
+            %
+            RAD = 180/pi;
+            %
+            if ~isempty(Args.TimeBin)
+                Obj.TimeBin = Args.TimeBin;
+            end
+            %
+            if ~isempty(Args.Coo)
+                Obj.Coo = Args.Coo;            
+            end
+            if isempty(Obj.Coo)
+                error('No coordinates found as function input or object property')
+            else
+                Obj.NCoo = size(Obj.Coo,1); % number of sky points 
+            end
+            %
+            Obj.JD    = Obj.StartDate + (0:Obj.TimeBin:(Obj.EndDate-Obj.StartDate))';
+            Obj.NumJD = numel(Obj.JD);
+            
+            Obj.Vis  = ultrasat.ULTRASAT_restricted_visibility(Obj.JD,Obj.Coo/RAD,...
+                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);
+            
+            Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
+            Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
         function schedule(Obj,Args)
