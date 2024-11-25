@@ -26,7 +26,7 @@ classdef uplanner < Component
         N0                 =  0; % number of unique targets
         Ntarg              =  0; % number of targets in the plan
         
-        Rfov               =  7; % FOV radius [deg] 
+        Rfov               =  7.19; % [deg] FOV radius w/account of the gap
         
         CalibObj           = []; % table of calibration objects 
         CalibDir           
@@ -126,8 +126,7 @@ classdef uplanner < Component
             % change start and stop time, if requested
             if ~isempty(Args.StartTime) 
                 Obj.StartTime = Args.StartTime; 
-            end
-            %
+            end            
             if ~isempty(Args.EndTime)             
                 Obj.EndTime   = Args.EndTime; 
             end            
@@ -208,16 +207,16 @@ classdef uplanner < Component
         end
         %
         function fillUniqTargProp(Obj, Args)
-            %
+            % fill the properties lines for each of the unique targets 
             arguments
                 Obj    
                 Args.A
             end              
-            % given unique object coordinates, fill in the unique target list properties
-            RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec;
+            % target coordinates 
+            RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
             
-            % fill in the extinction for all the pointings
-            Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec);
+            % extinction 
+            Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
                             
             for iT = Obj.N0 % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
@@ -236,15 +235,15 @@ classdef uplanner < Component
 
                 % select specific objects falling into the FOV
 %                 Obj.UniqTargList.FieldObj =
-            end
-            
+            end            
         end
         %
         function Res = showCalibObj(Obj,Ind,Args)
             % show the table data and spectra of calibration objects
             % Input : - object indexes
-            %        ......
+            %        ..key,val..
             %       'PlotSpectrum' - logical, def. false
+            %       'Band' - spectral interval for plotting in [nm], e.g. [230 300]  
             % Output: - a subset of the main calibration objects' table
             % Exapmle: P = ultrasat.planner.uplanner;
             %          P.buildHCS('CooFile','~/hcs.coo');
@@ -255,6 +254,7 @@ classdef uplanner < Component
                 Obj
                 Ind
                 Args.PlotSpectrum = false;
+                Args.Band         = [];     % [nm] band for spectrum plotting, e.g. [230 300] 
             end
             %
             if iscell(Ind)
@@ -267,6 +267,9 @@ classdef uplanner < Component
                 Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
                 figure; clf                                
                 errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda, A'; ylabel 'F, erg/cm(2)/s/A'; set(gca, 'YScale', 'log');
+                if ~isempty(Args.Band)
+                    xlim(Args.Band.*10);
+                end
                 Title = sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG); title(Title)        
             end            
         end
