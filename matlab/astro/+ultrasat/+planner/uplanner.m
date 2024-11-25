@@ -29,6 +29,7 @@ classdef uplanner < Component
         Rfov               =  7; % FOV radius [deg] 
         
         CalibObj           = []; % table of calibration objects 
+        CalibDir           
         
         Scheduled                % date or empty
         Validated                % date or empty
@@ -61,7 +62,8 @@ classdef uplanner < Component
                 
                 Args.AstPlanner  = [];
                 
-                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objectss' list 
+                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
+                Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
             end
             %
             if ~isempty(Args.StartTime) 
@@ -100,6 +102,7 @@ classdef uplanner < Component
             %
             load(Args.CalObj); % load the calibration objects' table
             Obj.CalibObj = CalibObj;
+            Obj.CalibDir = Args.CalDir;
         end
     end 
     %
@@ -259,6 +262,37 @@ classdef uplanner < Component
 %                 Obj.UniqTargList.FieldObj =
             end
             
+        end
+        %
+        function Res = showCalibObj(Obj,Ind,Args)
+            % show the table data and spectra of calibration objects
+            % Input : - object indexes
+            %        ......
+            %       'PlotSpectrum' - logical, def. false
+            % Output: - a subset of the main calibration objects' table
+            % Exapmle: P = ultrasat.planner.uplanner;
+            %          P.buildHCS('CooFile','~/hcs.coo');
+            %          Tab = P.showCalibObj(P.UniqTargList.CalObj) 
+            % or
+            %          P.showCalibObj(P.UniqTargList.CalObj{1}, 'PlotSpectrum',true); 
+            arguments
+                Obj
+                Ind
+                Args.PlotSpectrum = false;
+            end
+            %
+            if iscell(Ind)
+                Ind = Cell2Vec(Ind);
+            end
+            Res = Obj.CalibObj(Ind,:);
+            if Args.PlotSpectrum
+                Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{1});
+                Ftab  = fitsread(Fname,'binarytable');
+                Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
+                figure; clf                                
+                errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda, A'; ylabel 'F, erg/cm(2)/s/A'; set(gca, 'YScale', 'log');
+                Title = sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG); title(Title)        
+            end            
         end
         %
         function schedule(Obj,Args)
