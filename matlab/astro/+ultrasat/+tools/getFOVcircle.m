@@ -15,7 +15,8 @@ function Circle = getFOVcircle(RA, Dec, Args)
     %
     RAD = 180/pi;    
     [OutRA,OutDec] = celestial.coo.celestial_circ(RA/RAD,Dec/RAD,Args.Radius/RAD,Args.NumPoints);    
-    Circle(:,1) = OutRA .* RAD; Circle(:,2) = OutDec .*RAD;
+    OutRA(OutRA<0) = 2*pi + OutRA(OutRA<0);  % need to have only positive RA
+    Circle(:,1) = OutRA .* RAD; Circle(:,2) = OutDec .*RAD;    
     % 
     if Args.Plot
         figure; clf
