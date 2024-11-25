@@ -4,6 +4,8 @@ function Corners = getFOVcorners(RA, Dec, Args)
     % Input : - RA [deg]
     %         - Dec [deg]
     % Output : - a matrix of corner coordinates [deg]
+    % Author: A.M. Krassilchtchikov (2024 Nov)
+    % Example: RA = 215; Dec = 60; Corners = ultrasat.tools.getFOVcorners(RA, Dec)
     arguments
         RA
         Dec      
@@ -13,8 +15,9 @@ function Corners = getFOVcorners(RA, Dec, Args)
     end
     %
     RAD = 180/pi;    
-    [OutRA,OutDec] = celestial.coo.center2corners(RA/RAD,Dec/RAD,Args.HalfFOVRad/RAD,Args.HalfFOVRad/RAD);
-    Corners(:,1) = OutRA .* RAD; Corners(:,2) = OutDec .*RAD;
+    [OutRA,OutDec] = celestial.coo.center2corners(RA/RAD,Dec/RAD,Args.HalfFOVRad/RAD,Args.HalfFOVRad/RAD);    
+    OutRA(OutRA<0) = OutRA(OutRA<0) + 2*pi;    % need to have only positive RA
+    Corners(:,1)   = OutRA .* RAD; Corners(:,2) = OutDec .*RAD;
     % 
     if Args.Plot
         figure; clf
