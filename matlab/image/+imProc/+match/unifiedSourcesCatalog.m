@@ -96,6 +96,20 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
             Cat = Obj(Iobj);
         end
             
+        
+        % get column index again in case catalogs are different
+        switch lower(Args.CooType)
+            case 'sphere'
+
+                [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesRA);
+                [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesDec);
+            case 'pix'
+
+                [ColIndX, ColNameX] = colnameDict2ind(Cat, Args.ColNamesX);
+                [ColIndY, ColNameY] = colnameDict2ind(Cat, Args.ColNamesY);
+            otherwise
+                error('Unknown CooType option');
+        end
         % check if there is a valid RA/Dec in catalog
         %LonLat = getLonLat(Cat);
 

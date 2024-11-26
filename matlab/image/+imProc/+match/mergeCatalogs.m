@@ -349,13 +349,16 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             % imProc.asteroids.searchAsteroids_pmCat
 
             % FFU: match to external catalogs
+            
+            
+            if Args.MergedMatchMergedCat
+                % match against external catalogs
+                MergedCat(Ifields) = imProc.match.match_catsHTMmerged(MergedCat(Ifields), 'SameField',false, 'CreateNewObj',false);
+            end
         end
     end
     
-    if Args.MergedMatchMergedCat
-        % match against external catalogs
-        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false);
-    end
+    
     
     % DEBUG
     %I= 9;
