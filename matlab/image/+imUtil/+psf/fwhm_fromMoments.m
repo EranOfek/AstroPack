@@ -79,9 +79,9 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     Lambda1 = median(0.5.*(XY2 + SQ));
     Lambda2 = median(0.5.*(XY2 - SQ));
 
-    Info.X2 = M2.X2(FlagStars);
-    Info.Y2 = M2.Y2(FlagStars);
-    Info.XY = M2.XY(FlagStars);
+    Info.X2 = M2.X2;
+    Info.Y2 = M2.Y2;
+    Info.XY = M2.XY;
 
     Nstars = sum(FlagStars);
     Info.MinorSig = min(Lambda1, Lambda2);
