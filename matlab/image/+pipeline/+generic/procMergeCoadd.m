@@ -97,6 +97,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
     
     % continue only for fields for which all visits astrometry is good
     FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
+    % look for catalogs which have different number od columns
+    [~,Ncol]=AllSI.sizeCatalog;
+    FlagGoodAstrometry = FlagGoodAstrometry & all(mean(Ncol)==Ncol);
+    
+    
     if ~all(FlagGoodAstrometry)
         warning('Some sub images have bad astrometry');
     end
