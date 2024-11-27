@@ -292,7 +292,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.HostName              = [];
 
-        Args.MaxFWHM               = 5.5;  % max of median(FWHM) - if larger stop processing
+        Args.MaxFWHM               = 7.0;  % max of median(FWHM) - if larger stop processing
 
         Args.KeyRawID              = 'ID_RAW';  % if empty, do not insert ID_RAW
     end
