@@ -223,7 +223,8 @@ classdef uplanner < Component
             for iT = Obj.N0 % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
-                FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);                
+                FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
+                FOVp = polyshape(FOV);  % a polyshape is useful to test intersections
                 
                 % select calibration objects 
                 Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
@@ -234,7 +235,9 @@ classdef uplanner < Component
 %                 Obj.UniqTargList.RefImageIDs = num2cell(find(Ind>0));
 
                 % select external surveys 
-%                 Obj.UniqTargList.ExtSurveys =
+%                 load(extsurveymaps);
+%                 Ind = overlaps(ExtSurv,FOVp));
+%                 Obj.UniqTargList.ExtSurveys =                
 
                 % select specific objects falling into the FOV
 %                 Obj.UniqTargList.FieldObj =
