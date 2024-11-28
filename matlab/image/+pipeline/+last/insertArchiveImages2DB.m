@@ -18,9 +18,10 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
     %
     %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.01/2023/','ProcDirTemplate','*/*/proc/*')
+    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.03/','ProcDirTemplate','*/*/*/proc/*v0')
     %
-    %          /mnt/marvin/LAST.01.01.01/2024/10/22/proc/162733v0 caused
-    %          a crash of imProc.header.headers2table
+    %          ls: cannot access '/mnt/marvin/LAST.01.01.02/2024/06/05/proc/004549v66/.status': No such file or directory
+    %    
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
@@ -62,7 +63,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     Ndir = numel(Dirs);
     for Crop = 1:Ndir
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
-        cd(DataDir);        
+        cd(DataDir);    
+        try
         if ~contains(fileread('.status'), "injected into the visit image DB")
             Coadd=AstroImage(FileNameTemplate); % read the data
             Nobj = numel(Coadd);
@@ -118,7 +120,11 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             fprintf(' ..done\n');  
         else
             cd(Dir); 
-        end                 
+        end        
+        catch
+            fprintf('Error injecting images from data directory %s\n',DataDir);
+            break
+        end
     end
     toc
     % disconnect the DB     

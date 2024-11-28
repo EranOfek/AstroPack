@@ -98,7 +98,7 @@ classdef uplanner < Component
             % 
             Obj.Plan = table([],[],[],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns); 
             %
-            Obj.UniqTargList = table([],[],[],[],[],[],[],'VariableNames', Args.TargColumns); 
+            Obj.UniqTargList = table([],[],[],{},{},{},{},'VariableNames', Args.TargColumns); 
             %
             load(Args.CalObj); % load the calibration objects' table
             Obj.CalibObj = CalibObj;
@@ -212,14 +212,17 @@ classdef uplanner < Component
             % fill the properties lines for each of the unique targets 
             arguments
                 Obj    
-                Args.A
+                Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
             end              
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
             
             % extinction 
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
-                            
+            
+            % load the lists of external important objects and survey maps
+            load(Args.ExtSurveyMaps); % 'SurveyMaps' table
+
             for iT = Obj.N0 % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
@@ -228,16 +231,25 @@ classdef uplanner < Component
                 
                 % select calibration objects 
                 Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
-                Obj.UniqTargList.CalObj = num2cell(find(Ind>0));
+                ObjList = num2cell(find(Ind>0)); 
+                if ~isempty(ObjList)
+                    Obj.UniqTargList.CalObj = ObjList;
+                else
+                    Obj.UniqTargList.CalObj = {};
+                end
 
                 % select reference images
 %                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
 %                 Obj.UniqTargList.RefImageIDs = num2cell(find(Ind>0));
 
                 % select external surveys 
-%                 load(extsurveymaps);
-%                 Ind = overlaps(ExtSurv,FOVp));
-%                 Obj.UniqTargList.ExtSurveys =                
+                Ind = overlaps(SurveyMaps.Shape,FOVp);
+                ObjList = num2cell(find(Ind>0));   
+                if ~isempty(ObjList)
+                    Obj.UniqTargList.ExtSurveys = ObjList;
+                else
+                    Obj.UniqTargList.ExtSurveys = {};
+                end
 
                 % select specific objects falling into the FOV
 %                 Obj.UniqTargList.FieldObj =
