@@ -269,20 +269,23 @@ classdef uplanner < Component
             % Output: - a subset of the main calibration objects' table
             % Exapmle: P = ultrasat.planner.uplanner;
             %          P.buildHCS('CooFile','~/hcs.coo');
-            %          Tab = P.showCalibObj(P.UniqTargList.CalObj) 
+            %          Tab = P.showCalibObj(2) 
             % or
-            %          P.showCalibObj(P.UniqTargList.CalObj{1}, 'PlotSpectrum',true); 
+            %          P.showCalibObj(2, 'PlotSpectrum',true); 
             arguments
                 Obj
-                Ind
+                Ind               = [];
                 Args.PlotSpectrum = false;
                 Args.Band         = [];     % [nm] band for spectrum plotting, e.g. [230 300] 
             end
             %
-            if iscell(Ind)
-                Ind = Cell2Vec(Ind);
+            if isempty(Ind)
+                TabInd = Cell2Vec(Obj.UniqTargList.CalObj{1});
+                Res = Obj.CalibObj(TabInd,:);
+            else
+                TabInd = Obj.UniqTargList.CalObj{1}{Ind}; % what to do if Ind is an array?? 
+                Res = Obj.CalibObj(TabInd,:); 
             end
-            Res = Obj.CalibObj(Ind,:);
             if Args.PlotSpectrum
                 Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{1});
                 Ftab  = fitsread(Fname,'binarytable');
