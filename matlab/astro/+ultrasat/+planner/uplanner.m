@@ -231,26 +231,16 @@ classdef uplanner < Component
                 
                 % select calibration objects 
                 Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
-                ObjList = num2cell(find(Ind>0)); 
-                if ~isempty(ObjList)
-                    Obj.UniqTargList.CalObj = ObjList;
-                else
-                    Obj.UniqTargList.CalObj = {};
-                end
-
+                Obj.UniqTargList.CalObj{iT} = num2cell(find(Ind>0));
+                
                 % select reference images
 %                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
 %                 Obj.UniqTargList.RefImageIDs = num2cell(find(Ind>0));
 
                 % select external surveys 
                 Ind = overlaps(SurveyMaps.Shape,FOVp);
-                ObjList = num2cell(find(Ind>0));   
-                if ~isempty(ObjList)
-                    Obj.UniqTargList.ExtSurveys = ObjList;
-                else
-                    Obj.UniqTargList.ExtSurveys = {};
-                end
-
+                Obj.UniqTargList.ExtSurveys{iT} = num2cell(find(Ind>0));
+               
                 % select specific objects falling into the FOV
 %                 Obj.UniqTargList.FieldObj =
             end            

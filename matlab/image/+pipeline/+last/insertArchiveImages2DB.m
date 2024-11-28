@@ -54,6 +54,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName',Args.DbTable);      
     %
     Dir = pwd; 
+    FID = fopen('no_status_dir.txt', 'a');
     tic
     % find all the directories according to the template
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -65,7 +66,13 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);    
         try
-        if ~contains(fileread('.status'), "injected into the visit image DB")
+            Injected = contains(fileread('.status'), "injected into the visit image DB");
+        catch
+            cd(Dir);
+            fprintf(FID,'%s \n',DataDir);
+            continue
+        end
+        if ~Injected
             Coadd=AstroImage(FileNameTemplate); % read the data
             Nobj = numel(Coadd);
             cd(Dir);
@@ -120,13 +127,10 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             fprintf(' ..done\n');  
         else
             cd(Dir); 
-        end        
-        catch
-            fprintf('Error injecting images from data directory %s\n',DataDir);
-            break
-        end
+        end                        
     end
     toc
+    fclose(FID);
     % disconnect the DB     
     DB.disconnectCH_Java;  
 end
