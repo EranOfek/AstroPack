@@ -213,6 +213,7 @@ classdef uplanner < Component
             arguments
                 Obj    
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
+                Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
             end              
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
@@ -222,6 +223,7 @@ classdef uplanner < Component
             
             % load the lists of external important objects and survey maps
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
+            load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
             for iT = Obj.N0 % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
@@ -235,14 +237,26 @@ classdef uplanner < Component
                 
                 % select reference images
 %                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
-%                 Obj.UniqTargList.RefImageIDs = num2cell(find(Ind>0));
+%                 Obj.UniqTargList.RefImageIDs{iT} = num2cell(find(Ind>0));
 
                 % select external surveys 
                 Ind = overlaps(SurveyMaps.Shape,FOVp);
                 Obj.UniqTargList.ExtSurveys{iT} = num2cell(find(Ind>0));
                
                 % select specific objects falling into the FOV
-%                 Obj.UniqTargList.FieldObj =
+                Ind = celestial.search.isPointInsidePolygon(Known_Obj_small.RA, Known_Obj_small.Dec, FOV);
+                Field.Small = num2cell(find(Ind>0));
+                % also extract
+                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG3_det_trans_planets.ra, Known_Obj_large.WG3_det_trans_planets.dec,FOV);
+                Field.TransPlanets = num2cell(find(Ind>0));
+                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG5_Massive_Stars.RA, Known_Obj_large.WG5_Massive_Stars.Dec,FOV);
+                Field.MassiveStars = num2cell(find(Ind>0));
+                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG5_AllClusters.RA, Known_Obj_large.WG5_AllClusters.DEC,FOV);
+                Field.Clusters = num2cell(find(Ind>0));                
+                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG7_Blazars.RA, Known_Obj_large.WG7_Blazars.Dec,FOV);
+                Field.Blazars = num2cell(find(Ind>0));    
+                %
+                Obj.UniqTargList.FieldObj{iT} = Field;
             end            
         end
         %
