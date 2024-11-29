@@ -122,11 +122,11 @@ function TranCat=findTransients(AD, Args)
         [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
             LocalMax(:,1), LocalMax(:,2));
 
-        % Construct AstroCatalog holding transints candidates
+        % Construct AstroCatalog holding transients candidates
 
         ColNames = {'XPEAK', 'YPEAK', 'SCORE'};
         ColUnits = {'','',''};
-        
+
         TranCat(Iobj) = AstroCatalog({cast([LocalMax(:,1), LocalMax(:,2), LocalMax(:,3)],'double')},...
             'ColNames', ColNames, 'ColUnits', ColUnits);
 
@@ -144,7 +144,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             %Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
-        
+
             % PSF fit all candidates in the New image
             CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, M1.X, M1.Y, CutHalfSize);
@@ -217,10 +217,11 @@ function TranCat=findTransients(AD, Args)
             PeakDist = sqrt((LocalMax(:,1)-M1.X).^2+(LocalMax(:,2)-M1.Y).^2);
 
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
-                cast(M2.X2,'double'), cast(M2.Y2,'double'), ...
+                cast(M2.X2,'double'), cast(M2.Y2,'double'), cast(M2.XY,'double'),...
                 cast(PeakDist,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
-                {'X1', 'Y1', 'X2', 'Y2', 'PEAK_DIST'}, {'','','','',''});
+                {'X1', 'Y1', 'X2', 'Y2', 'XY','PEAK_DIST'}, ...
+                {'','','','','',''});
         end
 
         if Args.includeBitMaskVal

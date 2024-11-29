@@ -404,7 +404,6 @@ classdef AstroDiff < AstroImage
                 Args.UseSameCat logical        = false;
             end
 
-
             AstCat = Args.CatName;
 
             Nobj = numel(Obj);
@@ -877,7 +876,7 @@ classdef AstroDiff < AstroImage
             Flag transients candidates that are likely not real transients.
             Input  : - An AstroDiff object in which CatData is populated.
                      * ...,key,val,...
-                       'flagValleys' - Bool on whether to flag negative
+                       'flagNegatives' - Bool on whether to flag negative
                                candidates. Default is true.
                        'flagChi2' - Bool on whether to flag transients candidates
                               based on how well the PSF fits to a stamp on the transient.
@@ -885,7 +884,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
-                              limits are flagged. Default is [0.19 1.31].
+                              limits are flagged. Default is [0.23 1.41].
                        'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
                               for New and Ref images. Condition requires that in
                               at least one of the images, the source is not
@@ -898,7 +897,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
                               Default is {'Interpolated', 'NaN', 'NearEdge',
-                              'CoaddLessImages', 'Hole', 'CR_DeltaHT'}.
+                              'CoaddLessImages', 'Hole'}.
                        'flagBadPix_Soft' - Bool on whether to flag transients
                               candidates based on soft bit mask criteria. 
                               Default is true.
@@ -981,17 +980,17 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
 
-                Args.flagValleys logical = true;
+                Args.flagNegatives logical = true;
 
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits = [0.19 1.31];
+                Args.Chi2dofLimits = [0.23 1.41];
                 Args.MinNRChi2dof = 0.1;
                 
                 Args.flagSaturated logical = true;
         
                 Args.flagBadPix_Hard logical  = true;
                 Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-                    'Hole', 'CR_DeltaHT', 'Negative'};
+                    'Hole', 'Negative'};
 
                 Args.flagBadPix_Soft logical  = true;
                 Args.BadPix_Soft       = {{'HighRN', 6.5, 13.0}, {'SrcNoiseDominated', 6.5, 13.0}, ...
@@ -1040,7 +1039,7 @@ classdef AstroDiff < AstroImage
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
-                    'flagValleys', Args.flagValleys,...
+                    'flagNegatives', Args.flagNegatives,...
                     'flagChi2',Args.flagChi2,...
                     'Chi2dofLimits',Args.Chi2dofLimits,...
                     'MinNRChi2dof',Args.MinNRChi2dof,...
@@ -1199,7 +1198,7 @@ classdef AstroDiff < AstroImage
                 Args.CreateNewObj logical   = true;
                 
                 Args.CropProp               = {'ThresholdImage',...
-                    'Z2', 'S', 'S2', 'Scorr', 'GaborSN'};
+                    'Z2', 'S', 'S2', 'Scorr', 'GaborSN','S_delta'};
             end
             
             NcropProp = numel(Args.CropProp);
@@ -1386,9 +1385,13 @@ classdef AstroDiff < AstroImage
                     case 'RefBack'
                         ds9(Obj.Ref.Back,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
                     case 'Gabor'
                         ds9(Obj.GaborSN,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                    case 'SDelta'
+                        ds9(Obj.S_delta,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
                 end
