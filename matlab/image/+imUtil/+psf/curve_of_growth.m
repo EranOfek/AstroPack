@@ -57,6 +57,10 @@ for Irad=1:1:Nrad
     Curve.Mean(Irad) = Curve.Sum(Irad)./Curve.Npix(Irad);
     Curve.Med(Irad)  = median(Matrix(Flag));
 end
+% if Npix=0, then output is NaN - replace with zero
+I0 = find(Curve.Npix==0);
+Curve.Mean(I0) = 0;
+Curve.Med(I0)  = 0;
 Curve.CumSum = cumsum(Curve.Sum);
     
     
