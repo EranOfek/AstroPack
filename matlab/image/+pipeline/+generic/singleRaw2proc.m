@@ -341,7 +341,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
         if any(SI.sizeCatalog < Args.MinNstar)
             [MinVal, MinInd] = min(SI.sizeCatalog);
-            error('Sub-image: %d has only %d sources', MinInd, MinVal)
+            %error('Sub-image: %d has only %d sources', MinInd, MinVal)
         end
         
         % FFU: flags Holes
