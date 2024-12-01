@@ -130,6 +130,14 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             
             %tic;
 
+            % This is a patch to deal with the fact that the pointing model
+            % is not accurate near the pole
+            if Dec>85
+                Args.CatRadius = 5000;
+                Args.RangeX    = [-4000 4000];
+                Args.RangeY    = [-4000 4000];
+            end
+            
             [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim),...
                                                                                                      'Tran',Args.Tran,...
                                                                                                      'RA',RA,...
