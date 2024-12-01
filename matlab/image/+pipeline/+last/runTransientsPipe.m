@@ -111,7 +111,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         else
             NRefsFound = NRefsFound + 1;
         end
-    
+
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
