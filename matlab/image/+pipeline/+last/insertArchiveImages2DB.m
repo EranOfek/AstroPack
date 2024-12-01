@@ -17,7 +17,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          Template = '*coadd*Ima*fits';
     %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.04/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
@@ -72,6 +72,11 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         if ~Injected
             Coadd=AstroImage(FileNameTemplate); % read the data
             Nobj = numel(Coadd);
+            if Nobj < 2 % likely no images have been read 
+                cd(Dir);
+                fprintf(FID,'%s \n',DataDir);
+                continue
+            end
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
             
