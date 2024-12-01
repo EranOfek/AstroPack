@@ -6,10 +6,17 @@ function tests = test_proper_motion
     % Date: 31  October 2024
 
 
-    % TBD : Add the list of 1000 highest proper motion stars coorfinates
-    % between J1950 to J2016 to have a relative test for future versions.
+    % TBD : LOW tolerenece on testProperMotionAccuray
 
     tests = functiontests(localfunctions);
+end
+
+
+%% Set up function to load data before running tests
+function setupOnce(testCase)
+    % Load data from CSV file into testCase properties
+    data = readtable(  fullfile('~/','matlab','AstroPack','tests', 'relativeData', 'expected_proper_motion_results.csv'));
+    testCase.TestData.sources = data;
 end
 
 %% Test Functions
@@ -32,7 +39,7 @@ function testBasicPropagation(testCase)
     Plx    =  29.00319440995681;
 
     % Call proper_motion function
-    [RA_final, Dec_final] = celestial.coo.proper_motion(epoch_final, epoch_initial_RA, epoch_initial_Dec, RA, Dec, PM_RA, PM_Dec);
+    [RA_final, Dec_final] = celestial.coo.proper_motion(epoch_final, epoch_initial_RA, epoch_initial_Dec, RA, Dec, PM_RA, PM_Dec,Plx);
 
     % Expected outputs are slightly modified based on PM and delta_T
     expectedRA  = 349.72896715675495;
@@ -128,4 +135,46 @@ function testDifferentInitialEpochs(testCase)
     verifyLessThanOrEqual(testCase, Dec_final, pi/2);
 end
 
+function testProperMotionAccuracy(testCase)
+        % Propgate coordinates from J2000 to J2016 to and comapre with Gaia DR3
+        % catalog
+        data = testCase.TestData.sources;
+        num_sources = height(data);
+ 
+
+
+        % Extract parameters from the current row
+        RA = data.ra;
+        Dec = data.dec;
+        PM_RA = data.pmra;
+        PM_Dec = data.pmdec;
+        Plx = data.parallax;
+        epoch_initial_RA =juliandate(datetime(data.matched_ref_epoch, 1, 1)) ;  % Initial epoch (e.g., J2000)
+        epoch_initial_Dec = juliandate(datetime(data.matched_ref_epoch, 1, 1));            % Final epoch (e.g., Gaia's epoch)
+        epoch_final = juliandate(datetime(data.ref_epoch, 1, 1));    
+        matched_ra = deg2rad(data.matched_ra);
+        matched_dec = deg2rad(data.matched_dec);
+        % Call proper_motion function
+        [expected_ra, expected_dec] = celestial.coo.proper_motion(epoch_final, epoch_initial_RA, epoch_initial_Dec, matched_ra, matched_dec, PM_RA, PM_Dec,Plx);
+        expRA = rad2deg(expected_ra);
+        expDec = rad2deg(expected_dec);
+        % Retrieve matched RA and Dec from catalog
+        
+        
+        % Calculate differences between calculated and catalog values
+        ra_diffs = abs(expRA - RA);
+        dec_diffs= abs(expDec - Dec);
+   
+    % Define tolerance for accuracy in arcseconds (customize as needed)
+    tolerance = 2e-3;  % Tolerance threshold, TOO LOW NEED TO CHECK !!!!
+    
+    % Verify that each calculated RA difference is within the tolerance
+    for i = 1:num_sources
+        verifyLessThanOrEqual(testCase, ra_diffs(i), tolerance, ...
+            sprintf('RA difference exceeded tolerance for source %d', i));
+        verifyLessThanOrEqual(testCase, dec_diffs(i), tolerance, ...
+            sprintf('Dec difference exceeded tolerance for source %d', i));
+    end
+    
+end
 
