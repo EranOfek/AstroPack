@@ -16,12 +16,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Ima*fits';
     %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
-    %
-    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.01/2023/','ProcDirTemplate','*/*/proc/*')
-    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.03/','ProcDirTemplate','*/*/*/proc/*v0')
-    %
-    %          ls: cannot access '/mnt/marvin/LAST.01.01.02/2024/06/05/proc/004549v66/.status': No such file or directory
     %    
+    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.01.04/','ProcDirTemplate','*/*/*/proc/*')
+    %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
