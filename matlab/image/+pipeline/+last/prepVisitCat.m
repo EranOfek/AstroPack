@@ -79,6 +79,11 @@ function [OutTable] = prepVisitCat(Args)
                     F(I).folder
                 end
             end
+
+            % prevent for re-requesting sudo password
+            system('sudo touch Junk');
+            system('sudo rm Junk');
+
             if Args.UseStatus && any(contains({StatFile.Msg}, Args.Msg))
                 % already done - skip
                 %'skip'
