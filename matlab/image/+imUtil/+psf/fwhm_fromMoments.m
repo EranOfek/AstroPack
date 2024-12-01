@@ -25,6 +25,8 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     % Output : - Estimated median FWHM [pix].
     %          - Number of stars used.
     %          - Structure with the following info:
+    %            .X1 - 1st X moment of all used stars.
+    %            .Y1 - 1st Y moment of all used stars.
     %            .X2 - X^2 moment of all used stars.
     %            .Y2 - Y^2 moment of all used stars.
     %            .XY - Y*Y moment of all used stars.
@@ -79,6 +81,8 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     Lambda1 = median(0.5.*(XY2 + SQ));
     Lambda2 = median(0.5.*(XY2 - SQ));
 
+    Info.X1 = M1.X1;
+    Info.Y1 = M1.Y1;
     Info.X2 = M2.X2;
     Info.Y2 = M2.Y2;
     Info.XY = M2.XY;

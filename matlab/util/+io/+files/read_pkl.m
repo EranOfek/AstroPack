@@ -31,7 +31,7 @@ function [Result] = read_pkl(FileName, Args)
         % Convert the Python dictionary to a MATLAB struct
         Result = struct(DictData);
         if Args.Convert2double
-            FN = fieldnames;
+            FN = fieldnames(Result);
             Nfn = numel(FN);
             for Ifn=1:1:Nfn
                 Result.(FN{Ifn}) = double(Result.(FN{Ifn}));
