@@ -515,7 +515,6 @@ classdef AstroZOGY < AstroDiff
             end
 
             
-
             if Args.ReplaceNaN
                 Obj.replaceNaN(Args.ReplaceNaNArgs{:});
             end
@@ -676,7 +675,7 @@ classdef AstroZOGY < AstroDiff
                 Args.PopS2 logical           = true;
                 Args.PopSflux logical        = true;
                 
-                Args.PopS_delta logical      = false;
+                Args.PopS_delta logical      = true;
                 Args.PopS_ext logical        = false;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
@@ -688,8 +687,13 @@ classdef AstroZOGY < AstroDiff
                 S_hat_I           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
                 
                 if Args.PopS_delta
-                    Obj(Iobj).S_delta = ifft2(Obj(Iobj).D_hat);
+                    DeltaPSF = imUtil.kernel2.gauss(0.1, [3 3]);
+                    DeltaPSF  = imUtil.psf.padShift(DeltaPSF, size(Obj(Iobj).Image), ...
+                        'fftshift','fftshift');
+                    DeltaPSF_hat = fft2(DeltaPSF);
+                    Obj(Iobj).S_delta = ifft2(Obj(Iobj).D_hat.*conj(DeltaPSF_hat));
                 end
+
                 if Args.PopS_ext
                     PSF         = Obj(Iobj).PSFData.getPSF;
                     ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
@@ -698,12 +702,12 @@ classdef AstroZOGY < AstroDiff
                     
                     Obj(Iobj).S_ext = ifft2(Obj(Iobj).D_hat.*conj(fft2(FullExtPSF)));
                 end
-                
+
                 if Args.PopS_hat
                     Obj(Iobj).S_hat = S_hat_I;
                 end
                 Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
-            
+
                 if Args.PopSflux
                     Obj(Iobj).Sflux = Obj(Iobj).S;
                 end

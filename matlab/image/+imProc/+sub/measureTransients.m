@@ -143,6 +143,27 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
                 XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
         end
 
+        % Get the delta function SNR
+        if ~isempty(AD(Iobj).S_delta)
+            %XYind = sub2ind(size(AD(Iobj).S_delta), XY(:,1), XY(:,2));
+            %SDelta = AD(Iobj).S_delta(XYind);
+            Score = AD(Iobj).CatData.getCol('SCORE');
+            ScorePos = (Score >= 0);
+            ScoreNeg = (Score < 0);
+            XYPos = XY(ScorePos,:);
+            XYNeg = XY(ScoreNeg,:);
+
+            [SDeltaPos, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).S_delta, ...
+                XYPos(:,1), XYPos(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            [SDeltaNeg, ~, ~] = imUtil.properSub.findNearestPeakSig(-AD(Iobj).S_delta, ...
+                XYNeg(:,1), XYNeg(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            SDelta = zeros(numel(Score),1);
+            SDelta(ScorePos) = SDeltaPos;
+            SDelta(ScoreNeg) = -SDeltaNeg;
+            AD(Iobj).CatData.insertCol(cast(SDelta,'double'),'SCORE',...
+                {'SN_delta'},{''});
+        end
+
         % Change Gabor stat to near max value
         if ~isempty(AD(Iobj).GaborSN)
             [Gabor_max, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).GaborSN, ...
@@ -157,8 +178,5 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             cast(Z2_AIC,'double')}), 'SCORE',...
             {'S_CORR','S2','Z2','S2_SIG','Z2_SIG','S2_AIC','Z2_AIC'}, ...
             {'sig','','','sig','sig','',''});
-
-
     end
-
 end

@@ -3,7 +3,7 @@ function TranCat = flagNonTransients(Obj, Args)
     Flag transients candidates that are likely not real transients. 
     Input   : - An AstroDiff object in which CatData is populated.
               * ...,key,val,...
-                'flagValleys' - Bool on whether to flag negative
+                'flagNegatives' - Bool on whether to flag negative
                        candidates. Default is true.
                 'flagChi2' - Bool on whether to flag transients candidates
                        based on how well the PSF fits to a stamp on the transient.
@@ -11,7 +11,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
                 'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                        'filterChi2' is true, all transients candidates outside these
-                       limits are flagged. Default is [0.19 1.31].
+                       limits are flagged. Default is [0.23 1.41].
                 'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
                        for New and Ref images. Condition requires that in
                        at least one of the images, the source is not
@@ -25,7 +25,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
                 'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
                        Default is {'Interpolated', 'NaN', 'NearEdge',
-                       'CoaddLessImages', 'Hole', 'CR_DeltaHT'}.
+                       'CoaddLessImages', 'Hole'}.
                 'flagBadPix_Soft' - Bool on whether to flag transients
                        candidates based on soft bit mask criteria. 
                        Default is true.
@@ -114,22 +114,22 @@ function TranCat = flagNonTransients(Obj, Args)
     arguments
         Obj AstroDiff
     
-        Args.flagValleys logical = true;
+        Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.19 1.31];
+        Args.Chi2dofLimits = [0.23 1.41];
         Args.MinNRChi2dof = 0.1;
         
         Args.flagSaturated logical = true;
 
         Args.flagBadPix_Hard logical  = true;
         Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-            'Hole', 'CR_DeltaHT', 'Negative'};
+            'Hole', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 6.5, 13.0}, {'SrcNoiseDominated', 6.5, 13.0}, ...
-            {'FlatHighStd',6.5, 13.0}, {'DarkHighVal', 6.5, 13.0},...
-            {'CoaddLessImages', 6.5, 13.0}};
+        Args.BadPix_Soft       = {{'HighRN', 8.9, 14.5}, {'SrcNoiseDominated', 8.9, 14.5}, ...
+            {'FlatHighStd', 8.9, 14.5}, {'DarkHighVal', 8.9, 14.5},...
+            {'CoaddLessImages', 8.9, 14.5}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -138,12 +138,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagMP logical = true;
 
         Args.flagRinging logical = true;
-
-        Args.flagDensity logical = true;
-        Args.NeighborDistanceThreshold = 100;
-        Args.NeighborNumThreshold = 36;
-        Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
-            'Ringing', 'Translient', 'Streak'};
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.33;
@@ -157,11 +151,23 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPSFShape logical = true;
         Args.PSFShapeFWHMThresh = 4.0;
-        Args.PSFShape2ndMomentLims = [0.6, 1.5];
-        Args.PSFShape2ndMomentLimsDiag = [1.0, 1.8];
+        Args.PSFShape2ndMomentLimsX = [0.61, 1.60];
+        Args.PSFShape2ndMomentLimsY = [0.61, 1.67];
+        Args.PSFShape2ndMomentLimsXY = [-0.31, 0.34];
 
         Args.flagStreak logical = true;
+        Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
+            'Ringing', 'Translient'};
         
+        Args.flagDensity logical = true;
+        Args.NeighborDistanceThreshold = 100;
+        Args.NeighborNumThreshold = 36;
+        Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
+            'Ringing', 'Translient', 'Streak'};
+
+        Args.flagCR logical = true;
+        Args.CRDeltaSN = -1.2;
+
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
         Args.ScorrThreshold = 5.0;
@@ -197,11 +203,11 @@ function TranCat = flagNonTransients(Obj, Args)
         TF_Flags = zeros(CatSize,1);
 
         % Flag negative candidates
-        if Args.flagValleys
+        if Args.flagNegatives
             Score = Cat.getCol('SCORE');
 
-            ValleyFlagged = (Score < 0.0);
-            TF_Flags = TF_Flags + ValleyFlagged.*2.^BD_TF.name2bit('Negative');
+            NegativeFlagged = (Score < 0.0);
+            TF_Flags = TF_Flags + NegativeFlagged.*2.^BD_TF.name2bit('Negative');
         end
 
         % Apply Chi2 per degrees of freedom criterium.
@@ -398,26 +404,33 @@ function TranCat = flagNonTransients(Obj, Args)
 
             X2 = Cat.getCol('X2');
             Y2 = Cat.getCol('Y2');
-            Diag2 = sqrt(X2.^2+Y2.^2);
+            XY = Cat.getCol('XY');
             
             FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh);
-            SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLims(2)) | ...
-                (X2 < Args.PSFShape2ndMomentLims(1));
-            SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLims(2)) | ...
-                (Y2 < Args.PSFShape2ndMomentLims(1)); 
-            SecondMomentFlaggedDiag = (Diag2 > Args.PSFShape2ndMomentLimsDiag(2)) | ...
-                (Diag2 < Args.PSFShape2ndMomentLimsDiag(1)); 
+            SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLimsX(2)) | ...
+                (X2 < Args.PSFShape2ndMomentLimsX(1));
+            SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLimsY(2)) | ...
+                (Y2 < Args.PSFShape2ndMomentLimsY(1));
+            SecondMomentFlaggedXY = (XY > Args.PSFShape2ndMomentLimsXY(2)) | ...
+                (XY < Args.PSFShape2ndMomentLimsXY(1));
             SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY...
-                            | SecondMomentFlaggedDiag;
+                            | SecondMomentFlaggedXY;
             PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end
 
         if Args.flagStreak
             [X,Y] = Cat.getXY();
-            BPHard = BD_TF.findBit(TF_Flags,'BadPixelHard');
-            StarMatch = BD_TF.findBit(TF_Flags,'StarMatch');
-            SubSel = (~BPHard) & (~StarMatch);
+
+            Ntran = numel(X(:));
+            SubSel = true(Ntran,1);
+            NExclude = numel(Args.ignoreStreakPoints);
+            
+            for IExclude = 1:NExclude
+                BitFound = BD_TF.findBit(TF_Flags, Args.ignoreStreakPoints{IExclude});
+                SubSel = SubSel & ~BitFound;
+            end
+
             Xt = X(SubSel);
             Yt = Y(SubSel);
             TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
@@ -434,7 +447,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             if Res.Found
                 ModY = Res.Par(1)+Xt.*Res.Par(2);
-                Streaked = abs(ModY - Yt) < 10;
+                Streaked = abs(ModY - Yt) < 20;
                 TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('PSFShape');
             end
         end
@@ -478,6 +491,13 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
+        if Args.flagCR
+            [~, NoNCRs] = imProc.mask.maskCR(Obj(Iobj), 'SN_1','SN_delta', ...
+                'SN_2','SCORE','SetMask',false,'RemoveFromCat',false, ...
+                'DeltaSN',Args.CRDeltaSN);
+            TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
+        end
+
         % ----- AstroZOGY -----
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
@@ -505,7 +525,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 GalaxyDist = Cat.getCol('GAL_DIST');
                 IgnoreTranslientCol = IgnoreTranslientCol | ...
                     GalaxyDist < Args.TranslientGalaxyDistThresh;
-            end            
+            end
         
             Z2_AIC = Z2_AIC - Args.TranslientCorrectionParam;
             IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;

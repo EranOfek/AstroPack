@@ -34,7 +34,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
               - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'
-              [AD, ADc] = runTransientsPipe(VisitPath)
+              [AD, ADc] = pipeline.last.runTransientsPipe(VisitPath)
     %}
 
     arguments
@@ -48,6 +48,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
+        Args.killDuplicates logical = true;
     end
 
     % Set default status.
@@ -59,7 +60,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     MergedTranCat = AstroCatalog();  
 
     % Find New image coadds and load
-    
     if isa(VisitPath, 'char') || isa(VisitPath, 'string')
         Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
         New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitPath);
@@ -98,7 +98,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             FNref.ProjName={replaceBetween(FNref.ProjName{1},"LAST.01.",".0","*")};
         end
         FNref.Time = {'*.*.*'};
-        FieldID = FNref.FieldID{1};
+        FieldID = split(FNref.FieldID{1},'.');
+        FieldID = FieldID{1};
 
         FieldRefPath = strcat(RefPath, '/', FieldID);
         RefFile = fullfile(FieldRefPath,FNref.genFile);
@@ -188,9 +189,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     MaxDistRad = max(celestial.coo.sphere_dist(...
         C_RA, C_Dec, C_RA_med, C_Dec_med, 'rad'), [], 'all')*1.5;
 
-    %StarCat = catsHTM.cone_search('GAIADR3', C_RA_med, C_Dec_med, ...
-    %    MaxDistRad, 'Con', {{'phot_bp_mean_mag', @(x) 21>(x)}},...
-    %'RadiusUnits','rad', 'OutType','AstroCatalog');
     StarCat = catsHTM.cone_search('GAIADR3', C_RA_med, C_Dec_med, ...
         MaxDistRad, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
     StarCat.sortrows('Dec');
@@ -411,8 +409,42 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         TranCat(Iobj) = AD(Iobj).CatData;
    end
    MergedTranCat = merge(TranCat);
+   MergedTranCat.sortrows('Dec');
+
+   % Kill duplicates
+   % Finds duplicates (0.5 arcsec self match) and keep only those closest to 
+   % the center of its sub-image
+   if Args.killDuplicates
+       [MRA, MDec] = MergedTranCat.getLonLat('rad');
+       HalfSize = size(AD(1).Image)./2;
+       SelfMatches = VO.search.search_sortedlat_multi( ...
+                [MRA, MDec], MRA, MDec, -0.5*Arcsec2Rad);
+       SelfMachthesN = vertcat(SelfMatches.Nmatch);
+       Duplicates = SelfMachthesN > 1;
+       DuplicatesNMatches = SelfMachthesN(Duplicates);
+       DuplicatesCat = MergedTranCat.selectRows(Duplicates);
+       [DupX, DupY] = DuplicatesCat.getXY();
+       CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
+       NDup = numel(DuplicatesNMatches);
+       MergedTranCat = MergedTranCat.selectRows(~Duplicates);       
+       Survivors = zeros(NDup,1);
+       IDup = 1;
+       IControl = 1;
+       while (IDup < NDup) && (IControl < NDup)
+           MatchLength = DuplicatesNMatches(IDup);
+           CenterDistancesMatches = CenterDistance(IDup:IDup+MatchLength-1);
+           Survivor = find(CenterDistancesMatches == min(CenterDistancesMatches));
+           Survivors(IDup) = IDup+Survivor-1;
+           IDup = IDup + MatchLength;
+           IControl = IControl + 1;
+       end
+       Survivors = Survivors(Survivors > 0);
+       SurvivorsCat = DuplicatesCat.selectRows(Survivors);
+       MergedTranCat = merge([MergedTranCat, SurvivorsCat]);
+       MergedTranCat.sortrows('Dec');
+   end
     
-    if Args.SaveProducts
+   if Args.SaveProducts
         if ~isempty(Args.Product)
             for Iobj=Nobj:-1:1
                 FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
@@ -421,13 +453,13 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
                 FNad.Level = {'coadd.zogyD'};
                 FNad.FullPath = Args.SavePath;
                 AD(Iobj).ImageData.FileName = FNad.genFull{1};
-    
+                
                 [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
-                    'Level', 'coadd.zogyD', 'Product', Args.Product,...
-                    'WriteHeader',Args.WriteHeader,'Overwrite', true);
+                'Level', 'coadd.zogyD', 'Product', Args.Product,...
+                'WriteHeader',Args.WriteHeader,'Overwrite', true);
             end                
         end
-
+        
         if Args.SaveMergedCat
             FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
             FN_merged = FN.copy();
@@ -435,11 +467,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             FN_merged.CropID = 0;
             FN_merged.Product = {'Cat'};
             FN_merged.FullPath = Args.SavePath;
-
+            
             [~,~,~]=imProc.io.writeProduct(MergedTranCat, FN_merged, ...
-                'Level', 'coadd.zogyD', 'Product', {'Cat'},...
-                'WriteHeader',false,'Overwrite', true, 'GetHeaderJD', false, ...
-                'CropID_FromIndex',false);
+            'Level', 'coadd.zogyD', 'Product', {'Cat'},...
+            'WriteHeader',false,'Overwrite', true, 'GetHeaderJD', false, ...
+            'CropID_FromIndex',false);
         end
     end
 
@@ -472,8 +504,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     if NADc == 1 && isempty(ADc(1).Table)
         NADc = 0;
     end
+
     StatusCell = strcat('Succesful exit,',{' '}, ...
         num2str(NADc),{' '},'transient(s) found.');
+
     Status = StatusCell{1};
-    
 end
