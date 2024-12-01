@@ -111,7 +111,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         else
             NRefsFound = NRefsFound + 1;
         end
-    
+
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
@@ -172,6 +172,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     %imProc.match.match_catsHTM(AD,'MergedCat',...
     %    'ColDistName','MergedDist','ColNmatchName','MergedMatches');
 
+    Rad2Arcsec = 206265;
+    Arcsec2Rad = 4.84814e-6;
+    
     % Galaxy match
     imProc.match.match2Galaxies(AD);
 
@@ -265,8 +268,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         ComCat_new.sortrows('Dec');
     
         [CometLon, CometLat] = ComCat_new.getLonLat('rad');
-        Rad2Arcsec = 206265;
-        Arcsec2Rad = 4.84814e-6;
 
         for Iobj=1:1:Nobj
             RADec = AD(Iobj).CatData.getLonLat('rad');
@@ -319,8 +320,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         ComCat_ref.sortrows('Dec');
     
         [CometLon, CometLat] = ComCat_ref.getLonLat('rad');
-        Rad2Arcsec = 206265;
-        Arcsec2Rad = 4.84814e-6;
 
         for Iobj=1:1:Nobj
             RADec = AD(Iobj).CatData.getLonLat('rad');

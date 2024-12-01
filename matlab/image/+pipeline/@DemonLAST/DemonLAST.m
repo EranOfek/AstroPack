@@ -3040,18 +3040,28 @@ classdef DemonLAST < Component
                                 try
                                     [~,TransientCutouts, TCL1, TranPipeStatus] = pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
+                                catch MEtran
+                                    Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end
 
+                                if exist('TransientCutouts','var')
+                                    Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / group %d', Igroup);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    
                                     if ~exist(Obj.SciPath, 'dir')
                                         mkdir(Obj.SciPath);
                                     end
 
-                                    TranDB = strcat(Obj.SciPath,'/TranDB.mat');
-                                    [TransientCutouts, MultiEpochStatus] = pipeline.last.matchTransientsToMultiEpochs(...
-                                        TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
-                                    Obj.writeLog(sprintf('pipeline.DemonLAST / Transients multi epoch - %s', MultiEpochStatus), LogLevel.Info);
-                                catch MEtran
-                                    Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
-                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    try
+                                        TranDB = strcat(Obj.SciPath,'/TranDB.mat');
+                                        [TransientCutouts, MultiEpochStatus] = pipeline.last.matchTransientsToMultiEpochs(...
+                                            TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
+                                        Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
+                                    catch MEtran
+                                        Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / Failed');
+                                        Obj.writeLog(Msg, LogLevel.Info);
+                                    end
                                 end
                                 
                                 if exist('TransientCutouts','var') && Args.SendTransientAlerts && IsRunningOnLAST
