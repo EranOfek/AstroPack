@@ -2521,7 +2521,87 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-             
+        %
+        function insert2DB(Obj, ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, Args)
+            % this function either makes DB insertion or just prepares CSV files for
+            % bulk insertion outside the pipeline
+            arguments
+                Obj
+                ADB
+                RawHeader
+                AllSI
+                Coadd
+                RawImageListFinal
+                FN_I
+                FN_Proc
+                FN_Coadd
+                Args.DB_ImageBulk
+                Args.DB_CatalogBulk
+                Args.DB_Table_Raw
+                Args.DB_Table_Proc
+                Args.DB_Table_Coadd
+                Args.UpdateStatusFile 
+                Args.Tstart
+            end                                    
+                                % RAW, PROC, and COADD images
+                                HasImageP = ~AllSI.isemptyImage; % use only AI's with Image properties filled
+                                ProcFileName = FN_Proc.genFull;
+                                HasImageC = ~Coadd.isemptyImage; % use only AI's with Image properties filled
+                                CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
+                                if ~Args.DB_ImageBulk                                
+                                    [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
+                                    RunTime = etime(clock, Args.Tstart);
+                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d, RunTime %.1f', OK, RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                     
+                                    %                                    
+%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName); HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
+%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP.*HasFile)); % w/hash;
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP),'Hash',0);  % w/o hash
+                                    ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
+                                    OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
+                                    RunTime = etime(clock, Args.Tstart);
+                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d, RunTime %.1f', OKupd, RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    %                                    
+                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImageC), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImageC),'Hash',0); % w/o hash
+                                    RunTime = etime(clock, Args.Tstart);                                    
+                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                    
+                                else % prepare CSV files for further injection into the DB                                                                          
+                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw',  'Table',Args.DB_Table_Raw,  'FileNames',RawImageListFinal);
+                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc', 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP));       
+                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','Table',Args.DB_Table_Coadd,'FileNames',CoaddFileName(HasImageC));                                                                               
+                                    
+                                    FN_I_DB = FN_I.copy; OK = 1; 
+                                    if Args.UpdateStatusFile
+                                        Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
+                                    end
+                                    RunTime = etime(clock, Args.Tstart);
+                                    Msg{1} = sprintf('CSV files with image header data written to disk, RunTime %.1f', RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end                                
+                                % PROC and COADD catalogs 
+                                ProcCat = [AllSI.CatData]; CoaddCat = [Coadd.CatData];                                
+                                if Args.DB_CatalogBulk % write PROC and COADD catalog data to local csv files                                    
+                                                       % to be injected into the DB later on outside this pipeline                                                       
+                                    ADB.insert(ProcCat, 'Type','bulkcat', 'BulkFN',FN_Proc, 'BulkCatType','proc','BulkAI',AllSI(1));
+                                    ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
+                                    FN_CatProc = FN_Proc.copy;
+                                    if Args.UpdateStatusFile
+                                        Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');
+                                    end
+                                    RunTime = etime(clock, Args.Tstart);
+                                    Msg{1} = sprintf('CSV files with catalog data written to disk, RunTime %.1f', RunTime);                                    
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                else                   % insert PROC and COADD catalog data into the appropriate DB tables
+                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
+                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'Type','cat');
+                                    Msg{1} = sprintf('Catalog data injected into the DB tables');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end          
+        end
+        %
+        %
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
             %   The demon waits for images in the new/ directory, analyze
@@ -3109,76 +3189,23 @@ classdef DemonLAST < Component
 
                             % Insert pipeline products to the DB
                             if Args.Insert2DB 
-                                try                                    
-                                    Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                    if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
-                                        ADB = db.AstroDb(Args.AstroDBArgs{:});
-                                    end
-                                % RAW, PROC, and COADD images
-                                HasImageP = ~AllSI.isemptyImage; % use only AI's with Image properties filled
-                                ProcFileName = FN_Proc.genFull;
-                                HasImageC = ~Coadd.isemptyImage; % use only AI's with Image properties filled
-                                CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-                                if ~Args.DB_ImageBulk                                
-                                    [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
-                                    RunTime = etime(clock, Tstart);
-                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d, RunTime %.1f', OK, RunTime);
-                                    Obj.writeLog(Msg, LogLevel.Info);                                     
-                                    %                                    
-%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName); HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
-%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP.*HasFile)); % w/hash;
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP),'Hash',0);  % w/o hash
-                                    ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
-                                    OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
-                                    RunTime = etime(clock, Tstart);
-                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d, RunTime %.1f', OKupd, RunTime);
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                    %                                    
-                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImageC), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImageC),'Hash',0); % w/o hash
-                                    RunTime = etime(clock, Tstart);                                    
-                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
-                                    Obj.writeLog(Msg, LogLevel.Info);                                    
-                                else % prepare CSV files for further injection into the DB                                                                          
-                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw',  'Table',Args.DB_Table_Raw,  'FileNames',RawImageListFinal);
-                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc', 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP));       
-                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','Table',Args.DB_Table_Coadd,'FileNames',CoaddFileName(HasImageC));                                                                               
-                                    
-                                    FN_I_DB = FN_I.copy; OK = 1; 
-                                    if Args.UpdateStatusFile
-                                        Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
-                                    end
-                                    RunTime = etime(clock, Tstart);
-                                    Msg{1} = sprintf('CSV files with image header data written to disk, RunTime %.1f', RunTime);
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                end                                
-                                % PROC and COADD catalogs 
-                                ProcCat = [AllSI.CatData]; CoaddCat = [Coadd.CatData];                                
-                                if Args.DB_CatalogBulk % write PROC and COADD catalog data to local csv files                                    
-                                                       % to be injected into the DB later on outside this pipeline                                                       
-                                    ADB.insert(ProcCat, 'Type','bulkcat', 'BulkFN',FN_Proc, 'BulkCatType','proc','BulkAI',AllSI(1));
-                                    ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
-                                    FN_CatProc = FN_Proc.copy;
-                                    if Args.UpdateStatusFile
-                                        Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');
-                                    end
-                                    RunTime = etime(clock, Tstart);
-                                    Msg{1} = sprintf('CSV files with catalog data written to disk, RunTime %.1f', RunTime);                                    
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                else                   % insert PROC and COADD catalog data into the appropriate DB tables
-                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
-                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'Type','cat');
-                                    Msg{1} = sprintf('Catalog data injected into the DB tables');
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                end                                
-                                %                                 
+                                Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                                if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                                    ADB = db.AstroDb(Args.AstroDBArgs{:});
+                                end
+                                try                                                                                                                                                             
+                                    Obj.insert2DB(ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, ...
+                                        'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+                                        'DB_Table_Raw',Args.DB_Table_Raw,'DB_Table_Proc',Args.DB_Table_Proc,'DB_Table_Coadd',Args.DB_Table_Coadd,...
+                                        'UpdateStatusFile',Args.UpdateStatusFile,'Tstart',Tstart);                                     
                                 catch DBMsg
                                     DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
                                     Obj.writeLog(DBErrorMsg, LogLevel.Error);
                                     Obj.writeLog(DBMsg, LogLevel.Error);
                                 end
                             end
-
+                            %
                             RunTime = etime(clock, Tstart); % toc;
                         catch ME                             
                             
@@ -3196,8 +3223,7 @@ classdef DemonLAST < Component
                             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
                             % move images to failed/ dir
-                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
-                            
+                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));                            
                         end
         
                         % write summary and run time to log
