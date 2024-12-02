@@ -7,6 +7,7 @@ classdef uplanner < Component
         Plan                     % target list 
         UniqTargList             % unique target list
         Vis                      % visibility matrix 
+        VisJD                    % bins of visibility measured in JD
         
         % HCS, LCS 
         DailyWindow              % [hrs]    
@@ -130,10 +131,8 @@ classdef uplanner < Component
             if ~isempty(Args.EndTime)             
                 Obj.EndTime   = Args.EndTime; 
             end            
-            % load unique targets 
-            Obj.loadUniqTargCoo(RA, Dec, 'File', Args.CooFile)                                   
-            % fill properties of unique target fields
-            Obj.fillUniqTargProp                        
+            % add a target and fill in all its properties in the unique targets table 
+            Obj.addTargets(RA, Dec, 'File', Args.CooFile)                                                                   
             % schedule targets and fill the plan
             Obj.schedule
             % make a schedule 
@@ -189,7 +188,7 @@ classdef uplanner < Component
     %
     methods % Auxiliary functions
         %
-        function loadUniqTargCoo(Obj, RA, Dec, Args)
+        function addTargets(Obj, RA, Dec, Args)
             % read unique target coordinates
             arguments
                 Obj
@@ -203,12 +202,27 @@ classdef uplanner < Component
                 RA  = Coo(:,1); Dec = Coo(:,2);
             end
             %
-            Obj.N0 = numel(RA); % the number of unique targets
+            NUtarg = numel(RA); % the number of unique targets to be added
+            NU0    = height(Obj.UniqTargList);
             %
-            Obj.UniqTargList.RA(1:Obj.N0) = RA(1:Obj.N0); Obj.UniqTargList.Dec(1:Obj.N0) = Dec(1:Obj.N0);
+            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA(NU0+1:NU0+NUtarg); 
+            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec(NU0+1:NU0+NUtarg);
+            %
+            Obj.updateTargetProperties;
         end
         %
-        function fillUniqTargProp(Obj, Args)
+        function removeAllTargets(Obj)
+            % remove all unique targets
+            Obj.UniqTargList(:,:) = [];
+            % remove the plan
+            Obj.Plan(:,:) = [];
+            % clean the number of unique targets
+            Obj.N0 = 0;
+            % clean the visibility
+            Obj.Vis = [];
+        end
+        %
+        function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
             arguments
                 Obj    
@@ -217,6 +231,8 @@ classdef uplanner < Component
             end              
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
+            
+            Obj.N0 = numel(RA);       % update the number of unique targets
             
             % extinction 
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
@@ -276,7 +292,7 @@ classdef uplanner < Component
                 Obj
                 Ind               = [];
                 Args.PlotSpectrum = false;
-                Args.Band         = [];     % [nm] band for spectrum plotting, e.g. [230 300] 
+                Args.WaveRange    = []; % [nm] range for spectrum plotting, e.g. [230 300] 
             end
             %
             if isempty(Ind)
@@ -292,8 +308,8 @@ classdef uplanner < Component
                 Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
                 figure; clf                                
                 errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda, A'; ylabel 'F, erg/cm(2)/s/A'; set(gca, 'YScale', 'log');
-                if ~isempty(Args.Band)
-                    xlim(Args.Band.*10);
+                if ~isempty(Args.WaveRange)
+                    xlim(Args.WaveRange.*10);
                 end
                 Title = sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG); title(Title)        
             end            
@@ -301,40 +317,26 @@ classdef uplanner < Component
         %
         %
         %
-        function calcVisibility(Obj, Args)
-            % calculate visibility for the given period and time bin
+        function updateTargetVisibility(Obj, Args)
+            % calculate visibility for all the unique targets for the given period
             arguments
-                Obj
-                Args.Coo               = []; % 2-column matrix of [RA, Dec] in [deg]               
-                Args.TimeBin           = []; % [days] 
-                Args.SunDist           = 70; % [deg]
-                Args.MoonDist          = 34; % [deg]
-                Args.EarthDist         = 56; % [deg]
+                Obj                     
+                Args.TimeBin           = 0.01; % [days] 
+                Args.SunDist           = 70;   % [deg]
+                Args.MoonDist          = 34;   % [deg]
+                Args.EarthDist         = 56;   % [deg]
             end
             %
-            RAD = 180/pi;
+            RAD = 180/pi;          
             %
-            if ~isempty(Args.TimeBin)
-                Obj.TimeBin = Args.TimeBin;
-            end
-            %
-            if ~isempty(Args.Coo)
-                Obj.Coo = Args.Coo;            
-            end
-            if isempty(Obj.Coo)
-                error('No coordinates found as function input or object property')
-            else
-                Obj.NCoo = size(Obj.Coo,1); % number of sky points 
-            end
-            %
-            Obj.JD    = Obj.StartDate + (0:Obj.TimeBin:(Obj.EndDate-Obj.StartDate))';
-            Obj.NumJD = numel(Obj.JD);
-            
-            Obj.Vis  = ultrasat.ULTRASAT_restricted_visibility(Obj.JD,Obj.Coo/RAD,...
+            StartJD = celestial.time.julday(Obj.StartTime);
+            EndJD   = celestial.time.julday(Obj.EndTime);
+            Obj.VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
+            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(Obj.VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
                 'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);
             
-            Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
-            Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
+%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
+%             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
         function schedule(Obj,Args)
