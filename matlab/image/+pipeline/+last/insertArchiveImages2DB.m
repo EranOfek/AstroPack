@@ -18,6 +18,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
     %    
     %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
