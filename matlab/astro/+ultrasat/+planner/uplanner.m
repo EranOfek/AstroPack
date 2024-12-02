@@ -209,6 +209,8 @@ classdef uplanner < Component
             Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec(NU0+1:NU0+NUtarg);
             %
             Obj.updateTargetProperties;
+            %
+            Obj.updateTargetVisibility;
         end
         %
         function removeAllTargets(Obj)
@@ -315,8 +317,6 @@ classdef uplanner < Component
             end            
         end
         %
-        %
-        %
         function updateTargetVisibility(Obj, Args)
             % calculate visibility for all the unique targets for the given period
             arguments
@@ -333,9 +333,8 @@ classdef uplanner < Component
             EndJD   = celestial.time.julday(Obj.EndTime);
             Obj.VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(Obj.VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
-                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);
-            
-%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;
+                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);             
+%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
