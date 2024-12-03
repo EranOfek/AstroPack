@@ -172,14 +172,21 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     FlagGood = true(1, Nfields) & Args.FlagGood(:).';
     
     
-    
-   for Ifields=1:1:Nfields
+    ResZP  = [];
+    ResVar = [];
+    for Ifields=1:1:Nfields
+        MatchedS(Ifields)  = MatchedSources;
+        
+        %FlagGoodAstrometry = imProc.astrometry.isSuccessWCS(Obj(:,Ifields)); % & ~strcmp(Args.CooType, 'sphere');
+            
         if FlagGood(Ifields)
-            MatchedS(Ifields) = MatchedSources;
+        %if sum(FlagGoodAstrometry)>10
+            
 
             % check if WCS is good - only if CooType is 'sphere'
             %FlagGoodWCS = ~strcmp(Args.CooType, 'sphere') | imProc.astrometry.isSuccessWCS(Obj(:,Ifields));
 
+            
             [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
                                                              'CooType',Args.CooType,...
                                                              'Radius',Args.Radius,...

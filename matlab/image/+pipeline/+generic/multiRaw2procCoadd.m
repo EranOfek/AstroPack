@@ -338,6 +338,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     if ~isa(Args.BitDictionaryName, 'BitDictionary')
         Args.BitDictionaryName = BitDictionary(Args.BitDictionaryName);
     end
+    
+    IsEmptyImage = AI.isemptyImage;
+    if all(IsEmptyImage)
+        error('All images are empty - likely some problem while reading the images (e.g., currpted image)');
+    end
 
 
     % add ProjName to header
@@ -525,6 +530,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % generate a PSF for each field.
     
     io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: started coadding the sub images');
+    
+    
+    
+    %AllFlagGoodAstrometry = imProc.astrometry.isSuccessWCS(AllSI);
     
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, OnlyMP] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...
