@@ -172,8 +172,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     FlagGood = true(1, Nfields) & Args.FlagGood(:).';
     
     
-    ResZP  = [];
-    ResVar = [];
+    %ResZP  = [];
+    %ResVar = [];
     for Ifields=1:1:Nfields
         MatchedS(Ifields)  = MatchedSources;
         
