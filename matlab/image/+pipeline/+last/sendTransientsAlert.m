@@ -36,7 +36,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
-        Status = 'No transients found.';
+        Status = 'No transients found, nothing to report.';
         return
     end
 
@@ -318,7 +318,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             
             Text_DirFilename = replace(Image_DirFilename,'.png','.txt');
             fid = fopen(Text_DirFilename,'wt');
-            fprintf(fid, Msg{1});
+            fprintf(fid, Msg{1}{1});
             fclose(fid);
             CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
             [CMD0Status, CMD0Out] = system(CMD0{1});
