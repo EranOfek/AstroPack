@@ -49,6 +49,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
         Args.killDuplicates logical = true;
+        Args.MinumumNCoadd = 18;
     end
 
     % Set default status.
@@ -89,8 +90,17 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     % Track number of found reference images
     NRefsFound = 0;
 
-    
+    NBelowMinNCoadd = 0;
+
     for Iobj=Nobj:-1:1
+
+        NCOADD = New(Iobj).HeaderData.getVal('NCOADD');
+
+        if NCOADD < Args.MinumumNCoadd
+            NBelowMinNCoadd = NBelowMinNCoadd + 1;
+            continue
+        end
+    
         % Get name of new image and search for ref image via wildcards
         FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
         FNref = FN.copy();
@@ -129,6 +139,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
 
         % Create AstroDiff
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
+    end
+
+    if NBelowMinNCoadd == Nobj
+        Status = 'All new images below required amount of NCOADD.';
+        return;
     end
 
     % If no reference images found, return

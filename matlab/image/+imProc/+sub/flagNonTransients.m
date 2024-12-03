@@ -127,9 +127,9 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 8.9, 14.5}, {'SrcNoiseDominated', 8.9, 14.5}, ...
-            {'FlatHighStd', 8.9, 14.5}, {'DarkHighVal', 8.9, 14.5},...
-            {'CoaddLessImages', 8.9, 14.5}};
+        Args.BadPix_Soft       = {{'HighRN', 5.0, 7.0}, {'SrcNoiseDominated', 5.0, 7.0}, ...
+            {'FlatHighStd', 5.0, 7.0}, {'DarkHighVal', 5.0, 7.0},...
+            {'CoaddLessImages',5.0, 7.0}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -143,7 +143,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PeakDistThreshold = 1.33;
         Args.PeakDistThresholdGal = 2.0;
 
-        Args.flagLimitingMag logical = true;
+        Args.flagLimitingMag logical = true;    
         Args.LimitingMagOverwriteVal = NaN;
 
         Args.flagPeakValley logical = true;
@@ -288,15 +288,14 @@ function TranCat = flagNonTransients(Obj, Args)
             for IBad=1:1:NBadSoft
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
 
-                FlagBadSoft_New = FlagBadSoft_New | ...
-                    (BD.findBit(BM_new, IBadPix_Soft{1}) & ...
-                abs(Cat.getCol('SCORE')) < IBadPix_Soft{2} & ...
-                abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
+                AboveThreshold = (abs(Cat.getCol('SCORE')) >= IBadPix_Soft{2})...
+                    & (abs(Cat.getCol('PSF_SNm')) >= IBadPix_Soft{3});
 
-                FlagBadSoft_Ref = FlagBadSoft_Ref | ...
-                    (BD.findBit(BM_ref, IBadPix_Soft{1})& ...
-                abs(Cat.getCol('SCORE')) < IBadPix_Soft{2} & ...
-                abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
+                FlagBadSoft_New = FlagBadSoft_New | (...
+                    BD.findBit(BM_new, IBadPix_Soft{1}) & ~AboveThreshold);
+
+                FlagBadSoft_Ref = FlagBadSoft_Ref | (...
+                    BD.findBit(BM_ref, IBadPix_Soft{1}) & ~AboveThreshold);
             end
 
             BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
@@ -492,9 +491,9 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         if Args.flagCR
-            [~, NoNCRs] = imProc.mask.maskCR(Obj(Iobj), 'SN_1','SN_delta', ...
-                'SN_2','SCORE','SetMask',false,'RemoveFromCat',false, ...
-                'DeltaSN',Args.CRDeltaSN);
+            Score = Cat.getCol('SCORE');
+            SN_delta = Cat.getCol('SN_delta');
+            NoNCRs = (abs(SN_delta) < abs(Score) + Args.CRDeltaSN);
             TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
         end
 
