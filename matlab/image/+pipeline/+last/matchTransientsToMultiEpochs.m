@@ -143,15 +143,16 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
     % Match candidates to DB via cone search
     RA = RealTranCands.getCol('RA');
     Dec = RealTranCands.getCol('Dec');
-    Matches = TranDB.coneSearch(RA, Dec, 3);
 
     ReportedDB = TranDB.Table.Reported;
 
     % Construct multi-epoch catalog for each passing candidate
     for Ipos = 1:1:Npos
+
         % Get all matches for a single candidate and define some variables
         % that define the observed field
-        MatchCat = TranDB.selectRows(Matches(Ipos).Ind);
+        Matches = TranDB.coneSearch(RA(Ipos), Dec(Ipos), 3);
+        MatchCat = TranDB.selectRows(Matches.Ind);
         ReportedMatch = MatchCat.Table.Reported;
 
         AlreadyReported = any(ReportedMatch);
@@ -160,8 +161,8 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         end
 
         % This should be elsewhere probably
-        if (Matches(Ipos).Nsrc > 1) || (ADc.CatData.Table.SCORE >= 8.0) 
-            ReportedDB(Matches(Ipos).Ind) = 1;
+        if (Matches.Nsrc > 1) || (ADc.CatData.Table.SCORE >= 8.0) 
+            ReportedDB(Matches.Ind) = 1;
         end        
 
         TC = ADc(Ipos).CatData;
