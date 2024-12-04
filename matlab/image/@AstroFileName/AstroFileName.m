@@ -110,7 +110,7 @@ classdef AstroFileName < Component
         
     end
     
-    properties (Hidden)
+    properties (Hidden, Constant)
         % Fields formatting
         %FormatFieldID   = '%06d';       % Used with FieldID
         FormatCounter   = "%03d";       % Used with Counter  
@@ -762,6 +762,11 @@ classdef AstroFileName < Component
                 Args.Path     = '';
             end
             
+            if isnumeric(Args.CropID)
+                % convert to string
+                Args.CropID = sprintf(AstroFileName.FormatCropID,Args.CropID);
+            end
+
             ArgsCell = namedargs2cell(Args);
 
             if isempty(Args.Path)
@@ -1100,7 +1105,7 @@ classdef AstroFileName < Component
                 Obj
                 Ind                     = 1;
                 Args.BreakToYMD logical = true;
-                Args.UseJD logical      = false;
+                Args.UseJD logical      = false;  % false; - with false no TimeZone treatment
             end
             
             if isempty(Ind)
@@ -1443,7 +1448,6 @@ classdef AstroFileName < Component
                     % convert to string if needed
                     TmpCol = string(Args.(Obj.FIELDS(I)));
                 end
-
                 switch numel(TmpCol)
                     case 1
                         Tmp = repmat(TmpCol, Nind, 1);
@@ -1573,7 +1577,7 @@ classdef AstroFileName < Component
                 switch lower(Args.PathType)
                     case 'proc'                
                         %BasePath/ProjName/YYYY/MM/DD/proc/visit
-                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',false);
+                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',true);
                         ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
                         VisitStr    = Obj.getProp("SubDir", Ind, 'RepMat',true);
                         BasePathStr = Obj.getProp("BasePath", Ind, 'RepMat',true);

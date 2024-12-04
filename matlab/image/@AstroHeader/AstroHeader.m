@@ -1967,6 +1967,35 @@ classdef AstroHeader < Component
             
         end
         
+        function Obj = deleteComment(Obj, Args)
+            % Delete all comments from header, or empty comments
+            % Input  : - AstroHeader object.
+            %          * ...,key,val,..
+            %            'OnlyIfEmpty' - Delete comment, only if empty.
+            %                   Default is false.
+            % Output : - An updated AstroHeader object
+            % Author : Eran Ofek (Dec 2024)
+            % Example: CI.HeaderData.deleteComment
+            
+            arguments
+                Obj
+                Args.OnlyIfEmpty logical  = false;
+            end
+
+            Nobj=numel(Obj);
+            for Iobj=1:1:Nobj
+                II = find(strcmp(Obj(Iobj).Data(:,1),'COMMENT'));
+                Nline = size(Obj(Iobj).Data,1);
+                Vec   = (1:1:Nline)';
+                if Args.OnlyIfEmpty
+                    IsEmpty = tools.cell.isempty_cell(Obj(Iobj).Data(:,2));
+                    Isel    = setdiff(Vec, II(Isempty));
+                else
+                    Isel    = setdiff(Vec, II);
+                end
+                Obj.Data = Obj.Data(Isel,:);
+            end
+        end
     end
     
     methods (Static)  % help and documentation
