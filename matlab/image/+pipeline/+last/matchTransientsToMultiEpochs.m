@@ -83,13 +83,16 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
 
     Status = 'Uncontrolled exit.';
     
-
-    TranCatLevel2 = TranCatLevel1;
-    
+   
     if isempty(Args.TranDB)
         Status = 'TranDB filename not given.'; 
         return
     end
+
+    TranCatLevel2 = TranCatLevel1;
+    NTran = TranCatLevel2.sizeCatalog;
+    Reported = zeros(NTran,1);
+    TranCatLevel2 = TranCatLevel2.insertCol(Reported,inf,'Reported','');
 
     % Load filter flags
     BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
@@ -109,7 +112,6 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         TranCatLevel2 = TranCatLevel2.selectRows(Subselect);
         Flags = TranCatLevel2.getCol('FLAGS_TRANSIENT');
 
-
     end
 
     % Load DB file. If file does not exist, create it, save current
@@ -127,10 +129,10 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
 
     % Append current catalog to DB catalog and save.
     TranDB = merge([TranDB, TranCatLevel2]);
-    save(Args.TranDB,"TranDB");
 
     % If no candidates pass all filters, return.
     if Npos < 1
+        save(Args.TranDB,"TranDB");
         Status = 'No passing candidates, updated DB and returned.';
         return
     end
@@ -143,11 +145,25 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
     Dec = RealTranCands.getCol('Dec');
     Matches = TranDB.coneSearch(RA, Dec, 3);
 
+    ReportedDB = TranDB.Table.Reported;
+
     % Construct multi-epoch catalog for each passing candidate
     for Ipos = 1:1:Npos
         % Get all matches for a single candidate and define some variables
         % that define the observed field
         MatchCat = TranDB.selectRows(Matches(Ipos).Ind);
+        ReportedMatch = MatchCat.Table.Reported;
+
+        AlreadyReported = any(ReportedMatch);
+        if AlreadyReported
+            ADc(Ipos).AlreadyReported = 1;
+        end
+
+        % This should be elsewhere probably
+        if (Matches(Ipos).Nsrc > 1) || (ADc.CatData.Table.SCORE >= 8.0) 
+            ReportedDB(Matches(Ipos).Ind) = 1;
+        end        
+
         TC = ADc(Ipos).CatData;
         Field0 = TC.getCol('OBJECT');
         Mount0 = TC.getCol('MOUNT');
@@ -211,6 +227,8 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         ADc(Ipos).CatData = MatchCat;
     end
 
+    TranDB = TranDB.replaceCol(ReportedDB,'Reported');
+    save(Args.TranDB,"TranDB");
     Status = 'Succesful exit, transients matched to multi-epochs.';
 
 end
