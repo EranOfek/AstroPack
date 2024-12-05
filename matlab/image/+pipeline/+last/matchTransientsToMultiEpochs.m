@@ -152,7 +152,7 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         % Get all matches for a single candidate and define some variables
         % that define the observed field
         Matches = TranDB.coneSearch(RA(Ipos), Dec(Ipos), 3);
-        MatchCat = TranDB.selectRows(Matches.Ind);
+        MatchCat = TranDB.selectRows(Matches.Ind);  
         ReportedMatch = MatchCat.Table.Reported;
 
         AlreadyReported = any(ReportedMatch);
