@@ -49,7 +49,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     fprintf('DB in use: %s\n',DB.showCurrentDB);
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
     % read the column list from the xls template
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);      
+%     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName','visit_images');   
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
     FID = fopen('no_status_dir.txt', 'a');
@@ -83,27 +84,27 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing             
-            Pname = Cat(1).getStructKey('PROJNAME').PROJNAME;
-            if isnan(Cat(1).getStructKey('NODENUMB').NODENUMB)
-                NODENUMB = str2num(Pname(6:7));
-                for Crop=1:Nobj
-                    Cat(Crop).HeaderData.replaceVal('NODENUMB',NODENUMB);
-                end
-            end
-            if isnan(Cat(1).getStructKey('MOUNTNUM').MOUNTNUM)
-                MOUNTNUM = str2num(Pname(9:10));
-                for Crop=1:Nobj
-                    Cat(Crop).HeaderData.replaceVal('MOUNTNUM',MOUNTNUM);
-                end
-            end
-            Subdir = Cat(1).getStructKey('SUBDIR').SUBDIR; 
-            if isempty(Subdir)          
-                Parts = strsplit(DataDir, '/');
-                Subdir = Parts{end};    % Extract the last part of the full dir name
-                for Crop=1:Nobj
-                    Cat(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
-                end
-            end
+%             Pname = Cat(1).getStructKey('PROJNAME').PROJNAME;
+%             if isnan(Cat(1).getStructKey('NODENUMB').NODENUMB)
+%                 NODENUMB = str2num(Pname(6:7));
+%                 for Crop=1:Nobj
+%                     Cat(Crop).HeaderData.replaceVal('NODENUMB',NODENUMB);
+%                 end
+%             end
+%             if isnan(Cat(1).getStructKey('MOUNTNUM').MOUNTNUM)
+%                 MOUNTNUM = str2num(Pname(9:10));
+%                 for Crop=1:Nobj
+%                     Cat(Crop).HeaderData.replaceVal('MOUNTNUM',MOUNTNUM);
+%                 end
+%             end
+%             Subdir = Cat(1).getStructKey('SUBDIR').SUBDIR; 
+%             if isempty(Subdir)          
+%                 Parts = strsplit(DataDir, '/');
+%                 Subdir = Parts{end};    % Extract the last part of the full dir name
+%                 for Crop=1:Nobj
+%                     Cat(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
+%                 end
+%             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;
