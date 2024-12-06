@@ -42,6 +42,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     % Get number of transient cutouts.
     Nadc = numel(ADc);
+    NadcNotReported = 0;
 
     % Run loop on each transient cutout
     for Iadc = 1:Nadc
@@ -60,6 +61,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if NumPassingTran == 1 
             SingleEpochScore = Score(PassingTran);
             if SingleEpochScore < Args.SingleEpochThresh
+                NadcNotReported = NadcNotReported + 1;
                 continue
             end
         end
@@ -72,7 +74,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Mount = Transient.CatData.getCol('MOUNT');
         Camera = Transient.CatData.getCol('CAM');
         CropID = Transient.CatData.getCol('CROPID');
-        Object = Transient.CatData.getCol('OBJECT');
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
@@ -94,7 +95,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Mount0 = Mount(Ind0);
         Camera0 = Camera(Ind0);
         CropID0 = CropID(Ind0);
-        Object0 = Object(Ind0);
+        Object0 = Transient.HeaderData.getVal('OBJECT');
+
+        if isnumeric(Object0)
+            Object0 = sprintf('%i',Object0);
+        end
 
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
@@ -113,8 +118,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         TelTarget_Msg = strcat('Discovered in sub-image',{' '},...
             sprintf('%.0i',CropID0),{' '},'of field',{' '},...
-            sprintf('%.0i',Object0),{' '},'by M',sprintf('%.0i',Mount0),...
-            'C',sprintf('%.0i',Camera0),{' '},'.');
+            Object0,{' '},'by M',sprintf('%.0i',Mount0),...
+            'C',sprintf('%.0i',Camera0),'.');
 
         Msg{1} = strcat(Msg{1},'\n',TelTarget_Msg{1});
 
@@ -427,4 +432,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Status = 'Succesful exit, alert(s) sent.';
 
     end
+
+    if NadcNotReported == Nadc
+        Status = 'No transient reported, none significant enough.';
+    end
+
 end
