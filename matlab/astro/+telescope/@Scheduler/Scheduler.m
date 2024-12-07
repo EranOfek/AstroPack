@@ -706,7 +706,50 @@ classdef Scheduler < Component
             
         end
         
-        
+        function Flag=fieldsCoverHealpix(Obj, NSide, Pix, Args)
+            % Given a list of healpix pixels, return the indices of target fields
+            % that contains the healpix pixels.
+            % Input  : - self.
+            %          - NSide. If empty, then Pix is unique ID.
+            %          - Healpix pixel or unique ID.
+            %            Note that the function check the position of the
+            %            healpix center, so you have to use pixel size
+            %            which are much smaller than the field of view.
+            %          * ...,key,val,...
+            %            'Type' - Healpix type: 'nested'|'ring'.
+            %                   Default is 'nested'.
+            %            'HalfSize' - Assumed half size of fields
+            %                   Default is [2.1 3.2] deg.
+            % Output : - A vector of logical indicating if each target in
+            %            scheduler list contains one of the healpix
+            %            centers.
+            % F=S.fieldsCoverHealpix(16,[100;101;200])
+            
+            arguments
+                Obj
+                NSide
+                Pix
+                Args.Type       = 'nested';
+                Args.HalfSize   = [2.1 3.2];  % deg
+            end
+            
+            if isempty(NSide)
+                % assume pix is unique id
+                UID = Pix;
+                [NSide, Pix] = celestial.healpix.pix2uniqueId(Pix);
+            end
+            
+            [RA, Dec] = celestial.healpix.pix2ang(NSide, Pix, 'Type', Args.Type, 'CooUnits','deg');
+            Ncoo = numel(RA);
+            
+            for Icoo=1:1:Ncoo
+                if Icoo==1
+                    Flag = cooInField(Obj, RA(Icoo), Dec(Icoo), 'HalfSize',Args.HalfSize);
+                else
+                    Flag = Flag & cooInField(Obj, RA(Icoo), Dec(Icoo), 'HalfSize',Args.HalfSize);
+                end
+            end
+        end
         
     end
     
@@ -1363,7 +1406,7 @@ classdef Scheduler < Component
     
     methods  % setters to Data table
         function Obj = insertColList(Obj, ColName, Val, Index)
-            % set Data table column for specific entries
+            % set the value of specific column in List.
             % Input  : - celestial.Targets object.
             %          - Table column name to set (e.g., 'LastJD').
             %          - Vector of values.
@@ -1416,6 +1459,33 @@ classdef Scheduler < Component
             
         end
         
+        function Result = selectRows(Obj, Rows, Args)
+            % Select rows from scheduler target list.
+            % Input  : - self.
+            %          - Rows. Either vector of logicals, or vector of
+            %            indices.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - Updated self.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: S1=S.selectRows(1:2)
+           
+            arguments
+                Obj
+                Rows
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Result.List.Catalog = Result.List.Catalog(Rows,:);
+            Result.Ntarget      = size(Result.List.Catalog,1);
+        end
     end
     
     
@@ -2261,6 +2331,8 @@ classdef Scheduler < Component
             Ind = find(D<SearchRadiusRad);
             
         end
+        
+        
     end
     
     
