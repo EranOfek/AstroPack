@@ -182,6 +182,12 @@ classdef Scheduler < Component
         function set.List(Obj,Tbl)
             % Setter for List
            
+%             if istable(Tbl)
+%                 Tmp = AstroCatalog;
+%                 Tmp.Catalog = Tbl;
+%                 Tbl = Tmp;
+%             end
+            
             Obj.List = Tbl;
             
             if Obj.List.isColumn(Obj.ColRA)
