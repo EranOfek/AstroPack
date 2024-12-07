@@ -104,7 +104,7 @@ classdef Scheduler < Component
     properties (Hidden)
         RA
         Dec
-        TotalExpTime
+        
         NightVisibility
         NightSunSet    = [];
         NightSunRise   = [];
@@ -112,6 +112,7 @@ classdef Scheduler < Component
     end
     
     properties (Dependent, Hidden)
+        TotalExpTime
         FieldName
         LST
         HA
@@ -196,15 +197,16 @@ classdef Scheduler < Component
             if Obj.List.isColumn(Obj.ColDec)
                 Obj.Dec  = Obj.List.getCol(Obj.ColDec);
             end
-            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
-                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
-                
-                if numel(unique(Val))==1
-                    Obj.TotalExpTime = Val(1);
-                else
-                    Obj.TotalExpTime = Val;
-                end
-            end
+            % TotalExpTime is a dependent property
+            %if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
+            %    Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            %    
+            %    if numel(unique(Val))==1
+            %        Obj.TotalExpTime = Val(1);
+            %    else
+            %        Obj.TotalExpTime = Val;
+            %    end
+            %end
             % set Ntarget
             [Nt,Nc]     = Obj.List.sizeCatalog;
             Obj.Ntarget = Nt;
@@ -346,6 +348,16 @@ classdef Scheduler < Component
         end
         
         
+        function Val=get.TotalExpTime(Obj)
+            % Getter for TotalExpTime
+            
+            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
+                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            else
+                Val = nan(Obj.Ntarget,1);
+            end
+        end
+
     end
 
     methods (Static)   % utilities
@@ -929,6 +941,7 @@ classdef Scheduler < Component
             % convert to string & trim spaces from FieldName
             Obj.List.Catalog.FieldName = tools.string.convert2strings(Obj.List.Catalog.FieldName);
            
+            
         end
         
         function Obj=populateMountAltConstraints(Obj, Data, Path)
