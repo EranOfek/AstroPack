@@ -8,7 +8,7 @@ function [Result, Counts] = ADU2e(ADU, Args)
     %       'LowGain' - the low gain conversion ratio
     %       'HighGain' - the high gain conversion ratio
     % Output: - the converted value and the count (electron) number
-    % Author: A.M. Krassilchthcikov (Jul 2023)
+    % Author: A.M. Krassilchtchikov (Jul 2023)
     arguments
         ADU
         Args.LowGain   = 0.074;

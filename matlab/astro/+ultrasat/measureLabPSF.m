@@ -45,7 +45,12 @@ function [Result] = measureLabPSF(Image, Args)
     Result.PSF = PSF;    
     Result.SNR = SNR; 
     Result.R50 = R50; 
-    Result.XY  = [X, Y]; 
+    Result.X  = X; 
+    Result.Y  = Y; 
+    Result.FWHM = FWHM;
+    Result.X2 = Info.X2;
+    Result.Y2 = Info.Y2;
+    Result.XY = Info.XY;
     % plot the PSF image on a log scale
     if Args.Plot
         figure(1)
