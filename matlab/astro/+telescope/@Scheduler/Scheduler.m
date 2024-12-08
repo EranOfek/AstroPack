@@ -723,7 +723,7 @@ classdef Scheduler < Component
             % Output : - A vector of logical indicating if each target in
             %            scheduler list contains one of the healpix
             %            centers.
-            % F=S.fieldsCoverHealpix(16,[100;101;200])
+            % F=S.fieldsCoverHealpix(2.^16,[100;101;200])
             
             arguments
                 Obj
