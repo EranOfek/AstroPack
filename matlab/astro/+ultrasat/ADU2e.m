@@ -2,7 +2,7 @@ function [Result, Counts] = ADU2e(ADU, Args)
     % convert ULTRASAT ADU into the count number (electrons) 
     % with 13 bits we can only keep 3 precision digits (10 bits) and the exponent (3 bits)
     % the first bit determines the gain, so we have a 14-bit binary 
-    % NB: the range of normally conveted numbers is from 1 to 10^8
+    % NB: the range of normally converted numbers is from 1 to 10^8
     % Input:  - the ADU code
     %       * ...,key,val,... 
     %       'LowGain' - the low gain conversion ratio
@@ -12,7 +12,7 @@ function [Result, Counts] = ADU2e(ADU, Args)
     arguments
         ADU
         Args.LowGain   = 0.074;
-        Args.HighGain  = 1.185;
+        Args.HighGain  = 1.185;       
     end
     
     ADU = single(ADU);
@@ -22,10 +22,10 @@ function [Result, Counts] = ADU2e(ADU, Args)
     Prec = ADU - Bit14 .* 2^13 - Exp .* 2^10;
     Result = (Prec./10^2) .* 10.^(Exp);
     
-    if Bit14 == 1
-        Counts = Result / Args.LowGain;
+    if Bit14 > 0.5
+        Counts = Result ./ Args.LowGain;
     else
-        Counts = Result / Args.HighGain;     
+        Counts = Result ./ Args.HighGain;     
     end
     
 end
