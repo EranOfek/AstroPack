@@ -112,6 +112,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         FieldID = FieldID{1};
 
         FieldRefPath = strcat(RefPath, '/', FieldID);
+        FNref.FieldID{1} = FieldID;
         RefFile = fullfile(FieldRefPath,FNref.genFile);
 
         % Continue if no ref image found
@@ -390,7 +391,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             Mount = Header.getVal('MOUNTNUM')*ones(NumTran,1);
             Cam = Header.getVal('CAMNUM')*ones(NumTran,1);
             CropID = Header.getVal('CROPID')*ones(NumTran,1);
-            Object = Header.getVal('OBJECT')*ones(NumTran,1);
+            
+            Object = Header.getVal('OBJECT');
+            if ~isnumeric(Object)
+                Object = split(Header.getVal('OBJECT'),'.');
+                Object = str2double(Object{1});
+            end
+            Object = Object*ones(NumTran,1);
+
             FWHM_new = AD(Iobj).New.PSFData.fwhm*ones(NumTran,1);
             FWHM_ref = AD(Iobj).Ref.PSFData.fwhm*ones(NumTran,1);
             LIMMAG_new = AD(Iobj).New.HeaderData.getVal('LIMMAG')*ones(NumTran,1);
