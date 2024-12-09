@@ -109,6 +109,8 @@ function [T,FileName] = insertCatalog(Obj, Args)
         Args.KeyID        = 'ID_PROC';
         Args.generateImageID_Args = {};
 
+        Args.AddSrcID logical = true;
+        Args.ColSrcID         = '';
 
         % Healpix indexing
         %Args.ColRA         = 'RA';
@@ -167,6 +169,11 @@ function [T,FileName] = insertCatalog(Obj, Args)
         % insert ID:
         if ~isempty(ID)
             Tmp.(Args.KeyID) = repmat(ID, Nrow,1);
+        end
+
+        if Args.AddSrcID
+            Nsrc = size(Tmp,1);
+            Tmp.(Args.ColSrcID) = (1:1:Nsrc).';
         end
 
         % concat all tables
