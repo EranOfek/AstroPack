@@ -104,7 +104,7 @@ classdef Scheduler < Component
     properties (Hidden)
         RA
         Dec
-        TotalExpTime
+        
         NightVisibility
         NightSunSet    = [];
         NightSunRise   = [];
@@ -112,6 +112,7 @@ classdef Scheduler < Component
     end
     
     properties (Dependent, Hidden)
+        TotalExpTime
         FieldName
         LST
         HA
@@ -182,6 +183,12 @@ classdef Scheduler < Component
         function set.List(Obj,Tbl)
             % Setter for List
            
+%             if istable(Tbl)
+%                 Tmp = AstroCatalog;
+%                 Tmp.Catalog = Tbl;
+%                 Tbl = Tmp;
+%             end
+            
             Obj.List = Tbl;
             
             if Obj.List.isColumn(Obj.ColRA)
@@ -190,15 +197,16 @@ classdef Scheduler < Component
             if Obj.List.isColumn(Obj.ColDec)
                 Obj.Dec  = Obj.List.getCol(Obj.ColDec);
             end
-            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
-                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
-                
-                if numel(unique(Val))==1
-                    Obj.TotalExpTime = Val(1);
-                else
-                    Obj.TotalExpTime = Val;
-                end
-            end
+            % TotalExpTime is a dependent property
+            %if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
+            %    Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            %    
+            %    if numel(unique(Val))==1
+            %        Obj.TotalExpTime = Val(1);
+            %    else
+            %        Obj.TotalExpTime = Val;
+            %    end
+            %end
             % set Ntarget
             [Nt,Nc]     = Obj.List.sizeCatalog;
             Obj.Ntarget = Nt;
@@ -340,6 +348,16 @@ classdef Scheduler < Component
         end
         
         
+        function Val=get.TotalExpTime(Obj)
+            % Getter for TotalExpTime
+            
+            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
+                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            else
+                Val = nan(Obj.Ntarget,1);
+            end
+        end
+
     end
 
     methods (Static)   % utilities
@@ -688,7 +706,50 @@ classdef Scheduler < Component
             
         end
         
-        
+        function Flag=fieldsCoverHealpix(Obj, NSide, Pix, Args)
+            % Given a list of healpix pixels, return the indices of target fields
+            % that contains the healpix pixels.
+            % Input  : - self.
+            %          - NSide. If empty, then Pix is unique ID.
+            %          - Healpix pixel or unique ID.
+            %            Note that the function check the position of the
+            %            healpix center, so you have to use pixel size
+            %            which are much smaller than the field of view.
+            %          * ...,key,val,...
+            %            'Type' - Healpix type: 'nested'|'ring'.
+            %                   Default is 'nested'.
+            %            'HalfSize' - Assumed half size of fields
+            %                   Default is [2.1 3.2] deg.
+            % Output : - A vector of logical indicating if each target in
+            %            scheduler list contains one of the healpix
+            %            centers.
+            % F=S.fieldsCoverHealpix(2.^16,[100;101;200])
+            
+            arguments
+                Obj
+                NSide
+                Pix
+                Args.Type       = 'nested';
+                Args.HalfSize   = [2.1 3.2];  % deg
+            end
+            
+            if isempty(NSide)
+                % assume pix is unique id
+                UID = Pix;
+                [NSide, Pix] = celestial.healpix.pix2uniqueId(Pix);
+            end
+            
+            [RA, Dec] = celestial.healpix.pix2ang(NSide, Pix, 'Type', Args.Type, 'CooUnits','deg');
+            Ncoo = numel(RA);
+            
+            for Icoo=1:1:Ncoo
+                if Icoo==1
+                    Flag = cooInField(Obj, RA(Icoo), Dec(Icoo), 'HalfSize',Args.HalfSize);
+                else
+                    Flag = Flag & cooInField(Obj, RA(Icoo), Dec(Icoo), 'HalfSize',Args.HalfSize);
+                end
+            end
+        end
         
     end
     
@@ -923,6 +984,7 @@ classdef Scheduler < Component
             % convert to string & trim spaces from FieldName
             Obj.List.Catalog.FieldName = tools.string.convert2strings(Obj.List.Catalog.FieldName);
            
+            
         end
         
         function Obj=populateMountAltConstraints(Obj, Data, Path)
@@ -1344,7 +1406,7 @@ classdef Scheduler < Component
     
     methods  % setters to Data table
         function Obj = insertColList(Obj, ColName, Val, Index)
-            % set Data table column for specific entries
+            % set the value of specific column in List.
             % Input  : - celestial.Targets object.
             %          - Table column name to set (e.g., 'LastJD').
             %          - Vector of values.
@@ -1397,6 +1459,33 @@ classdef Scheduler < Component
             
         end
         
+        function Result = selectRows(Obj, Rows, Args)
+            % Select rows from scheduler target list.
+            % Input  : - self.
+            %          - Rows. Either vector of logicals, or vector of
+            %            indices.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - Updated self.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: S1=S.selectRows(1:2)
+           
+            arguments
+                Obj
+                Rows
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Result.List.Catalog = Result.List.Catalog(Rows,:);
+            Result.Ntarget      = size(Result.List.Catalog,1);
+        end
     end
     
     
@@ -2242,6 +2331,8 @@ classdef Scheduler < Component
             Ind = find(D<SearchRadiusRad);
             
         end
+        
+        
     end
     
     

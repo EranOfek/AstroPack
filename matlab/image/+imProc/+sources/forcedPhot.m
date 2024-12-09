@@ -187,7 +187,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.FlagsHalfSize           = 3;
 
         Args.ReconstructPSF logical  = false;
-        Args.HalfSizePSF             = 12;
+        Args.HalfSizePSF             = 6;
         Args.FitRadius               = 3;
         Args.SmallStep               = 1e-3;
         Args.MaxStep                 = 0.2;

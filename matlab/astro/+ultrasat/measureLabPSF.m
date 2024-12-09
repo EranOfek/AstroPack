@@ -9,20 +9,35 @@ function [Result] = measureLabPSF(Image, Args)
     %          .R50 -- radius of 50% encircled energy [pix]
     %          .XY  -- source location on the matrix
     % Author : A.M. Krassilchtchikov (2024 Dec) 
-    % Example: ultrasat.measureLabPSF('T',10000,'XY',[1000 2300],'Plot',true);
+    % Example: Res = ultrasat.measureLabPSF('T',10000,'XY',[1000 2300],'Plot',true)
+    %          Res = ultrasat.measureLabPSF('DataFile','SimImage_tileB.fits')
     arguments
-        Image          = 'sim';       
-        Args.T         = 3000;        % BB spectrum temperature [K]
-        Args.XY        = [2000 2000]; % pixel coordinates
+        Image          = 'sim';     
+        Args.DataFile  = [];          % input data file with image in counts (e-)
+        Args.GainMask  = [];          % input data file with gain mask (if present, it is presumed that DataFile is in ADU) 
+        Args.LowGain   = 0.074;       % low gain coefficient
+        Args.HighGain  = 1.185;       % high gain coefficient
+        Args.T         = 3000;        % BB spectrum temperature [K] of a simulated source
+        Args.XY        = [2000 2000]; % pixel coordinates of a simulated source 
         Args.CutRadius = 12;          % stamp size [pix] 
-        Args.PSFeff    = 0.5;         % PSF efficiency at R50
+        Args.PSFeff    = 0.5;         % PSF efficiency at R50 (for SNR estimate)
         Args.Plot      = false;
+    end
+    
+    % read the image from a FITS file
+    if ~isempty(Args.DataFile)
+        AI = AstroImage(Args.DataFile);
+        Image = AI.Image;
     end
     
     % simualte an image if no numeric matrix is input 
     if ~isnumeric(Image)
         AI = ultrasat.usim('Cat',Args.XY,'Mag',16,'Exposure',[1 300],'SpecType','BB','Spec',Args.T,'OutType','AstroImage');
         Image = AI.Image;
+    end
+    %
+    if ~isempty(Args.GainMask) % if a mask image is input, we assume that the input image is in ADU raher than in e-
+        Image = ultrasat.ADU2e(Image); % should be tested 
     end
 
     % find the object, measure moments
@@ -45,10 +60,15 @@ function [Result] = measureLabPSF(Image, Args)
     Result.PSF = PSF;    
     Result.SNR = SNR; 
     Result.R50 = R50; 
-    Result.XY  = [X, Y]; 
+    Result.X  = X; 
+    Result.Y  = Y; 
+    Result.FWHM = FWHM;
+    Result.X2 = Info.X2;
+    Result.Y2 = Info.Y2;
+    Result.XY = Info.XY;
     % plot the PSF image on a log scale
     if Args.Plot
-        figure(1)
-        imagesc(log10(abs(PSF))); colormap
+        figure(10)
+        imagesc(log10(abs(PSF))); colorbar; title('lg(PSF)'); set(gca,'YDir','normal');
     end
 end

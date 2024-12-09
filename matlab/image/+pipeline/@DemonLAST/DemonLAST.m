@@ -1005,6 +1005,7 @@ classdef DemonLAST < Component
             %          * ...,key,val,...
             %            'WriteLog' - write log file. Default is true.
             %            'WriteDev' - write to screen. Default is true.
+            %            'ConcatenateImageEmpty' - instead of N "image is empty" lines put out just a summary
             % Output : null
             % Author : Eran Ofek (Apr 2023)
             
@@ -1014,6 +1015,7 @@ classdef DemonLAST < Component
                 Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
                 Args.WriteLog logical    = true;
                 Args.WriteDev logical    = false;
+                Args.ConcatenateImageEmpty logical = true;
             end
 
             if ~isempty(Msg)
@@ -1034,6 +1036,12 @@ classdef DemonLAST < Component
                     Lines = Msg;
                 else
                     error('Unknown Msg option');
+                end
+                
+                %instead of N "image is empty" lines put out just a summary
+                NumEmpty = sum(contains(Lines, "image is empty"));
+                if NumEmpty > 0 && Args.ConcatenateImageEmpty
+                    Lines = {sprintf('%d empty images were not written', NumEmpty)};
                 end
     
                 Nl = numel(Lines);

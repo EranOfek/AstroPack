@@ -358,7 +358,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                 [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:});
                 
                 NotEmptyPSF = ~isemptyPSF(SI);
-                if sum(NotEmptyPSF)<5
+                NoPSF = sum(NotEmptyPSF)<5;
+                if NoPSF
+                    IsPSF = false;
                     % less than 5 good images
                 %if any(isemptyPSF(SI))
                     % If no PSF found for one sub image - fails all
@@ -367,10 +369,10 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                     N_SubImages = numel(SI);
                     N_totSrc    = sum(SI.sizeCatalog);
                     N_minSrc    = min(SI.sizeCatalog);
-                    error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+                    warning('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
                 end
                 
-                if Args.PsfPhot
+                if Args.PsfPhot && ~NoPSF
                     % PSF photometry
                     [SI(NotEmptyPSF), ResPSF] = imProc.sources.psfFitPhot(SI(NotEmptyPSF), 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});
                 end

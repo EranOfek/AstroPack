@@ -42,6 +42,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     % Get number of transient cutouts.
     Nadc = numel(ADc);
+    NadcNotReported = 0;
 
     % Run loop on each transient cutout
     for Iadc = 1:Nadc
@@ -60,6 +61,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if NumPassingTran == 1 
             SingleEpochScore = Score(PassingTran);
             if SingleEpochScore < Args.SingleEpochThresh
+                NadcNotReported = NadcNotReported + 1;
                 continue
             end
         end
@@ -72,7 +74,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Mount = Transient.CatData.getCol('MOUNT');
         Camera = Transient.CatData.getCol('CAM');
         CropID = Transient.CatData.getCol('CROPID');
-        Object = Transient.CatData.getCol('OBJECT');
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
@@ -94,7 +95,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Mount0 = Mount(Ind0);
         Camera0 = Camera(Ind0);
         CropID0 = CropID(Ind0);
-        Object0 = Object(Ind0);
+        Object0 = Transient.HeaderData.getVal('OBJECT');
+
+        if isnumeric(Object0)
+            Object0 = sprintf('%i',Object0);
+        end
 
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
@@ -103,14 +108,18 @@ function [Status] = sendTransientsAlert(ADc, Args)
             'with a score of',{' '},sprintf('%.2f',Score0),{' '},...
             'and magnitude of',{' '},sprintf('%.2f',Mag0),'.');
 
+        if Transient.AlreadyReported
+            Msg{1} = strcat(':mailbox_closed: This transient was already reported before:mailbox_closed:\n',Msg{1});
+        end
+
         if Args.thisIsATest
             Msg{1} = strcat(':wrench: This is a test :wrench:\n',Msg{1});
         end
 
         TelTarget_Msg = strcat('Discovered in sub-image',{' '},...
             sprintf('%.0i',CropID0),{' '},'of field',{' '},...
-            sprintf('%.0i',Object0),{' '},'by M',sprintf('%.0i',Mount0),...
-            'C',sprintf('%.0i',Camera0),{' '},'.');
+            Object0,{' '},'by M',sprintf('%.0i',Mount0),...
+            'C',sprintf('%.0i',Camera0),'.');
 
         Msg{1} = strcat(Msg{1},'\n',TelTarget_Msg{1});
 
@@ -198,7 +207,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 Bmag = GLADEpCat.getCol('B');
                 Redshift = GLADEpCat.getCol('z_cmb');
 
-                Gal_Msg = strcat('There is a potential host', {' '}, ...
+                Gal_Msg = strcat(':milky_way: There is a potential host', {' '}, ...
                     sprintf('%.2f',GalDist), {' '},'arcsec away.', {' '},...
                     'It has a redshift of', {' '}, sprintf('%.3f',Redshift(GalDists==GalDist)),{' '},...
                     'and a quiescient Bmag of', {' '}, sprintf('%.2f',Bmag(GalDists==GalDist)),...
@@ -215,7 +224,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         TranCat0 = Transient.CatData.selectRows(Ind0);
         SDSSLink = imProc.vo.getLinkForSource(TranCat0,[], @VO.SDSS.navigator_link);
         SDSS_Msg = strcat('<',SDSSLink.Link,'|','SkyServer>');
-        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg);
+        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
 
         % Add a PS1 link.
         PlusSign = '';
@@ -318,7 +327,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             
             Text_DirFilename = replace(Image_DirFilename,'.png','.txt');
             fid = fopen(Text_DirFilename,'wt');
-            fprintf(fid, Msg{1}{1});
+            fprintf(fid, Msg{1});
             fclose(fid);
             CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
             [CMD0Status, CMD0Out] = system(CMD0{1});
@@ -423,4 +432,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Status = 'Succesful exit, alert(s) sent.';
 
     end
+
+    if NadcNotReported == Nadc
+        Status = 'No transient reported, none significant enough.';
+    end
+
 end

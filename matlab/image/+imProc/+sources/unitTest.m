@@ -34,6 +34,21 @@ function Result = unitTest
     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'Verbose',true,...
         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
         'RedNoiseFactor',1.3); % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
+
+%     compare the multi-iteration results with those from usual
+%     singl-iteration source search and PSF-photometry:
+% 
+%     SI = imProc.sources.findMeasureSources(SI);                                               
+%     [SI] = imProc.psf.populatePSF(SI, 'Method', 'new');
+%     [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);
+% 
+%     figure(1); clf
+%     subplot(2,1,1); histogram(AI(1).CatData.Catalog(:,29));
+%     hold on; histogram(SI(1).CatData.Catalog(:,33)); 
+%     title('Tenuous field'); xlabel Mag; ylabel('N_{obj}')
+%     subplot(2,1,2); histogram(AI(2).CatData.Catalog(:,29));
+%     hold on; histogram(SI(2).CatData.Catalog(:,33)); xlim([10 20])
+%     title('Dense field'); xlabel Mag; ylabel('N_{obj}')
     
     ds9(AI(1).Image,1); ds9.load_region('~/346+79_it1.reg'); ds9.load_region('~/346+79_it2.reg'); ds9.load_region('~/346+79_it3.reg')
     ds9(SourceLess(1).Image,2) 

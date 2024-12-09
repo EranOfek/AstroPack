@@ -112,6 +112,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         FieldID = FieldID{1};
 
         FieldRefPath = strcat(RefPath, '/', FieldID);
+        FNref.FieldID{1} = FieldID;
         RefFile = fullfile(FieldRefPath,FNref.genFile);
 
         % Continue if no ref image found
@@ -390,7 +391,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             Mount = Header.getVal('MOUNTNUM')*ones(NumTran,1);
             Cam = Header.getVal('CAMNUM')*ones(NumTran,1);
             CropID = Header.getVal('CROPID')*ones(NumTran,1);
-            Object = Header.getVal('OBJECT')*ones(NumTran,1);
+            
+            Object = Header.getVal('OBJECT');
+            if ~isnumeric(Object)
+                Object = split(Header.getVal('OBJECT'),'.');
+                Object = str2double(Object{1});
+            end
+            Object = Object*ones(NumTran,1);
+
             FWHM_new = AD(Iobj).New.PSFData.fwhm*ones(NumTran,1);
             FWHM_ref = AD(Iobj).Ref.PSFData.fwhm*ones(NumTran,1);
             LIMMAG_new = AD(Iobj).New.HeaderData.getVal('LIMMAG')*ones(NumTran,1);
@@ -426,38 +434,51 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
    MergedTranCat.sortrows('Dec');
 
    % Kill duplicates
-   % Finds duplicates (0.5 arcsec self match) and keep only those closest to 
+   % Finds duplicates (1.5 arcsec self match) and keep only those closest to 
    % the center of its sub-image
    if Args.killDuplicates
+       % Find duplicates based on RA/Dec
        [MRA, MDec] = MergedTranCat.getLonLat('rad');
        HalfSize = size(AD(1).Image)./2;
        SelfMatches = VO.search.search_sortedlat_multi( ...
-                [MRA, MDec], MRA, MDec, -0.5*Arcsec2Rad);
+                [MRA, MDec], MRA, MDec, -1.5*Arcsec2Rad);
        SelfMachthesN = vertcat(SelfMatches.Nmatch);
        Duplicates = SelfMachthesN > 1;
-       DuplicatesNMatches = SelfMachthesN(Duplicates);
-       DuplicatesCat = MergedTranCat.selectRows(Duplicates);
-       [DupX, DupY] = DuplicatesCat.getXY();
-       CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
+       DuplicatesMatches = SelfMatches(Duplicates);
+       DuplicatesNMatches = vertcat(DuplicatesMatches.Nmatch);
        NDup = numel(DuplicatesNMatches);
-       MergedTranCat = MergedTranCat.selectRows(~Duplicates);       
-       Survivors = zeros(NDup,1);
-       IDup = 1;
-       IControl = 1;
-       while (IDup < NDup) && (IControl < NDup)
-           MatchLength = DuplicatesNMatches(IDup);
-           CenterDistancesMatches = CenterDistance(IDup:IDup+MatchLength-1);
-           Survivor = find(CenterDistancesMatches == min(CenterDistancesMatches));
-           Survivors(IDup) = IDup+Survivor-1;
-           IDup = IDup + MatchLength;
-           IControl = IControl + 1;
+
+       for IDup=1:NDup
+           IDuplicates = DuplicatesMatches(IDup);
+           IDuplicatesInd = IDuplicates.Ind;
+           SelfIdx = IDuplicatesInd == IDuplicates.Ind1;
+
+           DuplicatesCat = MergedTranCat.selectRows(IDuplicatesInd);
+           CropIDs = DuplicatesCat.Table.CROPID;
+
+           % Remove false duplicates in the same sub-image
+           SelfCrop = CropIDs(SelfIdx); 
+           NonSelfImgDup = ((CropIDs ~= SelfCrop) | SelfIdx);
+           DuplicatesCat = DuplicatesCat.selectRows(NonSelfImgDup);
+           IDuplicatesInd = IDuplicatesInd(NonSelfImgDup);
+
+           % Not a duplicate
+           if DuplicatesCat.sizeCatalog == 1
+               Duplicates(DuplicatesMatches(IDup).Ind1) = 0;
+               continue
+           end
+
+           % Choose the duplicate that is closest to the center as the
+           % survivor
+           [DupX, DupY] = DuplicatesCat.getXY('ColX','XPEAK','ColY','YPEAK');
+           CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
+           Survivor = CenterDistance == min(CenterDistance);
+           Duplicates(IDuplicatesInd(Survivor)) = 0;
        end
-       Survivors = Survivors(Survivors > 0);
-       SurvivorsCat = DuplicatesCat.selectRows(Survivors);
-       MergedTranCat = merge([MergedTranCat, SurvivorsCat]);
+       MergedTranCat = MergedTranCat.selectRows(~Duplicates);
        MergedTranCat.sortrows('Dec');
    end
-    
+   
    if Args.SaveProducts
         if ~isempty(Args.Product)
             for Iobj=Nobj:-1:1

@@ -47,6 +47,8 @@ classdef AstroDiff < AstroImage
         % Gabor SN of difference image
         GaborSN
 
+        % These would work better in an AstroTransient class
+        AlreadyReported = 0;
         ULCatData
     end
     
