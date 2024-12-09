@@ -64,14 +64,20 @@ function [Obj, ID] = generateImageID(Obj, Args)
             BitNum(Isub) = Args.FormatSt(Isub).BitNum;
             if BitNum(Isub)>0
                 % include in keyword value in ID
-                TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
+                if     isa(Obj, 'AstroImage')
+                    TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
+                elseif isa(Obj, 'AstroHeader')
+                    TmpVal       = Obj(Iobj).getVal( Args.FormatSt(Isub).Key );
+                else
+                    error('Incorrect object type');
+                end
                 BitVal(Isub) = Args.FormatSt(Isub).Fun(TmpVal);
                 if isnan(BitVal(Isub)) && Args.ErrorOnNaN
                     error('Keyword %s value is NaN', Args.FormatSt(Isub).Key);
                 elseif isnan(BitVal(Isub)) && ~Args.ErrorOnNaN
                     BitVal(Isub) = 0;
                 else
-                    % do nothing
+                    % do nothing 
                 end
             end
         end
@@ -79,9 +85,17 @@ function [Obj, ID] = generateImageID(Obj, Args)
         ID(Iobj) = tools.bit.bitEncode(BitNum, BitVal);
         if ~isempty(Args.KeyID)
             if Args.WriteAsStr
-                Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+                if     isa(Obj, 'AstroImage')
+                    Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+                else
+                    Obj(Iobj).replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+                end
             else
-                Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), ID(Iobj));
+                if     isa(Obj, 'AstroImage')
+                    Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), ID(Iobj));
+                else
+                    Obj(Iobj).replaceVal(char(Args.KeyID), ID(Iobj));
+                end
             end
         end
     end

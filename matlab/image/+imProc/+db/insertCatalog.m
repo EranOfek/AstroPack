@@ -92,6 +92,8 @@ function [T,FileName] = insertCatalog(Obj, Args)
 
     arguments
         Obj
+        Args.Header       = [];     % if the object is an AstroCatalog, we need to provide AstroHeader as well 
+        
         Args.Db           = [];
         Args.DbName       = [];
         Args.DbTable      = [];
@@ -106,11 +108,11 @@ function [T,FileName] = insertCatalog(Obj, Args)
         Args.INPOP        = [];
 
         Args.InsertID logical  = true;
-        Args.KeyID        = 'ID_PROC';
+        Args.KeyID        = 'ID_PROC_IM';
         Args.generateImageID_Args = {};
 
         Args.AddSrcID logical = true;
-        Args.ColSrcID         = '';
+        Args.ColSrcID         = 'ID_PROC_SRC';
 
         % Healpix indexing
         %Args.ColRA         = 'RA';
@@ -150,13 +152,30 @@ function [T,FileName] = insertCatalog(Obj, Args)
             else
                 ID = [];
             end
+        elseif isa(Obj, 'AstroCatalog')
+            Tmp = Obj(Iobj).Table;
+            
+            if Args.InsertID
+                % get Image ID from header
+                ID = Args.Header(Iobj).getVal(Args.KeyID, 'Val2Num',false);
+                if ischar(ID)
+                    ID = tools.string.mex.str2uint64(ID);
+                elseif isnan(ID)
+                    [~,ID]=imProc.db.generateImageID(Args.Header(Iobj), Args.generateImageID_Args{:});
+                end
+            else
+                ID = [];
+            end
         else
             ID  = [];
             Tmp = Obj(Iobj).Table;
         end
 
         % select tables
-        Tmp = Tmp.({Args.ColNameDic.ColName});
+%         Tmp = Tmp.({Args.ColNameDic.ColName});  %% this line does not work, the following 2 lines do the job:
+        Tmp.Properties.VariableNames = upper(Tmp.Properties.VariableNames);
+        Tmp = Tmp(:, ismember(Tmp.Properties.VariableNames, {Args.ColNameDic.ColName}));
+        
         % run functions
         %IndFun = find(~tools.cell.isempty_cell({Args.ColNameDic.ColFun}));
         %for If=1:1:numel(IndFun)
@@ -214,7 +233,7 @@ function [T,FileName] = insertCatalog(Obj, Args)
 
 
     if Args.CreateCsv
-        db.Db.table2csv(Data, 'FileName',Args.FileName, Args.table2csvArgs{:});
+        db.Db.table2csv(T, 'FileName',Args.FileName, Args.table2csvArgs{:});
         FileName = Args.FileName;
     else
         FileName = [];

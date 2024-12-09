@@ -23,7 +23,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
-        Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
+%         Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -66,15 +66,16 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the visit image DB");
+            Injected = contains(fileread('.status'), "injected into the proc catalog DB");
         catch
             cd(Dir);
             fprintf(FID,'%s \n',DataDir);
             continue
         end
         if ~Injected
-            Coadd=AstroHeader(Args.FileNameCoaddIma); % read the data
+%             Coadd=AstroHeader(Args.FileNameCoaddIma); % read the data
             Cat=AstroCatalog(FileNameTemplate); % read the data
+            AH = AstroHeader(FileNameTemplate,3);
             Nobj = numel(Cat);
             if Nobj < 2 % likely no data have been read 
                 cd(Dir);
@@ -85,26 +86,26 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing                  
-            Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
-%             if isnan(Coadd(1).getStructKey('NODENUMB').NODENUMB)
-%                 NODENUMB = str2num(Pname(6:7));
-%                 for Crop=1:Nobj
-%                     Coadd(Crop).replaceVal('NODENUMB',NODENUMB);
-%                 end
-%             end
-%             if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
-%                 MOUNTNUM = str2num(Pname(9:10));
-%                 for Crop=1:Nobj
-%                     Coadd(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
-%                 end
-%             end
-            Subdir = Coadd(1).getStructKey('SUBDIR').SUBDIR; 
+            Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
+            if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
+                NODENUMB = str2num(Pname(6:7));
+                for Crop=1:Nobj
+                    AH(Crop).replaceVal('NODENUMB',NODENUMB);
+                end
+            end
+            if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
+                MOUNTNUM = str2num(Pname(9:10));
+                for Crop=1:Nobj
+                    AH(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
+                end
+            end
+            Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
             if isempty(Subdir)          
                 Parts  = strsplit(DataDir, '/');
                 Subdir = Parts{end};    % Extract the last part of the full dir name
-%                 for Crop=1:Nobj
-%                     Coadd(Crop).replaceVal('SUBDIR',Subdir);
-%                 end
+                for Crop=1:Nobj
+                    AH(Crop).replaceVal('SUBDIR',Subdir);
+                end
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
@@ -112,19 +113,19 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             A.SubDir   = Subdir;
             A.Level    = Args.Level; 
             A.Product  ='Cat';
-            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = Coadd(1).getStructKey('JD').JD; 
+            A.FieldID  = AH(1).getStructKey('FIELDID').FIELDID;
+            A.JD       = AH(1).getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
 
-            T=imProc.db.insertCatalog(Cat,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            T=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN); % , 'ColNameID',Args.ColNameID);
             
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the visit image DB'' >> %s/.status"',...
+            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
                                     Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
