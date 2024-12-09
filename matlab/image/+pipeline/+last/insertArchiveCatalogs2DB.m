@@ -23,7 +23,6 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
-%         Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
