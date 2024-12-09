@@ -17,6 +17,8 @@ function [Nvisit] = prepReference(Args)
         Args.Nsub    = 24;
     end
 
+    RAD = 180./pi;
+
     cd (Args.StartPath);
     load LAST_Visits.mat
     % data is in OT
@@ -28,20 +30,25 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=800:1:900
+    for Itarget=866:1:900
         %Ntarget
         FieldID = Tbl.FieldName(Itarget);
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
         Mnt     = Tbl.MountNum(Itarget);
-        
+        FieldID
 
         for Icam=1:1:Args.Ncam
             for Isub=1:1:Args.Nsub
 
-        
                 % look for the field ID in the vists catalog
                 Ifield = find(strcmp(OT.FieldID, FieldID) & OT.Mount==Mnt & OT.Camera==Icam & OT.CropID==Isub & OT.PH_ZP>25 & OT.FWHM<5 & OT.MIDJD>Args.MinJD);
+                % check that all the fields are near the relevant
+                % coordinates
+                DD = celestial.coo.sphere_dist_fast(Tbl.RA(Itarget)./RAD, Tbl.Dec(Itarget)./RAD, OT.RAU1(Ifield)./RAD, OT.DECU1(Ifield)./RAD).*RAD;
+                Ifield = Ifield(DD<3);
+
+
                 Nvisit(Itarget,Icam,Isub) = numel(Ifield);
         
                 if Nvisit(Itarget,Icam,Isub)>0
