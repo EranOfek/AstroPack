@@ -9,10 +9,12 @@ function [Result] = measureLabPSF(Image, Args)
     %          .R50 -- radius of 50% encircled energy [pix]
     %          .XY  -- source location on the matrix
     % Author : A.M. Krassilchtchikov (2024 Dec) 
-    % Example: ultrasat.measureLabPSF('T',10000,'XY',[1000 2300],'Plot',true);
+    % Example: Res = ultrasat.measureLabPSF('T',10000,'XY',[1000 2300],'Plot',true)
+    %          Res = ultrasat.measureLabPSF('DataFile','SimImage_tileB.fits')
     arguments
-        Image          = 'sim';       
-        Args.GainMask  = [];
+        Image          = 'sim';     
+        Args.DataFile  = [];          % input data file with image in counts (e-)
+        Args.GainMask  = [];          % input data file with gain mask (if present, it is presumed that DataFile is in ADU) 
         Args.LowGain   = 0.074;       % low gain coefficient
         Args.HighGain  = 1.185;       % high gain coefficient
         Args.T         = 3000;        % BB spectrum temperature [K] of a simulated source
@@ -20,6 +22,12 @@ function [Result] = measureLabPSF(Image, Args)
         Args.CutRadius = 12;          % stamp size [pix] 
         Args.PSFeff    = 0.5;         % PSF efficiency at R50 (for SNR estimate)
         Args.Plot      = false;
+    end
+    
+    % read the image from a FITS file
+    if ~isempty(Args.DataFile)
+        AI = AstroImage(Args.DataFile);
+        Image = AI.Image;
     end
     
     % simualte an image if no numeric matrix is input 
