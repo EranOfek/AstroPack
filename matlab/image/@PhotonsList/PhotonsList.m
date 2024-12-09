@@ -169,7 +169,7 @@ classdef PhotonsList < Component
     
     methods % basic functions getCol
         function Result = getCol(Obj, ColNames)
-            % get content of column
+            % get the content of a column in the photon list table.
             % Input  : - A single elements PhotonsList object.
             %          - A Column name, or a cell array of column names.
             % Output : - A matrix of the requested columns content.
@@ -188,7 +188,7 @@ classdef PhotonsList < Component
     
     methods (Static)  % static methods / reading photon-tagged lists
         function [Obj] = readPhotonsList1(File, Args)
-            % Read time-taged photons list from a FITS file into a PhotonsList object
+            % Read time-tagged photons list from a FITS file into a PhotonsList object
             %   Read also the header and WCS from the header.
             % Input  : - A FITS file name to read.
             %          * ...,key,val,...
@@ -250,7 +250,7 @@ classdef PhotonsList < Component
     
     methods (Static)    % static functions
         function [Image,X,Y] = events2image(XY, Args)
-            % Generate an image from a list of [X,Y] positions.
+            % Generate an image (by binning) from a list of [X,Y] positions.
             % Input  : - A two column matrix of [X,Y] positions.
             %          * ...,key,val,...
             %            'BinSize' - Bin size in X and Y. Default is [1 1]. 
@@ -634,8 +634,7 @@ classdef PhotonsList < Component
         end
         
         function [Obj, Image] = constructImage(Obj, Args)
-            % construct image in any coordinate system, and optionaly
-            % select energy and ccd_id.
+            % construct image in any coordinate system, and optionally select energy and ccd_id.
             % Input  : - A PhotonsList object.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system in which to construct
