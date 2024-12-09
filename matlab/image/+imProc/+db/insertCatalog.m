@@ -155,6 +155,12 @@ function [T,FileName] = insertCatalog(Obj, Args)
         elseif isa(Obj, 'AstroCatalog')
             Tmp = Obj(Iobj).Table;
             
+            % add some columns from the header:           
+            Nrow = size(Tmp,1);
+            Tmp.('NODENUMB') = repmat(Args.Header(Iobj).getVal('NODENUMB'), Nrow,1);
+            Tmp.('MOUNTNUM') = repmat(Args.Header(Iobj).getVal('MOUNTNUM'), Nrow,1);
+            Tmp.('CAMNUM')   = repmat(Args.Header(Iobj).getVal('CAMNUM'),   Nrow,1);
+            
             if Args.InsertID
                 % get Image ID from header
                 ID = Args.Header(Iobj).getVal(Args.KeyID, 'Val2Num',false);
