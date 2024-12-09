@@ -181,7 +181,12 @@ function [T,FileName] = insertCatalog(Obj, Args)
         %for If=1:1:numel(IndFun)
 
         % change column names
-        Tmp.Properties.VariableNames = Args.ColNameDic.ColNameOut;
+%         Tmp.Properties.VariableNames = Args.ColNameDic.ColNameOut; %% this line does not work, the following 2 lines do the job:
+        
+        VarNames = Tmp.Properties.VariableNames;
+        [IsMatch, idx] = ismember(VarNames, {Args.ColNameDic.ColName});
+        VarNames(IsMatch) = cellstr([Args.ColNameDic(idx(IsMatch)).ColNameOut]);
+        Tmp.Properties.VariableNames = VarNames;     
 
         % insert additional columns - cat by cat
         Nrow = size(Tmp,1);
