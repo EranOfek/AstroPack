@@ -66,7 +66,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
             if isnan(TTmUTC)
                 error('TT - UTC is not available, need to update via I = Installer; I.Install("Time")');
             end
-            TTmTDB   = IP.getTT(JD);  % TT-TDB [s]
+            TTmTDB   = IP.getTT(JD)';  % TT-TDB [s]
             % UTC + TT - UTC - TT + TDB
             JD       = JD + (TTmUTC-TTmTDB)./SECOND_DAY;             
             
