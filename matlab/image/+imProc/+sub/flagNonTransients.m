@@ -152,9 +152,12 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPSFShape logical = true;
         Args.PSFShapeFWHMThresh = 4.0;
         Args.PSFShape2ndMomentLimsX = [0.61, 1.60];
+        %Args.PSFShape2ndMomentLimsX = [0.58, 1.72];
         Args.PSFShape2ndMomentLimsY = [0.61, 1.67];
+        %Args.PSFShape2ndMomentLimsY = [0.58, 1.72];
         Args.PSFShape2ndMomentLimsXY = [-0.31, 0.34];
-
+        %Args.PSFShape2ndMomentLimsXY = [-0.33, 0.39];
+        
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient'};
@@ -166,7 +169,7 @@ function TranCat = flagNonTransients(Obj, Args)
             'Ringing', 'Translient', 'Streak'};
 
         Args.flagCR logical = true;
-        Args.CRDeltaSN = -1.2;
+        Args.CRDeltaSN = -0.8;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -310,16 +313,17 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Relax flagging for galaxy-star confusion
             if Cat.isColumn('STAR_DIST') && Cat.isColumn('GAL_DIST')
-                StarDist = Cat.getCol('STAR_DIST');
+                %StarDist = Cat.getCol('STAR_DIST');
                 GalaxyDist = Cat.getCol('GAL_DIST');
-                ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
+                ExcludeGalaxy = GalaxyDist <= 3;
+                %ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
 
-                if Cat.isColumn('R_PSF_SNm')
-                    R_SNm = Cat.getCol('R_PSF_SNm');
-                    Low_R_SNm = R_SNm < 5.0;
-                    ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
-                end
-            IsStar = IsStar & ~ ExcludeGalaxy;
+                %if Cat.isColumn('R_PSF_SNm')
+                %    R_SNm = Cat.getCol('R_PSF_SNm');
+                %    Low_R_SNm = R_SNm < 5.0;
+                %    ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
+                %end
+                IsStar = IsStar & ~ExcludeGalaxy;
             end
 
             StarFlagged = IsStar;
@@ -500,11 +504,13 @@ function TranCat = flagNonTransients(Obj, Args)
         % ----- AstroZOGY -----
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
+            Score = Cat.getCol('SCORE');
             Scorr = Cat.getCol('S_CORR');
 
-            ScorrBelowThresh = (abs(Scorr) < Args.ScorrThreshold);
+            ScorrGood = (abs(Score) >= abs(Scorr)) & ...
+                (abs(Scorr) > Args.ScorrThreshold | abs(Score) <= abs(Scorr) + 3.0);
 
-            ScorrFlagged = ScorrBelowThresh;
+            ScorrFlagged = ~ScorrGood;
             TF_Flags = TF_Flags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
 
         end

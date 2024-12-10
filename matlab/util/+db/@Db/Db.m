@@ -22,10 +22,11 @@
 % D=db.Db;
 % D.Password = <>
 % D.Conn;
-% D.useDB('ast');
+% D.useDB('last');
 % D.showCurrentDB
 % D.showTables
 % T=D.query("SELECT * FROM last.visit_images;");
+% T=D.query("SELECT top 5 * FROM last.proc_src;");
 
 
 classdef Db < Component

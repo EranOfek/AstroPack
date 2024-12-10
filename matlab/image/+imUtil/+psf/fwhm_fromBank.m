@@ -1,4 +1,4 @@
-function [FWHM,Nstars]=fwhm_fromBank(Image,Args)
+function [FWHM,Nstars,Info]=fwhm_fromBank(Image,Args)
     % Measure the FWHM of an image by cross corr. with a Gaussian template bank
     % Package: +imUtil.psf
     % Description: Measure the FWHM of an image by cross corr. with a Gaussian
@@ -34,6 +34,9 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,Args)
     %                           Default is 6.
     % Output : - FWHM [arcsec].
     %          - Number of stars used for estimating the FWHM.
+    %          - An information structure with additional information.
+    %            .Status field indicate if the image is not saturated and
+    %                   ACF is not NaN.
     % Author : Eran Ofek (Mar 2021)
     % Example: FWHM=imUtil.psf.fwhm_fromBank(AI.Image);
 
@@ -183,5 +186,10 @@ function [FWHM,Nstars]=fwhm_fromBank(Image,Args)
 
         otherwise
             error('Unknown Method option');
+    end
+    if isnan(FWHM)
+        Info.Status = false;
+    else
+        Info.Status = true;
     end
 end
