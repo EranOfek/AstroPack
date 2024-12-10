@@ -36,8 +36,10 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
 
     arguments
         Image
-        Args.TrimMethod        = 'center';
-        Args.Trim              = [1000 1000]; % [] - no trim
+        Args.CCDSEC       = [];
+        Args.HalfSize     = [];
+
+        
         Args.CorrFrac          = 0.84;
         
         Args.Nsigma0           = 10;
