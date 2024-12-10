@@ -38,7 +38,6 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
         Image
         Args.CCDSEC       = [];
         Args.HalfSize     = [];
-
         
         Args.CorrFrac          = 0.84;
         
