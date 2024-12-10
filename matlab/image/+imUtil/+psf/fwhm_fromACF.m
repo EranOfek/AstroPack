@@ -24,6 +24,8 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
     %            'SatLevel' - Saturation level. If the median of pixels are above
     %                   this value, then declare the image as saturated.
     %                   Default is 30000
+    %            'UseMex' - Use mex function to calculate radial profile.
+    %                   Default is false.
     %
     % Output : - The estimated FWHM.
     %            This is not formally the FWHM, but a factor that scales
@@ -35,6 +37,8 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
     %                   ACF is not NaN.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
+    % for Sig=1:1:20, K=randn(6001,6001).*0.01+10000.*imUtil.kernel2.gauss(Sig,[6001 6001]); [FWHM(Sig), Res]=imUtil.psf.fwhm_fromACF(K,'HalfSize',500); end
+
 
     arguments
         Image
@@ -50,7 +54,10 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
         Args.Convert2single logical = true;
 
         Args.SatLevel          = 30000;
+
+        Args.UseMex logical    = false;
     end
+    
     Nstars = NaN;
     
     if ~isempty(Args.CCDSEC)
@@ -100,11 +107,22 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
         %ACF = ACF./(Std.^2);
         %ACF = ACF - median(ACF(:));
         
-        RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
-        Rad = RR.MeanR(2:end);
-        CumVal = cumsum(RR.MeanV(2:end));
-        CumVal = CumVal./CumVal(end);
-        
+        if Args.UseMex
+            SizeACF = size(ACF);
+            CenterPix = fliplr(floor((SizeACF + 1).*0.5));
+            [Rad, Mean, Std] = imUtil.psf.mex.radialProfile_mex(ACF, [CenterPix], Args.MaxRadius, Args.Step);
+
+            CumVal = cumsum(Mean);
+            CumVal = CumVal./CumVal(end);
+        else
+
+            RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
+
+            Rad = RR.MeanR(2:end);
+            CumVal = cumsum(RR.MeanV(2:end));
+            CumVal = CumVal./CumVal(end);
+        end
+
         if any(isnan(CumVal))
             FWHM = NaN;
             Info.Status = false;
