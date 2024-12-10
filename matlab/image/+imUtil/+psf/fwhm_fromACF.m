@@ -9,6 +9,8 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
     %                   argument is provided, then run this program on centeral
     %                   image with this half size. Default is [].
     %
+    %            'BackStep' - Expedite background calculation, by taking
+    %                   every N pixel. Default is 1.
     %            'CorrFrac' - Correlation fraction that defines the FWHM.
     %                   Default is 0.84.
     %            'Nsigma0' - Number of sigmas above image std which will be
@@ -39,6 +41,7 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
         Args.CCDSEC       = [];
         Args.HalfSize     = [];
         
+        Args.BackStep          = 1;
         Args.CorrFrac          = 0.84;
         
         Args.Nsigma0           = 10;
@@ -80,8 +83,12 @@ function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
 
         % quick background subtraction
         Image(isnan(Image)) = 0;
-        Image = Image - median(Image,'all');
-        
+        if Args.BackStep==1
+            Image = Image - median(Image,'all');
+        else
+            Image = Image - median(Image(1:Args.BackStep:end,1:Args.BackStep:end),'all');
+        end
+
         % std
         Std = tools.math.stat.rstd(Image(:),1,1);
         Image(Image<(Args.Nsigma0.*Std)) = 0;

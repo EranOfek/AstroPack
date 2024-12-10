@@ -25,6 +25,8 @@ function Result = radialProfile(Image, CenterPos, Args)
     % Author : Eran Ofek (Jun 2022)
     % Example: R = imUtil.psf.radialProfile(rand(100,100));
     %          R = imUtil.psf.radialProfile(rand(100,100,3));
+    %          K=randn(6001,6001)+imUtil.kernel2.gauss(4,[6001 6001]);
+    %          R=imUtil.psf.radialProfile(K,[3001 3001],'Radius',500);
         
     arguments
         Image
