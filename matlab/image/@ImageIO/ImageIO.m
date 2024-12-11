@@ -234,7 +234,7 @@ classdef ImageIO < Component
                     
                 otherwise
                     if Args.IsTable
-                        error('IsTable is truw while file type is not fits or hdf5');
+                        error('IsTable is true while file type is not fits or hdf5');
                     else
                         if Args.ReadData
                             Data   = imread(FileName);

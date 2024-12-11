@@ -1,5 +1,5 @@
-function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
-    % insert the archived LAST catalogs to DB 
+function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
+    % insert the archived LAST asteroid tables to DB 
     %     this is post-processing, not intended to be used in real time within the pipeline 
     % Input  : - root directory from where to inject the data
     %          - template of the data file name
@@ -12,17 +12,18 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     %        'RemoteUser'      - the name of the user who has a permission to write into the archive folders
     %                           
     % Output : - data injected into the DB
-    % Author : A.M. Krassilchtchikov (2024 Nov) 
+    % Author : A.M. Krassilchtchikov (2024 Dec) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
-    %          Template = '*coadd*Ima*fits';
-    %          pipeline.last.insertArchiveCatalogs2DB(RootDir,Template)    
+    %          Template = '*coadd*Aster*mat';
+    %          pipeline.last.insertArchiveAsteroids2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/LAST.01.01.01/2023/04/24/','ProcDirTemplate','/proc/*')
-    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
-        FileNameTemplate       = 'LAST*proc_Cat_1.fits*';      
+        FileNameTemplate       = 'LAST*coadd_Aster*.mat';      
+%         Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -32,8 +33,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         Args.DbUser = 'default';
         Args.DbPass = 'PassRoot'; 
         
-        Args.Level  = 'proc';
-        Args.DbTable= 'proc_src';         
+        Args.Level  = 'coadd';
+        Args.DbTable= 'coadd_asteroids';         
         Args.ColNameID = 'id_proc_src';
         
         Args.RemoteUser = 'samar';
@@ -49,10 +50,11 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     fprintf('DB in use: %s\n',DB.showCurrentDB);
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
     % read the column list from the xls template
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
+%     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName','visit_images');   
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Asteroids','TableName',Args.DbTable);   
     %
     Dir = pwd; 
-    FID = fopen('no_status_dir_cat.txt', 'a');
+    FID = fopen('no_status_dir.txt', 'a');
     tic
     % find all the directories according to the template
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -64,46 +66,48 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the proc catalog DB");
+            Injected = contains(fileread('.status'), "injected into the coadd asteriods catalog DB");
         catch
             cd(Dir);
             fprintf(FID,'%s \n',DataDir);
             continue
         end
         if ~Injected
-            Cat = AstroCatalog(FileNameTemplate); % read the data
-            AH  = AstroHeader(FileNameTemplate,3);
-            Nobj = numel(Cat);
-            if Nobj < 2 % likely no data have been read 
-                cd(Dir);
-                fprintf(FID,'%s \n',DataDir);
-                continue
-            end
-            cd(Dir);
-            fprintf('Injecting from %s ..',DataDir);
+            load(FileNameTemplate,'')
             
-            % check and add essential KEYWORDS if they are missing                  
-            Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
-            if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
-                NODENUMB = str2num(Pname(6:7));
-                for Crop=1:Nobj
-                    AH(Crop).replaceVal('NODENUMB',NODENUMB);
-                end
-            end
-            if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
-                MOUNTNUM = str2num(Pname(9:10));
-                for Crop=1:Nobj
-                    AH(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
-                end
-            end
-            Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
-            if isempty(Subdir)          
-                Parts  = strsplit(DataDir, '/');
-                Subdir = Parts{end};    % Extract the last part of the full dir name
-                for Crop=1:Nobj
-                    AH(Crop).replaceVal('SUBDIR',Subdir);
-                end
-            end
+%             Cat=AstroCatalog(FileNameTemplate); % read the data
+%             AH = AstroHeader(FileNameTemplate,3);
+%             Nobj = numel(Cat);
+%             if Nobj < 2 % likely no data have been read 
+%                 cd(Dir);
+%                 fprintf(FID,'%s \n',DataDir);
+%                 continue
+%             end
+%             cd(Dir);
+%             fprintf('Injecting from %s ..',DataDir);
+%             
+%             % check and add essential KEYWORDS if they are missing                  
+%             Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
+%             if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
+%                 NODENUMB = str2num(Pname(6:7));
+%                 for Crop=1:Nobj
+%                     AH(Crop).replaceVal('NODENUMB',NODENUMB);
+%                 end
+%             end
+%             if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
+%                 MOUNTNUM = str2num(Pname(9:10));
+%                 for Crop=1:Nobj
+%                     AH(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
+%                 end
+%             end
+%             Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
+%             if isempty(Subdir)          
+%                 Parts  = strsplit(DataDir, '/');
+%                 Subdir = Parts{end};    % Extract the last part of the full dir name
+%                 for Crop=1:Nobj
+%                     AH(Crop).replaceVal('SUBDIR',Subdir);
+%                 end
+%             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;
@@ -122,7 +126,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
+            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the coadd asteriods catalog DB'' >> %s/.status"',...
                                     Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
