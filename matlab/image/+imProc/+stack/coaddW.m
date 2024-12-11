@@ -181,7 +181,8 @@ function [Result] = coaddW(Obj, Args)
     % coadd Mask
     if Args.AddMask
         Result.Mask  = tools.array.bitor_array(MaskCube, IndexDim, Args.BitCoaddUseMex);
-        
+        Result.Mask  = squeeze(Result.Mask);
+
         % Update Mask
         % Mark NaN pixels in the mask image and interpolate over these pixels
 

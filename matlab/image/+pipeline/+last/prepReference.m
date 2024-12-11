@@ -30,8 +30,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=866:1:900
-        %Ntarget
+    for Itarget=1:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
@@ -64,6 +63,7 @@ function [Nvisit] = prepReference(Args)
                         RefAFN.julday2time;
                         RefAFN.Counter = 0;
                         RefAFN.CCDID   = 1;
+                        RefAFN.Level   = 'ref';
                         % ref. image/prodiucts name
                         RefImage       = RefAFN.genFile;
                         RefMask        = RefAFN.genFile('Product','Mask');
@@ -83,7 +83,7 @@ function [Nvisit] = prepReference(Args)
                     else
                         % select best image based on FWHM and copy it
 
-                        if 1==0
+                        %if 1==0
                         [~,Imin] = min(OT.FWHM(Ifield));
                         Ifield = Ifield(Imin);
 
@@ -99,7 +99,7 @@ function [Nvisit] = prepReference(Args)
                         io.files.copyFiles(RefImageName, RefImageName, [], Destination);
 
                         cd(PWD);
-                        end
+                        %end
 
                     end
                 else

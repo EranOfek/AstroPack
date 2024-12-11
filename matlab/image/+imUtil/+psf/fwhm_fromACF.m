@@ -1,18 +1,16 @@
-function [FWHM, Result] = fwhm_fromACF(Image, Args)
+function [FWHM, Nstars, Info] = fwhm_fromACF(Image, Args)
     % Estimate FWHM using the auto-correlation function
     %     This should be used when the FWHM is large or annulus shape.
     % Input  : - An image.
     %          * ...,key,val,... 
-    %            'TrimMethod' - Trim method. See 'Trim'.
-    %                   Default is 'center'.
-    %            'Trim' - If not empty, then will crop the input image prior
-    %                   to processing.
-    %                   If 'TrimMethod' is 'ccdsec', then this should be
-    %                   [Xmin Xmax Ymin Ymax]
-    %                   If 'TrimMethod' is 'center' then this is
-    %                   [XhalfWidth YhalfWidth] relative to the image
-    %                   center, or [X Y XhalfWidth YhalfWidth].
-    %                   Default is [1000 1000].
+    %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
+    %                   measure FWHM. If empty use entire image. Default is [].
+    %            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
+    %                   argument is provided, then run this program on centeral
+    %                   image with this half size. Default is [].
+    %
+    %            'BackStep' - Expedite background calculation, by taking
+    %                   every N pixel. Default is 1.
     %            'CorrFrac' - Correlation fraction that defines the FWHM.
     %                   Default is 0.84.
     %            'Nsigma0' - Number of sigmas above image std which will be
@@ -26,20 +24,28 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     %            'SatLevel' - Saturation level. If the median of pixels are above
     %                   this value, then declare the image as saturated.
     %                   Default is 30000
+    %            'UseMex' - Use mex function to calculate radial profile.
+    %                   Default is false.
     %
     % Output : - The estimated FWHM.
     %            This is not formally the FWHM, but a factor that scales
     %            like the FWHM.
-    %          - A structure with additional information.
+    %          - Number of stars (for consistency with other function.
+    %            Always NaN.
+    %          - An information structure with additional information.
     %            .Status field indicate if the image is not saturated and
     %                   ACF is not NaN.
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
+    % for Sig=1:1:20, K=randn(6001,6001).*0.01+10000.*imUtil.kernel2.gauss(Sig,[6001 6001]); [FWHM(Sig), Res]=imUtil.psf.fwhm_fromACF(K,'HalfSize',500); end
+
 
     arguments
         Image
-        Args.TrimMethod        = 'center';
-        Args.Trim              = [1000 1000]; % [] - no trim
+        Args.CCDSEC       = [];
+        Args.HalfSize     = [];
+        
+        Args.BackStep          = 1;
         Args.CorrFrac          = 0.84;
         
         Args.Nsigma0           = 10;
@@ -48,12 +54,28 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         Args.Convert2single logical = true;
 
         Args.SatLevel          = 30000;
+
+        Args.UseMex logical    = false;
     end
     
+    Nstars = NaN;
     
-    if ~isempty(Args.Trim)
-        Image = imUtil.cut.trim(Image, Args.Trim, Args.TrimMethod);
+    if ~isempty(Args.CCDSEC)
+        Image = Image(Args.CCDSEC(1,3):Args.CCDSEC(1,4), Args.CCDSEC(1,1):Args.CCDSEC(1,2));
+
+    else
+        if ~isempty(Args.HalfSize)
+            SizeIm   = size(Image);
+            CenterIm = floor(SizeIm.*0.5);
+            Args.CCDSEC = [CenterIm(2)-Args.HalfSize, CenterIm(2)+Args.HalfSize, CenterIm(1)-Args.HalfSize, CenterIm(1)+Args.HalfSize];    
+            Image = Image(Args.CCDSEC(1,3):Args.CCDSEC(1,4), Args.CCDSEC(1,1):Args.CCDSEC(1,2));
+        end
     end
+
+
+    % if ~isempty(Args.Trim)
+    %     Image = imUtil.cut.trim(Image, Args.Trim, Args.TrimMethod);
+    % end
     
     if Args.Convert2single
         Image = single(Image);
@@ -63,13 +85,17 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
     if median(Image,'all','omitnan')>Args.SatLevel
         % image is saturated
         FWHM = NaN;
-        Result.Status = false;
+        Info.Status = false;
     else
 
         % quick background subtraction
         Image(isnan(Image)) = 0;
-        Image = Image - median(Image,'all');
-        
+        if Args.BackStep==1
+            Image = Image - median(Image,'all');
+        else
+            Image = Image - median(Image(1:Args.BackStep:end,1:Args.BackStep:end),'all');
+        end
+
         % std
         Std = tools.math.stat.rstd(Image(:),1,1);
         Image(Image<(Args.Nsigma0.*Std)) = 0;
@@ -81,24 +107,35 @@ function [FWHM, Result] = fwhm_fromACF(Image, Args)
         %ACF = ACF./(Std.^2);
         %ACF = ACF - median(ACF(:));
         
-        RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
-        Rad = RR.MeanR(2:end);
-        CumVal = cumsum(RR.MeanV(2:end));
-        CumVal = CumVal./CumVal(end);
-        
+        if Args.UseMex
+            SizeACF = size(ACF);
+            CenterPix = fliplr(floor((SizeACF + 1).*0.5));
+            [Rad, Mean, Std] = imUtil.psf.mex.radialProfile_mex(ACF, [CenterPix], Args.MaxRadius, Args.Step);
+
+            CumVal = cumsum(Mean);
+            CumVal = CumVal./CumVal(end);
+        else
+
+            RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
+
+            Rad = RR.MeanR(2:end);
+            CumVal = cumsum(RR.MeanV(2:end));
+            CumVal = CumVal./CumVal(end);
+        end
+
         if any(isnan(CumVal))
             FWHM = NaN;
-            Result.Status = false;
+            Info.Status = false;
         else
 
             FWHM = interp1(CumVal, Rad, Args.CorrFrac);
             
             
-            Result.Rad = Rad;
-            Result.CumVal = CumVal;
+            Info.Rad = Rad;
+            Info.CumVal = CumVal;
             %plot(Result.Rad, RR.MeanV(2:end)); %Result.CumVal)
     
-            Result.Status = true;
+            Info.Status = true;
         end
     end
 
