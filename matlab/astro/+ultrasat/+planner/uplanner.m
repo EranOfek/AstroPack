@@ -1,46 +1,52 @@
 classdef uplanner < Component 
     % 
     properties(Access = public)
-        Type                     % HCS, LCS, AllSS, DDT, TOO 
-        StartTime                % start of the whole plan
-        EndTime                  %   end of the whole plan
-        Plan                     % target list 
-        UniqTargList             % unique target list
-        Vis                      % visibility matrix 
-        VisJD                    % bins of visibility measured in JD
+        Type                char        % HCS, LCS, AllSS, DDT, TOO 
+        StartTime           datetime    % start of the whole plan
+        EndTime             datetime    %   end of the whole plan
+        Plan                            % target list 
+        UniqTargList                    % unique target list
+        Vis                             % visibility matrix 
+
+        DefEpochsPerVisit   uint8       =  3; 
+        DefExptime          double      = 300; %[s]
+        DefTiles(1,:)       cell        = {'1','2','3','4'}; %
+
         
         % HCS, LCS 
-        DailyWindow              % [hrs]    
-        Cadence                  % [hrs] 
+        DailyWindow                     % [hrs]    
+        Cadence                         % [hrs] 
         
         % AllSS
-        AllSSHighLatThresh = 30; % |RA| [deg]
-        HighLatVisits      = 16; % 1 visit = 3 x 300 s 
-        LowLatVisits       =  2;
-        EpochPerVisit      =  3;       
-        DitherPattern      = '2x2';
+        AllSSHighLatThresh  double      = 30; % |RA| [deg]
+        HighLatVisits       uint8       = 16; % 1 visit = 3 x 300 s 
+        LowLatVisits        uint8       =  2;      
+        DitherPattern                   = '2x2';
         
         % TOO
-        TOOMaxTargets      =  4;
+        TOOMaxTargets       uint8       =  4;
         TOOProbMap      
         
-        N0                 =  0; % number of unique targets
-        Ntarg              =  0; % number of targets in the plan
+        N0                  uint8       =  0; % number of unique targets
+        Ntarg               uint8       =  0; % number of targets in the plan
         
-        Rfov               =  7.19; % [deg] FOV radius w/account of the gap
+        Rfov                            =  7.19; % [deg] FOV radius w/account of the gap
         
-        CalibObj           = []; % table of calibration objects 
+        CalibObj                        = []; % table of calibration objects 
         CalibDir           
         
-        Scheduled                % date or empty
-        Validated                % date or empty
-        Status             = 'draft';
+        Scheduled                       % date or empty
+        Validated                       % date or empty
+        Status              char        = 'draft';
         
-        AstPlanner         = 'YS'; % name of the Astronomer-Planner
+        AstPlanner          char        = 'YS'; % name of the Astronomer-Planner
     end
     % 
     properties(Access = private)
-         
+        DefPlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
+                                    'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets','Zody','Limmag'};
+                                
+        DefTargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
     end 
     % 
     methods  % Constructor
@@ -49,13 +55,10 @@ classdef uplanner < Component
             % example: P = ultrasat.planner.uplanner;
             arguments                
                 Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
-                Args.StartTime   = '2028-01-01T00:00:01';
-                Args.EndTime     = '2031-12-31T23:23:59';
-                
-                Args.PlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
-                                    'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets','Zody','Limmag'};
-                Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
-                
+                Args.StartTime   = '2028-01-01 00:00:01'; %UTC time
+                Args.EndTime     = '2031-12-31 23:23:59'; %UTC time
+                Args.TimeZone    = 'UTC';
+                 
                 Args.DailyWindow = [];   % length in hours
                 Args.Cadence     = [];   % cadence in days                
                 
@@ -68,11 +71,11 @@ classdef uplanner < Component
             end
             %
             if ~isempty(Args.StartTime) 
-                Obj.StartTime = Args.StartTime; 
+                Obj.StartTime = datetime(Args.StartTime,'TimeZone',Args.TimeZone); 
             end
             %
             if ~isempty(Args.EndTime)             
-                Obj.EndTime   = Args.EndTime; 
+                Obj.EndTime   = datetime(Args.EndTime,'TimeZone',Args.TimeZone); 
             end
             %            
             if ~isempty(Args.AstPlanner)             
@@ -97,9 +100,9 @@ classdef uplanner < Component
                 Obj.TOOMaxTargets = Args.TOOMaxTargets;
             end
             % 
-            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],[],[],'VariableNames', Args.PlanColumns); 
+            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],[],[],'VariableNames', Obj.DefPlanColumns); 
             %
-            Obj.UniqTargList = table([],[],[],{},{},{},{},'VariableNames', Args.TargColumns); 
+            Obj.UniqTargList = table([],[],[],{},{},{},{},'VariableNames', Obj.DefTargColumns); 
             %
             load(Args.CalObj); % load the calibration objects' table
             Obj.CalibObj = CalibObj;
@@ -329,10 +332,10 @@ classdef uplanner < Component
             %
             RAD = 180/pi;          
             %
-            StartJD = celestial.time.julday(Obj.StartTime);
-            EndJD   = celestial.time.julday(Obj.EndTime);
-            Obj.VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
-            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(Obj.VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
+            StartJD = celestial.time.julday(datestr(Obj.StartTime,'yyyy-mm-ddTHH:MM:SS'));
+            EndJD   = celestial.time.julday(datestr(Obj.EndTime,'yyyy-mm-ddTHH:MM:SS'));
+            VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
+            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
                 'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
