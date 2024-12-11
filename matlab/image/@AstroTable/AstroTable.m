@@ -90,7 +90,7 @@ classdef AstroTable < Component
             %            If file name or a cell array of file names, then
             %               attempt read data from files. Cell array
             %               contains a list of file names, while a single
-            %               file may contain wild cards or gegular
+            %               file may contain wild cards or regular
             %               expressions.
             %          * ...,Key,Val,...
             %            'ColNames' - A cell array of column names.

@@ -17,13 +17,15 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     %          Template = '*coadd*Ima*fits';
     %          pipeline.last.insertArchiveCatalogs2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/LAST.01.01.01/2023/04/24/','ProcDirTemplate','/proc/*')
     %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.Decompress        = true;
+        Args.CompressProcessed = true;
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -49,11 +51,10 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     fprintf('DB in use: %s\n',DB.showCurrentDB);
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
     % read the column list from the xls template
-%     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName','visit_images');   
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
-    FID = fopen('no_status_dir.txt', 'a');
+    FID = fopen('no_status_dir_cat.txt', 'a');
     tic
     % find all the directories according to the template
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -72,9 +73,14 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             continue
         end
         if ~Injected
-%             Coadd=AstroHeader(Args.FileNameCoaddIma); % read the data
-            Cat=AstroCatalog(FileNameTemplate); % read the data
-            AH = AstroHeader(FileNameTemplate,3);
+            % decompress the data files if requested:
+            if Args.Decompress
+                Decompress = sprintf('su %s -c "bunzip2 %s.bz2"',Args.RemoteUser,FileNameTemplate);
+                [~, Err.Decompress] = system(Decompress); 
+            end            
+            %
+            Cat = AstroCatalog(FileNameTemplate); % read the data
+            AH  = AstroHeader(FileNameTemplate,3);
             Nobj = numel(Cat);
             if Nobj < 2 % likely no data have been read 
                 cd(Dir);
@@ -85,20 +91,20 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing                  
-            Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
-            if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
+            Pname = AH(1).getVal('PROJNAME');
+            if isnan(AH(1).getVal('NODENUMB'))
                 NODENUMB = str2num(Pname(6:7));
                 for Crop=1:Nobj
                     AH(Crop).replaceVal('NODENUMB',NODENUMB);
                 end
             end
-            if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
+            if isnan(AH(1).getVal('MOUNTNUM'))
                 MOUNTNUM = str2num(Pname(9:10));
                 for Crop=1:Nobj
                     AH(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
                 end
             end
-            Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
+            Subdir = AH(1).getVal('SUBDIR'); 
             if isempty(Subdir)          
                 Parts  = strsplit(DataDir, '/');
                 Subdir = Parts{end};    % Extract the last part of the full dir name
@@ -112,8 +118,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             A.SubDir   = Subdir;
             A.Level    = Args.Level; 
             A.Product  ='Cat';
-            A.FieldID  = AH(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = AH(1).getStructKey('JD').JD; 
+            A.FieldID  = AH(1).getVal('FIELDID');
+            A.JD       = AH(1).getVal('JD'); 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
@@ -122,16 +128,21 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                                     'CreateCsv',true,'FileName',CsvFN); % , 'ColNameID',Args.ColNameID);
             
             % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
-            [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
+            CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
+            [~, Err.Copy] = system(CopyCSV);            
+            UpdateStatus = sprintf('su %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
                                     Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
-            [~, Err2] = system(UpdateStatus); 
-            if isempty(Err1) && isempty(Err2)
+            [~, Err.Update] = system(UpdateStatus); 
+            if isempty(Err.Copy) && isempty(Err.Update)
                 RemLocalFile = sprintf('rm %s',CsvFN);
-                [~, Err3] = system(RemLocalFile);
+                [~, Err.RemoveLocal] = system(RemLocalFile);
             end
-            fprintf(' ..done\n');  
+            fprintf(' ..done\n');
+            % compress the data files if requested:
+            if Args.CompressProcessed
+                Decompress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
+                [~, Err.Decompress] = system(Decompress); 
+            end  
         else
             cd(Dir); 
         end                        
