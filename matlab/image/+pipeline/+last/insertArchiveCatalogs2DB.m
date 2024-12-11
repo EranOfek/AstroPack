@@ -139,3 +139,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     % disconnect the DB     
     DB.disconnectCH_Java;  
 end
+
+
+function read_compressed_cat(FileNameTemplate)
+
+end
