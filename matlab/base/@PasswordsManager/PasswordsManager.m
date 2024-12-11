@@ -22,6 +22,12 @@
 %
 %   PM = PasswordsManager;
 %   PM.Config.reloadSysConfig
+%   R = PM.getAllData
+%   R = PM.getProjects
+%   R=getAllKey(PM, 'User')
+%   S=PM.toStruct;
+%   [User,Pass]=PM.getUserPassword('LASTDB_Root')
+%
 %   [Result]=PM.search('ptf') 
 %   [Result]=PM.search('VO.PTF.wget_corrim','fun',false)
 %
@@ -80,7 +86,7 @@ classdef PasswordsManager < Component
         end
 
         function Result = getAllKey(Obj, Key)
-            % Get specific Key (e.g., user or password) for all projects
+            % Get a specific Key (e.g., user or password) for all projects
             % Input  : - self.
             %          - Key: options are:
             %               'user'|'pass'|'email'|'functions'|'url'
@@ -88,7 +94,7 @@ classdef PasswordsManager < Component
             % Output : - A cell array of key in all projects (e.g., all
             %            users).
             % Author : Eran Ofek (Dec 2024)
-            % Example: getAllKey(PM, 'User')
+            % Example: R=getAllKey(PM, 'User')
 
             arguments
                 Obj
@@ -154,7 +160,6 @@ classdef PasswordsManager < Component
             end
 
         end
-
 
         function [User, Pass, EMail, Fun, Url] = getUserPassword(Obj, Project, User)
             % Get User/Pass for specific project and user.

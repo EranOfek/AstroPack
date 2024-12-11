@@ -35,7 +35,7 @@ classdef Db < Component
     properties       
         DbType   = "Clickhouse"; % 'Postgress'|'Clickhouse'
         DbName   = []; %"test_db";
-        User     = "default"; %"";
+        User     = {"LASTDB_Root","default"} %"default"; %""; If cell array then Project,User in PasswordsManager
         Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
         Host     = "socsrv"; %"localhost"; %[];
         Port     = "8123"; %[];
@@ -112,6 +112,20 @@ classdef Db < Component
             % Setter for DbName
 
 
+        end
+    
+        function Val=get.Password(Obj)
+            % Getter for Password
+           
+            if iscell(Obj.User)
+                PM = PasswordsManager;
+                [User, Pass] = PM.getUserPassword(Obj.User{:});
+                Obj.User = User;
+                Obj.Password = Pass;
+                Val = Obj.Password;
+            else
+                Val = Obj.Password;
+            end
         end
     end
       
