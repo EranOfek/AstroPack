@@ -20,7 +20,8 @@
 %
 % LAST example:
 % D=db.Db;
-% D.Password = <>
+% D.User = 'last_user';
+% D.Password = <>; % use the usual LAST password to employ the DB as a read-only user
 % D.Conn;
 % D.useDB('last');
 % D.showCurrentDB
