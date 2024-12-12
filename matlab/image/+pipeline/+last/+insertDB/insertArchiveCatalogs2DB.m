@@ -15,10 +15,10 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     % Author : A.M. Krassilchtchikov (2024 Nov) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Ima*fits';
-    %          pipeline.last.insertArchiveCatalogs2DB(RootDir,Template)    
+    %          pipeline.last.insertDB.insertArchiveCatalogs2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/LAST.01.01.01/2023/04/24/','ProcDirTemplate','/proc/*')
-    %          pipeline.last.insertArchiveCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveCatalogs2DB('/mnt/marvin/LAST.01.01.01/2023/04/24/','ProcDirTemplate','/proc/*')
+    %          pipeline.last.insertDB.insertArchiveCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
@@ -54,7 +54,9 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
-    FID = fopen('no_status_dir_cat.txt', 'a');
+    FIDnostatus     = fopen('cat_no_status_dir.txt', 'a');
+    FIDnodata       = fopen('cat_no_data_dir.txt', 'a'); 
+    FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
     tic
     % find all the directories according to the template
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -69,7 +71,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             Injected = contains(fileread('.status'), "injected into the proc catalog DB");
         catch
             cd(Dir);
-            fprintf(FID,'%s \n',DataDir);
+            fprintf(FIDnostatus,'%s \n',DataDir);
             continue
         end
         if ~Injected
@@ -79,12 +81,18 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 [~, Err.Decompress] = system(Decompress); 
             end            
             %
-            Cat = AstroCatalog(FileNameTemplate); % read the data
-            AH  = AstroHeader(FileNameTemplate,3);
+            try
+                Cat = AstroCatalog(FileNameTemplate); % read the data
+                AH  = AstroHeader(FileNameTemplate,3);
+            catch
+                cd(Dir);
+                fprintf(FIDbrokendata,'%s \n',DataDir);
+                continue
+            end
             Nobj = numel(Cat);
             if Nobj < 2 % likely no data have been read 
                 cd(Dir);
-                fprintf(FID,'%s \n',DataDir);
+                fprintf(FIDnodata,'%s \n',DataDir);
                 continue
             end
             cd(Dir);
@@ -148,7 +156,9 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         end                        
     end
     toc
-    fclose(FID);
+    fclose(FIDnostatus);
+    fclose(FIDnodata);
+    fclose(FIDbrokendata);
     % disconnect the DB     
     DB.disconnectCH_Java;  
 end

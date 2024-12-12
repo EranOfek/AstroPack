@@ -62,7 +62,11 @@ classdef AstroCatalog < AstroTable
             Nobj = numel(AT);
             for Iobj=1:1:Nobj
                 for Ifn=1:1:Nfn
-                    Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+%                     try
+                        Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+%                     catch ME
+%                         fprintf('%s',ME);
+%                     end
                 end
                 Obj(Iobj).DataType = AstroDataType.Cat;
             end
