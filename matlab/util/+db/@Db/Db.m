@@ -25,6 +25,7 @@
 % D.useDB('last');
 % D.showCurrentDB
 % D.showTables
+% [ColNames, ColTypes]=D.getColumns('visit_images')
 % T=D.query("SELECT * FROM last.visit_images;");
 % T=D.query("SELECT top 5 * FROM last.proc_src;");
 
@@ -108,11 +109,7 @@ classdef Db < Component
             end
         end
 
-        function set.DbName(Obj, Val)
-            % Setter for DbName
-
-
-        end
+        
     
         function Val=get.Password(Obj)
             % Getter for Password
