@@ -1865,8 +1865,8 @@ classdef catsHTM
                     Cat = AstC;
                 case 'table'
                     Cat = array2table(Cat);
-                    Cat.Properties.variableNames = ColCell;
-                    Cat.Properties.variableUnits = ColUnits;
+                    Cat.Properties.VariableNames = ColCell;
+                    Cat.Properties.VariableUnits = ColUnits;
                 case 'catcl'
                     AstC = catCl;
                     AstC.Cat = Cat;
