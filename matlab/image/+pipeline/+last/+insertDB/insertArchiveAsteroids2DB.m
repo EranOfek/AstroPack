@@ -51,7 +51,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
     % read the column list from the xls template
 %     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName','visit_images');   
-    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Asteroids','TableName',Args.DbTable);   
+    Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
     FID = fopen('no_status_dir.txt', 'a');
