@@ -37,7 +37,7 @@ classdef Db < Component
     properties       
         DbType   = "Clickhouse"; % 'Postgress'|'Clickhouse'
         DbName   = []; %"test_db";
-        User     = {"LASTDB_Root","default"} %"default"; %""; If cell array then Project,User in PasswordsManager
+        User     = {"LASTDB_User","last_user"} %"default"; %""; If cell array then Project,User in PasswordsManager
         Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
         Host     = "socsrv"; %"localhost"; %[];
         Port     = "8123"; %[];
