@@ -61,6 +61,12 @@ classdef Db < Component
         %    % Constructor for db.Db
         %end
              
+        function delete(Obj)
+            % Destractor for db.Db
+
+            Obj.disconnect;
+        end
+
     end
     
     methods % setter/getters
@@ -326,6 +332,16 @@ classdef Db < Component
     end
     
     methods % utilities
+        function disconnect(Obj)
+            % General DB disconnect
+            % Input : - self.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: D.disconnect
+
+            Obj.disconnectCH_Java;
+
+        end
+
         function Obj=disconnectCH_Java(Obj)
             % disconnect Clickhouse Java connection
             % Input  : - self.

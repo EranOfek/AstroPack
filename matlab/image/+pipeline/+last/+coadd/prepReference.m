@@ -30,13 +30,15 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1:1:Ntarget
+    for Itarget=467:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
         Mnt     = Tbl.MountNum(Itarget);
+        Itarget
         FieldID
 
+        
         for Icam=1:1:Args.Ncam
             for Isub=1:1:Args.Nsub
 
@@ -52,7 +54,7 @@ function [Nvisit] = prepReference(Args)
         
                 if Nvisit(Itarget,Icam,Isub)>0
                     if Nvisit(Itarget,Icam,Isub)>10
-                        CI = pipeline.last.coaddVisits(OT(Ifield,:),'CropID',Isub);
+                        CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
                         CI.HeaderData.deleteComment;
 
                         Destination = fullfile(Args.RefDir, FieldID);
