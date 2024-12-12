@@ -15,10 +15,10 @@ function [Result] = insertArchiveImages2DB_dev(RootDir, FileNameTemplate, Args)
     % Author : A.M. Krassilchtchikov (2024 Nov) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Ima*fits';
-    %          pipeline.last.insertArchiveImages2DB(RootDir,Template)    
+    %          pipeline.last.insertDB.insertArchiveImages2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/LAST.01.02.01/2024/10/12/','ProcDirTemplate','/proc/*')
-    %          pipeline.last.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/LAST.01.02.01/2024/10/12/','ProcDirTemplate','/proc/*')
+    %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
