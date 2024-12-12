@@ -3126,7 +3126,7 @@ classdef DemonLAST < Component
     
                                 % Transients detection
                                 try
-                                    [~,TransientCutouts, TCL1, TranPipeStatus] = pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
+                                    [~,TransientCutouts, TCL1, TranPipeStatus] = pipeline.last.transients.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
@@ -3143,7 +3143,7 @@ classdef DemonLAST < Component
 
                                     try
                                         TranDB = strcat(Obj.SciPath,'/TranDB.mat');
-                                        [TransientCutouts, MultiEpochStatus] = pipeline.last.matchTransientsToMultiEpochs(...
+                                        [TransientCutouts, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
                                             TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                     catch MEtran
@@ -3156,7 +3156,7 @@ classdef DemonLAST < Component
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients alerting / group %d', Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     try
-                                        TranAlertStatus = pipeline.last.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
+                                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
                                                 'SavePath', FN_Proc.genPath,'UseLASTtools', true);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients alerting - %s', TranAlertStatus), LogLevel.Info);
                                     catch MEtran
