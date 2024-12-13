@@ -585,6 +585,9 @@ classdef Db < Component
             % Execute Query/Exec command on database/table and format the output.
             % Input  : - self.
             %          - A string with a query or exec command to execute.
+            %            Alternatively a cell array with arguments to pass
+            %            to db.Db.genQuery that will generay the query
+            %            string.
             %          * ...,key,val,...
             %            'IsExec' - A logical indicating if to run the
             %                   Query string as a query (false) or exec
@@ -609,6 +612,10 @@ classdef Db < Component
                 Args.IsExec logical           = false;
                 Args.Convert2String logical   = true;
                 
+            end
+            
+            if iscell(Query)
+                Query = db.Db.genQuery(Query{:});
             end
 
             if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')
