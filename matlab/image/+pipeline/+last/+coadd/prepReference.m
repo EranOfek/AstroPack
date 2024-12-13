@@ -21,6 +21,8 @@ function [Nvisit] = prepReference(Args)
 
     cd (Args.StartPath);
     load LAST_Visits.mat
+    F0 = contains(OT.Visit,'v0');
+    OT = OT(F0,:);
     % data is in OT
 
     load TargetList.mat
@@ -30,7 +32,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=467:1:Ntarget
+    for Itarget=823:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};

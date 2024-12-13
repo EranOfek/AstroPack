@@ -330,6 +330,190 @@ classdef Db < Component
             end
         end
     end
+
+    methods (Static) % construct query static utilities
+        function [WhereClause] = genWhereClause(Const, Args)
+            % Generate SQL WHERE clause from constraints
+            % Input  : - Constraints.
+            %            Either a cell array of {fieldname, constraints}
+            %            or structure array of constraints with fields: 'Field' and
+            %            'Range'.
+            %            Range can be one of the following:
+            %            A string or char in this case will perform a LIKE
+            %            operation.
+            %            A single element numeric - will perform equality.
+            %            Two elements range - will perform in range check.
+            %            Three elements range - will look in range of
+            %            Range(1)-Range(2) to Range(1)+Range(3).
+            %            Note that you can search for multiple ranges by specifying
+            %            the field name more then once.
+            %          * ...,key,val,... 
+            %            'AddWhere' - Add 'WHERE' in the begining of clause.
+            %                   Default is true.
+            %            'Operator' - Operator between constraints.
+            %                   Default is 'AND'.
+            % Output : - A string containing the where clause.
+            % Author : Eran Ofek (2024 Dec) 
+            % Example: R=db.Db.genWhereClause({'fieldid','1456%'; 'camnum',[1 2]; 'mount',1})
+        
+            arguments
+                Const
+                Args.AddWhere logical = true;
+                Args.Operator         = 'AND';
+            end
+            FieldField = 'Field';
+            ConstField = 'Range';
+        
+        
+            if isstruct(Const)
+                Column = {Const.(FieldField)};
+                Range  = {Const.(ConstField)};
+            else
+                Column = Const(:,1);
+                Range  = Const(:,2);
+            end
+        
+            Ncol = numel(Column);
+            if Args.AddWhere
+                WhereClause = 'WHERE';
+            else
+                WhereClause = '';
+            end
+            for Icol=1:1:Ncol
+                ColRange = Range{Icol};
+        
+                if isnumeric(ColRange)
+                    switch numel(ColRange)
+                        case 0
+                            % do nothing
+                        case 1
+                            % equal constraint
+                            if floor(ColRange)==ColRange
+                                % integer
+                                WhereClause = sprintf("%s %s=%d", WhereClause, Column{Icol}, ColRange);
+                            else
+                                WhereClause = sprintf("%s %s=%g", WhereClause, Column{Icol}, ColRange);
+                            end
+                        case 2
+                            % range constraint
+                            WhereClause = sprintf("%s %s>=%g AND %s<=%g", WhereClause, Column{Icol}, ColRange(1), Column{Icol}, ColRange(2));
+                        case 3
+                            % center +/- constraint
+                            R1 = ColRange(1) - ColRange(2);
+                            R2 = ColRange(1) + ColRange(3);
+                            WhereClause = sprintf('%s %s>=%g AND %s<=%g', WhereClause, Column{Icol}, R1, Column{Icol}, R2);
+                        otherwise
+                            error('Unknown number of elements in Range in elemnet %d',Icol);
+                    end
+                elseif ischar(ColRange) || isstring(ColRange)
+                    % assume string comparison using LIKE
+                    WhereClause = sprintf("%s %s LIKE '%s'", WhereClause, Column{Icol}, ColRange);
+                elseif iscell(ColRange)
+                    error('No treatment yet');
+                else
+                    error('Unknown Range format option');
+                end
+                if Icol<Ncol
+                    WhereClause = sprintf('%s %s', WhereClause, Args.Operator);
+                end
+            end
+        
+        end
+
+        function [Result] = genQuery(TableName, Columns, Constr, Args)
+            % Generate an SQL query programmatically from constructs.
+            % Input  : - TableName (e.g., 'last_visits').
+            %          - Columns in the SELECT clause.
+            %            Either a string containing a column names to
+            %            select (e.g., '*' | 'col1, col2'), OR a cell
+            %            (or strings) array of column names (e.g.,
+            %            {'col1','col2'}).
+            %          - Constraints. Either a char array of constraints
+            %            (e.g., 'ra>1').
+            %            Alternatively, a cell array of {fieldname, constraints}
+            %            or structure array of constraints with fields: 'Field' and
+            %            'Range'.
+            %            Range can be one of the following:
+            %            A string or char in this case will perform a LIKE
+            %            operation.
+            %            A single element numeric - will perform equality.
+            %            Two elements range - will perform in range check.
+            %            Three elements range - will look in range of
+            %            Range(1)-Range(2) to Range(1)+Range(3).
+            %            Note that you can search for multiple ranges by specifying
+            %            the field name more then once.
+            %            See: db.Db.genWhereClause for details.
+            %          * ...,key,val,...
+            %            'Top' - (Top clause) Number of lines to retrieve.
+            %                   If empty, will retrieve all lines.
+            %                   Default is [].
+            %            'SortBy' - Column name to sort by. If empty do not
+            %                   add the ORDER BY clause.
+            %                   Note that in case SortBy and Top are given,
+            %                   then the sorting is done prior to TOP.
+            %                   Default is [].
+            %            'SortOrder' - Sort order: 'ASC'|'DESC'.
+            %                   Default is 'ASC'.
+            %            'Operator' - Operator to use in db.Db.genWhereClause
+            %                   Default is 'AND'.
+            %            'Join' - Join clause of the form: 
+            %                   [INNER | LEFT | RIGHT] JOIN table2 ON table1.column = table2.column
+            % Output : - A full query clause.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: db.Db.genQuery('last_vistits')
+            %          db.Db.genQuery('last_vistits', {'ra','dec'}, 'mag_psf<15')
+            %          db.Db.genQuery('last_vistits', {'ra','dec'}, {'mag_psf',[15 16]; 'camnum',1; 'ra',[1 0.1 0.2]},'Top',10)
+
+            arguments
+                TableName          % cell/strings for multiple tables
+                Columns        = '*';
+                Constr         = '';
+                Args.Top       = [];
+                Args.SortBy    = [];
+                Args.SortOrder = 'ASC';  % or 'DESC'
+                Args.Operator  = 'AND';
+                Args.Join      = '';
+            end
+
+            if ischar(Columns)
+                SelectClause = Columns;
+            else
+                % string or cell
+                SelectClause = join(string(Columns),', ');
+            end
+
+            if isempty(Args.Top)
+                TopClause = '';
+            else
+                TopClause = sprintf('top %d',Args.Top);
+            end
+
+            if ischar(TableName)
+                FromClause = TableName;
+            else
+                FromClause = join(string(TableName),', ');
+            end
+
+            if ischar(Constr)
+                WhereClause = Constr;
+            else
+                WhereClause = db.Db.genWhereClause(Constr, 'AddWhere',false, 'Operator',Args.Operator);
+            end
+
+            if isempty(Args.SortBy)
+                SortClause = '';
+            else
+                SortClause = sprintf('ORDER BY %s %s', Args.SortBy, Args.SortOrder);e
+            end
+
+            if isempty(WhereClause)
+                Result = sprintf('SELECT %s %s FROM %s %s %s', TopClause, SelectClause, FromClause, Args.Join, SortClause);
+            else
+                Result = sprintf('SELECT %s %s FROM %s %s WHERE %s %s', TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
+            end
+
+        end
+    end
     
     methods % utilities
         function disconnect(Obj)
