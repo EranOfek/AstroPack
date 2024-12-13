@@ -34,7 +34,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
               - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'
-              [AD, ADc] = pipeline.last.runTransientsPipe(VisitPath)
+              [AD, ADc] = pipeline.last.transients.runTransientsPipe(VisitPath)
     %}
 
     arguments
@@ -50,6 +50,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         Args.SameTelOnly logical = true;
         Args.killDuplicates logical = true;
         Args.MinumumNCoadd = 18;
+        Args.MaximumFWHM = 4.0;
     end
 
     % Set default status.
@@ -91,6 +92,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     NRefsFound = 0;
 
     NBelowMinNCoadd = 0;
+    %NAboveMaxNFWHM = 0;
 
     for Iobj=Nobj:-1:1
 
@@ -100,7 +102,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             NBelowMinNCoadd = NBelowMinNCoadd + 1;
             continue
         end
-    
+
+        NFWHM = New(Iobj).HeaderData.getVal('FWHM');
+
+        %if NFWHM >= Args.MaximumFWHM
+        %    NAboveMaxNFWHM = NAboveMaxNFWHM + 1;
+        %    continue
+        %end
+
         % Get name of new image and search for ref image via wildcards
         FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
         FNref = FN.copy();
@@ -146,6 +155,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         Status = 'All new images below required amount of NCOADD.';
         return;
     end
+
+    %if NAboveMaxNFWHM == Nobj
+    %    Status = 'All new images above FWHM threshold.';
+    %    return;
+    %end
 
     % If no reference images found, return
     if NRefsFound < 1
