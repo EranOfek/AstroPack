@@ -22,8 +22,8 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
     Output  : - AstroDiff cutouts on transients updated with multi-epoch information.
     Author  : Ruslan Konno (Oct 2024)
     Example : VisitPath = '/path/to/visit/dir'
-              [AD, ADc, TCL1, Status] = runTransientsPipe(VisitPath)
-              ADc = matchTransientsToMultiEpochs(ADc, TCL1)
+              [AD, ADc, TCL1, Status] = pipeline.last.transients.runTransientsPipe(VisitPath)
+              [ADc, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
     %}
 
     arguments
