@@ -117,8 +117,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.23 1.41];
-        Args.MinNRChi2dof = 0.1;
+        Args.DChi2dofLimits = [0.2 1.5];
+        Args.NRChi2dofLimits = [0.1 1.60];
         
         Args.flagSaturated logical = true;
 
@@ -151,12 +151,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPSFShape logical = true;
         Args.PSFShapeFWHMThresh = 4.0;
-        Args.PSFShape2ndMomentLimsX = [0.61, 1.60];
-        %Args.PSFShape2ndMomentLimsX = [0.58, 1.72];
-        Args.PSFShape2ndMomentLimsY = [0.61, 1.67];
-        %Args.PSFShape2ndMomentLimsY = [0.58, 1.72];
-        Args.PSFShape2ndMomentLimsXY = [-0.31, 0.34];
-        %Args.PSFShape2ndMomentLimsXY = [-0.33, 0.39];
+        Args.PSFShapeXYMean = [1.03249812, 1.07405709]
+        Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
+            -5.14461356, 12.15646961];
+        Args.PSFShapeDistThreshold = 2.19;
         
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
@@ -170,6 +168,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagCR logical = true;
         Args.CRDeltaSN = -0.8;
+
+        Args.flagVariable logical = true;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -190,6 +190,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
     for Iobj=Nobj:-1:1
         Cat = Obj(Iobj).CatData;
+        Score = Cat.getCol('SCORE');
 
         % Get size of catalog and initialize a bool array corresponding to
         % the catalog rows. Array is initialized as all true and will be
@@ -207,8 +208,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Flag negative candidates
         if Args.flagNegatives
-            Score = Cat.getCol('SCORE');
-
             NegativeFlagged = (Score < 0.0);
             TF_Flags = TF_Flags + NegativeFlagged.*2.^BD_TF.name2bit('Negative');
         end
@@ -216,8 +215,8 @@ function TranCat = flagNonTransients(Obj, Args)
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('CHI2DOF')
             DChi2 = Cat.getCol('CHI2DOF');
-            GoodChi2dofD = (DChi2 > Args.Chi2dofLimits(1)) &...
-                (DChi2 < Args.Chi2dofLimits(2));
+            GoodChi2dofD = (DChi2 > Args.DChi2dofLimits(1)) &...
+                (DChi2 < Args.DChi2dofLimits(2));
             GoodChi2dof = GoodChi2dofD;
 
             % Demand also that in at least New or Ref, 
@@ -225,8 +224,16 @@ function TranCat = flagNonTransients(Obj, Args)
             if Cat.isColumn('N_CHI2DOF') && Cat.isColumn('R_CHI2DOF')
                 NChi2 = Cat.getCol('N_CHI2DOF');
                 RChi2 = Cat.getCol('R_CHI2DOF');
-                GoodChi2dofNR = (NChi2 > Args.MinNRChi2dof) |...
-                    (RChi2 > Args.MinNRChi2dof);
+                PosSrc = Score > 0;
+                NegSrc = Score < 0;
+                
+                GoodChi2dofNR = true(CatSize,1);
+                GoodChi2dofNR(PosSrc) = ...
+                    (NChi2(PosSrc) > Args.NRChi2dofLimits(1)) & ...
+                    (NChi2(PosSrc) < Args.NRChi2dofLimits(2));
+                GoodChi2dofNR(NegSrc) = ...
+                    (RChi2(NegSrc) > Args.NRChi2dofLimits(1)) & ...
+                    (RChi2(NegSrc) < Args.NRChi2dofLimits(2));
                 GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;            
             end
 
@@ -313,16 +320,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Relax flagging for galaxy-star confusion
             if Cat.isColumn('STAR_DIST') && Cat.isColumn('GAL_DIST')
-                %StarDist = Cat.getCol('STAR_DIST');
                 GalaxyDist = Cat.getCol('GAL_DIST');
                 ExcludeGalaxy = GalaxyDist <= 3;
-                %ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
 
-                %if Cat.isColumn('R_PSF_SNm')
-                %    R_SNm = Cat.getCol('R_PSF_SNm');
-                %    Low_R_SNm = R_SNm < 5.0;
-                %    ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
-                %end
                 IsStar = IsStar & ~ExcludeGalaxy;
             end
 
@@ -342,9 +342,8 @@ function TranCat = flagNonTransients(Obj, Args)
         % Apply ringing criterium
         if Args.flagRinging && Cat.isColumn('SN_GABOR')
             GaborSN = Cat.getCol('SN_GABOR');
-            Score = Cat.getCol('SCORE');
 
-            IsRinging =  GaborSN > abs(Score);
+            IsRinging =  abs(GaborSN) > abs(Score);
 
             RingingFlagged = IsRinging;
             TF_Flags = TF_Flags + RingingFlagged.*2.^BD_TF.name2bit('Ringing');
@@ -404,20 +403,23 @@ function TranCat = flagNonTransients(Obj, Args)
         
         if Args.flagPSFShape
             NFWHM = Obj(Iobj).New.PSFData.fwhm;
+            RFWHM = Obj(Iobj).Ref.PSFData.fwhm;
 
             X2 = Cat.getCol('X2');
             Y2 = Cat.getCol('Y2');
-            XY = Cat.getCol('XY');
             
-            FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh);
-            SecondMomentFlaggedX = (X2 > Args.PSFShape2ndMomentLimsX(2)) | ...
-                (X2 < Args.PSFShape2ndMomentLimsX(1));
-            SecondMomentFlaggedY = (Y2 > Args.PSFShape2ndMomentLimsY(2)) | ...
-                (Y2 < Args.PSFShape2ndMomentLimsY(1));
-            SecondMomentFlaggedXY = (XY > Args.PSFShape2ndMomentLimsXY(2)) | ...
-                (XY < Args.PSFShape2ndMomentLimsXY(1));
-            SecondMomentFlagged = SecondMomentFlaggedX | SecondMomentFlaggedY...
-                            | SecondMomentFlaggedXY;
+            X2Y2 = [X2(:),Y2(:)];
+
+            X2Y2Diff = X2Y2 - Args.PSFShapeXYMean;
+
+            MahalanobisDist = sqrt(sum(...
+                (X2Y2Diff*Args.PSFShapeCovInv).*X2Y2Diff,2));
+
+            SecondMomentFlagged = (X2 < 0) | (Y2 < 0) | ...
+                (MahalanobisDist > Args.PSFShapeDistThreshold);
+            FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh...
+                | RFWHM > Args.PSFShapeFWHMThresh);
+            
             PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end
@@ -428,7 +430,7 @@ function TranCat = flagNonTransients(Obj, Args)
             Ntran = numel(X(:));
             SubSel = true(Ntran,1);
             NExclude = numel(Args.ignoreStreakPoints);
-            
+
             for IExclude = 1:NExclude
                 BitFound = BD_TF.findBit(TF_Flags, Args.ignoreStreakPoints{IExclude});
                 SubSel = SubSel & ~BitFound;
@@ -495,20 +497,91 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         if Args.flagCR
-            Score = Cat.getCol('SCORE');
             SN_delta = Cat.getCol('SN_delta');
             NoNCRs = (abs(SN_delta) < abs(Score) + Args.CRDeltaSN);
             TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
         end
 
+        if Args.flagVariable
+            % TODO: Move the catalog matching elsewhere
+            GalaxyDist = Cat.getCol('GAL_DIST');
+            Nuclear = GalaxyDist <= 3;
+   
+            RADec = Cat.getLonLat('rad');
+    
+            RA = RADec(:,1);
+            Dec = RADec(:,2);
+    
+            MidRA = median(RA);
+            MidDec = median(Dec);
+    
+            MaxDist = max(celestial.coo.sphere_dist(RA, Dec,...
+                MidRA*ones(CatSize,1), MidDec*ones(CatSize,1)));
+        
+            MaxDistAngle = AstroAngle(MaxDist, 'rad');
+    
+            % QSO for galaxies
+            GalSearchRadius = MaxDistAngle.convert('arcsec').Angle + max(GalaxyDist);
+            QSOCat = catsHTM.cone_search('QSO1M', ...
+                    MidRA, MidDec, GalSearchRadius, 'OutType','AstroCatalog');
+
+            if QSOCat.sizeCatalog < 1
+                VariableGal = zeros(CatSize,1);
+            else
+
+                QSOCat.sortrows('Dec');
+        
+                [QSOLon, QSOLat] = QSOCat.getLonLat('rad');
+    
+                MatchResQSO = VO.search.search_sortedlat_multi( ...
+                    [QSOLon, QSOLat], RA, Dec, -3*4.84814e-6);
+    
+                QSOmatch = vertcat(MatchResQSO.Nmatch) > 0;
+    
+                VariableGal = Nuclear & QSOmatch;
+            end
+
+            % VarStars for stars
+
+            StarDist = Cat.getCol('GAL_DIST');
+            NearStar = StarDist <= 3;
+
+            StarSearchRadius = MaxDistAngle.convert('arcsec').Angle + max(StarDist);
+
+            VarStarCat = catsHTM.cone_search('GAIADR2', ...
+                    MidRA, MidDec, StarSearchRadius, 'Con',{{'VarFlag',@(x) x>0}},...
+                    'OutType','AstroCatalog');
+
+            if VarStarCat.sizeCatalog < 1
+                VariableStar = zeros(CatSize,1);
+            else
+
+                VarStarCat.sortrows('Dec');
+        
+                [VarStarLon, VarStarLat] = VarStarCat.getLonLat('rad');
+    
+                MatchResVarStar = VO.search.search_sortedlat_multi( ...
+                    [VarStarLon, VarStarLat], RA, Dec, ...
+                    -max(StarDist)*4.84814e-6);
+    
+                VarStarmatch = vertcat(MatchResVarStar.Nmatch) > 0;
+                
+                VariableStar = NearStar & VarStarmatch;
+            end
+
+            VariableSource = VariableGal | VariableStar;
+
+            TF_Flags = TF_Flags + VariableSource.*2.^BD_TF.name2bit('Variable');
+
+        end
+
         % ----- AstroZOGY -----
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
-            Score = Cat.getCol('SCORE');
             Scorr = Cat.getCol('S_CORR');
 
-            ScorrGood = (abs(Score) >= abs(Scorr)) & ...
-                (abs(Scorr) > Args.ScorrThreshold | abs(Score) <= abs(Scorr) + 3.0);
+            ScorrGood = (abs(Score) >= abs(Scorr)) ...
+                & (abs(Scorr) > Args.ScorrThreshold);
 
             ScorrFlagged = ~ScorrGood;
             TF_Flags = TF_Flags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
