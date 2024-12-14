@@ -11,6 +11,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %      positions).
     %   6. For each possible trace, calculate moments along the trace and
     %      fit it with smooth polynomial.
+    %   7. For each trace, extract a linarized version of the trace.
     %   Comments: The user can choose if to find all traces or only
     %   significant traces near predefined/predicted positions.
     %   The trace is calculated using several methods (see information in
@@ -66,15 +67,34 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %                   (rather than the moments).
     %                   Default is true.
     %
+    %            'LinTraceHalfWidth' - Half width of linearzied trace
+    %                   cutout (HalfWidth argument of
+    %                   imUtil.spec.trace.linearizeTrace).
+    %                   Default is 50.
+    %            'linearizeTraceArgs' - Cell array of additional parameters
+    %                   to pass to: imUtil.spec.trace.linearizeTrace
+    %            'Field1', 'Field2' - This are the fields in the output
+    %                   from which the linezrized trace is generated.
+    %                   Default are: 'FitMomFilt', 'FitY'.
+    %
     % Output : - A structure array with element per trace, and the
     %            following fields:
-    %            .Pos
-    %            .ExpectedPos
-    %            .SN
-    %            .ResMomFilt
-    %            .ResMomUnFilt
-    %            .FitMomFilt
-    %            .FitMomUnFilt
+    %            .Pos - The mean measured spatial position of the trace.
+    %            .ExpectedPos - The expected spatial position of the trace.
+    %                   Empty if no expected position.
+    %            .SN - Integrated S/N of trace.
+    %            .ResMomFilt - Output of imUtil.spec.trace.moment1d
+    %                   measured on the filtered image.
+    %            .ResMomUnFilt - Output of imUtil.spec.trace.moment1d
+    %                   measured on the un-filtered (original) image.
+    %            .FitMomFilt - Output of imUtil.spec.trace.fitTrace
+    %                   measired on the filtered image.
+    %            .FitMomUnFilt - Output of imUtil.spec.trace.fitTrace
+    %                   measired on the un-filtered (original) image.
+    %            .LinTraceImage - Trace cutout image in which the trace is
+    %                   linear along the X (wavelength) direction.
+    %            .LinTracePos - The position of the trace center in LinTraceImage
+    %
     %          - S/N image.
     %          - S/N image with delta function kernel.
     %          - Collapseed S/N.
@@ -106,6 +126,12 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
         
         Args.Moments1dArgs      = {};
         Args.UseWeightedMom logical = true;
+        
+        Args.LinTraceHalfWidth      = 50;
+        Args.linearizeTraceArgs     = {};
+        
+        Args.Field1                 = 'FitMomFilt';
+        Args.Field2                 = 'FitY';
     end
     
     if Args.UseWeightedMom
@@ -198,7 +224,8 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
 
     Result = struct('Pos',cell(Npos,1), 'ExpectedPos',cell(Npos,1), 'SN',cell(Npos,1),...
                     'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
-                    'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1));
+                    'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
+                    'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1));
 
     for Ipos=1:1:Npos
         Result(Ipos).ExpectedPos = Args.ExpectedPos(Ipos);
@@ -213,12 +240,14 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
 
             Result(Ipos).FitMomFilt   = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomFilt.(MomField)(:));
             Result(Ipos).FitMomUnFilt = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomUnFilt.(MomField)(:));
+            
+            [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,Result(Ipos).(Args.Field1).(Args.Field2),...
+                                    'DimWave',2,...
+                                    'HalfWidth',Args.LinTraceHalfWidth,...
+                                    Args.linearizeTraceArgs{:});
 
+            
         end
     end
-        
-    
-    
-    % extract the trace and background
-    
+            
 end
