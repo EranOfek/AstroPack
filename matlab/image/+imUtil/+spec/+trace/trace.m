@@ -1,5 +1,5 @@
 function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
-    % Find and fit taces from spectra in an image
+    % Find, fit and linazrize traces from spectra in an image
     %   This function is performing the following steps:
     %   1. Measure global background and variance
     %   2. Filter the 2D images with a short-line kernel for trace.
