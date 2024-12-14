@@ -52,7 +52,7 @@ function [Result,PeakDet]=collapse(Image, Args)
         Args.Fun              = 'median';
         Args.Quant            = 0.95;
         Args.Threshold        = 5;
-        
+                
     end
     
     if ~isempty(Args.PreConv)
@@ -101,6 +101,8 @@ function [Result,PeakDet]=collapse(Image, Args)
 
         Flag = logical((SN > Args.Threshold).*islocalmax(Result));
         %[find(Flag), SN(Flag)]
+        
+        
         
         PeakDet.PeakPos  = find(Flag);
         PeakDet.PeakSN   = SN(Flag);

@@ -24,6 +24,7 @@ function Result=moment1d(Array, Pos, Args)
     %                   Default is 10.
     %            'WeightSigma' - The Gaussian sigma-width used in the
     %                   calculation of the weighted moments.
+    %                   Default is 3.
     % Output : - A structure with the following fields:
     %            .X1 - First central moment for each colum (row, if Dim=2) in the input
     %                   matrix.
