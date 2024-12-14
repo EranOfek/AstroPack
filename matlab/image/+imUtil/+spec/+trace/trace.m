@@ -85,7 +85,7 @@ function Result = trace(Array, Args)
     %    Skip this function and use trace templates
     
     
-    GoodMask = imUtil.spec.mask.maskByPos(Array, Args.GoodMask);
+    GoodMask = imUtil.mask.maskByPos(Array, Args.GoodMask);
     
     % find local max in filtered image    
     [SNp, Peaks] = imUtil.spec.trace.peakDetectionFilter1(SNclean, Dim, 'Filter',[],...

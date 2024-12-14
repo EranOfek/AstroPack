@@ -1,12 +1,12 @@
 function [GoodMask] = maskByPos(Array, Dim, Args)
-    % IGenerate a logicals mask of good pixels based on ranges of positions to ignore.
+    % Generate a logicals mask of good pixels based on ranges of positions to ignore.
     % Input  : - An array.
     %          - Dimension in which will be masked. I.e., Complementry
     %            dimenson to which the coordinates in IgnoreRanges are
     %            specified. Default is 1.
     %          * ...,key,val,... 
     %            'IgnoreRanges' - Two column matrix of [Min Max] of
-    %                   positons to set to false in the GoodMask.
+    %                   positons to set to false in the imUt    GoodMask.
     %                   If empty, return a matrix of true.
     %                   Default is [].
     %            'GoodMask' - An optional good mask to combine with the generated
@@ -16,7 +16,7 @@ function [GoodMask] = maskByPos(Array, Dim, Args)
     % Output : - A matrix of logical indicating good pixels to use.
     %            (i.e., not in the specified ranges).
     % Author : Eran Ofek (2024 Dec) 
-    % Example: imUtil.spec.mask.maskByPos(Array)
+    % Example: imUtil.mask.maskByPos(Array)
 
     arguments
         Array
