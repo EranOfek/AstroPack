@@ -15,9 +15,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
     Output  : - Result message.
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
-              [AD, ADc, TCL1, Status] = runTransientsPipe(VisitPath)
-              ADc = matchTransientsToMultiEpochs(ADc, TCL1)
-              sendTransientsAlert(ADc)
+              [AD, ADc, TCL1, Status] = pipeline.last.transients.runTransientsPipe(VisitPath)
+              [ADc, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
+              [Status] = pipeline.last.transients.sendTransientsAlert(ADc)
     %}
 
     arguments
@@ -153,25 +153,24 @@ function [Status] = sendTransientsAlert(ADc, Args)
             LastUL_DateString = strcat(num2str(LastUL_DT(1)),'-',sprintf('%02.0f',LastUL_DT(2)), ...
                 '-',sprintf('%02.0f',LastUL_DT(3)),{' '},sprintf('%02.0f',LastUL_DT(4)), ...
                 ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',LastUL_DT(6)),' UTC');
-            LastUL_Msg = strcat('Last non-detection (observation) was on',{' '}, ...
+            LastUL_Msg = strcat('Last non-detection from observations was on',{' '}, ...
                 LastUL_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
                 {' '},sprintf('%.2f',LastUL_Mag),'.');
             Msg{1} = strcat(Msg{1},'\n',LastUL_Msg{1});
-        else
-            Ref_JD = Transient.Ref.HeaderData.getVal('JD');
-            T0mT = JD0 - Ref_JD;
-            Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
-
-            Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
-            Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
-                '-',sprintf('%02.0f',Ref_DT(3)),{' '},sprintf('%02.0f',Ref_DT(4)), ...
-                ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',Ref_DT(6)),' UTC');
-            RefUL_Msg = strcat('Last non-detection (reference) was on',{' '}, ...
-                Ref_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
-                {' '},sprintf('%.2f',Ref_LimMag),'.');
-            Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
-
         end
+
+        Ref_JD = Transient.Ref.HeaderData.getVal('JD');
+        T0mT = JD0 - Ref_JD;
+        Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
+
+        Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
+        Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
+            '-',sprintf('%02.0f',Ref_DT(3)),{' '},sprintf('%02.0f',Ref_DT(4)), ...
+            ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',Ref_DT(6)),' UTC');
+        RefUL_Msg = strcat('Reference was on',{' '}, ...
+            Ref_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
+            {' '},sprintf('%.2f',Ref_LimMag),'.');
+        Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
 
         % If there is a galaxy match, construct potential host match message.
         GalN = Transient.CatData.getCol('GAL_N');
