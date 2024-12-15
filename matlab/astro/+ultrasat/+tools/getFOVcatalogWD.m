@@ -16,7 +16,7 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
         Args.MagnitideColumn   = 'Gmag';    % name of magnitude column e.g., phot_g_mean_mag, Gmag
         Args.TemperatureColumn = 'TeffH';   % name of temperature column e.g., teff_gspphot, TeffH
         Args.USFilter          = 1;  
-        Args.WriteFile         = true;      
+        Args.WriteFile         = false;      
         
     end
     %
