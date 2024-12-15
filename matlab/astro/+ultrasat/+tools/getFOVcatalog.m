@@ -47,6 +47,9 @@ function Cat = getFOVcatalog(RA, Dec, Args)
             Cat.USat_SNR(Iobj) = SNR.SNR;
             Cat.USat_Mag(Iobj) = SNR.Mag;
         end
+        if mod(Iobj, ceil(Nobj/100)) == 0
+            fprintf('Progress: %.0f%%\n', (Iobj/Nobj) * 100);
+        end       
     end
     % write the output object
     if Args.WriteFile
