@@ -154,7 +154,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeXYMean = [1.03249812, 1.07405709]
         Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
             -5.14461356, 12.15646961];
-        Args.PSFShapeDistThreshold = 2.19;
+        Args.PSFShapeDistThreshold = 2.7;
         
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...

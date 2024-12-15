@@ -159,9 +159,11 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
         if AlreadyReported
             ADc(Ipos).AlreadyReported = 1;
         end
+        
+        Score = ADc(Ipos).CatData.getCol('SCORE');
 
         % This should be elsewhere probably
-        if (Matches.Nsrc > 1) || (ADc.CatData.Table.SCORE >= 8.0) 
+        if (Matches.Nsrc > 1) || (Score(1) >= 8.0)
             ReportedDB(Matches.Ind) = 1;
         end        
 
