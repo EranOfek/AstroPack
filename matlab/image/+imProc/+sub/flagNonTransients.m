@@ -154,7 +154,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeXYMean = [1.03249812, 1.07405709]
         Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
             -5.14461356, 12.15646961];
-        Args.PSFShapeDistThreshold = 2.19;
+        Args.PSFShapeDistThreshold = 2.7;
         
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
@@ -542,7 +542,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             % VarStars for stars
-
+            %{
             StarDist = Cat.getCol('GAL_DIST');
             NearStar = StarDist <= 3;
 
@@ -568,9 +568,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 
                 VariableStar = NearStar & VarStarmatch;
             end
-
+            
             VariableSource = VariableGal | VariableStar;
-
+            %}
+            VariableSource = VariableGal;
             TF_Flags = TF_Flags + VariableSource.*2.^BD_TF.name2bit('Variable');
 
         end
