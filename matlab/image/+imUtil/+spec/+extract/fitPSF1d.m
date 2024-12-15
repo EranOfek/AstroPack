@@ -80,7 +80,7 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     %            .TerminatedIter - A vector of the number of sigma clipping
     %                   iterations performed in each wavelength.
     % Author : Eran Ofek (Dec 2023) 
-    % Example: [F,Fe]=imUtil.spec.extract.fitPSF1d(BackSubIm, [], 'PSF',PSF, 'WaveAxisPSF',WavePSF, 'DimWave',1)
+    % Example: [F]=imUtil.spec.extract.fitPSF1d(BackSubIm, [], 'PSF',PSF, 'WaveAxisPSF',WavePSF, 'DimWave',1)
 
     arguments
         Image

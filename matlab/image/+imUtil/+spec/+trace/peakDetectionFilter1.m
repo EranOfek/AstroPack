@@ -5,7 +5,8 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %   units of sigma).
     %   The filtering is done simolutanosly to all columns/rows.
     % Input  : - A vector or a 2-D array.
-    %          - Dimension in which to search for local maxima.
+    %          - Dimension in which to search for local maxima (i.e.,
+    %            spatial dimension).
     %            Default is 1.
     %          * ...,key,val,...
     %            'Threshold' - Detection threshold in units of noise.
@@ -24,6 +25,9 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %            'GlobalStd' - A logical indicating if to use the local
     %                   std, or the std of the colums/rows. The std is used
     %                   for the noise estimation. Default is false.
+    %            'GoodMask' - A logical array og good pixels. Bad pixles
+    %                   will not be used for peak finding.
+    %                   Default is [].
     % Output : - A matrix of S/N per pixel in the array.
     %          - A structure containing the followinf fields:
     %            .Flag - An array of flags indicating if a local max. is
@@ -43,6 +47,8 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
         Args.Filter             = 2;  % sigma-width
         Args.FilterLen          = 4;  % in sigma-units
         Args.GlobalStd logical  = false;
+        Args.GoodMask           = [];
+        
     end
     
     if Dim==2
@@ -64,12 +70,22 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     end
     
     Norm     = sqrt(sum(Filter.^2));
+    if Norm==0
+        % no filter
+        Norm = 1;
+    end
     
     if Args.GlobalStd
         StdArray = tools.math.stat.rstd(Array(:));
+        if StdArray==0
+            StdArray = std(Array(:));
+        end
     else
         % calc std per column/wavelength
         StdArray = tools.math.stat.rstd(Array, 1);
+        if StdArray==0
+            StdArray = std(Array,[],1);
+        end
     end
     
     
@@ -83,11 +99,22 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     StdFiltArray = StdArray .* Norm;
     
     SN  = FiltArray./StdFiltArray;
+    %if ~isempty(Args.Mask)
+    %    SN(~Args.Mask) = Flag;
+    %end
     
     if nargout>1
         % find local maxima
-        Peaks.Flag = (SN > Args.Threshold).*islocalmax(SN, 1);
-        SN_T  = SN.*(SN > Args.ThresholdSum);
+        
+        if ~isempty(Args.GoodMask)
+            SN1 = SN;
+            SN1(~Args.GoodMask) = NaN;
+        else
+            SN1 = SN;
+        end
+        
+        Peaks.Flag = (SN1 > Args.Threshold).*islocalmax(SN, 1);
+        SN_T  = SN.*(SN1 > Args.ThresholdSum);
         Peaks.SumSN = sqrt(sum(SN_T.^2, 2));
         %Peaks.PeakSN  SN(Result.PeakInd,:);
     end

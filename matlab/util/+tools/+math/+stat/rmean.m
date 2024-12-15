@@ -3,7 +3,7 @@ function Mean=rmean(Mat,Dim,Range)
 % Package: Util.stat
 % Description: Calculate the rubust mean over one of the dimensions.
 % Input  : - A matrix.
-%          - Dimension along to calculate the ribust mean.
+%          - Dimension along to calculate the robust mean.
 %            If empty calc over all dimensions.
 %            Deafult is 'all'.
 %          - [Low, High] fraction of the values to remove prior to the
