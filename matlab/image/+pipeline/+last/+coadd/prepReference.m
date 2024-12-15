@@ -32,7 +32,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=823:1:Ntarget
+    for Itarget=1176:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
@@ -76,10 +76,14 @@ function [Nvisit] = prepReference(Args)
                         
                         tools.os.cdmkdir(Destination);
 
-                        CI.write1(RefImage, 'Image');
-                        CI.write1(RefMask, 'Mask');
-                        CI.write1(RefPSF, 'PSF');
-                        CI.write1(RefCat, 'Cat');
+                        try 
+                            CI.write1(RefImage, 'Image');
+                            CI.write1(RefMask, 'Mask');
+                            CI.write1(RefPSF, 'PSF');
+                            CI.write1(RefCat, 'Cat');
+                        catch
+                            'a'
+                        end
 
                         cd(PWD);
 

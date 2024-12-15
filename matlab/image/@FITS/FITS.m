@@ -1387,6 +1387,10 @@ classdef FITS < handle
                             end
                             %if any(strcmp(HeaderField){Inl,2},{'uint16','uint32','int16','int32'}))
 
+                            if isinf(Header.(HeaderField){Inl,2})
+                                Header.(HeaderField){Inl,2} = 'Inf';
+                            end
+                            
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
                                                Header.(HeaderField){Inl,3});
