@@ -66,6 +66,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
             end
         end
 
+        TNS_Report = [];
+        AT_Report = [];
+
         % Get meta data
         RA = Transient.CatData.getCol('RA');
         Dec = Transient.CatData.getCol('Dec');
@@ -79,6 +82,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
             '-',sprintf('%02.0f',DT(3)),{' '},sprintf('%02.0f',DT(4)), ...
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
+
         Mag = Transient.CatData.getCol('MAG_PSF');
 
         Ind0 = find(JD == JD0);
@@ -92,6 +96,20 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Score0 = Score(Ind0);
         Mag0 = Mag(Ind0);
 
+        RAfield = [];
+        Decfield = [];
+
+        RAfield.value = RA0;
+        Decfield.value = Dec0;
+        AT_Report.RA = RAfield;
+        AT_Report.Dec = Decfield;
+
+        AT_Report.reporting_group_id = 139;
+        AT_Report.discovery_data_source_id = 139;
+        AT_Report.reporter = "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration";
+        AT_Report.discovery_datetime = DateString;
+        AT_Report.at_type = 1;
+        
         Mount0 = Mount(Ind0);
         Camera0 = Camera(Ind0);
         CropID0 = CropID(Ind0);
@@ -162,6 +180,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Ref_JD = Transient.Ref.HeaderData.getVal('JD');
         T0mT = JD0 - Ref_JD;
         Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
+        RefExpTime = Transient.Ref.HeaderData.getVal('EXPTIME');
 
         Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
         Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
@@ -171,6 +190,31 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Ref_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
             {' '},sprintf('%.2f',Ref_LimMag),'.');
         Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
+
+        NonDetection = [];
+        NonDetection.obsdate = Ref_DateString;
+        NonDetection.flux = round(Ref_LimMag,2);
+        NonDetection.flux_units = 1;
+        NonDetection.filter_value = 1;
+        NonDetection.instrument_value = 269;
+        NonDetection.exptime = RefExpTime;
+        AT_Report.non_detection = NonDetection;
+
+        NExpTime = ADc.New.HeaderData.getVal('EXPTIME');
+
+        DetectionPhotometry = [];
+        DetectionPhotometry.obsdate = DateString;
+        DetectionPhotometry.flux = round(Mag0,2);
+        DetectionPhotometry.flux_units = 1;
+        DetectionPhotometry.filter_value = 1;
+        DetectionPhotometry.instrument_value = 269;
+        DetectionPhotometry.exptime = NExpTime;        
+
+        Photometry = [];
+        Photometry.photometry_group = DetectionPhotometry;
+        AT_Report.photometry = Photometry;
+        
+        TNS_Report.at_report = AT_Report;
 
         % If there is a galaxy match, construct potential host match message.
         GalN = Transient.CatData.getCol('GAL_N');
@@ -314,6 +358,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
             % If Args.SaveProducts true, save image
             if Args.SaveProducts
                 saveas(Fig, Image_DirFilename);
+                Json_DirFilename = replace(Image_DirFilename,'.png','.json');
+                Json_Filename = replace(Image_Filename,'.png','.json');
+                Json = jsonencode(TNS_Report, 'PrettyPrint',true);
+                fid = fopen(Json_DirFilename,'w');
+                fprintf(fid, Json); 
+                fclose(fid);
             end
         end
         
@@ -328,7 +378,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             fid = fopen(Text_DirFilename,'wt');
             fprintf(fid, Msg{1});
             fclose(fid);
-            CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
+            CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename, ' --json-file',{' '},Json_DirFilename);
             [CMD0Status, CMD0Out] = system(CMD0{1});
             if CMD0Status > 0
                 Status = sprint('Alerting via last-tools failed: %s', CMD0Out);
@@ -408,10 +458,42 @@ function [Status] = sendTransientsAlert(ADc, Args)
         
             [~,~] = system(CMD2);
 
+            JsonUploaded = false;
+            if isfile(Json_DirFilename)
+
+                try
+                    % Get file size.
+                    FileForSizeJson = dir(Json_DirFilename);
+                    FilesizeJson = num2str(FileForSizeJson.bytes);
+        
+                    % Request image host URL.
+                    CMD1Json = strcat("curl -F files=@",Json_DirFilename," -F filename=",Json_Filename," -F token=",SlackBotToken," -F length=",FilesizeJson," https://slack.com/api/files.getUploadURLExternal");
+                
+                    [~,CMD1outJson] = system(CMD1Json);
+                    Response1Json = jsondecode(strcat("{",extractAfter(CMD1outJson,"{")));
+
+                    UploadUrlJson = Response1Json.upload_url;
+                    FileIDJson = Response1Json.file_id;
+                
+                    % Upload image to host URL.
+                
+                    CMD2Json = strcat("curl -F  filename=@",Json_DirFilename," -H 'Authorization: Bearer ",SlackBotToken,"' -v POST ",UploadUrlJson);
+                
+                    [~,~] = system(CMD2Json);
+
+                    JsonUploaded = true;
+                catch
+                    warning('Json upload failed.');
+                end
+            end
+
             % Authorize post to slack channel.
-        
-            CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg{1},'" }',"' https://slack.com/api/files.completeUploadExternal");
-        
+
+            if JsonUploaded
+                CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"},{"id":"',FileIDJson,'", "title":"NewTransientJson"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg{1},'" }',"' https://slack.com/api/files.completeUploadExternal");
+            else
+                CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg{1},'" }',"' https://slack.com/api/files.completeUploadExternal");
+            end
             [~,CMD3out] = system(CMD3);
 
             Response3 = jsondecode(strcat("{",extractAfter(CMD3out,"{")));
