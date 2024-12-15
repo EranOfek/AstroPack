@@ -542,7 +542,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             % VarStars for stars
-
+            %{
             StarDist = Cat.getCol('GAL_DIST');
             NearStar = StarDist <= 3;
 
@@ -568,9 +568,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 
                 VariableStar = NearStar & VarStarmatch;
             end
-
+            
             VariableSource = VariableGal | VariableStar;
-
+            %}
+            VariableSource = VariableGal;
             TF_Flags = TF_Flags + VariableSource.*2.^BD_TF.name2bit('Variable');
 
         end
