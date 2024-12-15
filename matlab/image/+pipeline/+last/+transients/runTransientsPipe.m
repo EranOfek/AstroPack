@@ -119,18 +119,23 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         FNref.Time = {'*.*.*'};
         FieldID = split(FNref.FieldID{1},'.');
         FieldID = FieldID{1};
-
+        
         FieldRefPath = strcat(RefPath, '/', FieldID);
         FNref.FieldID{1} = FieldID;
         RefFile = fullfile(FieldRefPath,FNref.genFile);
+        CoaddRefFile = RefFile;
+        DeepRefFile{1} = replace(RefFile{1},'_coadd_','_ref_');
 
         % Continue if no ref image found
-        if isempty(dir(RefFile{1}))
+        if ~isempty(dir(DeepRefFile{1}))
+            RefFile = DeepRefFile;
+        elseif ~isempty(dir(CoaddRefFile{1}))
+            RefFile = CoaddRefFile;
+        else
             warning('Reference image not found for image %s', FN.genFile{1});
             continue
-        else
-            NRefsFound = NRefsFound + 1;
         end
+        NRefsFound = NRefsFound + 1;
 
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
