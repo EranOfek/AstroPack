@@ -19,6 +19,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %    
     %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/LAST.01.02.01/2024/10/12/','ProcDirTemplate','/proc/*')
     %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST*/2024/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
@@ -58,6 +59,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
     for Crop = 1:Ndir
