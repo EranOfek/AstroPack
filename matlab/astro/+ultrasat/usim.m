@@ -777,7 +777,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
         
     % make an AstroImage (note, the images are to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'}, 'Cat', {OutCat.Catalog}); 
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'});
+    usimImage.CatData = OutCat;
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
@@ -864,27 +865,27 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                          ' , see the generated images')   
                                      
     %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
-    if Args.PostModelingFindSources
-    %     
-    %     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
-    %                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-
-        MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
-                                                        'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-
-        Coords = MeasuredCat.Catalog(:,1:2);
-        SNRs = MeasuredCat.Catalog(:,8:12);
-        Mag_Aper = MeasuredCat.Catalog(:,23:25);
-    %     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
-        Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
-
-        idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
-        Summ5 = Summary(idx5,:); 
-    %     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
-    %     Summ3 = Summary(idx3,:); 
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
-        DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
-    end
+%     if Args.PostModelingFindSources
+%     %     
+%     %     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
+%     %                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
+% 
+%         MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
+%                                                         'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
+% 
+%         Coords = MeasuredCat.Catalog(:,1:2);
+%         SNRs = MeasuredCat.Catalog(:,8:12);
+%         Mag_Aper = MeasuredCat.Catalog(:,23:25);
+%     %     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
+%         Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
+% 
+%         idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
+%         Summ5 = Summary(idx5,:); 
+%     %     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
+%     %     Summ3 = Summary(idx3,:); 
+%         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
+%         DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
+%     end
 end
 
 

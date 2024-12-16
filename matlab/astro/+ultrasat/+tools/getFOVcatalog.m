@@ -14,7 +14,8 @@ function Cat = getFOVcatalog(RA, Dec, Args)
         Args.Ebv               = 0.02;      % average Ebv for the field unless we have Ebv in the catalog
         Args.CatName           = 'GAIADR3'; % name of one of the available catsHTM catalogs
         Args.USFilter          = 1;  
-        Args.WriteFile         = true;                
+        Args.WriteFile         = true; 
+        Args.Plot              = false;
     end
     %
     RAD = 180/pi;    
@@ -55,5 +56,11 @@ function Cat = getFOVcatalog(RA, Dec, Args)
     if Args.WriteFile
         FN = sprintf('extcatRA%.1fDec%.1fRad%.1f.mat',RA,Dec,Args.Radius);
         save(FN,'Cat');
+    end
+    % plot the HR diagram
+    if Args.Plot
+        F = Cat.ErrPlx<(0.1*Cat.Plx);
+%         plot(Cat.phot_bp_mean_mag(F)-Cat.phot_rp_mean_mag(F),Cat.phot_g_mean_mag(F)-5*log10(100./(Cat.Plx(F))),'.');
+        plot(Cat.bp_rp(F),Cat.phot_g_mean_mag(F)-5*log10(100./(Cat.Plx(F))),'.'); set(gca,'YDir','reverse')
     end
 end
