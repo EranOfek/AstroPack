@@ -121,7 +121,7 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     SpatCoo  = (SpatPos-Args.WinSN:SpatPos+Args.WinSN);
     
     if isempty(Args.WaveEdges)
-        PSF = sum(WeiPSF, 1);
+        PSF = sum(WeiPSF, 1, 'omitnan');
         Result.WaveEdges  = [1 Nwave];
         Result.WaveCenter = Nwave.*0.5; 
         Result.PSF = PSF(:)./sum(PSF);
