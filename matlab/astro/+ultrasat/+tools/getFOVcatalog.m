@@ -60,6 +60,7 @@ function Cat = getFOVcatalog(RA, Dec, Args)
     % plot the HR diagram
     if Args.Plot
         F = Cat.ErrPlx<(0.1*Cat.Plx);
+        figure(10)
 %         plot(Cat.phot_bp_mean_mag(F)-Cat.phot_rp_mean_mag(F),Cat.phot_g_mean_mag(F)-5*log10(100./(Cat.Plx(F))),'.');
         plot(Cat.bp_rp(F),Cat.phot_g_mean_mag(F)-5*log10(100./(Cat.Plx(F))),'.'); set(gca,'YDir','reverse')
     end
