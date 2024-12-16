@@ -62,6 +62,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
     for Crop = 1:Ndir

@@ -36,11 +36,14 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
     end
     fprintf('Total number of objects: %d\n',Nobj);
     % 
+    Cat.USat_Radius = zeros(height(Cat), 1); 
     Cat.USat_SNR = zeros(height(Cat), 1); 
     Cat.USat_Mag = zeros(height(Cat), 1); 
     Cat.TeffFromColor = zeros(height(Cat), 1);
-    Cat.Class    = repmat(' ',1,height(Cat))'; 
-    % empirical fit:
+%     Cat.Class    = repmat(' ',1,height(Cat))'; 
+    % add a radius column:
+    Cat.USat_Radius = RAD.*celestial.coo.sphere_dist_fast(RA./RAD,Dec/RAD,Cat.RA,Cat.Dec);
+    % empirical fit of Teff(BP-RP):
     BP_RP = Cat.BPmag-Cat.RPmag;
     Cat.TeffFromColor = 10.^( 4.11-0.677.*BP_RP+0.294*BP_RP.^2);
     
@@ -66,7 +69,7 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
     end
     % write the output object
     if Args.WriteFile
-        FN = sprintf('extcat_%s_RA%.1fDec%.1fRad%.1f.mat',Args.CatName,RA,Dec,Args.Radius);
+        FN = sprintf('extcat%s_RA%.1fDec%.1fRad%.1f.mat',Args.CatName,RA,Dec,Args.Radius);
         save(FN,'Cat');
     end
 end
