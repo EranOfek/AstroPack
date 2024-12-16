@@ -10,14 +10,14 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
     arguments
         RA                     = 67.        % ULTRASAT S1
         Dec                    = -59.       % ULTRASAT S1
-        Args.Radius            = 0.1;       % search radius in [deg]
+        Args.Radius            = 0.3;       % search radius in [deg]
         Args.Ebv               = 0.02;      % average Ebv for the field unless we have Ebv in the catalog
+        Args.ExpTime           = 300;       % ULTRASAT exposure time
         Args.CatName           = 'WDEDR3';  % name of one of the available catsHTM catalogs
         Args.MagnitideColumn   = 'Gmag';    % name of magnitude column e.g., phot_g_mean_mag, Gmag
         Args.TemperatureColumn = 'TeffH';   % name of temperature column e.g., teff_gspphot, TeffH
         Args.USFilter          = 1;  
         Args.WriteFile         = false;      
-        
     end
     %
     RAD = 180/pi;    
@@ -48,7 +48,7 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
         if isnan(Cat.(Args.TemperatureColumn)(Iobj)) % witout Teff or a spectrum we cannot run telescope.sn.snr
             SNR = telescope.sn.snr('TargetSpec',Cat.TeffFromColor(Iobj),'Mag',Cat.(Args.MagnitideColumn)(Iobj),...
                 'CalibFilterFamily','GAIA','CalibFilter','g','FilterFamily',UP.U_AstFilt(Args.USFilter),...
-                'Filter',' ','Ebv',Ebv(Iobj));
+                'Filter',' ','Ebv',Ebv(Iobj),'ExpTime',Args.ExpTime);
             Cat.USat_SNR(Iobj) = SNR.SNR;
             Cat.USat_Mag(Iobj) = SNR.Mag;
 %             Cat.USat_SNR(Iobj) = 0;
@@ -56,7 +56,7 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
         else           
             SNR = telescope.sn.snr('TargetSpec',Cat.(Args.TemperatureColumn)(Iobj),'Mag',Cat.(Args.MagnitideColumn)(Iobj),...
                 'CalibFilterFamily','GAIA','CalibFilter','g','FilterFamily',UP.U_AstFilt(Args.USFilter),...
-                'Filter',' ','Ebv',Ebv(Iobj));
+                'Filter',' ','Ebv',Ebv(Iobj),'ExpTime',Args.ExpTime);
             Cat.USat_SNR(Iobj) = SNR.SNR;
             Cat.USat_Mag(Iobj) = SNR.Mag;
         end
