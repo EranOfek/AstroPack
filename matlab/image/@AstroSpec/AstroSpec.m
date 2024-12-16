@@ -58,6 +58,8 @@ classdef AstroSpec < Component
         Mask
         WaveUnits
         FluxUnits
+        %X  % pixel position along the wavelength axis
+        %Y  % pixel position along the spatial axis
     end
     
     properties
