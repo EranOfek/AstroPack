@@ -9,6 +9,8 @@ function [AI] = loadTable(T, Level, Product, Args)
     % Example: AI=pipeline.last.queryDB.loadTable(T)
     %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Image');
     %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'proc','Cat');
     %          
 
     arguments
@@ -17,6 +19,7 @@ function [AI] = loadTable(T, Level, Product, Args)
         Product                = 'Image+';
         Args.table2pathArgs    = {};
         Args.ExtraOutProduct   = ["Mask", "PSF", "Cat"];
+        Args.Ncounter          = 20;
     end
 
     Nextra = numel(Args.ExtraOutProduct);
@@ -69,6 +72,14 @@ function [AI] = loadTable(T, Level, Product, Args)
             
                         AI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
 
+                    case 'Cat'
+                        
+                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*', 'Level',Level, 'Product','Cat');
+                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        
+                        AI(Ipath) = AstroCatalog(AFND.genFile);
+
+
                     case 'Asteroids'
                         FA = dir('*coadd_Asteroids_*.mat');
                         if numel(FA)==1
@@ -83,6 +94,15 @@ function [AI] = loadTable(T, Level, Product, Args)
 
                 switch Product
                     case 'Cat'
+                        if Ipath==1
+                            AI = AstroCatalog([Args.Ncounter, Npath]);
+                        end
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product','Cat', 'FileTYpe','fits*');
+                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        
+                        Icounter = str2double(AFND.Counter);
+
+                        AI(Icounter, Ipath) = AstroCatalog(AFND.genFile);
 
 
                     otherwise
