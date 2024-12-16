@@ -1,10 +1,24 @@
 function [AI] = loadTable(T, Level, Product, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
+    %    See also: pipeline.last.queryDB.table2path
+    % Input  : - A table which is the output of a query of the
+    %            last.last_visits DB table.
+    %          - Level name. Default is 'coadd'.
+    %          - Product name. Default is 'Image+'.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'table2pathArgs' - A cell array of additional arguments to
+    %                   pass to pipeline.last.queryDB.table2path.
+    %                   Default is {}.
+    %            'ExtraOutProduct' - When Product='Image+', the Image will be
+    %                   loaded along with the products specified in this
+    %                   strings array.
+    %                   Default is ["Mask", "PSF", "Cat"].
+    %            'Ncounter' - When Level='proc' and Product='Cat', all
+    %                   images for the specific CropID will returned. This is the
+    %                   number of expected images in visit directory (i.e., the
+    %                   Counter). Default is 20.
+    % Output : - An array of either AstroImage, AstroCatalog, tables, 
+    %            MatchedSources object, or MovingSources object.
     % Author : Eran Ofek (2024 Dec) 
     % Example: AI=pipeline.last.queryDB.loadTable(T)
     %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Image');
@@ -48,7 +62,7 @@ function [AI] = loadTable(T, Level, Product, Args)
                 switch Product
                     case 'Image'
         
-                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*');
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*');
             
                         AFND = AstroFileName.dir(AllFiles);
                         if AFND.nFiles==0
@@ -59,7 +73,7 @@ function [AI] = loadTable(T, Level, Product, Args)
 
                     case 'Image+'
 
-                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*');
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*');
             
                         AFND = AstroFileName.dir(AllFiles);
                         Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
@@ -77,7 +91,7 @@ function [AI] = loadTable(T, Level, Product, Args)
 
                     case 'Cat'
                         
-                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
                         AFND = AstroFileName.dir(AllFiles);
                         
                         AI(Ipath) = AstroCatalog(AFND.genFile);

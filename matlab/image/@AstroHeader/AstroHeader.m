@@ -1840,6 +1840,13 @@ classdef AstroHeader < Component
                 Obj(Iobj).deleteKey('B_\d+_\d+');
                 Obj(Iobj).deleteKey('AP_\d+_\d+');
                 Obj(Iobj).deleteKey('BP_\d+_\d+');
+                Obj(Iobj).deleteKey('A_ORDER');
+                Obj(Iobj).deleteKey('B_ORDER');
+                Obj(Iobj).deleteKey('AP_ORDER');
+                Obj(Iobj).deleteKey('BP_ORDER');
+                Obj(Iobj).replaceVal('CTYPE1','RA---TAN');
+                Obj(Iobj).replaceVal('CTYPE2','DEC--TAN');
+
             end
             
         end
