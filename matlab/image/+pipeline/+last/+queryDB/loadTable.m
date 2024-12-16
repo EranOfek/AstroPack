@@ -11,7 +11,10 @@ function [AI] = loadTable(T, Level, Product, Args)
     %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Asteroids');
     %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Cat');
     %          AI=pipeline.last.queryDB.loadTable(T,'proc','Cat');
-    %          
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','MergedMat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd.zogyD','Image');
 
     arguments
         T
@@ -47,7 +50,7 @@ function [AI] = loadTable(T, Level, Product, Args)
         
                         AllFiles      = AFN.genFile([], 'Time','*','Counter','*');
             
-                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        AFND = AstroFileName.dir(AllFiles);
                         if AFND.nFiles==0
                             warning('File not found : %s%s%s',AFND.genPath,filesep,AFND.genFile);
                         else
@@ -58,7 +61,7 @@ function [AI] = loadTable(T, Level, Product, Args)
 
                         AllFiles      = AFN.genFile([], 'Time','*','Counter','*');
             
-                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        AFND = AstroFileName.dir(AllFiles);
                         Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
             
                         CellArgs = cell(1,2.*Nextra);
@@ -74,8 +77,8 @@ function [AI] = loadTable(T, Level, Product, Args)
 
                     case 'Cat'
                         
-                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*', 'Level',Level, 'Product','Cat');
-                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        AllFiles      = AFN.genFile([], 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
+                        AFND = AstroFileName.dir(AllFiles);
                         
                         AI(Ipath) = AstroCatalog(AFND.genFile);
 
@@ -90,6 +93,16 @@ function [AI] = loadTable(T, Level, Product, Args)
                     otherwise
                         error('Unsupported option Level=%s, Product=%s', Level, Product);
                 end
+            case 'coadd.zogyD'
+                FA = dir('*coadd.zogyD_Image.mat');
+                numel(FA)
+                if numel(FA)==1
+                    AI(Ipath) = io.files.load2(FA(1).name);
+                else
+                    warning('Found %d zogyD files in %s',numel(FA),pwd);
+                end
+
+
             case 'proc'
 
                 switch Product
@@ -97,8 +110,8 @@ function [AI] = loadTable(T, Level, Product, Args)
                         if Ipath==1
                             AI = AstroCatalog([Args.Ncounter, Npath]);
                         end
-                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product','Cat', 'FileTYpe','fits*');
-                        AFND = AstroFileName.dir(AllFiles{Ipath});
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
+                        AFND = AstroFileName.dir(AllFiles);
                         
                         Icounter = str2double(AFND.Counter);
 
@@ -112,10 +125,23 @@ function [AI] = loadTable(T, Level, Product, Args)
             case 'merged'
                 switch Product
                     case 'MergedMat'
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','hdf5');
+                        AFND = AstroFileName.dir(AllFiles);
+                        AI(Ipath) = AstroCatalog(AFND.genFile);
 
                     case 'Cat'
+                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits');
+                        AFND = AstroFileName.dir(AllFiles);
+                        AI(Ipath) = AstroCatalog(AFND.genFile);
 
                     case 'Asteroids'
+                        FA = dir('*merged_Asteroids_*.mat');
+                        if numel(FA)==1
+                            AI(Ipath) = io.files.load2(FA(1).name);
+                        else
+                            error('Found %d Asteroids files in %s',numel(FA),pwd);
+                        end
+
 
                     otherwise
                         error('Unsupported option Level=%s, Product=%s', Level, Product);
