@@ -2,7 +2,7 @@
 %
 % Example: 
 % D=db.Db;  % create object
-% D.Conn;   % make Java connection
+% D.Conn;  % or D.connect % make Java connection
 % D.showDB  % show all DBs
 % D.useDB('test_db');   % set use for specific DB
 % D.showCurrentDB       % show current DB
@@ -65,6 +65,12 @@ classdef Db < Component
             % Destractor for db.Db
 
             Obj.disconnect;
+        end
+
+        function Obj=connect(Obj)
+            % connect
+
+            Obj.Conn;
         end
 
     end

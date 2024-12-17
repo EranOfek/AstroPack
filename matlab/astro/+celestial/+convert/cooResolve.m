@@ -1,4 +1,4 @@
-function [OutRA, OutDec] = cooResolve(InRA, InDec, Args)
+function [OutRA, OutDec, ObjName] = cooResolve(InRA, InDec, Args)
     % Convert units for input coordinates or resolve object name into coordinates.
     % Input  : - R.A., [deg|rad|sex] or object name.
     %            If second input is provided and RA is not numeric, then
@@ -15,6 +15,7 @@ function [OutRA, OutDec] = cooResolve(InRA, InDec, Args)
     %                   Default is @VO.name.server_simbad
     % Output : - Output RA.
     %          - Output Dec.
+    %          - Object name (if not relevant, then empty).
     % Author : Eran Ofek (2024 Jan) 
     % Example: [RA, Dec]=celestial.convert.cooResolve(1,1)
     %          [RA, Dec]=celestial.convert.cooResolve('m31')
@@ -30,7 +31,9 @@ function [OutRA, OutDec] = cooResolve(InRA, InDec, Args)
 
     if isempty(InDec)
         Args.InUnits = 'name';
+        ObjName      = InRA;
     else
+        ObjName      = [];
         if ~isnumeric(InRA)
             Args.InUnits = 'sex';
         end

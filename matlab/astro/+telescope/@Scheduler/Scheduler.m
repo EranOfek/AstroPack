@@ -835,7 +835,7 @@ classdef Scheduler < Component
             %                   Default is true.
             % Output : - Updated object (with updated List).
             % Author : Eran Ofek (Jul 2024)
-            % Example: S = celestial.Scheduler;
+            % Example: S = telescope.Scheduler;
             %          S.generateRegularGrid;
 
             arguments
