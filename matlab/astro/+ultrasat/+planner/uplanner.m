@@ -9,13 +9,15 @@ classdef uplanner < Component
         Vis                             % visibility matrix 
 
         DefEpochsPerVisit   uint8       =  3; 
-        DefExptime          double      = 300; %[s]
-        DefTiles(1,:)       cell        = {'1','2','3','4'}; %
+        Exptime             duration    = seconds(300); %[s]
+        Tiles(1,:)          cell        = {'1','2','3','4'}; %
 
         
-        % HCS, LCS 
-        DailyWindow                     % [hrs]    
-        Cadence                         % [hrs] 
+        % LCS / AllSS
+        DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
+        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]        
+        %Cadence                         % [days]  NOT SURE if REQUIRED
+        
         
         % AllSS
         AllSSHighLatThresh  double      = 30; % |RA| [deg]
@@ -39,14 +41,26 @@ classdef uplanner < Component
         Validated                       % date or empty
         Status              char        = 'draft';
         
-        AstPlanner          char        = 'YS'; % name of the Astronomer-Planner
+        AstPlanner          char        % name of the Astronomer-Planner
     end
     % 
-    properties(Access = private)
-        DefPlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
-                                    'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets','Zody','Limmag'};
-                                
-        DefTargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
+    properties(Hidden, Constant)
+        Plan_AllowedTypes  = {'HCS', 'LCS', 'AllSS', 'DDT', 'TOO'};
+        
+        SysTimeZone        = 'UTC';
+        
+        Plan_DefVarNames   = {'UniqTargInd','RA', 'Dec','Roll','Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','Tiles','TotalDuration'...
+                                    'MoonDist','SunDist','EarthDist','SlewTimeBefore','OverlapTargets','Zody','LimMag'};
+        Plan_DefVarTypes   = {'uint8','double','double','double','datetime','datetime','double','double','duration','double','cell','duration',...
+                                    'double','double','double','duration','cell','double','double'};
+                                                                
+        Target_DefVarNames = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
+        Target_DefVarTypes = {'double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
+        
+        ObsSunDist           = 70;   % [deg]
+        ObsMoonDist          = 34;   % [deg]
+        ObsEarthDist         = 56;   % [deg]
+        
     end 
     % 
     methods  % Constructor
@@ -54,55 +68,35 @@ classdef uplanner < Component
             % object constructor
             % example: P = ultrasat.planner.uplanner;
             arguments                
-                Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
-                Args.StartTime   = '2028-01-01 00:00:01'; %UTC time
-                Args.EndTime     = '2031-12-31 23:23:59'; %UTC time
-                Args.TimeZone    = 'UTC';
-                 
-                Args.DailyWindow = [];   % length in hours
-                Args.Cadence     = [];   % cadence in days                
+                Args.Type        = 'DDT';   % plan type: HCS, LCS, AllSS, DDT, TOO  
                 
-                Args.TOOMaxTargets = 4; 
-                
-                Args.AstPlanner  = [];
+                Args.AstPlanner  = 'YS';
                 
                 Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
                 Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
             end
-            %
-            if ~isempty(Args.StartTime) 
-                Obj.StartTime = datetime(Args.StartTime,'TimeZone',Args.TimeZone); 
-            end
-            %
-            if ~isempty(Args.EndTime)             
-                Obj.EndTime   = datetime(Args.EndTime,'TimeZone',Args.TimeZone); 
-            end
-            %            
-            if ~isempty(Args.AstPlanner)             
-                Obj.AstPlanner= Args.AstPlanner; 
-            end
-            %
-            if isempty(Args.Type)
-                Obj.Type = 'DDT';
+            %          
+            if isempty(Args.AstPlanner) 
+                error('Planner Name is missing');
             else
-                Obj.Type = Args.Type;
+                Obj.AstPlanner= Args.AstPlanner;  
+            end
+            %
+            if ~isempty(Args.Type)
+                Obj.Type = Args.Type;               
             end
             % 
-            if ~isempty(Args.DailyWindow)
-                Obj.DailyWindow = Args.DailyWindow;
-            end
+            Obj.StartTime.TimeZone = Obj.SysTimeZone;
+            Obj.EndTime.TimeZone = Obj.SysTimeZone;
             %
-            if ~isempty(Args.Cadence) 
-                Obj.Cadence = Args.Cadence;
-            end
+            Obj.Plan = table('Size',[0,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
+                                'VariableTypes',Obj.Plan_DefVarTypes);
+                            
+            Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
+            Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
             %
-            if ~isempty(Args.TOOMaxTargets) 
-                Obj.TOOMaxTargets = Args.TOOMaxTargets;
-            end
-            % 
-            Obj.Plan = table([],[],[],[],[],[],[],[],[],[],[],[],'VariableNames', Obj.DefPlanColumns); 
-            %
-            Obj.UniqTargList = table([],[],[],{},{},{},{},'VariableNames', Obj.DefTargColumns); 
+            Obj.UniqTargList = table('Size',[0,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
+                                'VariableTypes',Obj.Target_DefVarTypes); 
             %
             load(Args.CalObj); % load the calibration objects' table
             Obj.CalibObj = CalibObj;
@@ -110,41 +104,102 @@ classdef uplanner < Component
         end
     end 
     %
+    methods % Setters/Getters
+        function set.Type(Obj, Type)
+            % setter for Plan Type - verify from allowed list
+            if any(strcmp(Type,Obj.Plan_AllowedTypes))
+                Obj.Type = Type;
+            else
+                error('Unknown Plan Type')
+            end
+        end
+        %
+        function set.StartTime(Obj, StartTime)
+            % setter for StartTime - make sure in UTC
+            Obj.StartTime = datetime(StartTime);
+            Obj.StartTime.TimeZone = Obj.SysTimeZone;
+        end
+        %
+        function set.EndTime(Obj, EndTime)
+            % setter for EndTime - make sure in UTC
+            Obj.EndTime = datetime(EndTime);
+            Obj.EndTime.TimeZone = Obj.SysTimeZone;
+        end
+    end
+    %
     methods % Building the plans          
         %
-        function buildHCS(Obj, RA, Dec, Args)
+        function buildHCS(Obj)
             % build a plan for a list of DDT targets
-            arguments
-                Obj
-                RA               = 0; 
-                Dec              = 0;  
-                Args.CooFile     = '';   % coordinate file name % ~/test.coo 
-                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
-                Args.StartTime   = [];
-                Args.EndTime     = [];                
-            end  
-            % set survey properties  
-            Obj.Type        = 'HCS';            
-            Obj.Cadence     = 300 / 3600;             
-            Obj.DailyWindow = Args.DailyWindow;            
-            % change start and stop time, if requested
-            if ~isempty(Args.StartTime) 
-                Obj.StartTime = Args.StartTime; 
-            end            
-            if ~isempty(Args.EndTime)             
-                Obj.EndTime   = Args.EndTime; 
-            end            
-            % add a target and fill in all its properties in the unique targets table 
-            Obj.addTargets(RA, Dec, 'File', Args.CooFile)                                                                   
+%            arguments
+%                Obj
+%                RA               = 0; 
+%                Dec              = 0;  
+%                Args.CooFile     = '';   % coordinate file name % ~/test.coo 
+%                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
+%                Args.StartTime   = [];
+%                Args.EndTime     = [];                
+%            end  
+            
+            RAD = 180/pi;
+            
+            % Verify all relevant parameters are set
+            
+            if ~strcmp(Obj.Type,'HCS')
+                error('Plan Type is not HCS');
+            end
+            if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles)
+                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+            end
+            if Obj.StartTime > Obj.EndTime
+                error('StartTime is after EndTime');
+            end
+            if size(Obj.UniqTargList,1) ~=1
+                error('HCS reuire one single target');
+            end
+                
+            % Add plan row (should later move to a dedicated function)
+            Plan_row=1;
+            TardetInd = 1;
+            Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
+            Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
+            Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
+            Obj.Plan.Tstart(Plan_row) = Obj.StartTime;
+            Obj.Plan.ExpTime(Plan_row) = Obj.Exptime;
+            Obj.Plan.Tiles = Obj.Tiles;
+            
+            % Calc number of exposures within the plan time 
+            Obj.Plan.Nexposures(Plan_row) = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
+            
+            % Calc several times: TotalDuration, end time, JDstart, JDend
+            Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
+            Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
+            Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
+            Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+            
+            % ADD Calc OverlapTargets,Zody,LimMag
+            
+            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
+                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
+            
+            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
+            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
+            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
+            
+            
+            % update End time of the plan;
+            Obj.EndTime = Obj.Plan.Tend(Plan_row);
+            
+            
             % schedule targets and fill the plan
-            Obj.schedule
+%            Obj.schedule
             % make a schedule 
             % show which observations in the existing plan are to be replaced 
                 % this is not needed for the HCS?
             % validate the plan
-            Obj.validate
+%            Obj.validate
             % submit the plan as JSON and save the plan in a .mat object
-            Obj.submit
+%            Obj.submit
         end
         %
         function buildLCS(Obj, Args)
