@@ -9,17 +9,19 @@ function [Result, DB] = coadd(RA, Dec, Args)
     % Example: 
 
     arguments
-        RA    % J2000 RA [deg|rad|sexagesimal|FieldID#|table]
+        RA    % J2000 RA [deg|rad|sexagesimal|[FieldID#, CamNum, CropID]|table]
         Dec
         Args.InUnits           = 'deg';
         Args.Server            = @VO.name.server_simbad;
         Args.DB                = [];
         Args.TableName         = "last.last_vistits"
 
-        Args.QueryFields       = ["ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "midjd", "filter", "fieldid", "counter", "nodenumb", "mountnum", "camnum", "ccdid", "cropid", "subdir", "server",...
+        Args.SelectFields      = ["ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "midjd", "filter", "fieldid", "counter", "nodenumb", "mountnum", "camnum", "ccdid", "cropid", "subdir", "server",...
                                   "cloud", "transper_z", "fwhm_dimm_z", "ast_nsrc", "ast_arms", "ast_errm",...
-                                  "meanbck", "medbck", "stdbck", "meanvar", "medvar", "fwhm", "med_a", "med_b", "med_th", "nsrc", "ph_zp", "ph_col1", "ph_medc", "ph_rms", "ph_nsrc", "limmag", "backmag", "ncoadd",...
+                                  "meanbck", "medbck", "stdbck", "meanvar", "medvar", "fwhm", "med_a", "med_b", "med_th", "nsrc",...
+                                  "ph_zp", "ph_col1", "ph_medc", "ph_rms", "ph_nsrc", "limmag", "backmag", "ncoadd",...
                                   "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4", "optics_cln"];
+        Args.Constraints       = {'fwhm',[1.0 4.0], 'airmass',[1 1.5], 'ph_rms',[0 0.03], 'limmag',[20 22]};
     end
 
     % resove coordinates
@@ -33,12 +35,16 @@ function [Result, DB] = coadd(RA, Dec, Args)
 
         if isempty(Dec) && isnumeric(RA)
             % RA contains numeric fieldid
-            FieldID = RA;
+            FieldID = RA(1);
+            CamNum  = RA(2);
+            CropID  = RA(3);
             RA      = [];
             Dec     = [];
         else
             FieldID = [];
-            [RA, Dec, ObjectName] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
+            CamNum  = [];
+            CropID  = [];
+            [RA, Dec, FieldID] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
         end
     
         % make DB and connect
@@ -52,12 +58,15 @@ function [Result, DB] = coadd(RA, Dec, Args)
         if isempty(FieldID)
             % query by coordinates
     
+            error('Search by coordinates not supported yet');
+            
     
         else
             % query by FieldID
-            db.Db.genQuery('last_vistits', {'ra','dec'}, 'mag_psf<15')
-            T = DB.query('SELECT ')
-    
+            AddConst = db.Db.genWhereClause({'fieldid',sprintf('%s%',FieldID); 'camnum',CamNum; 'cropid',CropID}, 'AddWhere',false);
+            Constraints = [AddConst, Args.Constraints];
+            QuerySQL = db.Db.genQuery('last_vistits', Args.SelectFields, Constraints);
+            T = DB.query(QuerySQL);
     
         end
     end
