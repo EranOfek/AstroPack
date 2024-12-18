@@ -24,7 +24,7 @@ classdef uplanner < Component
         
         % LCS / AllSS
         DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
-        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]        
+        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
         %Cadence                         % [days]  NOT SURE if REQUIRED
         
         
@@ -46,8 +46,9 @@ classdef uplanner < Component
         CalibObj                        = []; % table of calibration objects 
         CalibDir           
         
-        Scheduled                       % date or empty
-        Validated                       % date or empty
+        Scheduled           datetime    % date or empty
+        Validated           datetime    % date or empty
+        Submitted           datetime    % date or empty
         Status              char        = 'draft';
         
         AstPlanner          char        % name of the Astronomer-Planner
@@ -71,6 +72,8 @@ classdef uplanner < Component
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]
+        
+        
         
     end 
     % 
@@ -149,7 +152,7 @@ classdef uplanner < Component
                 error('Plan Type is not HCS');
             end
             if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles)
-                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+                error('Missing params (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit)');
             end
             if Obj.StartTime > Obj.EndTime
                 error('StartTime is after EndTime');
@@ -157,8 +160,7 @@ classdef uplanner < Component
             if size(Obj.UniqTargList,1) ~=1
                 error('HCS reuire one single target');
             end
-            
-                        
+                  
             % Calc number of exposures within the plan time 
             Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
@@ -174,16 +176,70 @@ classdef uplanner < Component
 %            Obj.submit
         end
         %
-        function buildLCS(Obj, Args)
-            % build a plan for a list of DDT targets
-            arguments
-                Obj
-                Args.Coo
+        function buildLCS(Obj)
+            %
+           
+            % Verify all relevant parameters are set
+            
+            if ~strcmp(Obj.Type,'LCS')
+                error('Plan Type is not LCS');
             end
-            % check visibility within the given time interval for each of the targets
-            % 
-            % fill in the target list 
-            %                       
+            if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles) || isempty(Obj.DefEpochsPerVisit)
+                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+            end
+            if isempty(Obj.DailyWindowStartTime) || isempty(Obj.DailyWindowMaxDuration)
+                error('Missing LCS window params (DailyWindowStartTime/DailyWindowMaxDuration)');
+            end
+            if Obj.StartTime > Obj.EndTime
+                error('StartTime is after EndTime');
+            end
+            if Obj.DailyWindowMaxDuration > hours(24)
+               error('Daily window is LONGER than a DAY'); 
+            end
+            if size(Obj.UniqTargList,1) == 0
+                error('LCS reuire at least one target');
+            end         
+            
+
+            %Calc expected number of targets fit in single window
+            NUtarg = height(Obj.UniqTargList);
+
+            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+
+            Ngroups = ceil(NUtarg/MaxTargPerWindow);
+            
+            
+            CurrStartTime = Obj.StartTime;
+            CurrStartTime.Hour = 0;
+            CurrStartTime.Minute = 0;
+            CurrStartTime.Second = 0;
+            CurrStartTime = CurrStartTime+Obj.DailyWindowStartTime;
+            if CurrStartTime < Obj.StartTime
+                CurrStartTime = CurrStartTime+1;
+            end
+            
+            MaxEndTime = Obj.EndTime;
+            
+            CurrGroup = 1;
+            CurrFirstTargetInd = 1;
+            
+            while (CurrStartTime+Obj.DailyWindowMaxDuration) < MaxEndTime
+                LastTarget = min(NUtarg,CurrFirstTargetInd+MaxTargPerWindow-1);
+                
+                % Schedule daily LCS fields
+                Obj.scheduleTargets(CurrFirstTargetInd:LastTarget,CurrStartTime,'Group',CurrGroup);
+                
+                % Set next day params
+                CurrGroup = CurrGroup +1;
+                
+                CurrFirstTargetInd = LastTarget +1;
+                if CurrFirstTargetInd > NUtarg
+                    CurrFirstTargetInd = 1;
+                end
+                
+                CurrStartTime = CurrStartTime +1; % add 1 day           
+            end               
+            
         end
         %
         function buildDDT(Obj, Args)
@@ -281,9 +337,10 @@ classdef uplanner < Component
             NProws    = height(Obj.Plan);
             
             % Add first plan row 
-            for TardetInd = 1:NUtarg
+            for ii = 1:NUtarg
             
-                Plan_row = NProws+TardetInd;
+                Plan_row = NProws+ii;
+                TardetInd = UniqTargetIndexes(ii);
 
                 Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
                 Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
@@ -294,7 +351,7 @@ classdef uplanner < Component
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
                 Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
 
-                if TardetInd == 1
+                if ii == 1
                     Obj.Plan.Tstart(Plan_row) = StartTime;
                 else
                     [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
@@ -309,6 +366,10 @@ classdef uplanner < Component
 
                 TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
                     'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
+                
+                if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+                    error('Issue with Sun/Earth/Moon limits');
+                end
 
                 Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
                 Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
@@ -326,6 +387,9 @@ classdef uplanner < Component
             
             % update End time of the plan;
             Obj.EndTime = Obj.Plan.Tend(end);
+            
+            % Timestamp of schedule
+            Obj.schedule;
         end
         %
         function clearUniqueTargets(Obj)
@@ -458,35 +522,22 @@ classdef uplanner < Component
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
-        function schedule(Obj,Args)
+        function schedule(Obj)
             %
-            arguments
-                Obj
-                Args.A
-            end
-            %
+            Obj.Status    = 'draft';
             Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj,Args)
-            %
-            arguments
-                Obj
-                Args.A
-            end
+        function validate(Obj)
             %
             Obj.Status    = 'validated';
             Obj.Validated = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj,Args)
+        function submit(Obj)
             %
-            arguments
-                Obj
-                Args.A
-            end
-            %
-            Obj.Status    = 'submitted';            
+            Obj.Status    = 'submitted';
+            Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
         end
     end
     % 
