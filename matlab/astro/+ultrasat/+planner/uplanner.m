@@ -1,3 +1,11 @@
+% Example for creating HCS survey:
+%   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
+%   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+%   up.addTargets(S1(1),S1(2),'Name',{'S1'});
+%   up.StartTime = '2028-01-01 00:12:00';
+%   up.EndTime = '2028-07-01 00:12:00';
+%   up.buildHCS;
+
 classdef uplanner < Component 
     % 
     properties(Access = public)
@@ -29,8 +37,8 @@ classdef uplanner < Component
         TOOMaxTargets       uint8       =  4;
         TOOProbMap      
         
-        N0                  uint8       =  0; % number of unique targets
-        Ntarg               uint8       =  0; % number of targets in the plan
+        N_uniqueTargets     uint8       =  0; % number of unique targets
+        N_planTargets       uint8       =  0; % number of targets in the plan
         
         Rfov                            =  7.19; % [deg] FOV radius w/account of the gap
         
@@ -49,13 +57,15 @@ classdef uplanner < Component
         
         SysTimeZone        = 'UTC';
         
-        Plan_DefVarNames   = {'UniqTargInd','RA', 'Dec','Roll','Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','Tiles','TotalDuration'...
-                                    'MoonDist','SunDist','EarthDist','SlewTimeBefore','OverlapTargets','Zody','LimMag'};
-        Plan_DefVarTypes   = {'uint8','double','double','double','datetime','datetime','double','double','duration','double','cell','duration',...
-                                    'double','double','double','duration','cell','double','double'};
+        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
+                              'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
+                              'MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
+        Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','cell',...
+                              'datetime','datetime','double','double','duration','double','duration','duration',...
+                              'double','double','double','double','double','cell'};
                                                                 
-        Target_DefVarNames = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
-        Target_DefVarTypes = {'double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
+        Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
+        Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
         
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
@@ -66,11 +76,11 @@ classdef uplanner < Component
     methods  % Constructor
         function Obj = uplanner(Args)
             % object constructor
-            % example: P = ultrasat.planner.uplanner;
+            % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
-                Args.Type        = 'DDT';   % plan type: HCS, LCS, AllSS, DDT, TOO  
+                Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
                 
-                Args.AstPlanner  = 'YS';
+                Args.AstPlanner  = '';
                 
                 Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
                 Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
@@ -89,13 +99,13 @@ classdef uplanner < Component
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
             Obj.EndTime.TimeZone = Obj.SysTimeZone;
             %
-            Obj.Plan = table('Size',[0,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
+            Obj.Plan = table('Size',[Obj.N_planTargets,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
                                 'VariableTypes',Obj.Plan_DefVarTypes);
                             
             Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
             %
-            Obj.UniqTargList = table('Size',[0,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
+            Obj.UniqTargList = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
             %
             load(Args.CalObj); % load the calibration objects' table
@@ -161,6 +171,7 @@ classdef uplanner < Component
             % Add plan row (should later move to a dedicated function)
             Plan_row=1;
             TardetInd = 1;
+            Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
             Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
             Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
             Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
@@ -177,19 +188,20 @@ classdef uplanner < Component
             Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
             Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
             
-            % ADD Calc OverlapTargets,Zody,LimMag
-            
             TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
                 'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
             
             Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
             Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
             Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
+
+            % ADD Calc OverlapTargets,Zody,LimMag            
             
+            % update Number of target in the plan;
+            Obj.N_planTargets = height(Obj.Plan);
             
             % update End time of the plan;
             Obj.EndTime = Obj.Plan.Tend(Plan_row);
-            
             
             % schedule targets and fill the plan
 %            Obj.schedule
@@ -252,6 +264,7 @@ classdef uplanner < Component
                 Obj
                 RA        = 0; % [deg]
                 Dec       = 0; % [deg]
+                Args.Name = ''; % Target name (optional)
                 Args.File = ''; % coordinate file name % ~/test.coo
             end
             %
@@ -263,24 +276,37 @@ classdef uplanner < Component
             NUtarg = numel(RA); % the number of unique targets to be added
             NU0    = height(Obj.UniqTargList);
             %
-            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA(NU0+1:NU0+NUtarg); 
-            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec(NU0+1:NU0+NUtarg);
+            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA; 
+            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec;
+            %
+            if ~isempty(Args.Name)
+                Obj.UniqTargList.Name(NU0+1:NU0+NUtarg) = Args.Name;
+            end
+            %
+            Obj.N_uniqueTargets = height(Obj.UniqTargList);
             %
             Obj.updateTargetProperties;
             %
             Obj.updateTargetVisibility;
         end
         %
-        function removeAllTargets(Obj)
+        function clearUniqueTargets(Obj)
             % remove all unique targets
             Obj.UniqTargList(:,:) = [];
-            % remove the plan
-            Obj.Plan(:,:) = [];
             % clean the number of unique targets
-            Obj.N0 = 0;
+            Obj.N_uniqueTargets = 0;
+            % clear the plan
+            Obj.clearPlan;
             % clean the visibility
             Obj.Vis = [];
         end
+        %
+        function clearPlan(Obj)
+            % remove the plan
+            Obj.Plan(:,:) = [];
+            % clean the number of unique targets
+            Obj.N_planTargets = 0;
+        end        
         %
         function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
@@ -292,8 +318,6 @@ classdef uplanner < Component
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
             
-            Obj.N0 = numel(RA);       % update the number of unique targets
-            
             % extinction 
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
             
@@ -301,7 +325,7 @@ classdef uplanner < Component
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
             load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
-            for iT = Obj.N0 % loop over targets 
+            for iT = Obj.N_uniqueTargets % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
