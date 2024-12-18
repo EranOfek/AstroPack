@@ -123,14 +123,27 @@ classdef Db < Component
         end
 
         
-    
+        function Val=get.User(Obj)
+            % Getter for User (set Password if needed)
+
+            if iscell(Obj.User)
+                PM = PasswordsManager;
+                [User, Pass] = PM.getUserPassword(Obj.User{:});
+                Obj.User     = User;
+                Obj.Password = Pass;
+                Val = User;
+            else
+                Val = Obj.User;
+            end
+        end
+
         function Val=get.Password(Obj)
             % Getter for Password
            
             if iscell(Obj.User)
                 PM = PasswordsManager;
                 [User, Pass] = PM.getUserPassword(Obj.User{:});
-                Obj.User = User;
+                Obj.User     = User;
                 Obj.Password = Pass;
                 Val = Obj.Password;
             else
@@ -154,8 +167,8 @@ classdef Db < Component
                 Args.DbName  = 'test_db';
                 Args.Host    = 'localhost';
                 Args.Port    = '8123';
-                Args.User    = 'default';
-                Args.Password = 'spotpot';
+                Args.User    = []; %'default';
+                Args.Password = []; 
                 Args.JarFile = []; %'/home/eran/jdbc/clickhouse-jdbc-0.7.0-all.jar';
                 Args.Driver  = 'com.clickhouse.jdbc.ClickHouseDriver';  % 'ru.yandex.clickhouse.ClickHouseDriver'
                 Args.BaseURL = "jdbc:clickhouse";
@@ -509,7 +522,7 @@ classdef Db < Component
             if isempty(Args.SortBy)
                 SortClause = '';
             else
-                SortClause = sprintf('ORDER BY %s %s', Args.SortBy, Args.SortOrder);e
+                SortClause = sprintf('ORDER BY %s %s', Args.SortBy, Args.SortOrder);
             end
 
             if isempty(WhereClause)

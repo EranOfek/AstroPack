@@ -1,4 +1,4 @@
-function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
+function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
     % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
@@ -24,15 +24,15 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %          - A string array of all paths.
     %          - A string array of all verified files.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: AI=pipeline.last.queryDB.loadProducts(T)
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Image');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Asteroids');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'proc','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','MergedMat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Cat');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Asteroids');
-    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd.zogyD','Image');
+    % Example: AI=pipeline.last.queryDB.loadTable(T)
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Image');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'proc','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','MergedMat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Cat');
+    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Asteroids');
+    %          AI=pipeline.last.queryDB.loadTable(T,'coadd.zogyD','Image');
 
     arguments
         T
