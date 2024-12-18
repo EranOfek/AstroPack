@@ -1,7 +1,7 @@
 % Example for creating HCS survey:
 %   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
 %   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-%   up.addTargets(S1(1),S1(2),'Name',{'S1'});
+%   up.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
 %   up.StartTime = '2028-01-01 00:12:00';
 %   up.EndTime = '2028-07-01 00:12:00';
 %   up.buildHCS;
@@ -18,7 +18,8 @@ classdef uplanner < Component
 
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
-        Tiles(1,:)          cell        = {'1','2','3','4'}; %
+        Tiles               cell        = {{'1','2','3','4'}}; %
+        DefSlewBuffer       duration    = seconds(5);
 
         
         % LCS / AllSS
@@ -140,18 +141,7 @@ classdef uplanner < Component
     methods % Building the plans          
         %
         function buildHCS(Obj)
-            % build a plan for a list of DDT targets
-%            arguments
-%                Obj
-%                RA               = 0; 
-%                Dec              = 0;  
-%                Args.CooFile     = '';   % coordinate file name % ~/test.coo 
-%                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
-%                Args.StartTime   = [];
-%                Args.EndTime     = [];                
-%            end  
-            
-            RAD = 180/pi;
+            % build a plan for a list of HCS field
             
             % Verify all relevant parameters are set
             
@@ -167,44 +157,14 @@ classdef uplanner < Component
             if size(Obj.UniqTargList,1) ~=1
                 error('HCS reuire one single target');
             end
-                
-            % Add plan row (should later move to a dedicated function)
-            Plan_row=1;
-            TardetInd = 1;
-            Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
-            Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
-            Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
-            Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
-            Obj.Plan.Tstart(Plan_row) = Obj.StartTime;
-            Obj.Plan.ExpTime(Plan_row) = Obj.Exptime;
-            Obj.Plan.Tiles = Obj.Tiles;
             
+                        
             % Calc number of exposures within the plan time 
-            Obj.Plan.Nexposures(Plan_row) = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
+            Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
-            % Calc several times: TotalDuration, end time, JDstart, JDend
-            Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
-            Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
-            Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
-            Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+            % Schedule HCS field
+            Obj.scheduleTargets(1,Obj.StartTime,'Nexposures',Nexposures);
             
-            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
-                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
-            
-            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
-            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
-            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
-
-            % ADD Calc OverlapTargets,Zody,LimMag            
-            
-            % update Number of target in the plan;
-            Obj.N_planTargets = height(Obj.Plan);
-            
-            % update End time of the plan;
-            Obj.EndTime = Obj.Plan.Tend(Plan_row);
-            
-            % schedule targets and fill the plan
-%            Obj.schedule
             % make a schedule 
             % show which observations in the existing plan are to be replaced 
                 % this is not needed for the HCS?
@@ -258,7 +218,7 @@ classdef uplanner < Component
     %
     methods % Auxiliary functions
         %
-        function addTargets(Obj, RA, Dec, Args)
+        function addUniqTargets(Obj, RA, Dec, Args)
             % read unique target coordinates
             arguments
                 Obj
@@ -288,6 +248,84 @@ classdef uplanner < Component
             Obj.updateTargetProperties;
             %
             Obj.updateTargetVisibility;
+        end
+        %
+        function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
+            % schedule a group of targets, either at specific time, or, if
+            % a single StartTime is given, one fater the other taking into
+            % account slew time.
+            arguments
+                Obj
+                UniqTargetIndexes
+                StartTime
+                Args.Nexposures = [];
+                Args.Exptime = []; % 
+                Args.Tiles = {}; % 
+                Args.Group = []; % Target name (optional)
+            end
+            %
+           
+            RAD = 180/pi;
+            
+            if isempty(Args.Nexposures)
+                Args.Nexposures = Obj.DefEpochsPerVisit;
+            end
+            if isempty(Args.Exptime)
+                Args.Exptime = Obj.Exptime;
+            end
+            if isempty(Args.Tiles)
+                Args.Tiles = Obj.Tiles;
+            end
+            
+            NUtarg = numel(UniqTargetIndexes);
+            NProws    = height(Obj.Plan);
+            
+            % Add first plan row 
+            for TardetInd = 1:NUtarg
+            
+                Plan_row = NProws+TardetInd;
+
+                Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
+                Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
+                Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
+                Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
+                Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
+                Obj.Plan.Tiles{Plan_row} = Args.Tiles;
+                Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
+                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
+
+                if TardetInd == 1
+                    Obj.Plan.Tstart(Plan_row) = StartTime;
+                else
+                    [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
+                                                        'Units','deg','CheckTrajectory',true);
+                    Obj.Plan.SlewTimeBefore(Plan_row) = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
+                    Obj.Plan.Tstart(Plan_row) = Obj.Plan.Tend(Plan_row-1) + Obj.Plan.SlewTimeBefore(Plan_row);
+                end
+                
+                Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
+                Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
+                Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+
+                TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
+                    'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
+
+                Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
+                Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
+                Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
+
+                % ADD Calc OverlapTargets,Zody,LimMag  
+            end
+            
+            if ~isempty(Args.Group)
+                Obj.Plan.Group((NProws+1):(NProws+NUtarg)) = Args.Group;
+            end
+            
+            % update Number of target in the plan;
+            Obj.N_planTargets = height(Obj.Plan);
+            
+            % update End time of the plan;
+            Obj.EndTime = Obj.Plan.Tend(end);
         end
         %
         function clearUniqueTargets(Obj)
