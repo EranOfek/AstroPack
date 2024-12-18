@@ -36,7 +36,7 @@ function Cat = getFOVcatalog(RA, Dec, Args)
     % 
     Cat.USat_SNR = zeros(height(Cat), 1); % For numeric data
     Cat.USat_Mag = zeros(height(Cat), 1); % For numeric data
-    Cat.Class    = repmat(' ',1,height(Cat))'; % Class
+%     Cat.Class    = repmat(' ',1,height(Cat))'; % Object Class
     for Iobj=1:Nobj
         if isnan(Cat.teff_gspphot(Iobj)) % witout Teff or a spectrum we cannot run telescope.sn.snr
             Cat.USat_SNR(Iobj) = 0;
@@ -55,7 +55,7 @@ function Cat = getFOVcatalog(RA, Dec, Args)
     % write the output object
     if Args.WriteFile
         FN = sprintf('extcatRA%.1fDec%.1fRad%.1f.mat',RA,Dec,Args.Radius);
-        save(FN,'Cat');
+        save(FN,'Cat','-v7.3');
     end
     % plot the HR diagram
     if Args.Plot
