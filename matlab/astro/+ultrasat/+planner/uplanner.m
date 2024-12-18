@@ -1,3 +1,11 @@
+% Example for creating HCS survey:
+%   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
+%   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+%   up.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
+%   up.StartTime = '2028-01-01 00:12:00';
+%   up.EndTime = '2028-07-01 00:12:00';
+%   up.buildHCS;
+
 classdef uplanner < Component 
     % 
     properties(Access = public)
@@ -10,12 +18,13 @@ classdef uplanner < Component
 
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
-        Tiles(1,:)          cell        = {'1','2','3','4'}; %
+        Tiles               cell        = {{'1','2','3','4'}}; %
+        DefSlewBuffer       duration    = seconds(5);
 
         
         % LCS / AllSS
         DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
-        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]        
+        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
         %Cadence                         % [days]  NOT SURE if REQUIRED
         
         
@@ -29,16 +38,17 @@ classdef uplanner < Component
         TOOMaxTargets       uint8       =  4;
         TOOProbMap      
         
-        N0                  uint8       =  0; % number of unique targets
-        Ntarg               uint8       =  0; % number of targets in the plan
+        N_uniqueTargets     uint8       =  0; % number of unique targets
+        N_planTargets       uint8       =  0; % number of targets in the plan
         
         Rfov                            =  7.19; % [deg] FOV radius w/account of the gap
         
         CalibObj                        = []; % table of calibration objects 
         CalibDir           
         
-        Scheduled                       % date or empty
-        Validated                       % date or empty
+        Scheduled           datetime    % date or empty
+        Validated           datetime    % date or empty
+        Submitted           datetime    % date or empty
         Status              char        = 'draft';
         
         AstPlanner          char        % name of the Astronomer-Planner
@@ -49,28 +59,32 @@ classdef uplanner < Component
         
         SysTimeZone        = 'UTC';
         
-        Plan_DefVarNames   = {'UniqTargInd','RA', 'Dec','Roll','Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','Tiles','TotalDuration'...
-                                    'MoonDist','SunDist','EarthDist','SlewTimeBefore','OverlapTargets','Zody','LimMag'};
-        Plan_DefVarTypes   = {'uint8','double','double','double','datetime','datetime','double','double','duration','double','cell','duration',...
-                                    'double','double','double','duration','cell','double','double'};
+        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
+                              'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
+                              'MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
+        Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','cell',...
+                              'datetime','datetime','double','double','duration','double','duration','duration',...
+                              'double','double','double','double','double','cell'};
                                                                 
-        Target_DefVarNames = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
-        Target_DefVarTypes = {'double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
+        Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
+        Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
         
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]
+        
+        
         
     end 
     % 
     methods  % Constructor
         function Obj = uplanner(Args)
             % object constructor
-            % example: P = ultrasat.planner.uplanner;
+            % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
-                Args.Type        = 'DDT';   % plan type: HCS, LCS, AllSS, DDT, TOO  
+                Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
                 
-                Args.AstPlanner  = 'YS';
+                Args.AstPlanner  = '';
                 
                 Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
                 Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
@@ -89,13 +103,13 @@ classdef uplanner < Component
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
             Obj.EndTime.TimeZone = Obj.SysTimeZone;
             %
-            Obj.Plan = table('Size',[0,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
+            Obj.Plan = table('Size',[Obj.N_planTargets,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
                                 'VariableTypes',Obj.Plan_DefVarTypes);
                             
             Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
             %
-            Obj.UniqTargList = table('Size',[0,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
+            Obj.UniqTargList = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
             %
             load(Args.CalObj); % load the calibration objects' table
@@ -130,18 +144,7 @@ classdef uplanner < Component
     methods % Building the plans          
         %
         function buildHCS(Obj)
-            % build a plan for a list of DDT targets
-%            arguments
-%                Obj
-%                RA               = 0; 
-%                Dec              = 0;  
-%                Args.CooFile     = '';   % coordinate file name % ~/test.coo 
-%                Args.DailyWindow = 24.0; % the actual space for the HCS will be different for HCS + LCS and HCS + AllSS cases!  
-%                Args.StartTime   = [];
-%                Args.EndTime     = [];                
-%            end  
-            
-            RAD = 180/pi;
+            % build a plan for a list of HCS field
             
             % Verify all relevant parameters are set
             
@@ -149,7 +152,7 @@ classdef uplanner < Component
                 error('Plan Type is not HCS');
             end
             if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles)
-                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+                error('Missing params (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit)');
             end
             if Obj.StartTime > Obj.EndTime
                 error('StartTime is after EndTime');
@@ -157,42 +160,13 @@ classdef uplanner < Component
             if size(Obj.UniqTargList,1) ~=1
                 error('HCS reuire one single target');
             end
-                
-            % Add plan row (should later move to a dedicated function)
-            Plan_row=1;
-            TardetInd = 1;
-            Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
-            Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
-            Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
-            Obj.Plan.Tstart(Plan_row) = Obj.StartTime;
-            Obj.Plan.ExpTime(Plan_row) = Obj.Exptime;
-            Obj.Plan.Tiles = Obj.Tiles;
-            
+                  
             % Calc number of exposures within the plan time 
-            Obj.Plan.Nexposures(Plan_row) = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
+            Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
-            % Calc several times: TotalDuration, end time, JDstart, JDend
-            Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
-            Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
-            Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
-            Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+            % Schedule HCS field
+            Obj.scheduleTargets(1,Obj.StartTime,'Nexposures',Nexposures);
             
-            % ADD Calc OverlapTargets,Zody,LimMag
-            
-            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
-                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
-            
-            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
-            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
-            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
-            
-            
-            % update End time of the plan;
-            Obj.EndTime = Obj.Plan.Tend(Plan_row);
-            
-            
-            % schedule targets and fill the plan
-%            Obj.schedule
             % make a schedule 
             % show which observations in the existing plan are to be replaced 
                 % this is not needed for the HCS?
@@ -202,16 +176,70 @@ classdef uplanner < Component
 %            Obj.submit
         end
         %
-        function buildLCS(Obj, Args)
-            % build a plan for a list of DDT targets
-            arguments
-                Obj
-                Args.Coo
+        function buildLCS(Obj)
+            %
+           
+            % Verify all relevant parameters are set
+            
+            if ~strcmp(Obj.Type,'LCS')
+                error('Plan Type is not LCS');
             end
-            % check visibility within the given time interval for each of the targets
-            % 
-            % fill in the target list 
-            %                       
+            if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles) || isempty(Obj.DefEpochsPerVisit)
+                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+            end
+            if isempty(Obj.DailyWindowStartTime) || isempty(Obj.DailyWindowMaxDuration)
+                error('Missing LCS window params (DailyWindowStartTime/DailyWindowMaxDuration)');
+            end
+            if Obj.StartTime > Obj.EndTime
+                error('StartTime is after EndTime');
+            end
+            if Obj.DailyWindowMaxDuration > hours(24)
+               error('Daily window is LONGER than a DAY'); 
+            end
+            if size(Obj.UniqTargList,1) == 0
+                error('LCS reuire at least one target');
+            end         
+            
+
+            %Calc expected number of targets fit in single window
+            NUtarg = height(Obj.UniqTargList);
+
+            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+
+            Ngroups = ceil(NUtarg/MaxTargPerWindow);
+            
+            
+            CurrStartTime = Obj.StartTime;
+            CurrStartTime.Hour = 0;
+            CurrStartTime.Minute = 0;
+            CurrStartTime.Second = 0;
+            CurrStartTime = CurrStartTime+Obj.DailyWindowStartTime;
+            if CurrStartTime < Obj.StartTime
+                CurrStartTime = CurrStartTime+1;
+            end
+            
+            MaxEndTime = Obj.EndTime;
+            
+            CurrGroup = 1;
+            CurrFirstTargetInd = 1;
+            
+            while (CurrStartTime+Obj.DailyWindowMaxDuration) < MaxEndTime
+                LastTarget = min(NUtarg,CurrFirstTargetInd+MaxTargPerWindow-1);
+                
+                % Schedule daily LCS fields
+                Obj.scheduleTargets(CurrFirstTargetInd:LastTarget,CurrStartTime,'Group',CurrGroup);
+                
+                % Set next day params
+                CurrGroup = CurrGroup +1;
+                
+                CurrFirstTargetInd = LastTarget +1;
+                if CurrFirstTargetInd > NUtarg
+                    CurrFirstTargetInd = 1;
+                end
+                
+                CurrStartTime = CurrStartTime +1; % add 1 day           
+            end               
+            
         end
         %
         function buildDDT(Obj, Args)
@@ -246,12 +274,13 @@ classdef uplanner < Component
     %
     methods % Auxiliary functions
         %
-        function addTargets(Obj, RA, Dec, Args)
+        function addUniqTargets(Obj, RA, Dec, Args)
             % read unique target coordinates
             arguments
                 Obj
                 RA        = 0; % [deg]
                 Dec       = 0; % [deg]
+                Args.Name = ''; % Target name (optional)
                 Args.File = ''; % coordinate file name % ~/test.coo
             end
             %
@@ -263,24 +292,123 @@ classdef uplanner < Component
             NUtarg = numel(RA); % the number of unique targets to be added
             NU0    = height(Obj.UniqTargList);
             %
-            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA(NU0+1:NU0+NUtarg); 
-            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec(NU0+1:NU0+NUtarg);
+            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA; 
+            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec;
+            %
+            if ~isempty(Args.Name)
+                Obj.UniqTargList.Name(NU0+1:NU0+NUtarg) = Args.Name;
+            end
+            %
+            Obj.N_uniqueTargets = height(Obj.UniqTargList);
             %
             Obj.updateTargetProperties;
             %
             Obj.updateTargetVisibility;
         end
         %
-        function removeAllTargets(Obj)
+        function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
+            % schedule a group of targets, either at specific time, or, if
+            % a single StartTime is given, one fater the other taking into
+            % account slew time.
+            arguments
+                Obj
+                UniqTargetIndexes
+                StartTime
+                Args.Nexposures = [];
+                Args.Exptime = []; % 
+                Args.Tiles = {}; % 
+                Args.Group = []; % Target name (optional)
+            end
+            %
+           
+            RAD = 180/pi;
+            
+            if isempty(Args.Nexposures)
+                Args.Nexposures = Obj.DefEpochsPerVisit;
+            end
+            if isempty(Args.Exptime)
+                Args.Exptime = Obj.Exptime;
+            end
+            if isempty(Args.Tiles)
+                Args.Tiles = Obj.Tiles;
+            end
+            
+            NUtarg = numel(UniqTargetIndexes);
+            NProws    = height(Obj.Plan);
+            
+            % Add first plan row 
+            for ii = 1:NUtarg
+            
+                Plan_row = NProws+ii;
+                TardetInd = UniqTargetIndexes(ii);
+
+                Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
+                Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
+                Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
+                Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
+                Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
+                Obj.Plan.Tiles{Plan_row} = Args.Tiles;
+                Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
+                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
+
+                if ii == 1
+                    Obj.Plan.Tstart(Plan_row) = StartTime;
+                else
+                    [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
+                                                        'Units','deg','CheckTrajectory',true);
+                    Obj.Plan.SlewTimeBefore(Plan_row) = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
+                    Obj.Plan.Tstart(Plan_row) = Obj.Plan.Tend(Plan_row-1) + Obj.Plan.SlewTimeBefore(Plan_row);
+                end
+                
+                Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
+                Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
+                Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+
+                TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
+                    'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
+                
+                if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+                    error('Issue with Sun/Earth/Moon limits');
+                end
+
+                Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
+                Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
+                Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
+
+                % ADD Calc OverlapTargets,Zody,LimMag  
+            end
+            
+            if ~isempty(Args.Group)
+                Obj.Plan.Group((NProws+1):(NProws+NUtarg)) = Args.Group;
+            end
+            
+            % update Number of target in the plan;
+            Obj.N_planTargets = height(Obj.Plan);
+            
+            % update End time of the plan;
+            Obj.EndTime = Obj.Plan.Tend(end);
+            
+            % Timestamp of schedule
+            Obj.schedule;
+        end
+        %
+        function clearUniqueTargets(Obj)
             % remove all unique targets
             Obj.UniqTargList(:,:) = [];
-            % remove the plan
-            Obj.Plan(:,:) = [];
             % clean the number of unique targets
-            Obj.N0 = 0;
+            Obj.N_uniqueTargets = 0;
+            % clear the plan
+            Obj.clearPlan;
             % clean the visibility
             Obj.Vis = [];
         end
+        %
+        function clearPlan(Obj)
+            % remove the plan
+            Obj.Plan(:,:) = [];
+            % clean the number of unique targets
+            Obj.N_planTargets = 0;
+        end        
         %
         function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
@@ -292,8 +420,6 @@ classdef uplanner < Component
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
             
-            Obj.N0 = numel(RA);       % update the number of unique targets
-            
             % extinction 
             Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
             
@@ -301,7 +427,7 @@ classdef uplanner < Component
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
             load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
-            for iT = Obj.N0 % loop over targets 
+            for iT = Obj.N_uniqueTargets % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
@@ -396,35 +522,22 @@ classdef uplanner < Component
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
-        function schedule(Obj,Args)
+        function schedule(Obj)
             %
-            arguments
-                Obj
-                Args.A
-            end
-            %
+            Obj.Status    = 'draft';
             Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj,Args)
-            %
-            arguments
-                Obj
-                Args.A
-            end
+        function validate(Obj)
             %
             Obj.Status    = 'validated';
             Obj.Validated = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj,Args)
+        function submit(Obj)
             %
-            arguments
-                Obj
-                Args.A
-            end
-            %
-            Obj.Status    = 'submitted';            
+            Obj.Status    = 'submitted';
+            Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
         end
     end
     % 
