@@ -12,6 +12,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
         Dec                    = [];
 
+        Args.HalfWidth         = [0.55 0.55];
         Args.MinNim            = 5;    % minimum number of images to add
         Args.MaxNim            = 100;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
@@ -76,6 +77,11 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
         if isempty(FieldID)
             % query by coordinates
     
+            Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
+            
+            PosConst    = db.Db.genCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
+            Constraints = [PosConst, 'AND', Args.Constraints];
+            QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
             
             error('Search by coordinates not supported yet');
             
