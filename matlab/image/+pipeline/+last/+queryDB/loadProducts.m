@@ -1,4 +1,4 @@
-function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
+function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
@@ -24,15 +24,15 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
     %          - A string array of all paths.
     %          - A string array of all verified files.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: AI=pipeline.last.queryDB.loadTable(T)
-    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Image');
-    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Asteroids');
-    %          AI=pipeline.last.queryDB.loadTable(T,'coadd','Cat');
-    %          AI=pipeline.last.queryDB.loadTable(T,'proc','Cat');
-    %          AI=pipeline.last.queryDB.loadTable(T,'merged','MergedMat');
-    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Cat');
-    %          AI=pipeline.last.queryDB.loadTable(T,'merged','Asteroids');
-    %          AI=pipeline.last.queryDB.loadTable(T,'coadd.zogyD','Image');
+    % Example: AI=pipeline.last.queryDB.loadProducts(T)
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Image');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Asteroids');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Cat');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'proc','Cat');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','MergedMat');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Cat');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Asteroids');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd.zogyD','Image');
 
     arguments
         T
@@ -87,7 +87,7 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
             
                         AFND = AstroFileName.dir(FileTemp);
                         Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                        AllFiles{Ipath} = Files{1};
+                        AllFiles(Ipath) = Files{1};
 
                         CellArgs = cell(1,2.*Nextra);
                         I = 0;
@@ -104,9 +104,9 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
 
                     case 'Cat'
                         
-                        FileTEmp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
                         AFND = AstroFileName.dir(FileTemp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
                             AI(Ipath) = AstroCatalog(AllFiles{Ipath});
                         end
@@ -153,9 +153,9 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
                         
                         Icounter = str2double(AFND.Counter);
 
-                        AllFiles{Icounter, Ipath} = AFND.genFile;
+                        AllFiles(Icounter, Ipath) = AFND.genFile;
                         if Args.Load
-                            AI(Icounter, Ipath) = AstroCatalog(llFiles{Icounter, Ipath});
+                            AI(Icounter, Ipath) = AstroCatalog({AllFiles{Icounter, Ipath}});
                         end
 
 
@@ -168,15 +168,15 @@ function [AI, AllPaths, AllFiles] = loadTable(T, Level, Product, Args)
                     case 'MergedMat'
                         FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','hdf5');
                         AFND = AstroFileName.dir(FileTemp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
-                            AI(Ipath) = AstroCatalog(AllFiles{Ipath});
+                            AI(Ipath) = MatchedSources.read(AllFiles{Ipath});
                         end
 
                     case 'Cat'
                         FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits');
-                        AFND = AstroFileName.dir(FileTEmp);
-                        AllFiles{Ipath} = AFND.genFile;
+                        AFND = AstroFileName.dir(FileTemp);
+                        AllFiles(Ipath) = AFND.genFile;
                         if Args.Load
                             AI(Ipath) = AstroCatalog(AllFiles{Ipath});
                         end

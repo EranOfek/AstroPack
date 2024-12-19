@@ -593,6 +593,8 @@ classdef Db < Component
          
             if numel(RA1)>1
                 Const1 = {Args.ColRA, [RA1(2), RA2(2)]};
+            else
+                Const1 = {};
             end
             Result = [Const; Const1];
             

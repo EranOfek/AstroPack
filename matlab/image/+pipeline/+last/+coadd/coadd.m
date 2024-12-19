@@ -1,12 +1,12 @@
 function [CI, DB, AI, T] = coadd(RA, Dec, Args)
-    % One line description
-    %     Optional detailed description
+    % Coadd LAST images by coordinates or fieldid/camnum/cropid
     % Input  : - 
     %          - 
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2024 Dec) 
     % Example: CI=pipeline.last.coadd.coadd({1325 2 20});
+    %          CI=pipeline.last.coadd.coadd(100,10);
 
     arguments
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
@@ -80,11 +80,11 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
             Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
             
             PosConst    = db.Db.genCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
-            Constraints = [PosConst, 'AND', Args.Constraints];
+            Constraints = [PosConst; Args.Constraints];
             QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
             
-            error('Search by coordinates not supported yet');
-            
+            %error('Search by coordinates not supported yet');
+            T{1} = DB.query(QuerySQL);
     
         else
             % query by FieldID
