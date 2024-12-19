@@ -69,7 +69,7 @@ function Cat = getFOVcatalogWD(RA, Dec, Args)
     end
     % write the output object
     if Args.WriteFile
-        FN = sprintf('extcat%s_RA%.1fDec%.1fRad%.1f.mat',Args.CatName,RA,Dec,Args.Radius);
+        FN = sprintf('extcatWD_GAIA_%s_RA%.1fDec%.1fRad%.1f.mat',Args.CatName,RA,Dec,Args.Radius);
         save(FN,'Cat','-v7.3');
     end
 end

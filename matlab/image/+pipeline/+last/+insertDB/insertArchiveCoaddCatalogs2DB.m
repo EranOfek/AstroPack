@@ -26,6 +26,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         Args.Decompress        = false;
         Args.CompressProcessed = false;
+        Args.UpdateStatus      = true;
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -139,21 +140,24 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID); 
             
             % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
-            [~, Err.Copy] = system(CopyCSV);            
-            UpdateStatus = sprintf('su %s -c "echo ''%s injected into the visit catalog DB'' >> %s/.status"',...
-                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
-            [~, Err.Update] = system(UpdateStatus); 
-            if isempty(Err.Copy) && isempty(Err.Update)
-                RemLocalFile = sprintf('rm %s',CsvFN);
-                [~, Err.RemoveLocal] = system(RemLocalFile);
-            end
-            fprintf(' ..done\n');
+            if Args.UpdateStatus
+                CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
+                [~, Err.Copy] = system(CopyCSV);
+                UpdateStatus = sprintf('su %s -c "echo ''%s injected into the visit catalog DB'' >> %s/.status"',...
+                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
+                [~, Err.Update] = system(UpdateStatus);
+                if isempty(Err.Copy) && isempty(Err.Update)
+                    RemLocalFile = sprintf('rm %s',CsvFN);
+                    [~, Err.RemoveLocal] = system(RemLocalFile);
+                end
+            end            
             % compress the data files if requested:
             if Args.CompressProcessed
                 Decompress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
             end  
+            %
+            fprintf(' ..done\n');
         else
             cd(Dir); 
         end                        
