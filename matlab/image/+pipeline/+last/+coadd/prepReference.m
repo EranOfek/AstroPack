@@ -76,9 +76,9 @@ function [Nvisit] = prepReference(Args)
                 Nvisit(Itarget,Icam,Isub) = numel(Ifield);
         
                 if Nvisit(Itarget,Icam,Isub)>0
-                    if Nvisit(Itarget,Icam,Isub)>10
+                    if Nvisit(Itarget,Icam,Isub)>=5
                         %CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
-                        CI = pipeline.last.coadd.coadd(T,'CropID',Isub);
+                        CI = pipeline.last.coadd.coadd(T, 'MinNim',3);
                         CI.HeaderData.deleteComment;
 
                         Destination = fullfile(Args.RefDir, FieldID);
@@ -114,10 +114,10 @@ function [Nvisit] = prepReference(Args)
                         % select best image based on FWHM and copy it
 
                         %if 1==0
-                        [~,Imin] = min(OT.FWHM(Ifield));
+                        [~,Imin] = min(T.fwhm(Ifield));
                         Ifield = Ifield(Imin);
 
-                        AFN = AstroFileName(OT(Ifield,:),'JDCol','MIDJD');
+                        AFN = AstroFileName(T(Ifield,:),'JDCol','MIDJD');
                         RefImagePath = AFN.genPath([],'AddSubDir',true);
 
                         cd(RefImagePath);
