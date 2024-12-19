@@ -6,23 +6,34 @@ function [Nvisit] = prepReference(Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2024 Dec) 
-    % Example: pipeline.last.prepReference
+    % Example: Nv=pipeline.last.coadd.prepReference
 
     arguments
         
         Args.MinJD   = celestial.time.julday([1 3 2024]);
+        Args.LimMag  = 20;
+        Args.MaxFWHM = 5;
         Args.StartPath = '/marvin'
         Args.RefDir  = '/raid/eran/references1';
         Args.Ncam    = 4;
         Args.Nsub    = 24;
     end
-
     RAD = 180./pi;
 
+    S = telescope.Scheduler;
+    S.generateRegularGrid;
+    FieldsList = [str2double(S.List.Table.FieldName), S.List.Table.RA, S.List.Table.Dec];
+
+    D = db.Db;
+    D.connect;
+    D.useDB('last');
+    
+    
+
     cd (Args.StartPath);
-    load LAST_Visits.mat
-    F0 = contains(OT.Visit,'v0');
-    OT = OT(F0,:);
+    %load LAST_Visits.mat
+    %F0 = contains(OT.Visit,'v0');
+    %OT = OT(F0,:);
     % data is in OT
 
     load TargetList.mat
@@ -32,8 +43,9 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1176:1:Ntarget
+    for Itarget=1:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
+        
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
         Mnt     = Tbl.MountNum(Itarget);
@@ -45,18 +57,28 @@ function [Nvisit] = prepReference(Args)
             for Isub=1:1:Args.Nsub
 
                 % look for the field ID in the vists catalog
-                Ifield = find(strcmp(OT.FieldID, FieldID) & OT.Mount==Mnt & OT.Camera==Icam & OT.CropID==Isub & OT.PH_ZP>25 & OT.FWHM<5 & OT.MIDJD>Args.MinJD);
+                QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%s',Itarget); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD Inf]; 'limmag',[Args.LimMag 22.5]});
+                T = D.query(QueryStr);
+
+                if ~isempty(T)
+                    Flag = pipeline.last.quality.checkCoordinatesFieldID(T, 'FieldsList',FieldsList);
+                    T      = T(Flag);
+                end
+
+                Ifield = (1:1:size(T,1));
+                %Ifield = find(strcmp(OT.FieldID, FieldID) & OT.Mount==Mnt & OT.Camera==Icam & OT.CropID==Isub & OT.PH_ZP>25 & OT.FWHM<5 & OT.MIDJD>Args.MinJD);
                 % check that all the fields are near the relevant
                 % coordinates
-                DD = celestial.coo.sphere_dist_fast(Tbl.RA(Itarget)./RAD, Tbl.Dec(Itarget)./RAD, OT.RAU1(Ifield)./RAD, OT.DECU1(Ifield)./RAD).*RAD;
-                Ifield = Ifield(DD<3);
+                %DD = celestial.coo.sphere_dist_fast(Tbl.RA(Itarget)./RAD, Tbl.Dec(Itarget)./RAD, OT.RAU1(Ifield)./RAD, OT.DECU1(Ifield)./RAD).*RAD;
+                %Ifield = Ifield(DD<3);
 
 
                 Nvisit(Itarget,Icam,Isub) = numel(Ifield);
         
                 if Nvisit(Itarget,Icam,Isub)>0
                     if Nvisit(Itarget,Icam,Isub)>10
-                        CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
+                        %CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
+                        CI = pipeline.last.coadd.coadd(T,'CropID',Isub);
                         CI.HeaderData.deleteComment;
 
                         Destination = fullfile(Args.RefDir, FieldID);

@@ -10,7 +10,7 @@ function [GoodFlag] = checkCoordinatesFieldID(T, Args)
     %                    string/char - table name containing the fields.
     %                   Default is [].
     %            'DB' - If 'FieldsList is char/string then DB object on
-    %                   which to query the table must pbe provided.
+    %                   which to query the table must be provided.
     %                   Default is [].
     %            'MaxDist' - Max allowed distance [deg] between image
     %                   coordinates listed in table and the master
