@@ -1,30 +1,37 @@
 % Example for creating HCS survey:
 %   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
-%   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-%   up.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
-%   up.StartTime = '2028-01-01 00:12:00';
-%   up.EndTime = '2028-07-01 00:12:00';
-%   up.buildHCS;
+%   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+%   upHCS.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
+%   upHCS.StartTime = '2028-01-01 12:00:00';
+%   upHCS.EndTime = '2028-07-01 12:00:00';
+%   upHCS.buildHCS;
 %
 %
 % Example for creating HCS survey:
-%   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-%   up.StartTime = '2028-01-01 00:12:00';
-%   up.EndTime = '2028-01-10 00:12:00';
-%   up.addUniqTargets(0:10:355,ones(36,1)*70,'Name',num2cell(1:36));
-%   up.buildLCS;
+%   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+%   upLCS.StartTime = '2028-01-01 12:00:00';
+%   upLCS.EndTime = '2028-07-01 12:00:00';
+%   upLCS.addUniqTargets(0:10:355,ones(36,1)*75,'Name',num2cell(1:36));
+%   upLCS.buildLCS;
+%
+%  % Fakely retrive upHCS ar apprvoed target list
+%   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan)
 
 
 classdef uplanner < Component 
     % 
     properties(Access = public)
-        Type                char        % HCS, LCS, AllSS, DDT, TOO 
-        StartTime           datetime    % start of the whole plan
-        EndTime             datetime    %   end of the whole plan
-        Plan                            % target list 
-        UniqTargList                    % unique target list
-        Vis                             % visibility matrix 
-
+        Type                char            % HCS, LCS, AllSS, DDT, TOO 
+        StartTime           datetime   % start of the whole plan
+        EndTime             datetime   %   end of the whole plan
+        Plan                                    % target list 
+        UniqTargList                       % unique target list
+        
+        %DatesOfInterest(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
+        Vis                                     % visibility matrix 
+        
+       MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
+        
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
         Tiles               cell        = {{'1','2','3','4'}}; %
@@ -78,11 +85,14 @@ classdef uplanner < Component
         Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
         Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
         
+        MissionApprovedPlan_VarNames   = {'TargetID','RA', 'Dec','Roll',...
+                              'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
+        MissionApprovedPlan_VarTypes   = {'char','double','double','double',...
+                              'datetime','datetime','duration','double','duration'};        
+        
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]
-        
-        
         
     end 
     % 
@@ -120,6 +130,12 @@ classdef uplanner < Component
             %
             Obj.UniqTargList = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
+            %
+            Obj.MissionApprovedPlan = table('Size',[0,numel(Obj.MissionApprovedPlan_VarNames)],'VariableNames', Obj.MissionApprovedPlan_VarNames,...
+                                'VariableTypes',Obj.MissionApprovedPlan_VarTypes);           
+                            
+            Obj.MissionApprovedPlan.Tstart.TimeZone = Obj.SysTimeZone;
+            Obj.MissionApprovedPlan.Tend.TimeZone = Obj.SysTimeZone;                            
             %
             load(Args.CalObj); % load the calibration objects' table
             Obj.CalibObj = CalibObj;
@@ -215,11 +231,7 @@ classdef uplanner < Component
 
             MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
              
-            CurrStartTime = Obj.StartTime;
-            CurrStartTime.Hour = 0;
-            CurrStartTime.Minute = 0;
-            CurrStartTime.Second = 0;
-            CurrStartTime = CurrStartTime+Obj.DailyWindowStartTime;
+            CurrStartTime = dateshift(Obj.StartTime,'start','day') + Obj.DailyWindowStartTime;
             if CurrStartTime < Obj.StartTime
                 CurrStartTime = CurrStartTime+1;
             end
@@ -399,6 +411,39 @@ classdef uplanner < Component
             Obj.schedule;
         end
         %
+        function retrieveMissionApprovedPlan(Obj,Args)
+            % This function retrive the mission approved plan and populate the fields of Obj.MissionApprovedPlan
+            arguments
+                Obj
+                Args.uPlan = []; 
+                Args.WindowStartTime = []; 
+                Args.WindowEndTime = []; 
+            end        
+            
+            %for now, allow to get a uPlan and use it as refernce
+            if ~isempty(Args.uPlan)
+                Obj.MissionApprovedPlan.RA(1:height(Args.uPlan))  = 0; 
+                Obj.MissionApprovedPlan.RA  =  Args.uPlan.RA ;
+                Obj.MissionApprovedPlan.Dec  =  Args.uPlan.Dec ;
+                Obj.MissionApprovedPlan.Roll  =  Args.uPlan.Roll ;
+                Obj.MissionApprovedPlan.Tstart  =  Args.uPlan.Tstart ;
+                Obj.MissionApprovedPlan.Tend  =  Args.uPlan.Tend ;
+                Obj.MissionApprovedPlan.ExpTime  =  Args.uPlan.ExpTime ;
+                Obj.MissionApprovedPlan.Nexposures  =  Args.uPlan.Nexposures ;
+                Obj.MissionApprovedPlan.TotalDuration  =  Args.uPlan.TotalDuration ;
+                return
+            end
+            
+            if isempty(Args.WindowStartTime)
+                Args.WindowStartTime  = Obj.StartTime;
+            end
+            
+            if isempty(Args.WindowEndTime)
+                Args.WindowEndTime  = Obj.EndTime;
+            end
+            
+        end
+        %
         function clearUniqueTargets(Obj)
             % remove all unique targets
             Obj.UniqTargList(:,:) = [];
@@ -415,7 +460,12 @@ classdef uplanner < Component
             Obj.Plan(:,:) = [];
             % clean the number of unique targets
             Obj.N_planTargets = 0;
-        end        
+        end    
+         %
+        function clearMissionApprovedPlan(Obj)
+            % remove the plan
+            Obj.MissionApprovedPlan(:,:) = [];
+        end    
         %
         function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
