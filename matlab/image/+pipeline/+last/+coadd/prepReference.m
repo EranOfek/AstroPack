@@ -51,18 +51,24 @@ function [Nvisit] = prepReference(Args)
         Mnt     = Tbl.MountNum(Itarget);
         Itarget
         FieldID
+        
+        Itf = find(strcmp(Tbl.FieldName,FieldID));
+        CenterRA  = Tbl.RA(Itf);
+        CenterDec = Tbl.Dec(Itf);
+
 
         
         for Icam=1:1:Args.Ncam
             for Isub=1:1:Args.Nsub
 
                 % look for the field ID in the vists catalog
-                QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%s',Itarget); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD Inf]; 'limmag',[Args.LimMag 22.5]});
+                QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%d%%',FieldID); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD Inf]; 'limmag',[Args.LimMag 22.5]});
                 T = D.query(QueryStr);
 
                 if ~isempty(T)
-                    Flag = pipeline.last.quality.checkCoordinatesFieldID(T, 'FieldsList',FieldsList);
-                    T      = T(Flag);
+                    Dist  = celestial.coo.sphere_dist_fast(CenterRA./RAD, CenterDec./RAD, T.ra./RAD, T.dec./RAD).*RAD;
+                    Flag  = Dist<3;
+                    T      = T(Flag,:);
                 end
 
                 Ifield = (1:1:size(T,1));
