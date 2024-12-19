@@ -1,21 +1,23 @@
 % Example for creating HCS survey:
 %   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
 %   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-%   upHCS.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
 %   upHCS.StartTime = '2028-01-01 12:00:00';
 %   upHCS.EndTime = '2028-07-01 12:00:00';
+%   upHCS.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
 %   upHCS.buildHCS;
 %
 %
 % Example for creating HCS survey:
 %   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
 %   upLCS.StartTime = '2028-01-01 12:00:00';
-%   upLCS.EndTime = '2028-07-01 12:00:00';
-%   upLCS.addUniqTargets(0:10:355,ones(36,1)*75,'Name',num2cell(1:36));
-%   upLCS.buildLCS;
+%   upLCS.EndTime = '2028-08-01 12:00:00';
+%   upLCS.addUniqTargets(0:10:355,ones(36,1)*80,'Name',num2cell(1:36));
 %
 %  % Fakely retrive upHCS ar apprvoed target list
 %   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan)
+%
+%   upLCS.buildLCS;
+%
 
 
 classdef uplanner < Component 
@@ -30,7 +32,7 @@ classdef uplanner < Component
         %DatesOfInterest(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
         Vis                                     % visibility matrix 
         
-       MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
+        MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
@@ -394,7 +396,15 @@ classdef uplanner < Component
                 Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
                 Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
 
-                % ADD Calc OverlapTargets,Zody,LimMag  
+                % ADD Calc Zody,LimMag  
+                
+                % Search for overlapping targets. TODO - currently does not
+                % load the MissionApprovedPlan if not exist
+                if ~isempty(Obj.MissionApprovedPlan)                    
+                    Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
+                                                        (Obj.Plan.Tend(Plan_row)   > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tend(Plan_row)   < Obj.MissionApprovedPlan.Tend));
+                end
+                
             end
             
             if ~isempty(Args.Group)
