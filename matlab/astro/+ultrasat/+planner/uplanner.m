@@ -5,6 +5,15 @@
 %   up.StartTime = '2028-01-01 00:12:00';
 %   up.EndTime = '2028-07-01 00:12:00';
 %   up.buildHCS;
+%
+%
+% Example for creating HCS survey:
+%   up = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+%   up.StartTime = '2028-01-01 00:12:00';
+%   up.EndTime = '2028-01-10 00:12:00';
+%   up.addUniqTargets(0:10:355,ones(36,1)*70,'Name',num2cell(1:36));
+%   up.buildLCS;
+
 
 classdef uplanner < Component 
     % 
@@ -205,10 +214,7 @@ classdef uplanner < Component
             NUtarg = height(Obj.UniqTargList);
 
             MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
-
-            Ngroups = ceil(NUtarg/MaxTargPerWindow);
-            
-            
+             
             CurrStartTime = Obj.StartTime;
             CurrStartTime.Hour = 0;
             CurrStartTime.Minute = 0;
@@ -217,6 +223,7 @@ classdef uplanner < Component
             if CurrStartTime < Obj.StartTime
                 CurrStartTime = CurrStartTime+1;
             end
+            Obj.StartTime = CurrStartTime;
             
             MaxEndTime = Obj.EndTime;
             
@@ -412,6 +419,8 @@ classdef uplanner < Component
         %
         function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
+            %
+            % TODO should correct later to update only selected targets (i.e., new targets)
             arguments
                 Obj    
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
@@ -427,7 +436,7 @@ classdef uplanner < Component
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
             load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
-            for iT = Obj.N_uniqueTargets % loop over targets 
+            for iT = 1:Obj.N_uniqueTargets % loop over targets 
                 RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
