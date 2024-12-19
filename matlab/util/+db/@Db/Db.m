@@ -696,15 +696,20 @@ classdef Db < Component
                 
                 Args.IsExec logical           = false;
                 Args.Convert2String logical   = true;
-                
+                Args.Opts                     = [];                
             end
             
             if iscell(Query)
                 Query = db.Db.genQuery(Query{:});
             end
 
-            if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')                
-                [Result,Error] = queryCH_Java(Obj, Query, 'IsExec',Args.IsExec);
+            if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')    
+                if isempty(Args.Opts)
+                    [Result,Error] = queryCH_Java(Obj, Query, 'IsExec',Args.IsExec);
+                else
+                    Args.Opts = setSQLQuery(Args.Opts,Query); % otherwise the check in fetch.m:196 fails
+                    [Result,Error] = queryCH_Java(Obj, Query, 'IsExec',Args.IsExec,'Opts',Args.Opts);
+                end
             else
                 error('DbType=%s and ConnType=%s query is not supported', Obj.DbType, Obj.ConnType);
             end
@@ -1014,6 +1019,7 @@ classdef Db < Component
                 Query     = "SELECT * FROM test_db.test_table;";                
                 
                 Args.IsExec logical           = false;
+                Args.Opts                     = [];
             end
             
             Error = Obj.Conn.Message;
@@ -1023,7 +1029,11 @@ classdef Db < Component
                     exec(Obj.Conn, Query);
                     Result = [];
                 else
-                    Result = fetch(Obj.Conn, Query);
+                    if isempty(Args.Opts)
+                        Result = fetch(Obj.Conn, Query);
+                    else
+                        Result = fetch(Obj.Conn, Query, Args.Opts);
+                    end
                 end
         
                 % Convert result to a table if it's not already a table
