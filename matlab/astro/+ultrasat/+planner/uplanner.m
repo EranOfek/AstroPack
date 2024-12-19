@@ -2,15 +2,15 @@
 %   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
 %   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
 %   upHCS.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
-%   upHCS.StartTime = '2028-01-01 00:12:00';
-%   upHCS.EndTime = '2028-07-01 00:12:00';
+%   upHCS.StartTime = '2028-01-01 12:00:00';
+%   upHCS.EndTime = '2028-07-01 12:00:00';
 %   upHCS.buildHCS;
 %
 %
 % Example for creating HCS survey:
 %   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-%   upLCS.StartTime = '2028-01-01 00:12:00';
-%   upLCS.EndTime = '2028-07-01 00:12:00';
+%   upLCS.StartTime = '2028-01-01 12:00:00';
+%   upLCS.EndTime = '2028-07-01 12:00:00';
 %   upLCS.addUniqTargets(0:10:355,ones(36,1)*75,'Name',num2cell(1:36));
 %   upLCS.buildLCS;
 %
