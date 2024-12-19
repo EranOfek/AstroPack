@@ -703,7 +703,7 @@ classdef Db < Component
                 Query = db.Db.genQuery(Query{:});
             end
 
-            if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')
+            if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')                
                 [Result,Error] = queryCH_Java(Obj, Query, 'IsExec',Args.IsExec);
             else
                 error('DbType=%s and ConnType=%s query is not supported', Obj.DbType, Obj.ConnType);
@@ -1010,8 +1010,8 @@ classdef Db < Component
             
             
             arguments
-                Obj
-                Query     = "SELECT * FROM test_db.test_table;";
+                Obj                
+                Query     = "SELECT * FROM test_db.test_table;";                
                 
                 Args.IsExec logical           = false;
             end
