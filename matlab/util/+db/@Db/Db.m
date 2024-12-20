@@ -411,16 +411,16 @@ classdef Db < Component
                                 % integer
                                 WhereClause = sprintf("%s %s=%d", WhereClause, Column{Icol}, ColRange);
                             else
-                                WhereClause = sprintf("%s %s=%g", WhereClause, Column{Icol}, ColRange);
+                                WhereClause = sprintf("%s %s=%18.15g", WhereClause, Column{Icol}, ColRange);
                             end
                         case 2
                             % range constraint
-                            WhereClause = sprintf("%s %s>=%g AND %s<=%g", WhereClause, Column{Icol}, ColRange(1), Column{Icol}, ColRange(2));
+                            WhereClause = sprintf("%s %s>=%18.15g AND %s<=%18.15g", WhereClause, Column{Icol}, ColRange(1), Column{Icol}, ColRange(2));
                         case 3
                             % center +/- constraint
                             R1 = ColRange(1) - ColRange(2);
                             R2 = ColRange(1) + ColRange(3);
-                            WhereClause = sprintf('%s %s>=%g AND %s<=%g', WhereClause, Column{Icol}, R1, Column{Icol}, R2);
+                            WhereClause = sprintf('%s %s>=%18.15g AND %s<=%18.15g', WhereClause, Column{Icol}, R1, Column{Icol}, R2);
                         otherwise
                             error('Unknown number of elements in Range in elemnet %d',Icol);
                     end

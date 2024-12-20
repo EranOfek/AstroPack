@@ -49,20 +49,21 @@ function [Nvisit] = prepReference(Args)
         Tmp = split(FieldID,'.');
         FieldID = Tmp{1};
         Mnt     = Tbl.MountNum(Itarget);
-        Itarget
-        FieldID
+        
         
         Itf = find(strcmp(Tbl.FieldName,FieldID));
         CenterRA  = Tbl.RA(Itf);
         CenterDec = Tbl.Dec(Itf);
 
+        [Itarget, CenterRA, CenterDec]
+        FieldID
 
         
         for Icam=1:1:Args.Ncam
             for Isub=1:1:Args.Nsub
 
                 % look for the field ID in the vists catalog
-                QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%d%%',FieldID); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD Inf]; 'limmag',[Args.LimMag 22.5]});
+                QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%s%%',FieldID); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD 2500000]; 'limmag',[Args.LimMag 22.5]});
                 T = D.query(QueryStr);
 
                 if ~isempty(T)
@@ -90,7 +91,9 @@ function [Nvisit] = prepReference(Args)
                         Destination = fullfile(Args.RefDir, FieldID);
                         
                         % generate Ref image name
-                        RefAFN = AstroFileName(OT(Ifield(1),:)); %,'JDCol','MIDJD','JD2Time',true);
+                        [RefAFN]=pipeline.last.queryDB.table2path(T);
+
+                        %RefAFN = AstroFileName(OT(Ifield(1),:)); %,'JDCol','MIDJD','JD2Time',true);
                         RefAFN.JD = CI.julday;
                         RefAFN.julday2time;
                         RefAFN.Counter = 0;
@@ -123,7 +126,8 @@ function [Nvisit] = prepReference(Args)
                         [~,Imin] = min(T.fwhm(Ifield));
                         Ifield = Ifield(Imin);
 
-                        AFN = AstroFileName(T(Ifield,:),'JDCol','MIDJD');
+                        [AFN]=pipeline.last.queryDB.table2path(T(Ifield,:));
+                        %AFN = AstroFileName(T(Ifield,:),'JDCol','MIDJD');
                         RefImagePath = AFN.genPath([],'AddSubDir',true);
 
                         cd(RefImagePath);

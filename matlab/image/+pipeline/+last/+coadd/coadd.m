@@ -45,7 +45,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
     if istable(RA)
         % assume input is the output of query
         % will coadd all the images listed in table
-        T = RA;
+        T{1} = RA;
     else
         % create table by query DB
 
@@ -101,7 +101,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
         end
     end
 
-    if isempty(Args.DB) && nargout<2
+    if isempty(Args.DB) && nargout<2 && ~istable(RA)
         % disconnect DB
         DB.disconnect;
     end
