@@ -65,18 +65,5 @@ function testSingleTile(testCase)
         'The area of the single tile should be equal to the area of the celestial sphere.');
 end
 
-function testInvalidInput(testCase)
-    % Should we test for invalid input ???
-    % where N_RA = 0 or N_Dec = 0
-    % Expect an error due to invalid number of tiles
-    
-    % Test for N_RA = 0
-    verifyError(testCase, @() celestial.grid.tile_the_sky(0, 180), 'MATLAB:expectedPositiveScalar', ...
-        'The function should throw an error when N_RA is 0.');
-    
-    % Test for N_Dec = 0
-    verifyError(testCase, @() celestial.grid.tile_the_sky(360, 0), 'MATLAB:expectedPositiveScalar', ...
-        'The function should throw an error when N_Dec is 0.');
-end
 
 

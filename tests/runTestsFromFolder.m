@@ -1,7 +1,7 @@
 % https://chatgpt.com/c/a3cbb7bb-fb14-4d79-bfe8-dfd600a7a67b
 % https://www.mathworks.com/help/matlab/matlab_prog/run-tests-for-various-workflows.html
 
-function runTestsFromFolder() %folder, logFileName)
+function runTestsFromFolder(folder, logFileName)
     % Function to run tests from a given top-level folder and log results
     % 
     % Inputs:
@@ -11,14 +11,18 @@ function runTestsFromFolder() %folder, logFileName)
     % Example usage:
     %   runTestsFromFolder('C:\Ultrasat\AstroPack\tests', 'TestResults.log');
     
-    folder = 'C:\Ultrasat\AstroPack\tests';
-    logFileName = 'C:\Ultrasat\AstroPack\tests\log1.log';
+    %folder = 'C:\Ultrasat\AstroPack\tests';
+    %logFileName = 'C:\Ultrasat\AstroPack\tests\log1.log';
 
     % Create a test suite from the specified folder
     suite = matlab.unittest.TestSuite.fromFolder(folder, 'IncludingSubfolders', true);
 
     % Create a test runner that provides detailed text output
     runner = matlab.unittest.TestRunner.withTextOutput('OutputDetail', matlab.unittest.Verbosity.Detailed);
+
+    % Add a plugin to record diagnostic information.
+    diagnosticsPlugin = matlab.unittest.plugins.DiagnosticsRecordingPlugin;
+    runner.addPlugin(diagnosticsPlugin);
 
     % Define the log file for writing test results
     %if nargin < 2 || isempty(logFileName)
@@ -45,7 +49,7 @@ function runTestsFromFolder() %folder, logFileName)
         for i = 1:length(failedTests)
             fprintf(fid, 'Test Name: %s\n', failedTests(i).Name);
             fprintf(fid, 'Diagnostics:\n%s\n', ...
-                join(string({failedTests(i).Details.DiagnosticRecord.Message}), '\n'));
+                join(string({failedTests(i).Details.DiagnosticRecord.Report}), '\n')); % Changed from Message to Report.
         end
         fclose(fid);
     end
