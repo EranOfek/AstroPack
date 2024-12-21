@@ -5,10 +5,10 @@ function tests = test_convert_coo
     % Author: Yarin Shani
     % Date: 13 Nov.
     %
-    % ########## NOT DONE . REQUIRE MORE WORK !!! #########
+    % ### Can add more tests  ###
     
-    % This test suite covers standard conversions, date-dependent conversions,
-    % horizontal coordinates, and verifies output consistency with relative testing.
+    % This test covers standard conversions, date-dependent conversions,
+    %  and verifies output consistency with relative testing.
     
     tests = functiontests(localfunctions);
 end
@@ -51,37 +51,37 @@ function testGalacticToEquatorial(testCase)
     % Test conversion from galactic to equatorial coordinates (J2000)
 
     % Define input in galactic coordinates
-    Lon = 2.0;  % Galactic longitude
-    Lat = -0.5; % Galactic latitude
+    Lon = 0;  % Galactic longitude
+    Lat = 0; % Galactic latitude
     InCooType = 'g';
     OutCooType = 'J2000.0';  % Equatorial coordinates (J2000)
 
     % Expected values based on known conversions
-    expectedRA = 266.434402 *pi/180;    % Expected RA in radians
-    expectedDec = -28.910840*pi/180;   % Expected Dec in radians
+    expectedRA = 4.648735091;    % Expected RA in radians
+    expectedDec =-0.5050410308;   % Expected Dec in radians
 
     % Run convert_coo function
     [OutLong, OutLat] = celestial.coo.convert_coo(Lon, Lat, InCooType, OutCooType);
 
     % Verify outputs
-    verifyEqual(testCase, OutLong, expectedRA, 'AbsTol', 1e-3);
-    verifyEqual(testCase, OutLat, expectedDec, 'AbsTol', 1e-3);
+    verifyEqual(testCase, OutLong, expectedRA, 'RelTol', 1e-3);
+    verifyEqual(testCase, OutLat, expectedDec, 'RelTol', 1e-3);
 end
 
 function testHorizontalConversion(testCase)
     % Test conversion from equatorial to horizontal coordinates based on observer location
 
     % Define inputs (RA/Dec for a given location and date)
-    RA = 2.0;  % Radian RA
-    Dec = 0.3; % Radian Dec
+    RA = 0.0;  % Radian RA
+    Dec = pi/2; % Radian Dec
     InCooType = 'J2000.0';
     OutCooType = 'h';  % Horizontal
     JD = 2451545.0;  % Example Julian date
-    ObsCoo = [0.0, pi/4];  % Observer at equator, 45 degrees latitude
+    ObsCoo = [0.0, pi/6];  %  30 degrees latitude
 
     % Expected output (based on reliable source)
-    expectedAz = 1.57;  % Expected azimuth in radians
-    expectedAlt = 0.45; % Expected altitude in radians
+    expectedAz = RA;  % Expected azimuth in radians
+    expectedAlt = ObsCoo(2); % Expected altitude in radians
 
     % Run convert_coo function
     [OutLong, OutLat] = celestial.coo.convert_coo(RA, Dec, InCooType, OutCooType, JD, ObsCoo);
@@ -95,21 +95,21 @@ function testEquinoxConversion(testCase)
     % Test conversion between equatorial coordinates with different equinoxes
 
     % Define input (RA/Dec in J2000)
-    RA = 1.0;    % 1 radian
-    Dec = 0.5;   % 0.5 radian
+    RA =101.295000*pi/180;    % 1 radian
+    Dec = -16.699000*pi/180;   % 0.5 radian
     InCooType = 'J2000.0';
     OutCooType = 'J1950.0';  % Convert to J2010.0 equinox
 
     % Expected output (known reference value for J2010.0 equinox)
-    expectedRA = 1.002;  % Expected RA after precession
-    expectedDec = 0.499; % Expected Dec after precession
+    expectedRA = 100.736274;  % Expected RA after precession
+    expectedDec = -16.645810; % Expected Dec after precession
 
     % Run convert_coo function
     [OutLong, OutLat] = celestial.coo.convert_coo(RA, Dec, InCooType, OutCooType);
 
     % Verify outputs
-    verifyEqual(testCase, OutLong, expectedRA, 'AbsTol', 1e-3);
-    verifyEqual(testCase, OutLat, expectedDec, 'AbsTol', 1e-3);
+    verifyEqual(testCase, OutLong, expectedRA*pi/180, 'AbsTol', 1e-5);
+    verifyEqual(testCase, OutLat, expectedDec*pi/180, 'AbsTol', 1e-5);
 end
 
 
