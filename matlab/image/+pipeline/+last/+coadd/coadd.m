@@ -81,72 +81,84 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
         Args.CoaddProduct      = 'Image+';
     end
 
-    % resove coordinates
-    % Output is J2000.0 RA/Dec
-    Ncrop = 1;
-    if istable(RA)
-        % assume input is the output of query
-        % will coadd all the images listed in table
-        T{1} = RA;
-    else
-        % create table by query DB
-
-        if isempty(Dec) && iscell(RA)
-            % RA contains numeric fieldid
-            FieldID = RA{1};
-            CamNum  = RA{2};
-            CropID  = RA{3};
-            Ncrop   = numel(CropID);
-            RA      = [];
-            Dec     = [];
-        else
-            FieldID = [];
-            CamNum  = [];
-            CropID  = [];
-            [RA, Dec, FieldID] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
-        end
     
-        % make DB and connect
-        if isempty(Args.DB)
-            DB = db.Db;
-            %DB
-            DB.connect;
-            DB.useDB('last');
-        else
-            DB = Args.DB;
-        end
+    % search for images:
+    [T,DB] = pipeline.last.queryDB.searchVisits(RA, Dec, 'HalfWidth',Args.HalfWidth,...
+                                                  'MaxNim',Args.MaxNim,...
+                                                  'SortBy',Args.SortBy,...
+                                                  'Constraints',Args.Constraints,...
+                                                  'InUnits',Args.InUnits,...
+                                                  'DB',Args.DB,...
+                                                  'Server',Args.Server,...
+                                                  'TableName',Args.TableName,...
+                                                  'SelectFields',Args.SelectFields);
     
-        if isempty(FieldID)
-            % query by coordinates
-    
-            Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
-            
-            PosConst    = db.Db.genCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
-            Constraints = [PosConst; Args.Constraints];
-            QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
-            
-            %error('Search by coordinates not supported yet');
-            T{1} = DB.query(QuerySQL);
-    
-        else
-            % query by FieldID
-            for Icrop=1:1:Ncrop
-                if ischar(Args.Constraints) || isstring(Args.Constraints)
-                    AddConst    = db.Db.genWhereClause({'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}, 'AddWhere',false);
-                    Constraints = [AddConst, 'AND', Args.Constraints];
-                else
-                    Constraints = [{'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}; Args.Constraints];
-                end
-                QuerySQL = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
-                T{Icrop} = DB.query(QuerySQL);
-            end
-        end
-    end
-
-    if isempty(Args.DB) && nargout<2 && ~istable(RA)
-        % disconnect DB
-        DB.disconnect;
-    end
+%     % resove coordinates
+%     % Output is J2000.0 RA/Dec
+%     Ncrop = 1;
+%     if istable(RA)
+%         % assume input is the output of query
+%         % will coadd all the images listed in table
+%         T{1} = RA;
+%     else
+%         % create table by query DB
+% 
+%         if isempty(Dec) && iscell(RA)
+%             % RA contains numeric fieldid
+%             FieldID = RA{1};
+%             CamNum  = RA{2};
+%             CropID  = RA{3};
+%             Ncrop   = numel(CropID);
+%             RA      = [];
+%             Dec     = [];
+%         else
+%             FieldID = [];
+%             CamNum  = [];
+%             CropID  = [];
+%             [RA, Dec, FieldID] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
+%         end
+%     
+%         % make DB and connect
+%         if isempty(Args.DB)
+%             DB = db.Db;
+%             %DB
+%             DB.connect;
+%             DB.useDB('last');
+%         else
+%             DB = Args.DB;
+%         end
+%     
+%         if isempty(FieldID)
+%             % query by coordinates
+%     
+%             Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
+%             
+%             PosConst    = db.Db.genCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
+%             Constraints = [PosConst; Args.Constraints];
+%             QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
+%             
+%             %error('Search by coordinates not supported yet');
+%             T{1} = DB.query(QuerySQL);
+%     
+%         else
+%             % query by FieldID
+%             for Icrop=1:1:Ncrop
+%                 if ischar(Args.Constraints) || isstring(Args.Constraints)
+%                     AddConst    = db.Db.genWhereClause({'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}, 'AddWhere',false);
+%                     Constraints = [AddConst, 'AND', Args.Constraints];
+%                 else
+%                     Constraints = [{'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}; Args.Constraints];
+%                 end
+%                 QuerySQL = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
+%                 T{Icrop} = DB.query(QuerySQL);
+%             end
+%         end
+%     end
+% 
+%     if isempty(Args.DB) && nargout<2 && ~istable(RA)
+%         % disconnect DB
+%         DB.disconnect;
+%     end
 
     
     
