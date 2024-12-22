@@ -15,6 +15,7 @@
 %   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
 %   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
 %
+%   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
 %   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
 %
 %  % Fakely retrive upHCS ar apprvoed target list
@@ -47,15 +48,15 @@ classdef uplanner < Component
         Plan                                    % target list 
         UniqTargList                       % unique target list
         
-        %DatesOfInterest(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
-        Vis                                     % visibility matrix 
-        
+        CheckTimes(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
+        Vis                                     % visibility matrix         
         MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
         Tiles               cell        = {{'1','2','3','4'}}; %
         DefSlewBuffer       duration    = seconds(5);
+        FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
 
         
         % LCS / AllSS
@@ -258,7 +259,7 @@ classdef uplanner < Component
             %Calc expected number of targets fit in single window
             NUtarg = numel(Args.TargetList);
 
-            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
              
             CurrStartTime = dateshift(Obj.StartTime,'start','day') + Obj.DailyWindowStartTime;
             if CurrStartTime < Obj.StartTime
@@ -365,7 +366,7 @@ classdef uplanner < Component
             % Loop over the targets within the window
             NTargets = numel(Args.RA);
             
-            MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+            MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
             
             Obj.scheduleTargets([repmat(1:NTargets,1,floor(MaxTargInWindow/NTargets)) 1:mod(MaxTargInWindow,NTargets)]',Obj.StartTime);
             
@@ -450,7 +451,7 @@ classdef uplanner < Component
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
                 Obj.Plan.Tiles{Plan_row} = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
-                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
+                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime;
 
                 if ii == 1
                     Obj.Plan.Tstart(Plan_row) = StartTime;
@@ -526,11 +527,11 @@ classdef uplanner < Component
             end
             
             if isempty(Args.WindowStartTime)
-                Args.WindowStartTime  = Obj.StartTime;
+                Args.WindowStartTime  = Obj.CheckTimes(1);
             end
             
             if isempty(Args.WindowEndTime)
-                Args.WindowEndTime  = Obj.EndTime;
+                Args.WindowEndTime  = Obj.CheckTimes(2);
             end
             
         end
@@ -656,18 +657,25 @@ classdef uplanner < Component
             arguments
                 Obj                     
                 Args.TimeBin           = 0.01; % [days] 
-                Args.SunDist           = 70;   % [deg]
-                Args.MoonDist          = 34;   % [deg]
-                Args.EarthDist         = 56;   % [deg]
+                Args.WindowStartTime = []; 
+                Args.WindowEndTime = []; 
             end
             %
             RAD = 180/pi;          
             %
-            StartJD = celestial.time.julday(datestr(Obj.StartTime,'yyyy-mm-ddTHH:MM:SS'));
-            EndJD   = celestial.time.julday(datestr(Obj.EndTime,'yyyy-mm-ddTHH:MM:SS'));
+            if isempty(Args.WindowStartTime)
+                Args.WindowStartTime = Obj.CheckTimes(1);
+            end
+            
+            if isempty(Args.WindowEndTime)
+                Args.WindowEndTime = Obj.CheckTimes(2);
+            end
+            
+            StartJD = celestial.time.julday(datestr(Args.WindowStartTime,'yyyy-mm-ddTHH:MM:SS'));
+            EndJD   = celestial.time.julday(datestr(Args.WindowEndTime,'yyyy-mm-ddTHH:MM:SS'));
             VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
-                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);             
+                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
