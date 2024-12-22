@@ -13,7 +13,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
     %          * ...,key,val,... 
     %            'HalfWidth' -The [RA, Dec] half width pof the crop image
     %                   size. This is used in case images are searched by
-    %                   coordinates. Default is [0.55 0.55]./2
+    %                   coordinates. Default is [0.55 0.55]./1
     %            'MinNim' - Minimum number of images to coadd.
     %                   Default is 5.
     %            'MaxNim' - Maximum number of images to coadd.
@@ -53,7 +53,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
         Dec                    = [];
 
-        Args.HalfWidth         = [0.55 0.55]./2;
+        Args.HalfWidth         = [0.55 0.55]./1;
         Args.MinNim            = 5;    % minimum number of images to add
         Args.MaxNim            = 100;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
@@ -163,6 +163,7 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
     
     
     
+    Ncrop   = numel(T);
 
     for Icrop=1:1:Ncrop
 

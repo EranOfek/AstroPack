@@ -43,7 +43,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1:1:Ntarget
+    for Itarget=642:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         
         Tmp = split(FieldID,'.');
@@ -67,8 +67,9 @@ function [Nvisit] = prepReference(Args)
                 T = D.query(QueryStr);
 
                 if ~isempty(T)
-                    Dist  = celestial.coo.sphere_dist_fast(CenterRA./RAD, CenterDec./RAD, T.ra./RAD, T.dec./RAD).*RAD;
-                    Flag  = Dist<3;
+                    Dist   = celestial.coo.sphere_dist_fast(CenterRA./RAD, CenterDec./RAD, T.ra./RAD, T.dec./RAD).*RAD;
+                    FlagV0 = contains(T.subdir,'v0');
+                    Flag   = Dist<3 & FlagV0;
                     T      = T(Flag,:);
                 end
 

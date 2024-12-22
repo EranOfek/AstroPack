@@ -13,7 +13,7 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     %          * ...,key,val,... 
     %            'HalfWidth' -The [RA, Dec] half width of the crop image
     %                   size. This is used in case images are searched by
-    %                   coordinates. Default is [0.55 0.55]./2
+    %                   coordinates. Default is [0.55 0.55]./1
     %            'MaxNim' - Maximum number of visits to search.
     %                   Default is 1e6.
     %            'SortBy' - if number of images found exceeds 'MaxNim',
@@ -40,7 +40,7 @@ function [T, DB] = searchVisits(RA, Dec, Args)
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
         Dec                    = [];
 
-        Args.HalfWidth         = [0.55 0.55]./2;
+        Args.HalfWidth         = [0.55 0.55]./1;
         Args.MaxNim            = 1e6;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
 
