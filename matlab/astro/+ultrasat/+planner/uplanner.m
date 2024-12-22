@@ -7,16 +7,20 @@
 %   upHCS.buildHCS;
 %
 %
-% Example for creating HCS survey:
+% Example for creating LCS survey:
+%   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
 %   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
 %   upLCS.StartTime = '2028-01-01 12:00:00';
-%   upLCS.EndTime = '2028-08-01 12:00:00';
-%   upLCS.addUniqTargets(0:10:355,ones(36,1)*80,'Name',num2cell(1:36));
+%   upLCS.EndTime = '2028-02-16 12:00:00';
+%   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
+%   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
+%
+%   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
 %
 %  % Fakely retrive upHCS ar apprvoed target list
-%   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan)
+%   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan);
 %
-%   upLCS.buildLCS;
+%   upLCS.buildLCS('TargetList',F2);
 %
 
 
@@ -203,8 +207,12 @@ classdef uplanner < Component
 %            Obj.submit
         end
         %
-        function buildLCS(Obj)
+        function buildLCS(Obj,Args)
             %
+            arguments
+                Obj
+                Args.TargetList = [];
+            end
            
             % Verify all relevant parameters are set
             
@@ -227,9 +235,12 @@ classdef uplanner < Component
                 error('LCS reuire at least one target');
             end         
             
-
+            if isempty(Args.TargetList)
+                Args.TargetList = 1:height(Obj.UniqTargList);
+            end
+                
             %Calc expected number of targets fit in single window
-            NUtarg = height(Obj.UniqTargList);
+            NUtarg = numel(Args.TargetList);
 
             MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
              
@@ -248,7 +259,7 @@ classdef uplanner < Component
                 LastTarget = min(NUtarg,CurrFirstTargetInd+MaxTargPerWindow-1);
                 
                 % Schedule daily LCS fields
-                Obj.scheduleTargets(CurrFirstTargetInd:LastTarget,CurrStartTime,'Group',CurrGroup);
+                Obj.scheduleTargets(Args.TargetList(CurrFirstTargetInd:LastTarget),CurrStartTime,'Group',CurrGroup);
                 
                 % Set next day params
                 CurrGroup = CurrGroup +1;
