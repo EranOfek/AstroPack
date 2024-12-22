@@ -1,4 +1,4 @@
-function H=plotline(X,Y,Len,Angle,Color,varargin);
+function H=plotline(X,Y,Len,Angle,Color,varargin)
 %------------------------------------------------------------------------------
 % plotline function                                                   plotting
 % Description: Plot a line given the position of its start point, length,
