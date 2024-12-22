@@ -47,9 +47,8 @@ classdef uplanner < Component
         Plan                                    % target list 
         UniqTargList                       % unique target list
         
-        %DatesOfInterest(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
-        Vis                                     % visibility matrix 
-        
+        CheckTimes(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
+        Vis                                     % visibility matrix         
         MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
         DefEpochsPerVisit   uint8       =  3; 
@@ -526,11 +525,11 @@ classdef uplanner < Component
             end
             
             if isempty(Args.WindowStartTime)
-                Args.WindowStartTime  = Obj.StartTime;
+                Args.WindowStartTime  = Obj.CheckTimes(1);
             end
             
             if isempty(Args.WindowEndTime)
-                Args.WindowEndTime  = Obj.EndTime;
+                Args.WindowEndTime  = Obj.CheckTimes(2);
             end
             
         end
@@ -656,18 +655,15 @@ classdef uplanner < Component
             arguments
                 Obj                     
                 Args.TimeBin           = 0.01; % [days] 
-                Args.SunDist           = 70;   % [deg]
-                Args.MoonDist          = 34;   % [deg]
-                Args.EarthDist         = 56;   % [deg]
             end
             %
             RAD = 180/pi;          
             %
-            StartJD = celestial.time.julday(datestr(Obj.StartTime,'yyyy-mm-ddTHH:MM:SS'));
-            EndJD   = celestial.time.julday(datestr(Obj.EndTime,'yyyy-mm-ddTHH:MM:SS'));
+            StartJD = celestial.time.julday(datestr(Obj.CheckTimes(1),'yyyy-mm-ddTHH:MM:SS'));
+            EndJD   = celestial.time.julday(datestr(Obj.CheckTimes(2),'yyyy-mm-ddTHH:MM:SS'));
             VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
-                'MinSunDist',Args.SunDist/RAD,'MinMoonDist',Args.MoonDist/RAD,'MinEarthDist',Args.EarthDist/RAD);             
+                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
