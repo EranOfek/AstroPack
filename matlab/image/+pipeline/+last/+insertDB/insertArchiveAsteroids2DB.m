@@ -34,8 +34,9 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         Args.DbPass = 'PassRoot'; 
         
         Args.Level  = 'coadd';
-        Args.DbTable= 'coadd_asteroids';         
-        Args.ColNameID = 'id_proc_src';
+        Args.DbTable= 'visit_asteroids';   
+        Args.KeyID     = 'id_visit_im';
+        Args.ColNameID = 'id_visit_src';        
         
         Args.RemoteUser = 'samar';
     end    
@@ -49,12 +50,11 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
     fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
-    % read the column list from the xls template
-%     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName','visit_images');   
+    % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
     Dir = pwd; 
-    FID = fopen('no_status_dir.txt', 'a');
+    FID = fopen('aster_no_status_dir.txt', 'a');
     tic
     % find all the directories according to the template
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -73,55 +73,48 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             continue
         end
         if ~Injected
-            load(FileNameTemplate,'')
-            
-%             Cat=AstroCatalog(FileNameTemplate); % read the data
-%             AH = AstroHeader(FileNameTemplate,3);
-%             Nobj = numel(Cat);
-%             if Nobj < 2 % likely no data have been read 
-%                 cd(Dir);
-%                 fprintf(FID,'%s \n',DataDir);
-%                 continue
-%             end
-%             cd(Dir);
-%             fprintf('Injecting from %s ..',DataDir);
-%             
-%             % check and add essential KEYWORDS if they are missing                  
-%             Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
-%             if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
-%                 NODENUMB = str2num(Pname(6:7));
-%                 for Crop=1:Nobj
-%                     AH(Crop).replaceVal('NODENUMB',NODENUMB);
-%                 end
-%             end
-%             if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
-%                 MOUNTNUM = str2num(Pname(9:10));
-%                 for Crop=1:Nobj
-%                     AH(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
-%                 end
-%             end
-%             Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
-%             if isempty(Subdir)          
-%                 Parts  = strsplit(DataDir, '/');
-%                 Subdir = Parts{end};    % Extract the last part of the full dir name
-%                 for Crop=1:Nobj
-%                     AH(Crop).replaceVal('SUBDIR',Subdir);
-%                 end
-%             end
+            try
+                load(dir(FileNameTemplate).name,'');
+                Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
+                Headers=dir('*coadd*Cat*');
+                AH=AstroHeader(Headers(1).name,3);
+            catch
+                cd(Dir);
+                fprintf(FID,'%s \n',DataDir);
+                continue
+            end
+            cd(Dir);
+            fprintf('Injecting from %s ..',DataDir);
+            % check and add essential KEYWORDS if they are missing                  
+            Pname = AH.getStructKey('PROJNAME').PROJNAME;
+            if isnan(AH.getStructKey('NODENUMB').NODENUMB)
+                NODENUMB = str2num(Pname(6:7));
+                AH.replaceVal('NODENUMB',NODENUMB);
+            end
+            if isnan(AH.getStructKey('MOUNTNUM').MOUNTNUM)
+                MOUNTNUM = str2num(Pname(9:10));
+                AH.replaceVal('MOUNTNUM',MOUNTNUM);                
+            end
+            Subdir = AH.getStructKey('SUBDIR').SUBDIR; 
+            if isempty(Subdir)          
+                Parts  = strsplit(DataDir, '/');
+                Subdir = Parts{end};    % Extract the last part of the full dir name                
+                AH.replaceVal('SUBDIR',Subdir);
+            end
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;
             A.SubDir   = Subdir;
             A.Level    = Args.Level; 
-            A.Product  ='Cat';
-            A.FieldID  = AH(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = AH(1).getStructKey('JD').JD; 
+            A.Product  = "Asteroids";
+            A.FieldID  = AH.getStructKey('FIELDID').FIELDID;
+            A.JD       = AH.getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
 
-            T=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                                    'CreateCsv',true,'FileName',CsvFN); % , 'ColNameID',Args.ColNameID);
+            T=imProc.db.insertCatalog(Obj,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                                    'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);
             
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);

@@ -54,7 +54,7 @@ function Cat = getFOVcatalog(RA, Dec, Args)
     end
     % write the output object
     if Args.WriteFile
-        FN = sprintf('extcatRA%.1fDec%.1fRad%.1f.mat',RA,Dec,Args.Radius);
+        FN = sprintf('extcat%s_RA%.1fDec%.1fRad%.1f.mat',Args.CatName,RA,Dec,Args.Radius);
         save(FN,'Cat','-v7.3');
     end
     % plot the HR diagram

@@ -152,7 +152,7 @@ function [T,FileName] = insertCatalog(Obj, Args)
             else
                 ID = [];
             end
-        elseif isa(Obj, 'AstroCatalog')
+        elseif isa(Obj, 'AstroCatalog') || isstruct(Obj) % struct -- the table of Asteroids 
             Tmp = Obj(Iobj).Table;
             
             % add some columns from the header:           
