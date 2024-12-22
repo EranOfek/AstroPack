@@ -1,9 +1,9 @@
 % Example for creating HCS survey:
-%   S1 = [67,-59]; N2 = [215,60]; N3 = [254,64];
+%   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
 %   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
 %   upHCS.StartTime = '2028-01-01 12:00:00';
 %   upHCS.EndTime = '2028-07-01 12:00:00';
-%   upHCS.addUniqTargets(S1(1),S1(2),'Name',{'S1'});
+%   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
 %   upHCS.buildHCS;
 %
 %
@@ -22,6 +22,11 @@
 %
 %   upLCS.buildLCS('TargetList',F2);
 %
+%
+%
+% Example for TOO plan:
+%   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
+%   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
 
 
 classdef uplanner < Component 
@@ -57,7 +62,9 @@ classdef uplanner < Component
         DitherPattern                   = '2x2';
         
         % TOO
-        TOOMaxTargets       uint8       =  4;
+        TOOStartTime              datetime    =  datetime('now'); % [hrs]   
+        TOOWindowDuration  duration    =  hours(3);       % [hrs]
+        TOOMaxTargets          uint8       =  4;
         TOOProbMap      
         
         N_uniqueTargets     uint8       =  0; % number of unique targets
@@ -97,7 +104,7 @@ classdef uplanner < Component
                               'datetime','datetime','duration','double','duration'};        
         
         ObsSunDist           = 70;   % [deg]
-        ObsMoonDist          = 34;   % [deg]
+        ObsMoonDist         = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]
         
     end 
@@ -290,16 +297,71 @@ classdef uplanner < Component
         end
         %
         function buildTOO(Obj, Args)
-            % build a plan for a TOO map 
+            % build a plan for a TOO 
+            % TODO - Currently only basic functionailty of looping over a list of
+            % targets within a time window. Later should add smart covarge
+            % plan of Map
             arguments
                 Obj 
-                Args.Map 
+                Args.Map                           = [];
+                Args.RA                             = [];
+                Args.Dec                            = [];
+                Args.Name                        = {};
+                Args.TOOStartTime            = [];
+                Args.TOOWindowDuration = [];
+                Args.EpochsPerVisit           = [];
+                Args.ExpTime                     = [];
+                Args.SlewBuffer                  = [];
+                Args.Tiles                            = {};
             end
-            % read the map, prepare targets
-            %
-            % check visibility for each of the targets and prepare the plan 
-            %
-            % 
+            
+            if ~strcmp(Obj.Type,'TOO')
+                error('Plan Type is not TOO');
+            end
+            
+            if ~isempty(Args.TOOStartTime)
+                Obj.TOOStartTime = Args.TOOStartTime;
+            end
+            if ~isempty(Args.TOOWindowDuration)
+                Obj.TOOWindowDuration = Args.TOOWindowDuration;
+            end
+            if ~isempty(Args.EpochsPerVisit)
+                Obj.DefEpochsPerVisit = Args.EpochsPerVisit;
+            end      
+             if ~isempty(Args.ExpTime)
+                Obj.ExpTime = Args.ExpTime;
+            end                 
+            if ~isempty(Args.SlewBuffer)
+                Obj.DefSlewBuffer = Args.SlewBuffer;
+            end     
+             if ~isempty(Args.Tiles)
+                Obj.Tiles = Args.Tiles;
+            end     
+            
+            
+            Obj.StartTime = Obj.TOOStartTime;
+            Obj.EndTime = Obj.TOOStartTime + Obj.TOOWindowDuration;
+            
+            if ~isempty(Args.Map)
+                % TODO - do somethng with a map
+            elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
+                Obj.addUniqTargets(Args.RA,Args.Dec,'Name',Args.Name);                
+            else
+                error('No TOO targets/map');
+            end
+            
+            % Check visibility - TODO: later change error to active action
+            if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
+                error('Issue with Sun/Earth/Moon limits');
+            end
+            
+            % Loop over the targets within the window
+            NTargets = numel(Args.RA);
+            
+            MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+            
+            Obj.scheduleTargets([repmat(1:NTargets,1,floor(MaxTargInWindow/NTargets)) 1:mod(MaxTargInWindow,NTargets)]',Obj.StartTime);
+            
         end
         %
     end
