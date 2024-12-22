@@ -27,6 +27,15 @@
 % Example for TOO plan:
 %   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
 %   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
+%
+%
+%
+% Example DDT plan (very basic):
+%   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
+%   upDDT.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
+%   upDDT.addDDT2Plan([6,9,17],'2028-01-01 12:00:00');
+%    upDDT.addDDT2Plan([222,223,224],'2028-01-05 00:10:00');
+
 
 
 classdef uplanner < Component 
@@ -281,19 +290,17 @@ classdef uplanner < Component
             
         end
         %
-        function buildDDT(Obj, Args)
+        function addDDT2Plan(Obj, TargetList,StartTime)
             % build a plan for a list of DDT targets
-            arguments
-                Obj
-                Args.Coo
-            end
-            % check visibility within the given time interval for each of the targets
-            % 
-            % fill in the target list 
-            %           
-            % show which observations in the existing plan are to be replaced 
-            % 
-            % select 1 visibility window for each of the targets and write them to Obj.Plan 
+            % Most flexible function, allow to select which targets to add from the list and select different start time for each.
+            % Mutliple injections to the Plan are allowed. Howver, no pre-defined loops over the list (within a window or within days)
+            
+            if ~strcmp(Obj.Type,'DDT')
+                error('Plan Type is not DDT');
+            end            
+            
+            Obj.scheduleTargets(TargetList,StartTime);
+            
         end
         %
         function buildTOO(Obj, Args)
@@ -487,8 +494,9 @@ classdef uplanner < Component
             % update Number of target in the plan;
             Obj.N_planTargets = height(Obj.Plan);
             
-            % update End time of the plan;
-            Obj.EndTime = Obj.Plan.Tend(end);
+            % update Start & End time of the plan;
+            Obj.StartTime = min(Obj.Plan.Tstart);
+            Obj.EndTime = max(Obj.Plan.Tend);
             
             % Timestamp of schedule
             Obj.schedule;
