@@ -55,6 +55,7 @@ classdef uplanner < Component
         Exptime             duration    = seconds(300); %[s]
         Tiles               cell        = {{'1','2','3','4'}}; %
         DefSlewBuffer       duration    = seconds(5);
+        FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
 
         
         % LCS / AllSS
@@ -257,7 +258,7 @@ classdef uplanner < Component
             %Calc expected number of targets fit in single window
             NUtarg = numel(Args.TargetList);
 
-            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
              
             CurrStartTime = dateshift(Obj.StartTime,'start','day') + Obj.DailyWindowStartTime;
             if CurrStartTime < Obj.StartTime
@@ -364,7 +365,7 @@ classdef uplanner < Component
             % Loop over the targets within the window
             NTargets = numel(Args.RA);
             
-            MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + seconds(100))); % last argument is conservative slew time
+            MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
             
             Obj.scheduleTargets([repmat(1:NTargets,1,floor(MaxTargInWindow/NTargets)) 1:mod(MaxTargInWindow,NTargets)]',Obj.StartTime);
             
@@ -449,7 +450,7 @@ classdef uplanner < Component
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
                 Obj.Plan.Tiles{Plan_row} = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
-                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row);
+                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime;
 
                 if ii == 1
                     Obj.Plan.Tstart(Plan_row) = StartTime;
