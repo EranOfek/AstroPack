@@ -15,6 +15,7 @@
 %   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
 %   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
 %
+%   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
 %   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
 %
 %  % Fakely retrive upHCS ar apprvoed target list
@@ -656,12 +657,22 @@ classdef uplanner < Component
             arguments
                 Obj                     
                 Args.TimeBin           = 0.01; % [days] 
+                Args.WindowStartTime = []; 
+                Args.WindowEndTime = []; 
             end
             %
             RAD = 180/pi;          
             %
-            StartJD = celestial.time.julday(datestr(Obj.CheckTimes(1),'yyyy-mm-ddTHH:MM:SS'));
-            EndJD   = celestial.time.julday(datestr(Obj.CheckTimes(2),'yyyy-mm-ddTHH:MM:SS'));
+            if isempty(Args.WindowStartTime)
+                Args.WindowStartTime = Obj.CheckTimes(1);
+            end
+            
+            if isempty(Args.WindowEndTime)
+                Args.WindowEndTime = Obj.CheckTimes(2);
+            end
+            
+            StartJD = celestial.time.julday(datestr(Args.WindowStartTime,'yyyy-mm-ddTHH:MM:SS'));
+            EndJD   = celestial.time.julday(datestr(Args.WindowEndTime,'yyyy-mm-ddTHH:MM:SS'));
             VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
                 'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
