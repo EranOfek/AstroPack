@@ -14,15 +14,16 @@
 %   upLCS.EndTime = '2028-02-16 12:00:00';
 %   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
 %   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
-%
+% 
 %   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
 %   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
-%
+% 
 %  % Fakely retrive upHCS ar apprvoed target list
 %   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan);
-%
+% 
 %   upLCS.buildLCS('TargetList',F2);
-%
+% 
+%   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
 %
 %
 % Example for TOO plan:
@@ -35,7 +36,7 @@
 %   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
 %   upDDT.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
 %   upDDT.addDDT2Plan([6,9,17],'2028-01-01 12:00:00');
-%    upDDT.addDDT2Plan([222,223,224],'2028-01-05 00:10:00');
+%   upDDT.addDDT2Plan([222,223,224],'2028-01-05 00:10:00');
 
 
 
@@ -559,6 +560,65 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan(:,:) = [];
         end    
         %
+        function adjustGroupStartTime(Obj,Args)
+            arguments
+                Obj
+                Args.GroupList                                 = [];
+                Args.NewStartTime                      =[];
+                Args.ShiftTime              duration  = seconds(inf);
+            end
+            
+            if isempty(Args.GroupList)
+                Args.GroupList = unique(Obj.Plan.Group);  % Apply to 
+            end
+            
+            for Gind= 1:numel(Args.GroupList)
+                ShiftTime = Args.ShiftTime;
+                
+                Plan_rows = find(Obj.Plan.Group==Args.GroupList(Gind));
+                if ~isempty(Args.NewStartTime)
+                        ShiftTime = Args.NewStartTime - Obj.Plan.Tstart(Plan_rows(1));
+                end
+                
+                if isinf(ShiftTime)
+                    %calcuate the shift based on the overlaptargets
+                    ShiftTime = seconds(0); % in case it doesn't find any match - does not shift the time
+                    
+                    OTlist = Obj.Plan.OverlapTargets{Plan_rows(1)};
+                    for ii = 1:numel(OTlist)
+                        CurrOTind = OTlist(ii);
+                        % check if starttime of entire group within curr overlap target window
+                        if (Obj.Plan.Tstart(Plan_rows(1)) > Obj.MissionApprovedPlan.Tstart(CurrOTind) && Obj.Plan.Tstart(Plan_rows(1)) < Obj.MissionApprovedPlan.Tend(CurrOTind))
+                            
+                            [T_sec,~] = ultrasat.tools.calcSlew(Obj.MissionApprovedPlan.RA(CurrOTind),Obj.MissionApprovedPlan.Dec(CurrOTind),Obj.Plan.RA(Plan_rows(1)),Obj.Plan.Dec(Plan_rows(1)),...
+                                                        'Units','deg','CheckTrajectory',true);
+                            
+                            SlewTime = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
+                            
+                            OT_Tend = Obj.MissionApprovedPlan.Tend(CurrOTind);
+                            OT_ExpTime = Obj.MissionApprovedPlan.ExpTime(CurrOTind);
+                            
+                            
+                            OT_Tend_close = OT_Tend + round((Obj.Plan.Tstart(Plan_rows(1))-OT_Tend-SlewTime)./OT_ExpTime)*OT_ExpTime;
+                            
+                            ShiftTime = OT_Tend_close + SlewTime - Obj.Plan.Tstart(Plan_rows(1));
+                            
+                            Obj.Plan.SlewTimeBefore(Plan_rows(1)) = SlewTime;
+                        end
+                    end
+                end
+                
+                
+                %apply shift
+                Obj.Plan.Tstart(Plan_rows) = Obj.Plan.Tstart(Plan_rows) + ShiftTime;
+                Obj.Plan.Tend(Plan_rows) = Obj.Plan.Tend(Plan_rows) + ShiftTime;
+                
+                Obj.Plan.JDstart(Plan_rows) = juliandate(Obj.Plan.Tstart(Plan_rows));
+                Obj.Plan.JDend(Plan_rows) = juliandate(Obj.Plan.Tend(Plan_rows));
+            end
+            
+        end  
+        %
         function updateTargetProperties(Obj, Args)
             % fill the properties lines for each of the unique targets 
             %
@@ -671,8 +731,8 @@ classdef uplanner < Component
                 Args.WindowEndTime = Obj.CheckTimes(2);
             end
             
-            StartJD = celestial.time.julday(datestr(Args.WindowStartTime,'yyyy-mm-ddTHH:MM:SS'));
-            EndJD   = celestial.time.julday(datestr(Args.WindowEndTime,'yyyy-mm-ddTHH:MM:SS'));
+            StartJD = juliandate(Args.WindowStartTime);
+            EndJD   = juliandate(Args.WindowEndTime);
             VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
                 'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
