@@ -1,13 +1,13 @@
-% Example for creating HCS survey:
+% % Example for creating HCS survey:
 %   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
 %   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
 %   upHCS.StartTime = '2028-01-01 12:00:00';
 %   upHCS.EndTime = '2028-07-01 12:00:00';
 %   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
 %   upHCS.buildHCS;
-%
-%
-% Example for creating LCS survey:
+% 
+% 
+% % Example for creating LCS survey:
 %   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
 %   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
 %   upLCS.StartTime = '2028-01-01 12:00:00';
@@ -24,15 +24,15 @@
 %   upLCS.buildLCS('TargetList',F2);
 % 
 %   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
-%
-%
-% Example for TOO plan:
+% 
+% 
+% % Example for TOO plan:
 %   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
 %   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
-%
-%
-%
-% Example DDT plan (very basic):
+% 
+% 
+% 
+% % Example DDT plan (very basic):
 %   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
 %   upDDT.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
 %   upDDT.addDDT2Plan([6,9,17],'2028-01-01 12:00:00');
@@ -55,16 +55,13 @@ classdef uplanner < Component
         
         DefEpochsPerVisit   uint8       =  3; 
         Exptime             duration    = seconds(300); %[s]
-        Tiles               cell        = {{'1','2','3','4'}}; %
+        Tiles               string        = ['1','2','3','4']; %
         DefSlewBuffer       duration    = seconds(5);
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
-
         
         % LCS / AllSS
         DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
         DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
-        %Cadence                         % [days]  NOT SURE if REQUIRED
-        
         
         % AllSS
         AllSSHighLatThresh  double      = 30; % |RA| [deg]
@@ -81,7 +78,7 @@ classdef uplanner < Component
         N_uniqueTargets     uint8       =  0; % number of unique targets
         N_planTargets       uint8       =  0; % number of targets in the plan
         
-        Rfov                            =  7.19; % [deg] FOV radius w/account of the gap
+        Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
         
         CalibObj                        = []; % table of calibration objects 
         CalibDir           
@@ -102,7 +99,7 @@ classdef uplanner < Component
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
-        Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','cell',...
+        Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'double','double','double','double','double','cell'};
                                                                 
@@ -321,7 +318,7 @@ classdef uplanner < Component
                 Args.EpochsPerVisit           = [];
                 Args.ExpTime                     = [];
                 Args.SlewBuffer                  = [];
-                Args.Tiles                            = {};
+                Args.Tiles                            = [];
             end
             
             if ~strcmp(Obj.Type,'TOO')
@@ -419,7 +416,7 @@ classdef uplanner < Component
                 StartTime
                 Args.Nexposures = [];
                 Args.Exptime = []; % 
-                Args.Tiles = {}; % 
+                Args.Tiles = []; % 
                 Args.Group = []; % Target name (optional)
             end
             %
@@ -450,7 +447,7 @@ classdef uplanner < Component
                 Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
                 Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
-                Obj.Plan.Tiles{Plan_row} = Args.Tiles;
+                Obj.Plan.Tiles(Plan_row) = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
                 Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime;
 
