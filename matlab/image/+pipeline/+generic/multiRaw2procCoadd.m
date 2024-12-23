@@ -380,13 +380,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
 
     % search for bad images
-    [Result,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
+    [Result] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
     AI = AI(~[Result.BadImageFlag]);
         
     Nim = numel(AI);
     
-    if Nim==0
-        error('No good images found');
+    if Nim<5
+        error('Only %d good images - abort');
     end
     
     % update header with SoftVersion keyword
