@@ -40,6 +40,11 @@ classdef ModelBase < handle
                     end
                 end
             end
-        end        
+        end
+
+        
+        function result = isoFormat(dt)
+            result = datestr(dt, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
+        end
     end
 end
