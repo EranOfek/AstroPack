@@ -14,6 +14,12 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] on which to
     %                   operate the ACF tests. If empty, then use entire image.
     %                   Default is [].
+    %            'UseFWHM' - Calculate FWHM using imUtil.psf.fwhm_fromACF
+    %                   Default is true.
+    %            'MaxFWHM' - Default is 5 pixels.
+    %            'MaxRadius' - Max radius for ACF calculation.
+    %                   Default is 50.
+    %
     %            'ThresholdACFnpix' - Threshold aotocorrelation.
     %                   Default is 0.25.
     %            'ThresholdACFdist' - ACF threshold for max dist test. 
@@ -58,6 +64,10 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         Obj AstroImage
         
         Args.CCDSEC                 = [];
+        Args.MaxRadius              = 50;
+        Args.UseFWHM logical        = true;
+        Args.MaxFWHM                = 5;
+        
         Args.ThresholdACFnpix       = 0.8;
         Args.ThresholdACFdist       = 0.5;
         Args.ThresholdMaxDistACF    = 6;
@@ -90,7 +100,9 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     Result = struct('Npix',cell(Nobj,1),...
                     'NpixAboveThresholdVal',cell(Nobj,1),...
                     'NpixAboveThresholdACF',cell(Nobj,1),...
-                    'BadImageFlag',cell(Nobj,1));
+                    'BadImageFlag',cell(Nobj,1),...
+                    'N32768',cell(Nobj,1),...
+                    'FWHM_ACF',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         if isempty(List)
@@ -139,22 +151,30 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         BackSubImage(BackSubImage>40000) = 0;
         
         % Autocorrelation function
-        [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
+        if Args.UseFWHM
+            % image already cropped
+            [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+            Result(Iobj).FWHM_ACF = FWHM_ACF;
+            Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
+                                    FWHM_ACF>Args.MaxFWHM || isnan(FWHM_ACF) || ...
+                                    Result(Iobj).N32768>Args.N32768;
+        else
+            
+            [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
         
-        SizeACF = size(ACF);
-     
-        II = find(ACF>Args.ThresholdACFdist);
-        [I,J]=imUtil.image.ind2sub_fast(SizeACF,II);
-        Result(Iobj).MaxDistACFabove = max(sqrt(sum(([I,J] - SizeACF.*0.5).^2,2)));
+            SizeACF = size(ACF);
+
+            II = find(ACF>Args.ThresholdACFdist);
+            [I,J]=imUtil.image.ind2sub_fast(SizeACF,II);
+            Result(Iobj).MaxDistACFabove = max(sqrt(sum(([I,J] - SizeACF.*0.5).^2,2)));
+
+            Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACFnpix, 'all');
         
         
-        
-        
-        Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACFnpix, 'all');
-        
-        Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
+            Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF || ...
                                     Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF || ...
                                     Result(Iobj).N32768>Args.N32768;
+        end
     end
 end

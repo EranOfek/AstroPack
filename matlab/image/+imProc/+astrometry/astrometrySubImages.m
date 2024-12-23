@@ -301,8 +301,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                 % Estimate RA/Dec of SubImage center
                 CenterX = (Args.CCDSEC(Iim,2) - Args.CCDSEC(Iim,1)).*0.5;
                 CenterY = (Args.CCDSEC(Iim,4) - Args.CCDSEC(Iim,3)).*0.5;
+                
+                % may fail here when some of the sub images doesn't have
+                % good astrometric solution due to lack of stars
                 [RA, Dec] = RefWCS.xy2sky(CenterX, CenterY, 'OutUnits',Args.CooUnits, 'includeDistortion',false);
-
+                
                 [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryCore(ResultObj(Iim),...
                                                                                                          'Tran',Args.Tran,...
                                                                                                          'RA',RA,...
