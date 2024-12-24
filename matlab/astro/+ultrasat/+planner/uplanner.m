@@ -72,8 +72,8 @@ classdef uplanner < Component
         % TOO
         TOOStartTime              datetime    =  datetime('now'); % [hrs]   
         TOOWindowDuration  duration    =  hours(3);       % [hrs]
-        TOOMaxTargets          uint8       =  4;
-        TOOProbMap      
+        %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
+        %TOOProbMap                                 % Unused for now - check if needed later 
         
         N_uniqueTargets     uint8       =  0; % number of unique targets
         N_planTargets       uint8       =  0; % number of targets in the plan
@@ -735,6 +735,12 @@ classdef uplanner < Component
                 'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
+        end
+        %
+        function adjustCheckTimes(Obj,CheckStartTime,CheckEndTime)
+            Obj.CheckTimes = [CheckStartTime;CheckEndTime];
+            Obj.updateTargetVisibility;
+            Obj.retrieveMissionApprovedPlan;
         end
         %
         function schedule(Obj)
