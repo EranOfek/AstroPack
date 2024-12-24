@@ -34,10 +34,59 @@
 % 
 % % Example DDT plan (very basic):
 %   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
-%   upDDT.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
-%   upDDT.addDDT2Plan([6,9,17],'2028-01-01 12:00:00');
-%   upDDT.addDDT2Plan([222,223,224],'2028-01-05 00:10:00');
-
+%   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
+%   upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
+%   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00');
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% List of functions:
+% - ultrasat.planner.uplanner(Args): Constructor
+%
+% - Obj.set.Type(Type)             : Setter. Verify allowed Type
+% - Obj.set.StartTime(StartTime)   : Setter. Also sets TimeZone of StartTime
+% - Obj.set.EndTime(EndTime)       : Setter. Also sets TimeZone of EndTime
+%
+% - Obj.buildHCS                   : Build a plan for a HCS field. 
+%                                    All relevant parameters should be set before calling this function
+%                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTargList) ==1)
+%
+% - Obj.buildLCS(Args)             : Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
+%                                    Fill in a daily window of observations and move to the next day. 
+%                                    All relevant parameters should be set before calling this function
+%                                    (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTargList)>0)
+%
+% - Obj.buildTOO(Args)             : Build a plan for a TOO list. Allow to enter all paramters as Args (but can also use those that are in Obj) 
+%                                    Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration
+%                                    TODO - should add optimal covarge plan(s) of ProbabiltyMap.
+%
+% - Obj.addDDT2Plan(TargetList,StartTime,Args)  : Add to the plan a list of DDT targets (TargetList) as a group, starting at StartTime.
+%                                                 Mutliple additions to the Plan are allowed. 
+%                                                 However, no pre-defined loops over the list (within a window or within days)
+%
+% - Obj.buildAllSS(Args)           : TODO - write build All Sky-Survey function (currently empty function)
+%
+%
+% - Obj.addUniqTargets(RA, Dec, Args)                       : 
+% - Obj.scheduleTargets(UniqTargetIndexes,StartTime,Args)   :
+% - Obj.retrieveMissionApprovedPlan(Args)                   :
+%
+% - Obj.clearUniqueTargets                                  :
+% - Obj.clearPlan                                           :
+% - Obj.clearMissionApprovedPlan                            :
+%
+% - Obj.adjustGroupStartTime(Args)                          :
+% - Obj.updateTargetProperties(Args)                        :
+% - Obj.updateTargetVisibility(Args)                        :
+% - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       :
+%
+% - Obj.schedule                                            :
+% - Obj.validate                                            :
+% - Obj.submit                                              :
+%
+% - Res = Obj.showCalibObj(Ind,Args)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 classdef uplanner < Component 
@@ -72,8 +121,8 @@ classdef uplanner < Component
         % TOO
         TOOStartTime              datetime    =  datetime('now'); % [hrs]   
         TOOWindowDuration  duration    =  hours(3);       % [hrs]
-        TOOMaxTargets          uint8       =  4;
-        TOOProbMap      
+        %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
+        %TOOProbMap                                 % Unused for now - check if needed later 
         
         N_uniqueTargets     uint8       =  0; % number of unique targets
         N_planTargets       uint8       =  0; % number of targets in the plan
@@ -166,7 +215,7 @@ classdef uplanner < Component
     %
     methods % Setters/Getters
         function set.Type(Obj, Type)
-            % setter for Plan Type - verify from allowed list
+            % setter for Plan Type - verify Type is from the allowed list
             if any(strcmp(Type,Obj.Plan_AllowedTypes))
                 Obj.Type = Type;
             else
@@ -190,7 +239,9 @@ classdef uplanner < Component
     methods % Building the plans          
         %
         function buildHCS(Obj)
-            % build a plan for a list of HCS field
+            % Build a plan for a HCS field. 
+            % All relevant parameters should be set before calling this function
+            % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTargList) ==1)
             
             % Verify all relevant parameters are set
             
@@ -198,13 +249,13 @@ classdef uplanner < Component
                 error('Plan Type is not HCS');
             end
             if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles)
-                error('Missing params (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit)');
+                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
             end
             if Obj.StartTime > Obj.EndTime
                 error('StartTime is after EndTime');
             end
-            if size(Obj.UniqTargList,1) ~=1
-                error('HCS reuire one single target');
+            if height(Obj.UniqTargList) ~=1
+                error('HCS requires one single target');
             end
                   
             % Calc number of exposures within the plan time 
@@ -223,7 +274,10 @@ classdef uplanner < Component
         end
         %
         function buildLCS(Obj,Args)
-            %
+            % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
+            % Fill in a daily window of observations and move to the next day. 
+            % All relevant parameters should be set before calling this function
+            % (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTargList)>0)
             arguments
                 Obj
                 Args.TargetList = [];
@@ -235,7 +289,7 @@ classdef uplanner < Component
                 error('Plan Type is not LCS');
             end
             if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles) || isempty(Obj.DefEpochsPerVisit)
-                error('Missing params (StartTime/EndTime/Exptime/Tiles)');
+                error('Missing params (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit)');
             end
             if isempty(Obj.DailyWindowStartTime) || isempty(Obj.DailyWindowMaxDuration)
                 error('Missing LCS window params (DailyWindowStartTime/DailyWindowMaxDuration)');
@@ -246,7 +300,7 @@ classdef uplanner < Component
             if Obj.DailyWindowMaxDuration > hours(24)
                error('Daily window is LONGER than a DAY'); 
             end
-            if size(Obj.UniqTargList,1) == 0
+            if height(Obj.UniqTargList) == 0
                 error('LCS reuire at least one target');
             end         
             
@@ -289,24 +343,10 @@ classdef uplanner < Component
             
         end
         %
-        function addDDT2Plan(Obj, TargetList,StartTime)
-            % build a plan for a list of DDT targets
-            % Most flexible function, allow to select which targets to add from the list and select different start time for each.
-            % Mutliple injections to the Plan are allowed. Howver, no pre-defined loops over the list (within a window or within days)
-            
-            if ~strcmp(Obj.Type,'DDT')
-                error('Plan Type is not DDT');
-            end            
-            
-            Obj.scheduleTargets(TargetList,StartTime);
-            
-        end
-        %
         function buildTOO(Obj, Args)
-            % build a plan for a TOO 
-            % TODO - Currently only basic functionailty of looping over a list of
-            % targets within a time window. Later should add smart covarge
-            % plan of Map
+            % Build a plan for a TOO list. Allow to enter all paramters as Args (but can also use those that are in Obj) 
+            % Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration
+            % TODO - should add optimal covarge plan(s) of ProbabiltyMap.
             arguments
                 Obj 
                 Args.Map                           = [];
@@ -370,6 +410,40 @@ classdef uplanner < Component
             
         end
         %
+        function addDDT2Plan(Obj, TargetList,StartTime,Args)
+            % Add to the plan a list of DDT targets (TargetList) as a group, starting at StartTime.
+            % Mutliple additions to the Plan are allowed. 
+            % However, no pre-defined loops over the list (within a window or within days)
+            arguments
+                Obj
+                TargetList
+                StartTime
+                Args.Group     = [];
+            end
+            
+            if ~strcmp(Obj.Type,'DDT')
+                error('Plan Type is not DDT');
+            end            
+            
+            if isempty(Args.Group)
+                if isempty(Obj.Plan)
+                    Args.Group = 1;
+                else
+                    Args.Group = max(Obj.Plan.Group)+1;
+                end
+            end
+            
+            Obj.scheduleTargets(TargetList,StartTime,'Group',Args.Group);
+            
+        end
+        %
+        function buildAllSS(Obj, Args)
+            % TODO - write build All Sky-Survey function (currently empty function)
+            arguments
+                Obj
+                Args
+            end
+        end
     end
     %
     methods % Auxiliary functions
@@ -670,6 +744,58 @@ classdef uplanner < Component
             end            
         end
         %
+        function updateTargetVisibility(Obj, Args)
+            % calculate visibility for all the unique targets for the given period
+            arguments
+                Obj                     
+                Args.TimeBin           = 0.01; % [days] 
+                Args.WindowStartTime = []; 
+                Args.WindowEndTime = []; 
+            end
+            %
+            RAD = 180/pi;          
+            %
+            if isempty(Args.WindowStartTime)
+                Args.WindowStartTime = Obj.CheckTimes(1);
+            end
+            
+            if isempty(Args.WindowEndTime)
+                Args.WindowEndTime = Obj.CheckTimes(2);
+            end
+            
+            StartJD = juliandate(Args.WindowStartTime);
+            EndJD   = juliandate(Args.WindowEndTime);
+            VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
+            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
+                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
+%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
+%             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
+        end
+        %
+        function adjustCheckTimes(Obj,CheckStartTime,CheckEndTime)
+            Obj.CheckTimes = [CheckStartTime;CheckEndTime];
+            Obj.updateTargetVisibility;
+            Obj.retrieveMissionApprovedPlan;
+        end
+        %
+        function schedule(Obj)
+            %
+            Obj.Status    = 'draft';
+            Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
+        end
+        %
+        function validate(Obj)
+            %
+            Obj.Status    = 'validated';
+            Obj.Validated = datetime('now','TimeZone', 'UTC');     
+        end        
+        %
+        function submit(Obj)
+            %
+            Obj.Status    = 'submitted';
+            Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
+        end
+        %
         function Res = showCalibObj(Obj,Ind,Args)
             % show the table data and spectra of calibration objects
             % Input : - object indexes
@@ -709,51 +835,6 @@ classdef uplanner < Component
             end            
         end
         %
-        function updateTargetVisibility(Obj, Args)
-            % calculate visibility for all the unique targets for the given period
-            arguments
-                Obj                     
-                Args.TimeBin           = 0.01; % [days] 
-                Args.WindowStartTime = []; 
-                Args.WindowEndTime = []; 
-            end
-            %
-            RAD = 180/pi;          
-            %
-            if isempty(Args.WindowStartTime)
-                Args.WindowStartTime = Obj.CheckTimes(1);
-            end
-            
-            if isempty(Args.WindowEndTime)
-                Args.WindowEndTime = Obj.CheckTimes(2);
-            end
-            
-            StartJD = juliandate(Args.WindowStartTime);
-            EndJD   = juliandate(Args.WindowEndTime);
-            VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
-            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
-                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
-%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
-%             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
-        end
-        %
-        function schedule(Obj)
-            %
-            Obj.Status    = 'draft';
-            Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
-        end
-        %
-        function validate(Obj)
-            %
-            Obj.Status    = 'validated';
-            Obj.Validated = datetime('now','TimeZone', 'UTC');     
-        end        
-        %
-        function submit(Obj)
-            %
-            Obj.Status    = 'submitted';
-            Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
-        end
     end
     % 
     methods(Static)
