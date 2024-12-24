@@ -1,8 +1,7 @@
 classdef MissionClient < soc.api.ClientBase
-    % VirtualTimeClient - Derived class for virtual time management.
+    % 
     
     properties
-        
     end
     
     methods
