@@ -14,6 +14,10 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] on which to
     %                   operate the ACF tests. If empty, then use entire image.
     %                   Default is [].
+    %            'CCDSEC2' - An alternative CCDSEC. If FWHM>MaxFWHM then
+    %                   will recalc. FWHM in secondry CCDSEC. This is required
+    %                   again sat. streaks.
+    %                   Default is [1 1000 1 1000]
     %            'UseFWHM' - Calculate FWHM using imUtil.psf.fwhm_fromACF
     %                   Default is true.
     %            'MaxFWHM' - Default is 5 pixels.
@@ -59,14 +63,21 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            Only, the last analyzed image is returned.
     % Author : Eran Ofek (Dec 2021)
     % Example: Result = imProc.stat.identifyBadImages(Obj, Args)
+    %          % Test on images
+    %          F=dir('LAST*.fits'); Nf=numel(F);
+    %          for I=1:1:Nf, AI=AstroImage(F(I).name); 
+    %          [Result(I)] = imProc.stat.identifyBadImages(AI,'CCDSEC',[2701 3700 4301 5300],'CCDSEC2',[2701 3700 3201 4200]);
+    %          end
     
     arguments
         Obj AstroImage
         
         Args.CCDSEC                 = [];
+        Args.CCDSEC2                = [1 1000 1 1000];   % failure region
         Args.MaxRadius              = 50;
         Args.UseFWHM logical        = true;
         Args.MaxFWHM                = 5;
+        
         
         Args.ThresholdACFnpix       = 0.8;
         Args.ThresholdACFdist       = 0.5;
@@ -138,7 +149,8 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         
         % background
         if isempty(Back)
-            Back = imUtil.background.background(Image, Args.backgroundArgs{:});
+            Back = median(Image(:));
+            %Back = imUtil.background.background(Image, Args.backgroundArgs{:});
             if Args.PopulateBack
                 Obj(Iim).(Args.BackProp) = Back;
             end
@@ -147,18 +159,25 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         BackSubImage = Image - Back;
         
         
-        % FFU: treat saturated pixels!
-        BackSubImage(BackSubImage>40000) = 0;
+        
         
         % Autocorrelation function
         if Args.UseFWHM
             % image already cropped
             [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+            if FWHM_ACF>Args.MaxFWHM
+                % run it again in a different CCDSEC
+                % this may be due to satellite streaks
+                Image = Obj(Iim).(Args.DataProp)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(Image, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+            end
             Result(Iobj).FWHM_ACF = FWHM_ACF;
             Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     FWHM_ACF>Args.MaxFWHM || isnan(FWHM_ACF) || ...
                                     Result(Iobj).N32768>Args.N32768;
         else
+            % FFU: treat saturated pixels!
+            BackSubImage(BackSubImage>40000) = 0; % NOT GOOD WHEN USED WITH UseFWHM=true
             
             [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
         
