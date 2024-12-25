@@ -68,10 +68,11 @@ function [Result, SourceLess] = mextractor(Obj, Args)
 %         Args.PrelimCleanSrcArgs cell = {'ColSN_sharp',1, 'ColSN_psf',2, 'SNdiff',0, 'MinEdgeDist',15, 'RemoveBadSources',true};
 
         % cleaning of the subtracted image:        
-        Args.RemoveMasked              = false;   % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
+        Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
                               
         % miscellaneous:
+        Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
         Args.CreateNewObj logical      = false;                           
         Args.Verbose logical           = false;  
         Args.WriteDs9Regions logical   = false;
@@ -258,6 +259,13 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         % save a copy of the AI object with the image replaced by the final subtracted image
         SourceLess(Iobj)       = Result(Iobj).copy;
         SourceLess(Iobj).Image = SubtractedImage(:,:,Niter); % or just  = Subtracted ? 
+        
+        % add RA, Dec from the WCS if it is present
+        if Args.AddSkyCoo && ~isempty(Obj(Iobj).WCS)
+            [RA, Dec] = Obj(Iobj).WCS.xy2sky(Obj(Iobj).Table.X,Obj(Iobj).Table.Y);            
+            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
+            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
+        end
         
                             if Args.Verbose
                                 fprintf('Total %d objects extracted \n',height(Result(Iobj).CatData.Catalog));
