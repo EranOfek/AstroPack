@@ -38,12 +38,16 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
 
     if Args.NearFutureInterp
         JDnow    = celestial.time.julday;
-        JDnear   = JDnow - [30;60];
+        JDnear   = JDnow - [60;90];
         AllJD    = [JDnear(:); JD(:)];
         [UT1mTAI, ~] = celestial.time.ut1_tai(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal);
-        [UT1mUTC, ~] = celestial.time.ut1_utc(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal, 'SourceFile',Args.SourceFile);
-        UT1mTAI =interp1(JDnear, UT1mTAI(1:2), JD, 'linear', 'extrap');
-        UT1mUTC =interp1(JDnear, UT1mUTC(1:2), JD, 'linear', 'extrap');
+        [UT1mUTC, ~] = celestial.time.ut1_utc(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal, 'SourceFile',Args.SourceFile);        
+        %
+        Ind = JD > JDnear(2);
+        UT1mTAI(Ind) =interp1(JDnear, UT1mTAI(1:2), JD(Ind), 'linear', 'extrap');
+        UT1mUTC(Ind) =interp1(JDnear, UT1mUTC(1:2), JD(Ind), 'linear', 'extrap');
+        UT1mTAI(1:2) = []; UT1mUTC(1:2) = [];
+        %
         TTmUT1 = TTmTAI - UT1mTAI;
         TTmUTC = TTmUT1 + UT1mUTC;
         if (max(JD)-JDnow)>60
