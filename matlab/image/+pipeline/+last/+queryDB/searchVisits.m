@@ -35,6 +35,8 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     % Author : Eran Ofek (2024 Dec) 
     % Example: T=pipeline.last.queryDB.searchVisits({1325 2 20});
     %          T=pipeline.last.queryDB.searchVisits(100,10);
+    %          T=pipeline.last.queryDB.searchVisits('M31')
+    %          T=pipeline.last.queryDB.searchVisits('M31',[],'Constraints',{'jd_start',[2451545 2461000]; 'fwhm',[1 4]})
 
     arguments
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
