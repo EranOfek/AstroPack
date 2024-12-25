@@ -63,10 +63,9 @@
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
+% - expectedRoll                                     : Calculate the expcted roll angle
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 %
-% Consider adding to Plan table:
-%   - no comm flag, hard obs flag
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef uplanner < Component 
@@ -127,10 +126,10 @@ classdef uplanner < Component
         
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
-                              'MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
+                              'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
         Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
                               'datetime','datetime','double','double','duration','double','duration','duration',...
-                              'double','double','double','double','double','cell'};
+                              'logical','logical','double','double','double','double','double','cell'};
                                                                 
         Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
         Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
@@ -525,6 +524,10 @@ classdef uplanner < Component
                     error('Issue with Sun/Earth/Moon limits');
                 end
 
+                Obj.Plan.NoComm(Plan_row) = ~all(TargetVis.CommLimits);
+                Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
+                
+                
                 Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
                 Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
                 Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
