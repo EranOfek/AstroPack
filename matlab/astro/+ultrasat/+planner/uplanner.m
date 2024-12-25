@@ -569,6 +569,8 @@ classdef uplanner < Component
             
             %for now, allow to get a uPlan and use it as refernce
             if isa(Args.inputPlan,'table')
+                Obj.clearMissionApprovedPlan;
+                
                 Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
                 Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
                 Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
@@ -598,14 +600,16 @@ classdef uplanner < Component
             
             TargetsTable = struct2table(structPlan.targets);
             
-            Obj.MissionApprovedPlan.RA(1:TargetsTable)  = 0; 
+             Obj.clearMissionApprovedPlan;
+            
+            Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
             Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
-            Obj.MissionApprovedPlan.RA  =  TargetsTable.RA ;
-            Obj.MissionApprovedPlan.Dec  =  TargetsTable.Dec ;
-            Obj.MissionApprovedPlan.Roll  =  TargetsTable.Roll ;
-            Obj.MissionApprovedPlan.Tstart  =  datetime(TargetsTable.Tstart);
-            Obj.MissionApprovedPlan.Tend  =  datetime(TargetsTable.Tend);
-            Obj.MissionApprovedPlan.ExpTime  =  seconds(TargetsTable.ExpTime);
+            Obj.MissionApprovedPlan.RA  =  TargetsTable.ra ;
+            Obj.MissionApprovedPlan.Dec  =  TargetsTable.decl ;
+            Obj.MissionApprovedPlan.Roll  =  TargetsTable.roll ;
+            Obj.MissionApprovedPlan.Tstart  = datetime(TargetsTable.start_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.Tend  =  datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.ExpTime  =  seconds(TargetsTable.exposure);
             Obj.MissionApprovedPlan.Nexposures  =  TargetsTable.image_count;
             Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);            
             
@@ -881,7 +885,12 @@ classdef uplanner < Component
 
                  % Fakely retrive upHCS ar apprvoed target list
                   upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
+                  
+                  % check with struct
+                  load('~/matlab/data/ULTRASAT/api_response.mat');
 
+                  upLCS.retrieveMissionApprovedPlan('inputPlan',response);
+                  
                   upLCS.buildLCS('TargetList',F2);
 
                   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
