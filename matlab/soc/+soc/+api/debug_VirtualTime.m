@@ -1,5 +1,5 @@
 
-function debug1()
+function debug_VirtualTime()
     %debugVirtualTimeModels();
     debugVirtualTimeClient();
 end

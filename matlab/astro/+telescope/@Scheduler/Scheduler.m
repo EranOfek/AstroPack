@@ -236,33 +236,23 @@ classdef Scheduler < Component
         function Val=get.RA(Obj)
             % getter for RA Dependent property
             
-            if isempty(Obj.RA)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
-                    error('Catalog is empty');
-                end
-                %ColInd = Obj.List.colname2ind(Obj.ColRA);
-                %if isnan(ColInd)
-                %    error('can not find %s column in List',Obj.ColRA);
-                %end
-                Obj.RA = Obj.List.Catalog.(Obj.ColRA); %(:,ColInd);
+            if isempty(Obj.List.Catalog)
+                Val = [];
+            else
+                Val = Obj.List.Catalog.(Obj.ColRA); 
             end
-            Val = Obj.RA;
+               
         end
         
         function Val=get.Dec(Obj)
             % getter for Dec Dependent property
             
-            if isempty(Obj.Dec)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
-                    error('Catalog is empty');
-                end
-                %ColInd = Obj.List.colname2ind(Obj.ColDec);
-                %if isnan(ColInd)
-                %    error('can not find %s column in List',Obj.ColDec);
-                %end
-                Obj.Dec = Obj.List.Catalog.(Obj.ColDec); %(:,ColInd);
+            if isempty(Obj.List.Catalog)
+                Val = [];
+            else
+                Val = Obj.List.Catalog.(Obj.ColDec); 
             end
-            Val = Obj.Dec;
+            
         end
         
         function Val=get.LST(Obj)

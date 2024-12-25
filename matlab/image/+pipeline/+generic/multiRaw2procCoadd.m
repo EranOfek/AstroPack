@@ -386,7 +386,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     Nim = numel(AI);
     
     if Nim<5
-        error('Only %d good images - abort');
+        error('Only %d good images - abort',Nim);
     end
     
     % update header with SoftVersion keyword
