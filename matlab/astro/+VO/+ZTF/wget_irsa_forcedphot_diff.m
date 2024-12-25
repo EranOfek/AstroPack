@@ -32,9 +32,9 @@ function [Stat,Res]=wget_irsa_forcedphot_diff(RA,Dec,varargin)
 OutFile = 'log.txt';
 
 DefV.JDstart              = celestial.time.julday([1 9 2017]);
-DefV.JDend                = celestial.time.julday([1 1 2021]);
-DefV.User                 = {'/home/eran/matlab/passwords/ztf_ipac_pass'}; %{'/home/eran/matlab/passwords/ztfForced_ipac_pass'}; 
-DefV.Pass                 = [];
+DefV.JDend                = celestial.time.julday([1 1 2025]);
+DefV.User                 = 'ztffps'; %{'/home/eran/matlab/passwords/ztf_archive_pass'}; % {'/home/eran/matlab/passwords/ztf_ipac_pass'}; %{'/home/eran/matlab/passwords/ztfForced_ipac_pass'}; 
+DefV.Pass                 = 'dontgocrazy!'; %[];
 DefV.email                = 'eran.ofek@weizmann.ac.il'; % note that in this service the e-mail is copuled to user/pass!
 DefV.BaseURL              = 'http://ztfweb.ipac.caltech.edu/cgi-bin/requestForcedPhotometry.cgi?';
 DefV.Wait                 = 2;
