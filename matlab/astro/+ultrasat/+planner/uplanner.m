@@ -875,8 +875,9 @@ classdef uplanner < Component
                 % Example for creating LCS survey:
                   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-                  upLCS.StartTime = '2028-01-01 12:00:00';
-                  upLCS.EndTime = '2028-02-16 12:00:00';
+                  upLCS.StartTime = '2024-12-04 00:00:00';
+                  upLCS.EndTime = '2025-01-16 12:00:00';
+                  upLCS.DailyWindowStartTime = duration('09:58:00');
                   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
                   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
 
