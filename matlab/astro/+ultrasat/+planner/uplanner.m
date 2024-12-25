@@ -57,49 +57,6 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% % Example for creating HCS survey:
-%   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
-%   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-%   upHCS.StartTime = '2028-01-01 12:00:00';
-%   upHCS.EndTime = '2028-07-01 12:00:00';
-%   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
-%   upHCS.buildHCS;
-% 
-% 
-% % Example for creating LCS survey:
-%   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
-%   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-%   upLCS.StartTime = '2028-01-01 12:00:00';
-%   upLCS.EndTime = '2028-02-16 12:00:00';
-%   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
-%   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
-% 
-%   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
-%   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
-% 
-%  % Fakely retrive upHCS ar apprvoed target list
-%   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan);
-% 
-%   upLCS.buildLCS('TargetList',F2);
-% 
-%   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
-% 
-% 
-% % Example for TOO plan:
-%   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
-%   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
-% 
-% 
-% 
-% % Example DDT plan (very basic):
-%   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
-%   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
-%   upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
-%   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00');
-%
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
 % Additional functions to be considered:
 % - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
 % - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
@@ -607,12 +564,12 @@ classdef uplanner < Component
                 Args.inputPlan = []; 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime = []; 
-                Args.Mclient MissionClient = [];
+                Args.Mclient soc.api.MissionClient 
             end        
             
             %for now, allow to get a uPlan and use it as refernce
-            if isa(inputPlan,'ultrasat.planner.uplanner')
-                Obj.MissionApprovedPlan.RA(1:height(Args.uPlan))  = 0; 
+            if isa(Args.inputPlan,'table')
+                Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
                 Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
                 Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
                 Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.Roll ;
@@ -633,8 +590,8 @@ classdef uplanner < Component
             end
             
             % Retrive struct or uses provided one
-            if isstruct(inputPlan)
-                structPlan = inputPlan;
+            if isstruct(Args.inputPlan)
+                structPlan = Args.inputPlan;
             else
                 structPlan = Args.Mclient.getApprovedTargets(Args.WindowStartTime, Args.WindowEndTime);
             end
@@ -897,7 +854,54 @@ classdef uplanner < Component
     methods(Static)
         Result = debug()
             % unitTest
-        Result = unitTest()
-            % unitTest
+            function Result = unitTest()
+                % unitTest
+                Result=false;
+                %
+
+                % Example for creating HCS survey:
+                  HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
+                  upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+                  upHCS.StartTime = '2028-01-01 12:00:00';
+                  upHCS.EndTime = '2028-07-01 12:00:00';
+                  upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
+                  upHCS.buildHCS;
+
+
+                % Example for creating LCS survey:
+                  LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
+                  upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+                  upLCS.StartTime = '2028-01-01 12:00:00';
+                  upLCS.EndTime = '2028-02-16 12:00:00';
+                  F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
+                  upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
+
+                  upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
+                  F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
+
+                 % Fakely retrive upHCS ar apprvoed target list
+                  upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
+
+                  upLCS.buildLCS('TargetList',F2);
+
+                  upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
+
+
+                % Example for TOO plan:
+                  upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
+                  upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
+
+                % Example DDT plan (very basic):
+                  upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
+                  upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
+                  upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
+                  upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
+
+                 %
+                 Result=true;
+                %
+                  
+            end
+
     end
 end
