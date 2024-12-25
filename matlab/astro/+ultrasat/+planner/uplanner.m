@@ -98,7 +98,19 @@
 %   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00');
 %
 %
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Additional functions to be considered:
+% - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
+% - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
+% - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
+% - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
+% - plotVisibility                                       : Display the visibilty constrains of the targets
+% several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
+%
+% Consider adding to Plan table:
+%   - no comm flag, hard obs flag
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef uplanner < Component 
     % 
