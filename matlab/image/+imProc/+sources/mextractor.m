@@ -91,20 +91,23 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     end
     
     % measure PSF
+    % TODO: check if PSF exist or user requested to re-calc
+    % TODO: generate catalog if needed (30 sigma?)
     [Result] = imProc.psf.populatePSF(Result, Args.populatePSFArgs{:},...
                                                       'ThresholdPSF',Args.ThresholdPSF,...
                                                       'RangeSN',Args.RangeSN,...
                                                       'InitPsf',Args.InitPsf,...
                                                       'InitPsfArgs',Args.InitPsfArgs);
                                                   
-                                                  if any(isemptyPSF(Result))
-                                                      % If no PSF found for one sub image - fails all                                                      
-                                                      N_noPSF = sum(~isemptyPSF(Result));
-                                                      N_SubImages = numel(Result);
-                                                      N_totSrc    = sum(Result.sizeCatalog);
-                                                      N_minSrc    = min(Result.sizeCatalog);
-                                                      error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
-                                                  end
+    % TODO: do not fail because one
+    if any(isemptyPSF(Result))
+        % If no PSF found for one sub image - fails all                                                      
+        N_noPSF = sum(~isemptyPSF(Result));
+        N_SubImages = numel(Result);
+        N_totSrc    = sum(Result.sizeCatalog);
+        N_minSrc    = min(Result.sizeCatalog);
+        error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+    end
                                                   
     % find and measure sources using multi-iteration PSF fitting
     Niter = numel(Args.Threshold);
@@ -120,7 +123,9 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                
         for Iiter=1:1:Niter
             
-            % re-measure background at each iteration > 1 and add source noise to the variance           
+            % re-measure background at each iteration > 1 and add source noise to the variance    
+
+            % TODO: and Args.ReMeasureBack
             if Iiter>1        
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
                 % add local variance from the sources revealed at all the previous iteration(s)
@@ -134,6 +139,9 @@ function [Result, SourceLess] = mextractor(Obj, Args)
 %             end
             
             % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians
+
+            % give findMeasureSource ColCell and other arguments...
+            
             if Args.FindWithEmpiricalPSF                
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
                     'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'Psf',AI.PSF,'FlagCR',false);
@@ -141,6 +149,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
                 %     2. When a PSF stamp is used for source detection, the catalog does not contain SN_3, just SN_1 !                
             else
+
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
                     'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar);
                 ColSN = 'SN_3';
