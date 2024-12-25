@@ -39,17 +39,25 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
     % Author : Eran Ofek (2024 Nov) 
     % Example: [FWHM, Res]=imUtil.psf.fwhm_fromACF(Image)
     % for Sig=1:1:20, K=randn(6001,6001).*0.01+10000.*imUtil.kernel2.gauss(Sig,[6001 6001]); [FWHM(Sig), Res]=imUtil.psf.fwhm_fromACF(K,'HalfSize',500); end
+    % Calibrate CorrFrac:
+    % F=dir('LAST*.fits'); Nf=numel(F);
+    % for I=1:1:Nf,
+    % AI= AstroImage(F(I).name);
+    % [FWHM_ACF(I)] = imUtil.psf.fwhm_fromACF(AI.Image,'HalfSize',500, 'MaxRadius',50);
+    % [FWHM_Mom(I)] = imUtil.psf.fwhm_fromMoments(AI.Image,'HalfSize',500);
+    % end
 
 
+    
     arguments
         Image
         Args.CCDSEC       = [];
         Args.HalfSize     = [];
         
         Args.BackStep          = 1;
-        Args.CorrFrac          = 0.84;
+        Args.CorrFrac          = 0.65; %84;
         
-        Args.Nsigma0           = 10;
+        Args.Nsigma0           = 10; %0; %-10;
         Args.MaxRadius         = 200;
         Args.Step              = 1;
         Args.Convert2single logical = true;

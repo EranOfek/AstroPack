@@ -5,12 +5,15 @@ classdef MissionClient < soc.api.ClientBase
     end
     
     methods
-        function obj = MissionClient(apiUrl, apiKey, timeout)
-            % Constructor 
-            obj@soc.api.ClientBase(apiUrl, apiKey, timeout);
-
+        function obj = MissionClient(Args)
+            arguments          
+                Args.SubUrl = '/mission';    
+            end
+            ArgsCell = namedargs2cell(Args);
+            obj@soc.api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
         end        
         
+
         function response = getApprovedTargets(obj, start_time, end_time)
             % Start the virtual time manager simulation.
             if nargin < 2

@@ -8,10 +8,8 @@ function debugGetApprovedTargets()
     % debugGetApprovedTargets
     
     % Define API URL and create client (will be fetched from Env)
-    apiUrl = 'http://localhost:8215';
-    apiKey = 'ULTRASOC-2024-10-17';  
-    timeout = 30; % Request timeout in seconds
-    client = soc.api.MissionClient(apiUrl, apiKey, timeout);
+    client = soc.api.MissionClient();
+    client.ApiUrl = 'http://localhost:8215';
     
     % Prepare function parameters
     fprintf('Testing getApprovedTargets...\n');
@@ -26,6 +24,10 @@ function debugGetApprovedTargets()
     for i=1:length(response.targets)
         disp(response.targets(i));
     end
+
+    save('c:\temp\api_response.mat', 'response');
+    target1 = response.targets(1);
+    save('c:\temp\api_target1.mat', 'target1');
 
     % Convert array of structs to Table
     TargetsTable = struct2table(response.targets);

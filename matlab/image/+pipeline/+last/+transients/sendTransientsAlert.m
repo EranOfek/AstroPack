@@ -200,7 +200,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         NonDetection.exptime = RefExpTime;
         AT_Report.non_detection = NonDetection;
 
-        NExpTime = ADc.New.HeaderData.getVal('EXPTIME');
+        NExpTime = Transient.New.HeaderData.getVal('EXPTIME');
 
         DetectionPhotometry = [];
         DetectionPhotometry.obsdate = DateString;
@@ -360,7 +360,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 saveas(Fig, Image_DirFilename);
                 Json_DirFilename = replace(Image_DirFilename,'.png','.json');
                 Json_Filename = replace(Image_Filename,'.png','.json');
-                Json = jsonencode(TNS_Report, 'PrettyPrint',true);
+                Json = jsonencode(TNS_Report, 'ConvertInfAndNaN',false);
                 fid = fopen(Json_DirFilename,'w');
                 fprintf(fid, Json); 
                 fclose(fid);
