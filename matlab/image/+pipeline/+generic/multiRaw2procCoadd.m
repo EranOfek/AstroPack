@@ -206,7 +206,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubImageSizeXY                   = [1600 1600];  % empty - full image
         Args.OverlapXY                        = [64 64];
         
-        Args.IdentifyBadImagesCCDSEC          = [3001 4000 3001 4000];
+        Args.IdentifyBadImagesCCDSEC          = [2701 3700 4301 5300];
+        Args.IdentifyBadImagesCCDSEC2         = [2701 3700 3201 4200];  % secondary region in case of failure (e.g., sat streaks)
         
         Args.AstroImageReadArgs cell          = {};
         
@@ -380,13 +381,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 
 
     % search for bad images
-    [Result] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
+    [Result] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC, 'CCDSEC2',Args.IdentifyBadImagesCCDSEC2);
     AI = AI(~[Result.BadImageFlag]);
         
     Nim = numel(AI);
     
     if Nim<5
-        error('Only %d good images - abort');
+        error('Only %d good images - abort',Nim);
     end
     
     % update header with SoftVersion keyword

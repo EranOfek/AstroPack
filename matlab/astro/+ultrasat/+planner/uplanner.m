@@ -1,44 +1,3 @@
-% % Example for creating HCS survey:
-%   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
-%   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-%   upHCS.StartTime = '2028-01-01 12:00:00';
-%   upHCS.EndTime = '2028-07-01 12:00:00';
-%   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
-%   upHCS.buildHCS;
-% 
-% 
-% % Example for creating LCS survey:
-%   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
-%   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-%   upLCS.StartTime = '2028-01-01 12:00:00';
-%   upLCS.EndTime = '2028-02-16 12:00:00';
-%   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
-%   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
-% 
-%   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
-%   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
-% 
-%  % Fakely retrive upHCS ar apprvoed target list
-%   upLCS.retrieveMissionApprovedPlan('uPlan',upHCS.Plan);
-% 
-%   upLCS.buildLCS('TargetList',F2);
-% 
-%   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
-% 
-% 
-% % Example for TOO plan:
-%   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
-%   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
-% 
-% 
-% 
-% % Example DDT plan (very basic):
-%   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
-%   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
-%   upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
-%   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00');
-%
-%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % List of functions:
 % - ultrasat.planner.uplanner(Args): Constructor
@@ -67,27 +26,48 @@
 % - Obj.buildAllSS(Args)           : TODO - write build All Sky-Survey function (currently empty function)
 %
 %
-% - Obj.addUniqTargets(RA, Dec, Args)                       : 
-% - Obj.scheduleTargets(UniqTargetIndexes,StartTime,Args)   :
-% - Obj.retrieveMissionApprovedPlan(Args)                   :
+% - Obj.addUniqTargets(RA, Dec, Args)                       : Add a list of [RA,Dec] coordinates (in degrees) to the unique targetList, 
+%                                                             and calls Obj.updateTargetProperties and Obj.updateTargetVisibility
+% - Obj.scheduleTargets(UniqTargetIndexes,StartTime,Args)   : Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
+%                                                             TODO- allow to provide a list of StartTime, one for each of target in the list.
+% - Obj.retrieveMissionApprovedPlan(Args)                   : Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
+%                                                             and populate the fields of Obj.MissionApprovedPlan.
+%                                                             Alternativly, allows also to provide a uplanner object (taking its plan as the MissionApprovedPlan) or struct of approved targets.
 %
-% - Obj.clearUniqueTargets                                  :
-% - Obj.clearPlan                                           :
-% - Obj.clearMissionApprovedPlan                            :
+% - Obj.clearUniqueTargets                                  : Clear the unique target list, as well as the plan and visibility object
+% - Obj.clearPlan                                           : Clear the plan
+% - Obj.clearMissionApprovedPlan                            : Clear the Mission Approved Plan table
 %
-% - Obj.adjustGroupStartTime(Args)                          :
-% - Obj.updateTargetProperties(Args)                        :
-% - Obj.updateTargetVisibility(Args)                        :
-% - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       :
 %
-% - Obj.schedule                                            :
-% - Obj.validate                                            :
-% - Obj.submit                                              :
+% - Obj.adjustGroupStartTime(Args)                          : Adjust the start time of a group in the plan by 3 options: 
+%                                                                  a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
+%                                                             If no GroupList is provided, will adjust all groups in the plan, one by one.
+% - Obj.updateTargetProperties(Args)                        : Fill for each of the unique targets the following properties: extinction (A_U), calibrating objects within FoV (CalObj),
+%                                                               (TODO) reference images  within FoV (RefImageIDs), external surveys overlaping with the FoV (ExtSurveys),
+%                                                               specific known objects (e.g., planets, massive stars, blazars) within the FOV (FieldObj)
+%                                                             TODO - should allow to update only selected targets (i.e., new targets)
+% - Obj.updateTargetVisibility(Args)                        : Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
+% - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
-% - Res = Obj.showCalibObj(Ind,Args)
+% - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
+% - Obj.validate                                            : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+% - Obj.submit                                              : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+%
+% - Res = Obj.showCalibObj(Ind,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+%
+% Additional functions to be considered:
+% - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
+% - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
+% - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
+% - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
+% - plotVisibility                                       : Display the visibilty constrains of the targets
+% several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
+%
+% Consider adding to Plan table:
+%   - no comm flag, hard obs flag
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef uplanner < Component 
     % 
@@ -161,7 +141,7 @@ classdef uplanner < Component
                               'datetime','datetime','duration','double','duration'};        
         
         ObsSunDist           = 70;   % [deg]
-        ObsMoonDist         = 34;   % [deg]
+        ObsMoonDist          = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]
         
     end 
@@ -449,7 +429,8 @@ classdef uplanner < Component
     methods % Auxiliary functions
         %
         function addUniqTargets(Obj, RA, Dec, Args)
-            % read unique target coordinates
+            % Add a list of [RA,Dec] coordinates (in degrees) to the unique targetList, 
+            % and calls Obj.updateTargetProperties and Obj.updateTargetVisibility
             arguments
                 Obj
                 RA        = 0; % [deg]
@@ -481,9 +462,8 @@ classdef uplanner < Component
         end
         %
         function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
-            % schedule a group of targets, either at specific time, or, if
-            % a single StartTime is given, one fater the other taking into
-            % account slew time.
+            % Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
+            % TODO- allow to provide a list of StartTime, one for each of target in the list.
             arguments
                 Obj
                 UniqTargetIndexes
@@ -576,25 +556,30 @@ classdef uplanner < Component
         end
         %
         function retrieveMissionApprovedPlan(Obj,Args)
-            % This function retrive the mission approved plan and populate the fields of Obj.MissionApprovedPlan
+            % Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
+            % and populate the fields of Obj.MissionApprovedPlan.
+            % Alternativly, allows also to provide a uplanner object (taking its plan as the MissionApprovedPlan) or struct of approved targets.
             arguments
                 Obj
-                Args.uPlan = []; 
+                Args.inputPlan = []; 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime = []; 
+                Args.Mclient soc.api.MissionClient 
             end        
             
             %for now, allow to get a uPlan and use it as refernce
-            if ~isempty(Args.uPlan)
-                Obj.MissionApprovedPlan.RA(1:height(Args.uPlan))  = 0; 
-                Obj.MissionApprovedPlan.RA  =  Args.uPlan.RA ;
-                Obj.MissionApprovedPlan.Dec  =  Args.uPlan.Dec ;
-                Obj.MissionApprovedPlan.Roll  =  Args.uPlan.Roll ;
-                Obj.MissionApprovedPlan.Tstart  =  Args.uPlan.Tstart ;
-                Obj.MissionApprovedPlan.Tend  =  Args.uPlan.Tend ;
-                Obj.MissionApprovedPlan.ExpTime  =  Args.uPlan.ExpTime ;
-                Obj.MissionApprovedPlan.Nexposures  =  Args.uPlan.Nexposures ;
-                Obj.MissionApprovedPlan.TotalDuration  =  Args.uPlan.TotalDuration ;
+            if isa(Args.inputPlan,'table')
+                Obj.clearMissionApprovedPlan;
+                
+                Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
+                Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
+                Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
+                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.Roll ;
+                Obj.MissionApprovedPlan.Tstart  =  Args.inputPlan.Tstart ;
+                Obj.MissionApprovedPlan.Tend  =  Args.inputPlan.Tend ;
+                Obj.MissionApprovedPlan.ExpTime  =  Args.inputPlan.ExpTime ;
+                Obj.MissionApprovedPlan.Nexposures  =  Args.inputPlan.Nexposures ;
+                Obj.MissionApprovedPlan.TotalDuration  =  Args.inputPlan.TotalDuration ;
                 return
             end
             
@@ -606,10 +591,34 @@ classdef uplanner < Component
                 Args.WindowEndTime  = Obj.CheckTimes(2);
             end
             
+            % Retrive struct or uses provided one
+            if isstruct(Args.inputPlan)
+                structPlan = Args.inputPlan;
+            else
+                structPlan = Args.Mclient.getApprovedTargets(Args.WindowStartTime, Args.WindowEndTime);
+            end
+            
+            TargetsTable = struct2table(structPlan.targets);
+            
+             Obj.clearMissionApprovedPlan;
+            
+            Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
+            Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
+            Obj.MissionApprovedPlan.RA  =  TargetsTable.ra ;
+            Obj.MissionApprovedPlan.Dec  =  TargetsTable.decl ;
+            Obj.MissionApprovedPlan.Roll  =  TargetsTable.roll ;
+            Obj.MissionApprovedPlan.Tstart  = datetime(TargetsTable.start_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.Tend  =  datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.ExpTime  =  seconds(TargetsTable.exposure);
+            Obj.MissionApprovedPlan.Nexposures  =  TargetsTable.image_count;
+            Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);            
+            
         end
         %
         function clearUniqueTargets(Obj)
-            % remove all unique targets
+            % Clear the unique target list, as well as the plan and visibility object 
+            
+            % Remove all unique targets
             Obj.UniqTargList(:,:) = [];
             % clean the number of unique targets
             Obj.N_uniqueTargets = 0;
@@ -620,6 +629,8 @@ classdef uplanner < Component
         end
         %
         function clearPlan(Obj)
+            % Clear the plan
+            
             % remove the plan
             Obj.Plan(:,:) = [];
             % clean the number of unique targets
@@ -627,11 +638,14 @@ classdef uplanner < Component
         end    
          %
         function clearMissionApprovedPlan(Obj)
-            % remove the plan
+            % Clear the Mission Approved Plan table
             Obj.MissionApprovedPlan(:,:) = [];
         end    
         %
         function adjustGroupStartTime(Obj,Args)
+            % Adjust the start time of a group in the plan by 3 options: 
+            %       a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
+            % If no GroupList is provided, will adjust all groups in the plan, one by one.
             arguments
                 Obj
                 Args.GroupList                                 = [];
@@ -691,9 +705,11 @@ classdef uplanner < Component
         end  
         %
         function updateTargetProperties(Obj, Args)
-            % fill the properties lines for each of the unique targets 
+            % Fill for each of the unique targets the following properties: extinction (A_U), calibrating objects within FoV (CalObj),
+            % (TODO) reference images  within FoV (RefImageIDs), external surveys overlaping with the FoV (ExtSurveys),
+            % specific known objects (e.g., planets, massive stars, blazars) within the FOV (FieldObj)
             %
-            % TODO should correct later to update only selected targets (i.e., new targets)
+            % TODO - should allow to update only selected targets (i.e., new targets)
             arguments
                 Obj    
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
@@ -745,7 +761,7 @@ classdef uplanner < Component
         end
         %
         function updateTargetVisibility(Obj, Args)
-            % calculate visibility for all the unique targets for the given period
+            % Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
             arguments
                 Obj                     
                 Args.TimeBin           = 0.01; % [days] 
@@ -773,31 +789,32 @@ classdef uplanner < Component
         end
         %
         function adjustCheckTimes(Obj,CheckStartTime,CheckEndTime)
+            % Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
             Obj.CheckTimes = [CheckStartTime;CheckEndTime];
             Obj.updateTargetVisibility;
             Obj.retrieveMissionApprovedPlan;
         end
         %
         function schedule(Obj)
-            %
+            % Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
             Obj.Status    = 'draft';
             Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
         end
         %
         function validate(Obj)
-            %
+            % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
             Obj.Status    = 'validated';
             Obj.Validated = datetime('now','TimeZone', 'UTC');     
         end        
         %
         function submit(Obj)
-            %
+            %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
             Obj.Status    = 'submitted';
             Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
         end
         %
-        function Res = showCalibObj(Obj,Ind,Args)
-            % show the table data and spectra of calibration objects
+        function Res = showCalibObj(Obj,TargInd,Args)
+            % Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
             % Input : - object indexes
             %        ..key,val..
             %       'PlotSpectrum' - logical, def. false
@@ -810,24 +827,25 @@ classdef uplanner < Component
             %          P.showCalibObj(2, 'PlotSpectrum',true); 
             arguments
                 Obj
-                Ind               = [];
+                TargInd               = [];
                 Args.PlotSpectrum = false;
+                Args.subInd2plot  = 1;
                 Args.WaveRange    = []; % [nm] range for spectrum plotting, e.g. [230 300] 
             end
             %
-            if isempty(Ind)
-                TabInd = Cell2Vec(Obj.UniqTargList.CalObj{1});
+            if isempty(TargInd)
+                TabInd = unique(Cell2Vec([Obj.UniqTargList.CalObj{:}]));
                 Res = Obj.CalibObj(TabInd,:);
             else
-                TabInd = Obj.UniqTargList.CalObj{1}{Ind}; % what to do if Ind is an array?? 
+                TabInd = [Obj.UniqTargList.CalObj{TargInd}{:}]; % 
                 Res = Obj.CalibObj(TabInd,:); 
             end
             if Args.PlotSpectrum
-                Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{1});
+                Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{Args.subInd2plot});
                 Ftab  = fitsread(Fname,'binarytable');
                 Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
                 figure; clf                                
-                errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda, A'; ylabel 'F, erg/cm(2)/s/A'; set(gca, 'YScale', 'log');
+                errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
                 if ~isempty(Args.WaveRange)
                     xlim(Args.WaveRange.*10);
                 end
@@ -840,7 +858,60 @@ classdef uplanner < Component
     methods(Static)
         Result = debug()
             % unitTest
-        Result = unitTest()
-            % unitTest
+            function Result = unitTest()
+                % unitTest
+                Result=false;
+                %
+
+                % Example for creating HCS survey:
+                  HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
+                  upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+                  upHCS.StartTime = '2028-01-01 12:00:00';
+                  upHCS.EndTime = '2028-07-01 12:00:00';
+                  upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
+                  upHCS.buildHCS;
+
+
+                % Example for creating LCS survey:
+                  LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
+                  upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+                  upLCS.StartTime = '2024-12-04 00:00:00';
+                  upLCS.EndTime = '2025-01-16 12:00:00';
+                  upLCS.DailyWindowStartTime = duration('09:58:00');
+                  F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
+                  upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
+
+                  upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
+                  F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
+
+                 % Fakely retrive upHCS ar apprvoed target list
+                  upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
+                  
+                  % check with struct
+                  load('~/matlab/data/ULTRASAT/api_response.mat');
+
+                  upLCS.retrieveMissionApprovedPlan('inputPlan',response);
+                  
+                  upLCS.buildLCS('TargetList',F2);
+
+                  upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
+
+
+                % Example for TOO plan:
+                  upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
+                  upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
+
+                % Example DDT plan (very basic):
+                  upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
+                  upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
+                  upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
+                  upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
+
+                 %
+                 Result=true;
+                %
+                  
+            end
+
     end
 end
