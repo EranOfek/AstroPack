@@ -76,10 +76,17 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             try
                 load(dir(FileNameTemplate).name,'');  % the .mat file will produce Obj variable
                 Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
-                Headers=dir('*coadd*Cat*');
-                % for each table line build individual header just to extract the coadd image id further in insertCatalog??                
-                AH=AstroHeader(Headers(1).name,3);
-                
+                %
+                CropID=unique(Obj.Table.cropid);
+                NCrop = numel(CropID);
+                ObjNew = struct([]);
+                AH     = repmat(AstroHeader,1,NCrop);
+                Headers= dir('*coadd*Cat*'); % get the list of all the coadd*Cat files                               
+                for Icrop = 1:NCrop
+                    ObjNew(Icrop).Table = Obj.Table(Obj.Table.cropid == CropID(Icrop), :); % select the lines by cropid
+                    AH(Icrop) = AstroHeader(Headers(CropID(Icrop)).name,3);                % for each cropid read the appropriate header
+                end                
+                %                                
             catch
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
@@ -88,20 +95,26 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
             % check and add essential KEYWORDS if they are missing                  
-            Pname = AH.getStructKey('PROJNAME').PROJNAME;
-            if isnan(AH.getStructKey('NODENUMB').NODENUMB)
+            Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
+            if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(Pname(6:7));
-                AH.replaceVal('NODENUMB',NODENUMB);
+                for Icrop = 1:NCrop
+                    AH(Icrop).replaceVal('NODENUMB',NODENUMB);
+                end                
             end
-            if isnan(AH.getStructKey('MOUNTNUM').MOUNTNUM)
+            if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
                 MOUNTNUM = str2num(Pname(9:10));
-                AH.replaceVal('MOUNTNUM',MOUNTNUM);                
+                for Icrop = 1:NCrop
+                    AH(Icrop).replaceVal('MOUNTNUM',MOUNTNUM);
+                end
             end
-            Subdir = AH.getStructKey('SUBDIR').SUBDIR; 
+            Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
             if isempty(Subdir)          
                 Parts  = strsplit(DataDir, '/');
-                Subdir = Parts{end};    % Extract the last part of the full dir name                
-                AH.replaceVal('SUBDIR',Subdir);
+                Subdir = Parts{end};    % Extract the last part of the full dir name      
+                for Icrop=1:NCrop
+                    AH(Icrop).replaceVal('SUBDIR',Subdir);
+                end               
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
@@ -115,7 +128,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
 
-            T=imProc.db.insertCatalog(Obj,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            T=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);
             
             % copy the CSV file into the proc catalog and edit the .status file
