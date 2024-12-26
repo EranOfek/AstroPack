@@ -73,6 +73,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
                               
         % miscellaneous:
+        Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI
         Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
         Args.CreateNewObj logical      = false;                           
         Args.Verbose logical           = false;  
@@ -84,6 +85,12 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Result = Obj.copy;
     else
         Result = Obj;
+    end
+    
+    % delete input catalog if requested
+    if Args.DeleteInputCatalog
+        Obj.deleteProp('CatData');
+        Obj.deleteProp('Table');
     end
     
     % measure background and variance
