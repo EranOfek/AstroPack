@@ -77,7 +77,9 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                 load(dir(FileNameTemplate).name,'');
                 Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
                 Headers=dir('*coadd*Cat*');
+                % for each table line build individual header just to extract the coadd image id further in insertCatalog??                
                 AH=AstroHeader(Headers(1).name,3);
+                
             catch
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);

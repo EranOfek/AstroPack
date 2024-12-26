@@ -56,7 +56,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.Threshold                 = [30 10 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations        
         
         % source PSF fitting:
-        Args.ReCalcPSF logical         = false;       
+        Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
+        Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
         
 %         Args.ThresholdDiffSN         = 0;
         
@@ -91,14 +92,17 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.BackPar{:});
     end
     
-    % measure PSF
-    % TODO: check if PSF exist or user requested to re-calc
-    % TODO: generate catalog if needed (30 sigma?)
-    [Result] = imProc.psf.populatePSF(Result, Args.populatePSFArgs{:},...
-                                                      'ThresholdPSF',Args.ThresholdPSF,...
-                                                      'RangeSN',Args.RangeSN,...
-                                                      'InitPsf',Args.InitPsf,...
-                                                      'InitPsfArgs',Args.InitPsfArgs);
+    % measure PSF if PSF does not exist or user requested to re-calc
+    % NB: if the input catalog is empty, it will be generated inside 
+    % imUtil.psf.constructPSF by imUtil.sources.findSources at Threshold > 20 sigma 
+    FlagPSF = Obj.isemptyPSF | ~Args.UseOriginalPSF; 
+    if any(FlagPSF)
+        [Result(FlagPSF)] = imProc.psf.populatePSF(Result(FlagPSF), Args.populatePSFArgs{:},...
+            'ThresholdPSF',Args.ThresholdPSF,...
+            'RangeSN',Args.RangeSN,...
+            'InitPsf',Args.InitPsf,...
+            'InitPsfArgs',Args.InitPsfArgs);
+    end
                                                   
     % TODO: do not fail because one
     if any(isemptyPSF(Result))
