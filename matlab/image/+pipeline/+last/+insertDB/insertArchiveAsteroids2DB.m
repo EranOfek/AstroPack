@@ -15,15 +15,15 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     % Author : A.M. Krassilchtchikov (2024 Dec) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Aster*mat';
-    %          pipeline.last.insertArchiveAsteroids2DB(RootDir,Template)    
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
-    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/2023/04/24/','ProcDirTemplate','proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Aster*.mat';      
-%         Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -60,13 +60,14 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
     for Crop = 1:Ndir
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the coadd asteriods catalog DB");
+            Injected = contains(fileread('.status'), "injected into the visit asteriods catalog DB");
         catch
             cd(Dir);
             fprintf(FID,'%s \n',DataDir);
@@ -75,13 +76,17 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         if ~Injected
             try
                 load(dir(FileNameTemplate).name,'');  % the .mat file will produce Obj variable
+                if height(Obj.Table) < 1              % if the table is empty, skip to the next visit
+                    cd(Dir);
+                    continue
+                end
                 Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
                 %
                 CropID=unique(Obj.Table.cropid);
                 NCrop = numel(CropID);
                 ObjNew = struct([]);
                 AH     = repmat(AstroHeader,1,NCrop);
-                Headers= dir('*coadd*Cat*'); % get the list of all the coadd*Cat files                               
+                Headers= dir('*coadd*Cat*fits'); % get the list of all the coadd*Cat files from where to read the headers                                
                 for Icrop = 1:NCrop
                     ObjNew(Icrop).Table = Obj.Table(Obj.Table.cropid == CropID(Icrop), :); % select the lines by cropid
                     AH(Icrop) = AstroHeader(Headers(CropID(Icrop)).name,3);                % for each cropid read the appropriate header
@@ -134,7 +139,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the coadd asteriods catalog DB'' >> %s/.status"',...
+            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the visit asteriods catalog DB'' >> %s/.status"',...
                                     Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
