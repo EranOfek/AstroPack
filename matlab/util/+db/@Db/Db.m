@@ -864,7 +864,12 @@ classdef Db < Component
             end
 
             Query = 'SHOW DATABASES;';
-            [Result,Error] = query(Obj, Query, 'Convert2String',Args.Convert2String);
+%             [Result,Error] = query(Obj, Query, 'Convert2String',Args.Convert2String);
+            Result = fetch(Obj.Conn, Query);
+            
+            if Args.Convert2String && ~isempty(Result)
+                Result = tools.table.table_cell2string(Result);
+            end
 
             if Args.ReturnString
                 Result = Result.(Result.Properties.VariableNames{1});
@@ -964,7 +969,11 @@ classdef Db < Component
             end
 
             Query = sprintf('DESCRIBE %s;',TableName);
-            [Result, Error] = Obj.query(Query, 'Convert2String',Args.Convert2String);
+%             [Result, Error] = Obj.query(Query, 'Convert2String',Args.Convert2String);
+            Result = fetch(Obj.Conn, Query);
+            if Args.Convert2String && ~isempty(Result)
+                Result = tools.table.table_cell2string(Result);
+            end
 
         end
 
