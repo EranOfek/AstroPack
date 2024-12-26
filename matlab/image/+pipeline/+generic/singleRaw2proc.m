@@ -337,7 +337,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         %SI.cast('single');
 
         % Add JD and CropID to Catalog
-        SI = imProc.cat.insertCol(SI);
+        SI = imProc.cat.insertCol(SI, 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
+
 
         if any(SI.sizeCatalog < Args.MinNstar)
             [MinVal, MinInd] = min(SI.sizeCatalog);

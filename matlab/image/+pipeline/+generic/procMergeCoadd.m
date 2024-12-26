@@ -256,6 +256,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                        'ColCell',Args.ColCell,...
                                                        'Threshold',Args.Threshold,...
                                                        'CreateNewObj',false);
+            % Add JD and CropID to Catalog
+            Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
+
 
             % Estimate PSF
             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', Args.constructPSFArgs{:}, 'DataType',@single);
