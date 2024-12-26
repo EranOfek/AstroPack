@@ -1032,9 +1032,11 @@ classdef Db < Component
                     Result = [];
                 else
                     if isempty(Args.Opts)
-                        Result = fetch(Obj.Conn, Query);
+%                         Result = fetch(Obj.Conn, Query);
+                        Result = select(Obj.Conn, Query);
                     else
-                        Result = fetch(Obj.Conn, Query, Args.Opts);
+%                         Result = fetch(Obj.Conn, Query, Args.Opts);
+                        Result = select(Obj.Conn, Query, Args.Opts);
                     end
                 end
         
