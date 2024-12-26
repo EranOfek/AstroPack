@@ -937,7 +937,8 @@ classdef Db < Component
             end
 
             Query = 'SHOW TABLES;';
-            [Result, Error] = Obj.query(Query);
+%             [Result, Error] = Obj.query(Query);
+            Result = fetch(Obj.Conn, Query);
 
             if Args.ReturnString
                 Result = Result.(Result.Properties.VariableNames{1});

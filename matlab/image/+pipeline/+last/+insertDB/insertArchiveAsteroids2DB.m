@@ -49,7 +49,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
+    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
@@ -74,7 +74,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         end
         if ~Injected
             try
-                load(dir(FileNameTemplate).name,'');
+                load(dir(FileNameTemplate).name,'');  % the .mat file will produce Obj variable
                 Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
                 Headers=dir('*coadd*Cat*');
                 % for each table line build individual header just to extract the coadd image id further in insertCatalog??                
