@@ -66,7 +66,7 @@ for I=1:1:N
     %CL = sprintf('wget --no-check-certificate --load-cookies=%s "%s" -O %s',InPar.CookiesFile,URL,TmpFile);
 
 
-    OutFile = tempname;
+    OutFile = tempname
     CL = sprintf('wget --no-check-certificate --http-user=ztffps --http-passwd=dontgocrazy! -O %s "%s"',OutFile,URL);
     [Stat,Res] = system(CL);
     pause(InPar.Wait);
