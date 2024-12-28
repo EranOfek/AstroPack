@@ -655,10 +655,11 @@ classdef AstroFileName < Component
         end
         
         % DONE
-        function Result=dir(varargin)
+        function [Result,DirSt]=dir(varargin)
             % dir like function that returns a populated AstroFileName object.
             % Input  : - File template name.
             % Output : - An AstroFileName object.
+            %          - A structure array of directories.
             % Author : Eran Ofek (Oct 2024)
             % Example: R=AstroFileName.dir('LAST.01.*.fits')
             
@@ -772,7 +773,7 @@ classdef AstroFileName < Component
             if isempty(Args.Path)
                 
                 FileTemplate = AstroFileName.fileTemplate(ArgsCell{:});
-                Result = AstroFileName.dir(FileTemplate);
+                [Result] = AstroFileName.dir(FileTemplate);
             else
                 if ischar(Args.Path)
                     Args.Path = {Args.Path};
@@ -786,7 +787,7 @@ classdef AstroFileName < Component
                 for Ipath=1:1:Npath
                     cd(Args.Path{Ipath});
                     
-                    Result(Ipath) = AstroFileName.dir(FileTemplate);
+                    [Result(Ipath)] = AstroFileName.dir(FileTemplate);
                 end
                 cd(PWD);
             end

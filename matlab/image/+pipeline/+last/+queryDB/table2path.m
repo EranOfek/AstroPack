@@ -56,6 +56,7 @@ function [AFN, AllPaths, AllFiles] = table2path(T, Args)
     AFN.Type     = Args.DefType;
     AFN.Level    = Args.DefLevel;
     AFN.Product  = Args.DefProduct;
+    AFN.BasePath = string(Args.BasePath);
 
     if nargout>1
         AllPaths      = AFN.genPath([],'AddSubDir',true);

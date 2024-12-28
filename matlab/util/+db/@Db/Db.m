@@ -27,9 +27,10 @@
 % D.showCurrentDB
 % D.showTables
 % [ColNames, ColTypes]=D.getColumns('visit_images')
-% T=D.query("SELECT * FROM last.visit_images;");
+% T=D.query("SELECT top 10 * FROM last.visit_images;");
 % T=D.query("SELECT top 5 * FROM last.proc_src;");
-
+% T=D.query("SELECT count(*) FROM last.visit_src;")
+% T=D.query("SELECT count(*) FROM last.visit_asteroids WHERE distmp < 1.5;")
 
 classdef Db < Component
     %
@@ -864,7 +865,12 @@ classdef Db < Component
             end
 
             Query = 'SHOW DATABASES;';
-            [Result,Error] = query(Obj, Query, 'Convert2String',Args.Convert2String);
+%             [Result,Error] = query(Obj, Query, 'Convert2String',Args.Convert2String);
+            Result = fetch(Obj.Conn, Query);
+            
+            if Args.Convert2String && ~isempty(Result)
+                Result = tools.table.table_cell2string(Result);
+            end
 
             if Args.ReturnString
                 Result = Result.(Result.Properties.VariableNames{1});
@@ -937,7 +943,8 @@ classdef Db < Component
             end
 
             Query = 'SHOW TABLES;';
-            [Result, Error] = Obj.query(Query);
+%             [Result, Error] = Obj.query(Query);
+            Result = fetch(Obj.Conn, Query);
 
             if Args.ReturnString
                 Result = Result.(Result.Properties.VariableNames{1});
@@ -963,7 +970,11 @@ classdef Db < Component
             end
 
             Query = sprintf('DESCRIBE %s;',TableName);
-            [Result, Error] = Obj.query(Query, 'Convert2String',Args.Convert2String);
+%             [Result, Error] = Obj.query(Query, 'Convert2String',Args.Convert2String);
+            Result = fetch(Obj.Conn, Query);
+            if Args.Convert2String && ~isempty(Result)
+                Result = tools.table.table_cell2string(Result);
+            end
 
         end
 
@@ -1032,9 +1043,11 @@ classdef Db < Component
                     Result = [];
                 else
                     if isempty(Args.Opts)
-                        Result = fetch(Obj.Conn, Query);
+%                         Result = fetch(Obj.Conn, Query);
+                        Result = select(Obj.Conn, Query);
                     else
-                        Result = fetch(Obj.Conn, Query, Args.Opts);
+%                         Result = fetch(Obj.Conn, Query, Args.Opts);
+                        Result = select(Obj.Conn, Query, Args.Opts);
                     end
                 end
         

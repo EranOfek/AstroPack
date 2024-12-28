@@ -1,4 +1,4 @@
-function [Result] = insertArchiveImages2DB_dev(RootDir, FileNameTemplate, Args)
+function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     % insert the archived LAST images to DB 
     %     this is post-processing, not intended to be used in real time within the pipeline 
     % Input  : - root directory from where to inject the data
@@ -48,7 +48,7 @@ function [Result] = insertArchiveImages2DB_dev(RootDir, FileNameTemplate, Args)
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
+    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName',Args.DbTable);      
     %

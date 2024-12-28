@@ -671,19 +671,53 @@ classdef AstroImage < Component
         
         function Result = readProducts(Files, Args)
             % Read all products associated with an image
-
+            % Input  : - Files to load - either:
+            %            Strings or cell array of file names.
+            %            An AstroFileName, or empty. If empty, then search
+            %            all files in current directory with Level, given
+            %            by 'Level' argument.
+            %          * ...,key,val,...
+            %            'Path' - Path. Default is empty.
+            %            'ExtraOutProduct' - Additional Products to load in
+            %                   addition to the 'Image' product.
+            %                   Default is ["Mask", "PSF", "Cat"]
+            %            'Level' - Level to load (if files is []).
+            %                   Default is 'coadd'.
+            % Output : - An AstroImage object with the loaded products.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: AI=AstroImage.readProducts;
+            
+            
             arguments
-                Files       = [];  % AstroFileName object
-                Args.Path   = [];
-                Args.Level  = 'coadd';
-                Args.CropID = [];
-                Args.CCDID  = [];
+                Files       = [];  % AstroFileName object, or file name
+                
+                Args.Path                 = [];
+                Args.ExtraOutProduct      = ["Mask", "PSF", "Cat"];
+                
+                Args.Level                = 'coadd';
             end
 
+            if isempty(Files)
+                % all files
+                Files = AstroFileName.dirLiteral('Levl',Args.Level);
+            end
             
+            if isa(Files, 'AstroFileName')
+                AFN = Files;
+            else
+                AFN = AstroFileName(Files, 'Path',Args.Path);
+            end
             
-
-
+            FileProd = AFN.gemProducts('OutProduct',["Image", Args.ExtraOutProduct]);
+            Nfile    = size(FileProd,1);
+            Nex = numel(Args.ExtraOutProduct);
+            Cell = cell(Nfile, Nex);
+            for Iex=1:1:Nex
+                Cell{Iex.*2-1} = Args.ExtraOutProduct{Iex};
+                Cell{Iex.*2}   = FileProd(:,2);
+            end
+            Result   = AstroImage(FileProd(:,1), Cell{:}, 'Path',Args.Path);
+            
         end
 
         function Result = readFileNamesObj(ObjFN, Args)

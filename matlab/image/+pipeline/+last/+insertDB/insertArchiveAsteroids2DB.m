@@ -15,15 +15,15 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     % Author : A.M. Krassilchtchikov (2024 Dec) 
     % Example: RootDir = '/Data1/LAST.01.01.01/'; 
     %          Template = '*coadd*Aster*mat';
-    %          pipeline.last.insertArchiveAsteroids2DB(RootDir,Template)    
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB(RootDir,Template)    
     %    
-    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
-    %          pipeline.last.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/2023/04/24/','ProcDirTemplate','proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/LAST.01.02.01/','ProcDirTemplate','*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
         RootDir                = '/Data1/LAST.01.01.01/';
         FileNameTemplate       = 'LAST*coadd_Aster*.mat';      
-%         Args.FileNameCoaddIma  = 'LAST*coadd_Ima*.fits';
         Args.ProcDirTemplate   = '*/*/*/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -49,7 +49,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');        
+    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
@@ -60,13 +60,14 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
     for Crop = 1:Ndir
         DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the coadd asteriods catalog DB");
+            Injected = contains(fileread('.status'), "injected into the visit asteriods catalog DB");
         catch
             cd(Dir);
             fprintf(FID,'%s \n',DataDir);
@@ -74,10 +75,23 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         end
         if ~Injected
             try
-                load(dir(FileNameTemplate).name,'');
+                load(dir(FileNameTemplate).name,'');  % the .mat file will produce Obj variable
+                if height(Obj.Table) < 1              % if the table is empty, skip to the next visit
+                    cd(Dir);
+                    continue
+                end
                 Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
-                Headers=dir('*coadd*Cat*');
-                AH=AstroHeader(Headers(1).name,3);
+                %
+                CropID=unique(Obj.Table.cropid);
+                NCrop = numel(CropID);
+                ObjNew = struct([]);
+                AH     = repmat(AstroHeader,1,NCrop);
+                Headers= dir('*coadd*Cat*fits'); % get the list of all the coadd*Cat files from where to read the headers                                
+                for Icrop = 1:NCrop
+                    ObjNew(Icrop).Table = Obj.Table(Obj.Table.cropid == CropID(Icrop), :); % select the lines by cropid
+                    AH(Icrop) = AstroHeader(Headers(CropID(Icrop)).name,3);                % for each cropid read the appropriate header
+                end                
+                %                                
             catch
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
@@ -86,20 +100,26 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
             % check and add essential KEYWORDS if they are missing                  
-            Pname = AH.getStructKey('PROJNAME').PROJNAME;
-            if isnan(AH.getStructKey('NODENUMB').NODENUMB)
+            Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
+            if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(Pname(6:7));
-                AH.replaceVal('NODENUMB',NODENUMB);
+                for Icrop = 1:NCrop
+                    AH(Icrop).replaceVal('NODENUMB',NODENUMB);
+                end                
             end
-            if isnan(AH.getStructKey('MOUNTNUM').MOUNTNUM)
+            if isnan(AH(1).getStructKey('MOUNTNUM').MOUNTNUM)
                 MOUNTNUM = str2num(Pname(9:10));
-                AH.replaceVal('MOUNTNUM',MOUNTNUM);                
+                for Icrop = 1:NCrop
+                    AH(Icrop).replaceVal('MOUNTNUM',MOUNTNUM);
+                end
             end
-            Subdir = AH.getStructKey('SUBDIR').SUBDIR; 
+            Subdir = AH(1).getStructKey('SUBDIR').SUBDIR; 
             if isempty(Subdir)          
                 Parts  = strsplit(DataDir, '/');
-                Subdir = Parts{end};    % Extract the last part of the full dir name                
-                AH.replaceVal('SUBDIR',Subdir);
+                Subdir = Parts{end};    % Extract the last part of the full dir name      
+                for Icrop=1:NCrop
+                    AH(Icrop).replaceVal('SUBDIR',Subdir);
+                end               
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
@@ -113,13 +133,13 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
 
-            T=imProc.db.insertCatalog(Obj,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            T=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);
             
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the coadd asteriods catalog DB'' >> %s/.status"',...
+            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the visit asteriods catalog DB'' >> %s/.status"',...
                                     Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
