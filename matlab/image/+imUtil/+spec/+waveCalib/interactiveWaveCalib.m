@@ -26,6 +26,9 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
         Args.GoodPeakMarker    = {'Color','k', 'MarkerFaceColor','k', 'MarkerSize',5};
         Args.DeletedPeakMarker = {'Color','r', 'MarkerFaceColor','r', 'MarkerSize',5};
         Args.DeleteMinWaveDist = 100;
+        
+        Args.fitWaveCalibArgs  = {};
+        Args.MaxDistWave       = 5;
     end
     
     if isvector(Spec)
@@ -45,6 +48,7 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
     hold on;
     plot(PeakLocation, PeakHeight, 'o', Args.PeakMarker{:});
     Ha = gca;
+    XlimYlim = [Ha.XLim, Ha.YLim];
     
     [PeakAxisX, PeakAxisY] = plot.xy2axesPos(Ha, PeakLocation, PeakHeight);
     
@@ -107,7 +111,29 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
                     end
                 case 'f'
                     % fit
-                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.Pos].');
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                case 'i'
+                    % identify all lines in LineList
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                    
+                    PeakCalcWave = Result.pix2wave(PeakLocation, Result);
+                    PeakCalcWave = Result.pix2wave(PeakLocation, Result);
+                    
+                    Npeak = numel(PeakCalcWave);
+                    % search for wavelength in LineList
+                    for Ipeak=1:1:Npeak
+                        [MinDistWave, MinIndWave] = min(abs(PeakCalcWave(Ipeak) - Args.LineList));
+                        if MinDistWave<Args.MaxDistWave
+                            Ind = Ind + 1;
+                            StoredData(Ind).IsAuto  = true;
+                            StoredData(Ind).PeakPos = PeakLocation(Ipeak);
+                            StoredData(Ind).PeakVal = PeakHeight(Ipeak);
+                            StoredData(Ind).Wave    = Args.LineList(MinIndWave);
+                        end
+                    end                    
+                    
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                    
                 otherwise
                     showMenu();
             end
@@ -125,7 +151,8 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
             Ind = Ind + 1;
             StoredData(Ind).ClickXY = XY;
             
-            [IntPosX,  IntPosY] = plot.xy2axesPos(Ha, XY(1), XY(2));
+            [IntPosX,  IntPosY] = plot.xy2axesPos(Ha, XY(1), XY(2), XlimYlim);
+            
             Dist = sqrt((IntPosX - PeakAxisX).^2 + (IntPosY - PeakAxisY).^2);
             [Dist, MinInd] = min(Dist);
             
@@ -135,6 +162,7 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
             StoredData(Ind).Wave    = Wave;
             StoredData(Ind).MinInd  = MinInd;
             StoredData(Ind).PointH = plot(PeakLocation(MinInd), PeakHeight(MinInd), 'o',Args.GoodPeakMarker{:});
+            StoredData(Ind).IsAuto = false;
         end
         
     end
@@ -154,6 +182,7 @@ function showMenu()
     fprintf('n - Change mode to mark line by number\n')
     fprintf('d - delete line\n')
     fprintf('f - fit and find more lines\n')
+    fprintf('i - identify all lines in list\n')
 end
 
 function showLineList(List)

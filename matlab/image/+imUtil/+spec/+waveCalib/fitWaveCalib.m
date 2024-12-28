@@ -116,9 +116,10 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     % RANSAC iteration:
     % select Args.Nrem points to remove 
         
+    Flag   = true(Nlines,1);
     if isempty(Args.Nsim)
         % skip RANSAC
-        Flag   = true(Nlines,1);
+        
     else
         if isempty(Args.MinNunique)
             Args.MinNunique = numel(Args.PolyOrder) + 1;
