@@ -15,9 +15,7 @@ classdef ZoomInset < handle
         InsetAx
         Ax
         Fig
-        OutWinState = 'on';  % off - don't show zoom inset when mouse is outsode window.
-        Timer                % Timer object
-        UseTimer = true;     % true - use periodic timer; false - use callback function
+        OutWinState = 'on';
     end
     
     methods
@@ -32,14 +30,8 @@ classdef ZoomInset < handle
         
         function delete(obj)
             % Destructor - Stop inset zoom
-            
-            if isvalid(obj.Timer)
-                stop(obj.Timer);
-                delete(obj.Timer);
-            end
             stopMouseHoverInset();
         end
-    
         
         function createInset(obj)
             % Create inset Axes
@@ -61,16 +53,8 @@ classdef ZoomInset < handle
             obj.InsetAx.YLim = obj.Ax.YLim;
             obj.InsetAx.Visible = obj.OutWinState;
             
-            if obj.UseTimer
-                % Start periodic timer
-                obj.Timer = timer('ExecutionMode', 'fixedRate', ...
-                          'Period', 0.1, ... % Adjust period as needed
-                          'TimerFcn', @(~, ~) obj.updateInset());
-                start(obj.Timer);
-            else
-                % Set callback for mouse movement
-                set(obj.Fig, 'WindowButtonMotionFcn', @(~, ~) obj.updateInset());
-            end
+            % Set callback for mouse movement
+            set(obj.Fig, 'WindowButtonMotionFcn', @(~, ~) obj.updateInset());
         end
         
         function updateInset(obj)
