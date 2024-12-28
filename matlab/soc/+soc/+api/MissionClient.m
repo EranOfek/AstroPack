@@ -27,5 +27,7 @@ classdef MissionClient < soc.api.ClientBase
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
 
+        % -------------------------------------------------------------------
+
     end
 end
