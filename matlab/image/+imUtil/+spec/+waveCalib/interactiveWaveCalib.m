@@ -1,9 +1,33 @@
 function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
+    % Interactive wavelength calibration by line marking
+    %     The user is prompted to select peaks in the spectrum and to feed
+    %     their wavelength. Next, it is possible to fit these selected
+    %     lines with a polynomial transformation and to use this to
+    %     automatically find additional lines from a line list and to
+    %     re-fit the data.
+    %     Peaks in the spectrum are marked by empty red circles.
+    %     Manulally selected peaks are marked by filled black circles.
+    %     Deleted peaks are marked by filled red circle.
+    %     Automatically identified peaks are marked by filled green circles.
+    %
+    % Input  : - Spectrum [PixeelPosition, Intensity], or [Intensity].
+    %            If a single column then, the pixel positions are set to a
+    %            running index.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'LineList' - A vector of the wavelength of known lines in
+    %                   the spectrum. Default is [].
+    %            'fitWaveCalibArgs' - A cell array of additional arguments
+    %                   to pass to imUtil.spec.waveCalib.fitWaveCalib
+    %                   Default is [].
+    %            See code for additional arguments.
+    %
+    % Output : - A structure array with the data per each line.
+    %            The following fields are available:
+    %            .PeakPos - Pixel position.
+    %            .Wave - Wavelength
+    %            . ...
+    %          - A structure with the best fit data.
+    %            See imUtil.spec.waveCalib.fitWaveCalib for details.
     % Author : Eran Ofek (2023 Dec) 
     % Example: load SpecArcs.mat
     %          R=imUtil.spec.waveCalib.interactiveWaveCalib(SpecArcs(1).Spec, 'ZoomInset',[]);
@@ -11,10 +35,11 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
     arguments
         Spec
         Args.LineList          = [];
+        Args.fitWaveCalibArgs  = {};
         
-        Args.localMaxArgs cell = {};
-        Args.StdFilterHalfSize = [30 200];
-        Args.Threshold         = 10;
+        %Args.localMaxArgs cell = {};
+        %Args.StdFilterHalfSize = [30 200];
+        %Args.Threshold         = 10;
         
         Args.MinPeakHeight     = 0;
         Args.MinPeakWidth      = 2;
@@ -24,10 +49,10 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
         
         Args.PeakMarker        = {'Color','r', 'MarkerSize',5};
         Args.GoodPeakMarker    = {'Color','k', 'MarkerFaceColor','k', 'MarkerSize',5};
+        Args.AutoPeakMarker    = {'Color','g', 'MarkerFaceColor','g', 'MarkerSize',5};
         Args.DeletedPeakMarker = {'Color','r', 'MarkerFaceColor','r', 'MarkerSize',5};
         Args.DeleteMinWaveDist = 100;
         
-        Args.fitWaveCalibArgs  = {};
         Args.MaxDistWave       = 5;
     end
     
@@ -111,12 +136,11 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
                     end
                 case 'f'
                     % fit
-                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.PeakPos].',[StoredData.Wave].', Args.fitWaveCalibArgs{:});
                 case 'i'
                     % identify all lines in LineList
-                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.PeakPos].',[StoredData.Wave].', Args.fitWaveCalibArgs{:});
                     
-                    PeakCalcWave = Result.pix2wave(PeakLocation, Result);
                     PeakCalcWave = Result.pix2wave(PeakLocation, Result);
                     
                     Npeak = numel(PeakCalcWave);
@@ -129,10 +153,11 @@ function [StoredData,Result] = interactiveWaveCalib(Spec, Args)
                             StoredData(Ind).PeakPos = PeakLocation(Ipeak);
                             StoredData(Ind).PeakVal = PeakHeight(Ipeak);
                             StoredData(Ind).Wave    = Args.LineList(MinIndWave);
+                            StoredData(Ind).PointH  = plot(PeakLocation(Ipeak), PeakHeight(Ipeak), 'o', Args.AutoPeakMarker{:});
                         end
                     end                    
                     
-                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.Wave].',[StoredData.PeakPos].', Args.fitWaveCalibArgs{:});
+                    Result = imUtil.spec.waveCalib.fitWaveCalib([StoredData.PeakPos].',[StoredData.Wave].', Args.fitWaveCalibArgs{:});
                     
                 otherwise
                     showMenu();

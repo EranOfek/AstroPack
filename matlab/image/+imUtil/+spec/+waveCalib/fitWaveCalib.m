@@ -48,6 +48,7 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     %            .HalfRangePixPos - Half range of PixPos used in the unity
     %                   normalization.
     %            .PolyOrder - Vector of polynomial orders.
+    %            .Wave - Wavelengths.
     %            .ResidAll - Vector of all residuals (including unused bad
     %                   points).
     %            .Flag - Vector of logicals indicating which points were
@@ -152,6 +153,7 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     Result.HalfRangePixPos = HalfRangePixPos;    
     Result.PolyOrder       = Args.PolyOrder;
     
+    Result.WaveAll   = WavePos;
     Result.ResidAll  = Resid;
     Result.Flag      = Flag;
     Result.Std       = std(ResidGood);
