@@ -38,6 +38,8 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     %            'SigmaClipRANSAC' - The [Low, High] sigma clipping for the
     %                   RANSAC strong outliers removal.
     %                   Default is [20 20].
+    %            'PlotResidH' - If not empty, then a figure handle in which to
+    %                   plot a new residuals plot. Default is [].
     % Output : - A structure containing the following fields:
     %            .Par - Best fit parameters.
     %            .ParErr - Best fit parameters errots.
@@ -57,6 +59,7 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     %                   call this using Result.pix2wave(PixPosVector, Result)
     %                   where Result is the output of this function, and
     %                   PixPosVector is a vector of pixels position.
+    %         
     %
     % Author : Eran Ofek (2023 Dec) 
     % Example: % last point is outlier
@@ -79,6 +82,10 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
         Args.Nrem              = 2;
         Args.MinNunique        = [];  % if empty, use Npar + 1
         Args.SigmaClipRANSAC   = [20 20];
+        
+        Args.PlotResidH        = [];
+        Args.GoodMarker        = {'Color','k', 'MarkerFaceColor','k'};
+        Args.BadMarker         = {'Color','r'};
     end
     
     if isempty(WavePos)
@@ -150,5 +157,17 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
     Result.RStd      = Std;
 
     Result.pix2wave  = @(PixPos, R) ( ((PixPos(:)-R.MidPixPos)./R.HalfRangePixPos) .^(R.PolyOrder(:).')) * R.Par;
+    
+    if ~isempty(Args.PlotResidH)
+        Hcurrent = gcf;
+        figure(Args.PlotResidH);
+        cla;
+        
+        plot(WavePos, Result.ResidAll(Result.Flag), 'o', Args.GoodMarker{:});
+        hold on;
+        plot(WavePos, Result.ResidAll(~Result.Flag), 'o', Args.BadMarker{:});
+        
+        figure(Hcurrent);
+    end
     
 end
