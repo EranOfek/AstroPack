@@ -27,9 +27,10 @@
 % D.showCurrentDB
 % D.showTables
 % [ColNames, ColTypes]=D.getColumns('visit_images')
-% T=D.query("SELECT * FROM last.visit_images;");
+% T=D.query("SELECT top 10 * FROM last.visit_images;");
 % T=D.query("SELECT top 5 * FROM last.proc_src;");
-
+% T=D.query("SELECT count(*) FROM last.visit_src;")
+% T=D.query("SELECT count(*) FROM last.visit_asteroids WHERE distmp < 1.5;")
 
 classdef Db < Component
     %
