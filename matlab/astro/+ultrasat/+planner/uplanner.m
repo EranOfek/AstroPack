@@ -141,8 +141,7 @@ classdef uplanner < Component
         
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
-        ObsEarthDist         = 56;   % [deg]
-        
+        ObsEarthDist         = 56;   % [deg]        
     end 
     % 
     methods  % Constructor
@@ -695,8 +694,7 @@ classdef uplanner < Component
                         end
                     end
                 end
-                
-                
+                                
                 %apply shift
                 Obj.Plan.Tstart(Plan_rows) = Obj.Plan.Tstart(Plan_rows) + ShiftTime;
                 Obj.Plan.Tend(Plan_rows) = Obj.Plan.Tend(Plan_rows) + ShiftTime;
@@ -767,9 +765,9 @@ classdef uplanner < Component
             % Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
             arguments
                 Obj                     
-                Args.TimeBin           = 0.01; % [days] 
+                Args.TimeBin         = 0.01; % [days] 
                 Args.WindowStartTime = []; 
-                Args.WindowEndTime = []; 
+                Args.WindowEndTime   = []; 
             end
             %
             RAD = 180/pi;          
@@ -779,7 +777,7 @@ classdef uplanner < Component
             end
             
             if isempty(Args.WindowEndTime)
-                Args.WindowEndTime = Obj.CheckTimes(2);
+                Args.WindowEndTime   = Obj.CheckTimes(2);
             end
             
             StartJD = juliandate(Args.WindowStartTime);
@@ -874,7 +872,6 @@ classdef uplanner < Component
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
                   upHCS.buildHCS;
 
-
                 % Example for creating LCS survey:
                   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
@@ -899,7 +896,6 @@ classdef uplanner < Component
 
                   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
 
-
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
@@ -911,10 +907,7 @@ classdef uplanner < Component
                   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
 
                  %
-                 Result=true;
-                %
-                  
+                 Result=true;                                 
             end
-
     end
 end

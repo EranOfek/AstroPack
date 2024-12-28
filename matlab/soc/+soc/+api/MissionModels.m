@@ -50,5 +50,6 @@ classdef MissionModels < soc.api.ModelFactoryBase
             % Create and return the model instance
             model = soc.api.ModelBase(data);
         end
-    end
+
+    end    
 end
