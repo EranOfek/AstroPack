@@ -11,7 +11,7 @@ function [File, Path, AFN] = findReference(FieldID, CumNum, CropID, Args)
     %          - Reference image path.
     %          - AstroFileName for reference image.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: 
+    % Example: [File, Path, AFN] = pipeline.last.coadd.findReference(1000, 1, 10)
 
     arguments
         FieldID
