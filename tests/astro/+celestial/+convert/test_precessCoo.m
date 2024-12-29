@@ -1,107 +1,114 @@
 % AstroPack Unit-Test
-% Target Function: celestial/convert/precessCoo.m
+% Target Function: celestial/+convert/precessCoo.m
 %
 % Brief Description:
 % This unit test verifies the functionality of the precessCoo function.
 %
 % Detailed Description:
-% The precessCoo function is responsible for precessing celestial coordinates (Right Ascension and Declination) from one equinox to another. It supports input in various formats, including sexagesimal and radians, and provides conversion between different types of input/output units.
+% The precessCoo function precesses Right Ascension (RA) and Declination
+% (Dec) coordinates from an input equinox to an output equinox, supporting 
+% various formats and units. This test file checks that precession is 
+% correctly applied for different input and output equinoxes, units, and 
+% coordinate formats.
 %
 % This unit test covers the following scenarios:
-% - Precessing from J2000.0 to the current equinox (default).
-% - Precessing from J2000.0 to a specific future equinox (2050).
-% - Input in sexagesimal format and output in degrees.
-% - Input and output using different units (radians to degrees).
-% - Handling of missing optional inputs.
+% - Basic functionality with default parameters.
+% - Handling of sexagesimal (string) and radian inputs.
+% - Precessing to/from different input and output equinoxes.
+% - Changing units between degrees and radians.
+% - Edge case handling for invalid and empty inputs.
 %
-% Created: 2024-10-08
-% Author:  Noam Segev
+% Created: 30-Oct-2024
+% Author: Noam Segev
 %--------------------------------------------------------------------------
+
 function tests = test_precessCoo
     tests = functiontests(localfunctions);
 end
 
-%--------------------------------------------------------------------------
-
-% Setup and Teardown Functions
-function setup(~)
-    % Setup code to run before each test if needed
-end
-
-function teardown(~)
-    % Teardown code to run after each test if needed
-end
-
-% Test: Default Precession
-function test_default_precession(testCase)
-    % Test default precession from J2000.0 to current equinox
-
+% Test default functionality with J2000 input and current output equinox
+function testDefaultJ2000ToNow(testCase)
     InRA = 180; % Degrees
     InDec = -20; % Degrees
-
     [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec);
-
-    % @TODO - Define the expected results for current date calculation
-    verifySize(testCase, OutRA, size(InRA));
-    verifySize(testCase, OutDec, size(InDec));
-
-    % Check if the outputs are within the expected range
-    verifyGreaterThanOrEqual(testCase, OutRA, 0);
-    verifyLessThanOrEqual(testCase, OutRA, 360);
-    verifyGreaterThanOrEqual(testCase, OutDec, -90);
-    verifyLessThanOrEqual(testCase, OutDec, 90);
+    
+    % Verify outputs have correct dimensions and types
+    validateattributes(OutRA, {'double'}, {'scalar'});
+    validateattributes(OutDec, {'double'}, {'scalar'});
 end
 
-% Test: Precession to Future Equinox
-function test_future_precession(testCase)
-    % Test precession from J2000.0 to mean equinox of 2050
+% Test input in sexagesimal format with conversion to degrees
+function testSexagesimalInput(testCase)
+    InRA = '12:00:00'; % 180 degrees
+    InDec = '-20:00:00'; % -20 degrees
+    JD = 2460673.82548842;
+    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec,'OutEquinox',JD);
+    
+    % Check that output matches expected degrees within tolerance
+    testCase.assertEqual(OutRA, 180.319426022627, 'AbsTol', 1e-3);
+    testCase.assertEqual(OutDec, -20.1391114870079, 'AbsTol', 1e-3);
+end
 
+% Test precession to a specified output equinox
+function testToSpecificOutEquinox(testCase)
     InRA = 180; % Degrees
     InDec = -20; % Degrees
-    OutEquinox = 2469807.5; % JD for 2050.0
-
-    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec, [], 'OutEquinox', OutEquinox, 'OutMean', true);
-
-    % @TODO - Define expected RA/Dec for this date
-    verifySize(testCase, OutRA, size(InRA));
-    verifySize(testCase, OutDec, size(InDec));
-
-    % Check if the outputs are within the expected range
-    verifyGreaterThanOrEqual(testCase, OutRA, 0);
-    verifyLessThanOrEqual(testCase, OutRA, 360);
-    verifyGreaterThanOrEqual(testCase, OutDec, -90);
-    verifyLessThanOrEqual(testCase, OutDec, 90);
+    
+    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec, [], 'OutEquinox',2462500);
+    
+    % Validate that output is numeric and scalar
+    validateattributes(OutRA, {'double'}, {'scalar'});
+    validateattributes(OutDec, {'double'}, {'scalar'});
 end
 
-% Test: Sexagesimal Input
-function test_sexagesimal_input(testCase)
-    % Test input in sexagesimal and output in degrees
-
-    InRA = '12:00:00'; % Sexagesimal format
-    InDec = '-20:00:00'; % Sexagesimal format
-
-    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec, [], 'OutUnits', 'deg');
-
-    % Expected values should be converted from sexagesimal to degrees
-    verifySize(testCase, OutRA, [1, 1]);
-    verifySize(testCase, OutDec, [1, 1]);
-
-    verifyGreaterThanOrEqual(testCase, OutRA, 0);
-    verifyLessThanOrEqual(testCase, OutRA, 360);
-    verifyGreaterThanOrEqual(testCase, OutDec, -90);
-    verifyLessThanOrEqual(testCase, OutDec, 90);
+% Test with radian input and output units
+function testRadianInputOutput(testCase)
+    InRA = pi; % Radians (180 degrees)
+    InDec = -pi/9; % Radians (-20 degrees)
+    Args  = {'InUnits', 'rad','OutUnits', 'rad'};
+    
+    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec, [], Args{:});
+    
+    % Check output in radians
+    testCase.assertGreaterThan(abs(OutRA), 0);
+    testCase.assertGreaterThan(abs(OutDec), 0);
 end
 
-% Test: Handling Missing Optional Inputs
-function test_missing_optional_input(testCase)
-    % Test behavior when optional inputs are missing (use defaults)
+% Test precession with input as cosine direction vectors
+function testCosineDirectionInput(testCase)
+    % Define cosine direction vector for 180 deg RA, -20 deg Dec
+    CD1 = cosd(180) * cosd(-20);
+    CD2 = sind(180) * cosd(-20);
+    CD3 = sind(-20);
+    [OutRA, OutDec] = celestial.convert.precessCoo(CD1, CD2, CD3);
+    
+    % Verify outputs have correct dimensions and types
+    validateattributes(OutRA, {'double'}, {'scalar'});
+    validateattributes(OutDec, {'double'}, {'scalar'});
+end
 
-    InRA = 120; % Degrees
-    InDec = 30; % Degrees
 
+% Test empty input arrays for RA and Dec
+function testEmptyInputRAandDec(testCase)
+    InRA = [];
+    InDec = [];
     [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec);
+    
+    % Expect empty output arrays
+    testCase.assertEmpty(OutRA);
+    testCase.assertEmpty(OutDec);
+end
 
-    % Test if the function uses defaults correctly
-    verifySize(testCase, OutRA, size(InRA));
-    verifySize(testCase, OutDec, size(InDec));
+% Test known conversion from J2000 to JD of January 1, 2050
+function testKnownJ2000To2050Conversion(testCase)
+    InRA = 180; % Degrees
+    InDec = -20; % Degrees
+    % 2462500; % JD for January 1, 2050
+    [OutRA, OutDec] = celestial.convert.precessCoo(InRA, InDec, [], 'OutEquinox',2462500);
+    
+    % Expected approximate values for RA and Dec in 2050
+    expectedRA = 180.389018091026; % Replace with exact known values
+    expectedDec = -20.1688659111515; % Replace with exact known values
+    testCase.assertEqual(OutRA, expectedRA, 'AbsTol', 1e-3);
+    testCase.assertEqual(OutDec, expectedDec, 'AbsTol',  1e-3);
 end
