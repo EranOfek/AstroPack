@@ -62,8 +62,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for Crop = 1:Ndir
-        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
+    for Idir = 1:Ndir
+        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
         cd(DataDir);    
         try
             Injected = contains(fileread('.status'), "injected into the visit image DB");
