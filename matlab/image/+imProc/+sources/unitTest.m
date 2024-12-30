@@ -26,11 +26,11 @@ function Result = unitTest
     
     % testing multi-iteration PSF photometry 
     
-    Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};
-    cd(PWD)
-
+    Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};  
     AI     = [AstroImage(Images{1}) AstroImage(Images{2})];  
 %     AI.Mask = % fill in the masks 
+
+    cd(PWD)
 
     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'Verbose',true,...
         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
@@ -56,6 +56,17 @@ function Result = unitTest
     ds9(AI(2).Image,3); ds9.load_region('~/275-16_it1.reg'); ds9.load_region('~/275-16_it2.reg'); ds9.load_region('~/275-16_it3.reg')
     ds9(SourceLess(2).Image,4)     
         
+    % test with LAST data from Marvin:
+
+    D=db.Db; D.User = 'last_user'; D.Password = 'physics'; D.Conn; D.useDB('last');
+    T=D.query("SELECT * FROM last.visit_images WHERE abs(ra-285.385) < 0.4 AND abs(dec-22.615) < 0.4 AND (midjd < 2460500) AND (midjd > 2460460);");
+    Nobs = height(T);
+    F  = 1:3;
+    AI = pipeline.last.queryDB.loadProducts(T(F,:),'coadd','Image+','ExtraOutProduct',["Mask", "PSF", "Cat"],...
+        'table2pathArgs',{'BasePath','/mnt/marvin'});
+    AI = imProc.sources.mextractor(AI, 'Verbose',true, 'FindWithEmpiricalPSF',true);
+
+    % 
     
     Result = true;
 end

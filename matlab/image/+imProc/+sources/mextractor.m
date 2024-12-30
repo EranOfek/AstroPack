@@ -57,8 +57,15 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         % source detection:        
         Args.FindWithEmpiricalPSF logical = false;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
-        Args.Threshold                 = [30 10 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations        
-        
+        Args.Threshold                 = [30 10 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations   
+        Args.maskCR_Args cell          = {};
+        Args.ColCell cell              = {'XPEAK','YPEAK',...
+                                        'X1', 'Y1',...
+                                        'X2','Y2','XY',...
+                                        'SN','BACK_IM','VAR_IM',...
+                                        'BACK_ANNULUS', 'STD_ANNULUS', ...
+                                        'FLUX_APER', 'FLUXERR_APER',...
+                                        'MAG_APER', 'MAGERR_APER'};
         % source PSF fitting:
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
@@ -118,8 +125,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                             if Args.Verbose
                                 fprintf('Image %d of %d \n',Iobj,Nobj);
                             end    
-        % TODO: do we actually need a deep copy here? It can be chosen above with Args.CreateNewObj
-        AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj        
+        % we need a deep copy here, otherwise, the initial image is not kept in the AI!
+        AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj 
         Cat             = repmat(AstroCatalog,1,Niter);                         % catalogs produced at each iter, merged afterwards
         SourceImage     = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % source image after each iteration
         SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
@@ -132,17 +139,21 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);                
             end
             
-            % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians
-            % TODO: give findMeasureSource ColCell and other arguments...            
-            if Args.FindWithEmpiricalPSF                
+            % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians                     
+            % in each case the sources identified as CRs are removed from the catalog
+            % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
+            %     2. When a PSF stamp is used for source detection, the output catalog does not contain SN_3, just SN_1 and SN_2!                
+            if Args.FindWithEmpiricalPSF       
+                PSFTemplate(:,:,2) = AI.PSF; % the empirical PSF 
+                PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection 
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
-                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'Psf',AI.PSF,'FlagCR',false);
-                ColSN = 'SN_1';
-                % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
-                %     2. When a PSF stamp is used for source detection, the output catalog does not contain SN_3, just SN_1 !                
+                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'Psf',PSFTemplate,...
+                    'FlagCR',true,'maskCR_Args',Args.maskCR_Args,'ColCell',Args.ColCell);
+                ColSN = 'SN_2';                
             else
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
-                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar);
+                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar,...
+                    'FlagCR',true,'maskCR_Args',Args.maskCR_Args,'ColCell',Args.ColCell);
                 ColSN = 'SN_3';
             end                         
             
@@ -177,7 +188,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8], 'Norm', true);
             end            
     
-            % subtract sources:
+            % subtract the newly found and measured sources:
             % 1. construct a source image
             % 2. subtract the source image from the current image
             [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
@@ -186,12 +197,12 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                                                         'Oversample',[],'Subtract',false);                                                                                          
             Subtracted                   = AI.Image - SourceImage(:,:,Iiter);  
             
-            % set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
+            % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
             if Args.RemoveMasked
                 Ind = AI.Mask > 0;                
                 Subtracted(Ind) = AI.Back(Ind);
             end
-            % set pixels with reconstructed source PSFs to the background values 
+            % optionaly set pixels with reconstructed source PSFs to the background values 
             if Args.RemovePSFCore
                 Ind = SourceImage(:,:,Iiter) > 0;
                 Subtracted(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
