@@ -19,6 +19,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'PsfFunPar'      - PSF widths to be employed for source search
     %         'Threshold'      - a vector of threshold significance employed for source search: one component per iteration
     %                            NB: this parameter also sets the number of iterations!
+    %         'maskCR_args'    - arguments for the imProc.mask.maskCR function employed to exclude CRs from the catalog  
     %         'UseOriginalPSF' - (logical) use the PSF already attached to the input AstroImage
     %         'ReCalcPSF'      - (logical) remeasure PSF at each iteration (def. false)
     %
@@ -89,7 +90,10 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     else
         Result = Obj;
     end
-       
+     
+    % exclude objects with empty images
+    Obj(Obj.isemptyProperty('Image')) = [];    
+    
     % measure background and variance if it is missing 
     FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var');
     if any(FlagBack)
