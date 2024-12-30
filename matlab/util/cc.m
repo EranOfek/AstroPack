@@ -1,1 +1,1 @@
-clear classes
+clear all; clear classes
