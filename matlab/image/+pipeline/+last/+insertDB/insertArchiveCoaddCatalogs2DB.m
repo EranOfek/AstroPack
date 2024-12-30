@@ -21,9 +21,9 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     %          pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.01*/*/*/*/proc/*')
     %
     arguments
-        RootDir                = '/Data1/LAST.01.01.01/';
+        RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Cat_1.fits';      
-        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';  
         Args.Decompress        = false;
         Args.CompressProcessed = false;
         Args.UpdateStatus      = true;
