@@ -34,7 +34,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         Args.DbPass = 'PassRoot'; 
         
         Args.Level  = 'coadd';
-        Args.DbTable= 'visit_asteroids2';   
+        Args.DbTable= 'visit_asteroids2';  %  'visit_asteroids' 
         Args.KeyID     = 'id_visit_im';
         Args.ColNameID = 'id_visit_src';        
         
