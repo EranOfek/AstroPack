@@ -84,6 +84,11 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.WriteDs9Regions logical   = false;
     end
     
+    % check consistency
+    if ~(numel(Args.Threshold) == numel(Args.MomRadius))
+        error('The length of Args.Threshold does must comply with that of Args.MomRadius');
+    end
+    
     % create a new object if requested  
     if Args.CreateNewObj
         Result = Obj.copy;
