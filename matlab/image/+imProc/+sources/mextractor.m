@@ -76,28 +76,23 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.WriteDs9Regions logical   = false;
     end
     
-    % create a new object 
+    % create a new object if requested  
     if Args.CreateNewObj
         Result = Obj.copy;
     else
         Result = Obj;
     end
-    
-    % delete the object's input catalog (if the catalog is not removed, it may conflict with the new ones)
-    if Args.DeleteInputCatalog
-        Obj.deleteProp('CatData');
-        Obj.deleteProp('Table');
-    end
-    
-    % measure background and variance
+       
+    % measure background and variance if it is missing 
     FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var');
     if any(FlagBack)
         Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.BackPar{:});
     end
     
-    % measure PSF if it does not exist or user requested to re-calc
-    % NB: if the input catalog is empty, it will be generated inside 
-    % imUtil.psf.constructPSF by imUtil.sources.findSources at Threshold > 20 sigma 
+    % measure PSF if it does not exist or if the user requested to re-calc
+    % NB: if the input catalog is empty, the catalog struct need for PSF measurements
+    % will be generated inside imUtil.psf.constructPSF by imUtil.sources.findSources 
+    % at Threshold > 20 sigma, but the object's catalog property will not be populated
     FlagPSF = Obj.isemptyPSF | ~Args.UseOriginalPSF; 
     if any(FlagPSF)
         [Result(FlagPSF)] = imProc.psf.populatePSF(Result(FlagPSF), Args.populatePSFArgs{:},...
@@ -106,17 +101,14 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             'InitPsf',Args.InitPsf,...
             'InitPsfArgs',Args.InitPsfArgs);
     end
-                                                  
-    % TODO: do not fail because one
-    if any(isemptyPSF(Result))
-        % If no PSF found for one sub image - fails all                                                      
-        N_noPSF = sum(~isemptyPSF(Result));
-        N_SubImages = numel(Result);
-        N_totSrc    = sum(Result.sizeCatalog);
-        N_minSrc    = min(Result.sizeCatalog);
-        error('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
-    end
-                                                  
+    
+    % delete the object's input catalog 
+    % if the catalog is not removed, it may conflict with the new ones 
+    if Args.DeleteInputCatalog
+        Obj.deleteProp('CatData');
+        Obj.deleteProp('Table');
+    end    
+                                                      
     % find and measure sources using multi-iteration PSF fitting
     Niter = numel(Args.Threshold);
     Nobj  = numel(Obj);   
@@ -124,7 +116,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     
     for Iobj=1:1:Nobj
                             if Args.Verbose
-                                fprintf('Object %d of %d \n',Iobj,Nobj);
+                                fprintf('Image %d of %d \n',Iobj,Nobj);
                             end    
         % TODO: do we actually need a deep copy here? It can be chosen above with Args.CreateNewObj
         AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj        
@@ -133,7 +125,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
                
         for Iiter=1:1:Niter            
-            % re-measure background at each iteration > 1 if Args.ReCalcBack = true and add source noise to the variance                
+            % re-measure background at each Iter > 1 if Args.ReCalcBack = true and add source noise to the variance                
             if Iiter>1     
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
                 % add local variance from the sources revealed at all the previous iterations
@@ -232,9 +224,15 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                
         % add RA, Dec from the object's WCS if it is present
         if Args.AddSkyCoo && ~isempty(Obj(Iobj).WCS)
-            [RA, Dec] = Obj(Iobj).WCS.xy2sky(Obj(Iobj).Table.X,Obj(Iobj).Table.Y);            
-            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
-            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
+            try
+                [RA, Dec] = Obj(Iobj).WCS.xy2sky(Obj(Iobj).Table.X,Obj(Iobj).Table.Y);
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
+            catch
+                if Args.Verbose
+                    fprintf('Image WCS is not clean. RA, Dec columns not added to the output catalog.\n');
+                end
+            end
         end        
         
         % save a copy of the AI object with the image replaced by the final subtracted image

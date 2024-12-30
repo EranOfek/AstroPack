@@ -7,7 +7,6 @@ function Result = unitTest
     PWD = pwd;
     cd(DataSampleDir);
 
-
     % addMagCols
     % AC=AstroCatalog('LAST.01.02.01_20230115.170832.639_clear_050+09_001_001_024_sci_coadd_Cat_001.fits');
     % AC2 = AC.copy();
@@ -28,15 +27,17 @@ function Result = unitTest
     % testing multi-iteration PSF photometry 
     
     Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};
+    cd(PWD)
+
     AI     = [AstroImage(Images{1}) AstroImage(Images{2})];  
 %     AI.Mask = % fill in the masks 
 
     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'Verbose',true,...
-        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
+        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
         'RedNoiseFactor',1.3); % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
 
 %     compare the multi-iteration results with those from usual
-%     singl-iteration source search and PSF-photometry:
+%     single-iteration source search and PSF-photometry:
 % 
 %     SI = imProc.sources.findMeasureSources(SI);                                               
 %     [SI] = imProc.psf.populatePSF(SI, 'Method', 'new');
@@ -55,7 +56,6 @@ function Result = unitTest
     ds9(AI(2).Image,3); ds9.load_region('~/275-16_it1.reg'); ds9.load_region('~/275-16_it2.reg'); ds9.load_region('~/275-16_it3.reg')
     ds9(SourceLess(2).Image,4)     
         
-    cd(PWD)
-
+    
     Result = true;
 end
