@@ -50,8 +50,10 @@
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate                                            : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
-% - Obj.submit                                              : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+% - Obj.validate(Mclient)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+% - Obj.submit(Mclient)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+%
+% - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
 %
 % - Res = Obj.showCalibObj(Ind,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
@@ -802,16 +804,112 @@ classdef uplanner < Component
             Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj)
+        function validate(Obj,Mclient)
             % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+
+            planStruct = Obj.planTable2struct;
+            % send struct plan to the validator.
+            % Mclient.validatePlan(planStruct);            
+            
             Obj.Status    = 'validated';
             Obj.Validated = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj)
+        function submit(Obj,Mclient)
             %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+
+            planStruct = Obj.planTable2struct;
+            % send struct plan to the Mission C&C.
+            % Mclient.submitPlan(planStruct);
+            
             Obj.Status    = 'submitted';
             Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
+        end
+        %
+        function planStruct = planTable2struct(Obj,Args)
+            % Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
+            arguments
+                Obj
+                Args.fields = {};
+                Args.DefRoll = 0;
+                Args.timeFormat = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z';
+            end        
+                      
+            if isempty(Args.fields) %use defults fields
+                tmpTable = Obj.Plan;
+                
+                keepVars = false(size(tmpTable.Properties.VariableNames));
+                
+                %rename RA->ra
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'RA');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'ra'};
+                
+                %rename Dec->decl
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Dec');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'decl'};
+                
+                %rename Roll->roll
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Roll');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'roll'};
+                
+                if ~isempty(Args.DefRoll)
+                    tmpTable.roll(:) = Args.DefRoll;
+                end
+                
+                %rename Tstart->start_time
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tstart');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'start_time'};                
+                
+                tmpTable.start_time.Format = Args.timeFormat;
+                
+                %rename Tend->end_time
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tend');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'end_time'};  
+                
+                tmpTable.end_time.Format = Args.timeFormat;
+                
+                %rename ExpTime->exposure
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpTime');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'exposure'};   
+                
+                %convert to numeric
+                tmpTable.exposure = seconds(tmpTable.exposure);
+                
+                %rename Nexposures->image_count
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Nexposures');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'image_count'}; 
+                
+                %rename TotalDuration->total_seconds
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'TotalDuration');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'total_seconds'};  
+                
+                %convert to numeric
+                tmpTable.total_seconds = seconds(tmpTable.total_seconds);
+                
+                %rename Tiles->tiles
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tiles');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'tiles'};   
+                
+                tmpTable.tiles = regexprep(cellstr(tmpTable.tiles),'(\w)','$1,');
+                tmpTable.tiles = regexprep(tmpTable.tiles,',$','');
+                
+                     
+                tmpTable = tmpTable(:,keepVars);
+                
+                planStruct = table2struct(tmpTable);
+            else
+                error('Currently does not support non-standard fields');
+            end
+            
         end
         %
         function Res = showCalibObj(Obj,TargInd,Args)
