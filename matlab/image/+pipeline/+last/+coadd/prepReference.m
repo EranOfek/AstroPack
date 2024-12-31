@@ -43,7 +43,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=642:1:Ntarget
+    for Itarget=1389:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         
         Tmp = split(FieldID,'.');
@@ -86,34 +86,35 @@ function [Nvisit] = prepReference(Args)
                 if Nvisit(Itarget,Icam,Isub)>0
                     if Nvisit(Itarget,Icam,Isub)>=5
                         %CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
-                        CI = pipeline.last.coadd.coadd(T, 'MinNim',3);
-                        CI.HeaderData.deleteComment;
+                        try
+                            CI = pipeline.last.coadd.coadd(T, 'MinNim',3);
+                            CI.HeaderData.deleteComment;
+    
+                            Destination = fullfile(Args.RefDir, FieldID);
+                            
+                            % generate Ref image name
+                            [RefAFN]=pipeline.last.queryDB.table2path(T);
+    
+                            %RefAFN = AstroFileName(OT(Ifield(1),:)); %,'JDCol','MIDJD','JD2Time',true);
+                            RefAFN.JD = CI.julday;
+                            RefAFN.julday2time;
+                            RefAFN.Counter = 0;
+                            RefAFN.CCDID   = 1;
+                            RefAFN.Level   = 'ref';
+                            % ref. image/prodiucts name
+                            RefImage       = RefAFN.genFile;
+                            RefMask        = RefAFN.genFile('Product','Mask');
+                            RefPSF         = RefAFN.genFile('Product','PSF');
+                            RefCat         = RefAFN.genFile('Product','Cat');
+                            
+                            tools.os.cdmkdir(Destination);
 
-                        Destination = fullfile(Args.RefDir, FieldID);
                         
-                        % generate Ref image name
-                        [RefAFN]=pipeline.last.queryDB.table2path(T);
-
-                        %RefAFN = AstroFileName(OT(Ifield(1),:)); %,'JDCol','MIDJD','JD2Time',true);
-                        RefAFN.JD = CI.julday;
-                        RefAFN.julday2time;
-                        RefAFN.Counter = 0;
-                        RefAFN.CCDID   = 1;
-                        RefAFN.Level   = 'ref';
-                        % ref. image/prodiucts name
-                        RefImage       = RefAFN.genFile;
-                        RefMask        = RefAFN.genFile('Product','Mask');
-                        RefPSF         = RefAFN.genFile('Product','PSF');
-                        RefCat         = RefAFN.genFile('Product','Cat');
-                        
-                        tools.os.cdmkdir(Destination);
-
-                        try 
                             CI.write1(RefImage, 'Image');
                             CI.write1(RefMask, 'Mask');
                             CI.write1(RefPSF, 'PSF');
                             CI.write1(RefCat, 'Cat');
-                        catch
+                        catch ME
                             'a'
                         end
 
