@@ -44,13 +44,18 @@ function Result = unitTest
 %     fprintf('%d sources \n',height(AI0(2).CatData.Catalog));
     
     toc
-    
-    
+        
     tic
-
-    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',true,...
-        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
-        'RedNoiseFactor',1.3); % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
+    
+%     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',true,...
+%         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
+%         'RedNoiseFactor',1.3); 
+     
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',false,...
+        'WriteDs9Regions',false,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',false,...
+        'RedNoiseFactor',1.3); 
+    
+    % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
 
     toc 
     
