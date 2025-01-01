@@ -507,7 +507,8 @@ classdef MatchedSources < Component
                 case {'h5','hdf5','hd5'}
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
-                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        Type = class(Obj.Data.(Obj.Fields{Idata}));
+                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})), 'DataType',Type);
                         if Args.RealIfComplex
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
                         else
