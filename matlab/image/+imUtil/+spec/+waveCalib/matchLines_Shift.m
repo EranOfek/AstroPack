@@ -35,7 +35,7 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
         
         Ir       = randi(Nl, Noverlap,1);
         RefLines = [ObsLines(Ir); NoiseLines].*1 + 1530;
-        ObsLines = ObsLines + randn(size(ObsLines,1));
+        ObsLines = ObsLines + randn(size(ObsLines,1),1);
         %%
         
     end

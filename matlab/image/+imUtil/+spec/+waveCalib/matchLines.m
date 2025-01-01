@@ -1,175 +1,111 @@
-function [Result] = matchLines(ObsLines, RefLines, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+function [BestScale, BestShift, Matched] = matchLines(ObsLines, RefLines, Args)
+    % Given a  refrence and new line lists, find the best scale and shift and match the lines.
+    %     
+    % Input  : - Observed lines [Position, [Intensity]].
+    %            If empty, then run in simulation mode.
+    %            Default is [].
+    %          - Reference lines [Position, [Intenisty]].
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2023 Dec) 
-    % Example: ArcSpec=AstroSpec.getSkyArcsSpecLines;   % FeAr is in 9
-    %          RL = timeSeries.peaks.localMax([ArcSpec(9).Flux]);
-    %          RL = [ArcSpec(9).Wave(RL.Col.Ind), RL.Col.Val];
-    %
-    %          [Raper] = imUtil.spec.extract.aperPhot(InterpImageWave, 'DimWave',1, 'SubBack',false);
-    %          ObsArc   = [Raper.Wave, Raper.Spec];
-    %          RO = timeSeries.peaks.localMax(Raper.Spec);
-    %          RO = [Raper.Wave(RO.Col.Ind), RO.Col.Val];
-    %          
-    %          imUtil.spec.waveCalib.matchLines(RO, RL);
+    % Example: [BestScale, BestShift, Matched] = imUtil.spec.waveCalib.matchLines
 
     arguments
         ObsLines                  = [];
         RefLines                  = [];
         Args.StrongestN           = 30;
-        Args.MinRange             = 500;
-    end
-
+        
+        Args.MaxScale             = 10;
+        Args.StepScale            = 0.0001;
+        Args.Step                 = 1;
+        
+        Args.MaxDist              = 10; % in reference wavelength units
+    end    
+    
+    'sometime failed'
+    'shift is not accurate enough - maybe edges?'
     
     if isempty(ObsLines)
         % simulation mode
     
+        fprintf('Simulation mode\n');
+        
         %%
-        A = 6000;
-        B = 4.8;
-        ObsLines = rand(40,1).*1000;
-        RefLines = ObsLines(1:40).*B + A;
-        ObsLines = ObsLines + randn(40,1).*0.0;
-        Ir = randi([1 30],30,1);
-        RefLines = RefLines(Ir);
-        
-        %ObsLines = ObsLines - mean(ObsLines);
-        %RefLines = RefLines - mean(RefLines);
-        %%
-    end
-    
-    
-    %% new method
-    
-    Edges = (0.1:0.001:10);
-    
-    Nobs = numel(ObsLines);
-    Nref = numel(RefLines);
-    
-    RangeObs = range(ObsLines);
-    RangeRef = range(RefLines);
-    
-    Nlines = 2;
-    Nsim = 100;
-    
-    N = 0;
-    AllBestPar = zeros(2, Nsim);
-    for Isim=1:Nsim
-        IrObs = randi([1 Nobs], Nlines, Nsim);
-        IrRef = randi([1 Nref], Nlines, Nsim);
-
-        RandObsLines = ObsLines(IrObs);
-        RandRefLines = RefLines(IrRef);
-
-        F = range(RandObsLines)>(0.2.*RangeObs);
-        RandObsLines = RandObsLines(:,F);
-        F = range(RandRefLines)>(0.2.*RangeRef);
-        RandRefLines = RandRefLines(:,F);
-
-        H = [ones(Nlines,1), RandRefLines(:,1)];
-
-        Par = H\RandObsLines;
-        
-        Resid = RandObsLines - H*Par;
-        StdResid = std(Resid);
-        
-        [~,Imin] = min(StdResid);
-        BestPar = Par(:,Imin);
-        AllBestPar(:,Isim) = BestPar;
-        
-        Hall = [ones(Nref,1), RefLines];
-        PredLines = Hall*BestPar;
-        clear All;
-        K = 0;
-        for Il=1:1:Nref
-            [MinPred,Ipred]=min(abs(PredLines(Il)-ObsLines));
-            if MinPred<5
-                K = K + 1;
-                All(K).A=[RefLines(Il), PredLines(Il), ObsLines(Ipred)].';
-            end
-        end
-        Nmatch = size([All.A],2);
- 
-        
-        %N = N + histcounts(Par(2,:), Edges);
-    end
-    
-    if 1==0
-    XX=[-5000:2:5000]; YY=[-5:0.005:5];
-    N=histcounts2(Par(1,:).',Par(2,:).',XX,YY);
-
-    
-    Xc=(XX(1:end-1)+XX(2:end))./2;
-    Yc=(YY(1:end-1)+YY(2:end))./2; 
-    surface(Yc,Xc,N); shading interp; colorbar
-    end
-    
-    %Pos=imUtil.sources.findLocalMax(N);
-    %%
-    
-    
-    S = zeros(Nsim,1);
-    for Isim=1:1:Nsim
-        IrObs = randi([1 Nobs], Nlines, 1);
-        IrRef = randi([1 Nref], Nlines, 1);
-        
-        H   = [ones(3,1), RefLines(IrRef)];
-        Par = H\ObsLines(IrObs);
-        Resid = ObsLines(IrObs) - H*Par;
-        S(Isim)=std(Resid);
-    end
-    
-    
-    
-    
-    if isempty(ObsLines) && isempty(RefLines)
-        fprintf('Simulation mode');
-        
-        Nl         = 45;
-        Noverlap   = 45; %25;
-        Nnoise     = 0; %10;
+        Nl         = 55;
+        Noverlap   = 45;
+        Nnoise     = 10;
         ObsLines   = rand(Nl,1).*3000 + 3000;
         NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
         Ir       = randi(Nl, Noverlap,1);
-        RefLines = [ObsLines(Ir); NoiseLines].*1.1 + 500;
-        
-        
+        RefLines = [ObsLines(Ir); NoiseLines].*3.27 + 1500;
+        ObsLines = ObsLines + randn(size(ObsLines,1),1);
+        %%
         
     end
     
-    %% another method
-   
-    ObsLines = sort(ObsLines);
-    RefLines = sort(RefLines);
+    if isvector(ObsLines) 
+        ObsLines = ObsLines(:);
+        Nobs     = numel(ObsLines);
+        ObsLines = [ObsLines, nan(Nobs,1)];
+        SelectedObsLines = ObsLines;
+    else
+        Nobs = size(ObsLines,1);
+        
+        if Nobs>Args.StrongestN
+            ObsLines = sortrows(ObsLines, 2, 'descend');
+            SelectedObsLines = ObsLines(1:Args.StrongestN,:);
+        else
+            SelectedObsLines = ObsLines;
+        end
+    end
+    ObsLines = sortrows(ObsLines,1);
+    SelectedObsLines = sortrows(SelectedObsLines,1);
     
-    D1 = ObsLines(:) - ObsLines(:).';
+    if isvector(RefLines) 
+        RefLines = RefLines(:);
+        Nref     = numel(RefLines);
+        RefLines = [RefLines, nan(Nref,1)];
+        SelectedRefLines = RefLines;
+    else
+        Nref = size(RefLines,1);
+        
+        if Nref>Args.StrongestN
+            RefLines = sortrows(RefLines, 2, 'descend');
+            SelectedRefLines = RefLines(1:Args.StrongestN,:);
+        else
+            SelectedRefLines = RefLines;
+        end
+    end
+    RefLines = sortrows(RefLines,1);
+    SelectedRefLines = sortrows(SelectedRefLines,1);
     
-    D2 = RefLines(:) - RefLines(:).';
-    D  = ObsLines(:) - RefLines(:).';
     
-    R1 = ObsLines(:)./ObsLines(:).';
-    R2 = RefLines(:)./RefLines(:).';
-    R  = ObsLines(:)./RefLines(:).';
+    % find scale and shift:
+    [BestScale] = imUtil.spec.waveCalib.matchLines_Scale(SelectedObsLines(:,1), SelectedRefLines(:,1), 'MaxScale',Args.MaxScale, 'StepScale',Args.StepScale);
+    SelectedObsLinesScaled = SelectedObsLines(:,1).*BestScale;
+    [BestShift] = imUtil.spec.waveCalib.matchLines_Shift(SelectedObsLinesScaled, SelectedRefLines(:,1), 'Step',Args.Step);
     
-    N1 = numel(R1);
-    N2 = numel(R2);
-    N  = min(N1, N2);
     
-    H = [ones(N,1), D1(1:N).'];
-    [FlagGood, BestPar, BestStd] = tools.math.fit.ransacLinearModel(H, D2(:));
-    
-    P=polyfit(D1(:),D2(:),1);  % use RANSAC
-    D=L1-L2.'./P(1);
+    if nargout>2
+        ObsLinesTrans = ObsLines.*BestScale + BestShift;
 
-    % peak of hist D give the -shift (-100)
-    hist(D(:),1000)
-    
-    
-    
+        % match the lines ObsLinesTrans vs. RefLines
+        Matched = struct('Ref',[], 'Obs',[], 'ObsTran',[], 'Diff',[], 'Iref',[], 'Inew',[]);
+        K = 0;
+        for Iref=1:1:Nref
+            [MinDist, MinInd] = min(abs(RefLines(Iref,1) - ObsLinesTrans(:,1)));
+            if MinDist<Args.MaxDist
+                % match found
+                K = K + 1;
+                Matched(K).Ref     = RefLines(Iref);
+                Matched(K).Obs     = ObsLines(MinInd);
+                Matched(K).ObsTran = ObsLinesTrans(MinInd);
+                Matched(K).Diff    = RefLines(Iref,1) - ObsLinesTrans(MinInd);
+                Matched(K).Iref    = Iref;
+                Matched(K).Inew    = MinInd;
+            end
+        end
+    end
     
 end

@@ -35,7 +35,7 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
         
         Ir       = randi(Nl, Noverlap,1);
         RefLines = [ObsLines(Ir); NoiseLines].*3.27 + 1500;
-        ObsLines = ObsLines + randn(size(ObsLines,1));
+        ObsLines = ObsLines + randn(size(ObsLines,1),1);
         %%
         
     end
