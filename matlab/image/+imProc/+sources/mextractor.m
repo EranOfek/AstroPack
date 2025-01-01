@@ -170,7 +170,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             
                             if Args.Verbose
                                 fprintf('Iter. %d: S/N > %d, mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
-                                    Iiter,Args.Threshold(Iiter),mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
+                                    Iiter,Args.Threshold(Iiter),mean(AI.Back,'all','omitnan'),mean(AI.Var,'all','omitnan'),NumSrc);
                             end            
             % insert a column with iteration number into the source catalog
             AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
