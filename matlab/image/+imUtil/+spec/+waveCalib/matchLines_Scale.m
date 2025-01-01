@@ -9,7 +9,7 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
     %          * ...,key,val,... 
     %            'MaxScale' - Max scale to test. Default is 10.
     %            'StepScale' - Step size for scale testing.
-    %                   Default is 0.001.
+    %                   Default is 0.0005.
     % Output : - The best scale. This is the scale needed to multiply the
     %            observed line positions in order to get the reference line
     %            positions.
@@ -20,7 +20,7 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
         ObsLines                  = [];
         RefLines                  = [];
         Args.MaxScale             = 10;
-        Args.StepScale            = 0.001;
+        Args.StepScale            = 0.0005;
     end
 
     if isempty(ObsLines) && isempty(RefLines)
@@ -35,6 +35,7 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
         
         Ir       = randi(Nl, Noverlap,1);
         RefLines = [ObsLines(Ir); NoiseLines].*3.27 + 1500;
+        ObsLines = ObsLines + randn(size(ObsLines,1));
         %%
         
     end
