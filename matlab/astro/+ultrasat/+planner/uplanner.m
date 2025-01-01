@@ -61,7 +61,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Additional functions to be considered:
-% - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
 % - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
