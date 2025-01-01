@@ -3101,7 +3101,9 @@ classdef DemonLAST < Component
                             end
                             % Known Matched asteroids
                             if ~isempty(OnlyMP)
-                                MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
+%                                 MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
+                                % The JD column has been already added in pipeline.generic.procMergeCoadd
+                                MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',(1:1:numel(OnlyMP)).','AddColNames',{'SubImageIndex'});                               
                                 MergedAst.Table = MergedKnownAst.Catalog;
                                 [~,~,Status]=imProc.io.writeProduct(MergedAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
                                                        'Save',UpArgs.SaveAsteroids,...

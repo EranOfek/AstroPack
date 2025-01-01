@@ -12,7 +12,7 @@ function [Result] = loadReference(FieldID, CumNum, CropID, Args)
     %                   Default is ["Mask", "PSF", "Cat"]
     % Output : - An AstroImage with the loaded reference image products. 
     % Author : Eran Ofek (2024 Dec) 
-    % Example: pipeline.last.coadd.loadReference
+    % Example: R=pipeline.last.coadd.loadReference(1488,4,24);
 
     arguments
         FieldID

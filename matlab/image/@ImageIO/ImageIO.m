@@ -107,7 +107,7 @@ classdef ImageIO < Component
                         Obj.IsTable = true;
                     else
                         % traet file names
-                        if iscellstr(FileNames)
+                        if iscellstr(FileNames) || isstring(FileNames)
                             List = FileNames;
                         else
                             if iscell(FileNames)

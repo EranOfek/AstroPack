@@ -39,6 +39,7 @@
 % - Obj.clearMissionApprovedPlan                            : Clear the Mission Approved Plan table
 %
 %
+% - [CheckStatus,badPlanRow] = Obj.planSelfConsistencyCheck(Args)       : Verify that the plan schedule is self consistent
 % - Obj.adjustGroupStartTime(Args)                          : Adjust the start time of a group in the plan by 3 options: 
 %                                                                  a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
 %                                                             If no GroupList is provided, will adjust all groups in the plan, one by one.
@@ -60,12 +61,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Additional functions to be considered:
-% - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
 % - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
-% - expectedRoll                                     : Calculate the expcted roll angle
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,7 +89,7 @@ classdef uplanner < Component
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
         
         % LCS / AllSS
-        DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
+        DailyWindowStartTime    duration    =  duration(23,00,00); % [hrs]   
         DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
         
         % AllSS
@@ -126,7 +125,7 @@ classdef uplanner < Component
         
         SysTimeZone        = 'UTC';
         
-        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
+        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
         Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
@@ -517,6 +516,8 @@ classdef uplanner < Component
                 Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
                 Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
                 Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+                
+                Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
                 TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
                     'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
@@ -533,9 +534,9 @@ classdef uplanner < Component
                 Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
                 Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
 
-                % ADD Calc Zody,LimMag  
+                % TODO - ADD Calc Zody,LimMag  
                 
-                % Search for overlapping targets. TODO - currently does not
+                % Search for overlapping targets
                 % load the MissionApprovedPlan if not exist
                 if ~isempty(Obj.MissionApprovedPlan)                    
                     Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
@@ -578,7 +579,7 @@ classdef uplanner < Component
                 Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
                 Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
                 Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
-                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.Roll ;
+                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.ExpectedRoll ;
                 Obj.MissionApprovedPlan.Tstart  =  Args.inputPlan.Tstart ;
                 Obj.MissionApprovedPlan.Tend  =  Args.inputPlan.Tend ;
                 Obj.MissionApprovedPlan.ExpTime  =  Args.inputPlan.ExpTime ;
@@ -646,6 +647,75 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan(:,:) = [];
         end    
         %
+        function [CheckStatus,badPlanRow] = planSelfConsistencyCheck(Obj,Args)
+            % Verify that the plan schedule is self consistent
+            arguments
+                Obj
+                Args.timingPrecision = seconds(0.01);
+            end
+            
+            tmpPlan = Obj.Plan;
+            
+            tmpPlan = sortrows(tmpPlan,'Tstart');
+            
+            % Validate that Obj.Start time and the first start time in the plan agree
+            if abs(Obj.StartTime-tmpPlan.Tstart(1))>Args.timingPrecision
+                fprintf('Bad Start Time of Entire Object\n');
+                CheckStatus = false;
+                badPlanRow = tmpPlan(1,:);
+                return
+            end
+            
+            for Plan_row = 1:height(tmpPlan)
+                % calculate and validate times between targets
+                if Plan_row>1
+                    
+                    [T_sec,~] = ultrasat.tools.calcSlew(tmpPlan.RA(Plan_row-1),tmpPlan.Dec(Plan_row-1),tmpPlan.RA(Plan_row),tmpPlan.Dec(Plan_row),...
+                                                        'Units','deg','CheckTrajectory',true);
+                    tmpSlewTimeBefore = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
+                    tmpTstart = currTend + tmpSlewTimeBefore;                    
+ 
+                    if (tmpPlan.Tstart(Plan_row)-tmpTstart)<-Args.timingPrecision
+
+                        fprintf('Bad timing between rows\n');
+                        CheckStatus = false;
+                        badPlanRow = tmpPlan(Plan_row,:);
+                        return               
+                    end                    
+                end
+                % calcaute and validate relative time within the plan row 
+                tmpTotalDuration = tmpPlan.Nexposures(Plan_row) * tmpPlan.ExpTime(Plan_row) + Obj.FullTileReadTime;
+                tmpTend = tmpPlan.Tstart(Plan_row) + tmpTotalDuration;
+                
+                tmpJDstart = juliandate(tmpPlan.Tstart(Plan_row));
+                tmpJDend = juliandate(tmpTend);
+                
+                if abs(tmpPlan.TotalDuration(Plan_row)-tmpTotalDuration)>Args.timingPrecision || ...
+                   abs(tmpPlan.Tend(Plan_row)-tmpTend)>Args.timingPrecision || ...     
+                   abs(tmpPlan.JDstart(Plan_row)-tmpJDstart)>seconds(Args.timingPrecision)/3600/24  || ...
+                   abs(tmpPlan.JDend(Plan_row)-tmpJDend)>seconds(Args.timingPrecision)/3600/24
+                    
+                    fprintf('Bad timing within row\n');
+                    CheckStatus = false;
+                    badPlanRow = tmpPlan(Plan_row,:);
+                    return               
+                end
+
+                currTend = tmpTend;
+            end
+            
+            % Validate that Obj.Start time and the first start time in the plan agree
+            if abs(Obj.EndTime-currTend)>Args.timingPrecision
+                fprintf('Bad End Time of Entire Object\n');
+                CheckStatus = false;
+                badPlanRow = tmpPlan(end,:);
+                return
+            end            
+            
+            CheckStatus = true;
+            badPlanRow = [];
+        end
+        %
         function adjustGroupStartTime(Obj,Args)
             % Adjust the start time of a group in the plan by 3 options: 
             %       a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
@@ -704,6 +774,9 @@ classdef uplanner < Component
                 Obj.Plan.JDstart(Plan_rows) = juliandate(Obj.Plan.Tstart(Plan_rows));
                 Obj.Plan.JDend(Plan_rows) = juliandate(Obj.Plan.Tend(Plan_rows));
             end
+            
+            Obj.StartTime = min(Obj.Plan.Tstart);
+            Obj.EndTime = max(Obj.Plan.Tend);
             
         end  
         %
@@ -850,8 +923,8 @@ classdef uplanner < Component
                 keepVars = keepVars | curr_ind;
                 tmpTable.Properties.VariableNames(curr_ind) = {'decl'};
                 
-                %rename Roll->roll
-                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Roll');
+                %rename ExpectedRoll->roll
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpectedRoll');
                 keepVars = keepVars | curr_ind;
                 tmpTable.Properties.VariableNames(curr_ind) = {'roll'};
                 
@@ -993,6 +1066,11 @@ classdef uplanner < Component
                   upLCS.buildLCS('TargetList',F2);
 
                   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
+                  
+                  CheckStatus = upLCS.planSelfConsistencyCheck;
+                  if ~CheckStatus
+                      return
+                  end
 
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
