@@ -1,34 +1,45 @@
-function [Result] = matchLines_Scale(ObsLines, RefLines, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
+    % Given a list of observed and reference lines, estimate the wavelength calibration scale between the two lists.
+    %     This function is designed to find the best scale required for
+    %     wavelength calibration. It is based on cross-correlating the log
+    %     of differences.
+    % Input  : - Vector of observed line positions (typically pixels).
+    %            If empty, then run in simulation mode. Default is [].
+    %          - Vector of reference line positions (typically wavelength)
     %          * ...,key,val,... 
-    % Output : - 
+    %            'MaxScale' - Max scale to test. Default is 10.
+    %            'StepScale' - Step size for scale testing.
+    %                   Default is 0.001.
+    % Output : - The best scale. This is the scale needed to multiply the
+    %            observed line positions in order to get the reference line
+    %            positions.
     % Author : Eran Ofek (2024 Jan) 
-    % Example: [Result] = imUtil.spec.waveCalib.matchLines_Scale
+    % Example: [BestScale] = imUtil.spec.waveCalib.matchLines_Scale
 
      arguments
         ObsLines                  = [];
         RefLines                  = [];
-        Args.StrongestN           = 30;
-        Args.MinRange             = 500;
+        Args.MaxScale             = 10;
+        Args.StepScale            = 0.001;
     end
 
     if isempty(ObsLines) && isempty(RefLines)
-        fprintf('Simulation mode');
+        fprintf('Simulation mode\n');
         
-        Nl         = 45;
-        Noverlap   = 25;
+        %%
+        Nl         = 55;
+        Noverlap   = 45;
         Nnoise     = 10;
         ObsLines   = rand(Nl,1).*3000 + 3000;
         NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
         Ir       = randi(Nl, Noverlap,1);
-        RefLines = [ObsLines(Ir); NoiseLines].*1.04 + 500;
+        RefLines = [ObsLines(Ir); NoiseLines].*3.27 + 1500;
+        %%
         
     end
     
+    %%
     % sort lines
     ObsLines = sort(ObsLines);
     RefLines = sort(RefLines);
@@ -37,9 +48,9 @@ function [Result] = matchLines_Scale(ObsLines, RefLines, Args)
     ObsLines = ObsLines(:);
     RefLines = RefLines(:);
     
-    DiffObsRef = ObsLines - RefLines.';
+    %DiffObsRef = ObsLines - RefLines.';
     
-    hist(DiffObsRef(:),100)
+    %hist(DiffObsRef(:),100)
     
     DiffObs  = ObsLines - ObsLines.';
     DiffRef  = RefLines - RefLines.';
@@ -51,13 +62,19 @@ function [Result] = matchLines_Scale(ObsLines, RefLines, Args)
     
     LogDiffObs = log10(DiffObs);
     LogDiffRef = log10(DiffRef);
+        
+    ScaleEdges = (0:Args.StepScale:Args.MaxScale);
+    BinCenter = (ScaleEdges(1:end-1) + ScaleEdges(2:end)).*0.5;
+    BinCenterShift = BinCenter - 0.5.*Args.MaxScale; % - 0.5.*Args.StepScale;
+    Nobs = histcounts(LogDiffObs, ScaleEdges);
+    Nref = histcounts(LogDiffRef, ScaleEdges);
     
-    Edges = (0:0.01:3);
-    Nobs = histcounts(LogDiffObs, Edges);
-    Nref = histcounts(LogDiffRef, Edges);
+    XC = fftshift(ifft(fft(Nobs).*conj(fft(Nref))));
+    [PeakVal,PeakLoc,~,PeakProm]=findpeaks(XC);
+    [~,Ipeak]=max(PeakProm);
+    BestScale = 10.^(-BinCenterShift(PeakLoc(Ipeak)));
     
-    XC = ifft(fft(Nobs).*conj(fft(Nref)));
-    
-    'a'
+    %plot(BinCenterShift, XC)
+    %%
     
 end

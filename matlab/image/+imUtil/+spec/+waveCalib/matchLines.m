@@ -36,6 +36,9 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         ObsLines = ObsLines + randn(40,1).*0.0;
         Ir = randi([1 30],30,1);
         RefLines = RefLines(Ir);
+        
+        %ObsLines = ObsLines - mean(ObsLines);
+        %RefLines = RefLines - mean(RefLines);
         %%
     end
     
@@ -51,10 +54,11 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     RangeRef = range(RefLines);
     
     Nlines = 2;
-    Nsim = 1e6;
+    Nsim = 100;
     
     N = 0;
-    for Isim=1:1
+    AllBestPar = zeros(2, Nsim);
+    for Isim=1:Nsim
         IrObs = randi([1 Nobs], Nlines, Nsim);
         IrRef = randi([1 Nref], Nlines, Nsim);
 
@@ -74,7 +78,8 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         StdResid = std(Resid);
         
         [~,Imin] = min(StdResid);
-        BestPar = Par(:,Imin)
+        BestPar = Par(:,Imin);
+        AllBestPar(:,Isim) = BestPar;
         
         Hall = [ones(Nref,1), RefLines];
         PredLines = Hall*BestPar;
@@ -87,20 +92,22 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
                 All(K).A=[RefLines(Il), PredLines(Il), ObsLines(Ipred)].';
             end
         end
-        Nmatch = size([All.A],2)
+        Nmatch = size([All.A],2);
  
         
         %N = N + histcounts(Par(2,:), Edges);
     end
     
-    %XX=[-5000:2:5000]; YY=[-5:0.002:5];
-    %N=histcounts2(Par(1,:).',Par(2,:).',XX,YY);
+    if 1==0
+    XX=[-5000:2:5000]; YY=[-5:0.005:5];
+    N=histcounts2(Par(1,:).',Par(2,:).',XX,YY);
 
     
-    %Xc=(XX(1:end-1)+XX(2:end))./2;
-    %Yc=(YY(1:end-1)+YY(2:end))./2; 
-    %surface(Yc,Xc,N); shading interp; colorbar
-
+    Xc=(XX(1:end-1)+XX(2:end))./2;
+    Yc=(YY(1:end-1)+YY(2:end))./2; 
+    surface(Yc,Xc,N); shading interp; colorbar
+    end
+    
     %Pos=imUtil.sources.findLocalMax(N);
     %%
     
