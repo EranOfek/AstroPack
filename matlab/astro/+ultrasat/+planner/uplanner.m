@@ -65,7 +65,6 @@
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
-% - expectedRoll                                     : Calculate the expcted roll angle
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,7 +89,7 @@ classdef uplanner < Component
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
         
         % LCS / AllSS
-        DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
+        DailyWindowStartTime    duration    =  duration(23,00,00); % [hrs]   
         DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
         
         % AllSS
@@ -126,7 +125,7 @@ classdef uplanner < Component
         
         SysTimeZone        = 'UTC';
         
-        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
+        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
         Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
@@ -517,6 +516,8 @@ classdef uplanner < Component
                 Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
                 Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
                 Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+                
+                Obj.Plan.ExpectedRoll = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
                 TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
                     'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
@@ -535,7 +536,7 @@ classdef uplanner < Component
 
                 % ADD Calc Zody,LimMag  
                 
-                % Search for overlapping targets. TODO - currently does not
+                % Search for overlapping targets
                 % load the MissionApprovedPlan if not exist
                 if ~isempty(Obj.MissionApprovedPlan)                    
                     Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
@@ -578,7 +579,7 @@ classdef uplanner < Component
                 Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
                 Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
                 Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
-                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.Roll ;
+                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.ExpectedRoll ;
                 Obj.MissionApprovedPlan.Tstart  =  Args.inputPlan.Tstart ;
                 Obj.MissionApprovedPlan.Tend  =  Args.inputPlan.Tend ;
                 Obj.MissionApprovedPlan.ExpTime  =  Args.inputPlan.ExpTime ;
@@ -850,8 +851,8 @@ classdef uplanner < Component
                 keepVars = keepVars | curr_ind;
                 tmpTable.Properties.VariableNames(curr_ind) = {'decl'};
                 
-                %rename Roll->roll
-                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Roll');
+                %rename ExpectedRoll->roll
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpectedRoll');
                 keepVars = keepVars | curr_ind;
                 tmpTable.Properties.VariableNames(curr_ind) = {'roll'};
                 
