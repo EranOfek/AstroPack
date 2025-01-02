@@ -10,6 +10,10 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
     %            'MaxScale' - Max scale to test. Default is 10.
     %            'StepScale' - Step size for scale testing.
     %                   Default is 0.0005.
+    %            'GaussFilter' - If not empty, then convolve the histograms
+    %                   with a Gaussian prior to the cross-correlation.
+    %                   The Gaussian sigma width is given by this argument.
+    %                   Default is 2.
     % Output : - The best scale. This is the scale needed to multiply the
     %            observed line positions in order to get the reference line
     %            positions.
@@ -21,6 +25,7 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
         RefLines                  = [];
         Args.MaxScale             = 10;
         Args.StepScale            = 0.0005;
+        Args.GaussFilter          = 2;
     end
 
     if isempty(ObsLines) && isempty(RefLines)
@@ -70,6 +75,15 @@ function [BestScale] = matchLines_Scale(ObsLines, RefLines, Args)
     Nobs = histcounts(LogDiffObs, ScaleEdges);
     Nref = histcounts(LogDiffRef, ScaleEdges);
     
+
+    if ~isempty(Args.GaussFilter)
+        X = (-3.*Args.GaussFilter:1:3.*Args.GaussFilter);
+        GaussianKernel = exp(-X.^2 ./ (2 .* Args.GaussFilter^2));
+        GaussianKernel = GaussianKernel ./ sum(GaussianKernel);  % Normalize
+        Nobs = conv(Nobs, GaussianKernel, 'same');
+        Nref = conv(Nref, GaussianKernel, 'same');
+    end
+
     XC = fftshift(ifft(fft(Nobs).*conj(fft(Nref))));
     [PeakVal,PeakLoc,~,PeakProm]=findpeaks(XC);
     [~,Ipeak]=max(PeakProm);
