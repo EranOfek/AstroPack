@@ -3,7 +3,7 @@ function [Result] = coneSearchRecur(Nside, Lon, Lat, Radius, Args)
     %   Return all the pixel indices that may be in the cone search.
     %   The list may contains nearby irrelevant pixels.
     %   This function use a recursive tree search.
-    %   For faster version see: celestial.healpix.coneSearchFast
+    %   For faster version see: celestial.healpix.coneSearch
     % Input  : - Nside.
     %          - Longitude (scalar).
     %          - Latitude (scalar).

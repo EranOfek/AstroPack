@@ -1,4 +1,4 @@
-function [Result,PixLon,PixLat] = coneSearchFast(NSide, Lon, Lat, Radius, Args)
+function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
     % cone search for healpix pixels (fast version).
     %   Return all the pixel indices that may be in the cone search.
     %   The list may contains nearby irrelevant pixels.
@@ -14,7 +14,7 @@ function [Result,PixLon,PixLat] = coneSearchFast(NSide, Lon, Lat, Radius, Args)
     %            'RadiusUnits' - Input search radius units. Default is 'rad'.
     % Output : - Column vector of pixel indices.
     % Author : Eran Ofek (2025 Jan) 
-    % Example: celestial.healpix.coneSearchFast(16,1,1,0.01)
+    % Example: celestial.healpix.coneSearch(16,1,1,0.01)
 
     arguments
         NSide
