@@ -132,8 +132,8 @@ classdef uplanner < Component
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell'};
                                                                 
-        Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj'};
-        Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell'};  
+        Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj','HealpixArray'};
+        Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell','cell'};  
         
         MissionApprovedPlan_VarNames   = {'TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
@@ -790,6 +790,7 @@ classdef uplanner < Component
                 Obj    
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
                 Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
+                Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
             end              
             % target coordinates 
             RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
@@ -833,6 +834,12 @@ classdef uplanner < Component
                 Field.Blazars = num2cell(find(Ind>0));    
                 %
                 Obj.UniqTargList.FieldObj{iT} = Field;
+                
+                % calcaulte healpix indices covered by this target
+                % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
+                ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg'); % (returns Ipix ids)                
+                Obj.UniqTargList.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
+                
             end            
         end
         %
