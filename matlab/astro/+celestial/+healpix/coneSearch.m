@@ -33,11 +33,16 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
         otherwise
             error('Unknown Type option');
     end
-    Factor = convert.angular(Args.CooUnits,'rad');
-    Lon    = Factor.*Lon;
-    Lat    = Factor.*Lat;
-    Factor = convert.angular(Args.RadiusUnits,'rad');
-    Radius = Factor.*Radius;
+    
+    if ~strcmpi(Args.CooUnits,'rad')
+        Factor = convert.angular(Args.CooUnits,'rad');
+        Lon    = Factor.*Lon;
+        Lat    = Factor.*Lat;
+    end
+    if ~strcmpi(Args.RadiusUnits,'rad')
+        Factor = convert.angular(Args.RadiusUnits,'rad');
+        Radius = Factor.*Radius;
+    end
 
     % Convert center longitude/latitude to Cartesian vector
     %CenterVec = sph2cart_vec(Lon0, Lat0);
@@ -50,15 +55,23 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
     % Start the recursive search from the top-level pixels
     TopLevelPixels = 0:11; % HEALPix starts with 12 base pixels (faces)
     
+    PixelArea    = 4.*pi./(12.*Nside.^2);
+    ApproxNumPix = ceil(2.*pi.*Radius.^2./PixelArea);
+    
+    Result   = zeros(ApproxNumPix,1);
+    MaxIndex = 0;
+    
     Result = [];
     for Pix = TopLevelPixels
-        [Result] = recursiveConeSearch(Nside, 1, Pix, Lon, Lat, Radius, Result, IsNested); %FunType); %Args.Type);
+        [Result,MaxIndex] = recursiveConeSearch(Nside, 1, Pix, Lon, Lat, Radius, Result, MaxIndex, IsNested); %FunType); %Args.Type);
         %(Pix, 1, NSide, Radius, CenterVec, Idx, PixelIndices);
     end
 
+    Result = Result(1:MaxIndex);
+    
 end
 
-function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, Lat, Radius, PixelIndices, IsNested)
+function [PixelIndices,MaxIndex]=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, Lat, Radius, PixelIndices, MaxIndex, IsNested)
     % Recursive cone search
 
   
@@ -75,6 +88,9 @@ function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, L
 
     % Calculate the angular distance between the pixel center and the search center
     AngularDistance = celestial.coo.sphere_dist_fast(Lon, Lat, PixLon, PixLat);
+    % slower:
+    %AngularDistance = celestial.coo.mex.haversine_ScalarArray(Lon, Lat, PixLon, PixLat);
+    
     %acos(dot(PixelVec, CenterVec));
     
     % Check if the pixel center is outside the search radius
@@ -91,7 +107,11 @@ function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, L
             %    PixelIndices = [PixelIndices; zeros(length(PixelIndices), 1)];
             %end
             
-            PixelIndices = [PixelIndices;Pix];
+            NumPix = numel(Pix);
+            PixelIndices(MaxIndex+1:MaxIndex+NumPix) = Pix;
+            MaxIndex = MaxIndex+NumPix;
+            
+            %PixelIndices = [PixelIndices;Pix];
             
         else
 
@@ -99,7 +119,7 @@ function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, L
             SubNside = 2 .* CurrentNside;
             SubPixels = 4 .* Pix; % Each parent pixel divides into 4 subpixels
             for SubPix = SubPixels:(SubPixels + 3)
-                [PixelIndices] = recursiveConeSearch(TargetNside, SubNside, SubPix, Lon, Lat, Radius, PixelIndices, IsNested); %FunType); %Type);
+                [PixelIndices,MaxIndex] = recursiveConeSearch(TargetNside, SubNside, SubPix, Lon, Lat, Radius, PixelIndices, MaxIndex, IsNested); %FunType); %Type);
             end
         end
     end
