@@ -29,9 +29,9 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
     end
 
     if isempty(ObsLines) && isempty(RefLines)
-        fprintf('Simulation mode\n');
+        %fprintf('Simulation mode\n');
         
-        %%
+        %
         Nl         = 55;
         Noverlap   = 45;
         Nnoise     = 10;
@@ -41,7 +41,7 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
         Ir       = randi(Nl, Noverlap,1);
         RefLines = [ObsLines(Ir); NoiseLines].*1 + 1530;
         ObsLines = ObsLines + randn(size(ObsLines,1),1);
-        %%
+        %
         
     end
     

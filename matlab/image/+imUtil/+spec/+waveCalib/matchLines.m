@@ -60,7 +60,7 @@ function [BestScale, BestShift, Matched] = matchLines(ObsLines, RefLines, Args)
     if isempty(ObsLines)
         % simulation mode
     
-        fprintf('Simulation mode\n');
+        %fprintf('Simulation mode\n');
         
         %
         Nl         = 55;
