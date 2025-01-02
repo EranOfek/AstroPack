@@ -5,7 +5,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'ReCalcBack' - (logical) recalculate background at each iteration (def. true)
     %         'BackPar'    - parameters of background estimation
     %         'VarMethod'  - variance estimation method
-    %         'MomRadius'  - radius to calculate image momentum (vector, component per iteration)
+    %         'MomRadius'  - radius to calculate image momentum (one for all or separate for each iteration)
     %         'RedNoiseFactor' - factor of variance increase around found sources 
     %
     %         'populatePSFArgs' - parameters of PSF estimation (cell array)
@@ -20,7 +20,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'Threshold'      - a vector of threshold significance employed for source search: one component per iteration
     %                            NB: this parameter also sets the number of iterations!
     %         'maskCR_args'    - arguments for the imProc.mask.maskCR function employed to exclude CRs from the catalog  
-    %         'FitRadius'      - [pix] PSF fit radius at each iteration
+    %         'FitRadius'      - [pix] PSF fit radius (one for all or separate for each iteration)
     %         'UseOriginalPSF' - (logical) use the PSF already attached to the input AstroImage
     %         'ReCalcPSF'      - (logical) remeasure PSF at each iteration (def. false)
     %
@@ -90,6 +90,15 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     if ~(numel(Args.Threshold) == numel(Args.MomRadius))
         error('The length of Args.Threshold does must comply with that of Args.MomRadius');
     end
+    Niter = numel(Args.Threshold);
+    Nobj  = numel(Obj); 
+    % repair some parameters if needed: 
+    if numel(Args.MomRadius) < Niter
+        Args.MomRadius(1:Niter) = Args.MomRadius(1);
+    end
+    if numel(Args.FitRadius) < Niter
+        Args.FitRadius(1:Niter) = Args.FitRadius(1);
+    end
     
     % create a new object if requested  
     if Args.CreateNewObj
@@ -127,10 +136,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Obj.deleteProp('Table');
     end    
                                                       
-    % find and measure sources using multi-iteration PSF fitting
-    Niter = numel(Args.Threshold);
-    Nobj  = numel(Obj);   
-    SourceLess = repmat(AstroImage,1,Nobj);
+    % find and measure sources using multi-iteration PSF fitting    
+    SourceLess = repmat(AstroImage,1,Nobj); 
     
     for Iobj=1:1:Nobj
                             if Args.Verbose
