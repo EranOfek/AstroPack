@@ -10,7 +10,11 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
     %          - Vector of reference line positions (typically wavelength).
     %            Both lists must have the scale scale.
     %          * ...,key,val,... 
-    %            'Step' - Histogram step. Default is 1.
+    %            'Step' - Shift histogram step. Default is 1.
+    %            'GaussFilter' - If not empty, then convolve the histograms
+    %                   with a Gaussian prior to the cross-correlation.
+    %                   The Gaussian sigma width is given by this argument.
+    %                   Default is 2.
     % Output : - The best shift. This is the shift needed to add to the
     %            observed line positions in order to get the reference line
     %            positions.
@@ -21,12 +25,13 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
         ObsLines                  = [];
         RefLines                  = [];
         Args.Step                 = 1;
+        Args.GaussFilter          = 2;
     end
 
     if isempty(ObsLines) && isempty(RefLines)
-        fprintf('Simulation mode\n');
+        %fprintf('Simulation mode\n');
         
-        %%
+        %
         Nl         = 55;
         Noverlap   = 45;
         Nnoise     = 10;
@@ -36,7 +41,7 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
         Ir       = randi(Nl, Noverlap,1);
         RefLines = [ObsLines(Ir); NoiseLines].*1 + 1530;
         ObsLines = ObsLines + randn(size(ObsLines,1),1);
-        %%
+        %
         
     end
     
@@ -53,6 +58,14 @@ function [BestShift] = matchLines_Shift(ObsLines, RefLines, Args)
     
     Nobs = histcounts(ObsLines, Edges);
     Nref = histcounts(RefLines, Edges);
+    
+    if ~isempty(Args.GaussFilter)
+        X = (-3.*Args.GaussFilter:1:3.*Args.GaussFilter);
+        GaussianKernel = exp(-X.^2 ./ (2 .* Args.GaussFilter^2));
+        GaussianKernel = GaussianKernel ./ sum(GaussianKernel);  % Normalize
+        Nobs = conv(Nobs, GaussianKernel, 'same');
+        Nref = conv(Nref, GaussianKernel, 'same');
+    end
     
     XC = fftshift(ifft(fft(Nobs).*conj(fft(Nref))));
     [PeakVal,PeakLoc,~,PeakProm]=findpeaks(XC);
