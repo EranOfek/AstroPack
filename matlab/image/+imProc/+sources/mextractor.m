@@ -20,6 +20,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'Threshold'      - a vector of threshold significance employed for source search: one component per iteration
     %                            NB: this parameter also sets the number of iterations!
     %         'maskCR_args'    - arguments for the imProc.mask.maskCR function employed to exclude CRs from the catalog  
+    %         'FitRadius'      - [pix] PSF fit radius at each iteration
     %         'UseOriginalPSF' - (logical) use the PSF already attached to the input AstroImage
     %         'ReCalcPSF'      - (logical) remeasure PSF at each iteration (def. false)
     %
@@ -68,6 +69,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
         % source PSF fitting:
+        Args.FitRadius                 = [3 3 3];% PSF fit radius at each iteration
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
         
@@ -181,7 +183,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             end
             
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter));  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             
             % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
             if Args.UsePSFInterpolant
