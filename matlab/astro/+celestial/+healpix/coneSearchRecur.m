@@ -1,7 +1,9 @@
-function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
-    % cone search for healpix pixels.
+function [Result] = coneSearchRecur(Nside, Lon, Lat, Radius, Args)
+    % cone search for healpix pixels (recursive search version).
     %   Return all the pixel indices that may be in the cone search.
     %   The list may contains nearby irrelevant pixels.
+    %   This function use a recursive tree search.
+    %   For faster version see: celestial.healpix.coneSearchFast
     % Input  : - Nside.
     %          - Longitude (scalar).
     %          - Latitude (scalar).
@@ -12,7 +14,7 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
     %            'RadiusUnits' - Input search radius units. Default is 'rad'.
     % Output : - Column vector of pixel indices.
     % Author : Eran Ofek (2024 Sep) 
-    % Example: celestial.healpix.coneSearch(16,1,1,0.01)
+    % Example: celestial.healpix.coneSearchRecur(16,1,1,0.01)
 
     arguments
         Nside
