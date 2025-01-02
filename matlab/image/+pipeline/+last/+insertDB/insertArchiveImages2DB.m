@@ -22,9 +22,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST*/2024/*/*/proc/*')
     %
     arguments
-        RootDir                = '/Data1/LAST.01.01.01/';
+        RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
-        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -62,8 +62,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for Crop = 1:Ndir
-        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
+    for Idir = 1:Ndir
+        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
         cd(DataDir);    
         try
             Injected = contains(fileread('.status'), "injected into the visit image DB");

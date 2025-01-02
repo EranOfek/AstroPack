@@ -40,8 +40,9 @@ function [Result] = unitTest()
     %       (Done) timeSeries.filter.filterStd
     %       (Done) imUtil.spec.waveCalib.fitWaveCalib
     %       (started) imUtil.spec.waveCalib.interactiveWaveCalib
-    %       (started) imUtil.spec.waveCalib.matchLines
-    %       (started) imUtil.spec.waveCalib.matchLines_Scale
+    %       (DONE) imUtil.spec.waveCalib.matchLines
+    %       (DONE) imUtil.spec.waveCalib.matchLines_Scale
+    %       (DONE) imUtil.spec.waveCalib.matchLines_Shift
     %
     % * calibration/extinction
     %       (Done) AstroSpec/getSpecPhotStandard
@@ -112,6 +113,14 @@ function [Result] = unitTest()
         error('imUtil.spec.extract.fitBackground - Not estimated back correctly');
     end
 
+    %% Match spectral lines
+    for I=1:100,
+        [sc(I), sh(I), Matched] = imUtil.spec.waveCalib.matchLines;
+    end
+    if abs(mean(sc)-3.27)>0.01 || abs(mean(sh)-1500)>2
+        error('imUtil.spec.waveCalib.matchLines - problem');
+    end
+    
     %% imUtil.spec.waveCalib.fitWaveCalib
     PixPos = [100  4000; 200 5000; 300 6000; 350 6500; 450 7500; 490 7900];
     PixPos = PixPos +randn(size(PixPos)).*1;

@@ -173,7 +173,9 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
             CI(Icrop) = AstroImage;
         else
             [AI, AllPaths, AllFiles] = pipeline.last.queryDB.loadProducts(T{Icrop}, Args.CoaddLevel, Args.CoaddProduct);
-            
+            IsEmpty = AI.isemptyImage;
+            AI = AI(~IsEmpty);
+
             Nimages = numel(AI);
             
             % need background and variance due to a bug in coadd:

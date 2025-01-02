@@ -7,7 +7,7 @@ function [File, Path, AFN] = findReference(FieldID, CumNum, CropID, Args)
     %            'BasePath' - BasePath. If empty, then construct from host name (e.g., '/last01e/data')
     %                   Default is '/marvin'
     %            'Filter' - Filter name. Default is 'clear'.
-    % Output : - Reference image file name.
+    % Output : - Reference image file name. Return empty if not exist.
     %          - Reference image path.
     %          - AstroFileName for reference image.
     % Author : Eran Ofek (2024 Dec) 
@@ -19,10 +19,27 @@ function [File, Path, AFN] = findReference(FieldID, CumNum, CropID, Args)
         CropID
         Args.BasePath              = '/marvin'; % if empty assume LAST machine
         Args.Filter                = 'clear';
+        Args.BaseProjName          = 'LAST';
     end
 
     Path = pipeline.last.path.constructRefDir(Args.BasePath, FieldID);
-    AFN  = AstroFileName.readLiteral('ProjName',ProjName, 'Filter',Args.Filter', 'CropID',CropID, 'Level','*', 'Product','Image');
-    File = AFN.genFile;
+
+    PWD = pwd;
+    if isfolder(Path)
+        cd(Path);
+
+        ProjName = sprintf('%s.*.*.%02d', Args.BaseProjName, CumNum);
+        AFN  = AstroFileName.dirLiteral('ProjName',ProjName, 'Filter',Args.Filter', 'CropID',CropID, 'Level','*', 'Product','Image');
+        cd(PWD);
+        if isempty(AFN.Time)
+            File = [];
+        else
+            File = AFN.genFile;
+        end
+    else
+        File = [];
+        Path = [];
+        AFN  = [];
+    end
     
 end

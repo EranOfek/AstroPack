@@ -7,7 +7,6 @@ function Result = unitTest
     PWD = pwd;
     cd(DataSampleDir);
 
-
     % addMagCols
     % AC=AstroCatalog('LAST.01.02.01_20230115.170832.639_clear_050+09_001_001_024_sci_coadd_Cat_001.fits');
     % AC2 = AC.copy();
@@ -26,17 +25,42 @@ function Result = unitTest
     % AC2 = imProc.sources.addMagCols(AC2,"FluxCols",NamesFlux(IndFlux),"FluxErrCols",NamesFluxErr(IndFluxErr),"MagStr",MagNames,"MagErrStr",MagErrNames,"IsLuptitude",false);
     
     % testing multi-iteration PSF photometry 
+%     
+
+%     AI = AstroImage({'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'});
+    AI = AstroImage({'LAST_275-16_crop22.fits'}); 
     
-    Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};
-    AI     = [AstroImage(Images{1}) AstroImage(Images{2})];  
-%     AI.Mask = % fill in the masks 
+    cd(PWD)
+    
+    AI0 = AI.copy;
+    
+    tic
+    
+    AI0 = imProc.background.background(AI0);  
+    AI0 = imProc.sources.findMeasureSources(AI0);
+    AI0 = imProc.psf.populatePSF(AI0);
+    AI0 = imProc.sources.psfFitPhot(AI0);
+    fprintf('%d sources \n',height(AI0(1).CatData.Catalog));
+%     fprintf('%d sources \n',height(AI0(2).CatData.Catalog));
+    
+    toc
+        
+    tic
+    
+%     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',true,...
+%         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
+%         'RedNoiseFactor',1.3); 
+     
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',false,...
+        'WriteDs9Regions',false,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',false,...
+        'RedNoiseFactor',1.3); 
+    
+    % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
 
-    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'Verbose',true,...
-        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
-        'RedNoiseFactor',1.3); % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
-
+    toc 
+    
 %     compare the multi-iteration results with those from usual
-%     singl-iteration source search and PSF-photometry:
+%     single-iteration source search and PSF-photometry:
 % 
 %     SI = imProc.sources.findMeasureSources(SI);                                               
 %     [SI] = imProc.psf.populatePSF(SI, 'Method', 'new');
@@ -55,7 +79,17 @@ function Result = unitTest
     ds9(AI(2).Image,3); ds9.load_region('~/275-16_it1.reg'); ds9.load_region('~/275-16_it2.reg'); ds9.load_region('~/275-16_it3.reg')
     ds9(SourceLess(2).Image,4)     
         
-    cd(PWD)
+    % test with LAST data from Marvin:
 
+    D=db.Db; D.User = 'last_user'; D.Password = 'physics'; D.Conn; D.useDB('last');
+    T=D.query("SELECT * FROM last.visit_images WHERE abs(ra-285.385) < 0.4 AND abs(dec-22.615) < 0.4 AND (midjd < 2460500) AND (midjd > 2460460);");
+    Nobs = height(T);
+    F  = 1:3;
+    AI = pipeline.last.queryDB.loadProducts(T(F,:),'coadd','Image+','ExtraOutProduct',["Mask", "PSF", "Cat"],...
+        'table2pathArgs',{'BasePath','/mnt/marvin'});
+    AI = imProc.sources.mextractor(AI, 'Verbose',true, 'FindWithEmpiricalPSF',true);
+
+    % 
+    
     Result = true;
 end

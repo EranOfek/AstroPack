@@ -1,6 +1,6 @@
 function [UniqueId] = pix2uniqueId(Nside, Pix)
     % Return healpix unique Id from Nside and pixel index.
-    %       See also: celestial.healpix.uniqueId2pi
+    %       See also: celestial.healpix.uniqueId2pix
     % Input  : - Nside.
     %          - Pixel index.
     % Output : - Unique Id (Pix + 4.*Nside.^2)

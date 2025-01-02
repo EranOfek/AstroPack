@@ -257,8 +257,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                        'Threshold',Args.Threshold,...
                                                        'CreateNewObj',false);
             % Add JD and CropID to Catalog
-            Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
-
+%             Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
+%           insert ID with imProc.cat.insertCol can do wrong if some of the
+%           subimages are missing in the Coadd matrix: in this case the
+%           subimage numbers after the missed crop will be shifted 
+            Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD');
 
             % Estimate PSF
             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', Args.constructPSFArgs{:}, 'DataType',@single);

@@ -21,9 +21,9 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     %          pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.01*/*/*/*/proc/*')
     %
     arguments
-        RootDir                = '/Data1/LAST.01.01.01/';
+        RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Cat_1.fits';      
-        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';  
         Args.Decompress        = false;
         Args.CompressProcessed = false;
         Args.UpdateStatus      = true;
@@ -68,8 +68,8 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for Crop = 1:Ndir
-        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
+    for IDir = 1:Ndir
+        DataDir = strcat(Dirs(IDir).folder,'/',Dirs(IDir).name);         
         cd(DataDir);    
         try
             Injected = contains(fileread('.status'), "injected into the visit catalog DB");
@@ -122,6 +122,13 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                 Subdir = Parts{end};    % Extract the last part of the full dir name
                 for Crop=1:Nobj
                     AH(Crop).replaceVal('SUBDIR',Subdir);
+                end
+            end
+            if ~all(Cat.isColumn('JD'))
+                for Crop=1:Nobj
+                    if ~Cat(Crop).isColumn('JD')                        
+                        Cat(Crop).insertCol(repmat(AH(Crop).getVal('JD'), height(Cat(Crop).Table),1), Inf, 'JD', 'day');
+                    end
                 end
             end
             % prepare file name for the CSV dump 

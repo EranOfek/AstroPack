@@ -39,6 +39,7 @@
 % - Obj.clearMissionApprovedPlan                            : Clear the Mission Approved Plan table
 %
 %
+% - [CheckStatus,badPlanRow] = Obj.planSelfConsistencyCheck(Args)       : Verify that the plan schedule is self consistent
 % - Obj.adjustGroupStartTime(Args)                          : Adjust the start time of a group in the plan by 3 options: 
 %                                                                  a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
 %                                                             If no GroupList is provided, will adjust all groups in the plan, one by one.
@@ -50,20 +51,20 @@
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate                                            : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
-% - Obj.submit                                              : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+% - Obj.validate(Mclient)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+% - Obj.submit(Mclient)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+%
+% - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
 %
 % - Res = Obj.showCalibObj(Ind,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Additional functions to be considered:
-% - planSelfConsistencyCheck               : Verify that the plan schedule is self consistent
 % - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
-% - expectedRoll                                     : Calculate the expcted roll angle
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,7 +89,7 @@ classdef uplanner < Component
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
         
         % LCS / AllSS
-        DailyWindowStartTime    duration    =  duration(10,00,00); % [hrs]   
+        DailyWindowStartTime    duration    =  duration(23,00,00); % [hrs]   
         DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
         
         % AllSS
@@ -124,7 +125,7 @@ classdef uplanner < Component
         
         SysTimeZone        = 'UTC';
         
-        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','Roll','Tiles',...
+        Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
         Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
@@ -141,8 +142,7 @@ classdef uplanner < Component
         
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
-        ObsEarthDist         = 56;   % [deg]
-        
+        ObsEarthDist         = 56;   % [deg]        
     end 
     % 
     methods  % Constructor
@@ -516,6 +516,8 @@ classdef uplanner < Component
                 Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
                 Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
                 Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
+                
+                Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
                 TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
                     'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
@@ -532,9 +534,9 @@ classdef uplanner < Component
                 Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
                 Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
 
-                % ADD Calc Zody,LimMag  
+                % TODO - ADD Calc Zody,LimMag  
                 
-                % Search for overlapping targets. TODO - currently does not
+                % Search for overlapping targets
                 % load the MissionApprovedPlan if not exist
                 if ~isempty(Obj.MissionApprovedPlan)                    
                     Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
@@ -577,7 +579,7 @@ classdef uplanner < Component
                 Obj.MissionApprovedPlan.RA(1:height(Args.inputPlan))  = 0; 
                 Obj.MissionApprovedPlan.RA  =  Args.inputPlan.RA ;
                 Obj.MissionApprovedPlan.Dec  =  Args.inputPlan.Dec ;
-                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.Roll ;
+                Obj.MissionApprovedPlan.Roll  =  Args.inputPlan.ExpectedRoll ;
                 Obj.MissionApprovedPlan.Tstart  =  Args.inputPlan.Tstart ;
                 Obj.MissionApprovedPlan.Tend  =  Args.inputPlan.Tend ;
                 Obj.MissionApprovedPlan.ExpTime  =  Args.inputPlan.ExpTime ;
@@ -645,6 +647,75 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan(:,:) = [];
         end    
         %
+        function [CheckStatus,badPlanRow] = planSelfConsistencyCheck(Obj,Args)
+            % Verify that the plan schedule is self consistent
+            arguments
+                Obj
+                Args.timingPrecision = seconds(0.01);
+            end
+            
+            tmpPlan = Obj.Plan;
+            
+            tmpPlan = sortrows(tmpPlan,'Tstart');
+            
+            % Validate that Obj.Start time and the first start time in the plan agree
+            if abs(Obj.StartTime-tmpPlan.Tstart(1))>Args.timingPrecision
+                fprintf('Bad Start Time of Entire Object\n');
+                CheckStatus = false;
+                badPlanRow = tmpPlan(1,:);
+                return
+            end
+            
+            for Plan_row = 1:height(tmpPlan)
+                % calculate and validate times between targets
+                if Plan_row>1
+                    
+                    [T_sec,~] = ultrasat.tools.calcSlew(tmpPlan.RA(Plan_row-1),tmpPlan.Dec(Plan_row-1),tmpPlan.RA(Plan_row),tmpPlan.Dec(Plan_row),...
+                                                        'Units','deg','CheckTrajectory',true);
+                    tmpSlewTimeBefore = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
+                    tmpTstart = currTend + tmpSlewTimeBefore;                    
+ 
+                    if (tmpPlan.Tstart(Plan_row)-tmpTstart)<-Args.timingPrecision
+
+                        fprintf('Bad timing between rows\n');
+                        CheckStatus = false;
+                        badPlanRow = tmpPlan(Plan_row,:);
+                        return               
+                    end                    
+                end
+                % calcaute and validate relative time within the plan row 
+                tmpTotalDuration = tmpPlan.Nexposures(Plan_row) * tmpPlan.ExpTime(Plan_row) + Obj.FullTileReadTime;
+                tmpTend = tmpPlan.Tstart(Plan_row) + tmpTotalDuration;
+                
+                tmpJDstart = juliandate(tmpPlan.Tstart(Plan_row));
+                tmpJDend = juliandate(tmpTend);
+                
+                if abs(tmpPlan.TotalDuration(Plan_row)-tmpTotalDuration)>Args.timingPrecision || ...
+                   abs(tmpPlan.Tend(Plan_row)-tmpTend)>Args.timingPrecision || ...     
+                   abs(tmpPlan.JDstart(Plan_row)-tmpJDstart)>seconds(Args.timingPrecision)/3600/24  || ...
+                   abs(tmpPlan.JDend(Plan_row)-tmpJDend)>seconds(Args.timingPrecision)/3600/24
+                    
+                    fprintf('Bad timing within row\n');
+                    CheckStatus = false;
+                    badPlanRow = tmpPlan(Plan_row,:);
+                    return               
+                end
+
+                currTend = tmpTend;
+            end
+            
+            % Validate that Obj.Start time and the first start time in the plan agree
+            if abs(Obj.EndTime-currTend)>Args.timingPrecision
+                fprintf('Bad End Time of Entire Object\n');
+                CheckStatus = false;
+                badPlanRow = tmpPlan(end,:);
+                return
+            end            
+            
+            CheckStatus = true;
+            badPlanRow = [];
+        end
+        %
         function adjustGroupStartTime(Obj,Args)
             % Adjust the start time of a group in the plan by 3 options: 
             %       a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
@@ -695,8 +766,7 @@ classdef uplanner < Component
                         end
                     end
                 end
-                
-                
+                                
                 %apply shift
                 Obj.Plan.Tstart(Plan_rows) = Obj.Plan.Tstart(Plan_rows) + ShiftTime;
                 Obj.Plan.Tend(Plan_rows) = Obj.Plan.Tend(Plan_rows) + ShiftTime;
@@ -704,6 +774,9 @@ classdef uplanner < Component
                 Obj.Plan.JDstart(Plan_rows) = juliandate(Obj.Plan.Tstart(Plan_rows));
                 Obj.Plan.JDend(Plan_rows) = juliandate(Obj.Plan.Tend(Plan_rows));
             end
+            
+            Obj.StartTime = min(Obj.Plan.Tstart);
+            Obj.EndTime = max(Obj.Plan.Tend);
             
         end  
         %
@@ -767,9 +840,9 @@ classdef uplanner < Component
             % Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
             arguments
                 Obj                     
-                Args.TimeBin           = 0.01; % [days] 
+                Args.TimeBin         = 0.01; % [days] 
                 Args.WindowStartTime = []; 
-                Args.WindowEndTime = []; 
+                Args.WindowEndTime   = []; 
             end
             %
             RAD = 180/pi;          
@@ -779,7 +852,7 @@ classdef uplanner < Component
             end
             
             if isempty(Args.WindowEndTime)
-                Args.WindowEndTime = Obj.CheckTimes(2);
+                Args.WindowEndTime   = Obj.CheckTimes(2);
             end
             
             StartJD = juliandate(Args.WindowStartTime);
@@ -804,16 +877,112 @@ classdef uplanner < Component
             Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj)
+        function validate(Obj,Mclient)
             % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+
+            planStruct = Obj.planTable2struct;
+            % send struct plan to the validator.
+            % Mclient.validatePlan(planStruct);            
+            
             Obj.Status    = 'validated';
             Obj.Validated = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj)
+        function submit(Obj,Mclient)
             %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+
+            planStruct = Obj.planTable2struct;
+            % send struct plan to the Mission C&C.
+            % Mclient.submitPlan(planStruct);
+            
             Obj.Status    = 'submitted';
             Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
+        end
+        %
+        function planStruct = planTable2struct(Obj,Args)
+            % Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
+            arguments
+                Obj
+                Args.fields = {};
+                Args.DefRoll = 0;
+                Args.timeFormat = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z';
+            end        
+                      
+            if isempty(Args.fields) %use defults fields
+                tmpTable = Obj.Plan;
+                
+                keepVars = false(size(tmpTable.Properties.VariableNames));
+                
+                %rename RA->ra
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'RA');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'ra'};
+                
+                %rename Dec->decl
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Dec');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'decl'};
+                
+                %rename ExpectedRoll->roll
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpectedRoll');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'roll'};
+                
+                if ~isempty(Args.DefRoll)
+                    tmpTable.roll(:) = Args.DefRoll;
+                end
+                
+                %rename Tstart->start_time
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tstart');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'start_time'};                
+                
+                tmpTable.start_time.Format = Args.timeFormat;
+                
+                %rename Tend->end_time
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tend');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'end_time'};  
+                
+                tmpTable.end_time.Format = Args.timeFormat;
+                
+                %rename ExpTime->exposure
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpTime');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'exposure'};   
+                
+                %convert to numeric
+                tmpTable.exposure = seconds(tmpTable.exposure);
+                
+                %rename Nexposures->image_count
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Nexposures');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'image_count'}; 
+                
+                %rename TotalDuration->total_seconds
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'TotalDuration');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'total_seconds'};  
+                
+                %convert to numeric
+                tmpTable.total_seconds = seconds(tmpTable.total_seconds);
+                
+                %rename Tiles->tiles
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tiles');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'tiles'};   
+                
+                tmpTable.tiles = regexprep(cellstr(tmpTable.tiles),'(\w)','$1,');
+                tmpTable.tiles = regexprep(tmpTable.tiles,',$','');
+                
+                     
+                tmpTable = tmpTable(:,keepVars);
+                
+                planStruct = table2struct(tmpTable);
+            else
+                error('Currently does not support non-standard fields');
+            end
+            
         end
         %
         function Res = showCalibObj(Obj,TargInd,Args)
@@ -874,7 +1043,6 @@ classdef uplanner < Component
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
                   upHCS.buildHCS;
 
-
                 % Example for creating LCS survey:
                   LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
@@ -898,7 +1066,11 @@ classdef uplanner < Component
                   upLCS.buildLCS('TargetList',F2);
 
                   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
-
+                  
+                  CheckStatus = upLCS.planSelfConsistencyCheck;
+                  if ~CheckStatus
+                      return
+                  end
 
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
@@ -911,10 +1083,7 @@ classdef uplanner < Component
                   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
 
                  %
-                 Result=true;
-                %
-                  
+                 Result=true;                                 
             end
-
     end
 end

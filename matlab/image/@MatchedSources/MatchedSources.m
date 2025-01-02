@@ -425,6 +425,45 @@ classdef MatchedSources < Component
     end
     
     methods % write
+        function Result = cast(Obj, Type, Args)
+            % Change the type of variables in the Data field.
+            % Input  : - self.
+            %          - Type. Default is 'single'.
+            %          * ...,key,val,...
+            %            'SkipFields' - Fields to skip (not to cast).
+            %                   Default is ["RA", "Dec", "FLAGS"].
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object. Default is false.
+            % Output : - An updated MatchedSources object.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: MS.cast
+
+            arguments
+                Obj
+                Type              = 'single';
+                Args.SkipFields   = ["RA", "Dec", "FLAGS"];
+                Args.CreateNewObj logical   = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % for all fields in Data
+                Nfield = numel(Result.Fields);
+                for Ifield=1:1:Nfield
+                    if ~any(strcmp(Result.Fields{Ifield}, Args.SkipFields))
+                        Result(Iobj).Data.(Result.Fields{Ifield}) = cast(Result(Iobj).Data.(Result.Fields{Ifield}), Type);
+                    end
+                end
+            end
+
+        end
+
         function Result = write1(Obj, FileName, Args)
             % Write a MatchedSources object to HDF5 or mat file
             % Input  : - A single element MatchedSources object.
@@ -440,6 +479,10 @@ classdef MatchedSources < Component
             %                   the real value (of a complex value).
             %                   This is used only if FileType=hdf5.
             %                   Default is true.
+            %            'Type' - Type to cast the Data fields before writing.
+            %                   If empty, then skip. Default is 'single';
+            %            'SkipFields' - Fields to skip (not to cast).
+            %                   Default is ["RA", "Dec", "FLAGS"].
             % Output : - Return true if sucess.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -449,15 +492,23 @@ classdef MatchedSources < Component
             arguments
                 Obj(1,1)
                 FileName
-                Args.FileType             = 'hdf5';
+                Args.FileType              = 'hdf5';
                 Args.RealIfComplex logical = true;
+                Args.Type                  = 'single';
+                Args.SkipFields            = ["RA", "Dec", "FLAGS"];
             end
            
+            if ~isempty(Args.Type)
+                Obj.cast(Args.Type, 'SkipFields',Args.SkipFields);
+            end
+
+
             switch lower(Args.FileType)
                 case {'h5','hdf5','hd5'}
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
-                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        Type = class(Obj.Data.(Obj.Fields{Idata}));
+                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})), 'DataType',Type);
                         if Args.RealIfComplex
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
                         else

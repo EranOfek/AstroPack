@@ -74,9 +74,14 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     
         switch lower(Type)
             case 'key'
+                [XY, Key] = plot.ginputKeyboard;
+                Res.Pos   = XY;
+                Res.Key   = Key;
+                Res.MB    = [];
+                
                 %fprintf('Interactive mode\n');
-                set(Hf,'WindowButtonDownFcn','',...
-                       'KeyPressFcn','[Res]=plot.selectInteractive(''key_press'');');
+                %set(Hf,'WindowButtonDownFcn','',...
+                %       'KeyPressFcn','[Res]=plot.selectInteractive(''key_press'');');
                 
             case 'mouse'
                 [X,Y,MB] = ginput(1);

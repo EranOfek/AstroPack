@@ -21,9 +21,9 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertDB.insertArchiveCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
-        RootDir                = '/Data1/LAST.01.01.01/';
+        RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
-        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';  
         Args.Decompress        = true;
         Args.CompressProcessed = true;
         
@@ -65,8 +65,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for Crop = 1:Ndir
-        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
+    for Idir = 1:Ndir
+        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
         cd(DataDir);    
         try
             Injected = contains(fileread('.status'), "injected into the proc catalog DB");

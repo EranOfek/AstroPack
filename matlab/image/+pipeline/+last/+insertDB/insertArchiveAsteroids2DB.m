@@ -22,9 +22,9 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertDB.insertArchiveAsteroids2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %
     arguments
-        RootDir                = '/Data1/LAST.01.01.01/';
+        RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Aster*.mat';      
-        Args.ProcDirTemplate   = '*/*/*/proc/*';  
+        Args.ProcDirTemplate   = '/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -34,7 +34,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         Args.DbPass = 'PassRoot'; 
         
         Args.Level  = 'coadd';
-        Args.DbTable= 'visit_asteroids';   
+        Args.DbTable= 'visit_asteroids2';  %  'visit_asteroids' 
         Args.KeyID     = 'id_visit_im';
         Args.ColNameID = 'id_visit_src';        
         
@@ -63,9 +63,9 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for Crop = 1:Ndir
-        DataDir = strcat(Dirs(Crop).folder,'/',Dirs(Crop).name);         
-        cd(DataDir);    
+    for Idir = 1:Ndir
+        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
+        cd(DataDir);        
         try
             Injected = contains(fileread('.status'), "injected into the visit asteriods catalog DB");
         catch

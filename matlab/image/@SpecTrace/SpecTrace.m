@@ -19,7 +19,11 @@ classdef SpecTrace < Component
     
     methods %
         function Obj=searchTrace(AI, Args)
-            % Start with image - find all traces b
+            % Start with image - find all traces
+            
+            
+            %RR=imUtil.spec.trace.trace(Array);
+            
             
         end
         

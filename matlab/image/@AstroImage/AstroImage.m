@@ -489,7 +489,7 @@ classdef AstroImage < Component
                 Args.Scale                  = [];
                 Args.DataProp               = 'ImageData';
                 Args.ReadHeader             = true;
-                Args.FileNames cell         = {};
+                Args.FileNames              = {};
             end
             
             try
@@ -519,8 +519,8 @@ classdef AstroImage < Component
                         error('DataProp %s is not supported',Args.DataProp);
                 end
                 Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
-            catch
-                if iscell(FileName)
+            catch ME
+                if iscell(FileName) || isstring(FileName)
                     Tmp = FileName{1};
                 else
                     Tmp = FileName;
@@ -699,7 +699,7 @@ classdef AstroImage < Component
 
             if isempty(Files)
                 % all files
-                Files = AstroFileName.dirLiteral('Levl',Args.Level);
+                Files = AstroFileName.dirLiteral('Level',Args.Level);
             end
             
             if isa(Files, 'AstroFileName')
@@ -708,15 +708,15 @@ classdef AstroImage < Component
                 AFN = AstroFileName(Files, 'Path',Args.Path);
             end
             
-            FileProd = AFN.gemProducts('OutProduct',["Image", Args.ExtraOutProduct]);
+            FileProd = AFN.genProducts('OutProduct',["Image", Args.ExtraOutProduct]);
             Nfile    = size(FileProd,1);
             Nex = numel(Args.ExtraOutProduct);
-            Cell = cell(Nfile, Nex);
+            Cell = cell(1, Nex);
             for Iex=1:1:Nex
                 Cell{Iex.*2-1} = Args.ExtraOutProduct{Iex};
-                Cell{Iex.*2}   = FileProd(:,2);
+                Cell{Iex.*2}   = FileProd(:,Iex+1);
             end
-            Result   = AstroImage(FileProd(:,1), Cell{:}, 'Path',Args.Path);
+            Result   = AstroImage(FileProd(:,1), Cell{:});
             
         end
 

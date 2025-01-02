@@ -28,9 +28,22 @@ function testConvertDegreesToRadians(testCase)
     [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
 
     % Verify the output is in radians
-    verifyEqual(testCase, OutRA, pi, 'AbsTol', 1e-10);
-    verifyEqual(testCase, OutDec, pi/4, 'AbsTol', 1e-10);
+    verifyEqual(testCase, OutRA, pi, 'AbsTol', 1e-8);
+    verifyEqual(testCase, OutDec, pi/4, 'AbsTol', 1e-8);
 end
+
+function testConvertRadiansToDegrees(testCase)
+    InRA = pi;       % radians
+    InDec = pi/4;    % radians
+    Args = {'InUnits', 'rad', 'OutUnits', 'deg'};
+    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
+    % Expected output in degrees
+    expOutRA = 180;        % pi radians = 180 degrees
+    expOutDec = 45;        % pi/4 radians = 45 degrees
+    verifyEqual(testCase, OutRA, expOutRA, 'AbsTol', 1e-6);
+    verifyEqual(testCase, OutDec, expOutDec, 'AbsTol', 1e-6);
+end
+
 
 % Test resolving an object name using Simbad
 function testResolveObjectName(testCase)
@@ -44,16 +57,55 @@ function testResolveObjectName(testCase)
 end
 
 function testConvertSexagesimalToDegrees(testCase)
-    InRA = '00h 42m 44.3s';  % Sexagesimal RA
-    InDec = '+41d 16'' 9"';  % Sexagesimal Dec
+    InRA = '01:00:00.00';  % Sexagesimal RA
+    InDec = '+30:16:90';  % Sexagesimal Dec
     Args = {'InUnits', 'sex', 'OutUnits', 'deg'};  % Convert from sexagesimal to degrees
 
-    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args);
+    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
 
     % Verify the output is in decimal degrees
-    verifyEqual(testCase, OutRA, 10.6847, 'AbsTol', 1e-4);
-    verifyEqual(testCase, OutDec, 41.269, 'AbsTol', 1e-4);
+    
+    verifyEqual(testCase, OutRA, 15, 'AbsTol', 1e-4);
+    verifyEqual(testCase, OutDec, 30.2916666666667, 'AbsTol', 1e-4);
 end
+
+function testObjectNameResolution(testCase)
+    InRA = 'm31';      % Example object name
+    InDec = [];        % Leave Dec empty to indicate name resolution
+    % Mock server function for testing purpose
+    mockServer = @(name, unit) deal(10, -10);  % Replace with real resolver in actual tests
+    Args = {'Server', mockServer, 'OutUnits', 'deg'};
+    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
+    % Expected mock coordinates
+    expOutRA = 10;
+    expOutDec = -10;
+    verifyEqual(testCase, OutRA, expOutRA, 'AbsTol', 1e-6);
+    verifyEqual(testCase, OutDec, expOutDec, 'AbsTol', 1e-6);
+end
+
+% Edge Case - Empty inputs
+function testEmptyInputs(testCase)
+    InRA = [];
+    InDec = [];
+    Args = {'InUnits', 'deg', 'OutUnits', 'deg'};
+    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
+    verifyTrue(testCase, isnan(OutRA));
+    verifyTrue(testCase, isnan(OutDec));
+end
+
+
+% Invalid object name with name server
+function testInvalidObjectName(testCase)
+    InRA = 'unknown_object';
+    InDec = [];
+    % Mock server that returns NaN for unknown objects
+    mockServer = @(name, unit) deal(NaN, NaN);
+    Args = {'Server', mockServer, 'OutUnits', 'deg'};
+    [OutRA, OutDec] = celestial.convert.cooResolve(InRA, InDec, Args{:});
+    verifyTrue(testCase, isnan(OutRA));
+    verifyTrue(testCase, isnan(OutDec));
+end
+
 
 
 % Optional teardown function

@@ -65,11 +65,13 @@ function [T, DB] = searchVisits(RA, Dec, Args)
 
     % resove coordinates
     % Output is J2000.0 RA/Dec
+    DB = Args.DB;
     Ncrop = 1;
     if istable(RA)
         % assume input is the output of query
         % will coadd all the images listed in table
         T{1} = RA;
+        
     else
         % create table by query DB
 
