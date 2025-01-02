@@ -80,7 +80,11 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                     cd(Dir);
                     continue
                 end
-                Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
+                if ismember('CropID', Obj.Table.Properties.VariableNames)
+                    Obj.Table.CropID = Obj.Table.SubImageIndex;                     % copy data from the right column
+                else
+                    Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
+                end
                 %
                 CropID=unique(Obj.Table.cropid);
                 NCrop = numel(CropID);
