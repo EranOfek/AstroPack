@@ -30,7 +30,7 @@ function [FOV, Tiles] = getFOVcorners(RA, Dec, Args)
         for Itile = 1:4
             [Arclen, Az] = distance(Dec,RA,FOV.Dec(Itile),FOV.RA(Itile));  % from the FOV center to the new corner
             Dist2TileCenter = Arclen/2 + sqrt(2) * HalfGap / 2;            % from the FOV center to the center of the tile
-            [Center.Dec, Center.RA] = reckon(Dec, RA, Dist2TileCenter, Az,'degrees'); % RA, Dec of the tile center
+            [Center.Dec, Center.RA] = reckon(Dec, RA, Dist2TileCenter, Az,'degrees'); % RA, Dec of the tile center            
             Center.RA(Center.RA<0)  = Center.RA(Center.RA<0) + 360;
             [Tiles(Itile).RA, Tiles(Itile).Dec] = sky_square_corners(Center.RA, Center.Dec, Args.TileSide, Args.Roll);
         end
