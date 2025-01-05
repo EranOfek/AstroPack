@@ -83,16 +83,16 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                 if ismember('CropID', Obj.Table.Properties.VariableNames)
                     Obj.Table.CropID = Obj.Table.SubImageIndex;                     % copy data from the right column
                 else
-                    Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'cropid'; % repair the column name
+                    Obj.Table.Properties.VariableNames{'SubImageIndex'} = 'CropID'; % repair the column name
                 end
                 %
-                CropID=unique(Obj.Table.cropid);
-                NCrop = numel(CropID);
+                CropID = unique(Obj.Table.CropID);
+                NCrop  = numel(CropID);
                 ObjNew = struct([]);
                 AH     = repmat(AstroHeader,1,NCrop);
                 Headers= dir('*coadd*Cat*fits'); % get the list of all the coadd*Cat files from where to read the headers                                
                 for Icrop = 1:NCrop
-                    ObjNew(Icrop).Table = Obj.Table(Obj.Table.cropid == CropID(Icrop), :); % select the lines by cropid
+                    ObjNew(Icrop).Table = Obj.Table(Obj.Table.CropID == CropID(Icrop), :); % select the lines by cropid
                     AH(Icrop) = AstroHeader(Headers(CropID(Icrop)).name,3);                % for each cropid read the appropriate header
                 end                
                 %                                
