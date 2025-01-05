@@ -1,7 +1,9 @@
-function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
-    % cone search for healpix pixels.
+function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
+    % cone search for healpix pixels (fast version).
     %   Return all the pixel indices that may be in the cone search.
     %   The list may contains nearby irrelevant pixels.
+    %   This function use asimple annulus based search.
+    %   For slower version see: celestial.healpix.coneSearchRecur
     % Input  : - Nside.
     %          - Longitude (scalar).
     %          - Latitude (scalar).
@@ -11,98 +13,89 @@ function [Result] = coneSearch(Nside, Lon, Lat, Radius, Args)
     %            'CooUnits' - Input coordinate units. Default is 'rad'.
     %            'RadiusUnits' - Input search radius units. Default is 'rad'.
     % Output : - Column vector of pixel indices.
-    % Author : Eran Ofek (2024 Sep) 
+    % Author : Eran Ofek (2025 Jan) 
     % Example: celestial.healpix.coneSearch(16,1,1,0.01)
 
     arguments
-        Nside
-        Lon(1,1)
-        Lat(1,1)
+        NSide
+        Lon
+        Lat
         Radius
-        Args.Type        = 'nested';
+        Args.Type              = 'nested';
         Args.CooUnits    = 'rad';
         Args.RadiusUnits = 'rad';
     end
 
-    switch Args.Type
-        case 'nested'
-            IsNested = true;
-        case 'ring'
-            IsNested = false;
-            
-        otherwise
-            error('Unknown Type option');
-    end
-    Factor = convert.angular(Args.CooUnits,'rad');
-    Lon    = Factor.*Lon;
-    Lat    = Factor.*Lat;
-    Factor = convert.angular(Args.RadiusUnits,'rad');
-    Radius = Factor.*Radius;
-
-    % Convert center longitude/latitude to Cartesian vector
-    %CenterVec = sph2cart_vec(Lon0, Lat0);
-
-    % Preallocate pixel indices array
-    %MaxPixelIndices = 1000;
-    %PixelIndices = zeros(MaxPixelIndices, 1);
-    %Idx = 0;
-
-    % Start the recursive search from the top-level pixels
-    TopLevelPixels = 0:11; % HEALPix starts with 12 base pixels (faces)
-    
-    Result = [];
-    for Pix = TopLevelPixels
-        [Result] = recursiveConeSearch(Nside, 1, Pix, Lon, Lat, Radius, Result, IsNested); %FunType); %Args.Type);
-        %(Pix, 1, NSide, Radius, CenterVec, Idx, PixelIndices);
-    end
-
-end
-
-function PixelIndices=recursiveConeSearch(TargetNside, CurrentNside, Pix, Lon, Lat, Radius, PixelIndices, IsNested)
-    % Recursive cone search
-
-  
-    % Calculate the center of the current pixel in Cartesian coordinates
-    %[PixLon, PixLat] = celestial.healpix.pix2ang(CurrentNside, Pix, 'Type',Type,'CooUnits','rad');
-    if IsNested
-        [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(CurrentNside, Pix);
+    if strcmp(Args.Type, 'nested')
+        IsNested = true;
     else
-        [PixLon, PixLat] = celestial.healpix.mex.pix2ang_ring(CurrentNside, Pix);
+        IsNested = false;
     end
-    %[PixLon, PixLat] = FunType(CurrentNside, Pix);
-
-    PixelRadius = pi ./ (sqrt(3) .* CurrentNside);
-
-    % Calculate the angular distance between the pixel center and the search center
-    AngularDistance = celestial.coo.sphere_dist_fast(Lon, Lat, PixLon, PixLat);
-    %acos(dot(PixelVec, CenterVec));
     
-    % Check if the pixel center is outside the search radius
-    if AngularDistance > (Radius + PixelRadius)
-        % Skip this pixel if outside the adjusted search radius
-    else
+    if ~strcmpi(Args.CooUnits,'rad')
+        Factor = convert.angular(Args.CooUnits,'rad');
+        Lon    = Factor.*Lon;
+        Lat    = Factor.*Lat;
+    end
+    if ~strcmpi(Args.RadiusUnits,'rad')
+        Factor = convert.angular(Args.RadiusUnits,'rad');
+        Radius = Factor.*Radius;
+    end
+    
+    
+    ApproxPixRadius = celestial.healpix.pixRadius(NSide);
+    
+    Nr = ceil(2.5.* Radius./ApproxPixRadius);
+    RadVec = linspace(ApproxPixRadius.*0.1, Radius+0.5.*ApproxPixRadius, Nr);
+    
+    PixelArea    = 4.*pi./(12.*NSide.^2);
+    ApproxNumPix = ceil(5.*  pi.*Radius.^2./PixelArea);  % factor 5 oversampling
+    
+    %Result   = zeros(ApproxNumPix,1);
+    AllLon   = zeros(ApproxNumPix,1);
+    AllLat   = zeros(ApproxNumPix,1);
+    
+    K = 0;
+    for Ir=1:1:Nr
+        Npa = ceil(2.5 .* 2.*pi.*RadVec(Ir)./ApproxPixRadius);
+        Az  = linspace(0,2.*pi,Npa).';
+        [LatP, LonP] = reckon(Lon, Lat, RadVec(Ir), Az, 'radians');
+    
+        NumPix = numel(LonP);
+        AllLon(K+1:K+NumPix) = LonP;
+        AllLat(K+1:K+NumPix) = LatP;
+        K = K + NumPix;
         
-        if CurrentNside == TargetNside
-            % Add this pixel to the list since we've reached the desired resolution
-            %Idx = Idx + 1;
-            
-            % Ensure there's enough space in PixelIndices
-            %if Idx > length(PixelIndices)
-            %    PixelIndices = [PixelIndices; zeros(length(PixelIndices), 1)];
-            %end
-            
-            PixelIndices = [PixelIndices;Pix];
-            
+        %if IsNested
+        %    Pix = celestial.healpix.mex.ang2pix_nested(NSide, LonP, LatP);
+        %else
+        %    Pix = celestial.healpix.mex.ang2pix_ring(NSide, LonP, LatP);
+        %end
+        %NumPix = numel(Pix);
+        %Result(K+1:K+NumPix) = Pix;
+        %K = K + NumPix;
+        
+        %Result = [Result; Pix];
+        
+    end
+    AllLon = AllLon(1:K);
+    AllLat = AllLat(1:K);
+    
+    if IsNested
+        Result = celestial.healpix.mex.ang2pix_nested(NSide, AllLon, AllLat);
+    else
+        Result = celestial.healpix.mex.ang2pix_ring(NSide, AllLon, AllLat);
+    end
+        
+    %Result = Result(1:K);
+    Result = unique(Result);
+    
+    if nargout>1
+        if IsNested
+            [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(NSide, double(Result));
         else
-
-            % If not at the target resolution, subdivide this pixel
-            SubNside = 2 .* CurrentNside;
-            SubPixels = 4 .* Pix; % Each parent pixel divides into 4 subpixels
-            for SubPix = SubPixels:(SubPixels + 3)
-                [PixelIndices] = recursiveConeSearch(TargetNside, SubNside, SubPix, Lon, Lat, Radius, PixelIndices, IsNested); %FunType); %Type);
-            end
+            [PixLon, PixLat] = celestial.healpix.mex.pix2ang_ring(NSide, dpuble(Result));
         end
     end
+    
 end
-
-

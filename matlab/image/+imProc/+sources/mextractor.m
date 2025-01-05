@@ -5,7 +5,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'ReCalcBack' - (logical) recalculate background at each iteration (def. true)
     %         'BackPar'    - parameters of background estimation
     %         'VarMethod'  - variance estimation method
-    %         'MomRadius'  - radius to calculate image momentum (vector, component per iteration)
+    %         'MomRadius'  - radius to calculate image momentum (one for all or separate for each iteration)
     %         'RedNoiseFactor' - factor of variance increase around found sources 
     %
     %         'populatePSFArgs' - parameters of PSF estimation (cell array)
@@ -20,6 +20,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     %         'Threshold'      - a vector of threshold significance employed for source search: one component per iteration
     %                            NB: this parameter also sets the number of iterations!
     %         'maskCR_args'    - arguments for the imProc.mask.maskCR function employed to exclude CRs from the catalog  
+    %         'FitRadius'      - [pix] PSF fit radius (one for all or separate for each iteration)
     %         'UseOriginalPSF' - (logical) use the PSF already attached to the input AstroImage
     %         'ReCalcPSF'      - (logical) remeasure PSF at each iteration (def. false)
     %
@@ -68,6 +69,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
         % source PSF fitting:
+        Args.FitRadius                 = [3 3 3];% PSF fit radius at each iteration
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
         
@@ -87,6 +89,15 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % check consistency
     if ~(numel(Args.Threshold) == numel(Args.MomRadius))
         error('The length of Args.Threshold does must comply with that of Args.MomRadius');
+    end
+    Niter = numel(Args.Threshold);
+    Nobj  = numel(Obj); 
+    % repair some parameters if needed: 
+    if numel(Args.MomRadius) < Niter
+        Args.MomRadius(1:Niter) = Args.MomRadius(1);
+    end
+    if numel(Args.FitRadius) < Niter
+        Args.FitRadius(1:Niter) = Args.FitRadius(1);
     end
     
     % create a new object if requested  
@@ -125,10 +136,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Obj.deleteProp('Table');
     end    
                                                       
-    % find and measure sources using multi-iteration PSF fitting
-    Niter = numel(Args.Threshold);
-    Nobj  = numel(Obj);   
-    SourceLess = repmat(AstroImage,1,Nobj);
+    % find and measure sources using multi-iteration PSF fitting    
+    SourceLess = repmat(AstroImage,1,Nobj); 
     
     for Iobj=1:1:Nobj
                             if Args.Verbose
@@ -181,7 +190,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             end
             
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter));  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             
             % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
             if Args.UsePSFInterpolant

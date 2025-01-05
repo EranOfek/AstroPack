@@ -27,8 +27,8 @@ function Result = unitTest
     % testing multi-iteration PSF photometry 
 %     
 
-%     AI = AstroImage({'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'});
-    AI = AstroImage({'LAST_275-16_crop22.fits'}); 
+    AI = AstroImage({'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'});
+%     AI = AstroImage({'LAST_275-16_crop22.fits'}); 
     
     cd(PWD)
     
@@ -41,20 +41,18 @@ function Result = unitTest
     AI0 = imProc.psf.populatePSF(AI0);
     AI0 = imProc.sources.psfFitPhot(AI0);
     fprintf('%d sources \n',height(AI0(1).CatData.Catalog));
-%     fprintf('%d sources \n',height(AI0(2).CatData.Catalog));
+    fprintf('%d sources \n',height(AI0(2).CatData.Catalog));
     
     toc
         
     tic
     
-%     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',true,...
-%         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,...
-%         'RedNoiseFactor',1.3); 
-     
-    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'Verbose',false,...
-        'WriteDs9Regions',false,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',false,...
-        'RedNoiseFactor',1.3); 
-    
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'FitRadius',[2 2 2],...
+        'Verbose',true, 'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',true,'RedNoiseFactor',1.3); 
+
+%     [AI, SourceLess] = imProc.sources.mextractor(AI,'Threshold',[30 10 5],'MomRadius',[4 6 6],'FitRadius',[3 3 3],...
+%         'Verbose',false, 'WriteDs9Regions',false,'FindWithEmpiricalPSF',true,'SaveSourcelessImage',false,'RedNoiseFactor',1.3);
+% 
     % NB: 'RedNoiseFactor' = 1.3 -- a number of spurious sources are still found, while some of the obvious sources are not revealed 
 
     toc 
