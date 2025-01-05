@@ -1,4 +1,4 @@
-function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
+function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     % Find, fit and linazrize traces from spectra in an image
     %   This function is performing the following steps:
     %   1. Measure global background and variance
@@ -34,11 +34,13 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %                   Default is [].
     %            'Threshold' - Threshold used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
+    %                    Default is 10.
     %            'ThresholdSum' - ThresholdSum used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
     %                   This is the threshold in units of noise. For each
     %                   local maxima above this threshold the S/N along the
     %                   other dimension will be added sqrt(sum(SN^2)).
+    %                   Default is 3.
     %
     %            'GlobalStd' - ThresholdSum used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
@@ -102,7 +104,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %            imUtil.spec.trace.collapse).
     %
     % Author : Eran Ofek (Dec 2024)
-    % Example: RR=imUtil.spec.trace.trace(Array);
+    % Example: RR=imUtil.spec.trace.traceByCollapse(Array);
     
     arguments
         Array
