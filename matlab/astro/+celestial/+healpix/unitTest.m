@@ -23,11 +23,12 @@ function Result = unitTest()
     plot(Lon2,Lat2,'o','Color','blue');
     
     try
-        Command = sprintf('python3 ~/healpix_cone_search.py %d %.2f %.2f %.2f', Nside, RA, Dec, Rad);
+        Command = sprintf('python3 ~/matlab/AstroPack/matlab/astro/+celestial/+healpix/healpix_cone_search.py %d %.2f %.2f %.2f', Nside, RA, Dec, Rad);
         [Status, R0] = system(Command);    
         [Lon0, Lat0] = celestial.healpix.pix2ang(Nside, str2num(R0), 'CooUnits','deg');
         plot(Lon0,Lat0,'d','Color','cyan','LineWidth',1);
     catch
+        fprintf('astropy error: %s \n',Status);
     end
     
     Result = true;
