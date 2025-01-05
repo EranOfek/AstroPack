@@ -96,6 +96,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %            .LinTraceImage - Trace cutout image in which the trace is
     %                   linear along the X (wavelength) direction.
     %            .LinTracePos - The position of the trace center in LinTraceImage
+    %            .Intensity - Intensity at pixel position.
     %
     %          - S/N image.
     %          - S/N image with delta function kernel.
@@ -228,7 +229,8 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
                     'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
                     'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
                     'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1),...
-                    'WaveDim',cell(Npos,1), 'BestFit',cell(Npos,1));
+                    'WaveDim',cell(Npos,1), 'BestFit',cell(Npos,1),...
+                    'Intensity',cell(Npos,1));
 
     for Ipos=1:1:Npos
         Result(Ipos).ExpectedPos = Args.ExpectedPos(Ipos);
@@ -250,6 +252,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
                                     'DimWave',2,...
                                     'HalfWidth',Args.LinTraceHalfWidth,...
                                     Args.linearizeTraceArgs{:});
+            Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
 
             Result(Ipos).WaveDim = Args.WaveDim;
         end

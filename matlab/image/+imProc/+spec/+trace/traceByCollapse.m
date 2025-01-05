@@ -101,10 +101,12 @@ function [Result] = traceByCollapse(AI, varargin)
         Result(Iim).ExpectedSpatPos = [Output.ExpectedPos];
         Result(Iim).SN              = [Output.SN];
         Result(Iim).LinTraceImage   = {Output.LinTraceImage};
+        Result(Iim).LinTracePos     = [Output.LinTracePos];
         
         for Itrace=1:1:Ntrace
             Result(Iim) = Result(Iim).setTrace([], 'X', Output(Itrace).BestFit,...
                                                     'WavePix',Output(Itrace).PosPix,...
+                                                    'Intensity',Output(Itrace).Intensity,...
                                                    'X2',Output(Itrace).ResMomFilt.X2W);
         end
         

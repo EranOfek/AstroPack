@@ -10,13 +10,14 @@ classdef SpecTrace < Component
         ExpectedWavePos      = [];
         SN
         %MeasuredSpatPos            % measured spatial mean position of the trace
-        Traces               = struct('MeanX',[], 'WavePix',[], 'Wave',[], 'X',[], 'X2',[], 'FWHM',[]);
+        Traces               = struct('MeanX',[], 'WavePix',[], 'Wave',[], 'X',[], 'Intensity',[], 'X2',[], 'FWHM',[]);
         TraceNames
         LinTraceImage
+        LinTracePos
     end
     
     properties (Hidden, Constant)
-        TraceCol  = ["MeanX", "WavePix", "Wave", "X", "X2", "FWHM"];
+        TraceCol  = ["MeanX", "WavePix", "Wave", "X", "Intensity", "X2", "FWHM"];
     end
     
     methods % Constructor
@@ -64,6 +65,7 @@ classdef SpecTrace < Component
                 Args.X       = [];
                 Args.X2      = [];
                 Args.FWHM    = [];
+                Args.Intensity = [];
             end
             Args.MeanX = [];
             
@@ -102,7 +104,7 @@ classdef SpecTrace < Component
         
         
     end
-    
+        
     methods (Static) % UnitTest
         Result = unitTest()
             % unitTest for AstroPSF
