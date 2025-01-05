@@ -65,7 +65,9 @@
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
+% - saveUniqTargCoo                                : save into file the coordinate of the unique targts table
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
+% add msglog for all functions - expecially for trycatch
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -837,7 +839,7 @@ classdef uplanner < Component
                 
                 % calcaulte healpix indices covered by this target
                 % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
-                ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg'); % (returns Ipix ids)                
+                ID = celestial.healpix.coneSearchRecur(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
                 Obj.UniqTargList.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
                 
             end            

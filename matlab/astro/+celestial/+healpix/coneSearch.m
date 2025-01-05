@@ -21,7 +21,7 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
         Lon
         Lat
         Radius
-        Args.Type              = 'nested';
+        Args.Type        = 'nested';
         Args.CooUnits    = 'rad';
         Args.RadiusUnits = 'rad';
     end
@@ -59,7 +59,8 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
     for Ir=1:1:Nr
         Npa = ceil(2.5 .* 2.*pi.*RadVec(Ir)./ApproxPixRadius);
         Az  = linspace(0,2.*pi,Npa).';
-        [LatP, LonP] = reckon(Lon, Lat, RadVec(Ir), Az, 'radians');
+%         [LatP, LonP] = reckon(Lon, Lat, RadVec(Ir), Az, 'radians');
+        [LatP, LonP] = reckon(Lat, Lon, RadVec(Ir), Az, 'radians');
     
         NumPix = numel(LonP);
         AllLon(K+1:K+NumPix) = LonP;
