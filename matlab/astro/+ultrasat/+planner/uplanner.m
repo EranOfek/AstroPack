@@ -839,7 +839,7 @@ classdef uplanner < Component
                 
                 % calcaulte healpix indices covered by this target
                 % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
-                ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg'); % (returns Ipix ids)                
+                ID = celestial.healpix.coneSearchRecur(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
                 Obj.UniqTargList.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
                 
             end            
