@@ -3,11 +3,9 @@ function Result = unitTest()
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     RAD = 180./pi;
-    
-    
+        
     % test celestial.healpix.ang2pix and celestial.healpix.pix2ang
-    
-    
+        
     
     % cone search
     RA  = 200.67; % 50.; 
