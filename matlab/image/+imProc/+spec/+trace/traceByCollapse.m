@@ -75,6 +75,13 @@ function [Result] = traceByCollapse(AI, varargin)
     %                   Default is 50.
     %            'linearizeTraceArgs' - Cell array of additional parameters
     %                   to pass to: imUtil.spec.trace.linearizeTrace
+    %            'ExtractShift' - When extracting the linarize spectrum,
+    %                   this parameter indicate the shift to apply in the spatial
+    %                   direction before extraction.
+    %                   This maybe useful when you are interested in
+    %                   extracting the sky near the trace.
+    %                   Default is 0.
+    %
     %            'Field1', 'Field2' - This are the fields in the output
     %                   from which the linezrized trace is generated.
     %                   Default are: 'FitMomFilt', 'FitY'.
