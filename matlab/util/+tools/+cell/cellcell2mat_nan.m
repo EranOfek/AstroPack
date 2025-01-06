@@ -20,7 +20,9 @@ function [Mat,CellCell] = cellcell2mat_nan(CellCell)
         if iscell(CellCell{I})
             if numel(CellCell{I})==1
                 if isnumeric(CellCell{I}{1})
-                    Mat(I) = CellCell{I}{1};
+                    if ~isempty(CellCell{I}{1})
+                        Mat(I) = CellCell{I}{1};
+                    end
                 else
                     Mat(I) = str2double(CellCell{I}{1});
                 end
