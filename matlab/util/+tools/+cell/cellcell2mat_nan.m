@@ -1,4 +1,4 @@
-function [Mat,CellCell] = cellcell2mat_nan(CellCell, Args)
+function [Mat,CellCell] = cellcell2mat_nan(CellCell)
     % Convert array of cells of cells to numric array
     % Input  : - Array of cells of cells.
     % Output : - A numeric array.
@@ -10,8 +10,6 @@ function [Mat,CellCell] = cellcell2mat_nan(CellCell, Args)
 
     arguments
         CellCell
-        Args.A                 = [];
-        Args.B                 = [];
     end
 
 
@@ -27,10 +25,15 @@ function [Mat,CellCell] = cellcell2mat_nan(CellCell, Args)
                     Mat(I) = str2double(CellCell{I}{1});
                 end
                 CellCell{I} = CellCell{I}{1};
+            
             end
         else
             if isnumeric(CellCell{I})
-                Mat(I) = CellCell{I};
+                if isempty(CellCell{I})
+                    Mat(I) = NaN;
+                else
+                    Mat(I) = CellCell{I};
+                end
             elseif ischar(CellCell{I}) || isstring(CellCell{I})
                 Mat(I) = str2double(CellCell{I});
             else
