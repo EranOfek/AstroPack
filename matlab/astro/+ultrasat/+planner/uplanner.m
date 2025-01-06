@@ -130,12 +130,12 @@ classdef uplanner < Component
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
-        Plan_DefVarTypes   = {'char','uint8','uint8','double','double','double','string',...
+        Plan_DefVarTypes   = {'string','uint8','uint8','double','double','double','string',...
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell'};
                                                                 
         Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj','HealpixArray'};
-        Target_DefVarTypes = {'char','double','double', 'double', 'cell', 'cell', 'cell', 'cell','cell'};  
+        Target_DefVarTypes = {'string','double','double', 'double', 'cell', 'cell', 'cell', 'cell','cell'};  
         
         MissionApprovedPlan_VarNames   = {'TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
@@ -441,8 +441,28 @@ classdef uplanner < Component
             end
             %
             if ~isempty(Args.File)
-                Coo = readmatrix(Args.File,'FileType','text');
-                RA  = Coo(:,1); Dec = Coo(:,2);
+                cooFile = readtable(Args.File);
+                colRA = find(strcmp(cooFile.Properties.VariableNames,'RA'));
+                colDec = find(strcmp(cooFile.Properties.VariableNames,'Dec'));
+                colName = find(strcmp(cooFile.Properties.VariableNames,'Name'));
+                Ncol = numel(cooFile.Properties.VariableNames);
+                
+                if isempty(colRA) || isempty(colDec)
+                    if Ncol==3
+                        colName = 1;
+                        colRA = 2;
+                        colDec =3;
+                    else
+                        colRA = 1;
+                        colDec =2;
+                    end
+                    
+                end
+                RA  = table2array(cooFile(:,colRA)); 
+                Dec = table2array(cooFile(:,colDec));
+                if ~isempty(colName)
+                    Args.Name = table2array(cooFile(:,colDec));
+                end
             end
             %
             NUtarg = numel(RA); % the number of unique targets to be added
@@ -1045,11 +1065,11 @@ classdef uplanner < Component
                 %
 
                 % Example for creating HCS survey:
-                  HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Field','RA','Dec'},'RowNames',{'S1','N2','N3'}');
+                  HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
                   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
                   upHCS.StartTime = '2028-01-01 12:00:00';
                   upHCS.EndTime = '2028-07-01 12:00:00';
-                  upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Field('S1'));
+                  upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
 
                 % Example for creating LCS survey:
