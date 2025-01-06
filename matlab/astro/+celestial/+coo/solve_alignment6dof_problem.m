@@ -91,16 +91,19 @@ if 1==0
         [I_D, N_D]
         for I_Phi=1:1:N_Phi
             [Lat_Axis,Lon_Axis] = reckon(Lat_NCP,Lon_NCP,Vec_D(I_D),Vec_Phi(I_Phi));
+            Lon_Axis(Lon_Axis<0) = Lon_Axis(Lon_Axis<0)+360.;
             for I_L0=1:1:N_L0
                 for I_H0=1:1:N_H0
                     Lt = L - Vec_L0(I_L0);
                     Ht = H - Vec_H0(I_H0);
                     [Lat_Poin,Lon_Poin] = reckon(Lat_Axis,Lon_Axis,Lt,Ht);
+                    Lon_Poin(Lon_Poin<0) = Lon_Poin(Lon_Poin<0)+360.;
                     for I_R=1:1:N_R
                         for I_Theta=1:1:N_Theta
                             R = Vec_R(I_R);
                             Theta = Vec_Theta(I_Theta);
-                            [Lat_Tel,Lon_Tel]   = reckon(Lat_Poin,Lon_Poin,R,Theta);
+                            [Lat_Tel,Lon_Tel]  = reckon(Lat_Poin,Lon_Poin,R,Theta);
+                            Lon_Tel(Lon_Tel<0) = Lon_Tel(Lon_Tel<0) + 360.;
 
                             Dist = celestial.coo.sphere_dist_fast(Lon_Tel./RAD,Lat_Tel./RAD,HA_Tel./RAD,Dec_Tel./RAD);
                             RMS(I_Phi,I_Theta, I_D,I_R, I_L0,I_H0) = std(Dist);
@@ -174,12 +177,15 @@ R     = Par(5);
 Theta = Par(6);
 
 [Lat_Axis,Lon_Axis] = reckon(Lat_NCP,Lon_NCP, D, Phi);
+Lon_Axis(Lon_Axis<0) = Lon_Axis(Lon_Axis<0)+360.;
 
 Lt = L - L0;
 Ht = H - H0;
 [Lat_Poin,Lon_Poin] = reckon(Lat_Axis,Lon_Axis,Lt,Ht);
+Lon_Poin(Lon_Poin<0) = Lon_Poin(Lon_Poin<0)+360.;
   
 [Lat_Tel,Lon_Tel]   = reckon(Lat_Poin,Lon_Poin,R,Theta);
+Lon_Tel(Lon_Tel<0) = Lon_Tel(Lon_Tel<0)+360.;
 
 Dist = celestial.coo.sphere_dist_fast(Lon_Tel./RAD,Lat_Tel./RAD,HA_Tel./RAD,Dec_Tel./RAD);
 RMS  = imUtil.background.rstd(Dist).*RAD;

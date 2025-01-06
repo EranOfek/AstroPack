@@ -21,6 +21,7 @@ function [RA3,Dec3]=pole_from2points(RA1,Dec1,RA2,Dec2)
 [~,PA] = celestial.coo.sphere_dist_fast(RA1,Dec1,RA2,Dec2);
 Phi = (2.*pi-PA) - pi./2;
 [Dec3,RA3] = reckon(Dec1,RA1,pi./2,Phi,'radians');
+RA3(RA3<0) = RA3(RA3<0) + 2*pi;
 
 
 

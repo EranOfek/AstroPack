@@ -17,4 +17,5 @@ function [OutRA,OutDec]=add_offset(RA,Dec,Offset,PA)
 % Reliable: 1
 %--------------------------------------------------------------------------
 
-[OutDec,OutRA]=reckon(Dec,RA,Offset,PA,'radians');
+[OutDec,OutRA] = reckon(Dec,RA,Offset,PA,'radians');
+OutRA(OutRA<0) = OutRA(OutRA<0)+2*pi;
