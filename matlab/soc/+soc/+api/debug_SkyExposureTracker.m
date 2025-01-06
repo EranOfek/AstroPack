@@ -8,6 +8,12 @@ function debug_SkyExposureTracker()
     % Define table name for debugging
     table_name = 'mission.sky_exposure_debug_matlab';
 
+    % HEALPix indices filter
+    fprintf("Selecting rows by HEALPix indices...\n");
+    response = client.select(table_name, [1,2,3], [], [], false);
+    disp(response);
+
+
     % Run debug functions
     debugInitTable(client, table_name);
     debugUpdate(client, table_name);

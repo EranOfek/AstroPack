@@ -1,3 +1,13 @@
+%==========================================================================
+% ULTRASAT 
+%
+% File:   ClientBase.m
+% Author: Chen Tishler
+% Created: 01/12/2024
+% Updated: 06/01/2025
+%
+%==========================================================================
+
 classdef ClientBase < handle
     % ClientBase - Base class for interacting with REST API services.
     % https://chatgpt.com/c/6756dedd-4c2c-8012-adad-4772c6780623
@@ -98,6 +108,38 @@ classdef ClientBase < handle
                 end
             end
         end
+
+
+        function postRequestAsync(obj, endpoint, params, callback)
+            % Sends an asynchronous POST request to the API
+            import matlab.net.*
+            import matlab.net.http.*
+
+            url = [obj.ApiUrl, endpoint];
+            
+            % Clean up input params and convert to JSON
+            cleanedData = soc.api.ModelBase.removeEmptyFields(params);
+            jsonData = jsonencode(cleanedData);
+
+            % Create the HTTP headers
+            headers = [
+                HeaderField('Content-Type', 'application/json'), ...
+                HeaderField('x-api-key', obj.ApiKey)
+            ];
+
+            % Create the HTTP request
+            body = MessageBody(cleanedData);
+            request = RequestMessage('POST', headers, body);
+
+            % Start an asynchronous request using a timer
+            t = timer('ExecutionMode', 'singleShot', ...
+                      'StartDelay', 0, ...
+                      'TimerFcn', @(~,~) asyncSend(request, url, obj.Timeout, callback), ...
+                      'StopFcn', @(~,~) delete(timerfind)); % Clean up timer
+            start(t);
+        end
+
+
     end
 end
 

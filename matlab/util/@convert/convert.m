@@ -973,7 +973,7 @@ classdef convert
                error('Illegal number of input arguments');
             end
 
-            Lup = -2.5./log(10).*(asinh((Flux/Flux0)./(2.*B))+log(B));
+            Lup = -2.5./log(10).*(asinh((Flux./Flux0)./(2.*B))+log(B));
 
         end % convert.luptitude function
         
