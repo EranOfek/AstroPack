@@ -2,15 +2,17 @@ function Result = unitTest()
     % unitTest for celestial.healpix
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
+    RAD = 180./pi;
     
     % cone search
-    RA  = 50.; 
-    Dec = 30.;
-    Nside = 16;
+    RA  = 200.67; % 50.; 
+    Dec = 50.4; % 30.;
+    Nside = 2^8; % 16;
     Rad   = 10; %deg
     
     R1 = celestial.healpix.coneSearchRecur(Nside,RA,Dec,Rad,'RadiusUnits','deg','CooUnits','deg');
-    R2 = celestial.healpix.coneSearch(Nside,RA,Dec,Rad,'RadiusUnits','deg','CooUnits','deg');
+    R2 = celestial.healpix.coneSearch(Nside,RA,Dec,Rad,'RadiusUnits','deg','CooUnits','deg');    
+%     R2 = celestial.healpix.coneSearch(Nside,RA/RAD,Dec/RAD,Rad/RAD);
     
     [Lon1, Lat1] = celestial.healpix.pix2ang(Nside, R1, 'CooUnits','deg');
     [Lon2, Lat2] = celestial.healpix.pix2ang(Nside, R2, 'CooUnits','deg');
