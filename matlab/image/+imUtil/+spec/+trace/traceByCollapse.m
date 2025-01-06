@@ -1,4 +1,4 @@
-function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
+function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     % Find, fit and linazrize traces from spectra in an image
     %   This function is performing the following steps:
     %   1. Measure global background and variance
@@ -19,7 +19,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %
     % Input  : - A 2D array.
     %          * ...,key,val,...
-    %            'Dim' - Dim of spatial coordinate. Default is 1.
+    %            'WaveDim' - Dim of spatial coordinate. Default is 1.
     %            'TraceLineKernel' - 
     %            'PSFsigma' - 
     %            'Back' - An optional background image (or scalar).
@@ -34,11 +34,13 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %                   Default is [].
     %            'Threshold' - Threshold used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
+    %                    Default is 12.
     %            'ThresholdSum' - ThresholdSum used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
     %                   This is the threshold in units of noise. For each
     %                   local maxima above this threshold the S/N along the
     %                   other dimension will be added sqrt(sum(SN^2)).
+    %                   Default is 3.
     %
     %            'GlobalStd' - ThresholdSum used in:
     %                   imUtil.spec.trace.peakDetectionFilter1
@@ -94,6 +96,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %            .LinTraceImage - Trace cutout image in which the trace is
     %                   linear along the X (wavelength) direction.
     %            .LinTracePos - The position of the trace center in LinTraceImage
+    %            .Intensity - Intensity at pixel position.
     %
     %          - S/N image.
     %          - S/N image with delta function kernel.
@@ -102,11 +105,11 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     %            imUtil.spec.trace.collapse).
     %
     % Author : Eran Ofek (Dec 2024)
-    % Example: RR=imUtil.spec.trace.trace(Array);
+    % Example: RR=imUtil.spec.trace.traceByCollapse(Array);
     
     arguments
         Array
-        Args.Dim               = 1;   % Dim of spatial coordinate
+        Args.WaveDim           = 1;   % Dim of spatial coordinate
         Args.TraceLineKernel   = [100 3 0 0];  % [Length, Width, Angle, Gap, [sigma]]
         Args.PSFsigma          = 3;
         Args.Back              = [];
@@ -114,7 +117,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
         %Args.BackArgs cell     = {}; %'VarFun',@var, 'VarFunPar',{[],'all','omitnan'}};
 
         
-        Args.Threshold          = 10;  % integrated 
+        Args.Threshold          = 12;  % integrated 
         Args.ThresholdSum       = 3;
         Args.GlobalStd logical  = false;
                 
@@ -140,7 +143,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
         MomField = 'X1';
     end
     
-    if Args.Dim==2
+    if Args.WaveDim==2
         Array = Array.';
     end
     Dim = 1;
@@ -225,7 +228,9 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
     Result = struct('Pos',cell(Npos,1), 'ExpectedPos',cell(Npos,1), 'SN',cell(Npos,1),...
                     'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
                     'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
-                    'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1));
+                    'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1),...
+                    'WaveDim',cell(Npos,1), 'BestFit',cell(Npos,1),...
+                    'Intensity',cell(Npos,1));
 
     for Ipos=1:1:Npos
         Result(Ipos).ExpectedPos = Args.ExpectedPos(Ipos);
@@ -241,12 +246,15 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = trace(Array, Args)
             Result(Ipos).FitMomFilt   = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomFilt.(MomField)(:));
             Result(Ipos).FitMomUnFilt = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomUnFilt.(MomField)(:));
             
+            Result(Ipos).BestFit      = Result(Ipos).(Args.Field1).(Args.Field2);
+            Result(Ipos).PosPix       = (1:1:numel(Result(Ipos).BestFit)).';
             [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,Result(Ipos).(Args.Field1).(Args.Field2),...
                                     'DimWave',2,...
                                     'HalfWidth',Args.LinTraceHalfWidth,...
                                     Args.linearizeTraceArgs{:});
+            Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
 
-            
+            Result(Ipos).WaveDim = Args.WaveDim;
         end
     end
             
