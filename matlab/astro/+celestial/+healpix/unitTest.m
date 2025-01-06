@@ -4,6 +4,11 @@ function Result = unitTest()
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     RAD = 180./pi;
     
+    
+    % test celestial.healpix.ang2pix and celestial.healpix.pix2ang
+    
+    
+    
     % cone search
     RA  = 200.67; % 50.; 
     Dec = 50.4; % 30.;
@@ -26,8 +31,9 @@ function Result = unitTest()
     
     try
         Command = sprintf('python3 ~/matlab/AstroPack/matlab/astro/+celestial/+healpix/healpix_cone_search.py %d %.2f %.2f %.2f', Nside, RA, Dec, Rad);
-        [Status, R0] = system(Command);    
-        [Lon0, Lat0] = celestial.healpix.pix2ang(Nside, str2num(R0), 'CooUnits','deg');
+        [Status, R00] = system(Command);    
+        R0 = unique(str2num(R00));
+        [Lon0, Lat0] = celestial.healpix.pix2ang(Nside, R0, 'CooUnits','deg');
         plot(Lon0,Lat0,'d','Color','cyan','LineWidth',1);
     catch
         fprintf('astropy error: %s \n',Status);
