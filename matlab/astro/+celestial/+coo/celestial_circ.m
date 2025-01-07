@@ -26,3 +26,4 @@ end
 Az         = 2.*pi.*(1:1:Np).'./Np;
 Ones       = ones(Np,1);
 [Lat, Lon] = reckon(CenLat.*Ones,CenLon.*Ones,Rad.*Ones,Az,'radians');
+Lon(Lon<0) = Lon(Lon<0)+2*pi;

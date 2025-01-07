@@ -2903,7 +2903,7 @@ classdef DemonLAST < Component
                     if Nfiles1<Args.MaxInGroup && isempty(Args.NonStandardNew)
                         % wait for 20 s X number of images needed to finish the
                         % visit:
-                        pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
+                        pause((1+Args.MaxInGroup - Nfiles1).*20+5); % Note: assuming 20s exposures
 
                         % look for new images
                         FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);

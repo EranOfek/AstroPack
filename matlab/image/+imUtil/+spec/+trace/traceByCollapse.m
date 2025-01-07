@@ -75,6 +75,12 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %                   Default is 50.
     %            'linearizeTraceArgs' - Cell array of additional parameters
     %                   to pass to: imUtil.spec.trace.linearizeTrace
+    %            'ExtractShift' - When extracting the linarize spectrum,
+    %                   this parameter indicate the shift to apply in the spatial
+    %                   direction before extraction.
+    %                   This maybe useful when you are interested in
+    %                   extracting the sky near the trace.
+    %                   Default is 0.
     %            'Field1', 'Field2' - This are the fields in the output
     %                   from which the linezrized trace is generated.
     %                   Default are: 'FitMomFilt', 'FitY'.
@@ -97,6 +103,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %                   linear along the X (wavelength) direction.
     %            .LinTracePos - The position of the trace center in LinTraceImage
     %            .Intensity - Intensity at pixel position.
+    %            .ExtractShift - The value of the ExtractShift argument.
     %
     %          - S/N image.
     %          - S/N image with delta function kernel.
@@ -132,6 +139,8 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         
         Args.LinTraceHalfWidth      = 50;
         Args.linearizeTraceArgs     = {};
+        Args.ExtratShift            = 0;
+        
         
         Args.Field1                 = 'FitMomFilt';
         Args.Field2                 = 'FitY';
@@ -248,12 +257,13 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
             
             Result(Ipos).BestFit      = Result(Ipos).(Args.Field1).(Args.Field2);
             Result(Ipos).PosPix       = (1:1:numel(Result(Ipos).BestFit)).';
-            [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,Result(Ipos).(Args.Field1).(Args.Field2),...
+            [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,...
+                                    Result(Ipos).(Args.Field1).(Args.Field2)+Args.ExtractShift,...
                                     'DimWave',2,...
                                     'HalfWidth',Args.LinTraceHalfWidth,...
                                     Args.linearizeTraceArgs{:});
             Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
-
+            Result(Ipos).ExtractShift = Args.ExtractShift;
             Result(Ipos).WaveDim = Args.WaveDim;
         end
     end

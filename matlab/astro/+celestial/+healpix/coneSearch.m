@@ -61,6 +61,7 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
         Az  = linspace(0,2.*pi,Npa).';
 %         [LatP, LonP] = reckon(Lon, Lat, RadVec(Ir), Az, 'radians');
         [LatP, LonP] = reckon(Lat, Lon, RadVec(Ir), Az, 'radians');
+        LonP(LonP<0) = LonP(LonP<0) + 2*pi;
     
         NumPix = numel(LonP);
         AllLon(K+1:K+NumPix) = LonP;

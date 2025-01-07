@@ -66,14 +66,20 @@
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
 % - saveUniqTargCoo                                : save into file the coordinate of the unique targts table
+% - editUniqTarg(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
+% - delUniqTarg(Index)                               : Validate that row is not in the Plan and then delete
+% - editPlanrow(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
+% - delUniqTarg(Index)                               : Validate that row is not in the Plan and then delete
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
+% Verify all param range/valid values (e.g., Exp time >readtime)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef uplanner < Component 
     % 
     properties(Access = public)
+        Title                char            % Name of the object
         Type                char            % HCS, LCS, AllSS, DDT, TOO 
         StartTime           datetime   % start of the whole plan
         EndTime             datetime   %   end of the whole plan
@@ -137,9 +143,9 @@ classdef uplanner < Component
         Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj','HealpixArray'};
         Target_DefVarTypes = {'string','double','double', 'double', 'cell', 'cell', 'cell', 'cell','cell'};  
         
-        MissionApprovedPlan_VarNames   = {'TargetID','RA', 'Dec','Roll',...
+        MissionApprovedPlan_VarNames   = {'Name','pk','TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
-        MissionApprovedPlan_VarTypes   = {'char','double','double','double',...
+        MissionApprovedPlan_VarTypes   = {'string','uint64','char','double','double','double',...
                               'datetime','datetime','duration','double','duration'};        
         
         ObsSunDist           = 70;   % [deg]
@@ -627,9 +633,11 @@ classdef uplanner < Component
             
             TargetsTable = struct2table(structPlan.targets);
             
-             Obj.clearMissionApprovedPlan;
+            Obj.clearMissionApprovedPlan;
             
             Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
+            %Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
+            Obj.MissionApprovedPlan.pk(1:height(TargetsTable))  = TargetsTable.pk; 
             Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
             Obj.MissionApprovedPlan.RA  =  TargetsTable.ra ;
             Obj.MissionApprovedPlan.Dec  =  TargetsTable.decl ;
@@ -859,7 +867,7 @@ classdef uplanner < Component
                 
                 % calcaulte healpix indices covered by this target
                 % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
-                ID = celestial.healpix.coneSearchRecur(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
+                ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
                 Obj.UniqTargList.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
                 
             end            
@@ -941,6 +949,11 @@ classdef uplanner < Component
                 tmpTable = Obj.Plan;
                 
                 keepVars = false(size(tmpTable.Properties.VariableNames));
+                
+                %rename Name->title
+                curr_ind = strcmp(tmpTable.Properties.VariableNames,'Name');
+                keepVars = keepVars | curr_ind;
+                tmpTable.Properties.VariableNames(curr_ind) = {'title'};
                 
                 %rename RA->ra
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'RA');
@@ -1103,11 +1116,11 @@ classdef uplanner < Component
 
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
-                  upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Field);
+                  upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
 
                 % Example DDT plan (very basic):
                   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
-                  upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Field));
+                  upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
                   upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
                   upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
 
