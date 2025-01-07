@@ -22,6 +22,9 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = login(obj, UserName, Password)
             % 
+            obj.msglog('login: user=%s, password=%s - @TODO', UserName, Password);
+            return;  % DOTO
+
             params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/login/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');

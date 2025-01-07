@@ -140,6 +140,13 @@ classdef ClientBase < handle
         end
 
 
+        function msglog(obj, varargin)
+            %
+            fprintf('Client: ');
+            fprintf(varargin{:});
+            fprintf('\n');
+        end
+        
     end
 end
 
