@@ -77,7 +77,9 @@ function [T_sec,DirectSlewBool] = calcSlew(RA_1,Dec_1,RA_2,Dec_2,Args)
     DirectSlewBool = true;
     if Args.CheckTrajectory
         [TrajCoo(:,2),TrajCoo(:,1)]  = reckon(Dec_1*RAD,RA_1*RAD,(0:Args.TrajStepDeg:Dist*RAD),PA*RAD);
-        TrajCoo(:,1)(TrajCoo(:,1)<0) = TrajCoo(:,1)(TrajCoo(:,1)<0) + 360.;
+        %TrajCoo(:,1)(TrajCoo(:,1)<0) = TrajCoo(:,1)(TrajCoo(:,1)<0) + 360.;
+        F = TrajCoo(:,1)<0;
+        TrajCoo(F,1) = TrajCoo(F,1) + 360.;
         
         Vis    = ultrasat.ULTRASAT_restricted_visibility(Args.JD, TrajCoo./RAD,...
                 'MinSunDist',Args.SunDistSlew/RAD,'MinMoonDist',Args.MoonDistSlew/RAD,'MinEarthDist',Args.EarthDistSlew/RAD);
