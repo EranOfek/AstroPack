@@ -1,5 +1,5 @@
 
-classdef VirtualTimeModels < soc.api.ModelFactoryBase
+classdef VirtualTimeModels < api.ModelFactoryBase
     % VirtualTimeModels - Factory for creating VirtualTime model instances.
     
     methods (Static)
@@ -18,7 +18,7 @@ classdef VirtualTimeModels < soc.api.ModelFactoryBase
             data = struct('id', id, 'factor', factor, 'base', base);
             
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
         
         function model = PauseParams(id)
@@ -29,7 +29,7 @@ classdef VirtualTimeModels < soc.api.ModelFactoryBase
             data = struct('id', id);
             
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
     end
 end
