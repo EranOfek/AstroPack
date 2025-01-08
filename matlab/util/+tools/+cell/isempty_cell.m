@@ -13,6 +13,7 @@ function Flag=isempty_cell(Cell, UseMex, UseMP)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Apr 2007
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
+% Compliation: mex CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" isempty_cell_mex.cpp
 % Example: Flag=tools.cell.isempty_cell({1, [], 'a'})
 % Reliable: 2
 %--------------------------------------------------------------------------
@@ -20,13 +21,13 @@ function Flag=isempty_cell(Cell, UseMex, UseMP)
     arguments
         Cell              	% Input cell array
         UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
-        UseMP logical    = true;      	% True: Use threading with OpenMP multi-threading library        
+        UseMP         = true;      	% True: Use threading with OpenMP multi-threading library        
     end
 
     % MATLAB implementation
     if UseMex
         % MEX implementation
-        Flag = tools.cell.mex.mex_isempty_cell(Cell, UseMP);
+        Flag = tools.cell.mex.isempty_cell_mex(Cell); %, UseMP);
     else
         Flag = cellfun(@isempty,Cell);
     end
