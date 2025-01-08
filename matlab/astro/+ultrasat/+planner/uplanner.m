@@ -9,6 +9,7 @@
 % - Obj.buildHCS                   : Build a plan for a HCS field. 
 %                                    All relevant parameters should be set before calling this function
 %                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTargList) ==1)
+%                                    TODO: allow to select a target from uniqTargList
 %
 % - Obj.buildLCS(Args)             : Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
 %                                    Fill in a daily window of observations and move to the next day. 
@@ -28,18 +29,21 @@
 %
 % - Obj.addUniqTargets(RA, Dec, Args)                       : Add a list of [RA,Dec] coordinates (in degrees) to the unique targetList, 
 %                                                             and calls Obj.updateTargetProperties and Obj.updateTargetVisibility
+% - Obj.saveUniqTargCooList(FileName)                     : Write the [Name, Ra, Dec] of the uniqe target into FileName 
+% - Obj.clearUniqueTargets                                  : Clear the unique target list, as well as the plan and visibility object
+%
 % - Obj.scheduleTargets(UniqTargetIndexes,StartTime,Args)   : Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
 %                                                             TODO- allow to provide a list of StartTime, one for each of target in the list.
 % - Obj.retrieveMissionApprovedPlan(Args)                   : Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
 %                                                             and populate the fields of Obj.MissionApprovedPlan.
 %                                                             Alternativly, allows also to provide a uplanner object (taking its plan as the MissionApprovedPlan) or struct of approved targets.
 %
-% - Obj.clearUniqueTargets                                  : Clear the unique target list, as well as the plan and visibility object
 % - Obj.clearPlan                                           : Clear the plan
 % - Obj.clearMissionApprovedPlan                            : Clear the Mission Approved Plan table
 %
 %
-% - [CheckStatus,badPlanRow] = Obj.planSelfConsistencyCheck(Args)       : Verify that the plan schedule is self consistent
+% - [CheckStatus,badPlanRow] = Obj.planSelfConsistencyCheck(Args)       : Verify that the plan schedule is self consistent. 
+%                                                                                                                       TODO- valdtae Ntargets in plan and uniqTarg
 % - Obj.adjustGroupStartTime(Args)                          : Adjust the start time of a group in the plan by 3 options: 
 %                                                                  a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
 %                                                             If no GroupList is provided, will adjust all groups in the plan, one by one.
@@ -65,11 +69,10 @@
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
-% - saveUniqTargCoo                                : save into file the coordinate of the unique targts table
 % - editUniqTarg(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
-% - delUniqTarg(Index)                               : Validate that row is not in the Plan and then delete
-% - editPlanrow(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
-% - delUniqTarg(Index)                               : Validate that row is not in the Plan and then delete
+% - delUniqTarg(Index)                               : Validate that row is not in the Plan. If not then delete and updatet the indexes of the UniqTarInd in the plan for other targets
+% - editPlanrow(ID,Name,RA,Dec)            : Edit a given rowin the Plan
+% - delPlanrow(Index)                               : detlete the plan row and Check if part of a group. if so, adjust group (if needed).
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
@@ -467,7 +470,7 @@ classdef uplanner < Component
                 RA  = table2array(cooFile(:,colRA)); 
                 Dec = table2array(cooFile(:,colDec));
                 if ~isempty(colName)
-                    Args.Name = table2array(cooFile(:,colDec));
+                    Args.Name = string(table2array(cooFile(:,colName)));
                 end
             end
             %
@@ -486,6 +489,27 @@ classdef uplanner < Component
             Obj.updateTargetProperties;
             %
             Obj.updateTargetVisibility;
+        end
+        %
+        function saveUniqTargCooList(Obj,FileName)
+            % Write the [Name, Ra, Dec] of the uniqe target into FileName  
+            colRA = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'RA'));
+            colDec = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'Dec'));
+            colName = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'Name'));
+            writetable(Obj.UniqTargList(:,[colName,colRA,colDec]),FileName,'QuoteStrings',1)
+        end
+        %
+        function clearUniqueTargets(Obj)
+            % Clear the unique target list, as well as the plan and visibility object 
+            
+            % Remove all unique targets
+            Obj.UniqTargList(:,:) = [];
+            % clean the number of unique targets
+            Obj.N_uniqueTargets = 0;
+            % clear the plan
+            Obj.clearPlan;
+            % clean the visibility
+            Obj.Vis = [];
         end
         %
         function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
@@ -648,19 +672,6 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Nexposures  =  TargetsTable.image_count;
             Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);            
             
-        end
-        %
-        function clearUniqueTargets(Obj)
-            % Clear the unique target list, as well as the plan and visibility object 
-            
-            % Remove all unique targets
-            Obj.UniqTargList(:,:) = [];
-            % clean the number of unique targets
-            Obj.N_uniqueTargets = 0;
-            % clear the plan
-            Obj.clearPlan;
-            % clean the visibility
-            Obj.Vis = [];
         end
         %
         function clearPlan(Obj)
