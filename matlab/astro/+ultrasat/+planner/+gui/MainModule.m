@@ -12,13 +12,13 @@ classdef MainModule < handle
     % This class serves as DataModule in Delphi.
     
     properties
-        Modified = false;       % True after data is being modified
-        UP                      % uplanner instance
         ApiClient               % MissionClient instance
         UserName                % Current user
-        MainApp
+        MainApp                 %
         
-
+        PlanType                % HCS, LCS, AllSS, DDT, TOO 
+        Planner                 % ultrasat.planner.uplanner
+        Modified = false;       % True after data is being modified        
     end
     
 
@@ -26,9 +26,28 @@ classdef MainModule < handle
         function obj = MainModule()
             % Constructor
             disp('app.MainModule');
-            obj.ApiClient = soc.api.MissionClient();
+            obj.ApiClient = ultrasat.api.MissionClient();
             obj.ApiClient.ApiUrl = 'http://localhost:8215';
         end
+
+
+        function Result = login(obj, UserName, Password)
+            obj.UserName = [];
+            Result = obj.MainModule.ApiClient.login(UserName, Password);
+            if Result
+                obj.UserName = UserName;
+            end
+        end
+
+
+        function Result = logout(obj)
+            obj.UserName = [];
+            Result = obj.MainModule.ApiClient.logout(obj.UserName);
+            if Result
+                obj.UserName = [];
+            end
+        end        
+
 
         function setModified(obj)
             obj.Modified = true;

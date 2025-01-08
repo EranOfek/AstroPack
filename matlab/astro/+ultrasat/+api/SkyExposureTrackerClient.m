@@ -1,4 +1,4 @@
-classdef SkyExposureTrackerClient < soc.api.ClientBase
+classdef SkyExposureTrackerClient < api.ClientBase
     % 
     
     properties
@@ -11,7 +11,7 @@ classdef SkyExposureTrackerClient < soc.api.ClientBase
                 Args.SubUrl     = '/sky_exposure_tracker';    
             end
             ArgsCell = namedargs2cell(Args);
-            obj@soc.api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
+            obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
         end        
      
 
@@ -22,7 +22,7 @@ classdef SkyExposureTrackerClient < soc.api.ClientBase
             %   healpix_rows: Number of rows in the table
             %   healpix_level: HEALPix level
             %   healpix_indices: Optional list of HEALPix indices
-            params = soc.api.SkyExposureTrackerModels.InitTableParams(table_name);  %, healpix_rows, healpix_level, healpix_indices);
+            params = ultrasat.api.SkyExposureTrackerModels.InitTableParams(table_name);  %, healpix_rows, healpix_level, healpix_indices);
             response = obj.postRequest('/init_table', params.Data);
             response.ok = isfield(response, 'success') && response.success;
         end
@@ -35,7 +35,7 @@ classdef SkyExposureTrackerClient < soc.api.ClientBase
             %   healpix_indices: List of HEALPix indices to update
             %   duration: Duration to add
             %   timestamp: Timestamp to append
-            params = soc.api.SkyExposureTrackerModels.UpdateParams(table_name, healpix_indices, duration, timestamp);
+            params = ultrasat.api.SkyExposureTrackerModels.UpdateParams(table_name, healpix_indices, duration, timestamp);
             response = obj.postRequest('/update', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -52,7 +52,7 @@ classdef SkyExposureTrackerClient < soc.api.ClientBase
             if nargin < 6
                 select_all = false;
             end
-            params = soc.api.SkyExposureTrackerModels.SelectParams(table_name, healpix_indices, start_timestamp, end_timestamp, select_all);
+            params = ultrasat.api.SkyExposureTrackerModels.SelectParams(table_name, healpix_indices, start_timestamp, end_timestamp, select_all);
             response = obj.postRequest('/select', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end

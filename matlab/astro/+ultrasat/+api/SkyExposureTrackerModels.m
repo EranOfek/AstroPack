@@ -1,4 +1,4 @@
-classdef SkyExposureTrackerModels < soc.api.ModelFactoryBase
+classdef SkyExposureTrackerModels < api.ModelFactoryBase
     % Factory for creating SkyExposureTracker models.
 
     properties (Constant)
@@ -41,7 +41,7 @@ classdef SkyExposureTrackerModels < soc.api.ModelFactoryBase
             );
         
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -65,7 +65,7 @@ classdef SkyExposureTrackerModels < soc.api.ModelFactoryBase
                 'duration', duration, ...
                 'timestamp', timestamp ...
             );
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -102,7 +102,7 @@ classdef SkyExposureTrackerModels < soc.api.ModelFactoryBase
                 'select_all', select_all, ...
                 'debug_print', debug_print ...
             );
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
     end

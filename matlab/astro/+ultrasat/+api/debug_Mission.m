@@ -8,7 +8,7 @@ function debugGetApprovedTargets()
     % debugGetApprovedTargets
     
     % Define API URL and create client (will be fetched from Env)
-    client = soc.api.MissionClient();
+    client = ultrasat.api.MissionClient();
     client.ApiUrl = 'http://localhost:8215';
     
     % Prepare function parameters

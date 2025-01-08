@@ -34,7 +34,7 @@ classdef ModelBase  % Do we need handle??? < handle
                     % Retain non-empty fields
                     if isstruct(value)
                         % Recursively clean nested structs
-                        cleanedData.(fields{i}) = removeEmptyFields(value);
+                        cleanedData.(fields{i}) = api.ModelBase.removeEmptyFields(value);
                     else
                         cleanedData.(fields{i}) = value;
                     end

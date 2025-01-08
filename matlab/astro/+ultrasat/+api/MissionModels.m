@@ -1,5 +1,5 @@
 
-classdef MissionModels < soc.api.ModelFactoryBase
+classdef MissionModels < api.ModelFactoryBase
     % GetMissionModels - Factory for creating Mission model instances.
     
     properties (Constant)
@@ -22,7 +22,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
             
         % -------------------------------------------------------------------
@@ -51,7 +51,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------        
@@ -74,7 +74,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -87,7 +87,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -100,7 +100,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -139,7 +139,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
                 'select_all', select_all, ...
                 'debug_print', debug_print ...
             );
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -153,7 +153,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -166,7 +166,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -179,7 +179,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -192,7 +192,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
 
@@ -205,7 +205,7 @@ classdef MissionModels < soc.api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = soc.api.ModelBase(data);
+            model = api.ModelBase(data);
         end
 
     end    
