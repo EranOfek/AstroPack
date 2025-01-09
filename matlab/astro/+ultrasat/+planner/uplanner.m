@@ -50,8 +50,12 @@
 % - Obj.updateTargetProperties(Args)                        : Fill for each of the unique targets the following properties: extinction (A_U), calibrating objects within FoV (CalObj),
 %                                                               (TODO) reference images  within FoV (RefImageIDs), external surveys overlaping with the FoV (ExtSurveys),
 %                                                               specific known objects (e.g., planets, massive stars, blazars) within the FOV (FieldObj)
-%                                                             TODO - should allow to update only selected targets (i.e., new targets)
+% - Obj.updatePlanRowProperties(Plan_row, Args)     : Calcaulte and fill for a given plan row the following properties -
+%                                                                                       TotalDuration, Tend, JDstart, JDend, ExpectedRoll,  NoComm, HardObs, MoonDist, SunDist, EarthDist,OverlapTargets
+%                                                                                    If asked to CalcStartTimeFromPrevTarget then also calcuates - SlewTimeBefore, Tstart
+%                                                                                    Return error If there's issue with  Sun/Earth/Moon limits
 % - Obj.updateTargetVisibility(Args)                        : Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
+%                                                                                TODO- consider updating only selected targets (i.e., new)
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
@@ -486,7 +490,7 @@ classdef uplanner < Component
             %
             Obj.N_uniqueTargets = height(Obj.UniqTarg);
             %
-            Obj.updateTargetProperties;
+            Obj.updateTargetProperties('TargList',NU0+1:NU0+NUtarg);
             %
             Obj.updateTargetVisibility;
         end
@@ -525,8 +529,6 @@ classdef uplanner < Component
                 Args.Group = []; % Target name (optional)
             end
             %
-           
-            RAD = 180/pi;
             
             if isempty(Args.Nexposures)
                 Args.Nexposures = Obj.DefEpochsPerVisit;
@@ -554,47 +556,13 @@ classdef uplanner < Component
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
                 Obj.Plan.Tiles(Plan_row) = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
-                Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime;
 
                 if ii == 1
                     Obj.Plan.Tstart(Plan_row) = StartTime;
+                    Obj.updatePlanRowProperties(Plan_row);
                 else
-                    [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
-                                                        'Units','deg','CheckTrajectory',true);
-                    Obj.Plan.SlewTimeBefore(Plan_row) = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;
-                    Obj.Plan.Tstart(Plan_row) = Obj.Plan.Tend(Plan_row-1) + Obj.Plan.SlewTimeBefore(Plan_row);
-                end
-                
-                Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row);
-                Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));
-                Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row));
-                
-                Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
-
-                TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
-                    'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);
-                
-                if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
-                    error('Issue with Sun/Earth/Moon limits');
-                end
-
-                Obj.Plan.NoComm(Plan_row) = ~all(TargetVis.CommLimits);
-                Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
-                
-                
-                Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD;
-                Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
-                Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD;
-
-                % TODO - ADD Calc Zody,LimMag  
-                
-                % Search for overlapping targets
-                % load the MissionApprovedPlan if not exist
-                if ~isempty(Obj.MissionApprovedPlan)                    
-                    Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
-                                                        (Obj.Plan.Tend(Plan_row)   > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tend(Plan_row)   < Obj.MissionApprovedPlan.Tend));
-                end
-                
+                    Obj.updatePlanRowProperties(Plan_row,'CalcStartTimeFromPrevTarget',true);
+                end 
             end
             
             if ~isempty(Args.Group)
@@ -832,19 +800,31 @@ classdef uplanner < Component
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
                 Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
-                Args.IndList            = []; % List of Target index to update
-            end              
+                Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
+            end
+            
+            % If no list, apply to all targets
+            if isempty(Args.TargList)
+                Args.TargList = 1:height(Obj.UniqTarg);
+            end
+            
+            
             % target coordinates 
-            RA = Obj.UniqTarg.RA; Dec = Obj.UniqTarg.Dec; 
+            RA = Obj.UniqTarg.RA(Args.TargList); 
+            Dec = Obj.UniqTarg.Dec(Args.TargList); 
             
             % extinction 
-            Obj.UniqTarg.A_U = ultrasat.tools.extinction(RA, Dec); 
+            Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec); 
             
             % load the lists of external important objects and survey maps
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
             load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
-            for iT = 1:Obj.N_uniqueTargets % loop over targets 
+            for ii = 1:numel(Args.TargList) % loop over targets 
+                
+                iT = Args.TargList(ii);
+                
+                
                 RA0 = Obj.UniqTarg.RA(iT); Dec0 = Obj.UniqTarg.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
@@ -883,6 +863,60 @@ classdef uplanner < Component
                 Obj.UniqTarg.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
                 
             end            
+        end
+        %
+        function updatePlanRowProperties(Obj, Plan_row, Args)
+            % Calcaulte and fill for a given plan row the following properties: 
+            %       TotalDuration, Tend, JDstart, JDend, ExpectedRoll,  NoComm, HardObs, MoonDist, SunDist, EarthDist,OverlapTargets
+            % If asked to CalcStartTimeFromPrevTarget then also calcuates:
+            %       SlewTimeBefore, Tstart
+            % Return error If there's issue with  Sun/Earth/Moon limits
+            arguments
+                Obj
+                Plan_row
+                Args.CalcStartTimeFromPrevTarget   = false; % Relevant for targets part of a group (not the first)
+            end 
+           
+            RAD = 180/pi;
+            
+            Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime; 
+
+            if Args.CalcStartTimeFromPrevTarget
+                [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
+                                                    'Units','deg','CheckTrajectory',true);  
+                Obj.Plan.SlewTimeBefore(Plan_row) = seconds(ceil(T_sec)) + Obj.DefSlewBuffer;  
+                Obj.Plan.Tstart(Plan_row) = Obj.Plan.Tend(Plan_row-1) + Obj.Plan.SlewTimeBefore(Plan_row);  
+            end
+
+            Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row); 
+            Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));  
+            Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row)); 
+
+            Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
+
+            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)]./RAD,...
+                'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD); 
+
+            if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+                error('Issue with Sun/Earth/Moon limits');
+            end
+
+            Obj.Plan.NoComm(Plan_row) = ~all(TargetVis.CommLimits); 
+            Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
+
+
+            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD; 
+            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
+            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD; 
+
+            % TODO - ADD Calc Zody,LimMag  
+
+            % Search for overlapping targets
+            if ~isempty(Obj.MissionApprovedPlan)          
+                Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
+                                                    (Obj.Plan.Tend(Plan_row)   > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tend(Plan_row)   < Obj.MissionApprovedPlan.Tend));
+            end
+
         end
         %
         function updateTargetVisibility(Obj, Args)
