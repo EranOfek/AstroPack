@@ -1,4 +1,4 @@
-classdef VirtualTimeClient < soc.api.ClientBase
+classdef VirtualTimeClient < api.ClientBase
     % VirtualTimeClient - Derived class for virtual time management.
     
     properties
@@ -8,7 +8,7 @@ classdef VirtualTimeClient < soc.api.ClientBase
     methods
         function obj = VirtualTimeClient(apiUrl, apiKey, timeout, id)
             % Constructor for VirtualTimeClient
-            obj@soc.api.ClientBase(apiUrl, apiKey, timeout);
+            obj@api.ClientBase(apiUrl, apiKey, timeout);
             if nargin > 3
                 obj.ID = id;
             end
@@ -22,14 +22,14 @@ classdef VirtualTimeClient < soc.api.ClientBase
             if nargin < 3
                 base = [];  % Default to empty if not provided
             end
-            params = soc.api.VirtualTimeModels.StartParams(obj.ID, factor, base);
+            params = ultrasat.api.VirtualTimeModels.StartParams(obj.ID, factor, base);
             response = obj.postRequest('/start/', params.Data);
             success = isfield(response, 'ok') && response.ok;
         end
         
         function success = pause(obj)
             % Pause the virtual time manager simulation.
-            params = soc.api.VirtualTimeModels.PauseParams(obj.ID);
+            params = ultrasat.api.VirtualTimeModels.PauseParams(obj.ID);
             response = obj.postRequest('/pause/', params.Data);
             success = isfield(response, 'ok') && response.ok;
         end

@@ -1,4 +1,4 @@
-classdef MissionClient < soc.api.ClientBase
+classdef MissionClient < api.ClientBase
     % 
     
     properties
@@ -14,7 +14,7 @@ classdef MissionClient < soc.api.ClientBase
                 Args.SubUrl = '/mission';  % planner_backend  
             end
             ArgsCell = namedargs2cell(Args);
-            obj@soc.api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
+            obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
         end        
         
 
@@ -25,14 +25,15 @@ classdef MissionClient < soc.api.ClientBase
             obj.msglog('login: user=%s, password=%s - @TODO', UserName, Password);
             return;  % DOTO
 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/login/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
 
-        function response = logout(obj)
+
+        function response = logout(obj, UserName)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/logout/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end        
@@ -41,7 +42,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = getApprovedTargets(obj, start_time, end_time)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/get_approved_targets/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -49,7 +50,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = validate(obj, Targets)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/validate/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -57,7 +58,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = submit(obj, Targets)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/submit/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -74,7 +75,7 @@ classdef MissionClient < soc.api.ClientBase
             if nargin < 6
                 select_all = false;
             end
-            params = soc.api.SkyExposureTrackerModels.SelectParams(table_name, healpix_indices, start_timestamp, end_timestamp, select_all);
+            params = ultrasat.api.SkyExposureTrackerModels.SelectParams(table_name, healpix_indices, start_timestamp, end_timestamp, select_all);
             response = obj.postRequest('/get_exposure', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -84,7 +85,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = getPlansList(obj, Args)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/get_plans_list/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -92,7 +93,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = loadPlan(obj, Args)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/load_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -100,7 +101,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = savePlan(obj, Args)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/save_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -108,7 +109,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = deletePlan(obj, Args)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/delete_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -116,7 +117,7 @@ classdef MissionClient < soc.api.ClientBase
 
         function response = getPlanStatus(obj, Args)
             % 
-            params = soc.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
+            params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.postRequest('/get_plan_status/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end             

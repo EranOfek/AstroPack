@@ -19,7 +19,7 @@ function Flag=isnan_cell(Cell, UseMex)
     end
 
     if UseMex
-        Flag = tools.cell.mex.mex_isnan_cell(Cell);
+        Flag = tools.cell.mex.isnan_cell_mex(Cell);
     else
         
         Inotchar = find(cellfun(@ischar,Cell)==0);

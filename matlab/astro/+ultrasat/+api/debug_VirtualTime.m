@@ -12,7 +12,7 @@ function debugVirtualTimeClient()
     apiUrl = 'http://localhost:8203';
     apiKey = 'ULTRASOC-2024-10-17';  % Assuming no API key is needed for localhost
     timeout = 30; % Request timeout in seconds
-    client = soc.api.VirtualTimeClient(apiUrl, apiKey, timeout, 'vtm1');
+    client = ultrasat.api.VirtualTimeClient(apiUrl, apiKey, timeout, 'vtm1');
     
     % Test StartParams
     fprintf('Testing start...\n');
@@ -38,12 +38,12 @@ function debugVirtualTimeModels()
     import soc.api.VirtualTimeModels;
 
     % Create StartParams
-    startParams = VirtualTimeModels.StartParams('vtm1', 2, []);  %, posixtime(datetime('now')));
+    startParams = ultrasat.api.VirtualTimeModels.StartParams('vtm1', 2, []);  %, posixtime(datetime('now')));
     fprintf('StartParams JSON:\n%s\n\n', startParams.toJson());
     startParams.show();
 
     % Create PauseParams
-    pauseParams = VirtualTimeModels.PauseParams('vtm1');
+    pauseParams = ultrasat.api.VirtualTimeModels.PauseParams('vtm1');
     fprintf('PauseParams JSON:\n%s\n\n', pauseParams.toJson());
     pauseParams.show();
 

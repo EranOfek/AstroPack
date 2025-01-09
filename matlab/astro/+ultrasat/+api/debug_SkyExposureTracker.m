@@ -2,7 +2,7 @@ function debug_SkyExposureTracker()
     % Debug file for testing the SkyExposureTrackerClient.
 
     % Define API URL and create client
-    client = soc.api.SkyExposureTrackerClient();
+    client = ultrasat.api.SkyExposureTrackerClient();
     client.ApiUrl = 'http://127.0.0.1:8216'; % Update with the actual URL
 
     % Define table name for debugging
