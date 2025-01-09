@@ -8,13 +8,13 @@
 %
 % - Obj.buildHCS                   : Build a plan for a HCS field. 
 %                                    All relevant parameters should be set before calling this function
-%                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTargList) ==1)
-%                                    TODO: allow to select a target from uniqTargList
+%                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) ==1)
+%                                    TODO: allow to select a target from UniqTarg
 %
 % - Obj.buildLCS(Args)             : Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
 %                                    Fill in a daily window of observations and move to the next day. 
 %                                    All relevant parameters should be set before calling this function
-%                                    (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTargList)>0)
+%                                    (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTarg)>0)
 %
 % - Obj.buildTOO(Args)             : Build a plan for a TOO list. Allow to enter all paramters as Args (but can also use those that are in Obj) 
 %                                    Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration
@@ -86,8 +86,8 @@ classdef uplanner < Component
         Type                char            % HCS, LCS, AllSS, DDT, TOO 
         StartTime           datetime   % start of the whole plan
         EndTime             datetime   %   end of the whole plan
-        Plan                                    % target list 
-        UniqTargList                       % unique target list
+        Plan                                    % table of the Plan (target per row) 
+        UniqTarg                       % table of unique targets
         
         CheckTimes(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
         Vis                                     % visibility matrix         
@@ -188,7 +188,7 @@ classdef uplanner < Component
             Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
             %
-            Obj.UniqTargList = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
+            Obj.UniqTarg = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
             %
             Obj.MissionApprovedPlan = table('Size',[0,numel(Obj.MissionApprovedPlan_VarNames)],'VariableNames', Obj.MissionApprovedPlan_VarNames,...
@@ -231,7 +231,7 @@ classdef uplanner < Component
         function buildHCS(Obj)
             % Build a plan for a HCS field. 
             % All relevant parameters should be set before calling this function
-            % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTargList) ==1)
+            % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) ==1)
             
             % Verify all relevant parameters are set
             
@@ -244,7 +244,7 @@ classdef uplanner < Component
             if Obj.StartTime > Obj.EndTime
                 error('StartTime is after EndTime');
             end
-            if height(Obj.UniqTargList) ~=1
+            if height(Obj.UniqTarg) ~=1
                 error('HCS requires one single target');
             end
                   
@@ -267,7 +267,7 @@ classdef uplanner < Component
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
             % All relevant parameters should be set before calling this function
-            % (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTargList)>0)
+            % (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTarg)>0)
             arguments
                 Obj
                 Args.TargetList = [];
@@ -290,12 +290,12 @@ classdef uplanner < Component
             if Obj.DailyWindowMaxDuration > hours(24)
                error('Daily window is LONGER than a DAY'); 
             end
-            if height(Obj.UniqTargList) == 0
+            if height(Obj.UniqTarg) == 0
                 error('LCS reuire at least one target');
             end         
             
             if isempty(Args.TargetList)
-                Args.TargetList = 1:height(Obj.UniqTargList);
+                Args.TargetList = 1:height(Obj.UniqTarg);
             end
                 
             %Calc expected number of targets fit in single window
@@ -475,16 +475,16 @@ classdef uplanner < Component
             end
             %
             NUtarg = numel(RA); % the number of unique targets to be added
-            NU0    = height(Obj.UniqTargList);
+            NU0    = height(Obj.UniqTarg);
             %
-            Obj.UniqTargList.RA( NU0+1:NU0+NUtarg) =  RA; 
-            Obj.UniqTargList.Dec(NU0+1:NU0+NUtarg) = Dec;
+            Obj.UniqTarg.RA( NU0+1:NU0+NUtarg) =  RA; 
+            Obj.UniqTarg.Dec(NU0+1:NU0+NUtarg) = Dec;
             %
             if ~isempty(Args.Name)
-                Obj.UniqTargList.Name(NU0+1:NU0+NUtarg) = Args.Name;
+                Obj.UniqTarg.Name(NU0+1:NU0+NUtarg) = Args.Name;
             end
             %
-            Obj.N_uniqueTargets = height(Obj.UniqTargList);
+            Obj.N_uniqueTargets = height(Obj.UniqTarg);
             %
             Obj.updateTargetProperties;
             %
@@ -493,17 +493,17 @@ classdef uplanner < Component
         %
         function saveUniqTargCooList(Obj,FileName)
             % Write the [Name, Ra, Dec] of the uniqe target into FileName  
-            colRA = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'RA'));
-            colDec = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'Dec'));
-            colName = find(strcmp(Obj.UniqTargList.Properties.VariableNames,'Name'));
-            writetable(Obj.UniqTargList(:,[colName,colRA,colDec]),FileName,'QuoteStrings',1)
+            colRA = find(strcmp(Obj.UniqTarg.Properties.VariableNames,'RA'));
+            colDec = find(strcmp(Obj.UniqTarg.Properties.VariableNames,'Dec'));
+            colName = find(strcmp(Obj.UniqTarg.Properties.VariableNames,'Name'));
+            writetable(Obj.UniqTarg(:,[colName,colRA,colDec]),FileName,'QuoteStrings',1)
         end
         %
         function clearUniqueTargets(Obj)
             % Clear the unique target list, as well as the plan and visibility object 
             
             % Remove all unique targets
-            Obj.UniqTargList(:,:) = [];
+            Obj.UniqTarg(:,:) = [];
             % clean the number of unique targets
             Obj.N_uniqueTargets = 0;
             % clear the plan
@@ -547,10 +547,10 @@ classdef uplanner < Component
                 Plan_row = NProws+ii;
                 TardetInd = UniqTargetIndexes(ii);
 
-                Obj.Plan.Name(Plan_row) = Obj.UniqTargList.Name(TardetInd);
+                Obj.Plan.Name(Plan_row) = Obj.UniqTarg.Name(TardetInd);
                 Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
-                Obj.Plan.RA(Plan_row) = Obj.UniqTargList.RA(TardetInd);
-                Obj.Plan.Dec(Plan_row) = Obj.UniqTargList.Dec(TardetInd);
+                Obj.Plan.RA(Plan_row) = Obj.UniqTarg.RA(TardetInd);
+                Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(TardetInd);
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
                 Obj.Plan.Tiles(Plan_row) = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
@@ -832,34 +832,35 @@ classdef uplanner < Component
                 Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
                 Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
+                Args.IndList            = []; % List of Target index to update
             end              
             % target coordinates 
-            RA = Obj.UniqTargList.RA; Dec = Obj.UniqTargList.Dec; 
+            RA = Obj.UniqTarg.RA; Dec = Obj.UniqTarg.Dec; 
             
             % extinction 
-            Obj.UniqTargList.A_U = ultrasat.tools.extinction(RA, Dec); 
+            Obj.UniqTarg.A_U = ultrasat.tools.extinction(RA, Dec); 
             
             % load the lists of external important objects and survey maps
             load(Args.ExtSurveyMaps); % 'SurveyMaps' table
             load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
 
             for iT = 1:Obj.N_uniqueTargets % loop over targets 
-                RA0 = Obj.UniqTargList.RA(iT); Dec0 = Obj.UniqTargList.Dec(iT);                
+                RA0 = Obj.UniqTarg.RA(iT); Dec0 = Obj.UniqTarg.Dec(iT);                
                 % make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
                 FOVp = polyshape(FOV);  % a polyshape is useful to test intersections
                 
                 % select calibration objects 
                 Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
-                Obj.UniqTargList.CalObj{iT} = num2cell(find(Ind>0));
+                Obj.UniqTarg.CalObj{iT} = num2cell(find(Ind>0));
                 
                 % select reference images
 %                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
-%                 Obj.UniqTargList.RefImageIDs{iT} = num2cell(find(Ind>0));
+%                 Obj.UniqTarg.RefImageIDs{iT} = num2cell(find(Ind>0));
 
                 % select external surveys 
                 Ind = overlaps(SurveyMaps.Shape,FOVp);
-                Obj.UniqTargList.ExtSurveys{iT} = num2cell(find(Ind>0));
+                Obj.UniqTarg.ExtSurveys{iT} = num2cell(find(Ind>0));
                
                 % select specific objects falling into the FOV
                 Ind = celestial.search.isPointInsidePolygon(Known_Obj_small.RA, Known_Obj_small.Dec, FOV);
@@ -874,12 +875,12 @@ classdef uplanner < Component
                 Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG7_Blazars.RA, Known_Obj_large.WG7_Blazars.Dec,FOV);
                 Field.Blazars = num2cell(find(Ind>0));    
                 %
-                Obj.UniqTargList.FieldObj{iT} = Field;
+                Obj.UniqTarg.FieldObj{iT} = Field;
                 
                 % calcaulte healpix indices covered by this target
                 % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
                 ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
-                Obj.UniqTargList.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
+                Obj.UniqTarg.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
                 
             end            
         end
@@ -906,7 +907,7 @@ classdef uplanner < Component
             StartJD = juliandate(Args.WindowStartTime);
             EndJD   = juliandate(Args.WindowEndTime);
             VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
-            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTargList.RA Obj.UniqTargList.Dec]./RAD,...
+            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTarg.RA Obj.UniqTarg.Dec]./RAD,...
                 'MinSunDist',Obj.ObsSunDist/RAD,'MinMoonDist',Obj.ObsMoonDist/RAD,'MinEarthDist',Obj.ObsEarthDist/RAD);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
@@ -1059,10 +1060,10 @@ classdef uplanner < Component
             end
             %
             if isempty(TargInd)
-                TabInd = unique(Cell2Vec([Obj.UniqTargList.CalObj{:}]));
+                TabInd = unique(Cell2Vec([Obj.UniqTarg.CalObj{:}]));
                 Res = Obj.CalibObj(TabInd,:);
             else
-                TabInd = [Obj.UniqTargList.CalObj{TargInd}{:}]; % 
+                TabInd = [Obj.UniqTarg.CalObj{TargInd}{:}]; % 
                 Res = Obj.CalibObj(TabInd,:); 
             end
             if Args.PlotSpectrum
