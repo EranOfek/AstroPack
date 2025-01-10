@@ -17,11 +17,13 @@ function [S2, S, N, Mean, M2] = sum2InRange(Array, MinVal, MaxVal)
     % Author : Eran Ofek (2024 Aug) 
     % Compilation: mex CXXFLAGS="\$CXXFLAGS -fopenmp -mavx" LDFLAGS="\$LDFLAGS -fopenmp" sum2InRange.cpp
     % Example: A=rand(1700,1700);
-    %          tic;for I=1:1:100, [S2,S,N]=sum2InRange(A,0.25,0.75); end,toc, tic; for I=1:1:100, F=~isnan(A) & A>0.25 & A<0.75; S1=sum(A(F),'all'); N1=sum(F,'all'); end,toc, [N1-N], [S1-S]
+    %          tic;for I=1:1:100, [S2,S,N]=tools.array.sum2InRange(A,0.25,0.75); end,toc
+    %          tic; for I=1:1:100, F=~isnan(A) & A>0.25 & A<0.75; S1=sum(A(F),'all'); N1=sum(F,'all'); end,toc, [N1-N], [S1-S]
+    %          tic; for I=1:1:100, F=~isnan(A) & A>0.25 & A<0.75; S2a=sum(A(F).^2,'all'); N1=sum(F,'all'); end,toc, [N1-N], [S2a-S2]
 
     [S2, S, N] = tools.array.mex.sum2InRange(Array, MinVal, MaxVal);
     
-    if nargout>3g
+    if nargout>3
         Mean = S./N;
         if nargout>4
             M2 = sqrt(S2./(N-1) - S.^2./((N-1).^2) );
