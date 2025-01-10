@@ -1,4 +1,4 @@
-% Find values in an array (fast mex version of find)
+% Find indices of values in an array (fast mex version of find)
 % Input  : - An array (double, single, uint32)
 %          - Value to search (double, single, uint32)
 %            Type must be consistent with first input.
