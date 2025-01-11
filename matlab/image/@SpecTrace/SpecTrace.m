@@ -29,7 +29,9 @@ classdef SpecTrace < Component
         LinTraceImage
         LinTracePos
         Name
-        WaveSolutionInfo
+        FitInfo
+        MatchedInfo
+        Pix2Wave            
         
         %LinTraceImage
         %LinTracePos
