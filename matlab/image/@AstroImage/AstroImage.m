@@ -142,6 +142,7 @@ classdef AstroImage < Component
         PSFData(1,1) AstroPSF                %= AstroPSF;
         WCS(1,1) AstroWCS
         
+        Trace   % A SpecTrace object: spectral trace and wave solutions 
     end
     
     properties (Hidden)

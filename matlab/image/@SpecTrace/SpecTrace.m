@@ -22,6 +22,7 @@ classdef SpecTrace < Component
         Wave
         DispPixPos
         SpatPixPos
+        ExtractShift       = 0;
         Intensity
         SpatMom2
         SpatFWHM
@@ -109,11 +110,7 @@ classdef SpecTrace < Component
     end
     
     methods % trace functionality        
-        function Obj=tarceByCollapse(Obj, Image)
-            %
-            
-            
-        end
+        % see imProc.spec.trace.traceByCollapse
         
         % DONE
         function Obj=setLinImage(Obj, ImageMat, Args)
@@ -170,108 +167,22 @@ classdef SpecTrace < Component
         
     end
     
-    methods % spetial setters
-        % REMOVE
-        function TraceInd=setTrace(Obj, TraceInd, varargin)
-            % Set a trace into the SpecTrace object
-            % Input  : - A single element SpecTrace object.
-            %          - Trace index. If empty, add trace.
-            %            otherwise, edit existing trace with a given index.
-            %          * ...,key,val,...
-            %            Any of 'WavePos','Wave','X','X2','FWHM',...
-            %            with values.
-            %            WavePos will be attempted to populate
-            %            automatically.
-            % Output : - TraceInd used.
-            % Author : Eran Ofek (2025 Jan)
-            % Example: Tr.setTrace([], 'WavePix',(1:100), 'X',rand(100,1));
-            
-            arguments
-                Obj(1,1)
-                TraceInd     = [];
-                
-                Args.WavePix = [];
-                Args.Wave    = [];
-                Args.X       = [];
-                Args.X2      = [];
-                Args.FWHM    = [];
-                Args.Intensity = [];
-            end
-            
-            
-            
-            Args.MeanX = [];
-            
-            Ntraces = numel([Obj.Traces.MeanX]);
-            %Ntraces = numel(Obj.Traces);
-            
-            if isempty(TraceInd)
-                TraceInd = Ntraces + 1;
-            else
-                if TraceInd>Ntraces
-                    error('Trace index doesnot exist');
-                end
-            end
-            
-            
-            Ncol = numel(Obj.TraceCol);
-            for Icol=1:1:Ncol
-                ColName = Obj.TraceCol{Icol};
-                if ~isempty(Args.(ColName))
-                    Obj.Traces(TraceInd).(ColName) = Args.(ColName)(:);
-                    Nwave = numel(Obj.Traces(TraceInd).(ColName));
-                end
-            end
-            
-            if isempty(Obj.Traces(TraceInd).WavePix)
-                Obj.Traces(TraceInd).WavePix = (1:1:Nwave).';
-            end
-            
-            if isempty(Obj.Traces(TraceInd).X)
-                Obj.Traces(TraceInd).MeanX = NaN;
-            else
-                Obj.Traces(TraceInd).MeanX = median(Obj.Traces(TraceInd).X, 'all','omitnan');
-            end
-            
-        end
-        
-        % REMOVE
-        function Obj=setLinTrace(Obj, Image, TraceInd, Args)
+    
+    methods % wavelength calibration
+        function Obj=waveCalib_LinesMatch(Obj, TraceInd, Args)
             %
            
             arguments
                 Obj
-                Image            % if AastroImage: interpolate, if matrix use as is
-                TraceInd   = [];
-                
-                Args.DimWave
-                Args.TraceXY
+                TraceInd
+                Args
             end
-            
-            % get index of LinTrace
-            if isempty(TraceInd)
-                if isempty(Obj.LinTrace.Image)
-                    TraceInd = 1;
-                else
-                    TraceInd = numel(Obj.LinTrace) + 1;
-                end
-            end
-            
-            if isnumeric(Image)
-                % assume 2D image is linearized trace spectrum
-                Obj.LinTrace(TraceInd).Image = Image;
-            elseif isa(Image, 'AstroImage')
-                % input is an AstroImage
-                
-                 
-            else
-                error('Unknown Image type');
-            end
-                
             
             
         end
     end
+    
+    
         
     methods (Static) % UnitTest
         Result = unitTest()

@@ -86,35 +86,35 @@ function [Result] = traceByCollapse(AI, varargin)
     %                   from which the linezrized trace is generated.
     %                   Default are: 'FitMomFilt', 'FitY'.
     %
-    % Output : - A SpecTrace object with the populated traces.
+    % Output : - An AstroImage object in which the Trace property is populated
+    %            with a SpecTrace object.
     %
     % Author : Eran Ofek (2025 Jan)
     % Example: Tr=imProc.spec.trace.traceByCollapse(AI);
     
    
+    PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
+    Nprop    = numel(PropCopy);
+    %WaveSolutionInfo
+   
     if isnumeric(AI)
-        AI = AstroImage({AI});
+        Result = AstroImage({AI});
+    else
+        Result = AI;
     end
     
-    Nim = numel(AI);
-    Result = SpecTrace(size(AI));
+    Nim = numel(Result);
+    %Result = SpecTrace(size(AI));
     for Iim=1:1:Nim
         Output = imUtil.spec.trace.traceByCollapse(AI(Iim).Image, varargin{:});
         Ntrace = numel(Output);
-        
-        % populate the SpecTrace object
-        Result(Iim).WaveDim         = Output(1).WaveDim;        
-        
-        Result(Iim).ExpectedSpatPos = [Output.ExpectedPos];
-        Result(Iim).SN              = [Output.SN];
-        Result(Iim).LinTraceImage   = {Output.LinTraceImage};
-        Result(Iim).LinTracePos     = [Output.LinTracePos];
-        
+     
         for Itrace=1:1:Ntrace
-            Result(Iim) = Result(Iim).setTrace([], 'X', Output(Itrace).BestFit,...
-                                                    'WavePix',Output(Itrace).PosPix,...
-                                                    'Intensity',Output(Itrace).Intensity,...
-                                                   'X2',Output(Itrace).ResMomFilt.X2W);
+            for Iprop=1:1:Nprop
+                Result(Iim).Trace(Itrace).(PropCopy{Iprop}) = Output(Itrace).(PropCopy{Iprop});
+            end
+            %Result(Iim).Trace(Itrace).WaveSolutionInfo = 
+            
         end
         
     end

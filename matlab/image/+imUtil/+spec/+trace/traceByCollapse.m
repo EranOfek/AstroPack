@@ -19,7 +19,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %
     % Input  : - A 2D array.
     %          * ...,key,val,...
-    %            'WaveDim' - Dim of spatial coordinate. Default is 1.
+    %            'DimWave' - Dim of spatial coordinate. Default is 1.
     %            'TraceLineKernel' - 
     %            'PSFsigma' - 
     %            'Back' - An optional background image (or scalar).
@@ -55,13 +55,13 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %                   with GoodMask values of false (will not be used).
     %                   Default is [].
     %
-    %            'ExpectedPos' - A vector of spatial positions of expected
+    %            'ExpectedSpatPos' - A vector of spatial positions of expected
     %                   traces. If given then only peaks found near the
-    %                   expected position (within +/- ExpectedPosErr), will
+    %                   expected position (within +/- ExpectedSpatPosErr), will
     %                   be selected. If empty, will returm all tarces
     %                   found. Default is [].
-    %            'ExpectedPosErr' - Error of the positions listed in
-    %                   ExpectedPos. Default is 3 pix.
+    %            'ExpectedSpatPosErr' - Error of the positions listed in
+    %                   ExpectedSpatPos. Default is 3 pix.
     %            'Moments1dArgs' - Additional arguments to pass to:
     %                   imUtil.spec.trace.moment1d
     %                   Default is {}.
@@ -88,7 +88,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     % Output : - A structure array with element per trace, and the
     %            following fields:
     %            .Pos - The mean measured spatial position of the trace.
-    %            .ExpectedPos - The expected spatial position of the trace.
+    %            .ExpectedSpatPos - The expected spatial position of the trace.
     %                   Empty if no expected position.
     %            .SN - Integrated S/N of trace.
     %            .ResMomFilt - Output of imUtil.spec.trace.moment1d
@@ -116,7 +116,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     
     arguments
         Array
-        Args.WaveDim           = 1;   % Dim of spatial coordinate
+        Args.DimWave           = 1;   % Dim of spatial coordinate
         Args.TraceLineKernel   = [100 3 0 0];  % [Length, Width, Angle, Gap, [sigma]]
         Args.PSFsigma          = 3;
         Args.Back              = [];
@@ -131,8 +131,8 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         Args.GoodMask           = [];
         Args.IgnoreWaveRangePos = []; %[0 30];
         
-        Args.ExpectedPos        = []; %[333, 500]; %[];
-        Args.ExpectedPosErr     = 3;
+        Args.ExpectedSpatPos        = []; %[333, 500]; %[];
+        Args.ExpectedSpatPosErr     = 3;
         
         Args.Moments1dArgs      = {};
         Args.UseWeightedMom logical = true;
@@ -152,7 +152,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         MomField = 'X1';
     end
     
-    if Args.WaveDim==2
+    if Args.DimWave==2
         Array = Array.';
     end
     Dim = 1;
@@ -220,29 +220,29 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     [ResCollapse,PeakDet] = imUtil.spec.trace.collapse(SNp, 'Threshold',Args.Threshold);
     
     
-    if isempty(Args.ExpectedPos)
+    if isempty(Args.ExpectedSpatPos)
         % return all possible traces
         Npos = numel(PeakDet.PeakPos);
-        Args.ExpectedPos = PeakDet.PeakPos(:).';
+        Args.ExpectedSpatPos = PeakDet.PeakPos(:).';
         
     else
-        % return only traces consistent with ExpectedPos
-        Npos = numel(Args.ExpectedPos);
+        % return only traces consistent with ExpectedSpatPos
+        Npos = numel(Args.ExpectedSpatPos);
     end
     
-    Diff = PeakDet.PeakPos - Args.ExpectedPos(:).';
+    Diff = PeakDet.PeakPos - Args.ExpectedSpatPos(:).';
     [MinDist,MinInd] = min(abs(Diff),[],1);
-    FlagFound = MinDist<Args.ExpectedPosErr;
+    FlagFound = MinDist<Args.ExpectedSpatPosErr;
 
-    Result = struct('Pos',cell(Npos,1), 'ExpectedPos',cell(Npos,1), 'SN',cell(Npos,1),...
+    Result = struct('Pos',cell(Npos,1), 'ExpectedSpatPos',cell(Npos,1), 'SN',cell(Npos,1),...
                     'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
                     'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
                     'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1),...
-                    'WaveDim',cell(Npos,1), 'BestFit',cell(Npos,1),...
+                    'DimWave',cell(Npos,1), 'BestFit',cell(Npos,1),...
                     'Intensity',cell(Npos,1));
 
     for Ipos=1:1:Npos
-        Result(Ipos).ExpectedPos = Args.ExpectedPos(Ipos);
+        Result(Ipos).ExpectedSpatPos = Args.ExpectedSpatPos(Ipos);
         if FlagFound(Ipos)
             IposMin  = MinInd(Ipos);
             Result(Ipos).Pos         = PeakDet.PeakPos(IposMin);
@@ -264,7 +264,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
                                     Args.linearizeTraceArgs{:});
             Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
             Result(Ipos).ExtractShift = Args.ExtractShift;
-            Result(Ipos).WaveDim = Args.WaveDim;
+            Result(Ipos).DimWave = Args.DimWave;
         end
     end
             
