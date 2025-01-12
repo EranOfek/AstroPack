@@ -128,8 +128,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Edges = (Mode1.*Args.EdgesFactor: sqrt(Mode1).*Args.OverSampling:Mode1./Args.EdgesFactor).';
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
-    Nhist = matlab.internal.math.histcounts(Array, Edges);
+    %Nhist = matlab.internal.math.histcounts(Array, Edges);
     %Nhist1 = tools.hist.mex.histcounts1regular_mex(Array, Edges); %slower
+    Nhist = tools.hist.mex.histcounts1regular(Array, Edges); %faster
     
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
