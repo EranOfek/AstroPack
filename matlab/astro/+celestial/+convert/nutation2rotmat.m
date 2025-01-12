@@ -24,7 +24,7 @@ end
 DLon = Nut(:,1);
 DObl = Nut(:,2);
 NutMatrix = ones(3,3,length(JD));
-Obl = obliquity(JD);
+Obl = celestial.coo.obliquity(JD);
 switch lower(MatType)
     case 'f'
        % Full precesion Nutation Matrix

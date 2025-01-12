@@ -180,6 +180,6 @@ DObl = DObl.*ConvFactor;
 Nut = [DLon, DObl];
    
 if (nargout>1)
-    NutMatrix = nutation2rotmat(Nut,JD,MatType);
+    NutMatrix = celestial.convert.nutation2rotmat(Nut,JD,MatType);
 end
 
