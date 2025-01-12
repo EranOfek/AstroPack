@@ -63,21 +63,33 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
     %OrigArray = Array;
     % convert to vector
-    Array = Array(:);
+    %Array = Array(:);
  
-    if Args.DiluteFactor>1
-        Array = Array(1:Args.DiluteFactor:end, 1:Args.DiluteFactor:end);
-    end
-    
-    % convert to vector
-    Array = Array(:);
-    
     if Args.Convert2single
         Array = single(Array);
     end
-    if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
-        Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
+    
+    if Args.DiluteFactor>1
+        if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
+            Array = tools.array.mex.diluteMatrix_MinMax(Array, Args.DiluteFactor, Args.MinVal, Args.MaxVal);
+            
+            %Array = Array(1:Args.DiluteFactor:end);
+            %Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
+        else
+            Array = Array(1:Args.DiluteFactor:end); %, 1:Args.DiluteFactor:end);
+            Array = Array(:);
+            %Array = tools.array.mex.diluteMatrix(Array, Args.DiluteFactor);
+        end
+    else
+        % convert to vector
+        Array = Array(:);
+        if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
+            Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
+        end
     end
+    
+    
+    
     
     
     % remove lower/upper quantile
@@ -88,7 +100,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
     Na = numel(Array);
     
-    LogArray = log(Array); %(1:Args.DiluteFactor1:end));
+    LogArray = log(Array(1:Args.DiluteFactor1:end));
     Min      = min(LogArray);
     Max      = max(LogArray);
     Range    = Max - Min;
@@ -117,6 +129,8 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
     Nhist = matlab.internal.math.histcounts(Array, Edges);
+    %Nhist1 = tools.hist.mex.histcounts1regular_mex(Array, Edges); %slower
+    
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
 
