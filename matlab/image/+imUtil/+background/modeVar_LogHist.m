@@ -88,7 +88,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
     Na = numel(Array);
     
-    LogArray = log(Array(1:Args.DiluteFactor1:end));
+    LogArray = log(Array); %(1:Args.DiluteFactor1:end));
     Min      = min(LogArray);
     Max      = max(LogArray);
     Range    = Max - Min;
