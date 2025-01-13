@@ -34,11 +34,15 @@
 %
 % - Obj.scheduleTargets(UniqTargetIndexes,StartTime,Args)   : Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
 %                                                             TODO- allow to provide a list of StartTime, one for each of target in the list.
+% - Obj.editPlanRow(Plan_row,Args)                          : Allow to directly edit only the following fields in a plan row:ExpTime, Tiles, Nexposures.
+%                                                                                 Will update row properties if needed (due to edited fields) or if asked directly (even if no fields were edited)
+%                                                                                 If plan_row is part of a group, update the properties of relevant other rows
+% - Obj.clearPlan                                           : Clear the plan
+%
 % - Obj.retrieveMissionApprovedPlan(Args)                   : Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
 %                                                             and populate the fields of Obj.MissionApprovedPlan.
 %                                                             Alternativly, allows also to provide a uplanner object (taking its plan as the MissionApprovedPlan) or struct of approved targets.
 %
-% - Obj.clearPlan                                           : Clear the plan
 % - Obj.clearMissionApprovedPlan                            : Clear the Mission Approved Plan table
 %
 %
@@ -75,8 +79,7 @@
 % - plotVisibility                                       : Display the visibilty constrains of the targets
 % - editUniqTarg(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
 % - delUniqTarg(Index)                               : Validate that row is not in the Plan. If not then delete and updatet the indexes of the UniqTarInd in the plan for other targets
-% - editPlanrow(ID,Name,RA,Dec)            : Edit a given rowin the Plan
-% - delPlanrow(Index)                               : detlete the plan row and Check if part of a group. if so, adjust group (if needed).
+% - Obj.delPlanrow(Index)                               : detlete the plan row and Check if part of a group. if so, adjust group (if needed).
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
@@ -143,7 +146,7 @@ classdef uplanner < Component
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
-        Plan_DefVarTypes   = {'string','uint8','uint8','double','double','double','string',...
+        Plan_DefVarTypes   = {'string','uint8','double','double','double','double','string',...
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell'};
                                                                 
@@ -526,7 +529,7 @@ classdef uplanner < Component
                 Args.Nexposures = [];
                 Args.Exptime = []; % 
                 Args.Tiles = []; % 
-                Args.Group = []; % Target name (optional)
+                Args.Group = -1; % Group Ind. -1 for no group
             end
             %
             
@@ -543,7 +546,7 @@ classdef uplanner < Component
             NUtarg = numel(UniqTargetIndexes);
             NProws    = height(Obj.Plan);
             
-            % Add first plan row 
+            % Add plan rows one be one
             for ii = 1:NUtarg
             
                 Plan_row = NProws+ii;
@@ -565,9 +568,8 @@ classdef uplanner < Component
                 end 
             end
             
-            if ~isempty(Args.Group)
-                Obj.Plan.Group((NProws+1):(NProws+NUtarg)) = Args.Group;
-            end
+            %
+            Obj.Plan.Group((NProws+1):(NProws+NUtarg)) = Args.Group;
             
             % update Number of target in the plan;
             Obj.N_planTargets = height(Obj.Plan);
@@ -579,6 +581,81 @@ classdef uplanner < Component
             % Timestamp of schedule
             Obj.schedule;
         end
+        %
+        function editPlanRow(Obj,Plan_row,Args)
+            % Allow to directly edit only the following fields in a plan row:ExpTime, Tiles, Nexposures.
+            % Will update row properties if needed (due to edited fields) or if asked directly (even if no fields were edited)
+            % If plan_row is part of a group, update the properties of relevant other rows
+            arguments
+                Obj
+                Plan_row
+                Args.ExpTime    duration      =seconds(inf);
+                Args.Tiles                 = [];
+                Args.Nexposures     = [];
+                Args.updateRowsProp = false; % If set to true - update Rows (and group memebrs prop., if ExpTime or Nexposures were edited, it will update rows anwyay.
+            end
+            
+            updateRowsProp = Args.updateRowsProp;
+            
+            if ~isempty(Args.Tiles)
+                Obj.Plan.Tiles(Plan_row) = Args.Tiles;
+            end
+            if ~isinf(Args.ExpTime)
+                Obj.Plan.ExpTime(Plan_row) = Args.ExpTime;
+                updateRowsProp = true;
+            end
+            if ~isempty(Args.Nexposures)
+                Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
+                updateRowsProp = true;
+            end          
+            
+            if updateRowsProp
+                G = Obj.Plan.Group(Plan_row);
+                
+                if G == -1
+                    Obj.updatePlanRowProperties(Plan_row);
+                else % part of a group
+                    Glist = find(Obj.Plan.Group==G);
+                    if Plan_row==Glist(1) % first in the group
+                        Obj.updatePlanRowProperties(Plan_row);
+                    else
+                       Obj.updatePlanRowProperties(Plan_row,'CalcStartTimeFromPrevTarget',true);
+                    end
+                    
+                    Glist = Glist(Glist>Plan_row); % only following group members
+                    for ii = 1:numel(Glist)
+                        Obj.updatePlanRowProperties(Glist(ii),'CalcStartTimeFromPrevTarget',true);
+                    end
+
+                end
+            end
+            
+        end
+        %
+        function delPlanRow(Obj,Plan_row)   
+            % detlete the plan row and Check if part of a group. if so, adjust group (if needed).
+            
+            % extract the group of the row to be deleted
+            G = Obj.Plan.Group(Plan_row);
+            
+            % Delete the row and update the number of 
+            Obj.Plan(Plan_row,:) = [];
+            Obj.N_planTargets = height(Obj.Plan);
+            
+            if Obj.Plan.Group(Plan_row)==G && G~=-1 % if the next plan row is part of the same group
+                Obj.editPlanRow(Plan_row,'updateRowsProp',true);
+            end
+             
+        end
+        %
+        function clearPlan(Obj)
+            % Clear the plan
+            
+            % remove the plan
+            Obj.Plan(:,:) = [];
+            % clean the number of unique targets
+            Obj.N_planTargets = 0;
+        end            
         %
         function retrieveMissionApprovedPlan(Obj,Args)
             % Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
@@ -641,15 +718,6 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);            
             
         end
-        %
-        function clearPlan(Obj)
-            % Clear the plan
-            
-            % remove the plan
-            Obj.Plan(:,:) = [];
-            % clean the number of unique targets
-            Obj.N_planTargets = 0;
-        end    
          %
         function clearMissionApprovedPlan(Obj)
             % Clear the Mission Approved Plan table
@@ -873,7 +941,7 @@ classdef uplanner < Component
             % Return error If there's issue with  Sun/Earth/Moon limits
             arguments
                 Obj
-                Plan_row
+                Plan_row                    % Index
                 Args.CalcStartTimeFromPrevTarget   = false; % Relevant for targets part of a group (not the first)
             end 
            
@@ -1109,7 +1177,7 @@ classdef uplanner < Component
                 if ~isempty(Args.WaveRange)
                     xlim(Args.WaveRange.*10);
                 end
-                Title = sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG); title(Title)        
+                title(sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
             end            
         end
         %
@@ -1160,6 +1228,18 @@ classdef uplanner < Component
                       return
                   end
 
+                  upLCS.editPlanRow(1);
+                  upLCS.editPlanRow(1,'Tiles',"124");
+                  upLCS.editPlanRow(1,'updateRowsProp',true);
+                  upLCS.editPlanRow(1,'Nexposures',2);
+                  upLCS.editPlanRow(1,'ExpTime',seconds(250));
+                  upLCS.editPlanRow(10,'ExpTime',seconds(250));
+                  upLCS.editPlanRow(5,'ExpTime',seconds(250));
+                  
+                  upLCS.delPlanRow(10);
+                  upLCS.delPlanRow(3);
+                  upLCS.delPlanRow(1)
+                  
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
