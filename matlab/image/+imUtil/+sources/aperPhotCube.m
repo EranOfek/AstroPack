@@ -170,6 +170,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         Result.AperArea(:,Iaper)    = squeeze(sum(FlagPix,[1 2]));
         %Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
         Result.AperPhot(:,Iaper)    = squeeze(sum(Cube.*FlagPix,[1 2],'omitnan'));
+        %Result.AperPhot(:,Iaper)    = tools.array.mex.squeezeSumAmultB_Dim12(Cube,FlagPix,repmat(1,size(Cube,3),1));
     end
     Result.AperPhotErr =  sqrt(abs(Result.AnnulusBack.*Result.AperArea + Result.AperPhot));
     
