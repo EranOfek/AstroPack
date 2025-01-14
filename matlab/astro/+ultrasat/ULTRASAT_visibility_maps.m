@@ -48,7 +48,7 @@ function ULTRASAT_visibility_maps(Args)
     JD = celestial.time.julday(Args.StartDate) + (0:Args.TimeBin:Args.NumDays)';
     Nt = length(JD);
     
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid./RAD,'MinDistOffset',7.);
+    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid./RAD,'MinDistOffset',0.);
     
     for IType = 1:NType     
         Limits = Vis.(LimitType{IType});

@@ -75,7 +75,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     JD = celestial.time.julday(Args.StartDate) + l - ConstShift;
     
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinDistOffset',7.);
+    Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinDistOffset',0.);
     Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits; 
     L2 = reshape(Lim,[NightBins,Args.NumDays,Np]); 
     L3 = squeeze(prod(L2,1));                                % L3 is a whole-night scale list of visibility bins
@@ -102,7 +102,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
 
     % a smaller subset 
     Grid240 = [AllSky.Var1 AllSky.Var2];
-    Vis240  = ultrasat.ULTRASAT_restricted_visibility(JD',Grid240./RAD,'MinDistOffset',7.);
+    Vis240  = ultrasat.ULTRASAT_restricted_visibility(JD',Grid240./RAD,'MinDistOffset',0.);
     Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
     L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
     L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
