@@ -192,7 +192,7 @@ function LCS_placement(Args)
     JD = celestial.time.julday(Args.StartDate) + (0:Args.TimeBin:Args.NumDays)';
     Nt = length(JD); 
     
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
+    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid,'MinDistOffset',7.0);
     
     LimitsCombined = Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits .* Vis.EarthLimits;
     Limits2 =  Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits;  % observations only when the Sun is behind the Earth
