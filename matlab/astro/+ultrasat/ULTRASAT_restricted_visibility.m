@@ -1,4 +1,4 @@
-function ULTRASAT_vis=ULTRASAT_restricted_visibility(JD,Coo,varargin)
+function ULTRASAT_vis=ULTRASAT_restricted_visibility(JD,Coo,Args)%varargin)
 % SHORT DESCRIPTION HERE
 % Package: ultrasat
 % Description: 
@@ -7,7 +7,7 @@ function ULTRASAT_vis=ULTRASAT_restricted_visibility(JD,Coo,varargin)
 %            where keyword are one of the followings:
 % Output : - 
 % License: GNU general public license version 3
-%     By : Yossi Shvartzvald                    Jan 2021
+%     By : Yossi Shvartzvald                    Jan 2021 (updated Jan 2025)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: N1  = [220./RAD, 66./RAD];
 %          S1  = [ 42./RAD,-66./RAD];
@@ -16,39 +16,52 @@ function ULTRASAT_vis=ULTRASAT_restricted_visibility(JD,Coo,varargin)
 %          ULTRASAT_vis=ultrasat.ULTRASAT_restricted_visibility(JD,Coo);
 % Reliable: 
 %--------------------------------------------------------------------------
-
-RAD = 180./pi;
-
-DefV.Name                 = {};     % override all the parameters provided in the list
-
-DefV.MinSunDist = (70-7)./RAD;
-DefV.MinMoonDist = (34-7)./RAD;
-DefV.MinEarthDist = (56-7)./RAD;
-
-DefV.Power_MaxSunDist = 130./RAD; %90+45; 45 for thr solar panels
-DefV.Comm_MinEarthDist = 0./RAD; 
-DefV.Comm_MaxEarthDist = 180./RAD; 
-
-if (numel(varargin)==1)
-    % assume input is a structure (like DefV)
-    InPar = varargin{1};
-else
-    InPar = InArg.populate_keyval(DefV,varargin,mfilename);
-end
-
-if (~isempty(InPar.Name))
-    Pars = DefPar.(InPar.Name);
-    for I=1:2:(numel(Pars)-1)
-        InPar.(Pars{I}) = Pars{I+1};
+ 
+    arguments
+        JD
+        Coo
+        Args.CooUnits    ='rad';
+        Args.MinSunDist  = 70; % [deg]
+        Args.MinMoonDist  = 34; % [deg]
+        Args.MinEarthDist  = 56; % [deg]
+        Args.MinDistOffset  = 0; % [deg] 0 for center of FoV (i.e., pointing), 7 to allow for poinitng offset (though not exact)
+        Args.Power_MaxSunDist   = 130; % [deg] 90+45; 45 for the solar panels
+        Args.Comm_MinEarthDist   = 0; % [deg] Currently (i.e. 0) means no limit
+        Args.Comm_MaxEarthDist = 180; % [deg] Currently (i.e. 180) means no limit
     end
+
+    RAD = 180./pi;
+    
+    switch lower(Args.CooUnits)
+         case 'rad'
+            % do nothing
+         case 'g'
+            Coo(:,1)  = celestial.coo.convertdms(Coo(:,1),'gH','r');
+            Coo(:,2) = celestial.coo.convertdms(Coo(:,2),'gD','r');
+         case 'deg'
+            Coo   = Coo./RAD;
+         otherwise
+            error('Unknown Units option');
+    end
+
+    % subtract offset and convert limits to radians
+    MinSunDist = (Args.MinSunDist-Args.MinDistOffset)./RAD;
+    MinMoonDist = (Args.MinMoonDist-Args.MinDistOffset)./RAD;
+    MinEarthDist = (Args.MinEarthDist-Args.MinDistOffset)./RAD;
+
+    Power_MaxSunDist = Args.Power_MaxSunDist./RAD; 
+    Comm_MinEarthDist = Args.Comm_MinEarthDist./RAD; 
+    Comm_MaxEarthDist = Args.Comm_MaxEarthDist./RAD; 
+
+    % retrieve visibilty and check limits
+    ULTRASAT_vis = ultrasat.GEO_object_visibility(JD,Coo);
+
+    ULTRASAT_vis.SunLimits   = ULTRASAT_vis.SunAngDist   > MinSunDist;
+    ULTRASAT_vis.EarthLimits = ULTRASAT_vis.EarthAngDist > MinEarthDist;
+    ULTRASAT_vis.MoonLimits  = ULTRASAT_vis.MoonAngDist  > MinMoonDist;
+
+    ULTRASAT_vis.PowerLimits = ULTRASAT_vis.SunAngDist   < Power_MaxSunDist;
+    ULTRASAT_vis.CommLimits  = ULTRASAT_vis.EarthAngDist > Comm_MinEarthDist & ...
+                               ULTRASAT_vis.EarthAngDist < Comm_MaxEarthDist;
+
 end
-
-ULTRASAT_vis = ultrasat.GEO_object_visibility(JD,Coo);
-
-ULTRASAT_vis.SunLimits   = ULTRASAT_vis.SunAngDist   > InPar.MinSunDist;
-ULTRASAT_vis.EarthLimits = ULTRASAT_vis.EarthAngDist > InPar.MinEarthDist;
-ULTRASAT_vis.MoonLimits  =ULTRASAT_vis.MoonAngDist  > InPar.MinMoonDist;
-
-ULTRASAT_vis.PowerLimits = ULTRASAT_vis.SunAngDist   < InPar.Power_MaxSunDist;
-ULTRASAT_vis.CommLimits  = ULTRASAT_vis.EarthAngDist > InPar.Comm_MinEarthDist & ...
-                           ULTRASAT_vis.EarthAngDist < InPar.Comm_MaxEarthDist;
