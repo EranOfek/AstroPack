@@ -76,8 +76,8 @@ function CalStars = calibrationStars(Args)
 
     % visibility of the objects:
     JD = celestial.time.julday('2026-07-01 00:00:00') + (0:0.1:365)';
-    VisHi = ultrasat.ULTRASAT_restricted_visibility(JD,[hcad.RA,hcad.Dec]);
-    VisLo = ultrasat.ULTRASAT_restricted_visibility(JD,[lcad.RA,lcad.Dec]);
+    VisHi = ultrasat.ULTRASAT_restricted_visibility(JD,[hcad.RA,hcad.Dec],'MinDistOffset',7.,'CooUnits','deg');
+    VisLo = ultrasat.ULTRASAT_restricted_visibility(JD,[lcad.RA,lcad.Dec],'MinDistOffset',7.,'CooUnits','deg');
     CumLimitHi = VisHi.SunLimits .* VisHi.EarthLimits .* VisHi.MoonLimits;
     CumLimitLo = VisLo.SunLimits .* VisLo.EarthLimits .* VisLo.MoonLimits;
     AnnualVisHi = sum(CumLimitHi,1); AnnualVisLo = sum(CumLimitLo,1); % number of 0.1 day long windows per year
