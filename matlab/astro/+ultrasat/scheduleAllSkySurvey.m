@@ -41,7 +41,7 @@ function scheduleAllSkySurvey(Args)
     JD = celestial.time.julday(Args.StartDate) + (0:1/SlotsPerDay:Args.NumDays)';
     Nt = length(JD);
     
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid./RAD);
+    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid./RAD,'MinDistOffset',7.);
     Limits = Vis.SunLimits .* Vis.EarthLimits .* Vis.MoonLimits .* Vis.PowerLimits;     
     
     % for each of the grid points determine if it is galactic or extragalactic either by |b| or by A_lam        
