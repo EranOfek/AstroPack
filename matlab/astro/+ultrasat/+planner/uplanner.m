@@ -29,6 +29,9 @@
 %
 % - Obj.addUniqTargets(RA, Dec, Args)                       : Add a list of [RA,Dec] coordinates (in degrees) to the unique targetList, 
 %                                                             and calls Obj.updateTargetProperties and Obj.updateTargetVisibility
+% - Obj.editUniqTarg(UniqTargInd,Args)                      :  Edit a given UniqTargInd in the uniqTarg table.Only allows to edit Name, RA, Dec
+%                                                                                     Update the UniqTarg properties and visibility.
+%                                                                                     If  UniqTargInd already shceduled in the Plan, updates all row with this UniqTarg
 % - Obj.saveUniqTargCooList(FileName)                     : Write the [Name, Ra, Dec] of the uniqe target into FileName 
 % - Obj.clearUniqueTargets                                  : Clear the unique target list, as well as the plan and visibility object
 %
@@ -37,6 +40,7 @@
 % - Obj.editPlanRow(Plan_row,Args)                          : Allow to directly edit only the following fields in a plan row:ExpTime, Tiles, Nexposures.
 %                                                                                 Will update row properties if needed (due to edited fields) or if asked directly (even if no fields were edited)
 %                                                                                 If plan_row is part of a group, update the properties of relevant other rows
+% - Obj.delPlanRow(Plan_row)                         : detlete the plan row and Check if part of a group. if so, adjust group (if needed).
 % - Obj.clearPlan                                           : Clear the plan
 %
 % - Obj.retrieveMissionApprovedPlan(Args)                   : Retrive the mission approved plan in a given time window (default window is Obj.CheckTimes) 
@@ -72,14 +76,11 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Additional functions to be considered:
-% - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
+% Additional functions to be considered:- retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
 % - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
 % - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
 % - plotVisibility                                       : Display the visibilty constrains of the targets
-% - editUniqTarg(ID,Name,RA,Dec)            : Edit a given rowin the uniqTarg
 % - delUniqTarg(Index)                               : Validate that row is not in the Plan. If not then delete and updatet the indexes of the UniqTarInd in the plan for other targets
-% - Obj.delPlanrow(Index)                               : detlete the plan row and Check if part of a group. if so, adjust group (if needed).
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
@@ -496,6 +497,56 @@ classdef uplanner < Component
             Obj.updateTargetProperties('TargList',NU0+1:NU0+NUtarg);
             %
             Obj.updateTargetVisibility;
+        end
+        %
+        function editUniqTarg(Obj,UniqTargInd,Args)           
+            % Edit a given UniqTargInd in the uniqTarg table.Only allows to edit Name, RA, Dec
+            % Update the UniqTarg properties and visibility.
+            % If  UniqTargInd already shceduled in the Plan, updates all row with this UniqTarg
+            arguments
+                Obj
+                UniqTargInd
+                Args.Name   = '';
+                Args.RA   = [];
+                Args.Dec   = [];
+            end
+            
+            CooChanged = false;
+            
+            % update fields in UniqTarg table, if needed 
+            
+            if ~isempty(Args.Name)
+                Obj.UniqTarg.Name(UniqTargInd) = Args.Name;
+            end
+            
+            if ~isempty(Args.RA)
+                Obj.UniqTarg.RA(UniqTargInd) = Args.RA;
+                CooChanged = true;
+            end
+            
+            if ~isempty(Args.Dec)
+                Obj.UniqTarg.Dec(UniqTargInd) = Args.Dec;
+                CooChanged = true;
+            end
+            
+            if CooChanged
+                Obj.updateTargetProperties('TargList',UniqTargInd);
+                Obj.updateTargetVisibility;
+            end
+            
+            % find if UniqTargInd in the Plan
+            Plan_rows = find(Obj.Plan.UniqTargInd==UniqTargInd);
+            
+            for ii = 1:numel(Plan_rows)
+                Obj.Plan.Name(Plan_rows(ii)) = Obj.UniqTarg.Name(UniqTargInd);
+                
+                if CooChanged
+                    Obj.Plan.RA(Plan_rows(ii)) = Obj.UniqTarg.RA(UniqTargInd);
+                    Obj.Plan.Dec(Plan_rows(ii)) = Obj.UniqTarg.Dec(UniqTargInd);
+                    Obj.editPlanRow(Plan_rows(ii),'updateRowsProp',true);
+                end
+            end
+            
         end
         %
         function saveUniqTargCooList(Obj,FileName)
@@ -1227,6 +1278,9 @@ classdef uplanner < Component
                   if ~CheckStatus
                       return
                   end
+                  
+                  upLCS.editUniqTarg(4,'Name',"bla");
+                  upLCS.editUniqTarg(4,'RA',100);
 
                   upLCS.editPlanRow(1);
                   upLCS.editPlanRow(1,'Tiles',"124");
