@@ -542,15 +542,13 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             % VarStars for stars
-            %{
-            StarDist = Cat.getCol('GAL_DIST');
+            StarDist = Cat.getCol('STAR_DIST');
             NearStar = StarDist <= 3;
 
             StarSearchRadius = MaxDistAngle.convert('arcsec').Angle + max(StarDist);
 
-            VarStarCat = catsHTM.cone_search('GAIADR2', ...
-                    MidRA, MidDec, StarSearchRadius, 'Con',{{'VarFlag',@(x) x>0}},...
-                    'OutType','AstroCatalog');
+            VarStarCat = catsHTM.cone_search('GAIADR3var', MidRA, MidDec, ...
+                StarSearchRadius, 'OutType','AstroCatalog');
 
             if VarStarCat.sizeCatalog < 1
                 VariableStar = zeros(CatSize,1);
@@ -570,8 +568,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
             
             VariableSource = VariableGal | VariableStar;
-            %}
-            VariableSource = VariableGal;
+            
             TF_Flags = TF_Flags + VariableSource.*2.^BD_TF.name2bit('Variable');
 
         end
