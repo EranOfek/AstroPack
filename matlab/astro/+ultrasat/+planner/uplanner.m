@@ -32,6 +32,9 @@
 % - Obj.editUniqTarg(UniqTargInd,Args)                      :  Edit a given UniqTargInd in the uniqTarg table.Only allows to edit Name, RA, Dec
 %                                                                                     Update the UniqTarg properties and visibility.
 %                                                                                     If  UniqTargInd already shceduled in the Plan, updates all row with this UniqTarg
+% - Obj.delUniqTarg(UniqTargInd,Args)                       : Check if UniqTargInd is in the Plan. If not, delete it from UniqTarg table.
+%                                                  If in plan, by default will return an error. If specifcally asked to delete anyway, will do that and update the group to be continous 
+%                                                  (though won't change the Group start time) 
 % - Obj.saveUniqTargCooList(FileName)                     : Write the [Name, Ra, Dec] of the uniqe target into FileName 
 % - Obj.clearUniqueTargets                                  : Clear the unique target list, as well as the plan and visibility object
 %
@@ -547,6 +550,45 @@ classdef uplanner < Component
                 end
             end
             
+        end
+        %
+        function delUniqTarg(Obj,UniqTargInd,Args)                               
+            % Check if UniqTargInd is in the Plan. If not, delete it from UniqTarg table.
+            % If in plan, by default will return an error. If specifcally asked to delete anyway, will do that and update the group to be continous 
+            % (though won't change the Group start time) 
+            arguments
+                Obj
+                UniqTargInd
+                Args.abort_if_in_plan    = true; % 
+            end
+            
+            Plan_rows = find(Obj.Plan.UniqTargInd==UniqTargInd);
+            
+            if Args.abort_if_in_plan && ~isempty(Plan_rows) 
+                error('UniqTargInd is in Plan - aborting deletion');
+            else
+                Obj.UniqTarg(UniqTargInd,:) = [];
+
+                Glist = unique(Obj.Plan.Group(Plan_rows));
+                
+                Obj.Plan(Plan_rows,:)=[];
+
+                for ii = 1:numel(Glist)
+                    % edit the group
+                    G = find(Obj.Plan.Group==Glist(ii),1); % find first group member, if any...
+                    if ~isempty(G)
+                        Obj.editPlanRow(G,'updateRowsProp',true);
+                    end
+                end               
+            end
+            
+            Obj.Plan.UniqTargInd(Obj.Plan.UniqTargInd>UniqTargInd) = Obj.Plan.UniqTargInd(Obj.Plan.UniqTargInd>UniqTargInd)-1;
+            
+            Obj.N_uniqueTargets = height(Obj.UniqTarg);
+            
+            %
+            Obj.updateTargetVisibility; % consider remove specific UniqTarg
+                
         end
         %
         function saveUniqTargCooList(Obj,FileName)
@@ -1293,6 +1335,9 @@ classdef uplanner < Component
                   upLCS.delPlanRow(10);
                   upLCS.delPlanRow(3);
                   upLCS.delPlanRow(1)
+                  
+                  upLCS.delUniqTarg(1);
+                  upLCS.delUniqTarg(5,'abort_if_in_plan',false);
                   
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
