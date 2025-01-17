@@ -105,7 +105,7 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     
             Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
             
-            PosConst    = db.Db.genCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
+            PosConst    = db.search.queryCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
             Constraints = [PosConst; Args.Constraints];
             QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
             

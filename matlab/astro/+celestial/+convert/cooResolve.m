@@ -39,22 +39,24 @@ function [OutRA, OutDec, ObjName] = cooResolve(InRA, InDec, Args)
         end
     end
 
-    switch lower(Args.InUnits)
-        case 'name'
-            [OutRA, OutDec] = Args.Server(InRA, Args.OutUnits(1));
-        
-        case 'sex'
-            OutRA  = celestial.coo.convertdms(InRA, 'SH', Args.OutUnits(1));
-            OutDec = celestial.coo.convertdms(InDec, 'SD', Args.OutUnits(1));
-        otherwise
-            AngFactor = convert.angular(Args.InUnits, Args.OutUnits);
-            OutRA     = AngFactor .* InRA;
-            OutDec    = AngFactor .* InDec;
+    if strcmp(Args.InUnits, Args.OutUnits)
+        OutRA  = InRA;
+        OutDec = InDec;
+    else
+    
+        switch lower(Args.InUnits)
+            case 'name'
+                [OutRA, OutDec] = Args.Server(InRA, Args.OutUnits(1));
 
+            case 'sex'
+                OutRA  = celestial.coo.convertdms(InRA, 'SH', Args.OutUnits(1));
+                OutDec = celestial.coo.convertdms(InDec, 'SD', Args.OutUnits(1));
+            otherwise
+                AngFactor = convert.angular(Args.InUnits, Args.OutUnits);
+                OutRA     = AngFactor .* InRA;
+                OutDec    = AngFactor .* InDec;
+
+        end
     end
-
-
-
-
 
 end
