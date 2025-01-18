@@ -45,7 +45,7 @@ arguments
     Nc                       = [];
     Args.Algo                =  3;
     Args.GaussianFilterSigma = 10;  % adjust the sigma for smoothness; lower sigma = smoother image
-                                    % Gaussian filtering is for Args.Algo = 5 only!
+                                    % Gaussian filtering is for Args.Algo = 6 only!
 end
 
 if Args.Algo==0
@@ -320,7 +320,7 @@ elseif Args.Algo==4
     ShiftedImage = abs(ShiftedImage) - MinVal;
     %ShiftedImage = ShiftedImage(NY1+1:2*NY1, NX1+1:2*NX1);
     
-elseif Args.Algo == 5
+elseif Args.Algo == 6
     % with a gaussian filter and insertion of zeros (padding) in the center of image
     % in the frequency domain for dumping of parasite high frequency
     
