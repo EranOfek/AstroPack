@@ -3147,7 +3147,7 @@ classdef DemonLAST < Component
 
                                     try
                                         TranDB = strcat(Obj.SciPath,'/TranDB.mat');
-                                        [TransientCutouts, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
+                                        [TransientCutouts, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
                                             TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                     catch MEtran
