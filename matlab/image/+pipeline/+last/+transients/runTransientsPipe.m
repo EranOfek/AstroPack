@@ -103,7 +103,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             continue
         end
 
-        NFWHM = New(Iobj).HeaderData.getVal('FWHM');
+        %NFWHM = New(Iobj).HeaderData.getVal('FWHM');
 
         %if NFWHM >= Args.MaximumFWHM
         %    NAboveMaxNFWHM = NAboveMaxNFWHM + 1;
@@ -135,7 +135,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             warning('Reference image not found for image %s', FN.genFile{1});
             continue
         end
-        NRefsFound = NRefsFound + 1;
 
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
@@ -144,13 +143,20 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         NewName = FN.genFile;
         RefName = FNrref.genFile;
 
+        % Make sure reference products are complete.
+        if isempty(Ref.PSF) || isempty(Ref.Mask)
+            warning('Missing reference products.');
+            continue
+        end
+        
         % Compare new and ref image names, continue if both are the same
         % image
         if convertCharsToStrings(NewName{1}) == convertCharsToStrings(RefName{1})
             warning('New image is reference image.');
-            NRefsFound = NRefsFound - 1;
             continue
         end
+
+        NRefsFound = NRefsFound + 1;
 
         % Create AstroDiff
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
