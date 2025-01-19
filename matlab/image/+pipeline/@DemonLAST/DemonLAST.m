@@ -2682,6 +2682,8 @@ classdef DemonLAST < Component
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
+                Args.InsertTransients2DB = false;
+                
                 Args.HostName          = []; 
 
                 Args.SelectKnownAsteroid logical      = true;
@@ -3214,6 +3216,13 @@ classdef DemonLAST < Component
                                     Obj.writeLog(DBErrorMsg, LogLevel.Error);
                                     Obj.writeLog(DBMsg, LogLevel.Error);
                                 end
+                            end
+                            %
+                            if Args.InsertTransients2DB
+                                pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost','last0'); 
+                                RunTime = etime(clock, Tstart); 
+                                Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients for group %d / RunTime: %.1f', Igroup, RunTime);
+                                Obj.writeLog(Msg, LogLevel.Info);                                
                             end
                             %
                             RunTime = etime(clock, Tstart); % toc;

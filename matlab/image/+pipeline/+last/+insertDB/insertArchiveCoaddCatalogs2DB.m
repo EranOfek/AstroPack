@@ -19,6 +19,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     %    
     %          pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB('/mnt/marvin/LAST.01.01.01/2023/04/24/','ProcDirTemplate','/proc/*')
     %          pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.01*/*/*/*/proc/*')
+    %          pipeline.last.insertDB.insertArchiveCoaddCatalogs2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.*/2023/*/*/proc/*')
     %
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
