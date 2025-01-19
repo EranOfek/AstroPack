@@ -30,7 +30,8 @@ function [Result] = read_xls2tableFormat(FileName, Args)
     FlagUse = TT.(Args.TableName);
     FlagUse(isnan(FlagUse)) = false;
     FlagUse = logical(FlagUse);
-    FlagUse = FlagUse & ~tools.cell.isempty_cell(TT.(Args.HeadColName)).';
+%     FlagUse = FlagUse & ~tools.cell.isempty_cell(TT.(Args.HeadColName)).';
+    FlagUse = FlagUse & ~tools.cell.isempty_cell(TT.(Args.HeadColName));
 
     TT      = TT(FlagUse,:);
 
