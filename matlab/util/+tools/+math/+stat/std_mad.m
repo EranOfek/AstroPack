@@ -1,6 +1,7 @@
 function [Result] = std_mad(X, Type, Dim)
     % Std using the mean absolute deviation (mad) function
     %   Note this is much faster then using mad, due to the omitnan option.
+    %   See also: tools.math.stat.mex.std_madmean_mex
     % Input  : - Array of data
     %          - Type: 0 use mean absolute deviation
     %            1 use median absolute deviation.
