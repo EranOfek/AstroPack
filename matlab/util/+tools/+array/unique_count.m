@@ -19,7 +19,7 @@ function [UnVal,Count]=unique_count(Vec, CmpFun, Algo)
     arguments
         Vec
         CmpFun   = @strcmpi;
-        Algo     = 'search';
+        Algo     = 'sort';
     end
 
     
