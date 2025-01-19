@@ -11,13 +11,13 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     %                           
     % Output : - data injected into the DB
     % Author : A.M. Krassilchtchikov (2024 Dec) 
-    % Example: pipeline.last.insertDB.insertTransients2DB(TCL1)    
+    % Example: pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.Headers])    
     %
     arguments
         Cat
         Headers
         
-        Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
+        Args.Template = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
@@ -52,7 +52,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     HeadByCrop = repmat(AstroHeader,1,NCrop);
     for Icrop = 1:NCrop
         CatByCrop(Icrop).Table = Cat.Table(Cat.Table.CROPID == CropID(Icrop), :); % select the lines by cropid
-        HeadByCrop(Icrop) = Headers(CropID(Icrop));                                    % for each cropid read the appropriate header
+        HeadByCrop(Icrop) = Headers(CropID(Icrop));                               % for each cropid read the appropriate header
     end
     %    
     CsvFN = sprintf('/tmp/tempDBinsert%.20f.csv',rand); % temporary csv file name
