@@ -69,9 +69,9 @@
 %                                                                                TODO- consider updating only selected targets (i.e., new)
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
-% - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate(Mclient)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
-% - Obj.submit(Mclient)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+% - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
+% - Obj.validate(Mclient)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.submit(Mclient)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
 % - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
 %
@@ -133,9 +133,9 @@ classdef uplanner < Component
         CalibObj                        = []; % table of calibration objects 
         CalibDir           
         
-        Scheduled           datetime    % date or empty
-        Validated           datetime    % date or empty
-        Submitted           datetime    % date or empty
+        ScheduledTime           datetime    % date or empty
+        ValidatedTime           datetime    % date or empty
+        SubmittedTime           datetime    % date or empty
         Status              char        = 'draft';
         
         AstPlanner          char        % name of the Astronomer-Planner
@@ -1115,31 +1115,31 @@ classdef uplanner < Component
         end
         %
         function schedule(Obj)
-            % Set Obj.Status to 'draft' and Obj.Scheduled time to 'now'. (called from Obj.scheduleTargets)
+            % Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
             Obj.Status    = 'draft';
-            Obj.Scheduled = datetime('now','TimeZone', 'UTC');    
+            Obj.ScheduledTime = datetime('now','TimeZone', 'UTC');    
         end
         %
         function validate(Obj,Mclient)
-            % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.Validated time to 'now'
+            % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
 
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
             % Mclient.validatePlan(planStruct);            
             
             Obj.Status    = 'validated';
-            Obj.Validated = datetime('now','TimeZone', 'UTC');     
+            Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
         end        
         %
         function submit(Obj,Mclient)
-            %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.Submitted time to 'now'
+            %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 
             planStruct = Obj.planTable2struct;
             % send struct plan to the Mission C&C.
             % Mclient.submitPlan(planStruct);
             
             Obj.Status    = 'submitted';
-            Obj.Submitted = datetime('now','TimeZone', 'UTC'); 
+            Obj.SubmittedTime = datetime('now','TimeZone', 'UTC'); 
         end
         %
         function planStruct = planTable2struct(Obj,Args)
