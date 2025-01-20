@@ -664,8 +664,11 @@ classdef AstroFileName < Component
             % Example: R=AstroFileName.dir('LAST.01.*.fits')
             
             DirSt = dir(varargin{:});
-            Result = AstroFileName.parseString2AstroFileName(DirSt);
-            
+            if isempty(DirSt)
+                Result = AstroFileName;
+            else
+                Result = AstroFileName.parseString2AstroFileName(DirSt);
+            end
         end
         
         function Result=fileTemplate(Args)
@@ -1337,6 +1340,11 @@ classdef AstroFileName < Component
             % Example: nFiles(A)
 
             Result = numel(Obj.Time);
+            if Result==1
+                if isempty(char(Obj.Time))
+                    Result = 0;
+                end
+            end
         end
           
         % DONE
