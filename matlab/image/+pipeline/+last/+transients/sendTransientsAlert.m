@@ -377,7 +377,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 LAST_report.diff_cutout = Image_FilenameDiff;
             end
 
-
             % Draw mosaic image
             FigAll = figure;
             figure(FigAll);
@@ -401,6 +400,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
             LAST_report.detections_jd = LC_JD;
             LAST_report.detections_mag = LC_Mag;
             LAST_report.detections_magerr = LC_MagErr;
+            LAST_report.nondetections_jd = [];
+            LAST_report.nondetections_mag = [];
+
             if LC_UL > 0
                 hold on;
                 scatter(LC_UL_JD, LC_UL_Mag, 'v');
