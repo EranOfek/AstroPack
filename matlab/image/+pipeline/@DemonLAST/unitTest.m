@@ -49,7 +49,8 @@ function Result = unitTest(Args)
         % NB: this is hard-coded, because the particular observation
         % used for the unitTest and distributed with Installer is of 2023/06/16 
         CurrentDir = pwd; cd(BaseDir);
-        !cp 2023/06/16/raw/LAST*fits new/  
+%         !cp 2023/06/16/raw/LAST*fits new/  
+        !cp new2/ new3/
         cd(CurrentDir);
     end
    
