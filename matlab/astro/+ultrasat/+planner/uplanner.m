@@ -70,12 +70,12 @@
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate(Mclient)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
-% - Obj.submit(Mclient)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
+% - Obj.validate(Mclient,Args)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.submit(Mclient,Args)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
 % - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
 %
-% - Res = Obj.showCalibObj(Ind,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
+% - Res = Obj.showCalibObj(UniqTargInd,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -86,6 +86,15 @@
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
+%
+% 1. Add property to class
+% DataFolder = '~/matlab/data/ULTRASAT'  % or better - fullfile( getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT')
+% 
+% 3. add func getDefaultCheckTimes according to current date and plan start/end time
+% 
+% 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
+% 
+% 5. showCalibObj and other plotting function - add arg - appUIAxes
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -642,12 +651,12 @@ classdef uplanner < Component
             for ii = 1:NUtarg
             
                 Plan_row = NProws+ii;
-                TardetInd = UniqTargetIndexes(ii);
+                curr_UniqTargInd = UniqTargetIndexes(ii);
 
-                Obj.Plan.Name(Plan_row) = Obj.UniqTarg.Name(TardetInd);
-                Obj.Plan.UniqTargInd(Plan_row) = TardetInd;
-                Obj.Plan.RA(Plan_row) = Obj.UniqTarg.RA(TardetInd);
-                Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(TardetInd);
+                Obj.Plan.Name(Plan_row) = Obj.UniqTarg.Name(curr_UniqTargInd);
+                Obj.Plan.UniqTargInd(Plan_row) = curr_UniqTargInd;
+                Obj.Plan.RA(Plan_row) = Obj.UniqTarg.RA(curr_UniqTargInd);
+                Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(curr_UniqTargInd);
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
                 Obj.Plan.Tiles(Plan_row) = Args.Tiles;
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
@@ -1120,9 +1129,21 @@ classdef uplanner < Component
             Obj.ScheduledTime = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj,Mclient)
+        function validate(Obj,Mclient,Args)
             % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
-
+            arguments
+                Obj
+                Mclient
+                Args.checkSelfConsistency       = true;
+            end
+            
+            if   Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
+                CheckStatus = upLCS.planSelfConsistencyCheck;
+                if ~CheckStatus
+                    error('Plan is not self-consistent. Validation aborted'); 
+                end
+            end
+            
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
             % Mclient.validatePlan(planStruct);            
@@ -1131,8 +1152,20 @@ classdef uplanner < Component
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj,Mclient)
+        function submit(Obj,Mclient,Args)
             %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
+            arguments
+                Obj
+                Mclient
+                Args.checkSelfConsistency       = true;
+            end
+            
+            if   Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
+                CheckStatus = upLCS.planSelfConsistencyCheck;
+                if ~CheckStatus
+                    error('Plan is not self-consistent. Submition aborted'); 
+                end
+            end
 
             planStruct = Obj.planTable2struct;
             % send struct plan to the Mission C&C.
@@ -1233,7 +1266,7 @@ classdef uplanner < Component
             
         end
         %
-        function Res = showCalibObj(Obj,TargInd,Args)
+        function Res = showCalibObj(Obj,UniqTargInd,Args)
             % Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
             % Input : - object indexes
             %        ..key,val..
@@ -1247,17 +1280,17 @@ classdef uplanner < Component
             %          P.showCalibObj(2, 'PlotSpectrum',true); 
             arguments
                 Obj
-                TargInd               = [];
+                UniqTargInd               = [];
                 Args.PlotSpectrum = false;
                 Args.subInd2plot  = 1;
                 Args.WaveRange    = []; % [nm] range for spectrum plotting, e.g. [230 300] 
             end
             %
-            if isempty(TargInd)
+            if isempty(UniqTargInd)
                 TabInd = unique(Cell2Vec([Obj.UniqTarg.CalObj{:}]));
                 Res = Obj.CalibObj(TabInd,:);
             else
-                TabInd = [Obj.UniqTarg.CalObj{TargInd}{:}]; % 
+                TabInd = [Obj.UniqTarg.CalObj{UniqTargInd}{:}]; % 
                 Res = Obj.CalibObj(TabInd,:); 
             end
             if Args.PlotSpectrum
