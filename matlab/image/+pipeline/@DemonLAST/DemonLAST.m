@@ -2684,6 +2684,8 @@ classdef DemonLAST < Component
                 
                 Args.InsertTransients2DB = false;
                 Args.DBHost              = '10.23.1.25';
+                Args.DbName              = 'last';
+                Args.DbUser              = 'default';
                 
                 Args.HostName          = []; 
 
@@ -2721,7 +2723,18 @@ classdef DemonLAST < Component
 
             if Args.Insert2DB
                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-            end       
+            end    
+            
+            if Args.InsertTransients2DB
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;                                
+                DB          = db.Db;
+                DB.Host     = Args.DBHost;
+                DB.DbName   = Args.DbName;
+                DB.User     = Args.DbUser;
+                DB.Password = PM.search(Args.DbName).Pass;
+                DB.Conn;
+            end
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
@@ -3221,7 +3234,7 @@ classdef DemonLAST < Component
                             %
                             if Args.InsertTransients2DB && ~TCL2.isemptyCatalog
                                 try
-                                    pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost);
+                                    pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
                                 catch ME
                                     Obj.writeLog(ME, LogLevel.Error);
                                 end
@@ -3290,6 +3303,9 @@ classdef DemonLAST < Component
             
             if Args.RepackRaw 
                 !fpack -D -Y *raw*fits 
+            end
+            if Args.InsertTransients2DB
+                DB.disconnectCH_Java;
             end
             cd(PWD);
 
