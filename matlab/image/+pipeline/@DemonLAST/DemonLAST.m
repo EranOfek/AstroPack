@@ -3226,7 +3226,7 @@ classdef DemonLAST < Component
                                     Obj.writeLog(ME, LogLevel.Error);
                                 end
                                 RunTime = etime(clock, Tstart); 
-                                Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients for group %d / RunTime: %.1f', Igroup, RunTime);
+                                Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients to the DB for group %d / RunTime: %.1f', Igroup, RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);                                
                             end
                             %
