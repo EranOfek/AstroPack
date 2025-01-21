@@ -77,6 +77,9 @@
 %
 % - Res = Obj.showCalibObj(UniqTargInd,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
+% Static methods:
+% - CheckTimes = getDefaultCheckTimes()                              : Get the default Check times.  TODO - update if needed
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Additional functions to be considered:- retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
@@ -86,15 +89,8 @@
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
-%
-% 1. Add property to class
-% DataFolder = '~/matlab/data/ULTRASAT'  % or better - fullfile( getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT')
-% 
-% 3. add func getDefaultCheckTimes according to current date and plan start/end time
 % 
 % 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
-% 
-% 5. showCalibObj and other plotting function - add arg - appUIAxes
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -108,7 +104,7 @@ classdef uplanner < Component
         Plan                                    % table of the Plan (target per row) 
         UniqTarg                       % table of unique targets
         
-        CheckTimes(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
+        CheckTimes(2,1)     datetime   % times to be used for visibilty and mission approval retrival
         Vis                                     % visibility matrix         
         MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
@@ -139,8 +135,10 @@ classdef uplanner < Component
         
         Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
         
+        BaseDataDir                      % Base directory for data needed for uplanner
+        
         CalibObj                        = []; % table of calibration objects 
-        CalibDir           
+        CalibDir                             % the catibration objects' spectra directory 
         
         ScheduledTime           datetime    % date or empty
         ValidatedTime           datetime    % date or empty
@@ -184,8 +182,9 @@ classdef uplanner < Component
                 
                 Args.AstPlanner  = '';
                 
-                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
-                Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
+                Args.BaseDataDir = '~/matlab/data/ULTRASAT/'; % Base directory for data needed for uplanner
+                Args.CalObjFile      = 'starlib23_table.mat';  % the calibration objects' list (within  BaseDataDir)
+                Args.CalSubDir      = 'Calib/';               % the catibration objects' spectra directory (within  BaseDataDir)
             end
             %          
             if isempty(Args.AstPlanner) 
@@ -200,6 +199,9 @@ classdef uplanner < Component
             % 
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
             Obj.EndTime.TimeZone = Obj.SysTimeZone;
+            %
+            Obj.CheckTimes = ultrasat.planner.uplanner.getDefaultCheckTimes();
+            Obj.CheckTimes.TimeZone = Obj.SysTimeZone;
             %
             Obj.Plan = table('Size',[Obj.N_planTargets,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
                                 'VariableTypes',Obj.Plan_DefVarTypes);
@@ -216,9 +218,13 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.MissionApprovedPlan.Tend.TimeZone = Obj.SysTimeZone;                            
             %
-            load(Args.CalObj); % load the calibration objects' table
+            
+            Obj.BaseDataDir = Args.BaseDataDir;
+            Obj.CalibDir = fullfile(Obj.BaseDataDir ,Args.CalSubDir);
+            
+            load(fullfile(Obj.BaseDataDir ,Args.CalObjFile)); % load the calibration objects' table     
             Obj.CalibObj = CalibObj;
-            Obj.CalibDir = Args.CalDir;
+            
         end
     end 
     %
@@ -966,8 +972,8 @@ classdef uplanner < Component
             % TODO - should allow to update only selected targets (i.e., new targets)
             arguments
                 Obj    
-                Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
-                Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
+                Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat';%'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
+                Args.FieldObjectsFile  = 'FieldObjects.mat';%'~/matlab/data/ULTRASAT/FieldObjects.mat';
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
                 Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
             end
@@ -986,8 +992,8 @@ classdef uplanner < Component
             Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec); 
             
             % load the lists of external important objects and survey maps
-            load(Args.ExtSurveyMaps); % 'SurveyMaps' table
-            load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
+            load(fullfile(Obj.BaseDataDir,Args.ExtSurveyMapsFile)); % 'SurveyMaps' table
+            load(fullfile(Obj.BaseDataDir,Args.FieldObjectsFile));  % 'Known_Obj_large', 'Known_Obj_small' tables
 
             for ii = 1:numel(Args.TargList) % loop over targets 
                 
@@ -1266,7 +1272,7 @@ classdef uplanner < Component
             
         end
         %
-        function Res = showCalibObj(Obj,UniqTargInd,Args)
+        function [Res,h] = showCalibObj(Obj,UniqTargInd,Args)
             % Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
             % Input : - object indexes
             %        ..key,val..
@@ -1284,7 +1290,10 @@ classdef uplanner < Component
                 Args.PlotSpectrum = false;
                 Args.subInd2plot  = 1;
                 Args.WaveRange    = []; % [nm] range for spectrum plotting, e.g. [230 300] 
+                Args.AxesHandle       =[]; % appUIAxes
             end
+            %
+            h = [];
             %
             if isempty(UniqTargInd)
                 TabInd = unique(Cell2Vec([Obj.UniqTarg.CalObj{:}]));
@@ -1296,19 +1305,39 @@ classdef uplanner < Component
             if Args.PlotSpectrum
                 Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{Args.subInd2plot});
                 Ftab  = fitsread(Fname,'binarytable');
-                Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
-                figure; clf                                
-                errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
-                if ~isempty(Args.WaveRange)
-                    xlim(Args.WaveRange.*10);
+                Spec  = [Ftab{1} Ftab{6} Ftab{7}];  
+                
+                if isempty(Args.AxesHandle)
+                    h = figure; clf;
+                    ax = axes(h);
+                else 
+                    ax = Args.AxesHandle;
                 end
-                title(sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
+                
+                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
+                if ~isempty(Args.WaveRange)
+                    xlim(ax,Args.WaveRange.*10);
+                end
+                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
             end            
         end
         %
     end
     % 
-    methods(Static)
+    methods (Static)  % static methods
+        %
+        function CheckTimes = getDefaultCheckTimes()
+           % Get the default Check times. TODO - update if needed
+           
+           % CheckTimes =datetime({'2028-01-01 00:00:00','2028-07-01 00:00:00'});
+           
+           T1 = dateshift(datetime('now'),'start','month'); 
+           T2 = T1+calmonths(7); 
+           CheckTimes = [T1,T2];
+        end
+    end
+    %
+    methods(Static) % unitTest, Debug
         Result = debug()
             % unitTest
             function Result = unitTest()
@@ -1324,12 +1353,13 @@ classdef uplanner < Component
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
 
-                % Example for creating LCS survey:
-                  LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
+                % Example for creating LCS survey:  
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
                   upLCS.StartTime = '2024-12-04 00:00:00';
                   upLCS.EndTime = '2025-01-16 12:00:00';
                   upLCS.DailyWindowStartTime = duration('09:58:00');
+                  
+                  LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid.csv'));
                   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
                   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
 
@@ -1340,7 +1370,7 @@ classdef uplanner < Component
                   upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
                   
                   % check with struct
-                  load('~/matlab/data/ULTRASAT/api_response.mat');
+                  load(fullfile(upLCS.BaseDataDir,'api_response.mat')');
 
                   upLCS.retrieveMissionApprovedPlan('inputPlan',response);
                   
