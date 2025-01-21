@@ -86,9 +86,6 @@
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
-%
-% 1. Add property to class
-% DataFolder = '~/matlab/data/ULTRASAT'  % or better - fullfile( getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT')
 % 
 % 3. add func getDefaultCheckTimes according to current date and plan start/end time
 % 
@@ -139,8 +136,10 @@ classdef uplanner < Component
         
         Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
         
+        BaseDataDir                      % Base directory for data needed for uplanner
+        
         CalibObj                        = []; % table of calibration objects 
-        CalibDir           
+        CalibDir                             % the catibration objects' spectra directory 
         
         ScheduledTime           datetime    % date or empty
         ValidatedTime           datetime    % date or empty
@@ -184,8 +183,9 @@ classdef uplanner < Component
                 
                 Args.AstPlanner  = '';
                 
-                Args.CalObj      = '~/matlab/data/ULTRASAT/starlib23_table.mat';  % the calibration objects' list 
-                Args.CalDir      = '~/matlab/data/ULTRASAT/Calib/';               % the catibration objects' spectra    
+                Args.BaseDataDir = '~/matlab/data/ULTRASAT/'; % Base directory for data needed for uplanner
+                Args.CalObjFile      = 'starlib23_table.mat';  % the calibration objects' list (within  BaseDataDir)
+                Args.CalSubDir      = 'Calib/';               % the catibration objects' spectra directory (within  BaseDataDir)
             end
             %          
             if isempty(Args.AstPlanner) 
@@ -216,9 +216,12 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.MissionApprovedPlan.Tend.TimeZone = Obj.SysTimeZone;                            
             %
-            load(Args.CalObj); % load the calibration objects' table
+            
+            Obj.BaseDataDir = Args.BaseDataDir;
+            Obj.CalibDir = fullfile(Obj.BaseDataDir ,Args.CalSubDir);
+            
+            load(fullfile(Obj.BaseDataDir ,Args.CalObjFile)); % load the calibration objects' table     
             Obj.CalibObj = CalibObj;
-            Obj.CalibDir = Args.CalDir;
         end
     end 
     %
@@ -966,8 +969,8 @@ classdef uplanner < Component
             % TODO - should allow to update only selected targets (i.e., new targets)
             arguments
                 Obj    
-                Args.ExtSurveyMaps = '~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
-                Args.FieldObjects  = '~/matlab/data/ULTRASAT/FieldObjects.mat';
+                Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat';%'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
+                Args.FieldObjectsFile  = 'FieldObjects.mat';%'~/matlab/data/ULTRASAT/FieldObjects.mat';
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
                 Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
             end
@@ -986,8 +989,8 @@ classdef uplanner < Component
             Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec); 
             
             % load the lists of external important objects and survey maps
-            load(Args.ExtSurveyMaps); % 'SurveyMaps' table
-            load(Args.FieldObjects);  % 'Known_Obj_large', 'Known_Obj_small' tables
+            load(fullfile(Obj.BaseDataDir,Args.ExtSurveyMapsFile)); % 'SurveyMaps' table
+            load(fullfile(Obj.BaseDataDir,Args.FieldObjectsFile));  % 'Known_Obj_large', 'Known_Obj_small' tables
 
             for ii = 1:numel(Args.TargList) % loop over targets 
                 
@@ -1324,12 +1327,13 @@ classdef uplanner < Component
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
 
-                % Example for creating LCS survey:
-                  LCS_grid = readtable('~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid.csv');
+                % Example for creating LCS survey:  
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
                   upLCS.StartTime = '2024-12-04 00:00:00';
                   upLCS.EndTime = '2025-01-16 12:00:00';
                   upLCS.DailyWindowStartTime = duration('09:58:00');
+                  
+                  LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid.csv'));
                   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
                   upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
 
@@ -1340,7 +1344,7 @@ classdef uplanner < Component
                   upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
                   
                   % check with struct
-                  load('~/matlab/data/ULTRASAT/api_response.mat');
+                  load(fullfile(upLCS.BaseDataDir,'api_response.mat')');
 
                   upLCS.retrieveMissionApprovedPlan('inputPlan',response);
                   
