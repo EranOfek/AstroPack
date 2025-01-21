@@ -77,6 +77,9 @@
 %
 % - Res = Obj.showCalibObj(UniqTargInd,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
+% Static methods:
+% - CheckTimes = getDefaultCheckTimes()                              : Get the default Check times.  TODO - update if needed
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Additional functions to be considered:- retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
@@ -86,8 +89,6 @@
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
-% 
-% 3. add func getDefaultCheckTimes according to current date and plan start/end time
 % 
 % 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
 % 
@@ -105,7 +106,7 @@ classdef uplanner < Component
         Plan                                    % table of the Plan (target per row) 
         UniqTarg                       % table of unique targets
         
-        CheckTimes(2,1)     datetime   ={'2028-01-01 00:00:00','2028-07-01 00:00:00'};
+        CheckTimes(2,1)     datetime   % times to be used for visibilty and mission approval retrival
         Vis                                     % visibility matrix         
         MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
@@ -201,6 +202,9 @@ classdef uplanner < Component
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
             Obj.EndTime.TimeZone = Obj.SysTimeZone;
             %
+            Obj.CheckTimes = ultrasat.planner.uplanner.getDefaultCheckTimes();
+            Obj.CheckTimes.TimeZone = Obj.SysTimeZone;
+            %
             Obj.Plan = table('Size',[Obj.N_planTargets,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
                                 'VariableTypes',Obj.Plan_DefVarTypes);
                             
@@ -222,6 +226,7 @@ classdef uplanner < Component
             
             load(fullfile(Obj.BaseDataDir ,Args.CalObjFile)); % load the calibration objects' table     
             Obj.CalibObj = CalibObj;
+            
         end
     end 
     %
@@ -1311,7 +1316,20 @@ classdef uplanner < Component
         %
     end
     % 
-    methods(Static)
+    methods (Static)  % static methods
+        %
+        function CheckTimes = getDefaultCheckTimes()
+           % Get the default Check times. TODO - update if needed
+           
+           % CheckTimes =datetime({'2028-01-01 00:00:00','2028-07-01 00:00:00'});
+           
+           T1 = dateshift(datetime('now'),'start','month'); 
+           T2 = T1+calmonths(7); 
+           CheckTimes = [T1,T2];
+        end
+    end
+    %
+    methods(Static) % unitTest, Debug
         Result = debug()
             % unitTest
             function Result = unitTest()
