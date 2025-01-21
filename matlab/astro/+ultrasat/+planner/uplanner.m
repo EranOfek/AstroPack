@@ -91,8 +91,6 @@
 % Verify all param range/valid values (e.g., Exp time >readtime)
 % 
 % 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
-% 
-% 5. showCalibObj and other plotting function - add arg - appUIAxes
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1274,7 +1272,7 @@ classdef uplanner < Component
             
         end
         %
-        function Res = showCalibObj(Obj,UniqTargInd,Args)
+        function [Res,h] = showCalibObj(Obj,UniqTargInd,Args)
             % Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
             % Input : - object indexes
             %        ..key,val..
@@ -1292,7 +1290,10 @@ classdef uplanner < Component
                 Args.PlotSpectrum = false;
                 Args.subInd2plot  = 1;
                 Args.WaveRange    = []; % [nm] range for spectrum plotting, e.g. [230 300] 
+                Args.AxesHandle       =[]; % appUIAxes
             end
+            %
+            h = [];
             %
             if isempty(UniqTargInd)
                 TabInd = unique(Cell2Vec([Obj.UniqTarg.CalObj{:}]));
@@ -1304,13 +1305,20 @@ classdef uplanner < Component
             if Args.PlotSpectrum
                 Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{Args.subInd2plot});
                 Ftab  = fitsread(Fname,'binarytable');
-                Spec  = [Ftab{1} Ftab{6} Ftab{7}];                
-                figure; clf                                
-                errorbar(Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
-                if ~isempty(Args.WaveRange)
-                    xlim(Args.WaveRange.*10);
+                Spec  = [Ftab{1} Ftab{6} Ftab{7}];  
+                
+                if isempty(Args.AxesHandle)
+                    h = figure; clf;
+                    ax = axes(h);
+                else 
+                    ax = Args.AxesHandle;
                 end
-                title(sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
+                
+                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
+                if ~isempty(Args.WaveRange)
+                    xlim(ax,Args.WaveRange.*10);
+                end
+                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
             end            
         end
         %
