@@ -59,6 +59,8 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration
         
         Args.VarSqrtFactor             = 1.2;   % if Var/Mode is failed - estimate Var from Mode0*VarSqrtFactor
+        
+        Args.UseHistMex                = true;
     end
     
     %OrigArray = Array;
@@ -112,7 +114,12 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Edges     = (Min:BinSize:(Max+2.*BinSize)).';
 
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
-    Nhist = matlab.internal.math.histcounts(LogArray, Edges);
+    if Args.UseHistMex
+        Nhist = tools.hist.mex.histcounts1regular(LogArray, Edges);
+    else
+        Nhist = matlab.internal.math.histcounts(LogArray, Edges);
+    end
+    
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
     % Debug: bar(BinCenter, Nhist)
@@ -130,7 +137,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
     %Nhist = matlab.internal.math.histcounts(Array, Edges);
     %Nhist1 = tools.hist.mex.histcounts1regular_mex(Array, Edges); %slower
-    Nhist = tools.hist.mex.histcounts1regular(Array, Edges); %faster
+    %if Args.UseHistMex
+    %    Nhist = tools.hist.mex.histcounts1regular(Array, Edges); %faster
+    %else
+        Nhist = matlab.internal.math.histcounts(LogArray, Edges);
+    %end
     
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
