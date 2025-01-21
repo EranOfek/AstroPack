@@ -1,4 +1,4 @@
-function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
+function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
     %{
     Match transients to previous observations.
     Input   : - AstroDiff cutouts on transients.
@@ -23,7 +23,7 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
     Author  : Ruslan Konno (Oct 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc, TCL1, Status] = pipeline.last.transients.runTransientsPipe(VisitPath)
-              [ADc, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
+              [ADc, TCL2, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
     %}
 
     arguments
@@ -49,7 +49,7 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
     % Match to DB if Args.useDB is true, otherwise look for old single
     % epoch catalogs.
     if Args.useDB
-        [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1 ...
+        [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1 ...
             , 'SubselectionFalse', Args.SubselectionFalse, 'TranDB', Args.TranDB);
     else
         ADc = matchTransientsToOldCats(ADc, TranCatLevel1, ...
@@ -58,7 +58,7 @@ function [ADc, Status] = matchTransientsToMultiEpochs(ADc, TranCatLevel1, Args)
 
 end
 
-function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
+function [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
     %{
     Match transients to previous observations using a DB.
     Input   : - AstroDiff cutouts on transients.
@@ -82,8 +82,7 @@ function [ADc, Status] = matchTransientsToDB(ADc, TranCatLevel1, Args)
     end
 
     Status = 'Uncontrolled exit.';
-    
-   
+       
     if isempty(Args.TranDB)
         Status = 'TranDB filename not given.'; 
         return

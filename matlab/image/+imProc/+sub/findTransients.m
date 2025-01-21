@@ -48,22 +48,22 @@ function TranCat=findTransients(AD, Args)
                 .StarJD - Start of exposure time bin. In JD.
                 .MidJD - Center of exposure time bin. In JD.
                 .EndJD - End of exposure time bin. In JD.
-                .PSF_SNm - S/N for measurment in difference image, assuming 
+                .SN - S/N for measurment in difference image, assuming 
                        gain=1 (Poisson errors).
-                .CHI2DOF - Chi2 per degrees of freedom of PSF fit to difference
+                .PSF_CHI2DOF - Chi2 per degrees of freedom of PSF fit to difference
                        image.
                 .NewMaskVal - Array of bit mask values in new image around peak 
                        position within area defined by 'BitCutHalfSize.'
                 .RefMaskVal - Array of bit mask values in reference image around
                        peak position within area defined by 'BitCutHalfSize.'
                 .Score - Peak value of the threshold image.
-                .N_SNm - S/N for measurment in new image, assuming 
+                .N_SN - S/N for measurment in new image, assuming 
                        gain=1 (Poisson errors).
                 .N_Chi2dof - Chi2 per degrees of freedom of PSF fit to new
                        image.
                 .N_Flux - Flux on peak position in new image. In electrons.
                 .N_Mag - Magnitude on peak position in new image.
-                .R_SNm - S/N for measurment in reference image, assuming 
+                .R_SN - S/N for measurment in reference image, assuming 
                        gain=1 (Poisson errors).
                 .R_Chi2dof - Chi2 per degrees of freedom of PSF fit to
                        reference image.
@@ -182,11 +182,11 @@ function TranCat=findTransients(AD, Args)
                 ResultR.Flux, R_FLUXERR_PSF, ResultR.Mag, R_MAGERR_PSF});
             Data = cast(Data, 'double');
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
-                {'PSF_SNm', 'CHI2DOF', ...
+                {'SN', 'PSF_CHI2DOF', ...
                 'FLUX_PSF', 'FLUXERR_PSF', 'MAG_PSF', 'MAGERR_PSF',...
-                'N_PSF_SNm', 'N_CHI2DOF', ...
+                'N_SN', 'N_PSF_CHI2DOF', ...
                 'N_FLUX_PSF', 'N_FLUXERR_PSF', 'N_MAG_PSF', 'N_MAGERR_PSF',...
-                'R_PSF_SNm', 'R_CHI2DOF', ...
+                'R_SN', 'R_PSF_CHI2DOF', ...
                 'R_FLUX_PSF', 'R_FLUXERR_PSF', 'R_MAG_PSF', 'R_MAGERR_PSF'},...
                 {'','', ...
                 'e','e','mag','mag', ...

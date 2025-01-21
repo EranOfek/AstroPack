@@ -2683,6 +2683,9 @@ classdef DemonLAST < Component
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.InsertTransients2DB = false;
+                Args.DBHost              = '10.23.1.25';
+                Args.DbName              = 'last';
+                Args.DbUser              = 'default';
                 
                 Args.HostName          = []; 
 
@@ -2720,7 +2723,18 @@ classdef DemonLAST < Component
 
             if Args.Insert2DB
                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-            end       
+            end    
+            
+            if Args.InsertTransients2DB
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;                                
+                DB          = db.Db;
+                DB.Host     = Args.DBHost;
+                DB.DbName   = Args.DbName;
+                DB.User     = Args.DbUser;
+                DB.Password = PM.search(Args.DbName).Pass;
+                DB.Conn;
+            end
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
@@ -3147,7 +3161,7 @@ classdef DemonLAST < Component
 
                                     try
                                         TranDB = strcat(Obj.SciPath,'/TranDB.mat');
-                                        [TransientCutouts, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
+                                        [TransientCutouts, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
                                             TransientCutouts, TCL1, 'useDB', true, 'TranDB', TranDB);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                     catch MEtran
@@ -3218,10 +3232,14 @@ classdef DemonLAST < Component
                                 end
                             end
                             %
-                            if Args.InsertTransients2DB
-                                pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost','last0'); 
+                            if Args.InsertTransients2DB && ~TCL2.isemptyCatalog
+                                try
+                                    pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
+                                catch ME
+                                    Obj.writeLog(ME, LogLevel.Error);
+                                end
                                 RunTime = etime(clock, Tstart); 
-                                Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients for group %d / RunTime: %.1f', Igroup, RunTime);
+                                Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients to the DB for group %d / RunTime: %.1f', Igroup, RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);                                
                             end
                             %
@@ -3285,6 +3303,9 @@ classdef DemonLAST < Component
             
             if Args.RepackRaw 
                 !fpack -D -Y *raw*fits 
+            end
+            if Args.InsertTransients2DB
+                DB.disconnectCH_Java;
             end
             cd(PWD);
 

@@ -25,6 +25,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         Args.SaveProducts logical = false;
         Args.UseLASTtools logical = false;
+        Args.TransferTranProducts = true;
         Args.SavePath = '';
 
         Args.SingleEpochThresh = 8.0;
@@ -216,6 +217,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         
         TNS_Report.at_report = AT_Report;
 
+        LAST_report = [];
+
         % If there is a galaxy match, construct potential host match message.
         GalN = Transient.CatData.getCol('GAL_N');
 
@@ -315,58 +318,116 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameCell = strcat(Args.SavePath,'/',ImageFN.genFile);
             Image_DirFilename = Image_DirFilenameCell{1};
 
-            % Draw image
-            Fig = tiledlayout('flow', 'TileSpacing', 'none');%, 'Padding', 'none');
-            % Reference image stamp
-            nexttile;
             RefMed = median(Transient.Ref.Image, 'all');
             RefStd = std(Transient.Ref.Image, 0, 'all');
             RefMin = RefMed-RefStd*3;
             RefMax = RefMed+RefStd*3;
-            imshow(Transient.Ref.Image, [RefMin RefMax]);
-            text(2,47,'Ref','Color','white','FontSize',14)
-            % New image stamp
-            nexttile;
+
             NewMed = median(Transient.New.Image, 'all');
             NewStd = std(Transient.New.Image, 0, 'all');
             NewMin = NewMed-NewStd*3;
-            NewMax = NewMed+NewStd*3;        
-            imshow(Transient.New.Image, [NewMin NewMax]);
-            text(2,47,'New','Color','white','FontSize',14)
-            % Difference image stamp
-            nexttile;
+            NewMax = NewMed+NewStd*3;
+
             DiffMed = median(Transient.Image, 'all');
             DiffStd = std(Transient.Image, 0, 'all');
             DiffMin = DiffMed-DiffStd*3;
-            DiffMax = DiffMed+DiffStd*3;        
+            DiffMax = DiffMed+DiffStd*3;
+
+            % Create individual cutouts
+            FigRef = figure('Position',[0,0,51,51]);
+            FigNew = figure('Position',[0,0,51,51]);
+            FigDiff = figure('Position',[0,0,51,51]);
+
+            figure(FigRef);
+            Image_DirFilenameRef = replace(Image_DirFilename,'.png','_Ref.png');
+            Image_FilenamePartsRef = split(Image_DirFilenameRef,'/');
+            Image_FilenameRef = Image_FilenamePartsRef{end};
+            imshow(Transient.Ref.Image, [RefMin RefMax]);
+            text(1,46,'Ref','Color','white','FontSize',10);
+
+            % If Args.SaveProducts true, save images
+            if Args.SaveProducts
+                exportgraphics(gca, Image_DirFilenameRef, 'Resolution', 300);
+                LAST_report.ref_cutout = Image_FilenameRef;
+            end
+
+            figure(FigNew);
+            Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
+            Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
+            Image_FilenameNew = Image_FilenamePartsNew{end};            
+            imshow(Transient.New.Image, [NewMin NewMax]);
+            text(1,46,'New','Color','white','FontSize',10);
+
+            % If Args.SaveProducts true, save images
+            if Args.SaveProducts
+                exportgraphics(gca, Image_DirFilenameNew, 'Resolution', 300);
+                LAST_report.new_cutout = Image_FilenameNew;
+            end
+    
+            figure(FigDiff);
+            Image_DirFilenameDiff = replace(Image_DirFilename,'.png','_Diff.png');
+            Image_FilenamePartsDiff = split(Image_DirFilenameDiff,'/');
+            Image_FilenameDiff = Image_FilenamePartsDiff{end};              
             imshow(Transient.Image, [DiffMin DiffMax]);
-            text(2,47,'Diff','Color','white','FontSize',14)
+            text(1,46,'Diff','Color','white','FontSize',10);
+            
+            % If Args.SaveProducts true, save images
+            if Args.SaveProducts
+                exportgraphics(gca, Image_DirFilenameDiff, 'Resolution', 300);
+                LAST_report.diff_cutout = Image_FilenameDiff;
+            end
+
+            % Draw mosaic image
+            FigAll = figure;
+            figure(FigAll);
+            tiledlayout('flow', 'TileSpacing', 'none');%, 'Padding', 'none');
+            % Reference image stamp
+            nexttile;
+            imshow(Transient.Ref.Image, [RefMin RefMax]);
+            text(2,47,'Ref','Color','white','FontSize',14);
+            % New image stamp
+            nexttile;
+            imshow(Transient.New.Image, [NewMin NewMax]);
+            text(2,47,'New','Color','white','FontSize',14);
+            % Difference image stamp
+            nexttile;
+            imshow(Transient.Image, [DiffMin DiffMax]);
+            text(2,47,'Diff','Color','white','FontSize',14);
             % Lightcurve
             nexttile([1 3]);
             errorbar(LC_JD, LC_Mag, LC_MagErr,'o');
             XlimMin = -5;
+            LAST_report.detections_jd = LC_JD;
+            LAST_report.detections_mag = LC_Mag;
+            LAST_report.detections_magerr = LC_MagErr;
+            LAST_report.nondetections_jd = [];
+            LAST_report.nondetections_mag = [];
+
             if LC_UL > 0
                 hold on;
                 scatter(LC_UL_JD, LC_UL_Mag, 'v');
                 hold off;
                 XlimMin = max(-30,min(LC_UL_JD-5));
+                LAST_report.nondetections_jd = LC_UL_JD;
+                LAST_report.nondetections_mag = LC_UL_Mag;
             end
             set(gca, 'YDir','reverse');
             xlim([XlimMin 5]);
             set(gca,'fontsize',14)
 
             % If Args.SaveProducts true, save image
+            TNS_Report.last_report = LAST_report;
             if Args.SaveProducts
-                saveas(Fig, Image_DirFilename);
+                saveas(FigAll, Image_DirFilename);
                 Json_DirFilename = replace(Image_DirFilename,'.png','.json');
                 Json_Filename = replace(Image_Filename,'.png','.json');
                 Json = jsonencode(TNS_Report, 'ConvertInfAndNaN',false);
                 fid = fopen(Json_DirFilename,'w');
-                fprintf(fid, Json); 
+                fprintf(fid, Json);
                 fclose(fid);
             end
         end
-        
+      
         % Use last-tools to send alerts
         if Args.UseLASTtools
             if ~isfile(Image_DirFilename)
@@ -384,6 +445,24 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 Status = sprint('Alerting via last-tools failed: %s', CMD0Out);
                 return
             end
+
+            if Args.TransferTranProducts
+                % TODO: replace this with a last-tool script call later
+    
+                CutoutsRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/cutouts';
+                JsonRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/json';
+    
+                MoveRefCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameRef,{' '},CutoutsRemote);
+                MoveNewCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameNew,{' '},CutoutsRemote);
+                MoveDiffCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameDiff,{' '},CutoutsRemote);
+                MoveJsonCMD = strcat('rsync -a ',{' '},Json_DirFilename,{' '},JsonRemote);
+    
+                [~, ~] = system(MoveRefCutoutCMD{1});
+                [~, ~] = system(MoveNewCutoutCMD{1});
+                [~, ~] = system(MoveDiffCutoutCMD{1});
+                [~, ~] = system(MoveJsonCMD{1});
+            end
+
             Status =  'Succesful exit, alert(s) sent.';
             return
         end

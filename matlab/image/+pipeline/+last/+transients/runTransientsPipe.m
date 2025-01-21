@@ -94,6 +94,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     NBelowMinNCoadd = 0;
     %NAboveMaxNFWHM = 0;
 
+
+
     for Iobj=Nobj:-1:1
 
         NCOADD = New(Iobj).HeaderData.getVal('NCOADD');
@@ -103,7 +105,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
             continue
         end
 
-        NFWHM = New(Iobj).HeaderData.getVal('FWHM');
+        %NFWHM = New(Iobj).HeaderData.getVal('FWHM');
 
         %if NFWHM >= Args.MaximumFWHM
         %    NAboveMaxNFWHM = NAboveMaxNFWHM + 1;
@@ -126,16 +128,18 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         CoaddRefFile = RefFile;
         DeepRefFile{1} = replace(RefFile{1},'_coadd_','_ref_');
 
+        RefIsBackgroundSubtracted = false;
+
         % Continue if no ref image found
         if ~isempty(dir(DeepRefFile{1}))
             RefFile = DeepRefFile;
+            RefIsBackgroundSubtracted = true;
         elseif ~isempty(dir(CoaddRefFile{1}))
             RefFile = CoaddRefFile;
         else
             warning('Reference image not found for image %s', FN.genFile{1});
             continue
         end
-        NRefsFound = NRefsFound + 1;
 
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
@@ -144,16 +148,24 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         NewName = FN.genFile;
         RefName = FNrref.genFile;
 
+        % Make sure reference products are complete.
+        if isempty(Ref.PSF) || isempty(Ref.Mask)
+            warning('Missing reference products.');
+            continue
+        end
+        
         % Compare new and ref image names, continue if both are the same
         % image
         if convertCharsToStrings(NewName{1}) == convertCharsToStrings(RefName{1})
             warning('New image is reference image.');
-            NRefsFound = NRefsFound - 1;
             continue
         end
 
+        NRefsFound = NRefsFound + 1;
+
         % Create AstroDiff
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
+        AD(Iobj).RefIsBackgroundSubtracted = RefIsBackgroundSubtracted;
     end
 
     if NBelowMinNCoadd == Nobj
@@ -165,13 +177,13 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     %    Status = 'All new images above FWHM threshold.';
     %    return;
     %end
-
+    
     % If no reference images found, return
     if NRefsFound < 1
         Status = 'No reference images found.';
         return;
     end
-
+    
     % Remove empty AstroDiff objects and remember number of AstroDiffs
     NonEmptyCell = any(~cellfun('isempty',{AD(:).New}), 1);
     if ~any(NonEmptyCell)
@@ -181,7 +193,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
-
+    
     % Register New and Ref
     AD.register;
     % Estimate backround and variance of New and Ref

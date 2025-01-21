@@ -213,17 +213,17 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Apply Chi2 per degrees of freedom criterium.
-        if Args.flagChi2 && Cat.isColumn('CHI2DOF')
-            DChi2 = Cat.getCol('CHI2DOF');
+        if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
+            DChi2 = Cat.getCol('PSF_CHI2DOF');
             GoodChi2dofD = (DChi2 > Args.DChi2dofLimits(1)) &...
                 (DChi2 < Args.DChi2dofLimits(2));
             GoodChi2dof = GoodChi2dofD;
 
             % Demand also that in at least New or Ref, 
             % the candidate is not overfitted
-            if Cat.isColumn('N_CHI2DOF') && Cat.isColumn('R_CHI2DOF')
-                NChi2 = Cat.getCol('N_CHI2DOF');
-                RChi2 = Cat.getCol('R_CHI2DOF');
+            if Cat.isColumn('N_PSF_CHI2DOF') && Cat.isColumn('R_PSF_CHI2DOF')
+                NChi2 = Cat.getCol('N_PSF_CHI2DOF');
+                RChi2 = Cat.getCol('R_PSF_CHI2DOF');
                 PosSrc = Score > 0;
                 NegSrc = Score < 0;
                 
@@ -286,7 +286,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Apply soft bit mask criteria.
-        if Args.flagBadPix_Soft && exist('BD','var') && Cat.isColumn('PSF_SNm')
+        if Args.flagBadPix_Soft && exist('BD','var') && Cat.isColumn('SN')
 
             NBadSoft = numel(Args.BadPix_Soft);
 
@@ -299,7 +299,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
 
                 AboveThreshold = (abs(Cat.getCol('SCORE')) >= IBadPix_Soft{2})...
-                    & (abs(Cat.getCol('PSF_SNm')) >= IBadPix_Soft{3});
+                    & (abs(Cat.getCol('SN')) >= IBadPix_Soft{3});
 
                 FlagBadSoft_New = FlagBadSoft_New | (...
                     BD.findBit(BM_new, IBadPix_Soft{1}) & ~AboveThreshold);
@@ -350,16 +350,16 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Apply signal to noise criterium
-        if Args.flagSNR && Cat.isColumn('PSF_SNm')
+        if Args.flagSNR && Cat.isColumn('SN')
 
-            SNR = Cat.getCol('PSF_SNm');
+            SNR = Cat.getCol('SN');
             SNRBelowThresh = (SNR < Args.SNRThreshold);
 
             SNRFlagged = SNRBelowThresh;
             TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
-        if Args.flagPeakDist && Cat.isColumn('PEAK_DIST') 
+        if Args.flagPeakDist && Cat.isColumn('PEAK_DIST')
 
             PeakDist = Cat.getCol('PEAK_DIST');
             PeakTooFar = PeakDist > Args.PeakDistThreshold;

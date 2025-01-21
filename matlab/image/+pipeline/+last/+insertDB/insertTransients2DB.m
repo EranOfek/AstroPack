@@ -5,6 +5,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     %          - AstroHeaders of the "new" images 
     %          * ...,key,val,... 
     %        'Template'        - template of tables' structure
+    %        'DB'              - a db.Db object with connection open
     %        'Db*'             - database parameters
     %        'DbTable'         - DB table name
     %        'ColNameID'       - column name for the file unique ID    
@@ -19,6 +20,8 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         
         Args.Template = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
+        Args.DB     = [];
+        
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
@@ -29,16 +32,20 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         Args.KeyID     = 'id_new_im'; % 'id_visit_im' ???  
         Args.ColNameID = 'id_diff_src';                        
     end    
-    % create a DB object and connect
-    DB          = db.Db;
-    DB.Host     = Args.DbHost;
-    DB.DbName   = Args.DbName;
-    DB.User     = Args.DbUser;
-    DB.Password = Args.DbPass;
-    DB.Conn;
+    % create a DB object and connect or use a preloaded object with connection
+    if isempty(Args.DB)        
+        DB          = db.Db;
+        DB.Host     = Args.DbHost;
+        DB.DbName   = Args.DbName;
+        DB.User     = Args.DbUser;
+        DB.Password = Args.DbPass;
+        DB.Conn;    
+    else
+        DB = Args.DB;
+    end    
     DB.useDB(Args.DbName);
-    fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
+%     fprintf('DB in use: %s\n',DB.showCurrentDB);
+%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %    
@@ -60,5 +67,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     T=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
         'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DeleteFile',1);
     % disconnect the DB
-    DB.disconnectCH_Java;  
+    if isempty(Args.DB)
+        DB.disconnectCH_Java;
+    end
 end

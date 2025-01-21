@@ -8,8 +8,9 @@ function Result = unitTest(Args)
     arguments
         Args.RestoreNew = true;  % copy the raw data back to new 
         Args.Insert2DB  = false; % whether to perform the DB part
-        Args.AstroDBArgs cell  = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
-%         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
+        Args.AstroDBArgs cell = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
+        Args.InsertTransients2DB = true;
+        Args.DBHost              = 'socsrv';
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
@@ -38,6 +39,7 @@ function Result = unitTest(Args)
     D.main('StopButton',false,'StopWhenDone',true,...
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs,...
            'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+           'InsertTransients2DB',Args.InsertTransients2DB,'DBHost',Args.DBHost,...
            'SaveEpochProduct',Args.SaveEpochProduct,...
            'NonStandardNew',Args.NonStandardNew,...
            'MinInGroup',Args.MinInGroup,...
@@ -50,6 +52,7 @@ function Result = unitTest(Args)
         % used for the unitTest and distributed with Installer is of 2023/06/16 
         CurrentDir = pwd; cd(BaseDir);
         !cp 2023/06/16/raw/LAST*fits new/  
+%         !cp new2/* new3/
         cd(CurrentDir);
     end
    
