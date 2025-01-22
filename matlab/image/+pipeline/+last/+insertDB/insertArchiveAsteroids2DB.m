@@ -34,7 +34,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
         Args.DbPass = 'PassRoot'; 
         
         Args.Level  = 'coadd';
-        Args.DbTable= 'visit_asteroids2';  %  'visit_asteroids' 
+        Args.DbTable= 'visit_asteroids';  %  'visit_asteroids' 
         Args.KeyID     = 'id_visit_im';
         Args.ColNameID = 'id_visit_src';        
         
@@ -90,7 +90,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                 NCrop  = numel(CropID);
                 ObjNew = struct([]);
                 AH     = repmat(AstroHeader,1,NCrop);
-                Headers= dir('*coadd*Cat*fits'); % get the list of all the coadd*Cat files from where to read the headers                                
+                Headers= dir('*coadd_Cat*fits'); % get the list of all the coadd*Cat files from where to read the headers                                
                 for Icrop = 1:NCrop
                     ObjNew(Icrop).Table = Obj.Table(Obj.Table.CropID == CropID(Icrop), :); % select the lines by cropid
                     AH(Icrop) = AstroHeader(Headers(CropID(Icrop)).name,3);                % for each cropid read the appropriate header
@@ -137,9 +137,11 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                                                      
 
-            T=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                                    'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);
-            
+            [~, Error]=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                                    'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);            
+            if ~isempty(Error)
+                error('catalog injection failed');
+            end
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
