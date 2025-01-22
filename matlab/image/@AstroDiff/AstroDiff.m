@@ -718,13 +718,13 @@ classdef AstroDiff < AstroImage
                 Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
                 Args.BackFunPar cell             = {'MinVal',30, 'MaxVal',7000}; %{[1 2]};  % 5000 is the max vab. allowed in LAST images
 
-                Args.VarFun                      = @imUtil.background.rvar; %@imUtil.background.rvar; % [];
+                Args.VarFun                      = []; %@imUtil.background.rvar; % [];
                 Args.VarFunPar cell              = {};
                 Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
 
-                Args.useHeaderVal                = false;
+                Args.useHeaderVal                = true;
                 Args.HeaderBackKey               = 'MEDBCK';
                 Args.HeaderVarKey                = 'MEDVAR';
             end
@@ -744,7 +744,6 @@ classdef AstroDiff < AstroImage
                             Obj(Iobj).New.HeaderData.getVal(Args.HeaderVarKey), ...
                             ImageSize, ImageSize);
                     else
-
                         Obj(Iobj).New = imProc.background.background(...
                             Obj(Iobj).New, 'BackFun',Args.BackFun,...
                             'BackFunPar',Args.BackFunPar,...
