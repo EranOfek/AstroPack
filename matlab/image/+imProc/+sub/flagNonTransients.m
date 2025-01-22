@@ -117,8 +117,12 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.DChi2dofLimits = [0.2 1.5];
-        Args.NRChi2dofLimits = [0.1 1.60];
+        %Args.DChi2dofLimits = [0.2 1.5];
+        %Args.NRChi2dofLimits = [0.1 1.60];
+        Args.PSFChi2Mean = [0.64096051, 0.65603272]
+        Args.PSFChi2CovInv = [11.06639904, -4.23111166;...
+            -4.23111166, 10.35510321];
+        Args.PSFChi2DistThreshold = 2.7;        
         
         Args.flagSaturated logical = true;
 
@@ -140,7 +144,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagRinging logical = true;
 
         Args.flagPeakDist logical = true;
-        Args.PeakDistThreshold = 1.33;
+        Args.PeakDistThreshold = 1.6;
         Args.PeakDistThresholdGal = 2.0;
 
         Args.flagLimitingMag logical = true;    
@@ -167,7 +171,7 @@ function TranCat = flagNonTransients(Obj, Args)
             'Ringing', 'Translient', 'Streak'};
 
         Args.flagCR logical = true;
-        Args.CRDeltaSN = -0.8;
+        Args.CRDeltaSN = 0.3;
 
         Args.flagVariable logical = true;
 
@@ -214,6 +218,25 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
+
+            D_CHI2DOF = Cat.getCol('PSF_CHI2DOF');
+            N_CHI2DOF = Cat.getCol('N_PSF_CHI2DOF');
+            R_CHI2DOF = Cat.getCol('R_PSF_CHI2DOF');
+            Negatives = Score < 0;
+
+            NR_CHI2DOF = N_CHI2DOF;
+            NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
+            Dchi2NRchi2 = [D_CHI2DOF(:),NR_CHI2DOF(:)];
+
+            Dchi2NRchi2Diff = Dchi2NRchi2 - Args.PSFChi2Mean;
+
+            MahalanobisDist = sqrt(sum(...
+                (Dchi2NRchi2Diff*Args.PSFChi2CovInv).*Dchi2NRchi2Diff,2));
+
+            Chi2dofFlagged = (MahalanobisDist > Args.PSFChi2DistThreshold);
+
+            TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
+            %{ 
             DChi2 = Cat.getCol('PSF_CHI2DOF');
             GoodChi2dofD = (DChi2 > Args.DChi2dofLimits(1)) &...
                 (DChi2 < Args.DChi2dofLimits(2));
@@ -238,7 +261,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             Chi2dofFlagged = ~GoodChi2dof;
-            TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
+            %}
         end
     
         % Apply bit mask critera.
@@ -498,7 +521,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagCR
             SN_delta = Cat.getCol('SN_delta');
-            NoNCRs = (abs(SN_delta) < abs(Score) + Args.CRDeltaSN);
+            NoNCRs = (abs(Score) - abs(SN_delta) >  Args.CRDeltaSN);
             TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
         end
 
