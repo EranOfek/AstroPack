@@ -69,6 +69,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         TNS_Report = [];
         AT_Report = [];
+        LAST_report = [];
 
         % Get meta data
         RA = Transient.CatData.getCol('RA');
@@ -116,9 +117,24 @@ function [Status] = sendTransientsAlert(ADc, Args)
         CropID0 = CropID(Ind0);
         Object0 = Transient.HeaderData.getVal('OBJECT');
 
+        LAST_report.mount = Mount0;
+
         if isnumeric(Object0)
             Object0 = sprintf('%i',Object0);
         end
+
+        ObjectParts = split(Object0, '.');
+        if numel(ObjectParts) > 1
+            Field0 = ObjectParts{1};
+        else
+            Field0 = Object0;
+        end
+
+        LAST_report.object = Object0;
+        LAST_report.cropid = CropID0;
+        LAST_report.field = Field0;
+        LAST_report.camera = Camera0;
+        LAST_report.score = Score0;
 
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
@@ -192,6 +208,13 @@ function [Status] = sendTransientsAlert(ADc, Args)
             {' '},sprintf('%.2f',Ref_LimMag),'.');
         Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
 
+        LAST_report.ref_jd = Ref_JD;
+
+        Ref_FilenameWhole = Transient.Ref.ImageData.FileName;
+        Ref_FilenameParts = split(Ref_FilenameWhole,'/');
+        Ref_Filename = Ref_FilenameParts{end};
+        LAST_report.ref_filename = Ref_Filename;
+
         NonDetection = [];
         NonDetection.obsdate = Ref_DateString;
         NonDetection.flux = round(Ref_LimMag,2);
@@ -209,27 +232,27 @@ function [Status] = sendTransientsAlert(ADc, Args)
         DetectionPhotometry.flux_units = 1;
         DetectionPhotometry.filter_value = 1;
         DetectionPhotometry.instrument_value = 269;
-        DetectionPhotometry.exptime = NExpTime;        
+        DetectionPhotometry.exptime = NExpTime;
 
         Photometry = [];
         Photometry.photometry_group = DetectionPhotometry;
         AT_Report.photometry = Photometry;
-        
-        TNS_Report.at_report = AT_Report;
 
-        LAST_report = [];
+        TNS_Report.at_report = AT_Report;
 
         % If there is a galaxy match, construct potential host match message.
         GalN = Transient.CatData.getCol('GAL_N');
+
+        LAST_report.gal_dist = NaN;
 
         if any(GalN > 0)
             GalDists = Transient.CatData.getCol('GAL_DIST');
             GalDists = GalDists(GalDists>0);
             GalDist = mean(GalDists);
-    
+
             [GLADEpCat,~,~] = catsHTM.cone_search('GLADEp', RA0*pi/180, Dec0*pi/180, ...
                 GalDist*1.5, 'OutType','AstroCatalog');
-    
+
             if GLADEpCat.sizeCatalog > 0
 
                 Rad2Arcsec = 206265;
@@ -246,7 +269,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 MatchesGlade = vertcat(MatchResGlade.Nmatch);
     
                 DistsGlade = arrayfun(@(a)min(a.Dist),MatchResGlade(MatchesGlade > 0));
-        
+
                 GalDists = Rad2Arcsec * DistsGlade;
                 GalDist = min(GalDists);
 
@@ -258,6 +281,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
                     'It has a redshift of', {' '}, sprintf('%.3f',Redshift(GalDists==GalDist)),{' '},...
                     'and a quiescient Bmag of', {' '}, sprintf('%.2f',Bmag(GalDists==GalDist)),...
                     '.');
+
+                LAST_report.gal_dist = GalDist;
                 Msg{1} = strcat(Msg{1},'\n',Gal_Msg{1});
             end
         end
@@ -277,6 +302,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if Dec0 > 0
             PlusSign = '+';
         end
+
         PS1Link =  strcat('https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=', ...
             num2str(RA0),PlusSign,num2str(Dec0),'&filter=color&size=720');
         PS1_Msg = strcat('<',PS1Link,'|','PS1>');
@@ -334,46 +360,43 @@ function [Status] = sendTransientsAlert(ADc, Args)
             DiffMax = DiffMed+DiffStd*3;
 
             % Create individual cutouts
-            FigRef = figure('Position',[0,0,51,51]);
-            FigNew = figure('Position',[0,0,51,51]);
-            FigDiff = figure('Position',[0,0,51,51]);
+            FigRef = figure('Position',[1,1,51,51],'Visible','on');
+            FigNew = figure('Position',[1,1,51,51],'Visible','on');
+            FigDiff = figure('Position',[1,1,51,51],'Visible','on');
 
-            figure(FigRef);
+            axRef = axes(FigRef);
             Image_DirFilenameRef = replace(Image_DirFilename,'.png','_Ref.png');
             Image_FilenamePartsRef = split(Image_DirFilenameRef,'/');
             Image_FilenameRef = Image_FilenamePartsRef{end};
-            imshow(Transient.Ref.Image, [RefMin RefMax]);
-            text(1,46,'Ref','Color','white','FontSize',10);
+            imshow(Transient.Ref.Image, [RefMin RefMax], 'Parent', axRef);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
-                exportgraphics(gca, Image_DirFilenameRef, 'Resolution', 300);
+                exportgraphics(axRef, Image_DirFilenameRef, 'Resolution', 300);
                 LAST_report.ref_cutout = Image_FilenameRef;
             end
 
-            figure(FigNew);
+            axNew = axes(FigNew);
             Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
             Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
-            Image_FilenameNew = Image_FilenamePartsNew{end};            
-            imshow(Transient.New.Image, [NewMin NewMax]);
-            text(1,46,'New','Color','white','FontSize',10);
+            Image_FilenameNew = Image_FilenamePartsNew{end};
+            imshow(Transient.New.Image, [NewMin NewMax], 'Parent', axNew);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
-                exportgraphics(gca, Image_DirFilenameNew, 'Resolution', 300);
+                exportgraphics(axNew, Image_DirFilenameNew, 'Resolution', 300);
                 LAST_report.new_cutout = Image_FilenameNew;
             end
     
-            figure(FigDiff);
+            axDiff = axes(FigDiff); %#ok<*LAXES>
             Image_DirFilenameDiff = replace(Image_DirFilename,'.png','_Diff.png');
             Image_FilenamePartsDiff = split(Image_DirFilenameDiff,'/');
-            Image_FilenameDiff = Image_FilenamePartsDiff{end};              
-            imshow(Transient.Image, [DiffMin DiffMax]);
-            text(1,46,'Diff','Color','white','FontSize',10);
+            Image_FilenameDiff = Image_FilenamePartsDiff{end};
+            imshow(Transient.Image, [DiffMin DiffMax], 'Parent', axDiff);
             
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
-                exportgraphics(gca, Image_DirFilenameDiff, 'Resolution', 300);
+                exportgraphics(axDiff, Image_DirFilenameDiff, 'Resolution', 300);
                 LAST_report.diff_cutout = Image_FilenameDiff;
             end
 
@@ -397,7 +420,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             nexttile([1 3]);
             errorbar(LC_JD, LC_Mag, LC_MagErr,'o');
             XlimMin = -5;
-            LAST_report.detections_jd = LC_JD;
+            LAST_report.detections_jd = LC_JD+JD0;
             LAST_report.detections_mag = LC_Mag;
             LAST_report.detections_magerr = LC_MagErr;
             LAST_report.nondetections_jd = [];
@@ -408,7 +431,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 scatter(LC_UL_JD, LC_UL_Mag, 'v');
                 hold off;
                 XlimMin = max(-30,min(LC_UL_JD-5));
-                LAST_report.nondetections_jd = LC_UL_JD;
+                LAST_report.nondetections_jd = LC_UL_JD+JD0;
                 LAST_report.nondetections_mag = LC_UL_Mag;
             end
             set(gca, 'YDir','reverse');
@@ -427,7 +450,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 fclose(fid);
             end
         end
-      
+        
         % Use last-tools to send alerts
         if Args.UseLASTtools
             if ~isfile(Image_DirFilename)
