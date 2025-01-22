@@ -77,6 +77,8 @@
 %
 % - Res = Obj.showCalibObj(UniqTargInd,Args)                        : Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
 %
+% - Obj.plotVisibility(UniqTargInd,Args)                            : Plot the visibilty of a UniqTarg
+%
 % Static methods:
 % - CheckTimes = getDefaultCheckTimes()                              : Get the default Check times.  TODO - update if needed
 %
@@ -1103,8 +1105,6 @@ classdef uplanner < Component
                 Args.WindowEndTime   = []; 
             end
             %
-            RAD = 180/pi;          
-            %
             if isempty(Args.WindowStartTime)
                 Args.WindowStartTime = Obj.CheckTimes(1);
             end
@@ -1322,6 +1322,107 @@ classdef uplanner < Component
             end            
         end
         %
+        function plotVisibility(Obj,UniqTargInd,Args)
+            % plot the visibilty of a UniqTarg
+            arguments
+                Obj
+                UniqTargInd
+                Args.AxesHandle       =[]; % appUIAxes                
+                Args.TimeWindowJD   = []; 
+                Args.JD_offset    = 2460000;
+                Args.SunColor     = 'k';
+                Args.EarthColor     = 'b';
+                Args.MoonColor     = 'g';
+                Args.TimeColor      = 'r';
+            end
+            
+            RAD = 180/pi;  
+            
+            if isempty(Args.AxesHandle)
+                h = figure('WindowStyle','docked','Color',[1 1 1]); clf;  
+                ax = axes(h);
+            else 
+                ax = Args.AxesHandle;
+            end
+            hold on; box on;
+            
+            V = Obj.Vis;
+            
+            % plot Sun/Earth/Moon distances
+            plot(ax,V.JD-Args.JD_offset,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
+            plot(ax,V.JD-Args.JD_offset,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
+            plot(ax,V.JD-Args.JD_offset,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+            
+            % plot Sun/Earth/Moon limits
+            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);
+            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
+            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+            
+            yl = ylim(ax); % can be removed when using xregion
+                        
+            % Check for unobservable times due to Sun %% ERROR if only one JD is not observable
+            Fvis = find(~V.SunLimits(:,UniqTargInd));
+            if ~isempty(Fvis)
+                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+
+                for i = 1:height(nonVisWindows)
+                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                end
+            end
+            
+            % Check for unobservable times due to Earth %% ERROR if only one JD is not observable
+            Fvis = find(~V.EarthLimits(:,UniqTargInd));
+            if ~isempty(Fvis)            
+                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                clear nonVisWindows;
+                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+
+                for i = 1:height(nonVisWindows)
+                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                end
+            end
+            
+            % Check for unobservable times due to Moon %% ERROR if only one JD is not observable
+            Fvis = find(~V.MoonLimits(:,UniqTargInd));
+            if ~isempty(Fvis)            
+                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                clear nonVisWindows;
+                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+
+                for i = 1:height(nonVisWindows)
+                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                end            
+            end
+            
+            % set plot limits
+            ylim(ax,yl); % can be removed when using xregion
+            
+            xlim(ax,V.JD([1,end])-Args.JD_offset);
+            if ~isempty(Args.TimeWindowJD)
+                xlim(ax,Args.TimeWindow-Args.JD_offset)
+            end
+            
+            
+            % plot StartTime and EndTime            
+            xline(ax,juliandate(Obj.StartTime)-Args.JD_offset,['-' Args.TimeColor],'Start Time');
+            xline(ax,juliandate(Obj.EndTime)-Args.JD_offset,['-' Args.TimeColor],'End Time');
+            
+            xlabel(ax,sprintf('JD-%.1f',Args.JD_offset)); 
+            ylabel(ax,'Angular distance [deg]');
+            title(ax,sprintf('Visibility of UniqTarget #%d',UniqTargInd)); 
+            legend('Sun','Earth','Moon','Location','best');
+            
+        end
     end
     % 
     methods (Static)  % static methods
@@ -1348,16 +1449,16 @@ classdef uplanner < Component
                 % Example for creating HCS survey:
                   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
                   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-                  upHCS.StartTime = '2028-01-01 12:00:00';
-                  upHCS.EndTime = '2028-07-01 12:00:00';
+                  upHCS.StartTime = 'now';
+                  upHCS.EndTime = upHCS.StartTime+calmonths(6);
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
 
                 % Example for creating LCS survey:  
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-                  upLCS.StartTime = '2024-12-04 00:00:00';
-                  upLCS.EndTime = '2025-01-16 12:00:00';
-                  upLCS.DailyWindowStartTime = duration('09:58:00');
+                  upLCS.StartTime = 'now';
+                  upLCS.EndTime = upLCS.StartTime+caldays(45);
+                  upLCS.DailyWindowStartTime = duration('03:00:00');
                   
                   LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid.csv'));
                   F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
@@ -1408,8 +1509,8 @@ classdef uplanner < Component
                 % Example DDT plan (very basic):
                   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
                   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
-                  upDDT.addDDT2Plan([1,2],'2028-01-01 12:00:00');
-                  upDDT.addDDT2Plan([3,2],'2028-01-05 00:10:00'); 
+                  upDDT.addDDT2Plan([1,2],'now');
+                  upDDT.addDDT2Plan([3,2],'tomorrow'); 
 
                  %
                  Result=true;                                 
