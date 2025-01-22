@@ -43,6 +43,7 @@ function Result=interp2wcs(Obj, Ref, Args)
         Args.CopyWCS logical          = true;
         Args.CopyHeader logical       = true;
         Args.CreateNewObj logical     = true;
+        Args.CopyFilename logical     = true;
 
         Args.Sampling                 = 20;
         
@@ -114,6 +115,9 @@ function Result=interp2wcs(Obj, Ref, Args)
                 Result(Iobj).WCS = RefWCS(Iref);
             end
             %Result(Iobj).WCS = Obj(Iobj).WCS.copy;
+        end
+        if Args.CopyFilename
+            Result(Iobj).ImageData.FileName = Obj(Iref).ImageData.FileName;
         end
         if Args.CopyHeader
             if Args.CreateNewObj

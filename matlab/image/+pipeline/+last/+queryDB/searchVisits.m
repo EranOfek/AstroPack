@@ -1,14 +1,13 @@
 function [T, DB] = searchVisits(RA, Dec, Args)
     % Search LAST visits by coordinates or fieldid/camnum/cropid
+    %   Use: pipeline.last.queryDB.searchVisitsByCoo for exact coo. search
     % Input  : - Either:
     %            J2000 RA [deg|rad|sexagesimal string]
     %            or: Object name string (in this case Dec (2nd argument) must be
     %            empty.
     %            or: A cell array of {fieldid, camnum, cropid}
     %            where cropid can be a vector of several elements.
-    %            or: a table which is the output of a visit_images table
-    %            (all the images in the table will be coadd with no
-    %            post spelection).
+    %            or: a table which which will be returned as is.
     %          - J2000.0 Dec, or empty Default is [].
     %          * ...,key,val,... 
     %            'HalfWidth' -The [RA, Dec] half width of the crop image

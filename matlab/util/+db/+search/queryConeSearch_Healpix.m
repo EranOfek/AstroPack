@@ -1,4 +1,4 @@
-function [WhereClause] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Args)
+function [WhereClause,PixHP] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Args)
     % Given RA and Dec, construct a query to search a DB table by Healpix pixel indices.
     %     Given Long/Lat and search radius, find all the healpix indices
     %     that are in the cone. Construct an SQL query WHERE clause that
@@ -28,9 +28,10 @@ function [WhereClause] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Args)
     %                   Default is @VO.name.server_simbad
     %
     % Output : - A char array with healpix cone search SQL Where clause.
+    %          - A vector of healpix pixels that covers the cone search.
     % Author : Eran Ofek (2025 Jan) 
     % Example: WhereClause=db.search.queryConeSearch_Healpix(100,10)  % deg
-    %          WhereClause=db.search.queryConeSearch_Healpix('10:10:10','-20:10:10',5,'NSide',2.^13, 'HP_ColName','upix_low')
+    %          WhereClause=db.search.queryConeSearch_Healpix('10:10:10','-20:10:10',5,'NSide',2.^8, 'HP_ColName','upix_low')
     %          
 
     arguments
@@ -50,6 +51,8 @@ function [WhereClause] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Args)
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
     
+warning('This function may have a bug')
+
     if strcmp(Args.SearchRadiusUnits, 'arcsec')
         % quick conversion
         SearchRadius = SearchRadius./(RAD.*ARCSEC_DEG);  % [rad]
