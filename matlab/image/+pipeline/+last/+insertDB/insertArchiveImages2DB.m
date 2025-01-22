@@ -116,9 +116,11 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             A.FileType = "csv"; A.julday2time;
             CsvFN = A.genFile;                              
 
-            T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            [~, Error]=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
-            
+            if ~isempty(Error)
+                error('image injection failed');
+            end
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
