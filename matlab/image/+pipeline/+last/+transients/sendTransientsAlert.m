@@ -114,7 +114,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         
         Mount0 = Mount(Ind0);
         Camera0 = Camera(Ind0);
-        CropID0 = CropID(Ind0);
+        CropID0 = Transient.HeaderData.getVal('CROPID');
         Object0 = Transient.HeaderData.getVal('OBJECT');
 
         LAST_report.mount = Mount0;
