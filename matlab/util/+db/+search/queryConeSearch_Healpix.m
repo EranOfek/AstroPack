@@ -50,6 +50,8 @@ function [WhereClause] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Args)
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
     
+error('This function have a bug')
+
     if strcmp(Args.SearchRadiusUnits, 'arcsec')
         % quick conversion
         SearchRadius = SearchRadius./(RAD.*ARCSEC_DEG);  % [rad]

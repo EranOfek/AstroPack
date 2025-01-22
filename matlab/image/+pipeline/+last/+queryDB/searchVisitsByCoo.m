@@ -1,6 +1,6 @@
-function [T, DB] = searchVisits(RA, Dec, Args)
-    % Search LAST visits by coordinates or fieldid/camnum/cropid
-    %   Use: pipeline.last.queryDB.searchVisitsByCoo for exact coo. search
+function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
+    % Search LAST visits by coordinates
+    %   see also: pipeline.last.queryDB.searchVisits
     % Input  : - Either:
     %            J2000 RA [deg|rad|sexagesimal string]
     %            or: Object name string (in this case Dec (2nd argument) must be
@@ -10,6 +10,9 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     %            or: a table which which will be returned as is.
     %          - J2000.0 Dec, or empty Default is [].
     %          * ...,key,val,... 
+    %            'UseCorners' - Logical indicating if to select only
+    %                   images that search coordinates fall within the 4 corners of the image.
+    %                   Default is true.
     %            'HalfWidth' -The [RA, Dec] half width of the crop image
     %                   size. This is used in case images are searched by
     %                   coordinates. Default is [0.55 0.55]./1
@@ -29,20 +32,24 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     %            See code, for additional (hidden) arguments.
     %
     % Output : - A cell array of tables of the selected images used for the coaddition.
-    %            Cell element per coadd image.
+    %            Cell element per coordinate search.
     %          - The db.Db object.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: T=pipeline.last.queryDB.searchVisits({1325 2 20});
-    %          T=pipeline.last.queryDB.searchVisits(100,10);
-    %          T=pipeline.last.queryDB.searchVisits('M31')
-    %          T=pipeline.last.queryDB.searchVisits('M31',[],'Constraints',{'jd_start',[2451545 2461000]; 'fwhm',[1 4]})
+    % Example: T=pipeline.last.queryDB.searchVisitsByCoo(100,10);
+    %          T=pipeline.last.queryDB.searchVisitsByCoo('M31')
+    %          T=pipeline.last.queryDB.searchVisitsByCoo('M31',[],'Constraints',{'jd_start',[2451545 2461000]; 'fwhm',[1 4]})
 
     arguments
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
         Dec                    = [];
 
-        Args.HalfWidth         = [0.55 0.55]./1;
-        Args.MaxNim            = 1e6;  % maximum number of images to add
+        Args.InitSearchRadius  = 2000;  % [arcsec]
+        Args.NSide_Low         = 2.^8;
+        Args.QueryMethod       = 'radec';
+        Args.UseCorners        = true;
+
+        Args.HalfWidth         = 1.*[0.55 0.55]./1;
+        Args.MaxNim            = 1e7;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
 
         Args.Constraints       = {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
@@ -59,8 +66,12 @@ function [T, DB] = searchVisits(RA, Dec, Args)
                                   "meanbck", "medbck", "stdbck", "meanvar", "medvar", "fwhm", "med_a", "med_b", "med_th", "nsrc",...
                                   "ph_zp", "ph_col1", "ph_medc", "ph_rms", "ph_nsrc", "limmag", "backmag", "ncoadd",...
                                   "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4", "optics_cln"];
+        
+        Args.ColCornerRA       = ["ra1","ra2","ra3","ra4"];
+        Args.ColCornerDec      = ["dec1","dec","dec3","dec4"];
 
     end
+    RAD = 180./pi;
 
     % resove coordinates
     % Output is J2000.0 RA/Dec
@@ -74,20 +85,9 @@ function [T, DB] = searchVisits(RA, Dec, Args)
     else
         % create table by query DB
 
-        if isempty(Dec) && iscell(RA)
-            % RA contains numeric fieldid
-            FieldID = RA{1};
-            CamNum  = RA{2};
-            CropID  = RA{3};
-            Ncrop   = numel(CropID);
-            RA      = [];
-            Dec     = [];
-        else
-            FieldID = [];
-            CamNum  = [];
-            CropID  = [];
-            [RA, Dec, FieldID] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
-        end
+        
+        [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','deg', 'Server',Args.Server);
+        
     
         % make DB and connect
         if isempty(Args.DB)
@@ -98,31 +98,62 @@ function [T, DB] = searchVisits(RA, Dec, Args)
         else
             DB = Args.DB;
         end
+
+        
     
-        if isempty(FieldID)
+        
+    
+        Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
+        
+        Ncoo = numel(RA);
+        T    = cell(Ncoo,1);
+        for Icoo=1:1:Ncoo
+
             % query by coordinates
-    
-            Args.HalfWidth = convert.angular(Args.InUnits, 'deg', Args.HalfWidth);
             
-            PosConst    = db.search.queryCooBoxConstraints(RA, Dec, 'HalfWidth',Args.HalfWidth);
-            Constraints = [PosConst; Args.Constraints];
-            QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
-            
-            %error('Search by coordinates not supported yet');
-            T{1} = DB.query(QuerySQL);
+            switch Args.QueryMethod
+                case 'radec'
+                    %tic;
+                    PosConst    = db.search.queryCooBoxConstraints(RA(Icoo), Dec(Icoo), 'HalfWidth',Args.HalfWidth);
+                    Constraints = [PosConst; Args.Constraints];
+                    QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
+                    %toc
+                    %error('Search by coordinates not supported yet');
+                    %tic;
+                    T{Icoo} = DB.query(QuerySQL);
+                    %toc
     
-        else
-            % query by FieldID
-            for Icrop=1:1:Ncrop
-                if ischar(Args.Constraints) || isstring(Args.Constraints)
-                    AddConst    = db.Db.genWhereClause({'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}, 'AddWhere',false);
-                    Constraints = [AddConst, 'AND', Args.Constraints];
-                else
-                    Constraints = [{'fieldid',sprintf('%d%%',FieldID); 'camnum',CamNum; 'cropid',CropID(Icrop)}; Args.Constraints];
-                end
-                QuerySQL = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
-                T{Icrop} = DB.query(QuerySQL);
+                case 'upix'
+    
+                    %tic;
+                    WhereClause = db.search.queryConeSearch_Healpix(RA(Icoo), Dec(Icoo), Args.InitSearchRadius,'NSide',Args.NSide_Low, 'HP_ColName','upix_low');
+                    QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, WhereClause);
+                    %toc
+            
+                    %tic;
+                    T{Icoo} = DB.query(QuerySQL);
+                    %toc
+    
+                otherwise
+                    error('Unknown QueryMethod option');
             end
+          
+            % refine selection by exact corners
+            if Args.UseCorners
+                Ncand = size(T{Icoo},1);
+                Flag  = false(Ncand,1);
+                for Icand=1:1:Ncand
+                    Corners = [T{Icoo}.(Args.ColCornerRA{1})(Icand), T{Icoo}.(Args.ColCornerDec{1})(Icand);...
+                               T{Icoo}.(Args.ColCornerRA{2})(Icand), T{Icoo}.(Args.ColCornerDec{2})(Icand);...
+                               T{Icoo}.(Args.ColCornerRA{3})(Icand), T{Icoo}.(Args.ColCornerDec{3})(Icand);...
+                               T{Icoo}.(Args.ColCornerRA{4})(Icand), T{Icoo}.(Args.ColCornerDec{4})(Icand)];
+                    Flag(Icand) = celestial.htm.in_polysphere([RA(Icoo), Dec(Icoo)]./RAD, Corners./RAD);
+                end
+                
+                T{Icoo} = T{Icoo}(Flag,:);
+
+            end
+
         end
     end
 
