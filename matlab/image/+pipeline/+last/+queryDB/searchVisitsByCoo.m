@@ -53,7 +53,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
         Args.SortBy            = 'fwhm';
 
         Args.Constraints       = {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
-
+        Args.RangeJD           = [];
         Args.InUnits           = 'deg';
         Args.DB                = [];
         
@@ -99,6 +99,11 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
             DB = Args.DB;
         end
 
+        if ~isempty(Args.RangeJD)
+            Nc = size(Args.Constraints,1);
+            Args.Constraints{Nc+1,1} = 'jd_start';
+            Args.Constraints{Nc+1,2} = [Args.RangeJD];
+        end
         
     
         
