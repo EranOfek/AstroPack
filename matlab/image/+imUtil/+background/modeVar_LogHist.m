@@ -114,11 +114,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Edges     = (Min:BinSize:(Max+2.*BinSize)).';
 
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
-    if Args.UseHistMex
-        Nhist = tools.hist.mex.histcounts1regular(LogArray, Edges);
-    else
+    %if Args.UseHistMex
+    %    Nhist = tools.hist.mex.histcounts1regular(LogArray, Edges);
+    %else
         Nhist = matlab.internal.math.histcounts(LogArray, Edges);
-    end
+    %end
     
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
