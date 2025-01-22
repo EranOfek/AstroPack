@@ -1420,7 +1420,111 @@ classdef uplanner < Component
             ylabel(ax,'Angular distance [deg]');
             title(ax,sprintf('Visibility of UniqTarget #%d',UniqTargInd)); 
             legend('Sun','Earth','Moon','Location','best');
+            hold off;
+        end
+        %
+        function plotMapPlan(Obj,Args)
+            % plotting on a map relevant properties and info from the plan
+            % Change to map projection later
+            arguments
+                Obj
+                Args.AxesHandle         =  [];
+                Args.cooSys             =  'j2000.0';
+                Args.plotTstart         = []; % datetime or JD
+                Args.plotTend           = []; % datetime or JD
+                Args.disp_uniqTarg      = false;
+                Args.UniqTargInds       = [];
+                Args.disp_plan          = true;
+                Args.plan_rows          = [];
+                Args.ExtinctionMap      = false;
+                Args.CalObjMap          = false;
+                Args.disp_MissAprvPlan  = false;
+                Args.MissAprvPlan_rows  = [];                
+                Args.vis_at_time_map    = false;
+            end
+            RAD = 180/pi;  
             
+            if isempty(Args.AxesHandle)
+                h = figure('WindowStyle','docked','Color',[1 1 1]); clf;  
+                ax = axes(h);
+            else 
+                ax = Args.AxesHandle;
+            end
+            hold on; box on;
+            
+            if Args.ExtinctionMap
+                RA_vec = (0:360); Dec_vec = (-90:90);
+                [RA_grid,Dec_grid] = meshgrid(RA_vec,Dec_vec);
+                A_u = ultrasat.tools.extinction(RA_grid,Dec_grid);
+                imagesc(ax,RA_vec, Dec_vec, A_u);
+                c = colorbar;
+                c.Label.String = 'A_{ULTRASAT}';
+                caxis([0,1.1]);
+                set(ax,'YDir','normal');
+            end
+            
+            if Args.vis_at_time_map
+                disp('TBD');
+            end            
+            
+            if Args.disp_uniqTarg
+                UniqTargInds = Args.plan_rows;
+                if isempty(UniqTargInds)
+                    UniqTargInds = 1:height(Obj.UniqTarg);
+                end
+                
+                for ii = 1:numel(UniqTargInds)
+                    CircFOV = ultrasat.tools.getFOVcircle(Obj.UniqTarg.RA(UniqTargInds(ii)),Obj.UniqTarg.Dec(UniqTargInds(ii)),'Radius',Obj.Rfov);
+                    CircFOV(CircFOV(:,1)<0,1) = CircFOV(CircFOV(:,1)<0,1)+360;
+                    CircFOV(CircFOV(:,1)>360,1) = CircFOV(CircFOV(:,1)>360,1)-360;
+                    
+                    plot(ax,CircFOV(:,1),CircFOV(:,2),'.b');
+                end
+            end
+            
+            if Args.CalObjMap
+                if ~isempty(Obj.CalibObj)
+                    plot(ax,Obj.CalibObj.RA,Obj.CalibObj.Dec,'*m');
+                end
+            end
+            
+            if Args.disp_MissAprvPlan
+                MissAprvPlan_rows = Args.MissAprvPlan_rows;
+                if isempty(MissAprvPlan_rows)
+                    MissAprvPlan_rows = 1:height(Obj.MissionApprovedPlan);
+                end
+                
+                for ii = 1:numel(MissAprvPlan_rows)
+                    currFoV = ultrasat.tools.getFOVcorners(Obj.MissionApprovedPlan.RA(MissAprvPlan_rows(ii)),Obj.MissionApprovedPlan.Dec(MissAprvPlan_rows(ii)),...
+                        'Roll',Obj.MissionApprovedPlan.Roll(MissAprvPlan_rows(ii)));
+                    currFoV.RA(currFoV.RA<0) = currFoV.RA(currFoV.RA<0)+360;
+                    currFoV.RA(currFoV.RA>360) = currFoV.RA(currFoV.RA>360)-360;
+                    
+                    plot(ax,polyshape(currFoV.RA,currFoV.Dec),'EdgeColor','r','FaceColor','none','linewidth',2);
+                end
+            end
+            
+            if Args.disp_plan
+                plan_rows = Args.plan_rows;
+                if isempty(plan_rows)
+                    plan_rows = 1:height(Obj.Plan);
+                end
+                
+                for ii = 1:numel(plan_rows)
+                    currFoV = ultrasat.tools.getFOVcorners(Obj.Plan.RA(plan_rows(ii)),Obj.Plan.Dec(plan_rows(ii)),'Roll',Obj.Plan.ExpectedRoll(plan_rows(ii)));
+                    currFoV.RA(currFoV.RA<0) = currFoV.RA(currFoV.RA<0)+360;
+                    currFoV.RA(currFoV.RA>360) = currFoV.RA(currFoV.RA>360)-360;
+                    
+                    plot(ax,polyshape(currFoV.RA,currFoV.Dec),'EdgeColor','k','FaceColor','none','linewidth',2);
+                end
+            end
+            
+            xlim([0,360]);
+            ylim([-90,90]);
+            xlabel('RA [deg]');
+            ylabel('Dec [deg]');
+            
+            hold off;
         end
     end
     % 
@@ -1498,7 +1602,7 @@ classdef uplanner < Component
                   upLCS.delPlanRow(3);
                   upLCS.delPlanRow(1)
                   
-                  upLCS.delUniqTarg(1);
+                  %upLCS.delUniqTarg(1);
                   upLCS.delUniqTarg(5,'abort_if_in_plan',false);
                   
                 % Example for TOO plan:
@@ -1508,8 +1612,8 @@ classdef uplanner < Component
                 % Example DDT plan (very basic):
                   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
                   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
-                  upDDT.addDDT2Plan([1,2],'now');
-                  upDDT.addDDT2Plan([3,2],'tomorrow'); 
+                  upDDT.addDDT2Plan([1,2],datetime('now','TimeZone','UTC'));
+                  upDDT.addDDT2Plan([3,2],datetime('tomorrow','TimeZone','UTC')); 
 
                  %
                  Result=true;                                 
