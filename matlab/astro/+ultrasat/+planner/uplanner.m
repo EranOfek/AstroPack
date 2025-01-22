@@ -79,14 +79,15 @@
 %
 % - Obj.plotVisibility(UniqTargInd,Args)                            : Plot the visibilty of a UniqTarg
 %
+% - Obj.plotMapPlan(Args)                                           : plotting on a map relevant properties and info from the plan
+%                                                                     TODO - Change to map projection later
 % Static methods:
 % - CheckTimes = getDefaultCheckTimes()                              : Get the default Check times.  TODO - update if needed
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% Additional functions to be considered:- retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
-% - plotPlan                                            : Plot the plan targets on a sky map, optionally with the overalpping targets, calibrating stars, refernce images, Sky Catalogs, extinction map, executed obs maps, etc.
-% - plotUniqTarg                                    : Plot the UniqTarget targets on a sky map, optionally with the calibrating stars, refernce images, extinction map, Sky Catalogs, executed obs maps, etc.
+% Additional functions to be considered:
+% - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
 % several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
@@ -1425,7 +1426,7 @@ classdef uplanner < Component
         %
         function plotMapPlan(Obj,Args)
             % plotting on a map relevant properties and info from the plan
-            % Change to map projection later
+            % TODO - Change to map projection later
             arguments
                 Obj
                 Args.AxesHandle         =  [];
