@@ -480,10 +480,10 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 MoveDiffCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameDiff,{' '},CutoutsRemote);
                 MoveJsonCMD = strcat('rsync -a ',{' '},Json_DirFilename,{' '},JsonRemote);
     
-                %[~, ~] = system(MoveRefCutoutCMD{1});
-                %[~, ~] = system(MoveNewCutoutCMD{1});
-                %[~, ~] = system(MoveDiffCutoutCMD{1});
-                %[~, ~] = system(MoveJsonCMD{1});
+                [~, ~] = system(MoveRefCutoutCMD{1});
+                [~, ~] = system(MoveNewCutoutCMD{1});
+                [~, ~] = system(MoveDiffCutoutCMD{1});
+                [~, ~] = system(MoveJsonCMD{1});
             end
 
             Status =  'Succesful exit, alert(s) sent.';
