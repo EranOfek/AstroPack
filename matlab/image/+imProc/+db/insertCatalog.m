@@ -1,4 +1,4 @@
-function [T,FileName] = insertCatalog(Obj, Args)
+function [T,Error,FileName] = insertCatalog(Obj, Args)
     % Insert catalogs in AstroImage to DB
     %       Including the following steps:
     %       1. Convert AstroImages catalog to table with the requested
@@ -84,6 +84,7 @@ function [T,FileName] = insertCatalog(Obj, Args)
     %                   Default is {}.
     %
     % Output : - A table object with the additional columns.
+    %          - Error message
     %          - The CSV file name.
     %            If you want to see this file you have to set:
     %            'DeleteFile',false, 'CreateCsv',true
