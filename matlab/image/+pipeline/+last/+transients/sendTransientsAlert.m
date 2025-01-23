@@ -438,7 +438,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
             Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
             Image_FilenameNew = Image_FilenamePartsNew{end};
-            %imshow(Transient.New.Image, [NewMin NewMax], 'Parent', axNew);
             imshow(NewImagePlot, 'Parent', axNew);
 
             % If Args.SaveProducts true, save images
@@ -479,19 +478,33 @@ function [Status] = sendTransientsAlert(ADc, Args)
             nexttile([1 3]);
             errorbar(LC_JD, LC_Mag, LC_MagErr,'o');
             XlimMin = -5;
-            LAST_report.detections_jd = LC_JD+JD0;
-            LAST_report.detections_mag = LC_Mag;
-            LAST_report.detections_magerr = LC_MagErr;
-            LAST_report.nondetections_jd = [];
-            LAST_report.nondetections_mag = [];
+            LAST_report.detections_jd = {};
+            LAST_report.detections_mag = {};
+            LAST_report.detections_magerr = {};
+            if numel(LC_JD) > 1
+                LAST_report.detections_jd = LC_JD+JD0;
+                LAST_report.detections_mag = LC_Mag;
+                LAST_report.detections_magerr = LC_MagErr;
+            else
+                LAST_report.detections_jd{end+1} = LC_JD+JD0;
+                LAST_report.detections_mag{end+1} = LC_Mag;
+                LAST_report.detections_magerr{end+1} = LC_MagErr;
+            end
+            LAST_report.nondetections_jd = {};
+            LAST_report.nondetections_mag = {};
 
             if LC_UL > 0
                 hold on;
                 scatter(LC_UL_JD, LC_UL_Mag, 'v');
                 hold off;
                 XlimMin = max(-30,min(LC_UL_JD-5));
-                LAST_report.nondetections_jd = LC_UL_JD+JD0;
-                LAST_report.nondetections_mag = LC_UL_Mag;
+                if LC_UL > 1
+                    LAST_report.nondetections_jd = LC_UL_JD+JD0;
+                    LAST_report.nondetections_mag = LC_UL_Mag;
+                else
+                    LAST_report.nondetections_jd{end+1} = LC_UL_JD+JD0;
+                    LAST_report.nondetections_mag{end+1} = LC_UL_Mag;
+                end
             end
             set(gca, 'YDir','reverse');
             xlim([XlimMin 5]);
