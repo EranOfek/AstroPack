@@ -78,7 +78,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
         JD0 = Transient.New.julday;
         Mount = Transient.CatData.getCol('MOUNT');
         Camera = Transient.CatData.getCol('CAM');
-        CropID = Transient.CatData.getCol('CROPID');
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
@@ -86,6 +85,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
 
         Mag = Transient.CatData.getCol('MAG_PSF');
+        Flux = Transient.CatData.getCol('FLUX_PSF');
 
         Ind0 = find(JD == JD0);
 
@@ -97,6 +97,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Dec0 = Dec(Ind0);
         Score0 = Score(Ind0);
         Mag0 = Mag(Ind0);
+        Flux0 = Flux(Ind0);
 
         RAfield = [];
         Decfield = [];
@@ -344,20 +345,77 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameCell = strcat(Args.SavePath,'/',ImageFN.genFile);
             Image_DirFilename = Image_DirFilenameCell{1};
 
-            RefMed = median(Transient.Ref.Image, 'all');
-            RefStd = std(Transient.Ref.Image, 0, 'all');
-            RefMin = RefMed-RefStd*3;
-            RefMax = RefMed+RefStd*3;
+            % Prepare ref image cutout
+            RefImage = Transient.Ref.Image;
+            RefImageMinVal = min(RefImage(:));
+            RefImageMaxVal = max(RefImage(:));
+            RefImage = (RefImage - RefImageMinVal)/(RefImageMaxVal - RefImageMinVal);
 
-            NewMed = median(Transient.New.Image, 'all');
-            NewStd = std(Transient.New.Image, 0, 'all');
-            NewMin = NewMed-NewStd*3;
-            NewMax = NewMed+NewStd*3;
+            [RefImageSizeX, RefImageSizeY] = size(Transient.Ref.Image);
 
-            DiffMed = median(Transient.Image, 'all');
-            DiffStd = std(Transient.Image, 0, 'all');
-            DiffMin = DiffMed-DiffStd*3;
-            DiffMax = DiffMed+DiffStd*3;
+            RefImageHalfSizeX = floor(RefImageSizeX / 2);
+            RefImageHalfSizeY = floor(RefImageSizeY / 2);
+            
+            RefImageXStart = RefImageHalfSizeX-5; 
+            RefImageXEnd = RefImageHalfSizeX+5;
+            RefImageYStart = RefImageHalfSizeY-5; 
+            RefImageYEnd = RefImageHalfSizeY+5;
+
+            RefImageRoi = RefImage(RefImageXStart:RefImageXEnd, ...
+                RefImageYStart:RefImageYEnd);
+            RefImageRoiMin = min(RefImageRoi(:));
+            RefImageRoiMax = max(RefImageRoi(:));
+
+            RefImagePlot = imadjust(RefImage, ...
+                [RefImageRoiMin RefImageRoiMax], []);
+
+            % Prepare new image cutout
+            NewImage = Transient.New.Image;
+            NewImageMinVal = min(NewImage(:));
+            NewImageMaxVal = max(NewImage(:));
+            NewImage = (NewImage - NewImageMinVal)/(NewImageMaxVal - NewImageMinVal);
+
+            [NewImageSizeX, NewImageSizeY] = size(Transient.New.Image);
+
+            NewImageHalfSizeX = floor(NewImageSizeX / 2);
+            NewImageHalfSizeY = floor(NewImageSizeY / 2);
+            
+            NewImageXStart = NewImageHalfSizeX-5; 
+            NewImageXEnd = NewImageHalfSizeX+5;
+            NewImageYStart = NewImageHalfSizeY-5; 
+            NewImageYEnd = NewImageHalfSizeY+5;
+
+            NewImageRoi = NewImage(NewImageXStart:NewImageXEnd, ...
+                NewImageYStart:NewImageYEnd);
+            NewImageRoiMin = min(NewImageRoi(:));
+            NewImageRoiMax = max(NewImageRoi(:));
+
+            NewImagePlot = imadjust(NewImage, ...
+                [NewImageRoiMin NewImageRoiMax], []);
+
+            % Prepare diff image cutout
+            DiffImage = Transient.Image;
+            DiffImageMinVal = min(DiffImage(:));
+            DiffImageMaxVal = max(DiffImage(:));
+            DiffImage = (DiffImage - DiffImageMinVal)/(DiffImageMaxVal - DiffImageMinVal);
+
+            [DiffImageSizeX, DiffImageSizeY] = size(Transient.Image);
+
+            DiffImageHalfSizeX = floor(DiffImageSizeX / 2);
+            DiffImageHalfSizeY = floor(DiffImageSizeY / 2);
+            
+            DiffImageXStart = DiffImageHalfSizeX-5; 
+            DiffImageXEnd = DiffImageHalfSizeX+5;
+            DiffImageYStart = DiffImageHalfSizeY-5; 
+            DiffImageYEnd = DiffImageHalfSizeY+5;
+
+            DiffImageRoi = DiffImage(DiffImageXStart:DiffImageXEnd, ...
+                DiffImageYStart:DiffImageYEnd);
+            DiffImageRoiMin = min(DiffImageRoi(:));
+            DiffImageRoiMax = max(DiffImageRoi(:));
+
+            DiffImagePlot = imadjust(DiffImage, ...
+                [DiffImageRoiMin DiffImageRoiMax], []);
 
             % Create individual cutouts
             FigRef = figure('Position',[1,1,51,51],'Visible','on');
@@ -368,7 +426,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameRef = replace(Image_DirFilename,'.png','_Ref.png');
             Image_FilenamePartsRef = split(Image_DirFilenameRef,'/');
             Image_FilenameRef = Image_FilenamePartsRef{end};
-            imshow(Transient.Ref.Image, [RefMin RefMax], 'Parent', axRef);
+            imshow(RefImagePlot, 'Parent', axRef);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -380,7 +438,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
             Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
             Image_FilenameNew = Image_FilenamePartsNew{end};
-            imshow(Transient.New.Image, [NewMin NewMax], 'Parent', axNew);
+            %imshow(Transient.New.Image, [NewMin NewMax], 'Parent', axNew);
+            imshow(NewImagePlot, 'Parent', axNew);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -392,7 +451,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameDiff = replace(Image_DirFilename,'.png','_Diff.png');
             Image_FilenamePartsDiff = split(Image_DirFilenameDiff,'/');
             Image_FilenameDiff = Image_FilenamePartsDiff{end};
-            imshow(Transient.Image, [DiffMin DiffMax], 'Parent', axDiff);
+            imshow(DiffImagePlot, 'Parent', axDiff);
             
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -406,15 +465,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
             tiledlayout('flow', 'TileSpacing', 'none');%, 'Padding', 'none');
             % Reference image stamp
             nexttile;
-            imshow(Transient.Ref.Image, [RefMin RefMax]);
+            imshow(RefImagePlot);
             text(2,47,'Ref','Color','white','FontSize',14);
             % New image stamp
             nexttile;
-            imshow(Transient.New.Image, [NewMin NewMax]);
+            imshow(NewImagePlot);
             text(2,47,'New','Color','white','FontSize',14);
             % Difference image stamp
             nexttile;
-            imshow(Transient.Image, [DiffMin DiffMax]);
+            imshow(DiffImagePlot);
             text(2,47,'Diff','Color','white','FontSize',14);
             % Lightcurve
             nexttile([1 3]);
@@ -441,7 +500,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
             % If Args.SaveProducts true, save image
             TNS_Report.last_report = LAST_report;
             if Args.SaveProducts
-                saveas(FigAll, Image_DirFilename);
+                %saveas(FigAll, Image_DirFilename);
+                exportgraphics(FigAll, Image_DirFilename, 'Resolution', 300);
                 Json_DirFilename = replace(Image_DirFilename,'.png','.json');
                 Json_Filename = replace(Image_Filename,'.png','.json');
                 Json = jsonencode(TNS_Report, 'ConvertInfAndNaN',false);
@@ -479,10 +539,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
                 MoveNewCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameNew,{' '},CutoutsRemote);
                 MoveDiffCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameDiff,{' '},CutoutsRemote);
                 MoveJsonCMD = strcat('rsync -a ',{' '},Json_DirFilename,{' '},JsonRemote);
-    
+
                 [~, ~] = system(MoveRefCutoutCMD{1});
                 [~, ~] = system(MoveNewCutoutCMD{1});
                 [~, ~] = system(MoveDiffCutoutCMD{1});
+                % json should be moved last
+                pause(1);
                 [~, ~] = system(MoveJsonCMD{1});
             end
 
