@@ -101,6 +101,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     Nhist = matlab.internal.math.histcounts(LogArray, Edges);
+
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
     % Debug: bar(BinCenter, Nhist)

@@ -40,6 +40,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     
     Status = 'Uncontrolled exit.';
 
+    TranCatLevel2 = [];
+
     % Return if catalog is empty
     if TranCatLevel1.sizeCatalog < 1
         Status = 'Transients catalog empty.';
