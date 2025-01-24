@@ -52,8 +52,9 @@ function [Mode,Var,Method] = modeVar_Hist(Array, Args)
         BinSize = ceil(BinSize);
     end
     Edges   = (Args.Range(1):BinSize:Args.Range(2));
-    
-    [Nhist] = tools.hist.mex.histcounts1regular(Array,Edges);
+    Nbin    = numel(Edges)-1;
+    [Nhist] = tools.hist.mex.histcounts1regular(Array, Args.Range(1), BinSize, Nbin);
+    Nhist   = single(Nhist);
     Xhist   = ((Edges(1:end-1) + Edges(2:end)).*0.5).';
     [MaxBin,IndMax] = max(Nhist);
     Mode0   = Xhist(IndMax); 

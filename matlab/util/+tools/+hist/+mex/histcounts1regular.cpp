@@ -1,142 +1,106 @@
 #include "mex.h"
-#include <omp.h>
-#include <emmintrin.h> // SSE2 intrinsics
-#include <xmmintrin.h> // SSE intrinsics
 #include <cmath>
 #include <cstring> // For memset
+#include <cstdint> // For uint32_t
+#include <omp.h>
 
-
-// mex histcounts1regular.cpp CXXFLAGS="\$CXXFLAGS -O3 -march=native -fopenmp -std=c++11" LDFLAGS="\$LDFLAGS -fopenmp"
+// MEX compilation:
+// mex histcounts1regular1.cpp CXXFLAGS="\$CXXFLAGS -O3 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp"
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
-    if (nrhs != 2) {
-        mexErrMsgIdAndTxt("MATLAB:calculateHistogram:InvalidInput",
-                          "Usage: output = calculateHistogram(data, edges)");
+    if (nrhs != 4) {
+        mexErrMsgIdAndTxt("MATLAB:histogram_equal_bins:InvalidInput",
+                          "Usage: hist = histogram_equal_bins(data, firstEdge, binSize, numBins)");
     }
 
-    // Validate data array
+    // Input arguments
     const mxArray* dataArray = prhs[0];
-    if (!mxIsSingle(dataArray) && !mxIsDouble(dataArray)) {
-        mexErrMsgIdAndTxt("MATLAB:calculateHistogram:InvalidType",
-                          "Data vector must be single or double.");
+    double firstEdge = mxGetScalar(prhs[1]);
+    double binSize = mxGetScalar(prhs[2]);
+    mwSize numBins = static_cast<mwSize>(mxGetScalar(prhs[3]));
+
+    if (binSize <= 0 || numBins < 1) {
+        mexErrMsgIdAndTxt("MATLAB:histogram_equal_bins:InvalidParams",
+                          "binSize must be positive, and numBins must be at least 1.");
     }
+
+    // Validate input array type
+    const mxClassID dataClass = mxGetClassID(dataArray);
+    if (!(mxIsSingle(dataArray) || mxIsDouble(dataArray) ||
+          mxIsUint32(dataArray) || mxIsInt32(dataArray))) {
+        mexErrMsgIdAndTxt("MATLAB:histogram_equal_bins:InvalidDataType",
+                          "Data must be single, double, uint32, or int32.");
+    }
+
     const mwSize numData = mxGetNumberOfElements(dataArray);
 
-    // Validate edges array
-    const mxArray* edgesArray = prhs[1];
-    if (!mxIsSingle(edgesArray) && !mxIsDouble(edgesArray)) {
-        mexErrMsgIdAndTxt("MATLAB:calculateHistogram:InvalidType",
-                          "Edges vector must be single or double.");
-    }
-    const mwSize numEdges = mxGetNumberOfElements(edgesArray);
-    if (numEdges < 2) {
-        mexErrMsgIdAndTxt("MATLAB:calculateHistogram:InvalidEdges",
-                          "Edges vector must have at least two elements.");
-    }
+    // Create histogram array
+    plhs[0] = mxCreateNumericMatrix(numBins, 1, mxUINT32_CLASS, mxREAL);
+    uint32_t* histogram = static_cast<uint32_t*>(mxGetData(plhs[0]));
+    std::memset(histogram, 0, numBins * sizeof(uint32_t));
 
-    // Validate regular grid assumption
-    const void* edges = mxGetData(edgesArray);
-    const mxClassID edgesClass = mxGetClassID(edgesArray);
-    double binWidth;
-    if (edgesClass == mxDOUBLE_CLASS) {
-        const double* edgesVec = static_cast<const double*>(edges);
-        binWidth = edgesVec[1] - edgesVec[0];
-        for (mwSize i = 1; i < numEdges - 1; ++i) {
-            if (std::fabs((edgesVec[i + 1] - edgesVec[i]) - binWidth) > 1e-10) {
-                mexErrMsgIdAndTxt("MATLAB:calculateHistogram:NonUniformEdges",
-                                  "Edges must be evenly spaced.");
-            }
-        }
-    } else if (edgesClass == mxSINGLE_CLASS) {
-        const float* edgesVec = static_cast<const float*>(edges);
-        binWidth = edgesVec[1] - edgesVec[0];
-        for (mwSize i = 1; i < numEdges - 1; ++i) {
-            if (std::fabs((edgesVec[i + 1] - edgesVec[i]) - binWidth) > 1e-5f) {
-                mexErrMsgIdAndTxt("MATLAB:calculateHistogram:NonUniformEdges",
-                                  "Edges must be evenly spaced.");
-            }
-        }
-    }
-
-    // Get pointers and create output
-    const void* data = mxGetData(dataArray);
-    const mxClassID dataClass = mxGetClassID(dataArray);
-    const mwSize numBins = numEdges - 1;
-    mxArray* outputArray = mxCreateNumericMatrix(numBins, 1, dataClass, mxREAL);
-    void* output = mxGetData(outputArray);
-    plhs[0] = outputArray;
-
-    // Initialize output array
     if (dataClass == mxDOUBLE_CLASS) {
-        double* out = static_cast<double*>(output);
-        std::memset(out, 0, numBins * sizeof(double));
-
-        const double* dataVec = static_cast<const double*>(data);
-        const double firstEdge = static_cast<const double*>(edges)[0];
-
-        // Use SSE2 and OpenMP for parallelized histogram calculation
+        const double* data = static_cast<const double*>(mxGetData(dataArray));
         #pragma omp parallel
         {
-            double* localBins = new double[numBins](); // Zero-initialize
-
-            #pragma omp for
-            for (mwSize i = 0; i < numData; i += 2) { // Process 2 elements at a time
-                __m128d dataValsLow = _mm_loadu_pd(&dataVec[i]); // Load 2 double-precision values
-                __m128d relValsLow = _mm_sub_pd(dataValsLow, _mm_set1_pd(firstEdge));
-                __m128d binIndicesLow = _mm_div_pd(relValsLow, _mm_set1_pd(binWidth));
-                __m128i binsLow = _mm_cvttpd_epi32(binIndicesLow);
-
-                int bins[2];
-                _mm_storeu_si128((__m128i*)bins, binsLow);
-
-                for (int j = 0; j < 2; ++j) {
-                    if (bins[j] >= 0 && bins[j] < numBins) {
-                        localBins[bins[j]] += 1;
-                    }
-                }
-            }
-
-            // Merge local bins into global bins
-            #pragma omp critical
-            {
-                for (mwSize j = 0; j < numBins; ++j) {
-                    out[j] += localBins[j];
-                }
-            }
-
-            delete[] localBins;
-        }
-    } else if (dataClass == mxSINGLE_CLASS) {
-        float* out = static_cast<float*>(output);
-        std::memset(out, 0, numBins * sizeof(float));
-
-        const float* dataVec = static_cast<const float*>(data);
-        const float firstEdge = static_cast<const float*>(edges)[0];
-
-        #pragma omp parallel
-        {
-            float* localBins = new float[numBins](); // Zero-initialize
-
+            uint32_t* localHist = new uint32_t[numBins]();
             #pragma omp for
             for (mwSize i = 0; i < numData; ++i) {
-                float value = dataVec[i];
-                if (value >= firstEdge && value < firstEdge + numBins * binWidth) {
-                    mwSize bin = static_cast<mwSize>((value - firstEdge) / binWidth);
-                    if (bin < numBins) {
-                        localBins[bin] += 1;
-                    }
+                double value = data[i];
+                mwSize bin = static_cast<mwSize>(std::floor((value - firstEdge) / binSize));
+                if (bin >= 0 && bin < numBins) {
+                    localHist[bin]++;
                 }
             }
-
-            // Merge local bins into global bins
             #pragma omp critical
             {
                 for (mwSize j = 0; j < numBins; ++j) {
-                    out[j] += localBins[j];
+                    histogram[j] += localHist[j];
                 }
             }
-
-            delete[] localBins;
+            delete[] localHist;
+        }
+    } else if (dataClass == mxSINGLE_CLASS) {
+        const float* data = static_cast<const float*>(mxGetData(dataArray));
+        #pragma omp parallel
+        {
+            uint32_t* localHist = new uint32_t[numBins]();
+            #pragma omp for
+            for (mwSize i = 0; i < numData; ++i) {
+                float value = data[i];
+                mwSize bin = static_cast<mwSize>(std::floor((value - firstEdge) / binSize));
+                if (bin >= 0 && bin < numBins) {
+                    localHist[bin]++;
+                }
+            }
+            #pragma omp critical
+            {
+                for (mwSize j = 0; j < numBins; ++j) {
+                    histogram[j] += localHist[j];
+                }
+            }
+            delete[] localHist;
+        }
+    } else if (dataClass == mxUINT32_CLASS || dataClass == mxINT32_CLASS) {
+        const int* data = static_cast<const int*>(mxGetData(dataArray));
+        #pragma omp parallel
+        {
+            uint32_t* localHist = new uint32_t[numBins]();
+            #pragma omp for
+            for (mwSize i = 0; i < numData; ++i) {
+                double value = static_cast<double>(data[i]);
+                mwSize bin = static_cast<mwSize>(std::floor((value - firstEdge) / binSize));
+                if (bin >= 0 && bin < numBins) {
+                    localHist[bin]++;
+                }
+            }
+            #pragma omp critical
+            {
+                for (mwSize j = 0; j < numBins; ++j) {
+                    histogram[j] += localHist[j];
+                }
+            }
+            delete[] localHist;
         }
     }
 }
