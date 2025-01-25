@@ -11,7 +11,7 @@ function [Result] = insertTranDBTransients2DB(Args)
     %                           
     % Output : - data injected into the DB
     % Author : A.M. Krassilchtchikov (2024 Dec) 
-    % Example: pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.Headers])    
+    % Example: pipeline.last.insertDB.insertTranDBTransients2DB    
     %
     arguments              
         Args.Template = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
