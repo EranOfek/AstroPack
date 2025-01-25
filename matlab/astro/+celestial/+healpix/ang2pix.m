@@ -25,10 +25,12 @@ function [Pix] = ang2pix(Nside, Lon, Lat, Args)
         Args.UniqueID logical  = false;
     end
 
-    Factor = convert.angular(Args.CooUnits,'rad');
-    Lon    = Factor.*Lon;
-    Lat    = Factor.*Lat;
-
+    if ~strcmp(Args.CooUnits, 'rad')
+        Factor = convert.angular(Args.CooUnits,'rad');
+        Lon    = Factor.*Lon;
+        Lat    = Factor.*Lat;
+    end
+    
     switch Args.Type
         case 'nested'
             [Pix] = celestial.healpix.mex.ang2pix_nested(Nside, Lon, Lat);

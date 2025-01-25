@@ -29,8 +29,10 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
             error('Unknown Type option');
     end
 
-    Factor = convert.angular('rad',Args.CooUnits);
-    PixLon    = Factor.*PixLon;
-    PixLat    = Factor.*PixLat;
+    if ~strcmp(Args.CooUnits, 'rad')
+        Factor = convert.angular('rad',Args.CooUnits);
+        PixLon    = Factor.*PixLon;
+        PixLat    = Factor.*PixLat;
+    end
 
 end
