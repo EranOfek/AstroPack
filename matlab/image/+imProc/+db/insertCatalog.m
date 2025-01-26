@@ -262,7 +262,8 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
+        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, ...,
+                             'ColumnNames',lower(T.Properties.VariableNames),'table2csvArgs',Args.table2csvArgs);
         if isempty(Args.Db)
             Db.disconnectCH_Java % disconnect Java
         end
