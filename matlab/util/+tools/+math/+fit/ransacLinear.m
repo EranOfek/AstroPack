@@ -31,6 +31,8 @@ function Result = ransacLinear(Data, Args)
         Args.MinRMS           = 0.5;
         Args.ThresholdDist    = 0.5;
         Args.MinNpt           = 5;
+
+        
     end
     
     Ndata        = size(Data,1);
@@ -57,9 +59,10 @@ function Result = ransacLinear(Data, Args)
             
             Par   = H\Y(Ind);
             Resid = Y(Ind) - H*Par;
-            RMS   = std(Resid);
-            
-            if RMS<Args.MinRMS
+            %RMS   = std(Resid);  % slower
+            RMS   = sqrt(sum(Resid.^2)-sum(Resid).^2)./sqrt(numel(Resid)-1);
+
+            if RMS<(Args.MinRMS)
                 % check all points
                 ResidAll = Y - Hall*Par;
                 
