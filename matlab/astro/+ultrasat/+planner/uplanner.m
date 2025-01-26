@@ -1298,7 +1298,7 @@ classdef uplanner < Component
                 Spec  = [Ftab{1} Ftab{6} Ftab{7}];  
                 
                 if isempty(Args.AxesHandle)
-                    h = figure; clf;
+                    h = figure('WindowStyle','docked','Color',[1 1 1]); clf;
                     ax = axes(h);
                 else 
                     ax = Args.AxesHandle;
@@ -1308,7 +1308,7 @@ classdef uplanner < Component
                 if ~isempty(Args.WaveRange)
                     xlim(ax,Args.WaveRange.*10);
                 end
-                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{1},Res.Teff_K_,Res.logG)); 
+                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{Args.subInd2plot},Res.Teff_K_(Args.subInd2plot),Res.logG(Args.subInd2plot))); 
             end            
         end
         %
