@@ -122,7 +122,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFChi2Mean = [0.64096051, 0.65603272]
         Args.PSFChi2CovInv = [11.06639904, -4.23111166;...
             -4.23111166, 10.35510321];
-        Args.PSFChi2DistThreshold = 2.7;        
+        Args.PSFChi2DistThreshold = 1.7;        
         
         Args.flagSaturated logical = true;
 
@@ -158,7 +158,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeXYMean = [1.03249812, 1.07405709]
         Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
             -5.14461356, 12.15646961];
-        Args.PSFShapeDistThreshold = 2.7;
+        Args.PSFShapeDistThreshold = 1.7;
         
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
