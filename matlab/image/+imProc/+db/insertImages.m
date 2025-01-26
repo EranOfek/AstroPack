@@ -1,4 +1,4 @@
-function [T,FileName] = insertImages(Obj, Args)
+function [T,Error,FileName] = insertImages(Obj, Args)
     % Insert images (headers) to DB
     %       Including the following steps:
     %       1. Convert AstroImages headers to table with the requested
