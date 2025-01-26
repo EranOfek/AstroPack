@@ -214,6 +214,9 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         end
 
     end
+    
+    % clean the tables from the lines containing JD, RA or Dec = NaN:
+    T(isnan(T.(Args.ColJD)) | isnan(T.(Args.ColRA)) | isnan(T.(Args.ColDec)), :) = [];
 
     % insert additional global columns
 

@@ -40,6 +40,11 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.INPOP          = [];
     end
     
+    % sanity check:
+    if sum(isnan(JD)) > 0 || sum(isnan(RA)) > 0 || sum(isnan(Dec)) > 0
+        error('Some of the input times or coordinates is NaN');
+    end
+    
     SECOND_DAY = 86400;
         
     if isempty(Args.INPOP)
