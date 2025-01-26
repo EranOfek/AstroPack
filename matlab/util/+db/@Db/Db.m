@@ -747,6 +747,7 @@ classdef Db < Component
                 Data
                 Args.FileName             = tempname;
                 Args.DeleteFile logical   = false;
+                Args.ColumnNames          = {};
                 Args.table2csvArgs        = {};
             end
 
@@ -762,9 +763,14 @@ classdef Db < Component
             % Assume InputTable is a scv table
             %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
             %[~,Error]   = Obj.query(Command, 'IsExec',true);
-                
-            Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s  --input_format_with_names_use_header=1 --query="INSERT INTO %s FORMAT CSVWithNames" < %s',...
-                                  Obj.Host, Obj.User, Obj.Password, TableName, FileName);
+            
+            if isempty(Args.ColumnNames) % versions of clickhouse-client ~> 22
+                Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s  --input_format_with_names_use_header=1 --query="INSERT INTO %s FORMAT CSVWithNames" < %s',...
+                    Obj.Host, Obj.User, Obj.Password, TableName, FileName);
+            else                         % versions of clickhouse-client ~< 20 
+                Command = sprintf('clickhouse-client --host=%s --user=%s --password=%s  --query="INSERT INTO %s (%s) FORMAT CSVWithNames" < %s',...
+                    Obj.Host, Obj.User, Obj.Password, TableName, strjoin(Args.ColumnNames, ', '), FileName);
+            end
             [~,Error] = system(Command);
 
             if Args.DeleteFile
