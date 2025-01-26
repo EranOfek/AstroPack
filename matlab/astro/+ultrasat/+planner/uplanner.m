@@ -1274,16 +1274,6 @@ classdef uplanner < Component
         %
         function [Res,h] = showCalibObj(Obj,UniqTargInd,Args)
             % Return the table data of calibration objects and (optionally) plot the spectra (of selected one)
-            % Input : - object indexes
-            %        ..key,val..
-            %       'PlotSpectrum' - logical, def. false
-            %       'Band' - spectral interval for plotting in [nm], e.g. [230 300]  
-            % Output: - a subset of the main calibration objects' table
-            % Exapmle: P = ultrasat.planner.uplanner;
-            %          P.buildHCS('CooFile','~/hcs.coo');
-            %          Tab = P.showCalibObj(2) 
-            % or
-            %          P.showCalibObj(2, 'PlotSpectrum',true); 
             arguments
                 Obj
                 UniqTargInd               = [];
