@@ -347,6 +347,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
             % Prepare ref image cutout
             RefImage = Transient.Ref.Image;
+            RefImagePlot = asinh(RefImage);
+            RefImageLowLim = prctile(RefImagePlot(:),1);
+            RefImageHighLim = prctile(RefImagePlot(:),99);
+            RefImagePlot = rot90(RefImagePlot,2);            
+            %{
             RefImageMinVal = min(RefImage(:));
             RefImageMaxVal = max(RefImage(:));
             RefImage = (RefImage - RefImageMinVal)/(RefImageMaxVal - RefImageMinVal);
@@ -368,9 +373,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
             RefImagePlot = imadjust(RefImage, ...
                 [RefImageRoiMin RefImageRoiMax], []);
+            %}
 
             % Prepare new image cutout
             NewImage = Transient.New.Image;
+            NewImagePlot = asinh(NewImage);
+            NewImageLowLim = prctile(NewImagePlot(:),1);
+            NewImageHighLim = prctile(NewImagePlot(:),99);
+            NewImagePlot = rot90(NewImagePlot,2);
+            %{
             NewImageMinVal = min(NewImage(:));
             NewImageMaxVal = max(NewImage(:));
             NewImage = (NewImage - NewImageMinVal)/(NewImageMaxVal - NewImageMinVal);
@@ -392,21 +403,23 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
             NewImagePlot = imadjust(NewImage, ...
                 [NewImageRoiMin NewImageRoiMax], []);
+            %}
+
 
             % Prepare diff image cutout
             DiffImage = Transient.Image;
             DiffImageMinVal = min(DiffImage(:));
             DiffImageMaxVal = max(DiffImage(:));
             DiffImage = (DiffImage - DiffImageMinVal)/(DiffImageMaxVal - DiffImageMinVal);
-
+            
             [DiffImageSizeX, DiffImageSizeY] = size(Transient.Image);
 
             DiffImageHalfSizeX = floor(DiffImageSizeX / 2);
             DiffImageHalfSizeY = floor(DiffImageSizeY / 2);
             
-            DiffImageXStart = DiffImageHalfSizeX-5; 
+            DiffImageXStart = DiffImageHalfSizeX-5;
             DiffImageXEnd = DiffImageHalfSizeX+5;
-            DiffImageYStart = DiffImageHalfSizeY-5; 
+            DiffImageYStart = DiffImageHalfSizeY-5;
             DiffImageYEnd = DiffImageHalfSizeY+5;
 
             DiffImageRoi = DiffImage(DiffImageXStart:DiffImageXEnd, ...
@@ -416,6 +429,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
             DiffImagePlot = imadjust(DiffImage, ...
                 [DiffImageRoiMin DiffImageRoiMax], []);
+            DiffImagePlot = rot90(DiffImagePlot,2);
 
             % Create individual cutouts
             FigRef = figure('Position',[1,1,51,51],'Visible','on');
@@ -426,7 +440,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameRef = replace(Image_DirFilename,'.png','_Ref.png');
             Image_FilenamePartsRef = split(Image_DirFilenameRef,'/');
             Image_FilenameRef = Image_FilenamePartsRef{end};
-            imshow(RefImagePlot, 'Parent', axRef);
+            imshow(RefImagePlot, [RefImageLowLim RefImageHighLim],'Parent', axRef);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -438,7 +452,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
             Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
             Image_FilenameNew = Image_FilenamePartsNew{end};
-            imshow(NewImagePlot, 'Parent', axNew);
+            imshow(NewImagePlot, [NewImageLowLim NewImageHighLim],'Parent', axNew);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -464,11 +478,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
             tiledlayout('flow', 'TileSpacing', 'none');%, 'Padding', 'none');
             % Reference image stamp
             nexttile;
-            imshow(RefImagePlot);
+            imshow(RefImagePlot, [RefImageLowLim RefImageHighLim]);
             text(2,47,'Ref','Color','white','FontSize',14);
             % New image stamp
             nexttile;
-            imshow(NewImagePlot);
+            imshow(NewImagePlot, [NewImageLowLim NewImageHighLim]);
             text(2,47,'New','Color','white','FontSize',14);
             % Difference image stamp
             nexttile;
