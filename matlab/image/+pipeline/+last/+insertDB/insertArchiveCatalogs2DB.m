@@ -91,10 +91,17 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 continue
             end
             Nobj = numel(Cat);
-            if Nobj < 2 % likely no data have been read 
+            if Nobj < 2 % likely no data have been read
                 cd(Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 continue
+            end
+            for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
+                if ~Cat(Iobj).isColumn('JD')
+                    JD   = AH(Iobj).getVal('JD');
+                    Nrow = repmat(1,height(Cat(Iobj).Table),1);
+                    insertCol(Cat(Iobj),JD.*Nrow,Inf,'JD','');
+                end
             end
             cd(Dir);
             fprintf('Injecting from %s ..',DataDir);
