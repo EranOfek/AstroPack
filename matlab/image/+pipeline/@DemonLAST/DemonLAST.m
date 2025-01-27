@@ -2682,7 +2682,7 @@ classdef DemonLAST < Component
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
-                Args.InsertTransients2DB = false;
+                Args.InsertTransients2DB = true;
                 Args.DBHost              = '10.23.1.25';
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';
