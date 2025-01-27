@@ -30,8 +30,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         ADc
         TranCatLevel1
 
-        Args.SubselectionFalse = {'BadPixelHard', 'StarMatch', ...
-            'LIMMAG', 'MPMatch', 'Negative'};
+        Args.SubselectionFalse = {'BadPixelHard', 'LIMMAG', 'Negative', ...
+            'Overdensity', 'PVDist', 'Streak', 'PeakDist', 'Variable'};
         Args.useDB logical = false;
         Args.TranDB = '';
 
