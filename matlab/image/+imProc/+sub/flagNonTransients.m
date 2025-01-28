@@ -331,7 +331,9 @@ function TranCat = flagNonTransients(Obj, Args)
             % Relax flagging for galaxy-star confusion
             if Cat.isColumn('STAR_DIST') && Cat.isColumn('GAL_DIST')
                 GalaxyDist = Cat.getCol('GAL_DIST');
-                ExcludeGalaxy = GalaxyDist <= 3;
+                NStars = Cat.getCol('STAR_N');
+                NGal = Cat.getCol('GAL_N');
+                ExcludeGalaxy = (GalaxyDist <= 3) & (NGal >= NStars);
 
                 IsStar = IsStar & ~ExcludeGalaxy;
             end
