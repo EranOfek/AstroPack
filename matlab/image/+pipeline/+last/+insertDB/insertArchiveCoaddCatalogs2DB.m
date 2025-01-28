@@ -34,7 +34,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
-        Args.DbPass = 'PassRoot'; 
+        Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         
         Args.Level  = 'coadd';
         Args.DbTable= 'visit_src';      
@@ -49,7 +49,9 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     DB.Host     = Args.DbHost;
     DB.DbName   = Args.DbName;
     DB.User     = Args.DbUser;
-    DB.Password = Args.DbPass;
+    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+    PM = PasswordsManager;    
+    DB.Password = PM.search(Args.DbName).Pass;
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);    
