@@ -199,7 +199,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     % Check if at least half the field is overlapping after registration
     LessThanHalfOverlap = 0;
     for Iobj = Nobj:-1:1
-        NaNs = sum(AD(Iobj).Ref.MaskData.findbit('NaN'), 'all');
+        NaNs = sum(AD(Iobj).Ref.MaskData.findBit('NaN'), 'all');
         ImageSize = AD(Iobj).Ref.ImageData.sizeImage;
         FractionNaNs = NaNs / ImageSize^2;
         if FractionNaNs > 0.5
