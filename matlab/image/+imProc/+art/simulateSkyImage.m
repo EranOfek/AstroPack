@@ -4,6 +4,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         * ...,key,val,... 
         %         'Size' - image size (overriden by an expicit Cat argument!)
         %         'Cat'  - input catalog [X Y] matrix
+        %         'SkyCat'- (logical) whether the input catalog is in Sky [RA, Dec] (true) or Pixel [pix, pix] (false) coordinates
         %         'Mag'  - input magnitudes (1 value or individual values)  
         %         'Nsrc' - number of objects ([] be def.); if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
@@ -26,11 +27,12 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         - the injected source catalog
         %         - (optional) output disk files: FITS image, ds9 region, .mat object 
         % Author: A.M. Krassilchtchikov (Sep 2024)
-        % Example: [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFiles',true);
+        % Example: [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFITS',true);
         % 
         arguments
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
             Args.Cat        = [];          % input catalog (source positions) 
+            Args.SkyCat     = true;        % the input catalog is in Sky [RA, Dec] (true) or Pixel [pix, pix] (false) coordinates
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
             Args.PSF        = '~/matlab/data/TestImages/unitTest/LAST_PSF.txt';% input PSF: either a file name or a stamp
@@ -95,6 +97,11 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         else % read the source magnitudes from the input parameter  
             if isempty(Args.Nsrc)
                 Nsrc = numel(Args.Mag);
+                if numel(Args.Mag) < 2
+                    Mag = repmat(Args.Mag,1,Nsrc);
+                else
+                    Mag = Args.Mag;
+                end
             else
                 Nsrc = Args.Nsrc;
                 if numel(Args.Mag) < 2
@@ -105,14 +112,20 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         
         Flux = 10.^(0.4.*(Args.MagZP-Mag));
         
-        fprintf('%d objects in the FOV\n', Nsrc);
-        
         % simulated source positions
         if isempty(Args.Cat)
             Cat = [Nx.*rand(Nsrc,1), Ny.*rand(Nsrc,1)]; 
         else
-            Cat = Args.Cat;
+            if Args.SkyCat
+                [Cat(:,1), Cat(:,2)] = SimWCS.sky2xy(Args.Cat);
+            else
+                Cat = Args.Cat;
+            end
         end
+        % calculate the number of sources falling into the FOV:
+        NinFOV = sum( (Cat(:,1) > 0) & (Cat(:,1) < Nx+1) & (Cat(:,2) > 0) & (Cat(:,2) < Ny+1) );
+        fprintf('%d objects in the FOV\n', NinFOV);
+        
                 % write disk files if requested 
                  if Args.WriteReg            
                      DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,...
@@ -133,9 +146,11 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         SimAI.Image = repmat(0,Nx,Ny);
         SimAI.Mask  = repmat(uint32(0),Nx,Ny);
         SimAI.setKeyVal('OBJECT','Simulated');
+        SimAI.setKeyVal('JD',celestial.time.date2jd);
         SimAI.PSF   = PSF;
          
         [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
+                                                        'CreateNewObj',true, ...
                                                         'UpdateCat', false, ... 
                                                         'MagZP',Args.MagZP, ... 
                                                         'PositivePSF', true, ... 
@@ -143,6 +158,14 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
                                                         'Back', Back, ...                                                         
                                                         'AddNoise',Args.AddNoise, ...
                                                         'NoiseModel', 'normal'); 
+         % add sky coordinates to the InjectedCat
+         if ~isempty(Args.Cat) && Args.SkyCat % just use the original input coordinates
+             SrcRA  = Args.Cat(:,1);
+             SrcDec = Args.Cat(:,2);
+         else
+             [SrcRA, SrcDec] = SimWCS.xy2sky(InjectedCat.Table.X1, InjectedCat.Table.Y1);
+         end
+         InjectedCat = insertCol(InjectedCat, [SrcRA, SrcDec], Inf, {'RA', 'Dec'}, {'deg', 'deg'});
                                                              
          % write disk files if requested            
          if Args.WriteFITS
