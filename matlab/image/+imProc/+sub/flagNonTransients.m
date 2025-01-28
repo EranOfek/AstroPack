@@ -65,9 +65,6 @@ function TranCat = flagNonTransients(Obj, Args)
                        true.
                 'PeakDistThreshold' - Threshold distance for the pixel to
                        sub-pixel peak distance filter. Default is 1.33.
-                'PeakDistThresholdGal' - Threshold distance for the pixel to
-                       sub-pixel peak distance filter if cnadidate has a 
-                       galaxy match. Default is 2.0.
                 'flagLimitingMag' - Bool on whether to flag candidates that
                        are above the limiting magnitude. Candidate is
                        filteres if it is above limiting magnitude in New
@@ -92,12 +89,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 'ignoreTranslient_NothingInRef' - Do not flag candidates
                        for translient if source is not detected in the
                        reference image. Default is true.
-                'ignoreTranslient_GalaxyNuclear' - Do not flag candidates
-                       for translient if source is matched to a galaxy and 
-                       close to the nucleus. Default is true.
-                'TranslientGalaxyDistThresh' - Threshold distance from galaxy
-                       below which not to apply transient flagging.
-                       Default is 3.0.
                 'flagScorr' - Bool on whether to flag candidates based on 
                        source noise corrected S statistic. Default is true.
                 'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
@@ -122,7 +113,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFChi2Mean = [0.64096051, 0.65603272]
         Args.PSFChi2CovInv = [11.06639904, -4.23111166;...
             -4.23111166, 10.35510321];
-        Args.PSFChi2DistThreshold = 1.7;        
+        Args.PSFChi2DistThreshold = 1.7;
         
         Args.flagSaturated logical = true;
 
@@ -145,7 +136,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.6;
-        Args.PeakDistThresholdGal = 2.0;
 
         Args.flagLimitingMag logical = true;    
         Args.LimitingMagOverwriteVal = NaN;
@@ -166,12 +156,12 @@ function TranCat = flagNonTransients(Obj, Args)
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
-        Args.NeighborNumThreshold = 36;
+        Args.NeighborNumThreshold = 30;
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
 
         Args.flagCR logical = true;
-        Args.CRDeltaSN = 0.3;
+        Args.CRDeltaSN = 0.5;
 
         Args.flagVariable logical = true;
 
@@ -182,9 +172,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagTranslients logical = true;
         Args.TranslientCorrectionParam = 20;
         Args.ignoreTranslient_NothingInRef = true;
-        Args.ignoreTranslient_GalaxyNuclear = false;
-        Args.TranslientGalaxyDistThresh = 1.0;
-
     end
 
     Nobj = numel(Obj);
@@ -386,10 +373,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PeakDist = Cat.getCol('PEAK_DIST');
             PeakTooFar = PeakDist > Args.PeakDistThreshold;
-            if Cat.isColumn('GAL_N')
-                IsInGalaxy = Cat.getCol('GAL_N') > 0;
-                PeakTooFar(IsInGalaxy) = PeakDist(IsInGalaxy)  > Args.PeakDistThresholdGal;
-            end
 
             PeakFlagged = PeakTooFar;
             TF_Flags = TF_Flags + PeakFlagged.*2.^BD_TF.name2bit('PeakDist');
@@ -604,6 +587,20 @@ function TranCat = flagNonTransients(Obj, Args)
             ScorrGood = (abs(Score) >= abs(Scorr)) ...
                 & (abs(Scorr) > Args.ScorrThreshold);
 
+            %TODO: Galaxy centers have overestimated significance either
+            %due to source noise, wrong estimation of the zero point, or
+            %lack of color correction. Before that's figured out, I'm just
+            %increasing the Scorr requirement for galaxy centers.
+            
+            if Cat.isColumn('GAL_DIST')
+                GalaxyDist = Cat.getCol('GAL_DIST');
+                NuclearCandidate = GalaxyDist <= 3;
+
+                ScorrGood(NuclearCandidate) = ...
+                    (abs(Score(NuclearCandidate)) >= abs(Scorr(NuclearCandidate))) ...
+                & (abs(Scorr(NuclearCandidate)) > Args.ScorrThreshold+3);
+            end
+
             ScorrFlagged = ~ScorrGood;
             TF_Flags = TF_Flags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
 
@@ -619,11 +616,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 R_Mag = Cat.getCol('R_MAG_PSF');
                 IgnoreTranslientCol = IgnoreTranslientCol | ...
                     (R_Mag > LimitingMagVal_R);
-            end
-            if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GAL_DIST')
-                GalaxyDist = Cat.getCol('GAL_DIST');
-                IgnoreTranslientCol = IgnoreTranslientCol | ...
-                    GalaxyDist < Args.TranslientGalaxyDistThresh;
             end
         
             Z2_AIC = Z2_AIC - Args.TranslientCorrectionParam;
