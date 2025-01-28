@@ -53,7 +53,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         PassingTran = (Flags == 0);
         NumPassingTran = sum(PassingTran);
 
-        Score = Transient.CatData.getCol('SCORE');
+        Score = Transient.Table.SCORE;
 
         % Report only if transient candidate has been detected at least
         % twice of with a > Args.SingeEpochThresh sigma significance 
@@ -72,12 +72,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
         LAST_report = [];
 
         % Get meta data
-        RA = Transient.CatData.getCol('RA');
-        Dec = Transient.CatData.getCol('Dec');
-        JD = Transient.CatData.getCol('JD');
+        RA = Transient.Table.RA;
+        Dec = Transient.Table.Dec;
+        JD = Transient.Table.JD;
         JD0 = Transient.New.julday;
-        Mount = Transient.CatData.getCol('MOUNT');
-        Camera = Transient.CatData.getCol('CAM');
+        Mount = Transient.Table.MOUNT;
+        Camera = Transient.Table.CAM;
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
@@ -85,7 +85,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
 
         Mag = Transient.CatData.getCol('MAG_PSF');
-        Flux = Transient.CatData.getCol('FLUX_PSF');
 
         Ind0 = find(JD == JD0);
 
@@ -97,7 +96,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Dec0 = Dec(Ind0);
         Score0 = Score(Ind0);
         Mag0 = Mag(Ind0);
-        Flux0 = Flux(Ind0);
 
         RAfield = [];
         Decfield = [];
