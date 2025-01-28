@@ -25,7 +25,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         Args.DbHost = 'socsrv';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
-        Args.DbPass = 'PassRoot'; 
+        Args.DbPass = ''; 
         
         Args.Level  = 'coadd';
         Args.DbTable= 'diff_src';     %  
@@ -44,8 +44,6 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         DB = Args.DB;
     end    
     DB.useDB(Args.DbName);
-%     fprintf('DB in use: %s\n',DB.showCurrentDB);
-%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %    
