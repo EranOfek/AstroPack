@@ -43,7 +43,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.BackPar                   = {'SubSizeXY',[128 128]}; % {'SubSizeXY',[]})
 
         Args.VarMethod                 = 'LogHist';             
-        Args.MomRadius                 = [4 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
+        Args.MomRadius                 = [4 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         
         Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
                 
@@ -69,7 +69,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
         % source PSF fitting:
-        Args.FitRadius                 = [3 3 3];% PSF fit radius at each iteration
+        Args.FitRadius                 = [3 3 3 3 3];% PSF fit radius at each iteration
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
         
