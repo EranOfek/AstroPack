@@ -196,6 +196,24 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     
     % Register New and Ref
     AD.register;
+    % Check if at least half the field is overlapping after registration
+    LessThanHalfOverlap = 0;
+    for Iobj = Nobj:-1:1
+        NaNs = sum(AD(Iobj).Ref.MaskData.findBit('NaN'), 'all');
+        ImageSize = AD(Iobj).Ref.ImageData.sizeImage;
+        FractionNaNs = NaNs / ImageSize^2;
+        if FractionNaNs > 0.5
+            LessThanHalfOverlap = LessThanHalfOverlap +1;
+            AD(Iobj) = [];
+        end
+    end
+
+    if LessThanHalfOverlap == Nobj
+        Status = 'All New and Ref images overlap for less than half of the field.';
+        return;
+    end
+
+    Nobj = numel(AD);
     % Estimate backround and variance of New and Ref
     AD.estimateBackVar;
     % Estimate zero points

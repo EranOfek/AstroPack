@@ -259,13 +259,13 @@ function TranCat=findTransients(AD, Args)
         if Args.includeObsTime
 
             % Get observation times from new image
-            [N_JD, ~] = AD(Iobj).New.julday();
+            [N_JD, ~] = AD(Iobj).New.julday;
     
             ColSize = size(LocalMax(:,3));
             N_JD = N_JD*ones(ColSize);
 
             % Get observation time from ref image
-            [R_JD, ~] = AD(Iobj).Ref.julday();
+            [R_JD, ~] = AD(Iobj).Ref.julday;
             R_JD = R_JD*ones(ColSize);
 
             % Insert results into catalog.
