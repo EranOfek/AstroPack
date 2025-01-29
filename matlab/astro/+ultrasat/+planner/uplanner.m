@@ -1607,13 +1607,15 @@ classdef uplanner < Component
 
                 % Example for AllSS plan (draft):                  
                   upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
-                  AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt'));
+                  AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid 
+                  % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
                   upAllSS.StartTime = '2028-07-01';
                   upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
                   upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
                   upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime);
                   
-                  upAllSS.DailyWindowMaxDuration = hours(5); 
+                  upAllSS.DailyWindowMaxDuration = hours(5); % if we dedicate a week for AllSS only, this may become 24 hrs 
+                  upAllSS.buildAllSS('AllowPartial',true);   % allow to make a plan with incomplete field coverage 
                  %
                  Result=true;                                 
             end
