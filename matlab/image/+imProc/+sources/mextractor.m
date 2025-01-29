@@ -257,6 +257,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 [RA, Dec] = Result(Iobj).WCS.xy2sky(Result(Iobj).Table.X,Result(Iobj).Table.Y);
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
+                Result(Iobj).CatData.sortrows('Dec');
             catch
                 if Args.Verbose
                     fprintf('Image WCS is not clean. RA, Dec columns not added to the output catalog.\n');
