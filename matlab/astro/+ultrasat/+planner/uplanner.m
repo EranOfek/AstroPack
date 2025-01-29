@@ -1608,7 +1608,12 @@ classdef uplanner < Component
                 % Example for AllSS plan (draft):                  
                   upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                   AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt'));
+                  upAllSS.StartTime = '2028-07-01';
+                  upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
                   upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
+                  upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime);
+                  
+                  upAllSS.DailyWindowMaxDuration = hours(5); 
                  %
                  Result=true;                                 
             end
