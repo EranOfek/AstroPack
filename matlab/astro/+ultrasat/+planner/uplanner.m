@@ -54,7 +54,7 @@
 %
 %
 % - [CheckStatus,badPlanRow] = Obj.planSelfConsistencyCheck(Args)       : Verify that the plan schedule is self consistent. 
-%                                                                                                                       TODO- valdtae Ntargets in plan and uniqTarg
+%                                                                                                                       TODO- validate Ntargets in plan and uniqTarg
 % - Obj.adjustGroupStartTime(Args)                          : Adjust the start time of a group in the plan by 3 options: 
 %                                                                  a given NewStartTime, a given ShiftTime, or relative to a target in the OverLap targets list.
 %                                                             If no GroupList is provided, will adjust all groups in the plan, one by one.
@@ -88,7 +88,7 @@
 %
 % Additional functions to be considered:
 % - retrieveExecutedObsMap                 : Retrieve of executed observations maps for a given field / coordinate
-% several optimized plannaing functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
+% several optimized planning functions\tools (e.g., covarge of an area, plan AllSS - 2 options, mutiple ToO plans)
 % add msglog for all functions - expecially for trycatch
 % Verify all param range/valid values (e.g., Exp time >readtime)
 % 
@@ -1561,7 +1561,7 @@ classdef uplanner < Component
                   upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
                   F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
 
-                 % Fakely retrive upHCS ar apprvoed target list
+                 % Fakely retrive upHCS ar approved target list
                   upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
                   
                   % check with struct
@@ -1606,6 +1606,10 @@ classdef uplanner < Component
                   upDDT.addDDT2Plan([1,2],datetime('now','TimeZone','UTC'));
                   upDDT.addDDT2Plan([3,2],datetime('tomorrow','TimeZone','UTC')); 
 
+                % Example for AllSS plan (draft):                  
+                  upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
+                  AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt'));
+                  upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
                  %
                  Result=true;                                 
             end
