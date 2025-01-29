@@ -254,7 +254,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         % add RA, Dec from the object's WCS if it is present
         if Args.AddSkyCoo && ~isempty(Obj(Iobj).WCS)
             try
-                [RA, Dec] = Obj(Iobj).WCS.xy2sky(Obj(Iobj).Table.X,Obj(Iobj).Table.Y);
+                [RA, Dec] = Obj(Iobj).WCS.xy2sky(Result(Iobj).Table.X,Result(Iobj).Table.Y);
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
             catch
