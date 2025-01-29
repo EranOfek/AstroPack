@@ -94,8 +94,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     NBelowMinNCoadd = 0;
     %NAboveMaxNFWHM = 0;
 
-
-
     for Iobj=Nobj:-1:1
 
         NCOADD = New(Iobj).HeaderData.getVal('NCOADD');
@@ -476,59 +474,101 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     end
 
     % If SaveProducts true, save desired products in desired path
-   for Iobj=Nobj:-1:1
+    for Iobj=Nobj:-1:1
         TranCat(Iobj) = AD(Iobj).CatData;
-   end
-   MergedTranCat = merge(TranCat);
-   MergedTranCat.sortrows('Dec');
+    end
+    MergedTranCat = merge(TranCat);
+    MergedTranCat.sortrows('Dec');
+    
+    % Get transients only for cutouts
+    ADn = removeNonTransients(AD);
+    % Make cutouts
+    ADc = ADn.cutoutTransients;
+    
+    % Save cutouts
+    % TODO: Structure file holding all of the cutouts can sometimes be 
+    % several GB large. Investigate this issue.
+    NADc = numel(ADc);
+    if NADc == 1 && isempty(ADc(1).Table)
+        NADc = 0;
+    end
+    
+    % Kill duplicates
+    % Finds duplicates (1.5 arcsec self match) and keep only those closest to 
+    % the center of its sub-image
+    if Args.killDuplicates
 
-   % Kill duplicates
-   % Finds duplicates (1.5 arcsec self match) and keep only those closest to 
-   % the center of its sub-image
-   if Args.killDuplicates
-       % Find duplicates based on RA/Dec
-       [MRA, MDec] = MergedTranCat.getLonLat('rad');
-       HalfSize = size(AD(1).Image)./2;
-       SelfMatches = VO.search.search_sortedlat_multi( ...
+        NADcWithDups = sum(MergedTranCat.getCol('FLAGS_TRANSIENT') == 0);
+        
+        % Clean merged catalog
+        % Find duplicates based on RA/Dec
+        [MRA, MDec] = MergedTranCat.getLonLat('rad');
+        HalfSize = size(AD(1).Image)./2;
+        SelfMatches = VO.search.search_sortedlat_multi( ...
                 [MRA, MDec], MRA, MDec, -1.5*Arcsec2Rad);
-       SelfMachthesN = vertcat(SelfMatches.Nmatch);
-       Duplicates = SelfMachthesN > 1;
-       DuplicatesMatches = SelfMatches(Duplicates);
-       DuplicatesNMatches = vertcat(DuplicatesMatches.Nmatch);
-       NDup = numel(DuplicatesNMatches);
+        SelfMachthesN = vertcat(SelfMatches.Nmatch);
+        Duplicates = SelfMachthesN > 1;
+        DuplicatesMatches = SelfMatches(Duplicates);
+        DuplicatesNMatches = vertcat(DuplicatesMatches.Nmatch);
+        NDup = numel(DuplicatesNMatches);
 
-       for IDup=1:NDup
-           IDuplicates = DuplicatesMatches(IDup);
-           IDuplicatesInd = IDuplicates.Ind;
-           SelfIdx = IDuplicatesInd == IDuplicates.Ind1;
-
-           DuplicatesCat = MergedTranCat.selectRows(IDuplicatesInd);
-           CropIDs = DuplicatesCat.Table.CROPID;
-
-           % Remove false duplicates in the same sub-image
-           SelfCrop = CropIDs(SelfIdx); 
-           NonSelfImgDup = ((CropIDs ~= SelfCrop) | SelfIdx);
-           DuplicatesCat = DuplicatesCat.selectRows(NonSelfImgDup);
-           IDuplicatesInd = IDuplicatesInd(NonSelfImgDup);
-
-           % Not a duplicate
-           if DuplicatesCat.sizeCatalog == 1
+        for IDup=1:NDup
+            IDuplicates = DuplicatesMatches(IDup);
+            IDuplicatesInd = IDuplicates.Ind;
+            SelfIdx = IDuplicatesInd == IDuplicates.Ind1;
+            
+            DuplicatesCat = MergedTranCat.selectRows(IDuplicatesInd);
+            CropIDs = DuplicatesCat.Table.CROPID;
+            
+            % Remove false duplicates in the same sub-image
+            SelfCrop = CropIDs(SelfIdx); 
+            NonSelfImgDup = ((CropIDs ~= SelfCrop) | SelfIdx);
+            DuplicatesCat = DuplicatesCat.selectRows(NonSelfImgDup);
+            IDuplicatesInd = IDuplicatesInd(NonSelfImgDup);
+            
+            % Not a duplicate
+            if DuplicatesCat.sizeCatalog == 1
                Duplicates(DuplicatesMatches(IDup).Ind1) = 0;
                continue
-           end
+            end
+            
+            % Choose the duplicate that is closest to the center as the
+            % survivor
+            [DupX, DupY] = DuplicatesCat.getXY('ColX','XPEAK','ColY','YPEAK');
+            CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
+            Survivor = CenterDistance == min(CenterDistance);
+            Duplicates(IDuplicatesInd(Survivor)) = 0;
+        end
+        MergedTranCat = MergedTranCat.selectRows(~Duplicates);
+        MergedTranCat.sortrows('Dec');
 
-           % Choose the duplicate that is closest to the center as the
-           % survivor
-           [DupX, DupY] = DuplicatesCat.getXY('ColX','XPEAK','ColY','YPEAK');
-           CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
-           Survivor = CenterDistance == min(CenterDistance);
-           Duplicates(IDuplicatesInd(Survivor)) = 0;
-       end
-       MergedTranCat = MergedTranCat.selectRows(~Duplicates);
-       MergedTranCat.sortrows('Dec');
-   end
+        % Clean ADc if necessary
+        NADcWithoutDups = sum(MergedTranCat.getCol('FLAGS_TRANSIENT') == 0);
+        
+        if NADcWithDups > NADcWithoutDups
+            PassingTranCat = MergedTranCat.selectRows(...
+                MergedTranCat.getCol('FLAGS_TRANSIENT') == 0);
+            [MergedX, MergedY] = PassingTranCat.getXY('ColX','XPEAK','ColY','YPEAK');
+            [MergedRA, MergedDec] = PassingTranCat.getLonLat('rad');
+            NotKilled = ones(NADcWithDups,1);
+            for IADc = 1:NADcWithDups
+                TC = ADc(IADc).CatData;
+
+                [ADcX, ADcY] = TC.getXY('ColX','XPEAK','ColY','YPEAK');
+                [ADcRA, ADcDec] = TC.getLonLat('rad');
+
+                NotKilled(IADc) = any(...
+                    ismember(MergedX, ADcX) & ismember(MergedY, ADcY) &...
+                    ismember(MergedRA, ADcRA) & ismember(MergedDec, ADcDec));
+            end
+
+            ADc(~NotKilled) = [];
+            NADc = numel(ADc);
+        end
+
+    end
    
-   if Args.SaveProducts
+    if Args.SaveProducts
         if ~isempty(Args.Product)
             for Iobj=Nobj:-1:1
                 FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
@@ -559,15 +599,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
         end
     end
 
-    % Get transients only for cutouts
-    ADn = removeNonTransients(AD);
-    % Make cutouts
-    ADc = ADn.cutoutTransients;
-
-    % Save cutouts
-    % TODO: Structure file holding all of the cutouts can sometimes be 
-    % several GB large. Investigate this issue.
-    
     %{
     if Args.SaveProducts
         FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
@@ -584,13 +615,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitPath, Args)
     end  
     %}
 
-    NADc = numel(ADc);
-    if NADc == 1 && isempty(ADc(1).Table)
-        NADc = 0;
-    end
-
     StatusCell = strcat('Succesful exit,',{' '}, ...
         num2str(NADc),{' '},'transient(s) found.');
-
+    
     Status = StatusCell{1};
 end
