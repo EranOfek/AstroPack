@@ -984,10 +984,9 @@ classdef uplanner < Component
             if isempty(Args.TargList)
                 Args.TargList = 1:height(Obj.UniqTarg);
             end
-            
-            
+                        
             % target coordinates 
-            RA = Obj.UniqTarg.RA(Args.TargList); 
+            RA  = Obj.UniqTarg.RA(Args.TargList); 
             Dec = Obj.UniqTarg.Dec(Args.TargList); 
             
             % extinction 
