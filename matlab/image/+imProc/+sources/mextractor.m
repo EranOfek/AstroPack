@@ -87,7 +87,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     end
     
     % check consistency
-    if ~(numel(Args.Threshold) == numel(Args.MomRadius))
+    if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
         error('The length of Args.Threshold does must comply with that of Args.MomRadius');
     end
     Niter = numel(Args.Threshold);
