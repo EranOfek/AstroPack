@@ -1,4 +1,4 @@
-function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
+function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
 % This function tests multi-itereation PSF compared to standard pipeline
 % products (APER3, PSF) on a set of 13 LAST coadd images of either ctrowded field or 
 % uncrowded fields  
@@ -32,12 +32,26 @@ function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
     end
     
     % Extract results from defult pipeline
-    mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius);
+    mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius,[]);
 
      % Run Mextractor and extract results
-    AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);    
-    mms_PSF = merge_n_ZPcoo(AI_PSF,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius);
+     %AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);
+    [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
+                            'SaveSourcelessImage',true,...
+                            'FindWithEmpiricalPSF',true,...
+                            'BackPar',{'SubSizeXY',[]},...  %global bck
+                            'Threshold',[300 100 30 10 5],...  % more SNR thrsholds
+                            'UseOriginalPSF',false,...          
+                            'Verbose',true);  
     
+
+    ZPoffset = zeros(numel(AI_PSF),1);
+    for i = 1:numel(AI_PSF)
+        ZPoffset(i) = 25-AI_PSF(i).HeaderData.Key.PH_ZP ;
+    end                        
+    
+    mms_PSF = merge_n_ZPcoo(AI_PSF,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius,ZPoffset);
+
     if Args.plotShift
         figure('WindowStyle','docked','Color',[1 1 1]);box on;hold on; grid on;
         set(gca,'yscale','log');
@@ -92,18 +106,24 @@ function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
 end
 
 
-function mms = merge_n_ZPcoo(AI,mergeBy,BadFlags,Det_frac,Radius)
+function mms = merge_n_ZPcoo(AI,mergeBy,BadFlags,Det_frac,Radius,baseZPoffset)
     % Extract results from defult pipeline
-    [~,MS] = imProc.match.mergeCatalogs(AI.','Radius',Radius);
+    MatchedColums           = {'RA','Dec','X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4','MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','ITER'};
+
+    [~,MS] = imProc.match.mergeCatalogs(AI.','Radius',Radius,'MatchedColums',MatchedColums);
     ms = mergeByCoo(MS, MS(mergeBy));
     mms = ms.setBadPhotToNan('BadFlags', BadFlags, 'MagField', 'MAG_PSF', 'CreateNewObj', true);
     NdetGood = sum(~isnan(mms.Data.MAG_PSF), 1);
     Fndet = NdetGood > Det_frac*mms.Nepoch; % Allow for 15% no detections per source.
     mms = mms.selectBySrcIndex(Fndet, 'CreateNewObj', false);
+
+    if ~isempty(baseZPoffset)
+            mms.applyZP(baseZPoffset);
+    end
     
     % apply zp correction to every mag field in MS
-    r = lcUtil.zp_meddiff(mms, 'MagField', {'MAG_PSF'}, 'MagErrField', {'MAGERR_PSF'});
+    r = lcUtil.zp_meddiff(mms, 'MagField', {'MAG_PSF'}, 'MagErrField', {'MAGERR_PSF'},'MaxMagErr',0.01);
     [mms, ~] = applyZP(mms, r.FitZP, 'ApplyToMagField', 'MAG_PSF');
-    r = lcUtil.zp_meddiff(mms, 'MagField', {'MAG_APER_3'}, 'MagErrField', {'MAGERR_APER_3'});
+    r = lcUtil.zp_meddiff(mms, 'MagField', {'MAG_APER_3'}, 'MagErrField', {'MAGERR_APER_3'},'MaxMagErr',0.01);
     [mms, ~] = applyZP(mms, r.FitZP, 'ApplyToMagField', 'MAG_APER_3');
 end
