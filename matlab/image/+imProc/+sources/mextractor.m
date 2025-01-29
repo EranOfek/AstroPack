@@ -108,19 +108,19 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     end
      
     % exclude objects with empty images
-    Obj(Obj.isemptyProperty('Image')) = [];    
+    Result(Result.isemptyProperty('Image')) = [];    
     
     % measure background and variance if it is missing or if the object is new
-    FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var') | Args.CreateNewObj;
+    FlagBack = Result.isemptyProperty('Back') | Result.isemptyProperty('Var') | Args.CreateNewObj;
     if any(FlagBack)
-        Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.BackPar{:});
+        Result(FlagBack) = imProc.background.background(Result(FlagBack), Args.BackPar{:});
     end
     
     % measure PSF if it does not exist or if the user requested to re-calc
     % NB: if the input catalog is empty, the catalog struct need for PSF measurements
     % will be generated inside imUtil.psf.constructPSF by imUtil.sources.findSources 
     % at Threshold > 20 sigma, but the object's catalog property will not be populated
-    FlagPSF = Obj.isemptyPSF | ~Args.UseOriginalPSF; 
+    FlagPSF = Result.isemptyPSF | ~Args.UseOriginalPSF; 
     if any(FlagPSF)
         [Result(FlagPSF)] = imProc.psf.populatePSF(Result(FlagPSF), Args.populatePSFArgs{:},...
             'ThresholdPSF',Args.ThresholdPSF,...
@@ -132,8 +132,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
     if Args.DeleteInputCatalog
-        Obj.deleteProp('CatData');
-        Obj.deleteProp('Table');
+        Result.deleteProp('CatData');
+        Result.deleteProp('Table');
     end    
                                                       
     % find and measure sources using multi-iteration PSF fitting    
