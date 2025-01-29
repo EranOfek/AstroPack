@@ -18,6 +18,7 @@ function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
         Args.mergeBy = 1;
         Args.BadFlags = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'}; % Change to NaN all data points associated with these flags.
         Args.Det_frac    = 0.85% Allow for 15% no detections per source.
+        Args.Radius                  = 1;
     end
 
     if isempty(Args.AI)
@@ -31,11 +32,11 @@ function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
     end
     
     % Extract results from defult pipeline
-    mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac);
+    mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius);
 
      % Run Mextractor and extract results
     AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);    
-    mms_PSF = merge_n_ZPcoo(AI_PSF,Args.mergeBy,Args.BadFlags,Args.Det_frac);
+    mms_PSF = merge_n_ZPcoo(AI_PSF,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius);
     
     if Args.plotShift
         figure('WindowStyle','docked','Color',[1 1 1]);box on;hold on; grid on;
@@ -91,9 +92,9 @@ function [AI_PSF,mms_PSF,mms_base]=testMPSF(Args)
 end
 
 
-function mms = merge_n_ZPcoo(AI,mergeBy,BadFlags,Det_frac)
+function mms = merge_n_ZPcoo(AI,mergeBy,BadFlags,Det_frac,Radius)
     % Extract results from defult pipeline
-    [~,MS] = imProc.match.mergeCatalogs(AI.');
+    [~,MS] = imProc.match.mergeCatalogs(AI.','Radius',Radius);
     ms = mergeByCoo(MS, MS(mergeBy));
     mms = ms.setBadPhotToNan('BadFlags', BadFlags, 'MagField', 'MAG_PSF', 'CreateNewObj', true);
     NdetGood = sum(~isnan(mms.Data.MAG_PSF), 1);
