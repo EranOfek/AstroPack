@@ -132,8 +132,8 @@ classdef uplanner < Component
         %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
         %TOOProbMap                                 % Unused for now - check if needed later 
         
-        N_uniqueTargets     uint8       =  0; % number of unique targets
-        N_planTargets       uint8       =  0; % number of targets in the plan
+        N_uniqueTargets     uint16      =  0; % number of unique targets
+        N_planTargets       uint16      =  0; % number of targets in the plan
         
         Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
         
