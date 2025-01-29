@@ -49,53 +49,42 @@ function [Status] = sendTransientsAlert(ADc, Args)
     for Iadc = 1:Nadc
         Transient = ADc(Iadc);
 
-        Flags = Transient.CatData.getCol('FLAGS_TRANSIENT');
-        PassingTran = (Flags == 0);
+        PhotFlags = Transient.PhotCatData.getCol('FLAGS_TRANSIENT');
+        PassingTran = (PhotFlags == 0);
         NumPassingTran = sum(PassingTran);
 
-        Score = Transient.Table.SCORE;
+        PhotScore = Transient.PhotCatData.getCol('SCORE');
 
         % Report only if transient candidate has been detected at least
         % twice of with a > Args.SingeEpochThresh sigma significance 
         % within a single epoch
 
         if NumPassingTran == 1 
-            SingleEpochScore = Score(PassingTran);
+            SingleEpochScore = PhotScore(PassingTran);
             if SingleEpochScore < Args.SingleEpochThresh
                 NadcNotReported = NadcNotReported + 1;
                 continue
             end
         end
 
+        TC = Transient.CatData;
+
         TNS_Report = [];
         AT_Report = [];
         LAST_report = [];
 
-        % Get meta data
-        RA = Transient.Table.RA;
-        Dec = Transient.Table.Dec;
-        JD = Transient.Table.JD;
+        % Get date
         JD0 = Transient.New.julday;
-        Mount = Transient.Table.MOUNT;
-        Camera = Transient.Table.CAM;
 
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
             '-',sprintf('%02.0f',DT(3)),{' '},sprintf('%02.0f',DT(4)), ...
             ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
 
-        Mag = Transient.CatData.getCol('MAG_PSF');
-
-        Ind0 = find(JD == JD0);
-
-        if numel(Ind0) > 1
-            Ind0 = Ind0(1);
-        end
-
-        RA0 = RA(Ind0);
-        Dec0 = Dec(Ind0);
-        Score0 = Score(Ind0);
-        Mag0 = Mag(Ind0);
+        RA0 = TC.Table.RA;
+        Dec0 = TC.Table.Dec;
+        Score0 = TC.Table.SCORE;
+        Mag0 = TC.Table.MAG_PSF;
 
         RAfield = [];
         Decfield = [];
@@ -111,8 +100,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         AT_Report.discovery_datetime = DateString;
         AT_Report.at_type = 1;
         
-        Mount0 = Mount(Ind0);
-        Camera0 = Camera(Ind0);
+        Mount0 = Transient.HeaderData.getVal('MOUNTNUM');
+        Camera0 = Transient.HeaderData.getVal('CAMNUM');      
         CropID0 = Transient.HeaderData.getVal('CROPID');
         Object0 = Transient.HeaderData.getVal('OBJECT');
 
@@ -161,9 +150,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
         LC_UL = 0;
     
         % LC points
-        LC_Mag = Transient.CatData.getCol('MAG_PSF');
-        LC_JD = Transient.CatData.getCol('JD') - JD0;
-        LC_MagErr = Transient.CatData.getCol('MAGERR_PSF');
+        LC_Mag = Transient.PhotCatData.getCol('MAG_PSF');
+        LC_JD = Transient.PhotCatData.getCol('JD') - JD0;
+        LC_MagErr = Transient.PhotCatData.getCol('MAGERR_PSF');
         % LC upper limits
         if isprop(Transient,'ULCatData') && ~isempty(Transient.ULCatData)
             LC_UL = Transient.ULCatData.sizeCatalog;
@@ -244,10 +233,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         LAST_report.gal_dist = NaN;
 
-        if any(GalN > 0)
-            GalDists = Transient.CatData.getCol('GAL_DIST');
-            GalDists = GalDists(GalDists>0);
-            GalDist = mean(GalDists);
+        if GalN > 0
+            GalDist = Transient.CatData.getCol('GAL_DIST');
 
             [GLADEpCat,~,~] = catsHTM.cone_search('GLADEp', RA0*pi/180, Dec0*pi/180, ...
                 GalDist*1.5, 'OutType','AstroCatalog');
@@ -291,8 +278,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Add a SDDS SkyServer link.
-        TranCat0 = Transient.CatData.selectRows(Ind0);
-        SDSSLink = imProc.vo.getLinkForSource(TranCat0,[], @VO.SDSS.navigator_link);
+        SDSSLink = imProc.vo.getLinkForSource(TC,[], @VO.SDSS.navigator_link);
         SDSS_Msg = strcat('<',SDSSLink.Link,'|','SkyServer>');
         Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
 
