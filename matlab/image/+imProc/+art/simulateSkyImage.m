@@ -2,6 +2,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % simulate a sky image from source PSF and source magnitude distribution in the field 
         % Input:  - 
         %         * ...,key,val,... 
+        %         'AI'   - an input AI: use in it case we wish to add objects to an existing image 
         %         'Size' - image size (overriden by an expicit Cat argument!)
         %         'Cat'  - input catalog [X Y] matrix
         %         'SkyCat'- (logical) whether the input catalog is in Sky [RA, Dec] (true) or Pixel [pix, pix] (false) coordinates
@@ -14,6 +15,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         %         'Back' - image background (in cts)
         %         'DensityFactor' - linearly scaled source density: 1 corresponds to a moderately dense field of LAST
         %         'AddNoise' - (logical) whether to add noise to the source image
+        %         'WCS'      - use the input WCS if it is not empty
         %         'PixSizeDeg'    - WCS parameters: image pixel size [deg]
         %         'CRVAL'         - WCS parameters: reference coordinates [RA Dec]
         %         'CRPIX'         - WCS parameters: reference pixels [X Y]
@@ -30,6 +32,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % Example: [SimAI, SimCat] = imProc.art.simulateSkyImage('WriteFITS',true);
         % 
         arguments
+            Args.AI         = [];          % an input AI: use in it case we wish to add objects to an existing image 
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
             Args.Cat        = [];          % input catalog (source positions) 
             Args.SkyCat     = true;        % the input catalog is in Sky [RA, Dec] (true) or Pixel [pix, pix] (false) coordinates
@@ -42,6 +45,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
             Args.Back       = 220;         % [cts] [this default value is for a moderately dense field of LAST]
             Args.DensityFactor = 1;        % source density scaling: 1 corresponds to a moderately dense field of LAST
             Args.AddNoise logical = true;  % whether to add noise to the source image
+            Args.WCS        = [];          % use the input WCS if it is not empty
             Args.PixSizeDeg = 3.4722e-4;   % LAST pixel size [deg]
             Args.CRVAL      = [215 53];    % WCS CRVAL
             Args.CRPIX      = [1 1];       % WCS CRPIX
@@ -55,21 +59,25 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % make an empty AI
         SimAI = AstroImage;
         
-        % add WCS
-        SimWCS = AstroWCS();
-        SimWCS.ProjType  = 'TAN';
-        SimWCS.ProjClass = 'ZENITHAL';
-        SimWCS.CooName   = {'RA'  'DEC'};
-        SimWCS.CTYPE     = {'RA---TAN','DEC---TAN'};
-        SimWCS.CUNIT     = {'deg', 'deg'};
-        SimWCS.CD(1,1)   = Args.PixSizeDeg;
-        SimWCS.CD(2,2)   = Args.PixSizeDeg;
-        SimWCS.CRVAL     = Args.CRVAL;        
-        SimWCS.CRPIX     = Args.CRPIX;        
-        SimWCS.populate_projMeta;        
-        AH = SimWCS.wcs2header;  % make a header from the WCS
-        SimAI.HeaderData.Data = AH.Data; % add the WC data to the AI header       
-        SimAI.WCS        = SimWCS;                
+        % add WCS or use the input WCS from Args
+        if isempty(Args.WCS)
+            SimWCS = AstroWCS();
+            SimWCS.ProjType  = 'TAN';
+            SimWCS.ProjClass = 'ZENITHAL';
+            SimWCS.CooName   = {'RA'  'DEC'};
+            SimWCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+            SimWCS.CUNIT     = {'deg', 'deg'};
+            SimWCS.CD(1,1)   = Args.PixSizeDeg;
+            SimWCS.CD(2,2)   = Args.PixSizeDeg;
+            SimWCS.CRVAL     = Args.CRVAL;
+            SimWCS.CRPIX     = Args.CRPIX;
+            SimWCS.populate_projMeta;
+            AH = SimWCS.wcs2header;  % make a header from the WCS
+            SimAI.HeaderData.Data = AH.Data; % add the WC data to the AI header
+            SimAI.WCS        = SimWCS;
+        else
+            SimWCS = Args.WCS;
+        end
         
         if numel(Args.Size) > 1
             Nx = Args.Size(1);
@@ -131,7 +139,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
                      DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,...
                          'Color','cyan','Marker','s','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
                  end        
-        % read an empirical PSF 
+        % read an empirical PSF or use the input PSF 
         if ischar(Args.PSF)
             PSF = readmatrix(tools.os.relPath2absPath(Args.PSF));
         else
@@ -142,12 +150,16 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % add background with some spatial variations
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));  
         
-        % need to set up an empty image
-        SimAI.Image = repmat(0,Nx,Ny);
-        SimAI.Mask  = repmat(uint32(0),Nx,Ny);
-        SimAI.setKeyVal('OBJECT','Simulated');
-        SimAI.setKeyVal('JD',celestial.time.date2jd);
-        SimAI.PSF   = PSF;
+        % set up an empty image or use an existing image from the input AI
+        if isempty(Args.AI)
+            SimAI.Image = repmat(0,Nx,Ny);
+            SimAI.Mask  = repmat(uint32(0),Nx,Ny);
+            SimAI.setKeyVal('OBJECT','Simulated');
+            SimAI.setKeyVal('JD',celestial.time.date2jd);
+            SimAI.PSF   = PSF;
+        else
+            SimAI = Args.AI.copy;
+        end
          
         [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
                                                         'CreateNewObj',true, ...
