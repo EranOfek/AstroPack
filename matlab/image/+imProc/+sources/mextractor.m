@@ -110,8 +110,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % exclude objects with empty images
     Obj(Obj.isemptyProperty('Image')) = [];    
     
-    % measure background and variance if it is missing 
-    FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var');
+    % measure background and variance if it is missing or if the object is new
+    FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var') | Args.CreateNewObj;
     if any(FlagBack)
         Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.BackPar{:});
     end
