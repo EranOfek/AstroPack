@@ -252,9 +252,9 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Result(Iobj).CatData = merge(Cat);
                
         % add RA, Dec from the object's WCS if it is present
-        if Args.AddSkyCoo && ~isempty(Obj(Iobj).WCS)
+        if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS)
             try
-                [RA, Dec] = Obj(Iobj).WCS.xy2sky(Result(Iobj).Table.X,Result(Iobj).Table.Y);
+                [RA, Dec] = Result(Iobj).WCS.xy2sky(Result(Iobj).Table.X,Result(Iobj).Table.Y);
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, 'RA', {''});
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, 'Dec', {''});
             catch
