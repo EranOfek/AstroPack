@@ -50,6 +50,7 @@ classdef AstroDiff < AstroImage
 
         % These would work better in an AstroTransient class
         AlreadyReported = 0;
+        PhotCatData
         ULCatData
     end
     
