@@ -151,7 +151,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
     
         % LC points
         LC_Mag = Transient.PhotCatData.getCol('MAG_PSF');
-        LC_JD = Transient.PhotCatData.getCol('JD') - JD0;
+        LC_JD = Transient.PhotCatData.getCol('JD');
+        FirstDetection = min(LC_JD);
+        LC_JD = LC_JD - JD0;
         LC_MagErr = Transient.PhotCatData.getCol('MAGERR_PSF');
         % LC upper limits
         if isprop(Transient,'ULCatData') && ~isempty(Transient.ULCatData)
@@ -163,36 +165,47 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Construct last non-detection message.
-        % If available, use a recent observations, 
+        % If available, use a recent observations,
         % otherwise use reference image.
-        if LC_UL > 0
-            RelJD = JD0 - LC_UL_JD;
-            T0mT = min(RelJD);
-            LastUL_JD = LC_UL_JD(find(RelJD == T0mT,1));
-            LastUL_Mag = LC_UL_Mag(find(RelJD == T0mT,1));
-            LC_UL_JD = -RelJD;
+        Ref_JD = Transient.Ref.HeaderData.getVal('JD');
+        Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
+        LastUL_JD = Ref_JD;
+        LastUL_Mag = Ref_LimMag;
+        T0mTRef = JD0 - Ref_JD;
+        T0mT = T0mTRef;
+        RefExpTime = Transient.Ref.HeaderData.getVal('EXPTIME');
+        LastUL_ExpTime = RefExpTime;
 
-            LastUL_DT = celestial.time.jd2date(LastUL_JD,'H','YMD');
-            LastUL_DateString = strcat(num2str(LastUL_DT(1)),'-',sprintf('%02.0f',LastUL_DT(2)), ...
-                '-',sprintf('%02.0f',LastUL_DT(3)),{' '},sprintf('%02.0f',LastUL_DT(4)), ...
-                ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',LastUL_DT(6)),' UTC');
-            LastUL_Msg = strcat('Last non-detection from observations was on',{' '}, ...
-                LastUL_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
-                {' '},sprintf('%.2f',LastUL_Mag),'.');
-            Msg{1} = strcat(Msg{1},'\n',LastUL_Msg{1});
+        if LC_UL > 0
+            LC_UL_JD_BeforeFirstDet = LC_UL_JD(LC_UL_JD < FirstDetection);
+            LC_UL_Mag_BeforeFirstDet = LC_UL_Mag(LC_UL_JD < FirstDetection);
+            LC_UL_BeforeFirstDet = numel(LC_UL_JD_BeforeFirstDet);
+    
+            if LC_UL_BeforeFirstDet > 0
+                RelJD = JD0 - LC_UL_JD_BeforeFirstDet;
+                T0mT = min(RelJD);
+                LastUL_JD = LC_UL_JD_BeforeFirstDet(find(RelJD == T0mT,1));
+                LastUL_Mag = LC_UL_Mag_BeforeFirstDet(find(RelJD == T0mT,1));
+            end
+            LC_UL_JD = LC_UL_JD - JD0;
+            LastUL_ExpTime = 400;
         end
 
-        Ref_JD = Transient.Ref.HeaderData.getVal('JD');
-        T0mT = JD0 - Ref_JD;
-        Ref_LimMag = Transient.Ref.HeaderData.getVal('LIMMAG');
-        RefExpTime = Transient.Ref.HeaderData.getVal('EXPTIME');
+        LastUL_DT = celestial.time.jd2date(LastUL_JD,'H','YMD');
+        LastUL_DateString = strcat(num2str(LastUL_DT(1)),'-',sprintf('%02.0f',LastUL_DT(2)), ...
+            '-',sprintf('%02.0f',LastUL_DT(3)),{' '},sprintf('%02.0f',LastUL_DT(4)), ...
+            ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',LastUL_DT(6)),' UTC');
+        LastUL_Msg = strcat('Last non-detection from observations was on',{' '}, ...
+            LastUL_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
+            {' '},sprintf('%.2f',LastUL_Mag),'.');
+        Msg{1} = strcat(Msg{1},'\n',LastUL_Msg{1});
 
         Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
         Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
             '-',sprintf('%02.0f',Ref_DT(3)),{' '},sprintf('%02.0f',Ref_DT(4)), ...
             ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',Ref_DT(6)),' UTC');
         RefUL_Msg = strcat('Reference was on',{' '}, ...
-            Ref_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
+            Ref_DateString{1},{' '},'(T0-T=',num2str(T0mTRef),{' '},'d) with limiting mag of', ...
             {' '},sprintf('%.2f',Ref_LimMag),'.');
         Msg{1} = strcat(Msg{1},'\n',RefUL_Msg{1});
 
@@ -204,12 +217,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
         LAST_report.ref_filename = Ref_Filename;
 
         NonDetection = [];
-        NonDetection.obsdate = Ref_DateString;
-        NonDetection.flux = round(Ref_LimMag,2);
+        NonDetection.obsdate = LastUL_DateString;
+        NonDetection.flux = round(LastUL_Mag,2);
         NonDetection.flux_units = 1;
         NonDetection.filter_value = 1;
         NonDetection.instrument_value = 269;
-        NonDetection.exptime = RefExpTime;
+        NonDetection.exptime = LastUL_ExpTime;
         AT_Report.non_detection = NonDetection;
 
         NExpTime = Transient.New.HeaderData.getVal('EXPTIME');
