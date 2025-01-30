@@ -45,7 +45,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1:1:Ntarget
+    for Itarget=1347:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         
         Tmp = split(FieldID,'.');

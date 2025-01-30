@@ -74,7 +74,7 @@ warning('This function may have a bug')
     Npix = numel(PixHP);
     WhereClause = sprintf('%s=%d',Args.HP_ColName, PixHP(1));
     for Ipix=2:1:Npix
-        WhereClause = sprintf('%s OR %s=%d',WhereClause, Args.HP_ColName, PixHP(1));
+        WhereClause = sprintf('%s OR %s=%d',WhereClause, Args.HP_ColName, PixHP(Ipix));
     end    
     
 end

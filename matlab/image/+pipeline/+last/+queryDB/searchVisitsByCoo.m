@@ -35,9 +35,16 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
     %            Cell element per coordinate search.
     %          - The db.Db object.
     % Author : Eran Ofek (2024 Dec) 
-    % Example: T=pipeline.last.queryDB.searchVisitsByCoo(100,10);
+    % Example: T=pipeline.last.queryDB.searchVisitsByCoo(120.8,10.5);
     %          T=pipeline.last.queryDB.searchVisitsByCoo('M31')
     %          T=pipeline.last.queryDB.searchVisitsByCoo('M31',[],'Constraints',{'jd_start',[2451545 2461000]; 'fwhm',[1 4]})
+    %
+    %          % Tests:
+    %          RA = 40.5229121965; Dec = -16.9563601815;
+    %          D=db.Db; D.useDB('last');
+    %          TTT=D.query('SELECT * FROM visit_images');
+    %          Flag = celestial.coo.findInBox(RA, Dec, [TTT.ra1, TTT.ra2, TTT.ra3, TTT.ra4], [TTT.dec1, TTT.dec2, TTT.dec3, TTT.dec4]);
+    %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec);
 
     arguments
         RA                             % J2000 RA [deg|rad|sexagesimal|{FieldID#, CamNum, CropID}|table]
@@ -45,11 +52,11 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
 
         Args.InitSearchRadius  = 2000;  % [arcsec]
         Args.NSide_Low         = 2.^8;
-        Args.QueryMethod       = 'radec';
+        Args.QueryMethod       = 'upix'; %'radec';
         Args.UseCorners        = true;
 
-        Args.HalfWidth         = 1.*[0.55 0.55]./1;
-        Args.MaxNim            = 1e7;  % maximum number of images to add
+        Args.HalfWidth         = 2.*[0.55 0.55]./1;
+        Args.MaxNim            = []; %1e7;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
 
         Args.Constraints       = {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
@@ -61,11 +68,13 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
         
         Args.TableName         = "last.visit_images";
 
-        Args.SelectFields      = ["ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "jd_start", "midjd", "filter", "fieldid", "counter", "nodenumb", "mountnum", "camnum", "ccdid", "cropid", "subdir", "server",...
+        Args.SelectFields      = ["ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "jd_start", "midjd", "filter", "fieldid", "counter",...
+                                  "nodenumb", "mountnum", "camnum", "ccdid", "cropid", "subdir", "server",...
                                   "cloud", "transper_z", "fwhm_dimm_z", "ast_nsrc", "ast_arms", "ast_errm",...
                                   "meanbck", "medbck", "stdbck", "meanvar", "medvar", "fwhm", "med_a", "med_b", "med_th", "nsrc",...
                                   "ph_zp", "ph_col1", "ph_medc", "ph_rms", "ph_nsrc", "limmag", "backmag", "ncoadd",...
-                                  "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4", "optics_cln"];
+                                  "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4", "optics_cln",...
+                                  "upix_partition", "upix_low", "upix_high"];
         
         Args.ColCornerRA       = ["ra1","ra2","ra3","ra4"];
         Args.ColCornerDec      = ["dec1","dec","dec3","dec4"];
@@ -119,7 +128,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
             switch Args.QueryMethod
                 case 'radec'
                     %tic;
-                    PosConst    = db.search.queryCooBoxConstraints(RA(Icoo), Dec(Icoo), 'HalfWidth',Args.HalfWidth);
+                    PosConst    = db.search.queryCooBoxConstraints(RA(Icoo), Dec(Icoo), 'HalfWidth',Args.HalfWidth, 'ColRA','ra', 'ColDec','dec');
                     Constraints = [PosConst; Args.Constraints];
                     QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, Constraints, 'SortBy',Args.SortBy, 'Top',Args.MaxNim);
                     %toc
@@ -131,7 +140,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                 case 'upix'
     
                     %tic;
-                    WhereClause = db.search.queryConeSearch_Healpix(RA(Icoo), Dec(Icoo), Args.InitSearchRadius,'NSide',Args.NSide_Low, 'HP_ColName','upix_low');
+                    [WhereClause,HP] = db.search.queryConeSearch_Healpix(RA(Icoo), Dec(Icoo), Args.InitSearchRadius,'NSide',Args.NSide_Low, 'HP_ColName','upix_low');
                     QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, WhereClause);
                     %toc
             
@@ -153,6 +162,8 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                                T{Icoo}.(Args.ColCornerRA{3})(Icand), T{Icoo}.(Args.ColCornerDec{3})(Icand);...
                                T{Icoo}.(Args.ColCornerRA{4})(Icand), T{Icoo}.(Args.ColCornerDec{4})(Icand)];
                     Flag(Icand) = celestial.htm.in_polysphere([RA(Icoo), Dec(Icoo)]./RAD, Corners./RAD);
+                    %Flag(Icand) = celestial.coo.findInBox(RA(Icoo), Dec(Icoo), Corners(:,1).', Corners(:,2).', 'InUnits','deg');
+
                 end
                 
                 T{Icoo} = T{Icoo}(Flag,:);

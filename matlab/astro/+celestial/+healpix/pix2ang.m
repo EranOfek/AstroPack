@@ -5,6 +5,7 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
     %          * ...,key,val,...
     %            'Type' - 'nested'|'ring'. Default is 'nested'.
     %            'CooUnits' - Output coordinates units. Default is 'rad'.
+    %            'UniqueID' - True if pixel is unique ID. Default is false.
     % Output : - Array of longitudes.
     %          - Array of latitudes.
     % Compilation: mex CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" pix2ang_nested.cpp
@@ -16,10 +17,16 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
         Nside
         Pix
         Args.Type     = 'nested';
-        Args.CooUnits = 'rad';              
+        Args.CooUnits = 'rad';    
+        Args.UniqueID = false;
     end
 
-    Pix = double(Pix);
+    if Args.UniqueID
+        [~,Pix] = celestial.healpix.uniqueId2pix(Nside, Pix);
+    end
+
+    Pix = double(Pix); % from some reason this is required when Pix is a vector - however, this may cause precision problems!
+
     switch Args.Type
         case 'nested'
             [PixLon, PixLat] = celestial.healpix.mex.pix2ang_nested(Nside, Pix); % Get longitude and latitude
@@ -34,5 +41,8 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
         PixLon    = Factor.*PixLon;
         PixLat    = Factor.*PixLat;
     end
+
+    
+
 
 end

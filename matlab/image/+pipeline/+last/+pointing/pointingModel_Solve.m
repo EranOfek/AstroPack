@@ -75,7 +75,7 @@ function ImgDirs = getImageDirs(Dirs)
         if strcmp(Dirs, 'ALL')
             % find all 4 dirs of data
             for Icam=1:1:4
-                ImgDirs{Icam} = pipeline.last.constructCamDir(Icam);
+                ImgDirs{Icam} = pipeline.last.path.constructCamDir(Icam);
             end
         else
             ImgDirs{1} = Dirs;
@@ -89,7 +89,7 @@ function ImgDirs = getImageDirs(Dirs)
         N = numel(Dirs);
         for Icam=1:1:N
             CamN = Dirs(Icam);
-            ImgDirs{Icam} = pipeline.last.constructCamDir(CamN);
+            ImgDirs{Icam} = pipeline.last.path.constructCamDir(CamN);
         end
     else
         error('Dirs must be a char array or cell array');
