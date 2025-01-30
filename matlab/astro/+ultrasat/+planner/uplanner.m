@@ -1539,11 +1539,21 @@ classdef uplanner < Component
     methods(Static) % unitTest, Debug
         Result = debug()
             % unitTest
-            function Result = unitTest()
+            function Result = unitTest(Args)
+                arguments
+                    Args.Verbose   = true;
+                end
                 % unitTest
                 Result=false;
                 %
 
+                if Args.Verbose
+                    fprintf('Start uplanner unit Test\n');
+                    fprintf('---------------------------------\n');
+                    fprintf('Start testing HCS plan...');
+                end                
+                
+                
                 % Example for creating HCS survey:
                   HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
                   upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
@@ -1551,7 +1561,12 @@ classdef uplanner < Component
                   upHCS.EndTime = upHCS.StartTime+calmonths(6);
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
-                  
+                
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('Start testing LCS plan...');
+                  end                
+
                   % upHCS.plotMapPlan('disp_uniqTarg',true,'disp_plan',true,'ExtinctionMap',true,'CalObjMap',true,'disp_MissAprvPlan',true)
 
                 % Example for creating LCS survey:  
@@ -1577,6 +1592,11 @@ classdef uplanner < Component
                   
                   upLCS.buildLCS('TargetList',F2);
 
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('Start testing adjustGroupStartTime, edit/del UniqTarg/PlanRow...');
+                  end   
+                  
                   upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
                   
                   CheckStatus = upLCS.planSelfConsistencyCheck;
@@ -1601,17 +1621,32 @@ classdef uplanner < Component
                   
                   %upLCS.delUniqTarg(1);
                   upLCS.delUniqTarg(5,'abort_if_in_plan',false);
+
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('Start ToO plan...');
+                  end                    
                   
                 % Example for TOO plan:
                   upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                   upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
 
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('Start DDT plan...');
+                  end                    
+                  
                 % Example DDT plan (very basic):
                   upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
                   upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
                   upDDT.addDDT2Plan([1,2],datetime('now','TimeZone','UTC'));
                   upDDT.addDDT2Plan([3,2],datetime('tomorrow','TimeZone','UTC')); 
 
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('Start AllSS plan...');
+                  end      
+                  
                 % Example for AllSS plan (draft):                  
                   upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                   AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid 
@@ -1623,8 +1658,17 @@ classdef uplanner < Component
                   
                   upAllSS.DailyWindowMaxDuration = hours(5); % if we dedicate a week for AllSS only, this may become 24 hrs 
                   upAllSS.buildAllSS('AllowPartial',true);   % allow to make a plan with incomplete field coverage 
+                  
+                  if Args.Verbose
+                     fprintf('completed\n');
+                     fprintf('-------------------------\n');
+                  end                   
+                  
                  %
-                 Result=true;                                 
+                 Result=true;  
+                  if Args.Verbose
+                     fprintf('Unit Test completed succefully');
+                  end                    
             end
     end
 end
