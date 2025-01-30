@@ -976,7 +976,7 @@ classdef uplanner < Component
                 Obj    
                 Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat';%'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
                 Args.FieldObjectsFile  = 'FieldObjects.mat';%'~/matlab/data/ULTRASAT/FieldObjects.mat';
-                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
+                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152_v2.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
                 Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
             end
@@ -1434,7 +1434,7 @@ classdef uplanner < Component
                 Args.disp_MissAprvPlan  = false;
                 Args.MissAprvPlan_rows  = [];                
                 Args.vis_at_time_map    = false;
-                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
+                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152_v2.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
             end
             RAD = 180/pi;  
             
