@@ -1667,7 +1667,7 @@ classdef uplanner < Component
                  %
                  Result=true;  
                   if Args.Verbose
-                     fprintf('Unit Test completed succefully');
+                     fprintf('Unit Test completed succefully\n');
                   end                    
             end
     end
