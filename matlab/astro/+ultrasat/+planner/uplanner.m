@@ -976,6 +976,7 @@ classdef uplanner < Component
                 Obj    
                 Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat';%'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
                 Args.FieldObjectsFile  = 'FieldObjects.mat';%'~/matlab/data/ULTRASAT/FieldObjects.mat';
+                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
                 Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
             end
@@ -990,7 +991,7 @@ classdef uplanner < Component
             Dec = Obj.UniqTarg.Dec(Args.TargList); 
             
             % extinction 
-            Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec); 
+            Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
             
             % load the lists of external important objects and survey maps
             load(fullfile(Obj.BaseDataDir,Args.ExtSurveyMapsFile)); % 'SurveyMaps' table
@@ -1416,6 +1417,8 @@ classdef uplanner < Component
         function plotMapPlan(Obj,Args)
             % plotting on a map relevant properties and info from the plan
             % TODO - Change to map projection later
+            %
+            %
             arguments
                 Obj
                 Args.AxesHandle         =  [];
@@ -1431,6 +1434,7 @@ classdef uplanner < Component
                 Args.disp_MissAprvPlan  = false;
                 Args.MissAprvPlan_rows  = [];                
                 Args.vis_at_time_map    = false;
+                Args.AveExtincFile      = 'A_USat_aver7deg_hp49152.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
             end
             RAD = 180/pi;  
             
@@ -1440,12 +1444,13 @@ classdef uplanner < Component
             else 
                 ax = Args.AxesHandle;
             end
-            hold on; box on;
+            hold(ax, 'on');  
+            box(ax, 'on'); 
             
             if Args.ExtinctionMap
                 RA_vec = (0:360); Dec_vec = (-90:90);
                 [RA_grid,Dec_grid] = meshgrid(RA_vec,Dec_vec);
-                A_u = ultrasat.tools.extinction(RA_grid,Dec_grid);
+                A_u = ultrasat.tools.extinction(RA_grid,Dec_grid,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
                 imagesc(ax,RA_vec, Dec_vec, A_u);
                 c = colorbar;
                 c.Label.String = 'A_{ULTRASAT}';
@@ -1509,12 +1514,12 @@ classdef uplanner < Component
                 end
             end
             
-            xlim([0,360]);
-            ylim([-90,90]);
-            xlabel('RA [deg]');
-            ylabel('Dec [deg]');
+            xlim(ax, [0,360]);
+            ylim(ax, [-90,90]);
+            xlabel(ax, 'RA [deg]');
+            ylabel(ax, 'Dec [deg]');
             
-            hold off;
+            hold(ax, 'off'); 
         end
     end
     % 
@@ -1546,6 +1551,8 @@ classdef uplanner < Component
                   upHCS.EndTime = upHCS.StartTime+calmonths(6);
                   upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                   upHCS.buildHCS;
+                  
+                  % upHCS.plotMapPlan('disp_uniqTarg',true,'disp_plan',true,'ExtinctionMap',true,'CalObjMap',true,'disp_MissAprvPlan',true)
 
                 % Example for creating LCS survey:  
                   upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
