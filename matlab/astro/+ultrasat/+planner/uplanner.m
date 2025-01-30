@@ -458,7 +458,7 @@ classdef uplanner < Component
             % TODO - write build All Sky-Survey function (currently empty function)
             arguments
                 Obj
-                Args
+                Args.AllowPartial
             end
         end
     end
