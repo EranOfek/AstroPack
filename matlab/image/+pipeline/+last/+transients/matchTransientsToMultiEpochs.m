@@ -125,8 +125,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1, 
     OrigRows = find(Flags == 0);
 
     % Match candidates to DB via cone search
-    RA = RealTranCands.getCol('RA');
-    Dec = RealTranCands.getCol('Dec');
+    RAInCat = RealTranCands.getCol('RA');
+    DecInCat = RealTranCands.getCol('Dec');
 
     % Construct multi-epoch catalog for each passing candidate
     for Ipos = 1:1:Npos
@@ -136,7 +136,12 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1, 
         Camera0 = TC.getCol('CAM');
         CropID0 = TC.getCol('CROPID');
         JD = TC.getCol('JD');
-
+        
+        RATran = TC.getCol('RA');
+        DecTran = TC.getCol('Dec');
+        
+        OrigRow = OrigRows(RAInCat == RATran & DecInCat == DecInCat);
+        
         ObjectStr = '';
 
         if isnumeric(Object0)
@@ -164,7 +169,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1, 
         Dec_DB = TranDB.dec;
 
         Dists = celestial.coo.sphere_dist(RA_DB, Dec_DB,...
-            RA(Ipos), Dec(Ipos), 'deg');
+            RATran, DecTran, 'deg');
 
         Dists = Dists*Rad2Arcsec;
 
@@ -185,7 +190,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToDB(ADc, TranCatLevel1, 
             UTCNow = datetime('now', 'TimeZone', 'UTC');
             JDNow = juliandate(UTCNow);
             ADc(Ipos).CatData.replaceCol(JDNow, 'Reported');
-            Reported(OrigRows(Ipos)) = JDNow;
+            Reported(OrigRow) = JDNow;
         end
 
         MatchJD = MatchDB.jd;
