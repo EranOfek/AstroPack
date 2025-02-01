@@ -15,6 +15,7 @@ function runTestsFromFolder(folder, logFileName)
     %logFileName = 'C:\Ultrasat\AstroPack\tests\log1.log';
 
     % Create a test suite from the specified folder
+    
     suite = matlab.unittest.TestSuite.fromFolder(folder, 'IncludingSubfolders', true);
 
     % Create a test runner that provides detailed text output

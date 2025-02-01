@@ -63,8 +63,8 @@ function testTriangleAreaPermutationComparison(testCase)
     PolyLat = [0; pi/2; 0];     % Latitude values in radians
 
     % Permutation between the 2nd and 3rd vertices.
-    PolyLon0 = [0; pi/2; pi/4];  % Longitude values in radians
-    PolyLat0 = [0; 0; pi/2];     % Latitude values in radians
+    PolyLon0 = [ pi/2; 0;pi/4];  % Longitude values in radians
+    PolyLat0 = [ 0;0; pi/2];     % Latitude values in radians
     
     % Call area_sphere_polygon function
     Area  = celestial.coo.area_sphere_polygon(PolyLon, PolyLat); % Negative SumAngle results in wrong answer
@@ -73,7 +73,7 @@ function testTriangleAreaPermutationComparison(testCase)
 
     
     % Verify the result is within a reasonable expected range
-    % ###### DOESNT MAKE SENSE - CHECK FUNCTION #######
+
     verifyEqual(testCase, Area, Area0, 'RelTol', 1e-6, 'Failed to calculate correct area for the same spherical triangles.');
 end
 
