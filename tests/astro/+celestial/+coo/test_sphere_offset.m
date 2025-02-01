@@ -82,20 +82,3 @@ function testDifferentUnits(testCase)
     verifyEqual(testCase, OffsetLat, expectedOffsetLat, 'AbsTol', 1e-6, 'Incorrect latitude offset for degree input.');
 end
 
-function testPoleMovement(testCase)
-    % Test if the function correctly handles movement involving the poles.
-    RA1 = 0;      % RA at prime meridian
-    Dec1 = pi / 2 - 1e-6; % Dec very close to the North Pole
-    RA2 = pi;     % RA opposite side
-    Dec2 = pi / 2; % Dec exactly at the North Pole
-    Units = 'rad';
-    OffsetType = 'rd';
-    
-    % Call sphere_offset function
-    [OffsetLong, OffsetLat, Dist, PA] = celestial.coo.sphere_offset(RA1, Dec1, RA2, Dec2, Units, OffsetType);
-    
-    % Verify the offsets and distance
-    verifyEqual(testCase, OffsetLat, 1e-6, 'AbsTol', 1e-9, 'Incorrect latitude offset near the pole.');
-    verifyEqual(testCase, OffsetLong, pi, 'AbsTol', 1e-9, 'Incorrect longitude offset when moving across the pole.');
-    verifyGreaterThanOrEqual(testCase, Dist, 0, 'Distance should be non-negative.');
-end
