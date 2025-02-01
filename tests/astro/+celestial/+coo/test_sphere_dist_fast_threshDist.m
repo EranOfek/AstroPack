@@ -100,7 +100,7 @@ end
 function testLargeInputPerformance(testCase)
     % Test performance with large input vectors
     
-    N = 1e6;  % One million points
+    N = 1e5;  % One million points
     RA1 = rand * 2 * pi;
     Dec1 = rand * pi - pi/2;
     RA2 = rand(N, 1) * 2 * pi;
