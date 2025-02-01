@@ -45,7 +45,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
 
         if nargout>3
             % parallactic angle
-            TanQ = sin(HA)./(tan(Lat).*cos(Dec) - sin(Dec).*cos(HA));
+            TanQ = sin(HA)./(tan(Lat).*cos(Dec.*InFactor) - sin(Dec.*InFactor).*cos(HA));
             PA   = atan(TanQ);
 
             PA   = PA.*OutFactor;
