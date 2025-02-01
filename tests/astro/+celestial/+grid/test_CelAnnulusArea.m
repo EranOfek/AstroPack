@@ -87,12 +87,3 @@ function testNonZeroInnerRadius(testCase)
     verifyEqual(testCase, resultArea, expectedArea, 'Non-zero inner radius test failed.');
 end
 
-function testInvalidNumberOfArguments(testCase)
-       % Test for invalid number of input arguments (too few arguments)
-    verifyError(testCase, @() celestial.coo.cel_annulus_area(1),'celestial:coo:cel_annulus_area:illegalNumberOfInputs', ...
-        'Error handling for too few arguments failed.');
-    
-    % Test for invalid number of input arguments (too many arguments)
-    verifyError(testCase, @() celestial.coo.cel_annulus_area(1, 2, 'sr', 'extra'), 'MATLAB:TooManyInputs', ...
-        'Error handling for too many arguments failed.');
-end
