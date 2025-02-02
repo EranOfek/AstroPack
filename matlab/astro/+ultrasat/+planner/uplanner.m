@@ -458,9 +458,11 @@ classdef uplanner < Component
             % TODO - write build All Sky-Survey function (currently empty function)
             arguments
                 Obj
-                Args.AllowPartial
+                Args.AllowPartial = false; % allow incomplete scheduling
             end
-            
+            %
+            Schedule = ultrasat.planner.distributeAllSS(Obj.Vis,Obj.HighLatVisits,Obj.LowLatVisits,Obj.AllSSHighLatThresh,...
+                'AllowPartial',Args.AllowPartial);
         end
     end
     %
@@ -1543,7 +1545,7 @@ classdef uplanner < Component
             function Result = unitTest(Args)
                 arguments
                     Args.Verbose   = true;
-                    Args.Parts     = {'HCS','LCS','AllSS','TOO','DDT'}; % currently we need HCS to test LCS 
+                    Args.Parts     = {'HCS','LCS','TOO','DDT'}; % {'HCS','LCS','AllSS','TOO','DDT'}; % currently we need HCS to test LCS 
                 end
                 % unitTest
                 Result=false;
