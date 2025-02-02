@@ -460,6 +460,7 @@ classdef uplanner < Component
                 Obj
                 Args.AllowPartial
             end
+            
         end
     end
     %
@@ -1542,133 +1543,159 @@ classdef uplanner < Component
             function Result = unitTest(Args)
                 arguments
                     Args.Verbose   = true;
+                    Args.Parts     = {'HCS','LCS','AllSS','TOO','DDT'}; % currently we need HCS to test LCS 
                 end
                 % unitTest
                 Result=false;
                 %
-
                 if Args.Verbose
                     fprintf('Start uplanner unit Test\n');
                     fprintf('---------------------------------\n');
-                    fprintf('Start testing HCS plan...');
-                end                
-                
-                
-                % Example for creating HCS survey:
-                  HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
-                  upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-                  upHCS.StartTime = 'now';
-                  upHCS.EndTime = upHCS.StartTime+calmonths(6);
-                  upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
-                  upHCS.buildHCS;
-                
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('Start testing LCS plan...');
-                  end                
-
-                  % upHCS.plotMapPlan('disp_uniqTarg',true,'disp_plan',true,'ExtinctionMap',true,'CalObjMap',true,'disp_MissAprvPlan',true)
-
-                % Example for creating LCS survey:  
-                  upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
-                  upLCS.StartTime = 'now';
-                  upLCS.EndTime = upLCS.StartTime+caldays(45);
-                  upLCS.DailyWindowStartTime = duration('03:00:00');
-                  
-                  LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid.csv'));
-                  F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
-                  upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
-
-                  upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
-                  F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
-
-                 % Fakely retrive upHCS ar approved target list
-                  upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
-                  
-                  % check with struct
-                  load(fullfile(upLCS.BaseDataDir,'api_response.mat')');
-
-                  upLCS.retrieveMissionApprovedPlan('inputPlan',response);
-                  
-                  upLCS.buildLCS('TargetList',F2);
-
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('Start testing adjustGroupStartTime, edit/del UniqTarg/PlanRow...');
-                  end   
-                  
-                  upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
-                  
-                  CheckStatus = upLCS.planSelfConsistencyCheck;
-                  if ~CheckStatus
-                      return
-                  end
-                  
-                  upLCS.editUniqTarg(4,'Name',"bla");
-                  upLCS.editUniqTarg(4,'RA',100);
-
-                  upLCS.editPlanRow(1);
-                  upLCS.editPlanRow(1,'Tiles',"124");
-                  upLCS.editPlanRow(1,'updateRowsProp',true);
-                  upLCS.editPlanRow(1,'Nexposures',2);
-                  upLCS.editPlanRow(1,'ExpTime',seconds(250));
-                  upLCS.editPlanRow(10,'ExpTime',seconds(250));
-                  upLCS.editPlanRow(5,'ExpTime',seconds(250));
-                  
-                  upLCS.delPlanRow(10);
-                  upLCS.delPlanRow(3);
-                  upLCS.delPlanRow(1)
-                  
-                  %upLCS.delUniqTarg(1);
-                  upLCS.delUniqTarg(5,'abort_if_in_plan',false);
-
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('Start ToO plan...');
-                  end                    
-                  
-                % Example for TOO plan:
-                  upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
-                  upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
-
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('Start DDT plan...');
-                  end                    
-                  
-                % Example DDT plan (very basic):
-                  upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
-                  upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
-                  upDDT.addDDT2Plan([1,2],datetime('now','TimeZone','UTC'));
-                  upDDT.addDDT2Plan([3,2],datetime('tomorrow','TimeZone','UTC')); 
-
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('Start AllSS plan...');
-                  end      
-                  
-                % Example for AllSS plan (draft):                  
-                  upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
-                  AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid 
-                  % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
-                  upAllSS.StartTime = '2028-07-01';
-                  upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
-                  upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
-                  upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime);
-                  
-                  upAllSS.DailyWindowMaxDuration = hours(5); % if we dedicate a week for AllSS only, this may become 24 hrs 
-                  upAllSS.buildAllSS('AllowPartial',true);   % allow to make a plan with incomplete field coverage 
-                  
-                  if Args.Verbose
-                     fprintf('completed\n');
-                     fprintf('-------------------------\n');
-                  end                   
-                  
-                 %
-                 Result=true;  
-                  if Args.Verbose
-                     fprintf('Unit Test completed succefully\n');
-                  end                    
+                end
+                %
+                if ismember('HCS',Args.Parts)                    
+                    if Args.Verbose
+                        fprintf('Start testing HCS plan...');
+                    end
+                    
+                    % Example for creating HCS survey:
+                    HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
+                    upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
+                    upHCS.StartTime = 'now';
+                    upHCS.EndTime = upHCS.StartTime+calmonths(6);
+                    upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
+                    upHCS.buildHCS;
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                    end                    
+                end
+                %
+                if ismember('LCS',Args.Parts)
+                    if Args.Verbose
+                        fprintf('Start testing LCS plan...');
+                    end
+                    
+                    % upHCS.plotMapPlan('disp_uniqTarg',true,'disp_plan',true,'ExtinctionMap',true,'CalObjMap',true,'disp_MissAprvPlan',true)
+                    
+                    % Example for creating LCS survey:
+                    upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+                    upLCS.StartTime = 'now';
+                    upLCS.EndTime = upLCS.StartTime+caldays(45);
+                    upLCS.DailyWindowStartTime = duration('03:00:00');
+                    
+                    LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid.csv'));
+                    F = LCS_grid.V45==1 & LCS_grid.A_U_1==1;
+                    upLCS.addUniqTargets(LCS_grid.RA(F),LCS_grid.Dec(F),'Name',num2cell(LCS_grid.Field(F)));
+                    
+                    upLCS.updateTargetVisibility('WindowStartTime',upLCS.StartTime,'WindowEndTime',upLCS.EndTime);
+                    F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits ,1));
+                    
+                    % Fakely retrive upHCS ar approved target list
+                    upLCS.retrieveMissionApprovedPlan('inputPlan',upHCS.Plan);
+                    
+                    % check with struct
+                    load(fullfile(upLCS.BaseDataDir,'api_response.mat')');
+                    
+                    upLCS.retrieveMissionApprovedPlan('inputPlan',response);
+                    
+                    upLCS.buildLCS('TargetList',F2);
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                    end
+                    
+                    if Args.Verbose
+                        fprintf('Start testing adjustGroupStartTime, edit/del UniqTarg/PlanRow...');
+                    end
+                    
+                    upLCS.adjustGroupStartTime;  % Check adjustments relative to Approved List
+                    
+                    CheckStatus = upLCS.planSelfConsistencyCheck;
+                    if ~CheckStatus
+                        return
+                    end
+                    
+                    upLCS.editUniqTarg(4,'Name',"bla");
+                    upLCS.editUniqTarg(4,'RA',100);
+                    
+                    upLCS.editPlanRow(1);
+                    upLCS.editPlanRow(1,'Tiles',"124");
+                    upLCS.editPlanRow(1,'updateRowsProp',true);
+                    upLCS.editPlanRow(1,'Nexposures',2);
+                    upLCS.editPlanRow(1,'ExpTime',seconds(250));
+                    upLCS.editPlanRow(10,'ExpTime',seconds(250));
+                    upLCS.editPlanRow(5,'ExpTime',seconds(250));
+                    
+                    upLCS.delPlanRow(10);
+                    upLCS.delPlanRow(3);
+                    upLCS.delPlanRow(1)
+                    
+                    %upLCS.delUniqTarg(1);
+                    upLCS.delUniqTarg(5,'abort_if_in_plan',false);
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                    end                    
+                end
+                %
+                if ismember('TOO',Args.Parts)                    
+                    if Args.Verbose
+                        fprintf('Start ToO plan...');
+                    end                    
+                    % Example for TOO plan:
+                    HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');                   
+                    upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
+                    upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                    end                    
+                end
+                %
+                if ismember('DDT',Args.Parts)
+                    if Args.Verbose
+                        fprintf('Start DDT plan...');
+                    end                    
+                    % Example DDT plan (very basic):
+                    HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');                   
+                    upDDT = ultrasat.planner.uplanner('AstPlanner','YS','Type','DDT');
+                    upDDT.addUniqTargets(HCS_fields.RA,HCS_fields.Dec,'Name',num2cell(HCS_fields.Name));
+                    upDDT.addDDT2Plan([1,2],datetime('now','TimeZone','UTC'));
+                    upDDT.addDDT2Plan([3,2],datetime('tomorrow','TimeZone','UTC'));
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                    end                    
+                end
+                %
+                if ismember('AllSS',Args.Parts)
+                    if Args.Verbose
+                        fprintf('Start AllSS plan...');
+                    end
+                    
+                    % Example for AllSS plan (draft):
+                    upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
+                    AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
+                    % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
+                    upAllSS.StartTime = '2028-07-01';
+                    upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
+                    upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
+                    upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime);
+                    
+                    upAllSS.DailyWindowMaxDuration = hours(5); % if we dedicate a week for AllSS only, this may become 24 hrs
+                    upAllSS.buildAllSS('AllowPartial',true);   % allow to make a plan with incomplete field coverage
+                    
+                    if Args.Verbose
+                        fprintf('completed\n');
+                        fprintf('-------------------------\n');
+                    end
+                end
+                %
+                Result=true;
+                if Args.Verbose
+                    fprintf('Unit Test completed succefully\n');
+                end
             end
     end
 end
