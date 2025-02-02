@@ -110,15 +110,15 @@ classdef uplanner < Component
         Vis                                     % visibility matrix         
         MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
         
-        DefEpochsPerVisit   uint8       =  3; 
+        DefEpochsPerVisit   uint8       = 3; 
         Exptime             duration    = seconds(300); %[s]
-        Tiles               string        = ['1','2','3','4']; %
+        Tiles               string      = ['1','2','3','4']; %
         DefSlewBuffer       duration    = seconds(5);
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
         
         % LCS / AllSS
-        DailyWindowStartTime    duration    =  duration(23,00,00); % [hrs]   
-        DailyWindowMaxDuration  duration    =  hours(3);       % [hrs]
+        DailyWindowStartTime    duration =  duration(23,00,00); % [hrs]   
+        DailyWindowMaxDuration  duration =  hours(3);       % [hrs]
         
         % AllSS
         AllSSHighLatThresh  double      = 30; % |RA| [deg]
@@ -127,8 +127,8 @@ classdef uplanner < Component
         DitherPattern                   = '2x2';
         
         % TOO
-        TOOStartTime              datetime    =  datetime('now'); % [hrs]   
-        TOOWindowDuration  duration    =  hours(3);       % [hrs]
+        TOOStartTime       datetime     =  datetime('now'); % [hrs]   
+        TOOWindowDuration  duration     =  hours(3);       % [hrs]
         %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
         %TOOProbMap                                 % Unused for now - check if needed later 
         
@@ -185,8 +185,8 @@ classdef uplanner < Component
                 Args.AstPlanner  = '';
                 
                 Args.BaseDataDir = '~/matlab/data/ULTRASAT/'; % Base directory for data needed for uplanner
-                Args.CalObjFile      = 'starlib23_table.mat';  % the calibration objects' list (within  BaseDataDir)
-                Args.CalSubDir      = 'Calib/';               % the catibration objects' spectra directory (within  BaseDataDir)
+                Args.CalObjFile  = 'starlib23_table.mat';     % the calibration objects' list (within  BaseDataDir)
+                Args.CalSubDir   = 'Calib/';                  % the catibration objects' spectra directory (within  BaseDataDir)
             end
             %          
             if isempty(Args.AstPlanner) 
@@ -200,7 +200,7 @@ classdef uplanner < Component
             end
             % 
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
-            Obj.EndTime.TimeZone = Obj.SysTimeZone;
+            Obj.EndTime.TimeZone   = Obj.SysTimeZone;
             %
             Obj.CheckTimes = ultrasat.planner.uplanner.getDefaultCheckTimes();
             Obj.CheckTimes.TimeZone = Obj.SysTimeZone;
@@ -300,7 +300,7 @@ classdef uplanner < Component
                 Args.TargetList = [];
             end
            
-            % Verify all relevant parameters are set
+            % Verify that all the relevant parameters are set
             
             if ~strcmp(Obj.Type,'LCS')
                 error('Plan Type is not LCS');
@@ -400,8 +400,7 @@ classdef uplanner < Component
              if ~isempty(Args.Tiles)
                 Obj.Tiles = Args.Tiles;
             end     
-            
-            
+                        
             Obj.StartTime = Obj.TOOStartTime;
             Obj.EndTime = Obj.TOOStartTime + Obj.TOOWindowDuration;
             
@@ -423,8 +422,7 @@ classdef uplanner < Component
             
             MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
             
-            Obj.scheduleTargets([repmat(1:NTargets,1,floor(MaxTargInWindow/NTargets)) 1:mod(MaxTargInWindow,NTargets)]',Obj.StartTime);
-            
+            Obj.scheduleTargets([repmat(1:NTargets,1,floor(MaxTargInWindow/NTargets)) 1:mod(MaxTargInWindow,NTargets)]',Obj.StartTime);            
         end
         %
         function addDDT2Plan(Obj, TargetList,StartTime,Args)
@@ -435,7 +433,7 @@ classdef uplanner < Component
                 Obj
                 TargetList
                 StartTime
-                Args.Group     = [];
+                Args.Group = [];
             end
             
             if ~strcmp(Obj.Type,'DDT')
@@ -450,20 +448,26 @@ classdef uplanner < Component
                 end
             end
             
-            Obj.scheduleTargets(TargetList,StartTime,'Group',Args.Group);
-            
+            Obj.scheduleTargets(TargetList,StartTime,'Group',Args.Group);            
         end
         %
         function buildAllSS(Obj, Args)
             % TODO - write build All Sky-Survey function (currently empty function)
             arguments
                 Obj
-                Args.AllowPartial = false;     % allow incomplete scheduling
+                Args.VisitLength  
                 Args.MinIntervals = [1 4 16];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
+                Args.AllowPartial = false;     % allow incomplete scheduling
+                Args.Verbose      = true;
             end
             %
-            Schedule = ultrasat.planner.distributeAllSS(Obj.Vis,Obj.HighLatVisits,Obj.LowLatVisits,Obj.AllSSHighLatThresh,...
-                'AllowPartial',Args.AllowPartial,'MinIntervals',Args.MinIntervals);
+            % vis limits for each point and each time slot 
+            Limits      = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
+            PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;
+            DailyVisits = Obj.DailyWindowMaxDuration/Args.VisitLength;
+            Schedule = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits,...
+                'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],... 
+                'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'Verbose',Args.Verbose);
         end
     end
     %
@@ -568,8 +572,7 @@ classdef uplanner < Component
                     Obj.Plan.Dec(Plan_rows(ii)) = Obj.UniqTarg.Dec(UniqTargInd);
                     Obj.editPlanRow(Plan_rows(ii),'updateRowsProp',true);
                 end
-            end
-            
+            end            
         end
         %
         function delUniqTarg(Obj,UniqTargInd,Args)                               
@@ -607,8 +610,7 @@ classdef uplanner < Component
             Obj.N_uniqueTargets = height(Obj.UniqTarg);
             
             %
-            Obj.updateTargetVisibility; % consider remove specific UniqTarg
-                
+            Obj.updateTargetVisibility; % consider remove specific UniqTarg                
         end
         %
         function saveUniqTargCooList(Obj,FileName)
@@ -644,8 +646,7 @@ classdef uplanner < Component
                 Args.Tiles = []; % 
                 Args.Group = -1; % Group Ind. -1 for no group
             end
-            %
-            
+            %            
             if isempty(Args.Nexposures)
                 Args.Nexposures = Obj.DefEpochsPerVisit;
             end
@@ -741,8 +742,7 @@ classdef uplanner < Component
                     end
 
                 end
-            end
-            
+            end            
         end
         %
         function delPlanRow(Obj,Plan_row)   
@@ -828,8 +828,7 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Tend  =  datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
             Obj.MissionApprovedPlan.ExpTime  =  seconds(TargetsTable.exposure);
             Obj.MissionApprovedPlan.Nexposures  =  TargetsTable.image_count;
-            Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);            
-            
+            Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);                        
         end
          %
         function clearMissionApprovedPlan(Obj)
@@ -1041,8 +1040,7 @@ classdef uplanner < Component
                 % calcaulte healpix indices covered by this target
                 % Currently only uses a cone and not actual polygon which can be used only in  relevant orientation (i.e. roll)           
                 ID = celestial.healpix.coneSearch(Args.HealpixNside,RA0,Dec0,Obj.Rfov,'RadiusUnits','deg','CooUnits','deg'); % (returns Ipix ids)                
-                Obj.UniqTarg.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids        
-                
+                Obj.UniqTarg.HealpixArray{iT} = celestial.healpix.pix2uniqueId(Args.HealpixNside,ID); % can be converted to unique ids                        
             end            
         end
         %
@@ -1097,14 +1095,13 @@ classdef uplanner < Component
                 Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
                                                     (Obj.Plan.Tend(Plan_row)   > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tend(Plan_row)   < Obj.MissionApprovedPlan.Tend));
             end
-
         end
         %
         function updateTargetVisibility(Obj, Args)
             % Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
             arguments
                 Obj                     
-                Args.TimeBin         = 0.01; % [days] 
+                Args.TimeBin         = 0.01; % [days] % this is close to 1 visit 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime   = []; 
             end
@@ -1119,8 +1116,8 @@ classdef uplanner < Component
             
             StartJD = juliandate(Args.WindowStartTime);
             EndJD   = juliandate(Args.WindowEndTime);
-            VisJD  = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
-            Obj.Vis    = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTarg.RA Obj.UniqTarg.Dec],'CooUnits','deg',...
+            VisJD   = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
+            Obj.Vis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTarg.RA Obj.UniqTarg.Dec],'CooUnits','deg',...
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
@@ -1684,10 +1681,17 @@ classdef uplanner < Component
                     upAllSS.StartTime = '2028-07-01';
                     upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
                     upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
-                    upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime);
-                    
-                    upAllSS.DailyWindowMaxDuration = hours(5); % if we dedicate a week for AllSS only, this may become 24 hrs
-                    upAllSS.buildAllSS('AllowPartial',true);   % allow to make a plan with incomplete field coverage
+                    % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
+                    % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
+                    % that is, allow for a maximum of 20 visits a day. 
+                    % If the average visit length could be ~ 3 x 300 + 72 (for retargeting) = 972 seconds,
+                    % the daily AllSS slot length will be ~ 5.4 hours.
+                    % (if we dedicate a week for AllSS only, this may become 24 hrs)
+                    VisitLength = seconds(972);  
+                    upAllSS.DailyWindowMaxDuration = hours(5.4);                     
+                    upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime,...
+                                                   'TimeBin',days(VisitLength));
+                    upAllSS.buildAllSS('VisitLength',VisitLength,'MinIntervals',[1 3 9],'AllowPartial',true); 
                     
                     if Args.Verbose
                         fprintf('completed\n');
