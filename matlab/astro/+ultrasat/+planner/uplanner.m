@@ -458,11 +458,12 @@ classdef uplanner < Component
             % TODO - write build All Sky-Survey function (currently empty function)
             arguments
                 Obj
-                Args.AllowPartial = false; % allow incomplete scheduling
+                Args.AllowPartial = false;     % allow incomplete scheduling
+                Args.MinIntervals = [1 4 16];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
             end
             %
             Schedule = ultrasat.planner.distributeAllSS(Obj.Vis,Obj.HighLatVisits,Obj.LowLatVisits,Obj.AllSSHighLatThresh,...
-                'AllowPartial',Args.AllowPartial);
+                'AllowPartial',Args.AllowPartial,'MinIntervals',Args.MinIntervals);
         end
     end
     %
