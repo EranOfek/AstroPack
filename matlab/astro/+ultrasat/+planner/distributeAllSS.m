@@ -11,8 +11,8 @@ function [Result] = distributeAllSS(X, Y, Args)
     arguments
         X
         Y
-        Args.A                 = [];
-        Args.B                 = [];
+        Args.AllowPartial   = false;
+        Args.MinIntervals   = [1 4 16];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point        
     end
 
 end
