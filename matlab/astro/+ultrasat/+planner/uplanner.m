@@ -99,16 +99,16 @@
 classdef uplanner < Component 
     % 
     properties(Access = public)
-        Title                char            % Name of the object
-        Type                char            % HCS, LCS, AllSS, DDT, TOO 
-        StartTime           datetime   % start of the whole plan
-        EndTime             datetime   %   end of the whole plan
+        Title                char               % Name of the object
+        Type                char                % HCS, LCS, AllSS, DDT, TOO 
+        StartTime           datetime            % start of the whole plan
+        EndTime             datetime            %   end of the whole plan
         Plan                                    % table of the Plan (target per row) 
-        UniqTarg                       % table of unique targets
+        UniqTarg                                % table of unique targets
         
-        CheckTimes(2,1)     datetime   % times to be used for visibilty and mission approval retrival
+        CheckTimes(2,1)     datetime            % times to be used for visibilty and mission approval retrival
         Vis                                     % visibility matrix         
-        MissionApprovedPlan          % Approved Mission Plan retrvied  from C&C 
+        MissionApprovedPlan                     % Approved Mission Plan retrvied  from C&C 
         
         DefEpochsPerVisit   uint8       = 3; 
         Exptime             duration    = seconds(300); %[s]
@@ -456,9 +456,9 @@ classdef uplanner < Component
             arguments
                 Obj
                 Args.VisitLength  
-                Args.MinIntervals = [1 4 16];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
-                Args.AllowPartial = false;     % allow incomplete scheduling
-                Args.Verbose      = true;
+                Args.MinIntervals = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
+                Args.AllowPartial = true;     % allow incomplete scheduling
+                Args.Verbose      = false;
             end
             %
             % vis limits for each point and each time slot 
@@ -466,9 +466,16 @@ classdef uplanner < Component
             PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;
             DailyVisits = Obj.DailyWindowMaxDuration/Args.VisitLength;
             DailySlots  = hours(24)/Args.VisitLength;
-            [Schedule, SortedTab, Ind] = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
-                'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],... 
+            [Schedule, TabSorted, Ind] = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
+                'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
                 'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'Verbose',Args.Verbose);
+            VisitsToSchedule = sum(PointType==1)*int16(Obj.LowLatVisits) + sum(PointType==2)*int16(Obj.HighLatVisits); 
+            ScheduledVisits  = sum(Schedule~=0);
+            if ScheduledVisits < VisitsToSchedule
+                Incomplete = find(TabSorted.Visits>TabSorted.Filled);
+                fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)
+                
+            end
         end
     end
     %
@@ -1692,7 +1699,7 @@ classdef uplanner < Component
                     upAllSS.DailyWindowMaxDuration = hours(5.393258426966292);                     
                     upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime,...
                                                    'TimeBin',days(VisitLength));
-                    upAllSS.buildAllSS('VisitLength',VisitLength,'MinIntervals',[1 3 9],'AllowPartial',true); 
+                    upAllSS.buildAllSS('VisitLength',VisitLength,'MinIntervals',[1 2 4],'AllowPartial',true); 
                     
                     if Args.Verbose
                         fprintf('completed\n');
