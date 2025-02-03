@@ -26,7 +26,7 @@ function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVi
         Args.MinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point (Type=2)        
         Args.Jump           = 1;         % how many levels up we jump when a point is stuck
         Args.AllowPartial   = false;
-        Args.MaxBranch      = 20;        % maximal branch to try before skipping a point
+        Args.MaxBranch      = 10;        % maximal branch to try before skipping a point
         Args.FieldNames     = [];
         Args.Verbose        = true;
     end
@@ -88,7 +88,7 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
         Args.MinIntervals = [1 4 16]; % [1 1 1]; [1 3 10]; [1 4 16];     [1 5 25]; [1 10 100];        
         Args.Jump         = 1; % 10; 100; % how many levels up we jump when a point is stuck
         Args.AllowPartial = false;
-        Args.MaxBranch    = 20;
+        Args.MaxBranch    = 10;
         Args.Verbose      = true;
     end
     Np     = numel(Ind);     % number of grid points

@@ -458,6 +458,7 @@ classdef uplanner < Component
                 Args.VisitLength  
                 Args.MinIntervals = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
                 Args.AllowPartial = true;     % allow incomplete scheduling
+                Args.MaxBranch    = 5;        % maximal number of branches to try before skipping a point
                 Args.Verbose      = false;
             end
             %
@@ -468,14 +469,15 @@ classdef uplanner < Component
             DailySlots  = hours(24)/Args.VisitLength;
             [Schedule, TabSorted, Ind] = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
-                'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'Verbose',Args.Verbose);
+                'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,'Verbose',Args.Verbose);
             VisitsToSchedule = sum(PointType==1)*int16(Obj.LowLatVisits) + sum(PointType==2)*int16(Obj.HighLatVisits); 
             ScheduledVisits  = sum(Schedule~=0);
             if ScheduledVisits < VisitsToSchedule
-                Incomplete = find(TabSorted.Visits>TabSorted.Filled);
+                Incomplete = TabSorted.Visits>TabSorted.Filled;
                 fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)
-                
+                TabSorted(Incomplete,:)                 
             end
+            %
         end
     end
     %
