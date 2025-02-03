@@ -16,7 +16,7 @@ function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVi
     %          - the sorted table of points where the number of filled visits is indicated
     %          - the index of the original point number in the sorted table
     % Author : A.M. Krassilchtchikov (2025 Feb) 
-    % Example: [Schedule, TabSorted] = ultrasat.planner.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
+    % Example: [Schedule, TabSorted] = ultrasat.tools.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
     arguments
         Limits
         PointType  
