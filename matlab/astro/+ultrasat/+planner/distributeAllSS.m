@@ -6,7 +6,7 @@ function [Schedule] = distributeAllSS(Limits, PointType, DailyVisits, DailySlots
     %          * ...,key,val,... 
     % Output : - 
     % Author : A.M. Krassilchtchikov (2025 Feb) 
-    % Example: ultrasat.planner.distributeAllSS(Limits,PointType, DailyVisits,'VisitsByType',[2 16])
+    % Example: ultrasat.planner.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
     arguments
         Limits
         PointType  

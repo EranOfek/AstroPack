@@ -1563,7 +1563,7 @@ classdef uplanner < Component
                     HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
                     upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
                     upHCS.StartTime = 'now';
-                    upHCS.EndTime = upHCS.StartTime+calmonths(6);
+                    upHCS.EndTime = upHCS.StartTime+calmonths(6)-days(1);
                     upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
                     upHCS.buildHCS;
                     
@@ -1680,7 +1680,7 @@ classdef uplanner < Component
                     AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
                     % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
                     upAllSS.StartTime = '2028-07-01';
-                    upAllSS.EndTime   = upAllSS.StartTime+calmonths(6);
+                    upAllSS.EndTime   = upAllSS.StartTime+calmonths(6)-days(1);
                     upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
                     % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
                     % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
