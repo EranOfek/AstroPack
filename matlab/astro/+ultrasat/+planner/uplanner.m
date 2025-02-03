@@ -478,6 +478,9 @@ classdef uplanner < Component
                 TabSorted(Incomplete,:)                 
             end
             %
+            UniqTargetIndexes = Schedule(Schedule>0);
+            StartTimes = Obj.Vis.JD(Schedule>0);
+%             Obj.scheduleTargets(UniqTargetIndexes,StartTimes);
         end
     end
     %
