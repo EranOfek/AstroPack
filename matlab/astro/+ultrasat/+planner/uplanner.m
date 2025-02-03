@@ -465,7 +465,8 @@ classdef uplanner < Component
             Limits      = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
             PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;
             DailyVisits = Obj.DailyWindowMaxDuration/Args.VisitLength;
-            Schedule = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits,...
+            DailySlots  = hours(24)/Args.VisitLength;
+            Schedule = ultrasat.planner.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],... 
                 'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'Verbose',Args.Verbose);
         end
@@ -1684,11 +1685,11 @@ classdef uplanner < Component
                     % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
                     % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
                     % that is, allow for a maximum of 20 visits a day. 
-                    % If the average visit length could be ~ 3 x 300 + 72 (for retargeting) = 972 seconds,
-                    % the daily AllSS slot length will be ~ 5.4 hours.
+                    % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
+                    % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
                     % (if we dedicate a week for AllSS only, this may become 24 hrs)
-                    VisitLength = seconds(972);  
-                    upAllSS.DailyWindowMaxDuration = hours(5.4);                     
+                    VisitLength = seconds(970.7865168539325);  
+                    upAllSS.DailyWindowMaxDuration = hours(5.393258426966292);                     
                     upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime,...
                                                    'TimeBin',days(VisitLength));
                     upAllSS.buildAllSS('VisitLength',VisitLength,'MinIntervals',[1 3 9],'AllowPartial',true); 
