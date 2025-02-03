@@ -516,6 +516,14 @@ classdef AstroFileName < Component
                 
         end
         
+        function Obj = set.Path(Obj, Val)
+            % Setter for path (convert char to string)
+
+            if ischar(Val)
+                Val = string(Val);
+            end
+            Obj.Path = Val;
+        end
     end
       
     methods (Static) % construction
@@ -640,7 +648,10 @@ classdef AstroFileName < Component
                 end
                 FileNameString = {FileNameString.name};
             else
-                Result.Path = "";
+                [P1,P2,P3] = fileparts(FileNameString);
+                FileNameString = join([P2, P3], 2);
+
+                Result.Path = P1;
             end
             
             Literals = AstroFileName.parseString2literals(FileNameString, Seperator);
@@ -1263,6 +1274,50 @@ classdef AstroFileName < Component
                 Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
             end
         end
+    
+        % DONE
+        function Result = updateTime(Obj,Args)
+            % Update time according to actual file real time stamp.
+            %   Given an AstroFileName, cd to dir and look for file name with
+            %   wild card time. Replace the Time stamp with the actual
+            %   time.
+            % Input  : - A single element AstroFileName object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is false.
+            % Output : - An updated AstroFileName object.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: AFN.updateTime
+
+            arguments
+                Obj(1,1)
+                Args.CreateNewObj    = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            AllPath = Obj.genPath([]);
+            AllFile = Obj.insertWildCards([], 'List',"Time");
+
+            PWD = pwd;
+
+            Nfile   = numel(AllFile);
+            for Ifile=1:1:Nfile
+                cd(AllPath{Ifile});
+                File = dir(AllFile{Ifile});
+                if numel(File)==1
+                    Literals = AstroFileName.parseString2literals(File.name);
+                    Result.Time(Ifile,:) = Literals(2);
+                end
+            end
+
+            cd(PWD);
+
+        end
     end
     
     methods % utilities
@@ -1392,6 +1447,19 @@ classdef AstroFileName < Component
 
         end
     
+        % DONE
+        function Result = isFileExist(Obj)
+            % Check if files in AstroFileName object exist in their path
+            % Input  : - self.
+            % Output : - A vector of logicals indicating if each file exist
+            %            in its path.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: AFN.isFileExist
+
+            AllFiles = Obj.genFull([]);
+            Result   = isfile(AllFiles);
+
+        end
     end
 
     methods % generate file names and path

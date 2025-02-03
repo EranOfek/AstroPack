@@ -14,7 +14,7 @@ function [Nvisit] = prepReference(Args)
         Args.LimMag  = 20;
         Args.MaxFWHM = 5;
         Args.StartPath = '/marvin'
-        Args.RefDir  = '/raid/eran/references1';
+        Args.RefDir  = '/raid/eran/references/v3';
         Args.Ncam    = 4;
         Args.Nsub    = 24;
 
@@ -45,7 +45,7 @@ function [Nvisit] = prepReference(Args)
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1347:1:Ntarget
+    for Itarget=1:1:Ntarget
         FieldID = Tbl.FieldName(Itarget);
         
         Tmp = split(FieldID,'.');

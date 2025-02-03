@@ -3,6 +3,8 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
     %            last.last_visits DB table.
+    %            Alternatively, a cell array or string array of visit paths
+    %            from which to extract the products.
     %          - Level name. Default is 'coadd'.
     %          - Product name. Default is 'Image+'.
     %          * ...,key,val,... 
@@ -43,13 +45,21 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
         Args.ExtraOutProduct   = ["Mask", "PSF", "Cat"];
         Args.Ncounter          = 20;
 
+        Args.CropID            = [];
+
     end
 
-    Nextra = numel(Args.ExtraOutProduct);
-
-    [AFN] = pipeline.last.queryDB.table2path(T, Args.table2pathArgs{:});
-
-    AllPaths      = AFN.genPath([],'AddSubDir',true);
+    if istable(T)
+        Nextra = numel(Args.ExtraOutProduct);
+    
+        [AFN] = pipeline.last.queryDB.table2path(T, Args.table2pathArgs{:});
+    
+        AllPaths      = AFN.genPath([],'AddSubDir',true);
+    % elseif iscell(T) || isstring(T)
+    %     AllPaths = T;
+    else
+        error('Unknown 1st input type');
+    end
     
 
     %Level: 'proc'|'coadd'|'merged'|proc.zogyD|coadd.zogyD
@@ -83,6 +93,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
 
                     case 'Image+'
 
+                            
                         FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*');
             
                         AFND = AstroFileName.dir(FileTemp);
