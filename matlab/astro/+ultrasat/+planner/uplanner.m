@@ -834,14 +834,14 @@ classdef uplanner < Component
             %Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
             Obj.MissionApprovedPlan.pk(1:height(TargetsTable))  = TargetsTable.pk; 
             Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
-            Obj.MissionApprovedPlan.RA  =  TargetsTable.ra ;
-            Obj.MissionApprovedPlan.Dec  =  TargetsTable.decl ;
-            Obj.MissionApprovedPlan.Roll  =  TargetsTable.roll ;
-            Obj.MissionApprovedPlan.Tstart  = datetime(TargetsTable.start_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
-            Obj.MissionApprovedPlan.Tend  =  datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
-            Obj.MissionApprovedPlan.ExpTime  =  seconds(TargetsTable.exposure);
-            Obj.MissionApprovedPlan.Nexposures  =  TargetsTable.image_count;
-            Obj.MissionApprovedPlan.TotalDuration  =  seconds(TargetsTable.total_seconds);                        
+            Obj.MissionApprovedPlan.RA       = TargetsTable.ra ;
+            Obj.MissionApprovedPlan.Dec      = TargetsTable.decl ;
+            Obj.MissionApprovedPlan.Roll     = TargetsTable.roll ;
+            Obj.MissionApprovedPlan.Tstart   = datetime(TargetsTable.start_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.Tend     = datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.ExpTime  = seconds(TargetsTable.exposure);
+            Obj.MissionApprovedPlan.Nexposures = TargetsTable.image_count;
+            Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);                        
         end
          %
         function clearMissionApprovedPlan(Obj)
@@ -924,9 +924,9 @@ classdef uplanner < Component
             % If no GroupList is provided, will adjust all groups in the plan, one by one.
             arguments
                 Obj
-                Args.GroupList                                 = [];
-                Args.NewStartTime                      =[];
-                Args.ShiftTime              duration  = seconds(inf);
+                Args.GroupList             = [];
+                Args.NewStartTime          = [];
+                Args.ShiftTime   duration  = seconds(inf);
             end
             
             if isempty(Args.GroupList)
