@@ -2427,6 +2427,11 @@ classdef Scheduler < Component
             %Hp.Color = ColorV(mod(TargetNC, Ncolor) + 1,:);
             %drawnow;
         end
+
+        %function plotScatter
+        %    % 
+        %
+        %end
     end
 
     

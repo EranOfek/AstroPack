@@ -203,10 +203,13 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
                 %CI=imProc.background.background(CI, 'BackFun',@median,'BackFunPar',{'omitnan'},'VarFun',@var,'VarFunPar',{'omitnan'}); 
                 CI(Icrop).Back = imProc.stat.median(CI(Icrop)).*ones(size(CI(Icrop).Image));
                 CI(Icrop).Var = imProc.stat.rstd(CI(Icrop)).^2 .*ones(size(CI(Icrop).Image));
-                CI(Icrop) = imProc.sources.findMeasureSources(CI(Icrop),'AddFlags',false);
-                CI(Icrop) = imProc.astrometry.addCoordinates2catalog(CI(Icrop),'OutUnits','deg');
+                CI(Icrop) = imProc.sources.findMeasureSources(CI(Icrop),'AddFlags',true);
                 CI(Icrop) = imProc.psf.populatePSF(CI(Icrop));
+                CI(Icrop) = imProc.sources.psfFitPhot(CI(Icrop));
+                CI(Icrop) = imProc.astrometry.addCoordinates2catalog(CI(Icrop),'OutUnits','deg');
+                
                 CI(Icrop) = imProc.calib.photometricZP(CI(Icrop));
+                CI(Icrop) = imProc.match.match_catsHTMmerged(CI(Icrop), 'SameField',false, 'CreateNewObj',false);
                 
             end
         end
