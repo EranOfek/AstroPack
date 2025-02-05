@@ -530,7 +530,7 @@ classdef uplanner < Component
             %
             if ~isempty(Args.Name)
                 Obj.UniqTarg.Name(NU0+1:NU0+NUtarg) = Args.Name;
-            endbuildLCS
+            end
             %
             Obj.N_uniqueTargets = height(Obj.UniqTarg);
             %
