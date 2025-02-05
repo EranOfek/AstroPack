@@ -411,8 +411,10 @@ function [Result] = forcedPhot(Obj, Args)
                     case 'FLAG_POS'
                         Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
                     case 'FLAGS'
-                        FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
-                        Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
+                        if any(FlagIn)
+                            FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+                            Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
+                        end
                     case 'BACK_ANNULUS'
                         Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
                     case 'STD_ANNULUS'

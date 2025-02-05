@@ -7,6 +7,11 @@ function [Nvisit] = prepReference(Args)
     % Output : - 
     % Author : Eran Ofek (2024 Dec) 
     % Example: Nv=pipeline.last.coadd.prepReference
+    %          Nv=pipeline.last.coadd.prepReference('Istart',637,'Iend',800);
+    %          Nv=pipeline.last.coadd.prepReference('Istart',801,'Iend',1000);
+    %          Nv=pipeline.last.coadd.prepReference('Istart',1001,'Iend',1200);
+    %          
+
 
     arguments
         
@@ -19,6 +24,8 @@ function [Nvisit] = prepReference(Args)
         Args.Nsub    = 24;
 
         Args.Mode    = 'RegenCoadd';  %'RegenCoadd'|'Missing'
+        Args.Istart  = 1;
+        Args.Iend    = Inf;
     end
     RAD = 180./pi;
 
@@ -41,11 +48,18 @@ function [Nvisit] = prepReference(Args)
     load TargetList.mat
     % data in Tbl
     Ntarget = size(Tbl,1);
-    
+ 
+    if isinf(Args.Iend)
+        Args.Iend = Ntarget;
+    end
+
     PWD = pwd;
 
     Nvisit = zeros(Ntarget, Args.Ncam, Args.Nsub);
-    for Itarget=1:1:Ntarget
+
+
+
+    for Itarget=Args.Istart:1:Args.Iend
         FieldID = Tbl.FieldName(Itarget);
         
         Tmp = split(FieldID,'.');
