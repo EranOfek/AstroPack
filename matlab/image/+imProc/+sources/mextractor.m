@@ -162,13 +162,14 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % in each case the sources identified as CRs are removed from the catalog
             % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
             %     2. When a PSF stamp is used for source detection, the output catalog does not contain SN_3, just SN_1 and SN_2!                
-            if Args.FindWithEmpiricalPSF       
+            if Args.FindWithEmpiricalPSF                   
+                PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection                 
                 PSFTemplate(:,:,2) = AI.PSF; % the empirical PSF 
-                PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection 
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
                     'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'Psf',PSFTemplate,...
                     'FlagCR',true,'maskCR_Args',Args.maskCR_Args,'ColCell',Args.ColCell);
-                ColSN = 'SN_2';                
+                ColSN = 'SN_2';            
+                clear PSFTemplate
             else
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
                     'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar,...
