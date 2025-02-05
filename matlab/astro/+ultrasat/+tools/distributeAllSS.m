@@ -1,4 +1,4 @@
-function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVisits, DailySlots, Args)
+function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limits, PointType, DailyVisits, DailySlots, Args)
     % Distibute All Sky Survey visits according to visibility limits and point types
     %     a primitive greedy algorithm is employed
     % Input  : - the visibility limits table: N slots x N points
@@ -16,7 +16,7 @@ function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVi
     %          - the sorted table of points where the number of filled visits is indicated
     %          - the index of the original point number in the sorted table
     % Author : A.M. Krassilchtchikov (2025 Feb) 
-    % Example: [Schedule, TabSorted] = ultrasat.tools.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
+    % Example: [DailyTab, PointTabSorted, ~, ~] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots, 'VisitsByType',[2 16])
     arguments
         Limits
         PointType  
@@ -45,32 +45,45 @@ function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVi
         FieldNames = Args.FieldNames;
     end
     
-    FreeSlots = sum(Limits,1); % number of free slots for each point (used for sorting)    
+    FreeSlots = sum(Limits,1); % number of free slots for each point (used for prioritizing points)    
     
-    Tab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',...
+    PointTab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',...
         'VariableNames', {'FieldNames','Visits','Filled','FreeSlots'});
     
     % sort points by the total number of free slots so that the points with
     % less number of free slots are distributed first 
-    [TabSorted, Ind] = sortrows(Tab,{'FreeSlots'}); 
+    [PointTabSorted, Ind] = sortrows(PointTab,{'FreeSlots'}); 
     
-    [Schedule, TabSorted] = greedyRec(Limits, TabSorted, Ind, DailyVisits, DailySlots, NDays,...
+    [LinearSchedule, PointTabSorted] = greedyRec(Limits, PointTabSorted, Ind, DailyVisits, DailySlots, NDays,...
                                      'MinIntervals', Args.MinIntervals, 'Jump', Args.Jump, ...
                                      'AllowPartial', Args.AllowPartial, 'MaxBranch', Args.MaxBranch,...
                                      'Verbose', Args.Verbose);
                                  
-    % check that all the scheduled points are indeed in the allowed slots
-    ScheduledVisits = sum(Schedule > 0);
+    % check that all the scheduled points are indeed visible 
+    ScheduledVisits = sum(LinearSchedule > 0);
     ValidVisits = 0;
     for ISlot = 1:TotalSlots
-        Point = Schedule(ISlot);
+        Point = LinearSchedule(ISlot);
         if Point > 0
             ValidVisits = ValidVisits + Limits(ISlot, Point);
         end
     end
     if ScheduledVisits > ValidVisits
-        error('Some of the visits are not valid!\n');
+        error('Some of the scheduled visits are not valid!\n');
     end
+    
+    % cut the SlotSchedule into days, determine starting slots and point lists:
+    DailySchedule = reshape(LinearSchedule(1:DailySlots*NDays),DailySlots,NDays);
+    DailyTab = table([],{},'VariableNames',{'StartSlot','Points'});
+    for IDay = 1:NDays        
+        NonZero = find(DailySchedule(:, IDay) ~= 0);
+        if ~isempty(NonZero)
+            DailyTab.StartSlot(IDay) = NonZero(1);  % First non-zero index
+            DailyTab.Points(IDay) = {DailySchedule(NonZero(1):NonZero(end),IDay)};
+        else
+            DailyTab.StartSlot(IDay) = 0;
+        end
+    end    
 end
 
 %%%%%%%%%%

@@ -474,35 +474,61 @@ classdef uplanner < Component
             % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
             % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
             % (if we dedicate a week for AllSS only, this may become 24 hrs)
-            AverageSlew      = seconds(70);
+            AverageSlew      = seconds(60);
             MinimalVisitSlot = double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + AverageSlew;
             
             DailySlots  = floor(days(1)/MinimalVisitSlot);            
             SlotLength  = 1/DailySlots;            
             DailyVisits = floor(Obj.DailyWindowMaxDuration/days(SlotLength));
-                                                      
+
+            Obj.CheckTimes = [Obj.StartTime, Obj.EndTime]; 
             Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',SlotLength); 
                     
             % vis limits for each point and each time slot 
             Limits      = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
             PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
             
-            [Schedule, TabSorted, Ind] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
+            [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
                 'MinIntervals',Args.ExtraGalMinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,...
                 'Verbose',Args.Verbose);
             
+            % check if some of the points were not scheduled:
             VisitsToSchedule = sum(PointType==1)*int16(Obj.LowLatVisits) + sum(PointType==2)*int16(Obj.HighLatVisits); 
             ScheduledVisits  = sum(Schedule~=0);
             if ScheduledVisits < VisitsToSchedule
-                Incomplete = TabSorted.Visits>TabSorted.Filled;
+                Incomplete = PointTabSorted.Visits>PointTabSorted.Filled;
                 fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)
-                TabSorted(Incomplete,:)                 
+                PointTabSorted(Incomplete,:)                 
             end
-            %
-            UniqTargetIndexes = Schedule(Schedule>0);
-            StartTimes = Obj.Vis.JD(Schedule>0);
-%             Obj.scheduleTargets(UniqTargetIndexes,StartTimes);
+            
+            NDays  = floor(size(Limits,1)/DailySlots); 
+            Start  = zeros(NDays,1);
+            for IDay = 1:NDays
+                if DailyTab.StartSlot(IDay) > 0
+                    Ind  = (IDay-1)*DailySlots+DailyTab.StartSlot(IDay);
+                    Start(IDay) = Obj.Vis.JD(Ind);
+                    Points = DailyTab.Points{IDay};
+                    % TODO: check the total time including slews (make it a
+                    % separate function!)
+%                     SlewTime = 0; JDcurrent = Start(IDay);  
+%                     for ISlew = 1:numel(Points)-1
+%                         JDcurrent = JDcurrent + + 3*300; % + more 
+%                         RA1 = Obj.UniqTarg.RA(Points(ISlew))./RAD;
+%                         RA2 = Obj.UniqTarg.RA(Points(ISlew+1))./RAD;
+%                         Dec1 = Obj.UniqTarg.Dec(Points(ISlew))./RAD;
+%                         Dec2 = Obj.UniqTarg.Dec(Points(ISlew+1))./RAD;
+%                         [T_sec,DirectSlew] = ultrasat.tools.calcSlew(RA1,Dec1,RA2,Dec2,...
+%                             'CheckTrajectory',true,'JD',JDcurrent);
+%                         SlewTime = SlewTime+T_sec;
+%                         JDcurrent = JDcurrent + T_sec;
+%                     end
+                    %
+%                     Obj.scheduleTargets(Points,Start(IDay)); % need the start time in the time format 
+                end
+            end
+            DailyTab.StartJD = Start; % do we need it? 
+            DailyTab.IDay=(1:NDays)';
         end
     end
     %
@@ -694,7 +720,7 @@ classdef uplanner < Component
             end
             
             NUtarg = numel(UniqTargetIndexes);
-            NProws    = height(Obj.Plan);
+            NProws = height(Obj.Plan);
             
             % Add plan rows one be one
             for ii = 1:NUtarg
@@ -1717,7 +1743,7 @@ classdef uplanner < Component
                     upAllSS.EndTime   = upAllSS.StartTime+calmonths(6)-days(1);
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
-                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true);
+                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true);
                                    
                     if Args.Verbose
                         fprintf('completed\n');
