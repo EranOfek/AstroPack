@@ -366,16 +366,16 @@ classdef uplanner < Component
             % TODO - should add optimal covarge plan(s) of ProbabiltyMap.
             arguments
                 Obj 
-                Args.Map                           = [];
-                Args.RA                             = [];
-                Args.Dec                            = [];
-                Args.Name                        = {};
-                Args.TOOStartTime            = [];
+                Args.Map               = [];
+                Args.RA                = [];
+                Args.Dec               = [];
+                Args.Name              = {};
+                Args.TOOStartTime      = [];
                 Args.TOOWindowDuration = [];
-                Args.EpochsPerVisit           = [];
-                Args.ExpTime                     = [];
-                Args.SlewBuffer                  = [];
-                Args.Tiles                            = [];
+                Args.EpochsPerVisit    = [];
+                Args.ExpTime           = [];
+                Args.SlewBuffer        = [];
+                Args.Tiles             = [];
             end
             
             if ~strcmp(Obj.Type,'TOO')
