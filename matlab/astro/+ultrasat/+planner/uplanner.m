@@ -491,10 +491,11 @@ classdef uplanner < Component
             % and calls Obj.updateTargetProperties and Obj.updateTargetVisibility
             arguments
                 Obj
-                RA        = 0; % [deg]
-                Dec       = 0; % [deg]
-                Args.Name = ''; % Target name (optional)
-                Args.File = ''; % coordinate file name % ~/test.coo
+                RA           = 0;    % [deg]
+                Dec          = 0;    % [deg]
+                Args.TimeBin = 0.01; % [day] % this is close to 1 visit 
+                Args.Name    = '';   % Target name (optional)
+                Args.File    = '';   % coordinate file name % ~/test.coo
             end
             %
             if ~isempty(Args.File)
@@ -536,7 +537,7 @@ classdef uplanner < Component
             %
             Obj.updateTargetProperties('TargList',NU0+1:NU0+NUtarg);
             %
-            Obj.updateTargetVisibility;
+            Obj.updateTargetVisibility('TimeBin',Args.TimeBin);
         end
         %
         function editUniqTarg(Obj,UniqTargInd,Args)           
@@ -1691,20 +1692,21 @@ classdef uplanner < Component
                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                     AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
                     % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
-                    upAllSS.StartTime = '2028-07-01';
+                    upAllSS.StartTime = '2028-07-01'; 
+                    upAllSS.StartTime = upAllSS.StartTime + hours(12); % in order to improve visibility constraints 
                     upAllSS.EndTime   = upAllSS.StartTime+calmonths(6)-days(1);
-                    upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id));
                     % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
                     % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
                     % that is, allow for a maximum of 20 visits a day. 
                     % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
                     % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
                     % (if we dedicate a week for AllSS only, this may become 24 hrs)
-                    VisitLength = seconds(970.7865168539325);  
-                    upAllSS.DailyWindowMaxDuration = hours(5.393258426966292);                     
-                    upAllSS.updateTargetVisibility('WindowStartTime',upAllSS.StartTime,'WindowEndTime',upAllSS.EndTime,...
-                                                   'TimeBin',days(VisitLength));
-                    upAllSS.buildAllSS('VisitLength',VisitLength,'MinIntervals',[1 2 4],'AllowPartial',true); 
+                    SlotLength = seconds(970.7865168539325);  
+                    upAllSS.DailyWindowMaxDuration = hours(5.393258426966292);  
+                    
+                    upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id),...
+                        'TimeBin',days(SlotLength)); 
+                    upAllSS.buildAllSS('SlotLength',SlotLength,'MinIntervals',[1 2 4],'AllowPartial',true); 
                     
                     if Args.Verbose
                         fprintf('completed\n');
