@@ -455,21 +455,43 @@ classdef uplanner < Component
             % TODO - write build All Sky-Survey function (currently empty function)
             arguments
                 Obj
-                Args.VisitLength  
-                Args.MinIntervals = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
-                Args.AllowPartial = true;     % allow incomplete scheduling
-                Args.MaxBranch    = 5;        % maximal number of branches to try before skipping a point
-                Args.Verbose      = false;
+                Args.GridFile               = 'AllSS_grid_361.txt'; % the prepared AllSS grid
+                Args.DailyWindowMaxDuration = 5.5;      % hours
+                Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
+                Args.AllowPartial           = true;     % allow incomplete scheduling
+                Args.MaxBranch              = 5;        % maximal number of branches to try before skipping a point
+                Args.Verbose                = false;
             end
             %
+            Obj.DailyWindowMaxDuration = Args.DailyWindowMaxDuration;
+            
+            Grid = readtable(fullfile(Obj.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
+            % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
+
+            % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
+            % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
+            % that is, allow for a maximum of 20 visits a day. 
+            % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
+            % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
+            % (if we dedicate a week for AllSS only, this may become 24 hrs)
+            AverageSlew      = seconds(70);
+            MinimalVisitSlot = double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + AverageSlew;
+            
+            DailySlots  = floor(days(1)/MinimalVisitSlot);            
+            SlotLength  = 1/DailySlots;            
+            DailyVisits = floor(Obj.DailyWindowMaxDuration/days(SlotLength));
+                                                      
+            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',SlotLength); 
+                    
             % vis limits for each point and each time slot 
             Limits      = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
-            PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;
-            DailyVisits = Obj.DailyWindowMaxDuration/Args.VisitLength;
-            DailySlots  = hours(24)/Args.VisitLength;
+            PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
+            
             [Schedule, TabSorted, Ind] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
-                'MinIntervals',Args.MinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,'Verbose',Args.Verbose);
+                'MinIntervals',Args.ExtraGalMinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,...
+                'Verbose',Args.Verbose);
+            
             VisitsToSchedule = sum(PointType==1)*int16(Obj.LowLatVisits) + sum(PointType==2)*int16(Obj.HighLatVisits); 
             ScheduledVisits  = sum(Schedule~=0);
             if ScheduledVisits < VisitsToSchedule
@@ -1690,24 +1712,13 @@ classdef uplanner < Component
                     
                     % Example for AllSS plan (draft):
                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
-                    AllSS_grid = readtable(fullfile(upAllSS.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
-                    % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
                     upAllSS.StartTime = '2028-07-01'; 
-                    upAllSS.StartTime = upAllSS.StartTime + hours(12); % in order to improve visibility constraints 
+                    upAllSS.StartTime = upAllSS.StartTime + hours(12);          % in order to improve visibility constraints 
                     upAllSS.EndTime   = upAllSS.StartTime+calmonths(6)-days(1);
-                    % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
-                    % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
-                    % that is, allow for a maximum of 20 visits a day. 
-                    % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
-                    % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
-                    % (if we dedicate a week for AllSS only, this may become 24 hrs)
-                    SlotLength = seconds(970.7865168539325);  
-                    upAllSS.DailyWindowMaxDuration = hours(5.393258426966292);  
                     
-                    upAllSS.addUniqTargets(AllSS_grid.RA,AllSS_grid.Dec,'Name',num2cell(AllSS_grid.id),...
-                        'TimeBin',days(SlotLength)); 
-                    upAllSS.buildAllSS('SlotLength',SlotLength,'MinIntervals',[1 2 4],'AllowPartial',true); 
-                    
+                    upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
+                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true);
+                                   
                     if Args.Verbose
                         fprintf('completed\n');
                         fprintf('-------------------------\n');
