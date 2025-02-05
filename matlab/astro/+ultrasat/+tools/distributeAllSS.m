@@ -1,21 +1,33 @@
 function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVisits, DailySlots, Args)
-    % Distibute All Sky Survey visits according to visibility Limits and Types
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Distibute All Sky Survey visits according to visibility limits and point types
+    %     a primitive greedy algorithm is employed
+    % Input  : - the visibility limits table: N slots x N points
+    %          - the point types vector 
+    %          - the maximal number of AllSS visits per day
+    %          - the number of possible visits per day (depends on the visit duration w/account of retargeting)
     %          * ...,key,val,... 
-    % Output : - 
+    %          'VisitsByType' - number of visits or each PointType
+    %          'MinIntervals' - 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point (Type=2
+    %          'Jump'         - how many levels up we jump when a point is stuck
+    %          'AllowPartial' - allow scheduling even if some of the visits cannot be placed
+    %          'MaxBranch'    - maximal number of branches allowed: 
+    %                           if AllowPartial is true, give up for the current point after MaxBranch branches 
+    % Output : - the schedule: point numbers per each bin or 0
+    %          - the sorted table of points where the number of filled visits is indicated
+    %          - the index of the original point number in the sorted table
     % Author : A.M. Krassilchtchikov (2025 Feb) 
-    % Example: [Schedule, TabSorted] = ultrasat.planner.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
+    % Example: [Schedule, TabSorted] = ultrasat.tools.distributeAllSS(Limits,PointType, DailyVisits, DailySlots,'VisitsByType',[2 16])
     arguments
         Limits
         PointType  
         DailyVisits         = 20;        % maximal number of AllSS visits per day
         DailySlots          = 89;        % number of possible visits per day (depends on the visit duration w/account of retargeting)
         Args.VisitsByType   = [2 16];    % number of visits or each PointType
-        Args.MinIntervals   = [1 4 16];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point (Type=2)        
+        Args.MinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point (Type=2)        
         Args.Jump           = 1;         % how many levels up we jump when a point is stuck
         Args.AllowPartial   = false;
+        Args.MaxBranch      = 10;        % maximal branch to try before skipping a point
+        Args.FieldNames     = [];
         Args.Verbose        = true;
     end
     %
@@ -27,15 +39,38 @@ function [Schedule, TabSorted, Ind] = distributeAllSS(Limits, PointType, DailyVi
     SrcVisits(PointType == 1) = Args.VisitsByType(1);
     SrcVisits(PointType == 2) = Args.VisitsByType(2);   
     
+    if isempty(Args.FieldNames)
+        FieldNames = 1:NPoints;
+    else
+        FieldNames = Args.FieldNames;
+    end
+    
     FreeSlots = sum(Limits,1); % number of free slots for each point (used for sorting)    
     
-    Tab = table(SrcVisits, FilledVisits, FreeSlots',...
-        'VariableNames', {'Visits','Filled','FreeSlots'});
+    Tab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',...
+        'VariableNames', {'FieldNames','Visits','Filled','FreeSlots'});
     
-    [TabSorted, Ind] =  sortrows(Tab,{'FreeSlots'}); % sort points by the total number of free slots
+    % sort points by the total number of free slots so that the points with
+    % less number of free slots are distributed first 
+    [TabSorted, Ind] = sortrows(Tab,{'FreeSlots'}); 
     
     [Schedule, TabSorted] = greedyRec(Limits, TabSorted, Ind, DailyVisits, DailySlots, NDays,...
-                                     'MinIntervals', Args.MinIntervals, 'Jump', Args.Jump, 'Verbose', Args.Verbose);
+                                     'MinIntervals', Args.MinIntervals, 'Jump', Args.Jump, ...
+                                     'AllowPartial', Args.AllowPartial, 'MaxBranch', Args.MaxBranch,...
+                                     'Verbose', Args.Verbose);
+                                 
+    % check that all the scheduled points are indeed in the allowed slots
+    ScheduledVisits = sum(Schedule > 0);
+    ValidVisits = 0;
+    for ISlot = 1:TotalSlots
+        Point = Schedule(ISlot);
+        if Point > 0
+            ValidVisits = ValidVisits + Limits(ISlot, Point);
+        end
+    end
+    if ScheduledVisits > ValidVisits
+        error('Some of the visits are not valid!\n');
+    end
 end
 
 %%%%%%%%%%
@@ -52,6 +87,8 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
         % minimal intervals between blocks of 4 observations of an extragalactic point
         Args.MinIntervals = [1 4 16]; % [1 1 1]; [1 3 10]; [1 4 16];     [1 5 25]; [1 10 100];        
         Args.Jump         = 1; % 10; 100; % how many levels up we jump when a point is stuck
+        Args.AllowPartial = false;
+        Args.MaxBranch    = 10;
         Args.Verbose      = true;
     end
     Np     = numel(Ind);     % number of grid points
@@ -73,7 +110,7 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
         LastTriedSlot = 0;
         
         SrcNum = Ind(Ip);
-        Nvis   = Tab.Visits(SrcNum);
+        Nvis   = Tab.Visits(Ip);
         
         if Nvis == 2                  % for Galactic sources all the 2 visits are on the same day
             VisPerDay = Nvis;
@@ -87,7 +124,7 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
             fprintf('step %d point %d\n',Ip, SrcNum);
         end
         
-        while ~Stuck && Tab.Filled(SrcNum) < Nvis %                      
+        while ~Stuck && Tab.Filled(Ip) < Nvis %                      
             
             % find the 1+Branch(Ip) group of VisPerDay ones:  
             SrcLimits = Limits(LastTriedSlot+1:end,SrcNum);     % limits for the current point from LastTriedSlot on 
@@ -97,13 +134,20 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
             if isempty(FoundSlots)    % the algorithm is stuck, go up Args.Jump points                
                 Stuck = true;  
                 Ijump = Ip-Args.Jump; % the point where we start a new branch
+                if Args.AllowPartial && Branch(Ijump)+1 > Args.MaxBranch
+                    if Args.Verbose
+                        fprintf('Stuck at step %d, point %d. Maxmimal number of branches at point %d exceeded, giving up..',...
+                            Ip,SrcNum,Ind(Ijump))
+                    end
+                    break
+                end
                 if Args.Verbose
                     fprintf('Stuck at step %d, point %d, going up to branch %d of point %d..\n',Ip,SrcNum,Branch(Ijump)+1,Ind(Ijump));
                 end
                 Branch(Ijump) = Branch(Ijump) + 1; % advance the branch of the previous point
                 Branch(Ijump+1:end) = 0;           % clear the branch numbers of all the next points
-                Schedule = Schedule .* ~ismember(Schedule, Ind(Ijump:Ip)); % clean the schedule for Ip and Ip-1 
-                Tab.Filled(Ind(Ijump:Ip)) = 0; % clean the number of allocations                
+                Schedule = Schedule .* ~ismember(Schedule, Ind(Ijump:Ip)); % clean the schedule in the range for Ip and Ip-1 
+                Tab.Filled(Ijump:Ip) = 0;          % clean the number of allocations from the table               
                 Ip = Ijump-1;                                      
             else 
                 Slots = FoundSlots + LastTriedSlot;
@@ -123,20 +167,20 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
 %                     if all(Schedule( Slots ) == 0) && ... % the requested slots are free
 %                             AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots  
                     if AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
-                        Schedule( Slots ) = SrcNum; % fill the Schedule 
+                        Schedule( Slots ) = SrcNum; % fill the Schedule with point numbers 
                         Start(Day1) = SlMin;
                         Stop (Day1) = SlMax;
-                        Tab.Filled(SrcNum) = Tab.Filled(SrcNum) + VisPerDay;
-                        if Tab.Filled(SrcNum) == Nvis/4     % move the next available slot to today+Args.MinIntervals(1)
+                        Tab.Filled(Ip) = Tab.Filled(Ip) + VisPerDay;
+                        if Tab.Filled(Ip) == Nvis/4     % move the next available slot to today+Args.MinIntervals(1)
                             LastTriedSlot = (Day1+Args.MinIntervals(1)-1)*DailySlots;
 %                             fprintf('partly settled \n');
-                        elseif Tab.Filled(SrcNum) == Nvis/2 % move the next available slot to today+Args.MinIntervals(2)
+                        elseif Tab.Filled(Ip) == Nvis/2 % move the next available slot to today+Args.MinIntervals(2)
                             LastTriedSlot = (Day1+Args.MinIntervals(2)-1)*DailySlots;
 %                             fprintf('partly settled \n');
-                        elseif Tab.Filled(SrcNum) == 3*Nvis/4 % move the next available slot to today+Args.MinIntervals(3)
+                        elseif Tab.Filled(Ip) == 3*Nvis/4 % move the next available slot to today+Args.MinIntervals(3)
                             LastTriedSlot = (Day1+Args.MinIntervals(3)-1)*DailySlots;
 %                             fprintf('partly settled \n');
-                        elseif Tab.Filled(SrcNum) == Nvis % all the exposure for the point are scheduled
+                        elseif Tab.Filled(Ip) == Nvis % all the exposure for the point are scheduled
 %                             fprintf('settled \n');
                         else
                             error('number of filled slots is incorrect');
@@ -196,27 +240,3 @@ function Index = findGroupOfConsecutiveVals(A, M, N, Val)
     Index = []; % nothing is found 
 end
 
-% function plotSchedule(Schedule,Tab)
-% 
-%     RAD = 180/pi;
-%            
-%     S = Schedule(Schedule > 0 );
-%     NObs = length(S);
-%     ObsPoint = zeros(NObs,2);
-%     for IObs = 1:NObs
-%          ObsPoint(IObs,1) = Tab.RA (S(IObs));
-%          ObsPoint(IObs,2) = Tab.Dec(S(IObs));
-%     end
-%     
-%     figure(1); plot(ObsPoint(:,1),ObsPoint(:,2));
-%     
-%     RA1 = ObsPoint(1:NObs-1,1)./RAD;
-%     RA2 = ObsPoint(2:NObs,1)./RAD;
-%     Dec1 = ObsPoint(1:NObs-1,2)./RAD;
-%     Dec2 = ObsPoint(2:NObs,2)./RAD;
-%     
-%     D=celestial.coo.sphere_dist_fast(RA1,Dec1,RA2,Dec2);
-%     D=D.*RAD;
-%     figure(2); histogram(D);
-%         
-% end
