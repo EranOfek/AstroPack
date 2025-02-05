@@ -48,7 +48,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
                 
         % PSF measurement:
-        Args.populatePSFArgs cell      = {'CropByQuantile',false};
+        Args.populatePSFArgs cell      = {'CropByQuantile',false}; % {'CropByQuantile',true,'Quantile',0.5}
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
@@ -126,7 +126,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             'ThresholdPSF',Args.ThresholdPSF,...
             'RangeSN',Args.RangeSN,...
             'InitPsf',Args.InitPsf,...
-            'InitPsfArgs',Args.InitPsfArgs);
+            'InitPsfArgs',Args.InitPsfArgs,...
+            'RePopulatePSF',true);
     end
     
     % delete the object's input catalog 

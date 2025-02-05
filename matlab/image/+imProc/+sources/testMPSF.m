@@ -4,10 +4,10 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
 % uncrowded fields  
 %
 % Examples: 
-%           [AI_PSF,mms_PSF,mms_base]=testMPSF('AI',AI_uncrowded);
-%           [AI_PSF,mms_PSF,mms_base]=testMPSF('AI',AI_crowded,'Crowded',true);
-%           [AI_PSF,mms_PSF,mms_base]=testMPSF();
-%           [AI_PSF,mms_PSF,mms_base]=testMPSF('Crowded',true);
+%           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF('AI',AI_uncrowded);
+%           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF('AI',AI_crowded,'Crowded',true);
+%           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF();
+%           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF('Crowded',true);
     arguments
         Args.AI   = []; % a vector of AI. If it is empry will try to load AI of crowded field or uncrowded field
         Args.Crowded = false;
