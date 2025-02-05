@@ -43,7 +43,8 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
                             'Threshold',[300 100 30 10 5],...  % more SNR thrsholds
                             'UseOriginalPSF',false,...          
                             'Verbose',true);  
-    
+                        
+                            %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...    
 
     ZPoffset = zeros(numel(AI_PSF),1);
     for i = 1:numel(AI_PSF)
