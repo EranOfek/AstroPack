@@ -452,7 +452,7 @@ classdef uplanner < Component
         end
         %
         function buildAllSS(Obj, Args)
-            % TODO - write build All Sky-Survey function (currently empty function)
+            % TODO - add an option for additional constraints  
             arguments
                 Obj
                 Args.GridFile               = 'AllSS_grid_361.txt'; % the prepared AllSS grid
@@ -474,19 +474,20 @@ classdef uplanner < Component
             % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
             % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
             % (if we dedicate a week for AllSS only, this may become 24 hrs)
-            AverageSlew      = seconds(60);
+            AverageSlew      = seconds(60); % this is an emprical estimate, after a schedule is built, one should check for consistency
             MinimalVisitSlot = double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + AverageSlew;
             
             DailySlots  = floor(days(1)/MinimalVisitSlot);            
-            SlotLength  = 1/DailySlots;            
-            DailyVisits = floor(Obj.DailyWindowMaxDuration/days(SlotLength));
+            VisitSlot   = 1/DailySlots;            
+            DailyVisits = floor(Obj.DailyWindowMaxDuration/days(VisitSlot));
 
             Obj.CheckTimes = [Obj.StartTime, Obj.EndTime]; 
-            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',SlotLength); 
+            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot); 
                     
-            % vis limits for each point and each time slot 
-            Limits      = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
-            PointType   = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
+            % visibility limits for each point and each time slot 
+            Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
+            % determine the two types of sky points
+            PointType = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
             
             [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
@@ -502,33 +503,29 @@ classdef uplanner < Component
                 PointTabSorted(Incomplete,:)                 
             end
             
-            NDays  = floor(size(Limits,1)/DailySlots); 
-            Start  = zeros(NDays,1);
+            NDays  = floor(size(Limits,1)/DailySlots);            
             for IDay = 1:NDays
+                if Args.Verbose
+                    fprintf('Planning AllSS targets for day %d\n',IDay);
+                end
                 if DailyTab.StartSlot(IDay) > 0
                     Ind  = (IDay-1)*DailySlots+DailyTab.StartSlot(IDay);
-                    Start(IDay) = Obj.Vis.JD(Ind);
-                    Points = DailyTab.Points{IDay};
-                    % TODO: check the total time including slews (make it a
-                    % separate function!)
-%                     SlewTime = 0; JDcurrent = Start(IDay);  
-%                     for ISlew = 1:numel(Points)-1
-%                         JDcurrent = JDcurrent + + 3*300; % + more 
-%                         RA1 = Obj.UniqTarg.RA(Points(ISlew))./RAD;
-%                         RA2 = Obj.UniqTarg.RA(Points(ISlew+1))./RAD;
-%                         Dec1 = Obj.UniqTarg.Dec(Points(ISlew))./RAD;
-%                         Dec2 = Obj.UniqTarg.Dec(Points(ISlew+1))./RAD;
-%                         [T_sec,DirectSlew] = ultrasat.tools.calcSlew(RA1,Dec1,RA2,Dec2,...
-%                             'CheckTrajectory',true,'JD',JDcurrent);
-%                         SlewTime = SlewTime+T_sec;
-%                         JDcurrent = JDcurrent + T_sec;
-%                     end
-                    %
-%                     Obj.scheduleTargets(Points,Start(IDay)); % need the start time in the time format 
+                    StartJD = Obj.Vis.JD(Ind);
+                    UniqTargets = DailyTab.Points{IDay};                    
+                    % try excluding 0s from the target list with the hope that it would not break the visibility:
+%                     UniqTargets(UniqTargets<1)=[]; % no, it does not work this way, the visibility is easily broken...
+                    % then split the target list into 2 parts:
+                    Ind0 = find(UniqTargets<1);
+                    if isempty(Ind0) % no holes
+                        Obj.scheduleTargets(UniqTargets,datetime(StartJD,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',IDay);
+                    else % split into 2 groups:
+                        StartJD2 = Obj.Vis.JD(Ind+Ind0);
+                        Obj.scheduleTargets(UniqTargets(1:Ind0-1),datetime(StartJD,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',IDay);
+                        Obj.scheduleTargets(UniqTargets(Ind0+1:end),datetime(StartJD2,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',1000+IDay);
+                    end
                 end
             end
-            DailyTab.StartJD = Start; % do we need it? 
-            DailyTab.IDay=(1:NDays)';
+
         end
     end
     %
@@ -1736,15 +1733,16 @@ classdef uplanner < Component
                         fprintf('Start AllSS plan...');
                     end
                     
-                    % Example for AllSS plan (draft):
+                    % Example for AllSS plan:
                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                     upAllSS.StartTime = '2028-07-01'; 
-                    upAllSS.StartTime = upAllSS.StartTime + hours(12);          % in order to improve visibility constraints 
-                    upAllSS.EndTime   = upAllSS.StartTime+calmonths(6)-days(1);
+                    upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
+                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true);
-                                   
+                    % TODO: make a 2-stage plan: 1 dedicated week + all the
+                    % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose
                         fprintf('completed\n');
                         fprintf('-------------------------\n');

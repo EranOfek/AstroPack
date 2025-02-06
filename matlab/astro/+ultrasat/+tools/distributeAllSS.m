@@ -76,10 +76,10 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     DailySchedule = reshape(LinearSchedule(1:DailySlots*NDays),DailySlots,NDays);
     DailyTab = table([],{},'VariableNames',{'StartSlot','Points'});
     for IDay = 1:NDays        
-        NonZero = find(DailySchedule(:, IDay) ~= 0);
-        if ~isempty(NonZero)
-            DailyTab.StartSlot(IDay) = NonZero(1);  % First non-zero index
-            DailyTab.Points(IDay) = {DailySchedule(NonZero(1):NonZero(end),IDay)};
+        NonZeroSlots = find(DailySchedule(:, IDay) ~= 0);
+        if ~isempty(NonZeroSlots)
+            DailyTab.StartSlot(IDay) = NonZeroSlots(1);  
+            DailyTab.Points(IDay)    = {DailySchedule(NonZeroSlots(1):NonZeroSlots(end),IDay)};
         else
             DailyTab.StartSlot(IDay) = 0;
         end
