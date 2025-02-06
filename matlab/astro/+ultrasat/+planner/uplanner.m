@@ -719,6 +719,16 @@ classdef uplanner < Component
             NUtarg = numel(UniqTargetIndexes);
             NProws = height(Obj.Plan);
             
+            if numel(Args.Nexposures) < NUtarg
+                Args.Nexposures = repmat(Args.Nexposures(1),1,NUtarg);
+            end
+            if numel(Args.Exptime) < NUtarg
+                Args.Exptime = repmat(Args.Exptime(1),1,NUtarg);
+            end
+            if numel(Args.Tiles) < NUtarg
+                Args.Tiles = repmat(Args.Tiles(1),1,NUtarg);
+            end
+            
             % Add plan rows one be one
             for ii = 1:NUtarg
             
@@ -729,9 +739,9 @@ classdef uplanner < Component
                 Obj.Plan.UniqTargInd(Plan_row) = curr_UniqTargInd;
                 Obj.Plan.RA(Plan_row) = Obj.UniqTarg.RA(curr_UniqTargInd);
                 Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(curr_UniqTargInd);
-                Obj.Plan.ExpTime(Plan_row) = Args.Exptime;
-                Obj.Plan.Tiles(Plan_row) = Args.Tiles;
-                Obj.Plan.Nexposures(Plan_row) = Args.Nexposures;
+                Obj.Plan.ExpTime(Plan_row) = Args.Exptime(ii);
+                Obj.Plan.Tiles(Plan_row) = Args.Tiles(ii);
+                Obj.Plan.Nexposures(Plan_row) = Args.Nexposures(ii);
 
                 if ii == 1
                     Obj.Plan.Tstart(Plan_row) = StartTime;
