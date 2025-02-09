@@ -631,7 +631,7 @@ classdef AstroDiff < AstroImage
                 
                 % Its important not to use the Fn/Fr getters
                 Obj(Iobj).Fr = Fr;
-                Obj(Iobj).Fn = Fn;
+                Obj(Iobj).Fn = Fn;  
 
             end
 
@@ -1223,13 +1223,13 @@ classdef AstroDiff < AstroImage
             IndC = 0;
             for Iobj=Nobj:-1:1
                 
-                % Skip empty catalogs
                 sizeCat = size(Obj(Iobj).CatData.Catalog,1);
-                if sizeCat == 0
-                    continue;
-                end
                 
                 if isempty(Args.XY)
+                    % Skip empty catalogs
+                    if sizeCat == 0
+                        continue;
+                    end
                     % get coordinates from AstroCatalog object
                     XY = Obj(Iobj).CatData.getXY;
                 else
@@ -1246,6 +1246,7 @@ classdef AstroDiff < AstroImage
                                          'UpdateCat',true,...
                                          'UpdateWCS',true,...
                                          'CreateNewObj',Args.CreateNewObj);
+
                         ADc(IndC).CatData = Obj(Iobj).CatData.selectRows(...
                            XY(:,1) == XY(Ixy,1) & XY(:,2) == XY(Ixy,2) );
                         ADc(IndC).Table = Obj(Iobj).Table(...

@@ -39,9 +39,10 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
     [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
                             'SaveSourcelessImage',true,...
                             'FindWithEmpiricalPSF',true,...
-                            'BackPar',{'SubSizeXY',[]},...  %global bck
-                            'Threshold',[300 100 30 10 5],...  % more SNR thrsholds
-                            'UseOriginalPSF',false,...          
+                            'BackPar',{'SubSizeXY',[128 128]},...  %global bck
+                            'Threshold',[100],...  % [300 100 30 10 5] more SNR thrsholds                            
+                            'UseOriginalPSF',true,... % false     
+                            'FitRadius',[1],...
                             'Verbose',true);  
                         
                             %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...    
@@ -82,8 +83,8 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         set(gca,'yscale','log');
         
         plot(nanmedian(mms_PSF.Data.MAG_PSF,1),nanstd(mms_PSF.Data.MAG_PSF,1),'.b');
-        plot(nanmedian(mms_base.Data.MAG_PSF,1),nanstd(mms_base.Data.MAG_PSF,1),'.r');
-        plot(nanmedian(mms_base.Data.MAG_APER_3,1),nanstd(mms_base.Data.MAG_APER_3,1),'.k');
+        plot(nanmedian(mms_base.Data.MAG_PSF,1),nanstd(mms_base.Data.MAG_PSF,1),'.r');%plot(nanmedian(mms_base.Data.MAG_PSF,1),nanstd(mms_base.Data.MAG_PSF,1),'.r');
+        plot(nanmedian(mms_base.Data.MAG_APER_3,1),nanstd(mms_base.Data.MAG_APER_3,1),'.k');%plot(nanmedian(mms_base.Data.MAG_APER_3,1),nanstd(mms_base.Data.MAG_APER_3,1),'.k');
         
         xlim([9,22])
         ylim([1e-3,10])
