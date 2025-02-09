@@ -162,8 +162,8 @@ classdef uplanner < Component
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell'};
                                                                 
-        Target_DefVarNames = {'Name','RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj','HealpixArray'};
-        Target_DefVarTypes = {'string','double','double', 'double', 'cell', 'cell', 'cell', 'cell','cell'};  
+        Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray'};
+        Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell'};  
         
         MissionApprovedPlan_VarNames   = {'Name','pk','TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
@@ -460,7 +460,7 @@ classdef uplanner < Component
                 Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
                 Args.AllowPartial           = true;     % allow incomplete scheduling
                 Args.BufferSunDist          = 0;        % [deg] additional distance to keep visibility at dithering 
-                Args.BufferEarthDist        = 0.5;      % [deg] additional distance to keep visibility at dithering
+                Args.BufferEarthDist        = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.BufferMoonDist         = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.MaxBranch              = 5;        % maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
@@ -512,6 +512,7 @@ classdef uplanner < Component
                 PointTabSorted(Incomplete,:)                 
             end
             
+            % for each of the pre-scheduled days run the actual scheduler accounting for real retargeting times 
             NDays  = floor(size(Limits,1)/DailySlots);            
             for IDay = 1:NDays
                 if Args.Verbose
@@ -519,18 +520,41 @@ classdef uplanner < Component
                 end
                 if DailyTab.StartSlot(IDay) > 0
                     Ind  = (IDay-1)*DailySlots+DailyTab.StartSlot(IDay);
-                    StartJD = Obj.Vis.JD(Ind);
-                    UniqTargets = DailyTab.Points{IDay};                    
+                    StartJD = Obj.Vis.JD(Ind);                    
+                    % merge type 1 targets in UniqTargets, fill Args.Nexposure and Args.Dither (mark the dither of type 1 and 2 targets)
+%                     UTargets = DailyTab.Points{IDay};
+%                     [UniqTargets, Nexposure, ~] = ultrasat.tools.mergeAllSSTargetList(UTargets);     
+                    % currently merging leads to shifts which cause visibility errors
+                    % without merging: 
+                    UniqTargets = DailyTab.Points{IDay};
+                 
                     % try excluding 0s from the target list with the hope that it would not break the visibility:
-%                     UniqTargets(UniqTargets<1)=[]; % no, it does not work this way, the visibility is easily broken...
-                    % then split the target list into 2 parts:
-                    Ind0 = find(UniqTargets<1);
-                    if isempty(Ind0) % no holes
-                        Obj.scheduleTargets(UniqTargets,datetime(StartJD,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',IDay);
-                    else % split into 2 groups:
-                        StartJD2 = Obj.Vis.JD(Ind+Ind0);
-                        Obj.scheduleTargets(UniqTargets(1:Ind0-1),datetime(StartJD,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',IDay);
-                        Obj.scheduleTargets(UniqTargets(Ind0+1:end),datetime(StartJD2,'ConvertFrom','juliandate','TimeZone','UTC'),'Group',1000+IDay);
+                    % UniqTargets(UniqTargets<1)=[]; % no, it does not work this way, the visibility is easily broken...
+                    % then split the target list into parts:
+                    Ind0 = find(UniqTargets<1); % find all the zeros
+                    if isempty(Ind0) % no zeros = no holes 
+                        Obj.scheduleTargets(UniqTargets,...
+                            datetime(StartJD,'ConvertFrom','juliandate','TimeZone','UTC'),...
+                            'Group',IDay); % ,'Nexposure',Nexposure);
+                    else % split into groups:
+                        NHoles=numel(Ind0);
+                        for ii = 1:NHoles+1
+                            if ii==1
+                                T1 = 1; T2 = Ind0(ii)-1;
+                            elseif ii == NHoles+1
+                                T1 = Ind0(NHoles)+1;
+                                T2 = numel(UniqTargets);
+                            else
+                                T1 = Ind0(ii-1)+1;
+                                T2 = Ind0(ii)-1;
+                            end
+%                             fprintf('%d: %d %d \n',ii, T1,T2)
+                            if T2 >= T1 % there are some targets between T1 and T2
+                                Obj.scheduleTargets(UniqTargets(T1:T2),...
+                                    datetime(Obj.Vis.JD(Ind+T1-1),'ConvertFrom','juliandate','TimeZone','UTC'),...
+                                    'Group',1000+IDay*10+ii) % ,'Nexposure',Nexposure(T1:T2));
+                            end
+                        end
                     end
                 end
             end
@@ -713,10 +737,10 @@ classdef uplanner < Component
                 Obj
                 UniqTargetIndexes
                 StartTime
-                Args.Nexposures = [];
-                Args.Exptime = []; % 
-                Args.Tiles = []; % 
-                Args.Group = -1; % Group Ind. -1 for no group
+                Args.Nexposures = []; % number of exposures taken in a row
+                Args.Exptime    = []; % exposure time
+                Args.Tiles      = []; % active tile numbers               
+                Args.Group      = -1; % Group Ind. -1 for no group
             end
             %            
             if isempty(Args.Nexposures)
@@ -747,13 +771,13 @@ classdef uplanner < Component
             
                 Plan_row = NProws+ii;
                 curr_UniqTargInd = UniqTargetIndexes(ii);
-
+                                
                 Obj.Plan.Name(Plan_row) = Obj.UniqTarg.Name(curr_UniqTargInd);
                 Obj.Plan.UniqTargInd(Plan_row) = curr_UniqTargInd;
-                Obj.Plan.RA(Plan_row) = Obj.UniqTarg.RA(curr_UniqTargInd);
-                Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(curr_UniqTargInd);
+                Obj.Plan.RA(Plan_row)  = Obj.UniqTarg.RA(curr_UniqTargInd); 
+                Obj.Plan.Dec(Plan_row) = Obj.UniqTarg.Dec(curr_UniqTargInd); 
                 Obj.Plan.ExpTime(Plan_row) = Args.Exptime(ii);
-                Obj.Plan.Tiles(Plan_row) = Args.Tiles(ii);
+                Obj.Plan.Tiles(Plan_row)   = Args.Tiles(ii);
                 Obj.Plan.Nexposures(Plan_row) = Args.Nexposures(ii);
 
                 if ii == 1
@@ -1778,7 +1802,8 @@ classdef uplanner < Component
                     upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
-                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true);
+                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
+                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.0);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose
