@@ -459,6 +459,9 @@ classdef uplanner < Component
                 Args.DailyWindowMaxDuration = 5.5;      % hours
                 Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
                 Args.AllowPartial           = true;     % allow incomplete scheduling
+                Args.BufferSunDist          = 0;        % [deg] additional distance to keep visibility at dithering 
+                Args.BufferEarthDist        = 0.5;      % [deg] additional distance to keep visibility at dithering
+                Args.BufferMoonDist         = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.MaxBranch              = 5;        % maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
             end
@@ -480,14 +483,20 @@ classdef uplanner < Component
             DailySlots  = floor(days(1)/MinimalVisitSlot);            
             VisitSlot   = 1/DailySlots;            
             DailyVisits = floor(Obj.DailyWindowMaxDuration/days(VisitSlot));
-
+                    
             Obj.CheckTimes = [Obj.StartTime, Obj.EndTime]; 
-            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot); 
+            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
+                'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+                'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+                'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist); 
                     
             % visibility limits for each point and each time slot 
             Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
+            
             % determine the two types of sky points
             PointType = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
+            % alternative types accoring to averaged A_U:
+%             PointType = ( Obj.UniqTarg.A_U < 1 ) + 1;
             
             [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
@@ -541,6 +550,9 @@ classdef uplanner < Component
                 Args.TimeBin = 0.01; % [day] % this is close to 1 visit 
                 Args.Name    = '';   % Target name (optional)
                 Args.File    = '';   % coordinate file name % ~/test.coo
+                Args.ObsSunDist   = [];
+                Args.ObsMoonDist  = [];
+                Args.ObsEarthDist = [];
             end
             %
             if ~isempty(Args.File)
@@ -582,7 +594,8 @@ classdef uplanner < Component
             %
             Obj.updateTargetProperties('TargList',NU0+1:NU0+NUtarg);
             %
-            Obj.updateTargetVisibility('TimeBin',Args.TimeBin);
+            Obj.updateTargetVisibility('TimeBin',Args.TimeBin,...
+                'ObsSunDist',Args.ObsSunDist,'ObsMoonDist',Args.ObsMoonDist,'ObsEarthDist',Args.ObsEarthDist);
         end
         %
         function editUniqTarg(Obj,UniqTargInd,Args)           
@@ -1173,6 +1186,9 @@ classdef uplanner < Component
                 Args.TimeBin         = 0.01; % [days] % this is close to 1 visit 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime   = []; 
+                Args.ObsSunDist      = [];
+                Args.ObsMoonDist     = [];
+                Args.ObsEarthDist    = [];
             end
             %
             if isempty(Args.WindowStartTime)
@@ -1183,11 +1199,23 @@ classdef uplanner < Component
                 Args.WindowEndTime   = Obj.CheckTimes(2);
             end
             
+            if isempty(Args.ObsSunDist)
+                Args.ObsSunDist = Obj.ObsSunDist;
+            end
+            
+            if isempty(Args.ObsMoonDist)
+                Args.ObsMoonDist = Obj.ObsMoonDist;
+            end
+            
+            if isempty(Args.ObsEarthDist)
+                Args.ObsEarthDist = Obj.ObsEarthDist;
+            end
+            
             StartJD = juliandate(Args.WindowStartTime);
             EndJD   = juliandate(Args.WindowEndTime);
             VisJD   = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
             Obj.Vis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTarg.RA Obj.UniqTarg.Dec],'CooUnits','deg',...
-                'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0);             
+                'MinSunDist',Args.ObsSunDist,'MinMoonDist',Args.ObsMoonDist,'MinEarthDist',Args.ObsEarthDist,'MinDistOffset',0);             
 %             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
 %             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
