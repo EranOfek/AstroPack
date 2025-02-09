@@ -3134,8 +3134,8 @@ classdef DemonLAST < Component
                             RunTime = etime(clock, Tstart);
                             Msg{1} = sprintf('pipeline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
-
-
+                           
+                            % Run the transients pipeline
                             Args.DoTransientsDetection = true;
                             if Args.DoTransientsDetection 
                                 %&& strcmp(tools.os.get_computer, 'last01e')
@@ -3151,16 +3151,12 @@ classdef DemonLAST < Component
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end
 
+                                % Match to multi-epochs via DB
                                 if exist('TransientCutouts','var')
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / group %d', Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    
-                                    if ~exist(Obj.SciPath, 'dir')
-                                        mkdir(Obj.SciPath);
-                                    end
 
                                     try
-                                        TranDB = strcat(Obj.SciPath,'/TranDB.mat');
                                         [TransientCutouts, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
                                             TransientCutouts, TCL1, 'DbHost', Args.DBHost, 'DB', DB);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
@@ -3170,6 +3166,7 @@ classdef DemonLAST < Component
                                     end
                                 end
                                 
+                                % Send transients alerts
                                 if exist('TransientCutouts','var') && Args.SendTransientAlerts && IsRunningOnLAST
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients alerting / group %d', Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
@@ -3186,7 +3183,6 @@ classdef DemonLAST < Component
                                 Msg{1} = sprintf('pipeline.DemonLAST - Transients / RunTime: %.1f', RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end
-
 
                             
                             % if CoaddTransienst.sizeCatalog>0
