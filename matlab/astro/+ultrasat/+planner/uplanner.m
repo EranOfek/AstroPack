@@ -121,7 +121,7 @@ classdef uplanner < Component
         DailyWindowMaxDuration  duration =  hours(3);       % [hrs]
         
         % AllSS
-        AllSSHighLatThresh  double      = 30; % |RA| [deg]
+        AllSSHighLatThresh  double      = 30; % |b| [deg]
         HighLatVisits       uint8       = 16; % 1 visit = 3 x 300 s 
         LowLatVisits        uint8       =  2;      
         DitherPattern                   = '2x2';
@@ -162,8 +162,8 @@ classdef uplanner < Component
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell'};
                                                                 
-        Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray'};
-        Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell'};  
+        Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
+        Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'int32'};  
         
         MissionApprovedPlan_VarNames   = {'Name','pk','TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
@@ -456,6 +456,8 @@ classdef uplanner < Component
             arguments
                 Obj
                 Args.GridFile               = 'AllSS_grid_361.txt'; % the prepared AllSS grid
+                Args.PointTypeBy            = 'b';      % determine point type by galactic latitude ('b') or by extiction ('a_u')
+                Args.DitherLeg              = 2.0;      % [deg] dither leg: 4 points shifted by this distance in each of RA and Dec                
                 Args.DailyWindowMaxDuration = 5.5;      % hours
                 Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
                 Args.AllowPartial           = true;     % allow incomplete scheduling
@@ -466,6 +468,9 @@ classdef uplanner < Component
                 Args.Verbose                = false;
             end
             %
+            RAD = 180/pi;
+            Obj.CheckTimes = [Obj.StartTime, Obj.EndTime]; 
+            
             Obj.DailyWindowMaxDuration = Args.DailyWindowMaxDuration;
             
             Grid = readtable(fullfile(Obj.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
@@ -483,28 +488,52 @@ classdef uplanner < Component
             DailySlots  = floor(days(1)/MinimalVisitSlot);            
             VisitSlot   = 1/DailySlots;            
             DailyVisits = floor(Obj.DailyWindowMaxDuration/days(VisitSlot));
-                    
-            Obj.CheckTimes = [Obj.StartTime, Obj.EndTime]; 
-            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
-                'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
-                'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
-                'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist); 
-                    
-            % visibility limits for each point and each time slot 
-            Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;  
             
             % determine the two types of sky points
-            PointType = ( abs(Obj.UniqTarg.Dec) > Obj.AllSSHighLatThresh ) + 1;  
-            % alternative types accoring to averaged A_U:
-%             PointType = ( Obj.UniqTarg.A_U < 1 ) + 1;
+            if strcmpi(Args.PointTypeBy,'b')                        
+                [~, Grid.b] = celestial.coo.convert_coo(Grid.RA./RAD,Grid.Dec./RAD,'j2000.0','g');                    
+                Extragal = abs(Grid.b.*RAD) > Obj.AllSSHighLatThresh;
+            elseif strcmpi(Args.PointTypeBy,'a_u')
+                % an alternative distinction accoring to the averaged A_U:
+                Grid.A_U = ultrasat.tools.extinction(Grid.RA,Grid.Dec);
+                Extragal = Grid.A_U < 1;
+            else
+                error('Unknown point type criterion');
+            end
             
-            [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots,...
+            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
+                'DitherGroup',Extragal,...
+                'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+                'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+                'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+
+%             % dither the extragalactic points:             
+%             [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg);   
+% 
+%             % add the galactic points to the unique targets list:
+%             Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),'TimeBin',VisitSlot,...
+%                 'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+%                 'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+%                 'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+%             
+%             % add the extragalactic points to the unique targets list:
+%             Obj.addUniqTargets(DitheredGrid.RA,DitheredGrid.Dec,'Name',num2cell(DitheredGrid.id),'TimeBin',VisitSlot,...
+%                 'DitherGroup',DitherGroup,...
+%                 'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+%                 'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+%                 'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+                    
+            % visibility limits for each point and each time slot 
+            Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;              
+            
+            [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(...
+                Limits, Obj.UniqTarg.DitherGroup, DailyVisits, DailySlots,...
                 'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
                 'MinIntervals',Args.ExtraGalMinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,...
                 'Verbose',Args.Verbose);
             
             % check if some of the points were not scheduled:
-            VisitsToSchedule = sum(PointType==1)*int16(Obj.LowLatVisits) + sum(PointType==2)*int16(Obj.HighLatVisits); 
+            VisitsToSchedule = sum(Extragal==0)*int16(Obj.LowLatVisits) + sum(Extragal==1)*int16(Obj.HighLatVisits); 
             ScheduledVisits  = sum(Schedule~=0);
             if ScheduledVisits < VisitsToSchedule
                 Incomplete = PointTabSorted.Visits>PointTabSorted.Filled;
@@ -577,6 +606,7 @@ classdef uplanner < Component
                 Args.ObsSunDist   = [];
                 Args.ObsMoonDist  = [];
                 Args.ObsEarthDist = [];
+                Args.DitherGroup  = [];
             end
             %
             if ~isempty(Args.File)
@@ -612,6 +642,10 @@ classdef uplanner < Component
             %
             if ~isempty(Args.Name)
                 Obj.UniqTarg.Name(NU0+1:NU0+NUtarg) = Args.Name;
+            end
+            %
+            if ~isempty(Args.DitherGroup)
+                Obj.UniqTarg.DitherGroup(NU0+1:NU0+NUtarg) = Args.DitherGroup;
             end
             %
             Obj.N_uniqueTargets = height(Obj.UniqTarg);
@@ -1803,7 +1837,7 @@ classdef uplanner < Component
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
-                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.0);
+                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.5);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose

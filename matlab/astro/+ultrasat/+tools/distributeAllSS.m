@@ -1,4 +1,4 @@
-function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limits, PointType, DailyVisits, DailySlots, Args)
+function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limits, Extragal, DailyVisits, DailySlots, Args)
     % Distibute All Sky Survey visits according to visibility limits and point types
     %     a primitive greedy algorithm is employed
     % Input  : - the visibility limits table: N slots x N points
@@ -19,7 +19,7 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     % Example: [DailyTab, PointTabSorted, ~, ~] = ultrasat.tools.distributeAllSS(Limits, PointType, DailyVisits, DailySlots, 'VisitsByType',[2 16])
     arguments
         Limits
-        PointType  
+        Extragal  
         DailyVisits         = 20;        % maximal number of AllSS visits per day
         DailySlots          = 89;        % number of possible visits per day (depends on the visit duration w/account of retargeting)
         Args.VisitsByType   = [2 16];    % number of visits or each PointType
@@ -36,8 +36,8 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     
     SrcVisits    = zeros(NPoints,1); 
     FilledVisits = zeros(NPoints,1);
-    SrcVisits(PointType == 1) = Args.VisitsByType(1);
-    SrcVisits(PointType == 2) = Args.VisitsByType(2);   
+    SrcVisits(Extragal == 0) = Args.VisitsByType(1);
+    SrcVisits(Extragal > 0)  = Args.VisitsByType(2);   
     
     if isempty(Args.FieldNames)
         FieldNames = 1:NPoints;
