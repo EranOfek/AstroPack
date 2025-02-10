@@ -557,9 +557,7 @@ classdef uplanner < Component
                     % without merging: 
                     UniqTargets = DailyTab.Points{IDay};
                  
-                    % try excluding 0s from the target list with the hope that it would not break the visibility:
-                    % UniqTargets(UniqTargets<1)=[]; % no, it does not work this way, the visibility is easily broken...
-                    % then split the target list into parts:
+                    % split the target list into parts according to positions of the 0s:
                     Ind0 = find(UniqTargets<1); % find all the zeros
                     if isempty(Ind0) % no zeros = no holes 
                         Obj.scheduleTargets(UniqTargets,...
@@ -586,10 +584,9 @@ classdef uplanner < Component
                         end
                     end
                 end
-            end
-
-        end
-    end
+            end % planning days
+        end % buildAllSS
+    end % method block
     %
     methods % Auxiliary functions
         %
