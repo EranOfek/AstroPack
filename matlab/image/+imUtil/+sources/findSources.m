@@ -135,6 +135,8 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     [SN,Flux,FiltImage,FiltImageVar] = imUtil.filter.filter2_snBank(Image,Back,Var,Template);
     if Args.OnlyForced
         Pos = zeros(0,4);
+        ValPos = [];
+
     else
         %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
         % much faster:
