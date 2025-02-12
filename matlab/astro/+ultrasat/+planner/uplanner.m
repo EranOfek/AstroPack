@@ -457,13 +457,14 @@ classdef uplanner < Component
                 Obj
                 Args.GridFile               = 'AllSS_grid_361.txt'; % the prepared AllSS grid
                 Args.PointTypeBy            = 'b';      % determine point type by galactic latitude ('b') or by extiction ('a_u')
+                Args.DistributeDitheredPoints = false;  % try to distribute dithered extragalactic points instead of their centers
                 Args.DitherLeg              = 2.0;      % [deg] dither leg: 4 points shifted by this distance in each of RA and Dec                
-                Args.DailyWindowMaxDuration = 5.5;      % hours
-                Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point
-                Args.AllowPartial           = true;     % allow incomplete scheduling
+                Args.DailyWindowMaxDuration = 5.5;      % [hr] maximal duration a daily AllSS window 
+                Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point                
                 Args.BufferSunDist          = 0;        % [deg] additional distance to keep visibility at dithering 
                 Args.BufferEarthDist        = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.BufferMoonDist         = 0;        % [deg] additional distance to keep visibility at dithering
+                Args.AllowPartial           = true;     % allow incomplete scheduling
                 Args.MaxBranch              = 5;        % maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
             end
@@ -473,8 +474,8 @@ classdef uplanner < Component
             
             Obj.DailyWindowMaxDuration = Args.DailyWindowMaxDuration;
             
-            Grid = readtable(fullfile(Obj.BaseDataDir,'AllSS_grid_361.txt')); % full AllSS grid
-            % AllSS_grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done
+            Grid = readtable(fullfile(Obj.BaseDataDir,Args.GridFile)); % full AllSS grid
+            % Grid = readtable('AllSS_grid_remains280801.txt')); % partial grid, when some of the survey has been done before
 
             % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
             % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
@@ -482,12 +483,13 @@ classdef uplanner < Component
             % If the average slot length for a visit could be ~ 3 x 300 + 71 (for retargeting) = 971 seconds,
             % the daily AllSS slot length will be ~ 5.39 hours, the total number of slots in a day will be 89. 
             % (if we dedicate a week for AllSS only, this may become 24 hrs)
+            
             AverageSlew      = seconds(60); % this is an emprical estimate, after a schedule is built, one should check for consistency
             MinimalVisitSlot = double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + AverageSlew;
             
-            DailySlots  = floor(days(1)/MinimalVisitSlot);            
-            VisitSlot   = 1/DailySlots;            
-            DailyVisits = floor(Obj.DailyWindowMaxDuration/days(VisitSlot));
+            DailySlots  = floor(days(1)/MinimalVisitSlot);                   % maximal number of slots in a day
+            VisitSlot   = 1/DailySlots;                                      % slot length in days(-1)      
+            DailyVisits = floor(Obj.DailyWindowMaxDuration/days(VisitSlot)); % no more then this number of AllSS visits per day
             
             % determine the two types of sky points
             if strcmpi(Args.PointTypeBy,'b')                        
@@ -501,28 +503,30 @@ classdef uplanner < Component
                 error('Unknown point type criterion');
             end
             
-            Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
-                'DitherGroup',Extragal,...
-                'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
-                'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
-                'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
-
-%             % dither the extragalactic points:             
-%             [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg);   
-% 
-%             % add the galactic points to the unique targets list:
-%             Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),'TimeBin',VisitSlot,...
-%                 'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
-%                 'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
-%                 'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
-%             
-%             % add the extragalactic points to the unique targets list:
-%             Obj.addUniqTargets(DitheredGrid.RA,DitheredGrid.Dec,'Name',num2cell(DitheredGrid.id),'TimeBin',VisitSlot,...
-%                 'DitherGroup',DitherGroup,...
-%                 'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
-%                 'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
-%                 'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
-                    
+            if Args.DistributeDitheredPoints              
+                % dither the extragalactic points:
+                [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg);
+                
+                % add the galactic points to the unique targets list:
+                Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),'TimeBin',VisitSlot,...
+                    'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+                    'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+                    'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+                
+                % add the extragalactic points to the unique targets list:
+                Obj.addUniqTargets(DitheredGrid.RA,DitheredGrid.Dec,'Name',num2cell(DitheredGrid.id),'TimeBin',VisitSlot,...
+                    'DitherGroup',DitherGroup,...
+                    'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+                    'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+                    'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+            else % distribute undithered points, do actual dithering afterwards, in Obj.scheduleTargets (they will not appear in the UniqTarget list!)
+                Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
+                    'DitherGroup',Extragal,...
+                    'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
+                    'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
+                    'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
+            end
+            
             % visibility limits for each point and each time slot 
             Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;              
             

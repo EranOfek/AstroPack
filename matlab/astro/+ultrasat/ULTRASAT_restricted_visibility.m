@@ -58,10 +58,10 @@ function ULTRASAT_vis=ULTRASAT_restricted_visibility(JD,Coo,Args)
          case 'rad'
             % do nothing
          case 'g'
-            Coo(:,1)  = celestial.coo.convertdms(Coo(:,1),'gH','r');
+            Coo(:,1) = celestial.coo.convertdms(Coo(:,1),'gH','r');
             Coo(:,2) = celestial.coo.convertdms(Coo(:,2),'gD','r');
          case 'deg'
-            Coo   = Coo./RAD;
+            Coo      = Coo./RAD;
          otherwise
             error('Unknown Units option');
     end
