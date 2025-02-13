@@ -121,7 +121,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
         
         if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been scheduled 
             fprintf('step %d point %d already scheduled, skipping\n',Ip, SrcNum);
-            break
+            continue
         end
         
         Stuck = false; 
@@ -168,18 +168,20 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                 Tab.Filled(Ijump:Ip) = 0;          % clean the number of allocations from the table               
                 Ip = Ijump-1;                                      
             else 
-                Slots = FoundSlots + LastTriedSlot;
-                LastTriedSlot = min(Slots);
-                % if this is a type 2 point, try to set all the 4 related type 2 points                  
+                Slots = FoundSlots + LastTriedSlot;               
+                % if this is a type 2 point, try to set all the 4 related type 2 points
                 if Nvis == 4
-                    [SrcNum4] = settle4points(Ip, Slots, Tab, Limits);
+                    [SrcNum4, Slots4] = settle4points(Ip, Slots, Tab, Limits);
                     if isempty(SrcNum4)
                         fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
+                        LastTriedSlot = min(Slots);
                         continue
                     else
-                        Slots = [Slots, Slots+1, Slots+2, Slots+3]; 
+                        Slots = Slots4;                        
                     end
                 end
+                LastTriedSlot = min(Slots);
+                
                 % check if the found slots are available, otherwise look for the next opportunity
                 [Day, IntSlots] = daySlot(Slots,DailySlots);
                 if Day(end)-Day(1) == 0 % the set fits in 1 day
@@ -195,10 +197,19 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
 %                     if all(Schedule( Slots ) == 0) && ... % the requested slots are free
 %                             AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots  
                     if AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
-                        Schedule( Slots ) = SrcNum; % fill the Schedule with point numbers 
+                        if Nvis == 4
+                            Schedule( Slots ) = Ind(SrcNum4); % fill the Schedule with 4 type 2 point numbers 
+                        else
+                            Schedule( Slots ) = SrcNum; % fill the Schedule with 2 type 1 point numbers
+                        end                        
                         Start(Day1) = SlMin;
                         Stop (Day1) = SlMax;
-                        Tab.Filled(Ip) = Tab.Filled(Ip) + VisPerDay;
+                        if Nvis == 4
+                            Tab.Filled(SrcNum4) = Tab.Filled(SrcNum4) + VisPerDay;
+                        else
+                            Tab.Filled(Ip) = Tab.Filled(Ip) + VisPerDay;
+                        end
+                        
                         if Tab.Filled(Ip) == Nvis/4     % move the next available slot to today+Args.MinIntervals(1)
                             LastTriedSlot = (Day1+Args.MinIntervals(1)-1)*DailySlots;
 %                             fprintf('partly settled \n');
@@ -213,11 +224,11 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                         else
                             error('number of filled slots is incorrect');
                         end
-                    end                
-                end
-            end            
-        end        
-    end
+                    end % check the block length                  
+                end % check the day
+            end % find slots            
+        end % branch        
+    end % Ip
 end
 
 %%%%%%%%%%
@@ -387,31 +398,39 @@ function Index = findGroupOfConsecutiveVals(A, M, N, Val)
     Index = []; % nothing is found 
 end
 
-function [SrcNumbers] = settle4points(Ip,StartSlot,Tab,Vis)
-    % find a place for 4 type 2 points given the number of one of them    
-    SrcNumbers =[];
+function [SrcNum, Slots] = settle4points(Ip,StartSlot,Tab,Vis)
+    % find a place for 4 type 2 points given the number of one of them 
+    SrcNum = [];
+    SrcNumbers = [];
     % find the 4 points by the major number 
     PointNum = floor(str2double(Tab.FieldNames(Ip)));
-    Ind = floor(str2double(Tab.FieldNames))==PointNum;
+    Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
     % try 4 windows containing StartSlot: 
     if StartSlot+3 < size(Vis,1)+1
-        Vis4 = Vis(StartSlot:StartSlot+3,Ind);
-        SrcNumbers = find_bipartite_matching(Vis4');
+        Slots = StartSlot:StartSlot+3;
+        Vis4 = Vis(Slots,Ind);
+        SrcNumbers = find_bipartite_matching(Vis4');         
     end
     if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
-        Vis4 = Vis(StartSlot-1:StartSlot+2,Ind);
+        Slots = StartSlot-1:StartSlot+2;
+        Vis4 = Vis(Slots,Ind);
         SrcNumbers = find_bipartite_matching(Vis4');
     end
     if isempty(SrcNumbers) && StartSlot+1 < size(Vis,1)+1 && StartSlot-2 > 0
-        Vis4 = Vis(StartSlot-2:StartSlot+1,Ind);
+        Slots = StartSlot-2:StartSlot+1;
+        Vis4 = Vis(Slots,Ind);
         SrcNumbers = find_bipartite_matching(Vis4');
     end
     if isempty(SrcNumbers) && StartSlot-3 > 0
-        Vis4 = Vis(StartSlot-3:StartSlot,Ind);
+        Slots = StartSlot-3:StartSlot;
+        Vis4 = Vis(Slots,Ind);
         SrcNumbers = find_bipartite_matching(Vis4');
     end    
+    if ~isempty(SrcNumbers)        
+        SrcNum = Ind(SrcNumbers);
+    end
 end
-
+%%% 
 function matching = find_bipartite_matching(A)
     [N, M] = size(A);
     matching = zeros(1, M); % Store matched target for each slot
