@@ -42,12 +42,12 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
                             'BackPar',{'SubSizeXY',[]},...  %global bck
                             'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds                            
                             'UseOriginalPSF',false,... % false     
-                            'FitRadius',[3],...
+                            'FitRadius',[3 3 3 3 3],...
                             'Verbose',true);  
                         
                             %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...    
 
-    ZPoffset = zeros(numel(AI_PSF),1);
+    ZPoffset = zeros(numel(AI_PSF),1); 
     for i = 1:numel(AI_PSF)
         ZPoffset(i) = 25-AI_PSF(i).HeaderData.Key.PH_ZP ;
     end                        
