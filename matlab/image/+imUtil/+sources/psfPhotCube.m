@@ -346,3 +346,64 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
     Chi2  = sum( ResidStd.^2, [1 2], 'omitnan'); % sum( (Resid./Std).^2, [1 2], 'omitnan');   
     Chi2  = squeeze(Chi2);     
 end
+
+function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2_v2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
+    % Return Chi2 for specific PSF and Cube
+    % shift PSF
+    
+    FluxMethod = 'wsumall'; %'medall';
+    
+    % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
+    ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+    
+
+    
+    % FFU: search / remove outliers
+
+    if isempty(FitRadius2) % use the entire stamp
+        %%%%
+        switch FluxMethod
+            case 'wsumall'
+                WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
+            case 'meanall'
+                WeightedFlux = mean(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
+            case 'medall'
+                WeightedFlux = median(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
+            case 'med'
+
+            otherwise
+                error('Unknown FluxMethod option');
+        end
+        Resid = Cube - WeightedFlux.*ShiftedPSF;        
+        %%%%%
+        ResidStd = Resid./Std;
+        Dof      = [];
+    else                   % use stamp cutout
+        MatX     = permute(VecXrel - DX(:),[3 2 1]);
+        MatY     = permute(VecYrel - DY(:),[2 3 1]);
+        MatR2    = MatX.^2 + MatY.^2;
+        Flag     = MatR2<FitRadius2;
+        
+        %%%%
+        switch FluxMethod
+            case 'wsumall'
+                WeightedFlux = sum(Flag.*Cube.*ShiftedPSF, [1 2], 'omitnan')./sum(PSF(Flag(:,:,1)).^2, [1 2]);
+            case 'meanall'
+                WeightedFlux = mean(Flag.*Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
+            case 'medall'
+                WeightedFlux = median(Flag.*Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
+            case 'med'
+
+            otherwise
+                error('Unknown FluxMethod option');
+        end
+        Resid = Cube - WeightedFlux.*ShiftedPSF;           
+        
+        %%%%
+        ResidStd = Flag.*Resid./Std;
+        Dof      = squeeze(sum(Flag,[1 2]) - 3);
+    end
+    
+    Chi2  = sum( ResidStd.^2, [1 2], 'omitnan'); % sum( (Resid./Std).^2, [1 2], 'omitnan');   
+    Chi2  = squeeze(Chi2);     
+end

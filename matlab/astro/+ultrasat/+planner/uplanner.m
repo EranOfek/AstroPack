@@ -141,7 +141,8 @@ classdef uplanner < Component
         
         CalibObj                        = []; % table of calibration objects 
         CalibDir                             % the catibration objects' spectra directory 
-        
+
+        RetrivedMissionTime     datetime    % date or empty        
         ScheduledTime           datetime    % date or empty
         ValidatedTime           datetime    % date or empty
         SubmittedTime           datetime    % date or empty
@@ -969,12 +970,15 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Tend     = datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
             Obj.MissionApprovedPlan.ExpTime  = seconds(TargetsTable.exposure);
             Obj.MissionApprovedPlan.Nexposures = TargetsTable.image_count;
-            Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);                        
+            Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);    
+            
+            Obj.RetrivedMissionTime = datetime('now','TimeZone', Obj.SysTimeZone);
         end
          %
         function clearMissionApprovedPlan(Obj)
             % Clear the Mission Approved Plan table
             Obj.MissionApprovedPlan(:,:) = [];
+            Obj.RetrivedMissionTime = datetime([],[],[]);
         end    
         %
         function [CheckStatus,badPlanRow] = planSelfConsistencyCheck(Obj,Args)
