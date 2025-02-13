@@ -119,6 +119,11 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
         Ip = Ip+1; 
         % try to settle the next point: if it is not possible, go to the previous point and choose the next branch    
         
+        if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been scheduled 
+            fprintf('step %d point %d already scheduled, skipping\n',Ip, SrcNum);
+            break
+        end
+        
         Stuck = false; 
         LastTriedSlot = 0;
         
@@ -127,15 +132,15 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
         
         if Nvis == 2                  % for Galactic sources all the 2 visits are on the same day
             VisPerDay = Nvis;
-        elseif Nvis == 16
-            VisPerDay = Nvis/16;      % for extragalactic sources the 4 visits should be done on 4 separate days
+        elseif Nvis == 4
+            VisPerDay = Nvis/4;      % for extragalactic sources the 4 visits should be done on 4 separate days
         else
             error('Incorrect number of visits');
         end
         
         if Args.Verbose
             fprintf('step %d point %d\n',Ip, SrcNum);
-        end
+        end                
         
         while ~Stuck && Tab.Filled(Ip) < Nvis %                      
             
@@ -165,6 +170,16 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
             else 
                 Slots = FoundSlots + LastTriedSlot;
                 LastTriedSlot = min(Slots);
+                % if this is a type 2 point, try to set all the 4 related type 2 points                  
+                if Nvis == 4
+                    [SrcNum4] = settle4points(Ip, Slots, Tab, Limits);
+                    if isempty(SrcNum4)
+                        fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
+                        continue
+                    else
+                        Slots = [Slots, Slots+1, Slots+2, Slots+3]; 
+                    end
+                end
                 % check if the found slots are available, otherwise look for the next opportunity
                 [Day, IntSlots] = daySlot(Slots,DailySlots);
                 if Day(end)-Day(1) == 0 % the set fits in 1 day
@@ -371,4 +386,72 @@ function Index = findGroupOfConsecutiveVals(A, M, N, Val)
     end
     Index = []; % nothing is found 
 end
+
+function [SrcNumbers] = settle4points(Ip,StartSlot,Tab,Vis)
+    % find a place for 4 type 2 points given the number of one of them    
+    SrcNumbers =[];
+    % find the 4 points by the major number 
+    PointNum = floor(str2double(Tab.FieldNames(Ip)));
+    Ind = floor(str2double(Tab.FieldNames))==PointNum;
+    % try 4 windows containing StartSlot: 
+    if StartSlot+3 < size(Vis,1)+1
+        Vis4 = Vis(StartSlot:StartSlot+3,Ind);
+        SrcNumbers = find_bipartite_matching(Vis4');
+    end
+    if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
+        Vis4 = Vis(StartSlot-1:StartSlot+2,Ind);
+        SrcNumbers = find_bipartite_matching(Vis4');
+    end
+    if isempty(SrcNumbers) && StartSlot+1 < size(Vis,1)+1 && StartSlot-2 > 0
+        Vis4 = Vis(StartSlot-2:StartSlot+1,Ind);
+        SrcNumbers = find_bipartite_matching(Vis4');
+    end
+    if isempty(SrcNumbers) && StartSlot-3 > 0
+        Vis4 = Vis(StartSlot-3:StartSlot,Ind);
+        SrcNumbers = find_bipartite_matching(Vis4');
+    end    
+end
+
+function matching = find_bipartite_matching(A)
+    [N, M] = size(A);
+    matching = zeros(1, M); % Store matched target for each slot
+    visited = false(1, M);  % Track visited slots during DFS
+
+    function found = dfs(target)
+        for slot = 1:M
+            if A(target, slot) == 1 && ~visited(slot)
+                visited(slot) = true;
+                if matching(slot) == 0 || dfs(matching(slot)) 
+                    matching(slot) = target;
+                    found = true;
+                    return;
+                end
+            end
+        end
+        found = false;
+    end
+
+    % Try to match each target
+    for target = 1:N
+        visited(:) = false;
+        dfs(target);
+    end
+
+    % Convert matching to desired format: (target -> slot)
+    final_matching = zeros(N, 1);
+    for slot = 1:M
+        if matching(slot) > 0
+            final_matching(matching(slot)) = slot;
+        end
+    end
+
+    % Check if a perfect matching was found
+    if any(final_matching == 0)
+%         disp('No perfect matching exists.');
+        matching = [];
+    else
+        matching = final_matching;
+    end
+end
+
 
