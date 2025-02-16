@@ -54,11 +54,15 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     % less number of free slots are distributed first 
     [PointTabSorted, Ind] = sortrows(PointTab,{'FreeSlots'}); 
     
+    tic
+    
     [LinearSchedule, PointTabSorted] = greedyRec_v2(Limits, PointTabSorted, Ind, DailyVisits, DailySlots, NDays,...
                                      'MinIntervals', Args.MinIntervals, 'Jump', Args.Jump, ...
                                      'AllowPartial', Args.AllowPartial, 'MaxBranch', Args.MaxBranch,...
                                      'Verbose', Args.Verbose);
-                                 
+    
+    toc
+    
     % check that all the scheduled points are indeed visible 
     ScheduledVisits = sum(LinearSchedule > 0);
     ValidVisits = 0;
