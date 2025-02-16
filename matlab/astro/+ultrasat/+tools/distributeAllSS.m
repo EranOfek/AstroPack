@@ -202,7 +202,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
 %                     AlreadyScheduledDayPoints = Schedule(SlMin+(Day1-1)*90:SlMax+(Day1-1)*90); 
 %                     if all(Schedule( Slots ) == 0) && ... % the requested slots are free
 %                             AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots  
-                    if AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
+                    if all(Schedule( Slots ) == 0) && AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
                         if Nvis == 4
                             Schedule( Slots ) = Ind(SrcNum4); % fill the Schedule with 4 type 2 point numbers 
                         else
