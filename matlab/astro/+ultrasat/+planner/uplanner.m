@@ -378,6 +378,7 @@ classdef uplanner < Component
                 Args.ExpTime           = [];
                 Args.SlewBuffer        = [];
                 Args.Tiles             = [];
+                Args.TimeBin           = 0.01; % [d] the time bin for visibility checks
             end
             
             if ~strcmp(Obj.Type,'TOO')
@@ -419,16 +420,23 @@ classdef uplanner < Component
                 error('No TOO targets/map');
             end
             
-            % Check visibility - TODO: later change error to active action           
+            % Check visibility and shift the window if needed            
             if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
-                fprintf('Issue with Sun/Earth/Moon limits: need to shift the observation window\n');
-                % look 7 days ahead and find the first occurence:
-                Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + days(7)]; 
-                Obj.updateTargetVisibility;
+                fprintf('Visibility issue: immediate observation is not possible\n');
+                % scan 6 months ahead and find the first occurence of an Obj.TOOWindowDuration window:
+                Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + calmonths(6)]; 
+                Obj.updateTargetVisibility('TimeBin',Args.TimeBin);
                 Limits = Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits;
                 CombinedLimits = prod(Limits,2);
-                % find a period of Obj.TOOWindowDuration length where CombinedLimits is 1
-                % TODO 
+                % find a period of Obj.TOOWindowDuration length where CombinedLimits is 1:
+                Nbins = ceil(Obj.TOOWindowDuration/days(Args.TimeBin)); 
+                Ind   = tools.find.findGroupOfConsecutiveVals(CombinedLimits, 1, Nbins, 1);
+                if ~isempty(Ind)
+                    Obj.StartTime  = datetime(Obj.Vis.JD(Ind(1)),'ConvertFrom','juliandate','TimeZone','UTC');
+                    Obj.EndTime    = datetime(Obj.Vis.JD(Ind(end)),'ConvertFrom','juliandate','TimeZone','UTC');
+                else
+                    error('No visibility window for the TOO can be found within the next 6 months');
+                end
             end
             
             % Loop over the targets within the window
