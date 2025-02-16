@@ -1831,7 +1831,7 @@ classdef uplanner < Component
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
                     
                     upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
-                    upTOO1.buildTOO('Map','~/ULTRASAT/SkyGrid/LVC/2024/04/01/lvc_2024_04_01_00_40_58_000000.csv');
+                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv');
                     
                     if Args.Verbose
                         fprintf('completed\n');
