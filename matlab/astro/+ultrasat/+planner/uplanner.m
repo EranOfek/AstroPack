@@ -368,7 +368,7 @@ classdef uplanner < Component
             arguments
                 Obj 
                 Args.Map               = [];
-                Args.CoveragePar       = {'MaxExp',4,'MinProb',0.5};
+                Args.CoveragePar       = {'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0};
                 Args.RA                = [];
                 Args.Dec               = [];
                 Args.Name              = {};
@@ -1811,6 +1811,9 @@ classdef uplanner < Component
                     HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');                   
                     upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
+                    
+                    upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
+                    upTOO1.buildTOO('Map','~/ULTRASAT/SkyGrid/LVC/2024/04/01/lvc_2024_04_01_00_40_58_000000.csv');
                     
                     if Args.Verbose
                         fprintf('completed\n');

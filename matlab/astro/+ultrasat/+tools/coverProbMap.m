@@ -18,7 +18,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         
         Args.Verbosity         = 2;    
         Args.DrawMaps          = true;
-        Args.ShowCoverageCurve = true;
+        Args.CalcCoverageCurve = true;
     end        
     %
     Sr = (180/pi)^2;  % deg(2)
@@ -75,7 +75,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     % sort the targets by covered probability (with no overlap treatment!) 
     [~, Ind] = sort([Targets0.Pr], 'descend'); 
      
-    if Args.ShowCoverageCurve
+    if Args.CalcCoverageCurve
         It = 0;
         Nthresh = numel(Args.MinProb);        
         Stat.NCover(1:Nthresh) = 0;
