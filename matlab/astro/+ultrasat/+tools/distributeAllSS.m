@@ -73,7 +73,7 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         end
     end
     if ScheduledVisits > ValidVisits
-        error('Some of the scheduled visits are not valid!\n');
+        error('Some of the scheduled visits are not valid!');
     end
     
     % cut the SlotSchedule into days, determine starting slots and point lists:
