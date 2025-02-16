@@ -403,8 +403,9 @@ classdef uplanner < Component
                 Obj.Tiles = Args.Tiles;
             end     
                         
-            Obj.StartTime = Obj.TOOStartTime;
-            Obj.EndTime = Obj.TOOStartTime + Obj.TOOWindowDuration;
+            Obj.StartTime  = Obj.TOOStartTime;
+            Obj.EndTime    = Obj.TOOStartTime + Obj.TOOWindowDuration;
+            Obj.CheckTimes = [Obj.StartTime, Obj.EndTime];
             
             if ~isempty(Args.Map)
                 % TODO - do somethng with a map
@@ -412,18 +413,26 @@ classdef uplanner < Component
                 Names = num2cell(1:numel(RA)); % should add "TOOfield.."
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
             elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
-                Obj.addUniqTargets(Args.RA,Args.Dec,'Name',Args.Name);                
+                [RA, Dec] = deal(Args.RA, Args.Dec);
+                Obj.addUniqTargets(RA, Dec,'Name',Args.Name);                
             else
                 error('No TOO targets/map');
             end
             
-            % Check visibility - TODO: later change error to active action
+            % Check visibility - TODO: later change error to active action           
             if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
-                error('Issue with Sun/Earth/Moon limits');
+                fprintf('Issue with Sun/Earth/Moon limits: need to shift the observation window\n');
+                % look 7 days ahead and find the first occurence:
+                Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + days(7)]; 
+                Obj.updateTargetVisibility;
+                Limits = Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits;
+                CombinedLimits = prod(Limits,2);
+                % find a period of Obj.TOOWindowDuration length where CombinedLimits is 1
+                % TODO 
             end
             
             % Loop over the targets within the window
-            NTargets = numel(Args.RA);
+            NTargets = numel(RA);
             
             MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
             
