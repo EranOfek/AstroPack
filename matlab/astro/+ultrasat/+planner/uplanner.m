@@ -368,6 +368,7 @@ classdef uplanner < Component
             arguments
                 Obj 
                 Args.Map               = [];
+                Args.CoveragePar       = {'MaxExp',4,'MinProb',0.5};
                 Args.RA                = [];
                 Args.Dec               = [];
                 Args.Name              = {};
@@ -407,6 +408,9 @@ classdef uplanner < Component
             
             if ~isempty(Args.Map)
                 % TODO - do somethng with a map
+                [RA, Dec] = ultrasat.tools.coverProbMap(Args.Map,Args.CoveragePar{:}); 
+                Names = num2cell(1:numel(RA)); % should add "TOOfield.."
+                Obj.addUniqTargets(RA, Dec,'Name',Names); 
             elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
                 Obj.addUniqTargets(Args.RA,Args.Dec,'Name',Args.Name);                
             else
