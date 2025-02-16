@@ -527,7 +527,8 @@ classdef uplanner < Component
             
             if Args.DistributeDitheredPoints              
                 % dither the extragalactic points:
-                [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg);
+                [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg,'Ngrid',4);
+                Obj.HighLatVisits = Obj.HighLatVisits/4; % because the high galactic points are dithered                 
                 
                 % add the galactic points to the unique targets list:
                 Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),'TimeBin',VisitSlot,...
@@ -1867,7 +1868,7 @@ classdef uplanner < Component
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
                                        'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.5,...
-                                       'DitherLeg',0.5);
+                                       'DistributeDitheredPoint',true,'DitherLeg',0.5);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose

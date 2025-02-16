@@ -171,7 +171,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                 Slots = FoundSlots + LastTriedSlot;               
                 % if this is a type 2 point, try to set all the 4 related type 2 points
                 if Nvis == 4
-                    [SrcNum4, Slots4] = settle4points(Ip, Slots, Tab, Limits);
+                    [SrcNum4, Slots4, Shift] = settle4points(Ip, Slots, Tab, Limits, Ind);
                     if isempty(SrcNum4)
                         fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
                         LastTriedSlot = min(Slots);
@@ -180,7 +180,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                         Slots = Slots4;                        
                     end
                 end
-                LastTriedSlot = min(Slots);
+                LastTriedSlot = min(Slots)+Shift;
                 
                 % check if the found slots are available, otherwise look for the next opportunity
                 [Day, IntSlots] = daySlot(Slots,DailySlots);
@@ -212,15 +212,11 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                         
                         if Tab.Filled(Ip) == Nvis/4     % move the next available slot to today+Args.MinIntervals(1)
                             LastTriedSlot = (Day1+Args.MinIntervals(1)-1)*DailySlots;
-%                             fprintf('partly settled \n');
                         elseif Tab.Filled(Ip) == Nvis/2 % move the next available slot to today+Args.MinIntervals(2)
                             LastTriedSlot = (Day1+Args.MinIntervals(2)-1)*DailySlots;
-%                             fprintf('partly settled \n');
                         elseif Tab.Filled(Ip) == 3*Nvis/4 % move the next available slot to today+Args.MinIntervals(3)
                             LastTriedSlot = (Day1+Args.MinIntervals(3)-1)*DailySlots;
-%                             fprintf('partly settled \n');
-                        elseif Tab.Filled(Ip) == Nvis % all the exposure for the point are scheduled
-%                             fprintf('settled \n');
+                        elseif Tab.Filled(Ip) == Nvis % all the exposure for the point are scheduled, nothing to do 
                         else
                             error('number of filled slots is incorrect');
                         end
@@ -398,7 +394,7 @@ function Index = findGroupOfConsecutiveVals(A, M, N, Val)
     Index = []; % nothing is found 
 end
 
-function [SrcNum, Slots] = settle4points(Ip,StartSlot,Tab,Vis)
+function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     % find a place for 4 type 2 points given the number of one of them 
     SrcNum = [];
     SrcNumbers = [];
@@ -408,23 +404,27 @@ function [SrcNum, Slots] = settle4points(Ip,StartSlot,Tab,Vis)
     % try 4 windows containing StartSlot: 
     if StartSlot+3 < size(Vis,1)+1
         Slots = StartSlot:StartSlot+3;
-        Vis4 = Vis(Slots,Ind);
+        Vis4 = Vis(Slots,IndFun(Ind));
         SrcNumbers = find_bipartite_matching(Vis4');         
+        Shift = 0;
     end
     if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
         Slots = StartSlot-1:StartSlot+2;
-        Vis4 = Vis(Slots,Ind);
+        Vis4 = Vis(Slots,IndFun(Ind));
         SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 1;
     end
     if isempty(SrcNumbers) && StartSlot+1 < size(Vis,1)+1 && StartSlot-2 > 0
         Slots = StartSlot-2:StartSlot+1;
-        Vis4 = Vis(Slots,Ind);
+        Vis4 = Vis(Slots,IndFun(Ind));
         SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 2;
     end
     if isempty(SrcNumbers) && StartSlot-3 > 0
         Slots = StartSlot-3:StartSlot;
-        Vis4 = Vis(Slots,Ind);
+        Vis4 = Vis(Slots,IndFun(Ind));
         SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 3;
     end    
     if ~isempty(SrcNumbers)        
         SrcNum = Ind(SrcNumbers);
