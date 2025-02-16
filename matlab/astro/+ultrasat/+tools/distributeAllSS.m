@@ -120,7 +120,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
         % try to settle the next point: if it is not possible, go to the previous point and choose the next branch    
         
         if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been scheduled 
-            fprintf('step %d point %d already scheduled, skipping\n',Ip, SrcNum);
+            fprintf('step %d point %d already scheduled, skipping\n',Ip, Ind(Ip));
             continue
         end
         
@@ -173,12 +173,14 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                 if Nvis == 4
                     [SrcNum4, Slots4, Shift] = settle4points(Ip, Slots, Tab, Limits, Ind);
                     if isempty(SrcNum4)
-                        fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
+%                         fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
                         LastTriedSlot = min(Slots);
                         continue
                     else
                         Slots = Slots4;                        
                     end
+                else
+                    Shift = 0;
                 end
                 LastTriedSlot = min(Slots)+Shift;
                 
