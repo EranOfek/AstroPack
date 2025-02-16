@@ -70,10 +70,13 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         Point = LinearSchedule(ISlot);
         if Point > 0
             ValidVisits = ValidVisits + Limits(ISlot, Point);
+            if Limits(ISlot, Point) == 0
+               fprintf('Slot %d: object not visible?\n',ISlot);
+            end
         end
     end
     if ScheduledVisits > ValidVisits
-        error('Some of the scheduled visits are not valid!');
+        fprintf('Warning: some of the scheduled visits are not valid?\n');
     end
     
     % cut the SlotSchedule into days, determine starting slots and point lists:
