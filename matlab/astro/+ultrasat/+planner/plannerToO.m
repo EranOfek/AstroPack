@@ -31,7 +31,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     end
     
     Sr = (180/pi)^2;  % deg(2)
-    FOV = pi*7^2;     % deg(2)
+    FOV = pi*Args.FOVradius.^2; % deg(2) approximate area 
     
     PD  = Args.ProbThresh * ( Sr / FOV ); % the limiting probability per sr (as on the original maps)
     
