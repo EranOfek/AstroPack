@@ -61,9 +61,9 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
                                      'AllowPartial', Args.AllowPartial, 'MaxBranch', Args.MaxBranch,...
                                      'Verbose', Args.Verbose);
     
-    toc
+    fprintf('Scheduling time: %.0f s \n', toc);
     
-    % check that all the scheduled points are indeed visible 
+    % check that all the scheduled points are visible 
     ScheduledVisits = sum(LinearSchedule > 0);
     ValidVisits = 0;
     for ISlot = 1:TotalSlots
@@ -71,12 +71,12 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         if Point > 0
             ValidVisits = ValidVisits + Limits(ISlot, Point);
             if Limits(ISlot, Point) == 0
-               fprintf('Slot %d: object not visible?\n',ISlot);
+               fprintf('Slot %d: object %d is not visible?\n',ISlot, LinearSchedule(ISlot));
             end
         end
     end
     if ScheduledVisits > ValidVisits
-        fprintf('Warning: some of the scheduled visits are not valid?\n');
+        fprintf('Warning: some of the scheduled visits may be not valid.\n');
     end
     
     % cut the SlotSchedule into days, determine starting slots and point lists:
@@ -189,7 +189,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                 else
                     Shift = 0;
                 end
-                LastTriedSlot = min(Slots)+Shift;
+                LastTriedSlot = min(Slots)+Shift; % the shift is essential when the slots before LastTriedSlot are allocated (see settle4points)
                 
                 % check if the found slots are available, otherwise look for the next opportunity
                 [Day, IntSlots] = daySlot(Slots,DailySlots);
@@ -202,9 +202,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                     %
 %                   ADD HERE a distance condition: the maximal distance
 %                   to the previous object or to all the daily objects should not exceed 10-20-30 deg? 
-%                     AlreadyScheduledDayPoints = Schedule(SlMin+(Day1-1)*90:SlMax+(Day1-1)*90); 
-%                     if all(Schedule( Slots ) == 0) && ... % the requested slots are free
-%                             AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots  
+%                   AlreadyScheduledDayPoints = Schedule(SlMin+(Day1-1)*90:SlMax+(Day1-1)*90); 
                     if all(Schedule( Slots ) == 0) && AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
                         if Nvis == 4
                             Schedule( Slots ) = Ind(SrcNum4); % fill the Schedule with 4 type 2 point numbers 
@@ -237,6 +235,133 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
 end
 
 %%%%%%%%%%
+
+function [Day, IntSlot] = daySlot(Slot,DailySlots) % get day and daily slot number from the global slot number 
+    Day     = ceil(Slot./DailySlots);
+    IntSlot = Slot - (Day-1).*DailySlots;    
+end
+
+function Index = findGroupOfConsecutiveVals(A, M, N, Val)
+    % in vector A find Mth group of N consecutive values of Val
+    % Input: - a vector of values
+    %        - the number of identical value group to be indexed
+    %        - the length of identical value groups 
+    %        - the value (we are looking for consecutive groups of this value)
+    % Output: - a vector of indices of the Mth group of N consecutive values of Val
+    % Author: A.M. Krassilchtchikov (Jan 2024)
+    % Example: A = [0 0 1 1 1 0 0 1 1 0 1 1 1 0 0 0 1 0 1 1 1];
+    %          Ind = tools.find.findGroupOfConsecutiveVals(A, 2, 3, 1); 
+    %          [will give the indices of the M = 2nd group of N = 3 values Val = 1 in vector A]
+    %          B = [1 2 7 8 7 8 9 0 7 7 1 6 7 7 6 5 7 7 1 0 7 8];
+    %          Ind = tools.find.findGroupOfConsecutiveVals(B, 3, 2, 7); 
+    %          [will give the indices of the M = 3rd group of N = 2 values Val = 7 in vector B]
+    %          Ind = tools.find.findGroupOfConsecutiveVals(B, 4, 2, 7);
+    %          will be empty, as there is no 4th group of two 7th
+    Ind0 = find(A == Val);
+    for i = 1:length(Ind0)-N+1
+        ConsecutiveGroup = Ind0(i:i+N-1);
+        if all(diff(ConsecutiveGroup) == 1)
+            M = M - 1;
+            Index = ConsecutiveGroup;
+            if M == 0
+                return;
+            end
+        end
+    end
+    Index = []; % nothing is found 
+end
+
+function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
+    % find a place for 4 type 2 points given the number of one of them 
+    SrcNum = [];
+    SrcNumbers = [];
+    % find the 4 points by the major number 
+    PointNum = floor(str2double(Tab.FieldNames(Ip)));
+    Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
+    % try 4 windows containing StartSlot: 
+    if StartSlot+3 < size(Vis,1)+1
+        Slots = StartSlot:StartSlot+3;
+        Vis4 = Vis(Slots,IndFun(Ind));
+        SrcNumbers = find_bipartite_matching(Vis4');         
+        Shift = 0;
+    end
+    if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
+        Slots = StartSlot-1:StartSlot+2;
+        Vis4 = Vis(Slots,IndFun(Ind));
+        SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 1;
+    end
+    if isempty(SrcNumbers) && StartSlot+1 < size(Vis,1)+1 && StartSlot-2 > 0
+        Slots = StartSlot-2:StartSlot+1;
+        Vis4 = Vis(Slots,IndFun(Ind));
+        SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 2;
+    end
+    if isempty(SrcNumbers) && StartSlot-3 > 0
+        Slots = StartSlot-3:StartSlot;
+        Vis4 = Vis(Slots,IndFun(Ind));
+        SrcNumbers = find_bipartite_matching(Vis4');
+        Shift = 3;
+    end    
+    if ~isempty(SrcNumbers)        
+        SrcNum = Ind(SrcNumbers);
+    end
+end
+
+function matching = find_bipartite_matching(A)
+    [N, M] = size(A);
+    matching = zeros(1, M); % Store matched target for each slot
+    visited = false(1, M);  % Track visited slots during DFS
+
+    function found = dfs(target)
+        for slot = 1:M
+            if A(target, slot) == 1 && ~visited(slot)
+                visited(slot) = true;
+                if matching(slot) == 0 || dfs(matching(slot)) 
+                    matching(slot) = target;
+                    found = true;
+                    return;
+                end
+            end
+        end
+        found = false;
+    end
+
+    % Try to match each target
+    for target = 1:N
+        visited(:) = false;
+        dfs(target);
+    end
+
+    % Convert matching to desired format: (target -> slot)
+    final_matching = zeros(N, 1);
+    for slot = 1:M
+        if matching(slot) > 0
+            final_matching(matching(slot)) = slot;
+        end
+    end
+
+    % Check if a perfect matching was found
+    if any(final_matching == 0)
+%         disp('No perfect matching exists.');
+        matching = [];
+    else
+        matching = final_matching;
+    end
+end
+
+% function Result = findNearest(RA0, Dec0, RA, Dec, Available)
+%     % find a nearest object from the list 
+%     if sum(Available) == 0
+%         error('findNearest input error: list of Available is empty!'); 
+%     end
+%               
+%     Dist = celestial.coo.sphere_dist_fast(RA0,Dec0,RA,Dec);
+%     Dist(Available == 0) = 1e30; % some large number to exclude these obj.
+%     
+%     [~,Result] = min(Dist);        
+%     
+% end
 
 function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, NDays, Args)        
     % a greedy algorithm with recursion
@@ -352,133 +477,6 @@ function [Schedule, Tab] = greedyRec(Limits, Tab, Ind, DailyVisits, DailySlots, 
                 end
             end            
         end        
-    end
-end
-
-function [Day, IntSlot] = daySlot(Slot,DailySlots) % get day and daily slot number from the global slot number 
-    Day     = ceil(Slot./DailySlots);
-    IntSlot = Slot - (Day-1).*DailySlots;    
-end
-
-% function Result = findNearest(RA0, Dec0, RA, Dec, Available)
-%     % find a nearest object from the list 
-%     if sum(Available) == 0
-%         error('findNearest input error: list of Available is empty!'); 
-%     end
-%               
-%     Dist = celestial.coo.sphere_dist_fast(RA0,Dec0,RA,Dec);
-%     Dist(Available == 0) = 1e30; % some large number to exclude these obj.
-%     
-%     [~,Result] = min(Dist);        
-%     
-% end
-
-function Index = findGroupOfConsecutiveVals(A, M, N, Val)
-    % in vector A find Mth group of N consecutive values of Val
-    % Input: - a vector of values
-    %        - the number of identical value group to be indexed
-    %        - the length of identical value groups 
-    %        - the value (we are looking for consecutive groups of this value)
-    % Output: - a vector of indices of the Mth group of N consecutive values of Val
-    % Author: A.M. Krassilchtchikov (Jan 2024)
-    % Example: A = [0 0 1 1 1 0 0 1 1 0 1 1 1 0 0 0 1 0 1 1 1];
-    %          Ind = tools.find.findGroupOfConsecutiveVals(A, 2, 3, 1); 
-    %          [will give the indices of the M = 2nd group of N = 3 values Val = 1 in vector A]
-    %          B = [1 2 7 8 7 8 9 0 7 7 1 6 7 7 6 5 7 7 1 0 7 8];
-    %          Ind = tools.find.findGroupOfConsecutiveVals(B, 3, 2, 7); 
-    %          [will give the indices of the M = 3rd group of N = 2 values Val = 7 in vector B]
-    %          Ind = tools.find.findGroupOfConsecutiveVals(B, 4, 2, 7);
-    %          will be empty, as there is no 4th group of two 7th
-    Ind0 = find(A == Val);
-    for i = 1:length(Ind0)-N+1
-        ConsecutiveGroup = Ind0(i:i+N-1);
-        if all(diff(ConsecutiveGroup) == 1)
-            M = M - 1;
-            Index = ConsecutiveGroup;
-            if M == 0
-                return;
-            end
-        end
-    end
-    Index = []; % nothing is found 
-end
-
-function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
-    % find a place for 4 type 2 points given the number of one of them 
-    SrcNum = [];
-    SrcNumbers = [];
-    % find the 4 points by the major number 
-    PointNum = floor(str2double(Tab.FieldNames(Ip)));
-    Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
-    % try 4 windows containing StartSlot: 
-    if StartSlot+3 < size(Vis,1)+1
-        Slots = StartSlot:StartSlot+3;
-        Vis4 = Vis(Slots,IndFun(Ind));
-        SrcNumbers = find_bipartite_matching(Vis4');         
-        Shift = 0;
-    end
-    if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
-        Slots = StartSlot-1:StartSlot+2;
-        Vis4 = Vis(Slots,IndFun(Ind));
-        SrcNumbers = find_bipartite_matching(Vis4');
-        Shift = 1;
-    end
-    if isempty(SrcNumbers) && StartSlot+1 < size(Vis,1)+1 && StartSlot-2 > 0
-        Slots = StartSlot-2:StartSlot+1;
-        Vis4 = Vis(Slots,IndFun(Ind));
-        SrcNumbers = find_bipartite_matching(Vis4');
-        Shift = 2;
-    end
-    if isempty(SrcNumbers) && StartSlot-3 > 0
-        Slots = StartSlot-3:StartSlot;
-        Vis4 = Vis(Slots,IndFun(Ind));
-        SrcNumbers = find_bipartite_matching(Vis4');
-        Shift = 3;
-    end    
-    if ~isempty(SrcNumbers)        
-        SrcNum = Ind(SrcNumbers);
-    end
-end
-%%% 
-function matching = find_bipartite_matching(A)
-    [N, M] = size(A);
-    matching = zeros(1, M); % Store matched target for each slot
-    visited = false(1, M);  % Track visited slots during DFS
-
-    function found = dfs(target)
-        for slot = 1:M
-            if A(target, slot) == 1 && ~visited(slot)
-                visited(slot) = true;
-                if matching(slot) == 0 || dfs(matching(slot)) 
-                    matching(slot) = target;
-                    found = true;
-                    return;
-                end
-            end
-        end
-        found = false;
-    end
-
-    % Try to match each target
-    for target = 1:N
-        visited(:) = false;
-        dfs(target);
-    end
-
-    % Convert matching to desired format: (target -> slot)
-    final_matching = zeros(N, 1);
-    for slot = 1:M
-        if matching(slot) > 0
-            final_matching(matching(slot)) = slot;
-        end
-    end
-
-    % Check if a perfect matching was found
-    if any(final_matching == 0)
-%         disp('No perfect matching exists.');
-        matching = [];
-    else
-        matching = final_matching;
     end
 end
 

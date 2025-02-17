@@ -482,6 +482,7 @@ classdef uplanner < Component
                 Args.DistributeDitheredPoints = false;  % try to distribute dithered extragalactic points instead of their centers
                 Args.DitherLeg              = 2.0;      % [deg] dither leg: 4 points shifted by this distance in each of RA and Dec                
                 Args.DailyWindowMaxDuration = 5.5;      % [hr] maximal duration a daily AllSS window 
+                Args.EmptyDay               = false;    % leave one day a week as empty 
                 Args.ExtraGalMinIntervals   = [1 3 9];  % 3 minimal intervals (in days) between 4 observation blocks of each extragalactic point                
                 Args.BufferSunDist          = 0;        % [deg] additional distance to keep visibility at dithering 
                 Args.BufferEarthDist        = 0;        % [deg] additional distance to keep visibility at dithering
@@ -525,6 +526,8 @@ classdef uplanner < Component
                 error('Unknown point type criterion');
             end
             
+            fprintf('Adding unique targets...\n'); tic
+            
             if Args.DistributeDitheredPoints              
                 % dither the extragalactic points:
                 [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Args.DitherLeg,'Ngrid',4);
@@ -542,7 +545,7 @@ classdef uplanner < Component
                     'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
                     'ObsMoonDist',Obj.ObsMoonDist+Args.BufferMoonDist,...
                     'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
-            else % distribute undithered points, do actual dithering afterwards, in Obj.scheduleTargets (they will not appear in the UniqTarget list!)
+            else % distribute undithered points (obsolete)
                 Obj.addUniqTargets(Grid.RA,Grid.Dec,'Name',num2cell(Grid.id),'TimeBin',VisitSlot,...
                     'DitherGroup',Extragal,...
                     'ObsSunDist',Obj.ObsSunDist+Args.BufferSunDist,...
@@ -550,17 +553,29 @@ classdef uplanner < Component
                     'ObsEarthDist',Obj.ObsEarthDist+Args.BufferEarthDist);
             end
             
-            % visibility limits for each point and each time slot 
-            Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;              
+            fprintf('%d unique targets added in %.0f s \n',height(Obj.UniqTarg),toc);
             
+            % visibility limits for each point and each time slot 
+            Limits    = Obj.Vis.SunLimits .* Obj.Vis.EarthLimits .* Obj.Vis.MoonLimits .* Obj.Vis.PowerLimits;    
+            
+            % additional constraints: 1 empty day each week
+            if Args.EmptyDay
+                Ind = [];
+                for k = 7*DailySlots:7*DailySlots:size(Limits,1)
+                    Ind = [Ind, k:k+DailySlots-1]; 
+                end
+                Ind = Ind(Ind <= size(Limits,1)); 
+                Limits(Ind,:) = 0;
+            end
+                        
             [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(...
                 Limits, Obj.UniqTarg.DitherGroup, DailyVisits, DailySlots,...
-                'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,.... 
+                'VisitsByType',[Obj.LowLatVisits Obj.HighLatVisits],'FieldNames',Obj.UniqTarg.Name,....
                 'MinIntervals',Args.ExtraGalMinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,...
                 'Verbose',Args.Verbose);
             
             % check if some of the points were not scheduled:
-            VisitsToSchedule = sum(Extragal==0)*int16(Obj.LowLatVisits) + sum(Extragal==1)*int16(Obj.HighLatVisits); 
+            VisitsToSchedule = sum(Extragal==0)*int16(Obj.LowLatVisits) + sum(Extragal==1)*int16(Obj.HighLatVisits)*4; 
             ScheduledVisits  = sum(Schedule~=0);
             if ScheduledVisits < VisitsToSchedule
                 Incomplete = PointTabSorted.Visits>PointTabSorted.Filled;
@@ -596,11 +611,9 @@ classdef uplanner < Component
                             if ii==1
                                 T1 = 1; T2 = Ind0(ii)-1;
                             elseif ii == NHoles+1
-                                T1 = Ind0(NHoles)+1;
-                                T2 = numel(UniqTargets);
+                                T1 = Ind0(NHoles)+1; T2 = numel(UniqTargets);
                             else
-                                T1 = Ind0(ii-1)+1;
-                                T2 = Ind0(ii)-1;
+                                T1 = Ind0(ii-1)+1;   T2 = Ind0(ii)-1;
                             end
 %                             fprintf('%d: %d %d \n',ii, T1,T2)
                             if T2 >= T1 % there are some targets between T1 and T2
@@ -1856,7 +1869,7 @@ classdef uplanner < Component
                 %
                 if ismember('AllSS',Args.Parts)
                     if Args.Verbose
-                        fprintf('Start AllSS plan...');
+                        fprintf('Start AllSS plan...\n');
                     end
                     
                     % Example for AllSS plan:
@@ -1868,7 +1881,7 @@ classdef uplanner < Component
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
                                        'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.5,...
-                                       'DistributeDitheredPoint',true,'DitherLeg',0.5);
+                                       'DistributeDitheredPoint',true,'DitherLeg',1.0);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose
