@@ -6,7 +6,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     % Output : - a set of [RA, Dec] coordinates of FOV centers 
     % Author : A.M. Krassilchtchikov (2025 Feb) 
     % Example: Map = '~/ULTRASAT/SkyGrid/LVC/2024/04/01/lvc_2024_04_01_00_40_58_000000.csv';
-    %         [RA, Dec] = ultrasat.tools.coverProbMap(Map,'MaxTarg',4); 
+    %         [RA, Dec, ~] = ultrasat.tools.coverProbMap(Map,'MaxTarg',4); 
     arguments
         SkyMap      
         Args.MaxTarg           = 4;   % maximal number of exposures (unqi targets) to use
@@ -87,8 +87,11 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
                 if CoveredProb > Args.MinProb(i) &&  Stat.NCover(i) < 1
                     Stat.NCover(i) = It;
                     Stat.CoveredArea(i) = CoveredArea;
-                end
-            end
+                end                
+            end            
+        end        
+        if Stat.NCover(Nthresh) < 1
+            fprintf('The required probability %.1f has not been reached!\n',Args.MinProb(Nthresh));
         end
     end
     
@@ -101,7 +104,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     
         if Args.Verbosity > 1
             fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
-            fprintf('Covered probability (with small overlaps, so can be > 1!): %.2f \n',Stat.CoveredProb)
+            fprintf('Covered probability (with tiny overlaps, so may be > 1): %.2f \n',Stat.CoveredProb)
         end    
         if Args.DrawMaps        
             for Itarg = 1:Stat.NCover

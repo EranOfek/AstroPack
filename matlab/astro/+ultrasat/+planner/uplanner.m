@@ -408,7 +408,7 @@ classdef uplanner < Component
             Obj.CheckTimes = [Obj.StartTime, Obj.EndTime];
             
             if ~isempty(Args.Map)
-                [RA, Dec] = ultrasat.tools.coverProbMap(Args.Map,Args.CoveragePar{:}); 
+                [RA, Dec, ~] = ultrasat.tools.coverProbMap(Args.Map,Args.CoveragePar{:}); 
                 Names = num2cell(1:numel(RA)); % may add "TOOfield.." to the name? 
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
             elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
@@ -420,7 +420,7 @@ classdef uplanner < Component
             
             % Check visibility and shift the window if needed            
             if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
-                fprintf('Visibility issue: immediate observation is not possible\n');
+                fprintf('Visibility issue: immediate observation is not possible\n');              
                 % scan 6 months ahead and find the first occurence of an Obj.TOOWindowDuration window:
                 Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + calmonths(6)]; 
                 Obj.updateTargetVisibility('TimeBin',Args.TimeBin);
@@ -432,6 +432,7 @@ classdef uplanner < Component
                 if ~isempty(Ind)
                     Obj.StartTime  = datetime(Obj.Vis.JD(Ind(1)),'ConvertFrom','juliandate','TimeZone','UTC');
                     Obj.EndTime    = datetime(Obj.Vis.JD(Ind(end)),'ConvertFrom','juliandate','TimeZone','UTC');
+                    fprintf('The nearest visibility window is found at %s\n',Obj.StartTime);
                 else
                     error('No visibility window for the TOO can be found within the next 6 months');
                 end
@@ -1834,20 +1835,25 @@ classdef uplanner < Component
                 %
                 if ismember('TOO',Args.Parts)                    
                     if Args.Verbose
-                        fprintf('Start ToO plan...');
+                        fprintf('Start ToO plan...\n');
                     end                    
                     % a simple example for ToO plan:
+                    if Args.Verbose
+                        fprintf('a minimal example: ');
+                    end  
                     HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');                   
                     upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
-                    % a ToO plan from an input probability map
-                    upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
-                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
-                                    'CoveragePar',{'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0});
-               
                     if Args.Verbose
                         fprintf('completed\n');
                     end                    
+                    % a ToO plan from an input probability map
+                    if Args.Verbose
+                        fprintf('a ToO plan from an external probability map:\n');
+                    end  
+                    upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
+                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
+                                    'CoveragePar',{'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0});                                    
                 end
                 %
                 if ismember('DDT',Args.Parts)
