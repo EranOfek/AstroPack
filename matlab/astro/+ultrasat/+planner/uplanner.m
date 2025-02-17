@@ -1846,14 +1846,31 @@ classdef uplanner < Component
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
                     if Args.Verbose
                         fprintf('completed\n');
+                        fprintf('-------------------------\n');
                     end                    
-                    % a ToO plan from an input probability map
+                    % a ToO plan from an input probability map:
+                    MaxTarg = 4; MinProb = 0.3; 
                     if Args.Verbose
                         fprintf('a ToO plan from an external probability map:\n');
+                        fprintf('Maximal number of exposures: %d\n',MaxTarg);
+                        fprintf('Minimal probability to be covered: %.2f\n',MinProb);
                     end  
                     upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
                     upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
-                                    'CoveragePar',{'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0});                                    
+                                    'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
+                                    'DrawMaps',0});            
+                                fprintf('-------------------------\n');
+                    MaxTarg = 100; MinProb = 0.9; 
+                    if Args.Verbose
+                        fprintf('a ToO plan from an external probability map:\n');
+                        fprintf('Maximal number of exposures: %d\n',MaxTarg);
+                        fprintf('Minimal probability to be covered: %.2f\n',MinProb);
+                    end  
+                    upTOO2 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
+                    upTOO2.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
+                                    'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
+                                    'DrawMaps',0}); 
+                                fprintf('-------------------------\n');
                 end
                 %
                 if ismember('DDT',Args.Parts)

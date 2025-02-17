@@ -89,23 +89,26 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
                     Stat.CoveredArea(i) = CoveredArea;
                 end                
             end            
-        end        
-        if Stat.NCover(Nthresh) < 1
-            fprintf('The required probability %.1f has not been reached!\n',Args.MinProb(Nthresh));
-        end
+        end                
     end
     
     % select no more than Args.MaxTarg targets with highest probability
-    Stat.Ntarg = min(Stat.NCover,Args.MaxTarg);    
-    Targets = Targets0(Ind(1:Stat.Ntarg));      % take the first Stat.Ntarg targets from the ordered list   
+    if Stat.NCover(end) < 1 % if the required probability has not been reached, take all the exposure
+        fprintf('The required probability %.1f has not been reached!\n',Args.MinProb(Nthresh));        
+        Stat.Ntarg = min(Ntarg0,Args.MaxTarg);
+        Targets = Targets0(Ind(1:Stat.Ntarg)); 
+    else
+        Stat.Ntarg = min(Stat.NCover,Args.MaxTarg);
+        Targets = Targets0(Ind(1:Stat.Ntarg));  % take the first Stat.Ntarg targets from the ordered list
+    end
         
     TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
     Stat.CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius); % NB! sumProbability deals with overlaps
     
-        if Args.Verbosity > 1
+%         if Args.Verbosity > 1
             fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
-            fprintf('Covered probability (with tiny overlaps, so may be > 1): %.2f \n',Stat.CoveredProb)
-        end    
+            fprintf('Covered probability: %.2f \n',Stat.CoveredProb) % with tiny overlaps, so might be > 1
+%         end    
         if Args.DrawMaps        
             for Itarg = 1:Stat.NCover
                 plot.skyCircles(Targets0(Ind(Itarg)).Coo(1),Targets0(Ind(Itarg)).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','green');
