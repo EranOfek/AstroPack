@@ -363,8 +363,7 @@ classdef uplanner < Component
         %
         function buildTOO(Obj, Args)
             % Build a plan for a TOO list. Allow to enter all paramters as Args (but can also use those that are in Obj) 
-            % Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration
-            % TODO - should add optimal covarge plan(s) of ProbabiltyMap.
+            % Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration            
             arguments
                 Obj 
                 Args.Map               = [];
@@ -409,9 +408,8 @@ classdef uplanner < Component
             Obj.CheckTimes = [Obj.StartTime, Obj.EndTime];
             
             if ~isempty(Args.Map)
-                % TODO - do somethng with a map
                 [RA, Dec] = ultrasat.tools.coverProbMap(Args.Map,Args.CoveragePar{:}); 
-                Names = num2cell(1:numel(RA)); % should add "TOOfield.."
+                Names = num2cell(1:numel(RA)); % may add "TOOfield.." to the name? 
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
             elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
                 [RA, Dec] = deal(Args.RA, Args.Dec);
@@ -488,7 +486,7 @@ classdef uplanner < Component
                 Args.BufferEarthDist        = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.BufferMoonDist         = 0;        % [deg] additional distance to keep visibility at dithering
                 Args.AllowPartial           = true;     % allow incomplete scheduling
-                Args.MaxBranch              = 5;        % maximal number of branches to try before skipping a point
+                Args.MaxBranch              = 0;        % SWITCHED OFF maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
             end
             %
@@ -1838,14 +1836,15 @@ classdef uplanner < Component
                     if Args.Verbose
                         fprintf('Start ToO plan...');
                     end                    
-                    % Example for TOO plan:
+                    % a simple example for ToO plan:
                     HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');                   
                     upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
-                    
+                    % a ToO plan from an input probability map
                     upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
-                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv');
-                    
+                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
+                                    'CoveragePar',{'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0});
+               
                     if Args.Verbose
                         fprintf('completed\n');
                     end                    
@@ -1881,7 +1880,7 @@ classdef uplanner < Component
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
                                        'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.5,...
-                                       'DistributeDitheredPoint',true,'DitherLeg',1.0);
+                                       'DistributeDitheredPoint',true,'DitherLeg',2.0);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     if Args.Verbose
