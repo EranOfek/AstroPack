@@ -14,55 +14,53 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
                
         Args.FOVradius         = 7.0; % [deg] 
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
-        Args.ProbThresh        = 0.1; % the limiting probability per ULTRASAT pointing (determines the maximal number of FOVs)
+        Args.ProbThresh        = 0.1; % the limiting probability per ULTRASAT FOV (determines the maximal number of FOVs)
         
         Args.Verbosity         = 2;    
         Args.DrawMaps          = true;
         Args.CalcCoverageCurve = true;
     end        
     %
-    Sr = (180/pi)^2;  % deg(2)
+    Sr  = (180/pi)^2;  % deg(2)
     FOV = pi*Args.FOVradius.^2; % deg(2) approximate area     
     PD  = Args.ProbThresh * ( Sr / FOV ); % the limiting probability per [sr] (as on the original maps)
     
-    Stat.NCover      = 0;
-    Stat.CoveredArea = 0;
+    Stat.NCover      = 0; % number of exposures
+    Stat.CoveredArea = 0; % covered area 
 
     % read the alert map from a CSV file and filter out points < 0.1 sr(-1)
     Map0 = readtable(SkyMap);
-    Map1 = Map0(Map0.PROBDENSITY > Args.CleanThresh,:); 
-     
+    Map1 = Map0(Map0.PROBDENSITY > Args.CleanThresh,:);      
+    
         if Args.Verbosity > 1
             fprintf('Alert map: %s \n',SkyMap)           
             [Prob, Area] = sumProbability(Map0);
             fprintf('Initial probability: %.2f on an area of %.1f deg^2 \n',Prob,Area)
-        end
-    
+        end    
         if Args.Verbosity > 0
             [Prob, Area] = sumProbability(Map1);
             fprintf('Cleaned probability: %.2f on an area of %.1f deg^2 \n',Prob,Area)
-        end
-    
-    % extract a region with probability per pointing is over Args.ProbThresh 
-    Map = Map1(Map1.PROBDENSITY > PD,:);
-    
+        end  
+        
+    % extract a region with probability per ULTRASAT FOV is over Args.ProbThresh 
+    Map = Map1(Map1.PROBDENSITY > PD,:);    
     [Prob, Area] = sumProbability(Map);
-    if Args.Verbosity > 0
-        fprintf('Extracted probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
-    end
     
-    if Prob < 1e-6      
-       if Args.Verbosity > 0
-           fprintf('No region above Args.ProbThresh found \n');
-       end
-       return 
-    end
-    
-    if Args.DrawMaps
-        figure(1); subplot(3,1,1); plot(Map1.RA,Map1.DEC,'*')
-        subplot(3,1,2); plot(Map.RA,Map.DEC,'*')
-        subplot(3,1,3); plot.ungridded_image(Map.RA,Map.DEC,Map.PROBDENSITY);
-    end
+        if Args.Verbosity > 0
+            fprintf('Extracted probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
+        end
+        if Prob < 1e-6      
+           if Args.Verbosity > 0
+               fprintf('No FOV above Args.ProbThresh found \n');
+           end
+           [RA, Dec, Stat] = deal([]);
+           return 
+        end    
+        if Args.DrawMaps
+            figure(1); subplot(3,1,1); plot(Map1.RA,Map1.DEC,'*')
+            subplot(3,1,2); plot(Map.RA,Map.DEC,'*')
+            subplot(3,1,3); plot.ungridded_image(Map.RA,Map.DEC,Map.PROBDENSITY);
+        end
         
     % cover the region with targets
     Targets0 = coverSky(Map,'FOVradius',Args.FOVradius,'DrawMaps',Args.DrawMaps);
@@ -70,8 +68,8 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     
         if Args.Verbosity > 1
             fprintf('The target area is covered with %d FOVs \n',Ntarg0)
-        end
-    
+        end  
+        
     % sort the targets by covered probability (with no overlap treatment!) 
     [~, Ind] = sort([Targets0.Pr], 'descend'); 
      
@@ -93,21 +91,18 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
             end
         end
     end
-
+    
     % select no more than Args.MaxTarg targets with highest probability
-    Stat.Ntarg = min(Stat.NCover,Args.MaxTarg);
-    
-    Targets = Targets0(Ind(1:Stat.Ntarg));   % take only first Stat.Ntarg from the ordered list   
+    Stat.Ntarg = min(Stat.NCover,Args.MaxTarg);    
+    Targets = Targets0(Ind(1:Stat.Ntarg));      % take the first Stat.Ntarg targets from the ordered list   
         
-%     Stat.CoveredProb = sum([Targets.Pr]); %% This is not correct due to overlaps!
     TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
-    Stat.CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);
+    Stat.CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius); % NB! sumProbability deals with overlaps
     
-    if Args.Verbosity > 1
-        fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
-        fprintf('Covered probability (with small overlaps, so can be > 1!): %.2f \n',Stat.CoveredProb)
-    end    
-        % illustration:
+        if Args.Verbosity > 1
+            fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
+            fprintf('Covered probability (with small overlaps, so can be > 1!): %.2f \n',Stat.CoveredProb)
+        end    
         if Args.DrawMaps        
             for Itarg = 1:Stat.NCover
                 plot.skyCircles(Targets0(Ind(Itarg)).Coo(1),Targets0(Ind(Itarg)).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','green');
@@ -116,12 +111,13 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
                 plot.skyCircles(Targets(Itarg).Coo(1),Targets(Itarg).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','red');
             end
         end
-        
+    
+    % extract the output lists:
     RA  = arrayfun(@(t) t.Coo(1), Targets);
     Dec = arrayfun(@(t) t.Coo(2), Targets);
 end
 
-%%% internal functions will be later replaced to calls to external tools
+%%% internal functions may be later replaced to calls to external tools
 
 function Targets = coverSky(Map, Args)
     %
@@ -132,8 +128,7 @@ function Targets = coverSky(Map, Args)
         Args.DrawMaps logical = true;
     end
     %
-    RAD = 180/pi;
-    
+    RAD = 180/pi;    
     Grid0 = readmatrix(Args.InitialGridFile);
     Np    = length(Grid0);
     
@@ -141,8 +136,7 @@ function Targets = coverSky(Map, Args)
             figure(2); clf
             axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
             plotm(Map.DEC./RAD,Map.RA./RAD,'*')
-        end       
-    
+        end           
     % find all the 7-deg grid pixels intersecting with any of the alert pixels
     ITarg = 0;
     for Ip = 1:Np        
@@ -152,14 +146,12 @@ function Targets = coverSky(Map, Args)
             ITarg = ITarg + 1;
             Targets(ITarg).Pr  = sumProbability(Map(Ind,:)); % probability of the points inside the FOV
             Targets(ITarg).Coo = Grid0(Ip,:);
-            % illustration:
                 if Args.DrawMaps
                     plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
                 end
 %               fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
         end
     end
-
 end
 
 function [SumProb, SumArea] = sumProbability(Map, Args)
@@ -185,7 +177,7 @@ function [SumProb, SumArea] = sumProbability(Map, Args)
                 16384, 1.2806604693773907e-05];                 
 
     RAD  = 180/pi;   % deg
-    SRAD = RAD*RAD;  % deg(2)
+    SRAD = RAD*RAD;  % deg^2
     
     if ~isempty(Args.Targets) % if a set of targets is given, limit the map to the area contained within this set of FOVs
         Np = height(Map);
@@ -201,8 +193,7 @@ function [SumProb, SumArea] = sumProbability(Map, Args)
     
     Prob = Map.PROBDENSITY ./ SRAD; % probability per deg^2
     
-    Ind  = floor(log(Map.UNIQ/4)/(2*log(2)));
-    
+    Ind  = floor(log(Map.UNIQ/4)/(2*log(2)));    
     SumProb = sum(NsideAreaDeg(Ind(:,1),2).*Prob);    
     SumArea = sum(NsideAreaDeg(Ind(:,1),2));       % deg^2
 end
