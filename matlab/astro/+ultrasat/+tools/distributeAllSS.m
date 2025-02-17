@@ -43,12 +43,13 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         FieldNames = 1:NPoints;
     else
         FieldNames = Args.FieldNames;
+        FieldNum   = floor(str2double(FieldNames));
     end
     
     FreeSlots = sum(Limits,1); % number of free slots for each point (used for prioritizing points)    
     
-    PointTab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',...
-        'VariableNames', {'FieldNames','Visits','Filled','FreeSlots'});
+    PointTab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',(1:NPoints)',FieldNum,...
+        'VariableNames', {'FieldNames','Visits','Filled','FreeSlots','PointNum','FieldNum'});
     
     % sort points by the total number of free slots so that the points with
     % less number of free slots are distributed first 
@@ -114,13 +115,9 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
     Np     = numel(Ind);     % number of grid points
     Branch = zeros(1,Np);    % indicates the number of branch for the particular point
     Schedule = zeros(size(Limits,1),1); % the schedule to be filled 
-    % initial daily block limits: 
-    Start = DailySlots.*ones(1,NDays); 
+    Start = DailySlots.*ones(1,NDays);  % initial daily block limits 
     Stop  = 1.*ones(1,NDays); 
     
-    % make a matrix of distances to be used below as an additional day selection criterion
-%     Dist  = 
-
     Ip = 0;
     while Ip < Np % main loop by sky points
         Ip = Ip+1; 
@@ -271,8 +268,9 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     SrcNum = [];
     SrcNumbers = [];
     % find the 4 points by the major number 
-    PointNum = floor(str2double(Tab.FieldNames(Ip)));
-    Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
+%     PointNum = floor(str2double(Tab.FieldNames(Ip)));
+%     Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
+    Ind = find( Tab.FieldNum == Tab.FieldNum(Ip) );
     % try 4 windows containing StartSlot: 
     if StartSlot+3 < size(Vis,1)+1
         Slots = StartSlot:StartSlot+3;
