@@ -955,7 +955,7 @@ classdef uplanner < Component
                 Args.inputPlan = []; 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime = []; 
-                Args.Mclient soc.api.MissionClient 
+                Args.Mclient 
             end        
             
             %for now, allow to get a uPlan and use it as refernce
@@ -1347,7 +1347,7 @@ classdef uplanner < Component
             
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
-            % Mclient.validatePlan(planStruct);            
+            Mclient.validatePlan(planStruct);            
             
             Obj.Status    = 'validated';
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
@@ -1370,7 +1370,7 @@ classdef uplanner < Component
 
             planStruct = Obj.planTable2struct;
             % send struct plan to the Mission C&C.
-            % Mclient.submitPlan(planStruct);
+            Mclient.submitPlan(planStruct);
             
             Obj.Status    = 'submitted';
             Obj.SubmittedTime = datetime('now','TimeZone', 'UTC'); 
