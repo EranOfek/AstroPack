@@ -37,6 +37,7 @@ function TranCat = measureTransients(AD, Args)
 
         % AstroZOGY
         Args.RadiusTS = 5;
+        Args.useFWHM = true;
     end
     
     % Get object class and apply corresponding function.
@@ -45,7 +46,7 @@ function TranCat = measureTransients(AD, Args)
     switch ClassName
         case 'AstroZOGY'
             TranCat = measureTransientsAstroZOGY(AD, ...
-                'RadiusTS', Args.RadiusTS...
+                'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM...
                 );
         otherwise
             % TODO: probably give Warning and return empty cat instead
@@ -83,11 +84,11 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         AD AstroZOGY
 
         Args.RadiusTS = 5;
-        Args.UseFWHM logical = true;
+        Args.useFWHM logical = true;
         Args.MultipleFWHM = 2;
     end
 
-    if Args.UseFWHM
+    if Args.useFWHM
         Args.RadiusTS = AD.PSFData.fwhm * Args.MultipleFWHM;
         Args.RadiusTS = floor(Args.RadiusTS);
         Args.RadiusTs = Args.RadiusTS + mod(Args.RadiusTS+1,2);

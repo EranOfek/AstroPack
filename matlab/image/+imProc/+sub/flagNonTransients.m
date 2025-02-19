@@ -164,6 +164,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.CRDeltaSN = 0.5;
 
         Args.flagVariable logical = true;
+        Args.VarStarDist = 3;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -551,7 +552,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % VarStars for stars
             StarDist = Cat.getCol('STAR_DIST');
-            NearStar = StarDist <= 3;
+            NearStar = StarDist <= Args.VarStarDist;
 
             StarSearchRadius = MaxDistAngle.convert('arcsec').Angle + max(StarDist);
 
