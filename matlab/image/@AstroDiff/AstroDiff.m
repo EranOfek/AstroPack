@@ -908,13 +908,14 @@ classdef AstroDiff < AstroImage
                 
                 % AstroZOGY
                 Args.RadiusTS = 5;
+                Args.useFWHM logical = true;
             end
             
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.measureTransients(Obj(Iobj),...
-                    'RadiusTS', Args.RadiusTS);
+                    'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM);
             end
 
         end
@@ -1030,15 +1031,21 @@ classdef AstroDiff < AstroImage
                 Obj
 
                 Args.flagNegatives logical = true;
-
+        
                 Args.flagChi2 logical = true;
+                %Args.DChi2dofLimits = [0.2 1.5];
+                %Args.NRChi2dofLimits = [0.1 1.60];
+                Args.PSFChi2Mean = [0.64096051, 0.65603272]
+                Args.PSFChi2CovInv = [11.06639904, -4.23111166;...
+                    -4.23111166, 10.35510321];
+                Args.PSFChi2DistThreshold = 1.7;
                 
                 Args.flagSaturated logical = true;
         
                 Args.flagBadPix_Hard logical  = true;
                 Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
                     'Hole', 'Negative'};
-
+        
                 Args.flagBadPix_Soft logical  = true;
                 Args.BadPix_Soft       = {{'HighRN', 5.0, 7.0}, {'SrcNoiseDominated', 5.0, 7.0}, ...
                     {'FlatHighStd', 5.0, 7.0}, {'DarkHighVal', 5.0, 7.0},...
@@ -1052,40 +1059,94 @@ classdef AstroDiff < AstroImage
         
                 Args.flagRinging logical = true;
         
+                Args.flagPeakDist logical = true;
+                Args.PeakDistThreshold = 1.6;
+        
+                Args.flagLimitingMag logical = true;    
+                Args.LimitingMagOverwriteVal = NaN;
+        
+                Args.flagPeakValley logical = true;
+                Args.PVDistThresh = 10;
+        
+                Args.flagPSFShape logical = true;
+                Args.PSFShapeFWHMThresh = 4.0;
+                Args.PSFShapeXYMean = [1.03249812, 1.07405709]
+                Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
+                    -5.14461356, 12.15646961];
+                Args.PSFShapeDistThreshold = 1.7;
+                
+                Args.flagStreak logical = true;
+                Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
+                    'Ringing', 'Translient'};
+                
                 Args.flagDensity logical = true;
                 Args.NeighborDistanceThreshold = 100;
-                Args.NeighborNumThreshold = 36;
+                Args.NeighborNumThreshold = 30;
                 Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
                     'Ringing', 'Translient', 'Streak'};
         
-                Args.flagPeakDist logical = true;
-                Args.PeakDistThreshold = 1.33;
-                Args.PeakDistThresholdGal = 2.0;
-    
-                Args.flagLimitingMag logical = true;
-                Args.LimitingMagOverwriteVal = NaN;
-
-                Args.flagPeakValley logical = true;
-                Args.PVDistThresh = 10;
-
-                Args.flagStreak logical = true;
-                
+                Args.flagCR logical = true;
+                Args.CRDeltaSN = 0.5;
+        
+                Args.flagVariable logical = true;
+                Args.VarStarDist = 3;
+        
                 % --- AstroZOGY ---
                 Args.flagScorr logical = true;
                 Args.ScorrThreshold = 5.0;
-                
+        
                 Args.flagTranslients logical = true;
                 Args.TranslientCorrectionParam = 20;
                 Args.ignoreTranslient_NothingInRef = true;
-                Args.ignoreTranslient_GalaxyNuclear = false;
-                Args.TranslientGalaxyDistThresh = 1.0;
         
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj));
+                Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
+                    'flagNegatives', Args.flagNegatives, ...
+                    'flagChi2', Args.flagChi2, ...
+                    'PSFChi2Mean', Args.PSFChi2Mean, ...
+                    'PSFChi2CovInv', Args.PSFChi2CovInv, ...
+                    'PSFChi2DistThreshold', Args.PSFChi2DistThreshold, ...
+                    'flagSaturated', Args.flagSaturated, ...
+                    'flagBadPix_Hard', Args.flagBadPix_Hard, ...
+                    'BadPix_Hard', Args.BadPix_Hard, ...
+                    'flagBadPix_Soft', Args.flagBadPix_Soft, ...
+                    'BadPix_Soft', Args.BadPix_Soft, ...
+                    'flagSNR', Args.flagSNR, ...
+                    'SNRThreshold', Args.SNRThreshold, ...
+                    'flagStarMatches', Args.flagStarMatches, ...
+                    'flagMP', Args.flagMP, ...
+                    'flagRinging', Args.flagRinging, ...
+                    'flagPeakDist', Args.flagPeakDist, ...
+                    'PeakDistThreshold', Args.PeakDistThreshold, ...
+                    'flagLimitingMag', Args.flagLimitingMag, ...
+                    'LimitingMagOverwriteVal', Args.LimitingMagOverwriteVal, ...
+                    'flagPeakValley', Args.flagPeakValley, ...
+                    'PVDistThresh', Args.PVDistThresh, ...
+                    'flagPSFShape', Args.flagPSFShape, ...
+                    'PSFShapeFWHMThresh', Args.PSFShapeFWHMThresh, ...
+                    'PSFShapeXYMean', Args.PSFShapeXYMean, ...
+                    'PSFShapeCovInv', Args.PSFShapeCovInv, ...
+                    'PSFShapeDistThreshold', Args.PSFShapeDistThreshold, ...
+                    'flagStreak', Args.flagStreak, ...
+                    'ignoreStreakPoints', Args.ignoreStreakPoints, ...
+                    'flagDensity', Args.flagDensity, ...
+                    'NeighborDistanceThreshold', Args.NeighborDistanceThreshold, ...
+                    'NeighborNumThreshold', Args.NeighborNumThreshold, ...
+                    'NeighborExclude', Args.NeighborExclude, ...
+                    'flagCR', Args.flagCR, ...
+                    'CRDeltaSN', Args.CRDeltaSN, ...
+                    'flagVariable', Args.flagVariable, ...
+                    'VarStarDist',Args.VarStarDist,...
+                    'flagScorr', Args.flagScorr, ...
+                    'ScorrThreshold', Args.ScorrThreshold, ...
+                    'flagTranslients', Args.flagTranslients, ...
+                    'TranslientCorrectionParam', Args.TranslientCorrectionParam, ...
+                    'ignoreTranslient_NothingInRef', Args.ignoreTranslient_NothingInRef ...
+                    );
             end
         end
         
@@ -1328,7 +1389,7 @@ classdef AstroDiff < AstroImage
 
             end
 
-            if Args.removeBadPixel_Hard
+            if Args.removeBadPixel_Hard && Obj.CatData.isColumn('FLAGS_TRANSIENT')
                 BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
                 Flags = Obj.CatData.getCol('FLAGS_TRANSIENT');
                 BadPixelHard = BD_TF.findBit(Flags, 'BadPixelHard');
@@ -1339,20 +1400,30 @@ classdef AstroDiff < AstroImage
             end
 
             % Get transients and non-transients
-            [TranCat, NonTranCat] = Objn.splitNonTransients;
+            if Obj.CatData.isColumn('FLAGS_TRANSIENT')
+                [TranCat, NonTranCat] = Objn.splitNonTransients;
+            else
+                TranCat = Objn.CatData;
+            end
 
             % Display Ref
             ds9(Obj.Ref,1); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
-            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            if exist('NonTranCat','var')
+                ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            end
             % Display New
             ds9(Obj.New,2); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
-            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            if exist('NonTranCat','var')
+                ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            end
             % Display D
             ds9(Obj,3);
             ds9.plot(TranCat.getXY, Args.TranMarker);
-            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            if exist('NonTranCat','var')
+                ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            end
 
             % Display others
             Nimgs = 3;
@@ -1371,11 +1442,15 @@ classdef AstroDiff < AstroImage
                     case 'S'
                         ds9(Obj.S,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'Scorr'
                         ds9(Obj.Scorr,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                        
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     %case 'dScorrdF'
                     %    ds9(Obj.DScorrDFn,Nimgs);
                     %    ds9.plot(TranCat.getXY, Args.TranMarker);
@@ -1383,35 +1458,51 @@ classdef AstroDiff < AstroImage
                     case 'S2'
                         ds9(Obj.S2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'Z2'
                         ds9(Obj.Z2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'NewMask'
                         ds9(Obj.New.Mask,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'RefMask'
                         ds9(Obj.Ref.Mask,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'NewBack'
                         ds9(Obj.New.Back,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'RefBack'
                         ds9(Obj.Ref.Back,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'Gabor'
                         ds9(Obj.GaborSN,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                     case 'SDelta'
                         ds9(Obj.S_delta,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
                 end
 
             end
