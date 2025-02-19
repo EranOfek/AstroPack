@@ -26,7 +26,17 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
 
-            obj.DbPath = 'c:/soc/planner/sim';
+            % May move to another folder @Todo
+            %obj.DbPath = 'c:/soc/planner/sim';
+
+            currentFile = mfilename('fullpath');
+            currentFolder = fileparts(currentFile);
+            obj.DbPath = fullfile(currentFolder, 'sim');
+
+            if ~exist(obj.DbPath, 'dir')
+                mkdir(obj.DbPath);
+                mkdir(fullfile(obj.DbPath, 'plans'));
+            end
         end        
         
 

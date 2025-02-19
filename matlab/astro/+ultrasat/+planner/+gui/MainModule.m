@@ -40,6 +40,7 @@ classdef MainModule < handle
         Modified = false;       % True after data is being modified        
         AfterBuild = false;     %
         DebugPath               % Folder of debug files, such as saved .mat files
+        BaseDataDir             % uplanner constructor param
     end
     
 
@@ -53,8 +54,11 @@ classdef MainModule < handle
             obj.ApiClient = ultrasat.api.MissionClientSim();
             obj.ApiClient.ApiUrl = 'http://localhost:8215';
             
-            %
-
+            % Temporary solution, @Todo @Yossi
+            obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
+            if ispc
+                obj.BaseDataDir =  'C:/AstroPack/Data/ULTRASAT/';
+            end
         end
 
 
