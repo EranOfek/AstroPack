@@ -48,7 +48,6 @@ classdef MainModule < handle
         function obj = MainModule()
             % Constructor
             disp('app.MainModule');
-            obj.DebugPath = 'C:/Temp/_planner';
 
             % Setup ApiClient %%%%%
             obj.ApiClient = ultrasat.api.MissionClientSim();
@@ -56,9 +55,15 @@ classdef MainModule < handle
             
             % Temporary solution, @Todo @Yossi
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
+            obj.DebugPath = '~/matlab/data/ULTRASAT/debug/';
             if ispc
                 obj.BaseDataDir =  'C:/AstroPack/Data/ULTRASAT/';
+                obj.DebugPath = 'C:/Temp/_planner';                
             end
+
+            if ~exist(obj.DebugPath, 'dir')
+                mkdir(obj.DebugPath);
+            end            
         end
 
 
