@@ -41,7 +41,8 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
                             'FindWithEmpiricalPSF',true,...
                             'BackPar',{'SubSizeXY',[]},...  %global bck
                             'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds                            
-                            'UseOriginalPSF',false,... % false     
+                            'UseOriginalPSF',false,... % false  
+                            'UsePSFInterpolant',false,... % false
                             'FitRadius',[3 3 3 3 3],...
                             'Verbose',true);  
                         
