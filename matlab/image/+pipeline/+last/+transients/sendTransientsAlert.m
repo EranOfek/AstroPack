@@ -16,7 +16,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc, TCL1, Status] = pipeline.last.transients.runTransientsPipe(VisitPath)
-              [ADc, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
+              [ADc, TCL2, Status] = pipeline.last.transients.matchTransientsToMultiEpochs(ADc, TCL1)
               [Status] = pipeline.last.transients.sendTransientsAlert(ADc)
     %}
 
@@ -348,29 +348,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             RefImageLowLim = prctile(RefImagePlot(:),1);
             RefImageHighLim = prctile(RefImagePlot(:),99);
             RefImagePlot = rot90(RefImagePlot,2);            
-            %{
-            RefImageMinVal = min(RefImage(:));
-            RefImageMaxVal = max(RefImage(:));
-            RefImage = (RefImage - RefImageMinVal)/(RefImageMaxVal - RefImageMinVal);
-
-            [RefImageSizeX, RefImageSizeY] = size(Transient.Ref.Image);
-
-            RefImageHalfSizeX = floor(RefImageSizeX / 2);
-            RefImageHalfSizeY = floor(RefImageSizeY / 2);
-            
-            RefImageXStart = RefImageHalfSizeX-5; 
-            RefImageXEnd = RefImageHalfSizeX+5;
-            RefImageYStart = RefImageHalfSizeY-5; 
-            RefImageYEnd = RefImageHalfSizeY+5;
-
-            RefImageRoi = RefImage(RefImageXStart:RefImageXEnd, ...
-                RefImageYStart:RefImageYEnd);
-            RefImageRoiMin = min(RefImageRoi(:));
-            RefImageRoiMax = max(RefImageRoi(:));
-
-            RefImagePlot = imadjust(RefImage, ...
-                [RefImageRoiMin RefImageRoiMax], []);
-            %}
 
             % Prepare new image cutout
             NewImage = Transient.New.Image;
@@ -378,30 +355,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             NewImageLowLim = prctile(NewImagePlot(:),1);
             NewImageHighLim = prctile(NewImagePlot(:),99);
             NewImagePlot = rot90(NewImagePlot,2);
-            %{
-            NewImageMinVal = min(NewImage(:));
-            NewImageMaxVal = max(NewImage(:));
-            NewImage = (NewImage - NewImageMinVal)/(NewImageMaxVal - NewImageMinVal);
-
-            [NewImageSizeX, NewImageSizeY] = size(Transient.New.Image);
-
-            NewImageHalfSizeX = floor(NewImageSizeX / 2);
-            NewImageHalfSizeY = floor(NewImageSizeY / 2);
-            
-            NewImageXStart = NewImageHalfSizeX-5; 
-            NewImageXEnd = NewImageHalfSizeX+5;
-            NewImageYStart = NewImageHalfSizeY-5; 
-            NewImageYEnd = NewImageHalfSizeY+5;
-
-            NewImageRoi = NewImage(NewImageXStart:NewImageXEnd, ...
-                NewImageYStart:NewImageYEnd);
-            NewImageRoiMin = min(NewImageRoi(:));
-            NewImageRoiMax = max(NewImageRoi(:));
-
-            NewImagePlot = imadjust(NewImage, ...
-                [NewImageRoiMin NewImageRoiMax], []);
-            %}
-
 
             % Prepare diff image cutout
             DiffImage = Transient.Image;
