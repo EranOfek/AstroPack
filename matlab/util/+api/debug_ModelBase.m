@@ -1,3 +1,16 @@
+%==========================================================================
+% ULTRASAT 
+%
+% File:   debug_ModelBase.m
+% Author: Chen Tishler
+% Created: 01/12/2024
+% Updated: 11/02/2025
+%==========================================================================
+%
+% Debug function for api.BaseModel class
+% Run by: api.debug_ModelBase()
+%
+
 function debug_ModelBase()
     % Debugging function for the ModelBase class
 

@@ -1,114 +1,65 @@
+%==========================================================================
+% ULTRASAT 
+%
+% File:   debug_ClientBase.m
+% Author: Chen Tishler
+% Created: 01/12/2024
+% Updated: 11/02/2025
+%==========================================================================
+%
+% Debugging function for api.ClientBase class.
+% Run this script in MATLAB:
+% >> debug_ClientBase
+%
+% This script tests:
+% - POST requests to FastAPI (`/add`, `/multiply`)
+% - JSON encoding/decoding of doubles & strings.
+%
+% Run Python script debug_ClientBase_server.py from this folder as backend.
+%
 
 function debug_ClientBase()
-    %debug_constructor();
-    %debug_postRequest();
-    %debug_postRequestAsync();
-    debug_serializeDeserialize();
-
-    %debug_sendFiles();
+    % Initialize ClientBase with FastAPI server URL
+    client = api.ClientBase('BaseUrl', 'http://127.0.0.1:8299');
+    client.ApiKey = [];
+    
+    % Test addition endpoint
+    debug_postRequest(client, '/add', 2.5, 2.5);
+    
+    % Test multiplication endpoint
+    debug_postRequest(client, '/multiply', 2, 2);
 end
 
 
-function debug_constructor()
-    disp('--- Testing Constructor ---');
-    
-    % Create an instance with default arguments
-    client = ClientBase(struct());
-    disp('Default Client:');
-    disp(client);
+function debug_postRequest(client, endpoint, a, b)
+    % Tests the postRequest method for addition/multiplication.
+    %
+    % :param client: ClientBase instance.
+    % :param endpoint: API endpoint ('/add' or '/multiply').
+    % :param a: First number.
+    % :param b: Second number.
 
-    % Create an instance with custom arguments
-    args = struct('BaseUrl', 'https://api.example.com', ...
-                  'SubUrl', '/v1/resource', ...
-                  'ApiKey', 'test-api-key', ...
-                  'Timeout', 15);
-    client = ClientBase(args);
-    disp('Custom Client:');
-    disp(client);
+    disp(['Testing ', endpoint, '...']);
     
-    disp('--- Constructor Test Completed ---');
+    % Ensure 'a' and 'b' are explicitly doubles
+    a = double(a);
+    b = double(b);
+
+    % Create request payload
+    params = struct('a', a, 'b', b);
+    
+    % Send request
+    response = client.postRequest(endpoint, params);
+    
+    % Display response
+    disp('Response:');
+    disp(response);
+    
+    % Validate response fields
+    assert(isfield(response, 'result') && isa(response.result, 'double'), 'Error: result missing or incorrect type.');
+    assert(isfield(response, 'status') && isa(response.status, 'char'), 'Error: status missing or incorrect type.');
+    assert(isfield(response, 'message') && isa(response.message, 'char'), 'Error: message missing or incorrect type.');
+
+    disp('[PASS] Test successful.');
 end
-
-
-function debug_postRequest()
-    disp('--- Testing postRequest ---');
-    
-    client = ClientBase(struct('BaseUrl', 'https://jsonplaceholder.typicode.com', 'SubUrl', '/posts'));
-    endpoint = '/1';
-    params = struct('title', 'foo', 'body', 'bar', 'userId', 1);
-    
-    try
-        response = client.postRequest(endpoint, params);
-        disp('POST Request Response:');
-        disp(response);
-    catch ME
-        disp('Error during postRequest:');
-        disp(ME.message);
-    end
-    
-    disp('--- postRequest Test Completed ---');
-end
-
-
-function debug_postRequestAsync()
-    disp('--- Testing postRequestAsync ---');
-    
-    client = api.ClientBase(struct('BaseUrl', 'https://jsonplaceholder.typicode.com', 'SubUrl', '/posts'));
-    endpoint = '/1';
-    params = struct('title', 'foo', 'body', 'bar', 'userId', 1);
-    
-    callback = @(response) disp(['Async Response: ', jsonencode(response)]);
-    
-    try
-        client.postRequestAsync(endpoint, params, callback);
-        pause(5); % Allow time for async request to complete
-    catch ME
-        disp('Error during postRequestAsync:');
-        disp(ME.message);
-    end
-    
-    disp('--- postRequestAsync Test Completed ---');
-end
-
-
-function debug_serializeDeserialize()
-
-    Client = api.ClientBase();
-
-    % Example MATLAB object
-    myStruct = struct('name', 'MATLAB', 'value', 42);
-    
-    % Serialize to Base64
-    encodedData = Client.serializeToBase64(myStruct);
-    disp('Serialized Base64 Data:');
-    disp(encodedData);
-
-
-    % Deserialize from Base64
-    decodedStruct = Client.deserializeFromBase64(encodedData);
-    disp('Deserialized MATLAB Object:');
-    disp(decodedStruct);
-    
-end
-
-
-function debug_sendFiles()
-
-    url = 'https://example.com/upload';
-    
-    % Array of file paths
-    filePaths = {
-        'path/to/large_file1.bin', ...
-        'path/to/large_file2.bin', ...
-        'path/to/large_file3.bin'
-    };
-    
-    % Parameters to include in the request
-    params = struct('username', 'JohnDoe', 'description', 'Multi-file upload test');
-    
-    % Send the files and parameters
-    sendFilesWithParams(url, filePaths, params);
-
-end
-
 

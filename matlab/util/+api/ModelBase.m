@@ -1,31 +1,98 @@
-classdef ModelBase  % Do we need handle??? < handle
+%==========================================================================
+% ULTRASAT 
+%
+% File:   ModelBase.m
+% Author: Chen Tishler
+% Created: 01/12/2024
+% Updated: 11/02/2025
+%
+%==========================================================================
+
+classdef ModelBase
     % ModelBase - Base class for individual models.
+    % This class serves as a foundation for data models used in the 
+    % ULTRASAT observation planner. It mimics the behavior of Python's 
+    % Pydantic BaseModel by structuring data as MATLAB structs.
+    %
+    % Key Features:
+    % - Stores data as a structured MATLAB struct (`Data` property).
+    % - Provides methods for JSON serialization and display.
+    % - Includes utility functions for cleaning struct fields.
+    % 
+    % This class is typically used with `ModelFactoryBase`, which 
+    % generates struct instances for FastAPI requests.
     
     properties (Access = public)
         Data % Struct containing the public fields of the model
     end
-    
+
+
     methods
         function obj = ModelBase(data)
             % Constructor for ModelBase
+            %
+            % Initializes the model with the given data structure.
+            %
+            % :param data: A MATLAB struct containing model fields.
+            % :return: An instance of ModelBase with stored data.
             obj.Data = data;
         end
-        
+
+
         function jsonStr = toJson(obj)
-            % Converts the Data property to a JSON string
-            jsonStr = jsonencode(obj.Data);
+            % Converts the Data property to a JSON string, converting datetime fields
+            jsonStr = api.ModelBase.struct2json(obj.Data);
         end
-        
+
+
         function show(obj)
-            % Display the current Data
+            % Displays the current model data in the console
+            %
+            % Prints the structured data stored in the model instance.
             disp('Model Data:');
             disp(obj.Data);
         end
     end
 
+    % ---------------------------------------------------------------------
+
     methods (Static)
+
+        function jsonStr = struct2json(Data)
+            % Converts the Data property to a JSON string, converting datetime fields
+            jsonReadyData = api.ModelBase.convertDatetimeToString(Data);
+            jsonStr = jsonencode(jsonReadyData);    
+        end
+
+
+        function jsonStruct = json2struct(jsonStr)
+            % Converts JSON string to struct, decode timestamp strings to
+            % MATLAB's datetime type.
+            %
+            % :return: struct
+            decodedStruct = jsondecode(jsonStr);
+            jsonStruct = api.ModelBase.convertStringToDatetime(decodedStruct);
+        end        
+
+
+        function Model = fromJson(jsonStr)
+            % Converts the JSON string to new instance of ModelBase
+            % (settings its Data property)
+            %
+            % :return: New instance of BaseModel class
+            Model = api.ModelBase([]);
+            Model.Data = api.ModelBase.json2struct(jsonStr);
+        end        
+
+
         function cleanedData = removeEmptyFields(data)
-            % Recursively remove fields with empty values from a struct
+            % Recursively removes fields with empty values from a struct
+            %
+            % This function ensures that only non-empty fields are 
+            % included in the final struct. It also handles nested structs.
+            %
+            % :param data: A MATLAB struct with possible empty fields.
+            % :return: A new struct with empty fields removed.
             fields = fieldnames(data);
             cleanedData = struct();
             for i = 1:numel(fields)
@@ -44,7 +111,65 @@ classdef ModelBase  % Do we need handle??? < handle
 
 
         function result = isoFormat(dt)
+            % Converts a MATLAB datetime object to ISO 8601 format
+            %
+            % :param dt: A MATLAB datetime object.
+            % :return: A string in the format 'YYYY-MM-DDTHH:MM:SS.FFFZ'.
             result = datestr(dt, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
         end
+
+   
+        function data = convertDatetimeToString(data)
+            % Recursively converts all datetime fields in a struct to ISO strings
+            %
+            % :param data: Struct containing datetime fields.
+            % :return: Struct with datetime fields converted to ISO format.
+    
+            if isstruct(data)
+                fields = fieldnames(data);
+                for i = 1:numel(fields)
+                    fieldName = fields{i};
+                    value = data.(fieldName);
+                    if isdatetime(value)
+                        data.(fieldName) = datestr(value, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
+                    elseif isstruct(value)
+                        data.(fieldName) = api.ModelBase.convertDatetimeToString(value);
+                    end
+                end
+            end
+        end
+    
+
+        function data = convertStringToDatetime(data)
+            % Recursively converts all ISO datetime strings in a struct to datetime objects
+            %
+            % :param data: Struct containing ISO datetime strings.
+            % :return: Struct with datetime strings converted back to datetime.
+    
+            if isstruct(data)
+                fields = fieldnames(data);
+                for i = 1:numel(fields)
+                    fieldName = fields{i};
+                    value = data.(fieldName);
+                    if ischar(value) && contains(value, 'T') % Heuristic for ISO timestamps
+                        try
+                            data.(fieldName) = datetime(value, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''');
+                        catch
+                            % If conversion fails, keep original string
+                        end
+                    elseif isstruct(value)
+                        data.(fieldName) = api.ModelBase.convertStringToDatetime(value);
+                    end
+                end
+            end
+        end
+        
+
+        function isEqual = cmpstruct(A, B)
+            % Compare two structs by converting them to JSON string, to
+            % avoid MATLAB's non-equality when using isequal()
+            isEqual = strcmp(jsonencode(orderfields(A)), jsonencode(orderfields(B)));
+        end
+
     end
 end

@@ -1,3 +1,15 @@
+%==========================================================================
+% ULTRASAT 
+%
+% File:   debug_ModelFactoryBase.m
+% Author: Chen Tishler
+% Created: 01/12/2024
+% Updated: 11/02/2025
+%==========================================================================
+%
+% Debug function for api.ModelFactoryBase class
+% Run by: api.debug_ModelFactoryBase()
+%
 
 function debug_ModelFactoryBase()
     % Debugging function for the ModelFactoryBase class
@@ -15,17 +27,25 @@ function debug_ModelFactoryBase()
     disp(sampleStruct);
     
     % Convert the struct to JSON using the toJson method
-    jsonStr = api.ModelFactoryBase.toJson(sampleStruct);
+    jsonStr = api.ModelBase.struct2json(sampleStruct);
     disp('JSON Representation of Struct:');
     disp(jsonStr);
     
     % Parse the JSON back into a MATLAB structure for validation
     decodedStruct = jsondecode(jsonStr);
     disp('Decoded Struct from JSON:');
-    disp(decodedStruct);
-    
+    disp(decodedStruct);   
+
+    % Parse the JSON back into a MATLAB structure for validation
+    decodedStruct = api.ModelBase.json2struct(jsonStr);
+    disp('Decoded Struct from JSON:');
+    disp(decodedStruct);   
+
+    % Convert the timestamp field back to datetime
+    % decodedStruct.Timestamp = datetime(decodedStruct.Timestamp, 'InputFormat', 'dd-MMM-yyyy HH:mm:ss');
+
     % Validate the output matches the original input
-    isEqual = isequal(sampleStruct, decodedStruct);
+    isEqual = strcmp(jsonencode(sampleStruct), jsonencode(decodedStruct));
     if isEqual
         disp('Validation Successful: The decoded struct matches the original.');
     else
