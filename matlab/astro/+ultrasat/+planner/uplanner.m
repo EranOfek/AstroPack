@@ -1897,12 +1897,17 @@ classdef uplanner < Component
                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
-                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);
-                    upAllSS.EndTime   = upAllSS.StartTime + days(7);
+                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);                   
+                    BufferEarthDist   = 0.5;
+                    DailyWindowMaxDuration = hours(5.5);
                     
-                    upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
+%                     upAllSS.EndTime        = upAllSS.StartTime + days(7);
+%                     DailyWindowMaxDuration = hours(24);
+%                     BufferEarthDist        = 3.0;
+                    
+                    upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',DailyWindowMaxDuration,...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
-                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.0,...
+                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',BufferEarthDist,...
                                        'DistributeDitheredPoint',true,'DitherLeg',3.0,...
                                        'EmptyDay',false,'MergeSameTargets',false);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
