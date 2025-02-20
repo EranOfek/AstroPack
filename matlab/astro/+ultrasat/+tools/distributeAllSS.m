@@ -31,7 +31,7 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         Args.FieldNames     = [];
         Args.Verbose        = true;
     end
-    %
+    % 
     [TotalSlots, NPoints] = size(Limits);  % determine the total numbers of slots and points
     NDays                 = floor(TotalSlots/DailySlots); 
     

@@ -1898,6 +1898,7 @@ classdef uplanner < Component
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
                     upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);
+%                     upAllSS.EndTime   = upAllSS.StartTime + days(7);
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
                                        'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
@@ -1906,6 +1907,7 @@ classdef uplanner < Component
                                        'EmptyDay',false,'MergeSameTargets',false);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
+                    % note the "Incomplete" variable in buildAllSS
                     if Args.Verbose
                         fprintf('completed\n');
                         fprintf('-------------------------\n');
