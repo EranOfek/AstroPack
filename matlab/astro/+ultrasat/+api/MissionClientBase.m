@@ -31,14 +31,23 @@ classdef MissionClientBase < handle
         SessionKey      %
         ApiUrl          %
         PlanData        % instance of ultrasat.api.PlanData
+        LogFileName
     end
 
 
     methods
         function obj = MissionClientBase(Args)
             arguments          
-                Args.SubUrl = '/mission';  % planner_backend  
+                Args.SubUrl = '/mission';  % planner_backend
+                Args.LogFileName 
             end
+
+            if isempty(Args.LogFileName)
+                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);  
+                obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
+            else
+                obj.LogFileName = Args.LogFileName;
+            end 
 
             % Call parent class constructor
             %ArgsCell = namedargs2cell(Args);

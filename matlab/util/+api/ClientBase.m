@@ -24,11 +24,12 @@ classdef ClientBase < handle
     % interact with various FastAPI services.
     
     properties
-        BaseUrl         % Base URL of the API
-        SubUrl          % Service-specific URL path
-        ApiUrl          % Full API endpoint URL
-        ApiKey          % API Key for authentication
-        Timeout = 30;   % Timeout for HTTP requests (seconds)
+        BaseUrl             % Base URL of the API
+        SubUrl              % Service-specific URL path
+        ApiUrl              % Full API endpoint URL
+        ApiKey              % API Key for authentication
+        Timeout = 30;       % Timeout for HTTP requests (seconds)
+        LogFileName
     end
 
     methods
@@ -45,12 +46,20 @@ classdef ClientBase < handle
             % :return: An instance of ClientBase.
             
             arguments          
-                Args.BaseUrl    = getenv('SOC_API_BASE');       
-                Args.SubUrl     = '';                          
-                Args.ApiKey     = getenv('SOC_API_KEY');           
-                Args.Timeout    = getenv('SOC_API_TIMEOUT');    
+                Args.BaseUrl        = getenv('SOC_API_BASE');       
+                Args.SubUrl         = '';                          
+                Args.ApiKey         = getenv('SOC_API_KEY');           
+                Args.Timeout        = getenv('SOC_API_TIMEOUT');
+                Args.LogFileName
             end
         
+            if isempty(LogFileName)
+                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);  
+                obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
+            else
+                obj.LogFileName = LogFileName;
+            end 
+
             % Assign default timeout if environment variable is invalid
             if isempty(Args.Timeout)
                 Args.Timeout = 30; 
@@ -230,10 +239,7 @@ classdef ClientBase < handle
             % Logs a formatted message to the console.
             %
             % :param varargin: Formatted message arguments.
-            
-            fprintf('Client: ');
-            fprintf(varargin{:});
-            fprintf('\n');
+            api.ApiUtils.msglog(obj.LogFileName, 'ClientBase', varargin{:});
         end
 
     end
