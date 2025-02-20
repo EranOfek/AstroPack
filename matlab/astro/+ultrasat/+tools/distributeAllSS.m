@@ -268,8 +268,6 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     SrcNum = [];
     SrcNumbers = [];
     % find the 4 points by the major number 
-%     PointNum = floor(str2double(Tab.FieldNames(Ip)));
-%     Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
     Ind = find( Tab.FieldNum == Tab.FieldNum(Ip) );
     % try 4 windows containing StartSlot: 
     if StartSlot+3 < size(Vis,1)+1

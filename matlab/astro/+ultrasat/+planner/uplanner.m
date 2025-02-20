@@ -597,8 +597,7 @@ classdef uplanner < Component
                     else
                         UniqTargets = DailyTab.Points{IDay};
                         Nexp = repmat(Obj.DefEpochsPerVisit,1,numel(UniqTargets));
-                    end
-                 
+                    end                 
                     % split the target list into parts according to positions of the 0s:
                     Ind0 = find(UniqTargets<1); % find all the zeros
                     if isempty(Ind0) % no zeros = no holes 
@@ -615,7 +614,6 @@ classdef uplanner < Component
                             else
                                 T1 = Ind0(ii-1)+1;   T2 = Ind0(ii)-1;
                             end
-%                             fprintf('%d: %d %d \n',ii, T1,T2)
                             if T2 >= T1 % there are some targets between T1 and T2
                                 Obj.scheduleTargets(UniqTargets(T1:T2),...
                                     datetime(Obj.Vis.JD(Ind+T1-1),'ConvertFrom','juliandate','TimeZone','UTC'),...
