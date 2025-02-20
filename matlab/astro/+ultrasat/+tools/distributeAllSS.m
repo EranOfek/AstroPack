@@ -12,6 +12,7 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     %          'AllowPartial' - allow scheduling even if some of the visits cannot be placed
     %          'MaxBranch'    - maximal number of branches allowed: 
     %                           if AllowPartial is true, give up for the current point after MaxBranch branches 
+    %          'FieldNames'   - names of sky points (needed to know thati each 4 dithered points should be observed in a row)
     % Output : - the schedule: point numbers per each bin or 0
     %          - the sorted table of points where the number of filled visits is indicated
     %          - the index of the original point number in the sorted table
@@ -30,7 +31,7 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
         Args.FieldNames     = [];
         Args.Verbose        = true;
     end
-    %
+    % 
     [TotalSlots, NPoints] = size(Limits);  % determine the total numbers of slots and points
     NDays                 = floor(TotalSlots/DailySlots); 
     
@@ -49,21 +50,17 @@ function [DailyTab, PointTabSorted, Ind, LinearSchedule] = distributeAllSS(Limit
     FreeSlots = sum(Limits,1); % number of free slots for each point (used for prioritizing points)    
     
     PointTab = table(FieldNames,SrcVisits, FilledVisits, FreeSlots',(1:NPoints)',FieldNum,...
-        'VariableNames', {'FieldNames','Visits','Filled','FreeSlots','PointNum','FieldNum'});
-    
+        'VariableNames', {'FieldNames','Visits','Filled','FreeSlots','PointNum','FieldNum'});    
     % sort points by the total number of free slots so that the points with
     % less number of free slots are distributed first 
-    [PointTabSorted, Ind] = sortrows(PointTab,{'FreeSlots'}); 
-    
-    tic
-    
+    [PointTabSorted, Ind] = sortrows(PointTab,{'FreeSlots'});     
+                                            tic    
     [LinearSchedule, PointTabSorted] = greedyRec_v2(Limits, PointTabSorted, Ind, DailyVisits, DailySlots, NDays,...
                                      'MinIntervals', Args.MinIntervals, 'Jump', Args.Jump, ...
                                      'AllowPartial', Args.AllowPartial, 'MaxBranch', Args.MaxBranch,...
                                      'Verbose', Args.Verbose);
-    
-    fprintf('Scheduling time: %.0f s \n', toc);
-    
+                                 
+                                            fprintf('Scheduling time: %.0f s \n', toc);    
     % check that all the scheduled points are visible 
     ScheduledVisits = sum(LinearSchedule > 0);
     ValidVisits = 0;
@@ -122,7 +119,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
     while Ip < Np % main loop by sky points
         Ip = Ip+1; 
         % try to settle the next point: if it is not possible, go to the previous point and choose the next branch    
-        
+        % (currently branching is switched off, because with the dithering the "previous point" is not well defined
         if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been scheduled 
             fprintf('step %d point %d already scheduled, skipping\n',Ip, Ind(Ip));
             continue
@@ -177,7 +174,6 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                 if Nvis == 4
                     [SrcNum4, Slots4, Shift] = settle4points(Ip, Slots, Tab, Limits, Ind);
                     if isempty(SrcNum4)
-%                         fprintf('Point %d, StartSlot: %d: could not settle the dither\n',Ip,Slots);
                         LastTriedSlot = min(Slots);
                         continue
                     else
@@ -187,26 +183,26 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
                     Shift = 0;
                 end
                 LastTriedSlot = min(Slots)+Shift; % the shift is essential when the slots before LastTriedSlot are allocated (see settle4points)                
-                % check if the found slots are available, otherwise look for the next opportunity
+                % check a) if the found slots fit in 1 day and b) if the daily block does not exceed SlotsPerDay,
+                % otherwise look for the next opportunity
                 [Day, IntSlots] = daySlot(Slots,DailySlots);
                 if Day(end)-Day(1) == 0 % the set fits in 1 day
                     Day1 = Day(1);
                     SlMin = min(Start(Day1),min(IntSlots));
                     SlMax = max(Stop(Day1),max(IntSlots));
                     AttemptedBlockLength = SlMax-SlMin+1;
-%                     fprintf('trying day %d, slots %d-%d ... \n',Day1,min(IntSlots),max(IntSlots));
                     if all(Schedule( Slots ) == 0) && AttemptedBlockLength <= DailyVisits % the observation block does not exceed SlotsPerDay slots
                         if Nvis == 4
-                            Schedule( Slots ) = Ind(SrcNum4); % fill the Schedule with 4 type 2 point numbers 
+                            Schedule( Slots ) = Ind(SrcNum4); % 4 type 2 points
                         else
-                            Schedule( Slots ) = SrcNum; % fill the Schedule with 2 type 1 point numbers
+                            Schedule( Slots ) = SrcNum;       % 2 type 1 points
                         end                        
                         Start(Day1) = SlMin;
                         Stop (Day1) = SlMax;
-                        if Nvis == 4
+                        if Nvis == 4 % 4 type 2 points
                             Tab.Filled(SrcNum4) = Tab.Filled(SrcNum4) + VisPerDay;
-                        else
-                            Tab.Filled(Ip) = Tab.Filled(Ip) + VisPerDay;
+                        else % type 1 point
+                            Tab.Filled(Ip)      = Tab.Filled(Ip)      + VisPerDay;
                         end
                         %
                         if Tab.Filled(Ip) == Nvis/4     % move the next available slot to today+Args.MinIntervals(1)
@@ -268,8 +264,6 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     SrcNum = [];
     SrcNumbers = [];
     % find the 4 points by the major number 
-%     PointNum = floor(str2double(Tab.FieldNames(Ip)));
-%     Ind = find( floor(str2double(Tab.FieldNames))==PointNum );
     Ind = find( Tab.FieldNum == Tab.FieldNum(Ip) );
     % try 4 windows containing StartSlot: 
     if StartSlot+3 < size(Vis,1)+1
@@ -298,6 +292,10 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     end    
     if ~isempty(SrcNumbers)        
         SrcNum = Ind(SrcNumbers);
+        % validity check (for the case of error in bipartite matching)
+        if Vis4(1,SrcNumbers(1))+Vis4(2,SrcNumbers(2))+Vis4(3,SrcNumbers(3))+Vis4(4,SrcNumbers(4)) < 4 
+            SrcNum = [];
+        end
     end
 end
 
@@ -342,4 +340,5 @@ function matching = find_bipartite_matching(A)
         matching = final_matching;
     end
 end
+
 
