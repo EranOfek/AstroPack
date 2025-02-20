@@ -298,6 +298,10 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     end    
     if ~isempty(SrcNumbers)        
         SrcNum = Ind(SrcNumbers);
+        % validity check (for the case of error in bipartite matching)
+        if Vis4(1,SrcNumbers(1))+Vis4(2,SrcNumbers(2))+Vis4(3,SrcNumbers(3))+Vis4(4,SrcNumbers(4)) < 4 
+            SrcNum = [];
+        end
     end
 end
 
@@ -342,4 +346,5 @@ function matching = find_bipartite_matching(A)
         matching = final_matching;
     end
 end
+
 
