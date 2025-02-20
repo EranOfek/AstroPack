@@ -124,7 +124,8 @@ classdef uplanner < Component
         AllSSHighLatThresh  double      = 30; % |b| [deg]
         HighLatVisits       uint8       = 16; % 1 visit = 3 x 300 s 
         LowLatVisits        uint8       =  2;      
-        DitherPattern                   = '2x2';
+        DitherPattern                   = '2x2'; % not used as of yet
+        Unscheduled                              % a table of unscheduled AllSS points left over a run of buildAllSS
         
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
@@ -580,7 +581,7 @@ classdef uplanner < Component
             if ScheduledVisits < VisitsToSchedule
                 Incomplete = PointTabSorted.Visits>PointTabSorted.Filled;
                 fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)
-                PointTabSorted(Incomplete,:)                 
+                Obj.Unscheduled = PointTabSorted(Incomplete,:)                  
             end
             
             % for each of the pre-scheduled days run the actual scheduler accounting for real retargeting times 
@@ -1898,15 +1899,20 @@ classdef uplanner < Component
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
                     upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);                   
+                    ExtraGalMinIntervals = [1 2 4];
                     BufferEarthDist   = 0.5;
                     DailyWindowMaxDuration = hours(5.5);
                     
 %                     upAllSS.EndTime        = upAllSS.StartTime + days(7);
 %                     DailyWindowMaxDuration = hours(24);
 %                     BufferEarthDist        = 3.0;
+%                     % currently distributeAllSS cannot work with reduced
+%                     % number of extragalactic visits, need to be improved 
+% %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week? 
+            
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',DailyWindowMaxDuration,...
-                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
+                                       'ExtraGalMinIntervals',ExtraGalMinIntervals,'AllowPartial',true,'Verbose',true,...
                                        'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',BufferEarthDist,...
                                        'DistributeDitheredPoint',true,'DitherLeg',3.0,...
                                        'EmptyDay',false,'MergeSameTargets',false);
