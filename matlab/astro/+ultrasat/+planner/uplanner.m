@@ -1899,13 +1899,14 @@ classdef uplanner < Component
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
                     upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);                   
-                    ExtraGalMinIntervals = [1 2 4];
+                    ExtraGalMinIntervals = [1 3 9]; % [1 2 4] [1 3 9]
                     BufferEarthDist   = 0.5;
                     DailyWindowMaxDuration = hours(5.5);
                     
 %                     upAllSS.EndTime        = upAllSS.StartTime + days(7);
 %                     DailyWindowMaxDuration = hours(24);
 %                     BufferEarthDist        = 3.0;
+%                     ExtraGalMinIntervals   = [0 0 0];
 %                     % currently distributeAllSS cannot work with reduced
 %                     % number of extragalactic visits, need to be improved 
 % %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week? 
