@@ -1256,6 +1256,7 @@ classdef uplanner < Component
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0); 
 
             if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+                fprintf('Target %d, JDstart %.2f\n',Obj.Plan.UniqTargInd(Plan_row),Obj.Plan.JDstart(Plan_row))
                 error('Issue with Sun/Earth/Moon limits');
             end
 
