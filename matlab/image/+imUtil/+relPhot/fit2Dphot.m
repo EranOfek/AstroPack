@@ -31,6 +31,9 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
     %                   from data. Default is [].
     %            'Color' - An array with "color" information to add to the
     %                   fit. Default is [].
+    %            'Camera' - A ector of "camera index" per source. Sources
+    %                   with the same camera index will have a common zero
+    %                   point. If empty, then do not add. Default is [].
     %            'SolveMethod' - Fitting method:
     %                   '\' - use baclash, no weights and errors.
     %                   'lscov' - use lscov.
@@ -55,6 +58,7 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
         Args.NormCoo           = true;
         Args.NormCooRange      = [];  % [1 1726 1 1726];
         Args.Color             = []; % columns of "colors"
+        Args.Camera            = [];
         Args.SolveMethod       = 'lscov';  % '\' | 'lscov'
         Args.SigmaClip         = [-3 3];
         Args.Niter             = 2;
@@ -124,6 +128,16 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
         H      = [H, Hcolor];
     end
     
+    if ~isempty(Args.Camera)
+        % camera index per source
+        UnInd = unique(Args.Camera);
+        Nind  = numel(UnInd);
+        Hcam  = zeros(Nsrc, Nind);
+        for Iind=1:1:Nind
+            Hcam(:,Iind) = double(UnInd(Iind)==Args.Camera);
+        end
+        H = [H, Hcam];
+    end
     
     for Iiter=1:1:Args.Niter
         switch Args.SolveMethod
