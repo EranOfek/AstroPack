@@ -129,7 +129,7 @@ classdef uplanner < Component
         
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
-        TOOWindowDuration  duration     =  hours(3);       % [hrs]
+        TOOWindowDuration  duration     =  hours(3);        % [hrs]
         %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
         %TOOProbMap                                 % Unused for now - check if needed later 
         
@@ -420,7 +420,8 @@ classdef uplanner < Component
             end
             
             % Check visibility and shift the window if needed            
-            if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
+%             if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
+            if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits,'all')
                 fprintf('Visibility issue: immediate observation is not possible\n');              
                 % scan 6 months ahead and find the first occurence of an Obj.TOOWindowDuration window:
                 Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + calmonths(6)]; 
@@ -1846,6 +1847,7 @@ classdef uplanner < Component
                     upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
                     if Args.Verbose
+                        fprintf('%d exposures scheduled\n',height(upTOO.Plan));
                         fprintf('completed\n');
                         fprintf('-------------------------\n');
                     end                    
@@ -1859,7 +1861,8 @@ classdef uplanner < Component
                     upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
                     upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
                                     'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0});            
+                                    'DrawMaps',0},'TOOWindowDuration',hours(3));            
+                                fprintf('%d exposures scheduled\n',height(upTOO1.Plan));
                                 fprintf('-------------------------\n');
                     MaxTarg = 100; MinProb = 0.9; 
                     if Args.Verbose
@@ -1870,7 +1873,8 @@ classdef uplanner < Component
                     upTOO2 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
                     upTOO2.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
                                     'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0}); 
+                                    'DrawMaps',0},'TOOWindowDuration',hours(5)); 
+                                fprintf('%d exposures scheduled\n',height(upTOO2.Plan));
                                 fprintf('-------------------------\n');
                 end
                 %
@@ -1910,8 +1914,7 @@ classdef uplanner < Component
 %                     ExtraGalMinIntervals   = [0 0 0];
 %                     % currently distributeAllSS cannot work with reduced
 %                     % number of extragalactic visits, need to be improved 
-% %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week? 
-            
+% %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week?             
                     
                     upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',DailyWindowMaxDuration,...
                                        'ExtraGalMinIntervals',ExtraGalMinIntervals,'AllowPartial',true,'Verbose',true,...
