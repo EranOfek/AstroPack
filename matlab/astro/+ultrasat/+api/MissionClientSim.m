@@ -15,13 +15,15 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
     
     properties
         DbPath          %
+        Validator
     end
 
 
     methods
         function obj = MissionClientSim(Args)
             arguments          
-                Args.SubUrl = '/mission';  % planner_backend  
+                Args.SubUrl         = '/mission';  % planner_backend  
+                Args.LogFileName
             end
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
@@ -37,6 +39,9 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
             end
+
+            % Create an instance of ValidatorSim
+            obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
         end        
         
 
@@ -261,14 +266,11 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = validatePlan(obj, Plan)
             % Validates the observation plan using the ValidatorSim class.
             obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
-        
-            % Create an instance of ValidatorSim
-            validator = ultrasat.api.ValidatorSim();
-        
+               
             Plan = obj.convertPlanTimesToUtc(Plan);
 
             % Call validateTargets with the provided Plan (array of structs)
-            response = validator.validateTargets(Plan);
+            response = obj.Validator.validateTargets(Plan);
         
             if isfield(response, 'task') && isfield(response.task, 'status')
                 obj.msglog('Validation status: %s', response.task.status);

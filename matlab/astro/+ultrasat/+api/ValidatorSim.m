@@ -7,11 +7,29 @@
 % Updated: 17/02/2025
 %
 %==========================================================================
+% https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
 classdef ValidatorSim < handle
+
+    properties
+        DbFilePath          % JSON file to store validation history
+        LogFileName         %
+    end
+
+
     methods
-        function obj = ValidatorSim()
+        function obj = ValidatorSim(DbFilePath, LogFileName)
             % Constructor for ValidatorSim
+
+            obj.DbFilePath = DbFilePath;
+            obj.LogFileName = LogFileName;
+
+            % Ensure the JSON file exists
+            if ~isfile(obj.DbFilePath)
+                fid = fopen(obj.DbFilePath, 'w');
+                fwrite(fid, jsonencode(struct('validations', {})), 'char');
+                fclose(fid);
+            end            
         end
         
 
@@ -31,6 +49,9 @@ classdef ValidatorSim < handle
                 'targets', obj.generateTargetResults(targets) ...
             );
             obj.msglog('Validation completed successfully.');
+
+            % Save to validations database
+            obj.appendValidationToDb(targets, response);            
         end
 
 
@@ -55,6 +76,36 @@ classdef ValidatorSim < handle
         end
 
 
+        function appendValidationToDb(obj, targets, response)
+            % Appends validation request and response to the JSON log file.
+
+            % Load existing log
+            fid = fopen(obj.DbFilePath, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            logData = jsondecode(char(raw'));
+
+            % Assign serial number
+            validationSerial = numel(logData.validations) + 1;
+            validationEntry = struct(...
+                'serial', validationSerial, ...
+                'timestamp', datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
+                'input', targets, ...
+                'output', response ...
+            );
+
+            % Append to log
+            logData.validations{end+1} = validationEntry;
+
+            % Save updated log
+            fid = fopen(obj.DbFilePath, 'w');
+            fwrite(fid, jsonencode(logData, 'PrettyPrint', true), 'char');
+            fclose(fid);
+
+            obj.msglog('Validation %d saved to log file.', validationSerial);
+        end        
+
+
         function status = getRandomStatus(obj)
             % Randomly select a status for the target.
             statuses = {'approved', 'not_approved', 'approved_warning'};
@@ -64,10 +115,8 @@ classdef ValidatorSim < handle
 
 
         function msglog(obj, varargin)
-            % Logs a formatted message to the console.
-            fprintf('ValidatorSim: ');
-            fprintf(varargin{:});
-            fprintf('\n');
+            % Logs a formatted message
+            api.ApiUtils.msglog(obj.LogFileName, 'ValidatorSim', varargin{:});
         end
     end
 end

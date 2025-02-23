@@ -36,8 +36,7 @@ classdef AppUtils < handle
             if nargin < 3
                 Title = 'Message'; % Default title
             end                        
-            %uialert(App.UIFigure, Msg, Title, 'Icon', 'success');
-            disp(Msg);
+            uialert(App.UIFigure, Msg, Title, 'Icon', 'success');            
         end
 
 

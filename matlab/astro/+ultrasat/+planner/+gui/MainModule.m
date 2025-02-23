@@ -13,6 +13,7 @@ classdef MainModule < handle
     
     properties
         ApiClient               % MissionClient/MissionClientSim instance
+        Preferences             % ultrasat.planner.gui.Preferences()
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
@@ -20,7 +21,8 @@ classdef MainModule < handle
         PlanType                % Current plan type: HCS, LCS, AllSS, DDT, TOO (= ultrasat.planner.uplanner.Type)
         Planner                 % instance of ultrasat.planner.uplanner
         PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
-        ReadOnly                %
+        ReadOnly                % = ~AllowEdit
+        AllowEdit               % = ~ReadOnly
 
         % Status
         StatusText              % Status text for display        
@@ -39,8 +41,10 @@ classdef MainModule < handle
         %
         Modified = false;       % True after data is being modified        
         AfterBuild = false;     %
+        PlannerPath             %
         DebugPath               % Folder of debug files, such as saved .mat files
         BaseDataDir             % uplanner constructor param
+        LogFileName             %
     end
     
 
@@ -48,22 +52,39 @@ classdef MainModule < handle
         function obj = MainModule()
             % Constructor
             disp('app.MainModule');
-
-            % Setup ApiClient %%%%%
-            obj.ApiClient = ultrasat.api.MissionClientSim();
-            obj.ApiClient.ApiUrl = 'http://localhost:8215';
-            
+                       
             % Temporary solution, @Todo @Yossi
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
-            obj.DebugPath = '~/matlab/data/ULTRASAT/debug/';
+            obj.PlannerPath = '~/matlab/data/ULTRASAT/Planner/';
             if ispc
                 obj.BaseDataDir =  'C:/AstroPack/Data/ULTRASAT/';
-                obj.DebugPath = 'C:/Temp/_planner';                
+                obj.PlannerPath = 'C:/Temp/_planner';                
             end
 
-            if ~exist(obj.DebugPath, 'dir')
-                mkdir(obj.DebugPath);
-            end            
+            if ~exist(obj.PlannerPath, 'dir')
+                mkdir(obj.PlannerPath);
+            end
+            obj.DebugPath = obj.PlannerPath;  %fullfile(obj.PlannerPath, 'debug');
+            obj.LogFileName = fullfile(obj.PlannerPath, 'planner.log');
+            obj.msglog('MainModule started');
+
+            %
+            PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
+            obj.Preferences = ultrasat.planner.gui.Preferences(PreferencesFileName);  %fullfile(obj.PlannerPath, 'preferences.json'));
+            obj.Preferences.load();
+
+            % Setup ApiClient %%%%%
+            UseSim = true;
+            if UseSim
+                obj.msglog('Creating ApiClient as api.MissionClientSim');
+                obj.ApiClient = ultrasat.api.MissionClientSim('LogFileName', obj.LogFileName);
+            else
+                obj.msglog('Creating ApiClient as api.MissionClient');
+                obj.ApiClient = ultrasat.api.MissionClient('LogFileName', obj.LogFileName);
+                obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
+            end
+
+            obj.msglog('MainModule created successfully');
         end
 
 
@@ -297,23 +318,14 @@ classdef MainModule < handle
         %
         % =================================================================        
 
-        function msglog(obj, msg)
-            % Log message to console % file @Todo
-            timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-            msg = sprintf('%s - %s', timestamp, msg);
-            fprintf('%s\n', msg);
-
-            if ~isempty(obj.LoggerApp)
-                try
-                    obj.LoggerApp.logMsg(msg);
-                catch ME
-                end
-            end
+        function msglog(obj, varargin)
+            %
+            api.ApiUtils.msglog(obj.LogFileName, 'Planner', varargin{:});
         end
 
-        function msgex(obj, s, ME)
+        function msgex(obj, msg, ME, varargin)
             % Log exception with message
-            obj.msglog(sprintf('Exception: %s - %s', s, ME.message));
+            api.ApiUtils.logException(obj.LogFileName, sprintf('Planner: %s', msg), ME, false, varargin{:});
         end      
 
         % =================================================================

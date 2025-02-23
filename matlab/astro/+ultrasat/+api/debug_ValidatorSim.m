@@ -4,7 +4,7 @@ function debug_ValidatorSim()
     clc;
     fprintf('=== Debugging ValidatorSim ===\n');
 
-    validator = ultrasat.api.ValidatorSim();
+    validator = ultrasat.api.ValidatorSim('./sim/debug_validator.json');
 
     % Create a sample list of targets
     targets = createSampleTargets();
