@@ -135,7 +135,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagRinging logical = true;
 
         Args.flagPeakDist logical = true;
-        Args.PeakDistThreshold = 1.6;
+        Args.PeakDistThreshold = 1.0;
 
         Args.flagLimitingMag logical = true;    
         Args.LimitingMagOverwriteVal = NaN;
@@ -414,8 +414,8 @@ function TranCat = flagNonTransients(Obj, Args)
             NFWHM = Obj(Iobj).New.PSFData.fwhm;
             RFWHM = Obj(Iobj).Ref.PSFData.fwhm;
 
-            X2 = Cat.getCol('X2');
-            Y2 = Cat.getCol('Y2');
+            X2 = Cat.getCol('N_X2');
+            Y2 = Cat.getCol('N_Y2');
             
             X2Y2 = [X2(:),Y2(:)];
 
