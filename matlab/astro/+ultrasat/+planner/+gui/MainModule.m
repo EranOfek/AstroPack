@@ -14,6 +14,7 @@ classdef MainModule < handle
     properties
         ApiClient               % MissionClient/MissionClientSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
+        PreferencesFileName     %
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
@@ -69,8 +70,8 @@ classdef MainModule < handle
             obj.msglog('MainModule started');
 
             %
-            PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
-            obj.Preferences = ultrasat.planner.gui.Preferences(PreferencesFileName);  %fullfile(obj.PlannerPath, 'preferences.json'));
+            obj.PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
+            obj.Preferences = ultrasat.planner.gui.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
             % Setup ApiClient %%%%%
@@ -378,6 +379,7 @@ classdef MainModule < handle
             app.Tile4CheckBox.Value = false;
         
             % Update based on Tiles string
+            Tiles = char(Tiles);
             for tile = Tiles
                 switch tile
                     case '1', app.Tile1CheckBox.Value = true;
