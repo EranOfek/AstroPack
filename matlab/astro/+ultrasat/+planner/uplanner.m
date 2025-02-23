@@ -442,22 +442,32 @@ classdef uplanner < Component
                 % scan 6 months ahead and find the first occurence of an Obj.TOOWindowDuration window:
                 Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + calmonths(6)]; 
                 Obj.updateTargetVisibility('TimeBin',Args.TimeBin);
+                Nbins  = ceil(Obj.TOOWindowDuration/days(Args.TimeBin)); 
                 Limits = Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits;
-                CombinedLimits = prod(Limits,2);
-                % find a period of Obj.TOOWindowDuration length where CombinedLimits is 1:
-                Nbins = ceil(Obj.TOOWindowDuration/days(Args.TimeBin)); 
-                Ind   = tools.find.findGroupOfConsecutiveVals(CombinedLimits, 1, Nbins, 1);
-                if ~isempty(Ind)
-                    Obj.StartTime  = datetime(Obj.Vis.JD(Ind(1)),'ConvertFrom','juliandate','TimeZone','UTC');
-                    Obj.EndTime    = datetime(Obj.Vis.JD(Ind(end)),'ConvertFrom','juliandate','TimeZone','UTC');
-                    fprintf('The nearest visibility window is found at %s\n',Obj.StartTime);
+%                 CombinedLimits = prod(Limits,2);
+                % find a period of Obj.TOOWindowDuration length where CombinedLimits is 1:                
+%                 Ind   = tools.find.findGroupOfConsecutiveVals(CombinedLimits, 1, Nbins, 1);
+                for i=1:Obj.TOOUsedTargets
+                    Ind(i,:)   = tools.find.findGroupOfConsecutiveVals(Limits(:,i), 1, Nbins, 1);
+                end
+                if ~isempty(Ind)                    
+%                     Obj.StartTime  = datetime(Obj.Vis.JD(Ind(1)),'ConvertFrom','juliandate','TimeZone','UTC');
+%                     Obj.EndTime    = datetime(Obj.Vis.JD(Ind(end)),'ConvertFrom','juliandate','TimeZone','UTC');                    
+                    StartSlot = min(Ind,[],'all');    % find the earliest slot for 1 target
+                    FirstTarg = find(Ind==StartSlot); % and the target number
+                    Obj.StartTime = datetime(Obj.Vis.JD(StartSlot),'ConvertFrom','juliandate','TimeZone','UTC');
+                    Obj.EndTime   = datetime(Obj.Vis.JD(StartSlot+Nbins-1),'ConvertFrom','juliandate','TimeZone','UTC');
+                    Obj.delUniqTarg(1:Obj.TOOUsedTargets); % remove all the targets and add the nearest one only
+                    Obj.addUniqTargets(RA(FirstTarg), Dec(FirstTarg),'Name',Names(FirstTarg));                    
+                    fprintf('The nearest visibility window is found at %s\n',Obj.StartTime);                    
+                    fprintf('for 1 target covering %.2f probability\n',Obj.TOOCoveredByTarget(FirstTarg));        
                 else
                     error('No visibility window for the TOO can be found within the next 6 months');
                 end
             end
             
             % Loop over the targets within the window
-            NTargets = numel(RA);
+            NTargets = height(Obj.UniqTarg);
             
             MaxTargInWindow = floor(Obj.TOOWindowDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
             
@@ -1879,7 +1889,7 @@ classdef uplanner < Component
                         fprintf('Maximal number of exposures: %d\n',upTOO1.TOOMaxTargets);
                         fprintf('Minimal probability to be covered: %.2f\n',upTOO1.TOOMinCoveredProb);
                     end  
-                    upTOO1.buildTOO('Verbosity',0,'DrawMaps',1);            
+                    upTOO1.buildTOO('Verbosity',0,'DrawMaps',0);            
                                 fprintf('%d exposures scheduled\n',height(upTOO1.Plan));
                                 fprintf('-------------------------\n');
 
@@ -1893,7 +1903,7 @@ classdef uplanner < Component
                         fprintf('Maximal number of exposures: %d\n',upTOO2.TOOMaxTargets);
                         fprintf('Minimal probability to be covered: %.2f\n',upTOO2.TOOMinCoveredProb);
                     end                      
-                    upTOO2.buildTOO('Verbosity',0,'DrawMaps',1);    
+                    upTOO2.buildTOO('Verbosity',0,'DrawMaps',0);    
                                 fprintf('%d exposures scheduled\n',height(upTOO2.Plan));
                                 fprintf('-------------------------\n');
                 end
