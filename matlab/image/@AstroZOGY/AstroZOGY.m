@@ -753,6 +753,8 @@ classdef AstroZOGY < AstroDiff
                 Args.PopSflux logical        = true;
                 
                 Args.PopS_delta logical      = true;
+                Args.DeltaWidth              = 0.1;
+                Args.DeltaStampSize          = [3 3];
                 Args.PopS_ext logical        = false;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
@@ -761,14 +763,14 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                S_hat_I           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                Obj(Iobj).S = imUtil.filter.filter2_fast(...
+                    Obj(Iobj).Image, Obj(Iobj).PSF);
                 
                 if Args.PopS_delta
-                    DeltaPSF = imUtil.kernel2.gauss(0.1, [3 3]);
-                    DeltaPSF  = imUtil.psf.padShift(DeltaPSF, size(Obj(Iobj).Image), ...
-                        'fftshift','fftshift');
-                    DeltaPSF_hat = fft2(DeltaPSF);
-                    Obj(Iobj).S_delta = ifft2(Obj(Iobj).D_hat.*conj(DeltaPSF_hat));
+                    DeltaPSF = imUtil.kernel2.gauss(...
+                        Args.DeltaWidth, Args.DeltaStampSize);
+                    Obj(Iobj).S_delta = imUtil.filter.filter2_fast(...
+                        Obj(Iobj).Image, DeltaPSF);
                 end
 
                 if Args.PopS_ext
@@ -781,9 +783,8 @@ classdef AstroZOGY < AstroDiff
                 end
 
                 if Args.PopS_hat
-                    Obj(Iobj).S_hat = S_hat_I;
+                    Obj(Iobj).S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
                 end
-                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
 
                 if Args.PopSflux
                     Obj(Iobj).Sflux = Obj(Iobj).S;
@@ -796,7 +797,7 @@ classdef AstroZOGY < AstroDiff
                         case 'norm'
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
-                                                                      'Fun2Prob',[],...
+                                                                     'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
                             if Args.PopS_delta
                                 Obj(Iobj).S_delta = imUtil.image.normalize(Obj(Iobj).S_delta, 'PreDef',Args.NormMethod,...
@@ -849,6 +850,7 @@ classdef AstroZOGY < AstroDiff
                 
             end
         end
+
 
         function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Obj, Args)
             % Return kn_hat, kr_hat, kn, kr
