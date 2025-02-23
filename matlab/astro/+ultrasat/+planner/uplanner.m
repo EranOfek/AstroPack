@@ -130,8 +130,14 @@ classdef uplanner < Component
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
         TOOWindowDuration  duration     =  hours(3);        % [hrs]
-        %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
-        %TOOProbMap                                 % Unused for now - check if needed later 
+        TOOMaxTargets         uint8     =  4;               % maximal number of target fields
+        TOOMinAddedProb                 =  0.05;            % minimal covered probability difference between N and N+1 targets employed
+        TOOMinCoveredProb               =  0.9;             % minimal covered probability
+        TOOAlertProbMap                                     % input probability map 
+        
+        TOOUsedTargets                                      % the number of actually employed targets
+        TOOCoveredProb                                      % actually covered probability (all targets)
+        TOOCoveredByTarget                                  % actually covered probability (vector: per target)
         
         N_uniqueTargets     uint16      =  0; % number of unique targets
         N_planTargets       uint16      =  0; % number of targets in the plan
@@ -147,9 +153,9 @@ classdef uplanner < Component
         ScheduledTime           datetime    % date or empty
         ValidatedTime           datetime    % date or empty
         SubmittedTime           datetime    % date or empty
-        Status              char        = 'draft';
+        Status                  char        = 'draft';
         
-        AstPlanner          char        % name of the Astronomer-Planner
+        AstPlanner              char        % name of the Astronomer-Planner
     end
     % 
     properties(Hidden, Constant)
@@ -367,8 +373,7 @@ classdef uplanner < Component
             % Looping over a list of targets within a time window set by TOOStartTime and TOOWindowDuration            
             arguments
                 Obj 
-                Args.Map               = [];
-                Args.CoveragePar       = {'MaxTarg',4,'MinProb',0.5,'Verbosity',0,'DrawMaps',0};
+                Args.Map               = [];                
                 Args.RA                = [];
                 Args.Dec               = [];
                 Args.Name              = {};
@@ -379,12 +384,17 @@ classdef uplanner < Component
                 Args.SlewBuffer        = [];
                 Args.Tiles             = [];
                 Args.TimeBin           = 0.01; % [d] the time bin for visibility checks
+                Args.Verbosity         = 0;
+                Args.DrawMaps          = 0;
             end
             
             if ~strcmp(Obj.Type,'TOO')
                 error('Plan Type is not TOO');
             end
             
+            if isempty(Args.Map)
+                Args.Map = Obj.TOOAlertProbMap;
+            end
             if ~isempty(Args.TOOStartTime)
                 Obj.TOOStartTime = Args.TOOStartTime;
             end
@@ -409,9 +419,15 @@ classdef uplanner < Component
             Obj.CheckTimes = [Obj.StartTime, Obj.EndTime];
             
             if ~isempty(Args.Map)
-                [RA, Dec, ~] = ultrasat.tools.coverProbMap(Args.Map,Args.CoveragePar{:}); 
+                [RA, Dec, Stat] = ultrasat.tools.coverProbMap(Args.Map,...
+                    'MaxTarg',Obj.TOOMaxTargets,'MinProb',Obj.TOOMinCoveredProb,'MinAddedProb',Obj.TOOMinAddedProb,...
+                    'Verbosity',Args.Verbosity,'DrawMaps',Args.DrawMaps); 
                 Names = num2cell(1:numel(RA)); % may add "TOOfield.." to the name? 
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
+                
+                Obj.TOOUsedTargets = Stat.Ntarg; 
+                Obj.TOOCoveredProb = Stat.CoveredProb;
+                Obj.TOOCoveredByTarget = Stat.IndividualCoveredProb;
             elseif ~isempty(Args.RA) && ~isempty(Args.Dec) && numel(Args.RA)==numel(Args.Dec)
                 [RA, Dec] = deal(Args.RA, Args.Dec);
                 Obj.addUniqTargets(RA, Dec,'Name',Args.Name);                
@@ -1851,29 +1867,33 @@ classdef uplanner < Component
                         fprintf('completed\n');
                         fprintf('-------------------------\n');
                     end                    
-                    % a ToO plan from an input probability map:
-                    MaxTarg = 4; MinProb = 0.3; 
+                    
+                    % a ToO plan from an input probability map:                                        
+                    upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
+                    upTOO1.TOOMaxTargets     = 4;
+                    upTOO1.TOOMinCoveredProb = 0.3;
+                    upTOO1.TOOWindowDuration = hours(3);  
+                    upTOO1.TOOAlertProbMap   = readtable('~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv');
                     if Args.Verbose
                         fprintf('a ToO plan from an external probability map:\n');
-                        fprintf('Maximal number of exposures: %d\n',MaxTarg);
-                        fprintf('Minimal probability to be covered: %.2f\n',MinProb);
+                        fprintf('Maximal number of exposures: %d\n',upTOO1.TOOMaxTargets);
+                        fprintf('Minimal probability to be covered: %.2f\n',upTOO1.TOOMinCoveredProb);
                     end  
-                    upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
-                    upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
-                                    'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0},'TOOWindowDuration',hours(3));            
+                    upTOO1.buildTOO('Verbosity',0,'DrawMaps',1);            
                                 fprintf('%d exposures scheduled\n',height(upTOO1.Plan));
                                 fprintf('-------------------------\n');
-                    MaxTarg = 100; MinProb = 0.9; 
+
+                    upTOO2 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
+                    upTOO2.TOOMaxTargets     = 100;
+                    upTOO2.TOOMinCoveredProb = 0.9;
+                    upTOO2.TOOWindowDuration = hours(5);
+                    upTOO2.TOOAlertProbMap   = readtable('~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv');                  
                     if Args.Verbose
                         fprintf('a ToO plan from an external probability map:\n');
-                        fprintf('Maximal number of exposures: %d\n',MaxTarg);
-                        fprintf('Minimal probability to be covered: %.2f\n',MinProb);
-                    end  
-                    upTOO2 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
-                    upTOO2.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
-                                    'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0},'TOOWindowDuration',hours(5)); 
+                        fprintf('Maximal number of exposures: %d\n',upTOO2.TOOMaxTargets);
+                        fprintf('Minimal probability to be covered: %.2f\n',upTOO2.TOOMinCoveredProb);
+                    end                      
+                    upTOO2.buildTOO('Verbosity',0,'DrawMaps',1);    
                                 fprintf('%d exposures scheduled\n',height(upTOO2.Plan));
                                 fprintf('-------------------------\n');
                 end
