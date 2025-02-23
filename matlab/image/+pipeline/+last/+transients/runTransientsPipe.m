@@ -540,9 +540,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             PH_COL1_ref = AD(Iobj).Ref.HeaderData.getVal('PH_COL1')*ones(NumTran,1);            
             Exposure_new = AD(Iobj).New.HeaderData.getVal('EXPTIME')*ones(NumTran,1);
             Exposure_ref = AD(Iobj).Ref.HeaderData.getVal('EXPTIME')*ones(NumTran,1);
-            ZP_new = AD(Iobj).Fn*ones(NumTran,1);
-            ZP_ref = AD(Iobj).Fr*ones(NumTran,1);
-            ZP_D = AD(Iobj).Fd*ones(NumTran,1);
+            ZP_new = AD(Iobj).ZpN*ones(NumTran,1);
+            ZP_ref = AD(Iobj).ZpR*ones(NumTran,1);
+            ZP_D = AD(Iobj).ZpD*ones(NumTran,1);
     
             AD(Iobj).CatData.insertCol(...
                 cell2mat({cast(Mount,'double'), cast(Cam,'double'), cast(CropID,'double'), ...
