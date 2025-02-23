@@ -105,9 +105,34 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pr to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pr = Obj.Ref.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pr = Obj.Ref.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    Pr = Obj.Ref.PSFData.getPSF;
+                    PrSize = size(Pr);
+                    DiffSize = ImageSize(1) - PrSize(1);
+                    
+                    if mod(DiffSize,2) == 0
+                        Pr_padded = padarray(Pr, ...
+                            [(ImageSize(1) - size(Pr,1)) / 2, (ImageSize(2) - size(Pr,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PrSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PrSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PrSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PrSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pr_padded = padarray(Pr, [PadTop, PadLeft], 0, 'pre');
+                        Pr_padded = padarray(Pr_padded, [PadBottom, PadRight], 0, 'post');
+                        Pr_padded = circshift(Pr_padded, [1, 1]);
+                    end
+                    
+                    Pr_padded = circshift(Pr_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+                    
+                    Obj.Pr_hat = fft2(Pr_padded);
 
-                    Obj.Pr_hat = fft2(Pr, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    
+                    %Obj.Pr_hat = fft2(Pr, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pr_hat is already available - use as is
@@ -129,9 +154,33 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pr to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pn = Obj.New.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pn = Obj.New.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
 
-                    Obj.Pn_hat = fft2(Pn, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    Pn = Obj.New.PSFData.getPSF;
+                    PnSize = size(Pn);
+                    DiffSize = ImageSize(1) - PnSize(1);
+
+                    if mod(DiffSize,2) == 0
+                        Pn_padded = padarray(Pn, ...
+                            [(ImageSize(1) - size(Pn,1)) / 2, (ImageSize(2) - size(Pn,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PnSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PnSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PnSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PnSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pn_padded = padarray(Pn, [PadTop, PadLeft], 0, 'pre');
+                        Pn_padded = padarray(Pn_padded, [PadBottom, PadRight], 0, 'post');
+                        Pn_padded = circshift(Pn_padded, [1, 1]);
+                    end
+                    Pn_padded = circshift(Pn_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+
+                    Obj.Pn_hat = fft2(Pn_padded);
+
+                    %Obj.Pn_hat = fft2(Pn, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pn_hat is already available - use as is
@@ -171,9 +220,34 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pd to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pd = Obj.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pd = Obj.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    Pd = Obj.PSFData.getPSF;
+                    PdSize = size(Pd);
+                    DiffSize = ImageSize(1) - PdSize(1);
+                    
+                    if mod(DiffSize,2) == 0
+                        Pd_padded = padarray(Pd, ...
+                            [(ImageSize(1) - size(Pd,1)) / 2, (ImageSize(2) - size(Pd,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PdSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PdSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PdSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PdSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pd_padded = padarray(Pd, [PadTop, PadLeft], 0, 'pre');
+                        Pd_padded = padarray(Pd_padded, [PadBottom, PadRight], 0, 'post');
+                        Pd_padded = circshift(Pd_padded, [1, 1]);
+                    end
+                    
+                    Pd_padded = circshift(Pd_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+                    
+                    Obj.Pd_hat = fft2(Pd_padded);
 
-                    Obj.Pd_hat = fft2(Pd, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+
+                    %Obj.Pd_hat = fft2(Pd, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pd_hat is already available - use as is
