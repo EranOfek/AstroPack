@@ -105,9 +105,34 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pr to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pr = Obj.Ref.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pr = Obj.Ref.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    Pr = Obj.Ref.PSFData.getPSF;
+                    PrSize = size(Pr);
+                    DiffSize = ImageSize(1) - PrSize(1);
+                    
+                    if mod(DiffSize,2) == 0
+                        Pr_padded = padarray(Pr, ...
+                            [(ImageSize(1) - size(Pr,1)) / 2, (ImageSize(2) - size(Pr,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PrSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PrSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PrSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PrSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pr_padded = padarray(Pr, [PadTop, PadLeft], 0, 'pre');
+                        Pr_padded = padarray(Pr_padded, [PadBottom, PadRight], 0, 'post');
+                        Pr_padded = circshift(Pr_padded, [1, 1]);
+                    end
+                    
+                    Pr_padded = circshift(Pr_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+                    
+                    Obj.Pr_hat = fft2(Pr_padded);
 
-                    Obj.Pr_hat = fft2(Pr, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    
+                    %Obj.Pr_hat = fft2(Pr, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pr_hat is already available - use as is
@@ -129,9 +154,33 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pr to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pn = Obj.New.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pn = Obj.New.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
 
-                    Obj.Pn_hat = fft2(Pn, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    Pn = Obj.New.PSFData.getPSF;
+                    PnSize = size(Pn);
+                    DiffSize = ImageSize(1) - PnSize(1);
+
+                    if mod(DiffSize,2) == 0
+                        Pn_padded = padarray(Pn, ...
+                            [(ImageSize(1) - size(Pn,1)) / 2, (ImageSize(2) - size(Pn,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PnSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PnSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PnSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PnSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pn_padded = padarray(Pn, [PadTop, PadLeft], 0, 'pre');
+                        Pn_padded = padarray(Pn_padded, [PadBottom, PadRight], 0, 'post');
+                        Pn_padded = circshift(Pn_padded, [1, 1]);
+                    end
+                    Pn_padded = circshift(Pn_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+
+                    Obj.Pn_hat = fft2(Pn_padded);
+
+                    %Obj.Pn_hat = fft2(Pn, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pn_hat is already available - use as is
@@ -171,9 +220,34 @@ classdef AstroZOGY < AstroDiff
 
                     % Padded Pd to the size of the full image and shifted
                     % such that the PSF center is at origin:
-                    Pd = Obj.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    %Pd = Obj.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+                    Pd = Obj.PSFData.getPSF;
+                    PdSize = size(Pd);
+                    DiffSize = ImageSize(1) - PdSize(1);
+                    
+                    if mod(DiffSize,2) == 0
+                        Pd_padded = padarray(Pd, ...
+                            [(ImageSize(1) - size(Pd,1)) / 2, (ImageSize(2) - size(Pd,2)) / 2], ...
+                            0, 'both');
+                    else
+                        PadTop    = floor((ImageSize(1) - PdSize(1)) / 2);
+                        PadBottom = ceil((ImageSize(1) - PdSize(1)) / 2);
+                        PadLeft   = floor((ImageSize(2) - PdSize(2)) / 2);
+                        PadRight  = ceil((ImageSize(2) - PdSize(2)) / 2);
+                        
+                        % Apply asymmetric zero-padding
+                        Pd_padded = padarray(Pd, [PadTop, PadLeft], 0, 'pre');
+                        Pd_padded = padarray(Pd_padded, [PadBottom, PadRight], 0, 'post');
+                        Pd_padded = circshift(Pd_padded, [1, 1]);
+                    end
+                    
+                    Pd_padded = circshift(Pd_padded,...
+                        [-floor(ImageSize(1)/2), -floor(ImageSize(2)/2)]);
+                    
+                    Obj.Pd_hat = fft2(Pd_padded);
 
-                    Obj.Pd_hat = fft2(Pd, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+
+                    %Obj.Pd_hat = fft2(Pd, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % Pd_hat is already available - use as is
@@ -679,6 +753,8 @@ classdef AstroZOGY < AstroDiff
                 Args.PopSflux logical        = true;
                 
                 Args.PopS_delta logical      = true;
+                Args.DeltaWidth              = 0.1;
+                Args.DeltaStampSize          = [3 3];
                 Args.PopS_ext logical        = false;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
@@ -687,14 +763,14 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                S_hat_I           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                Obj(Iobj).S = imUtil.filter.filter2_fast(...
+                    Obj(Iobj).Image, Obj(Iobj).PSF);
                 
                 if Args.PopS_delta
-                    DeltaPSF = imUtil.kernel2.gauss(0.1, [3 3]);
-                    DeltaPSF  = imUtil.psf.padShift(DeltaPSF, size(Obj(Iobj).Image), ...
-                        'fftshift','fftshift');
-                    DeltaPSF_hat = fft2(DeltaPSF);
-                    Obj(Iobj).S_delta = ifft2(Obj(Iobj).D_hat.*conj(DeltaPSF_hat));
+                    DeltaPSF = imUtil.kernel2.gauss(...
+                        Args.DeltaWidth, Args.DeltaStampSize);
+                    Obj(Iobj).S_delta = imUtil.filter.filter2_fast(...
+                        Obj(Iobj).Image, DeltaPSF);
                 end
 
                 if Args.PopS_ext
@@ -707,9 +783,8 @@ classdef AstroZOGY < AstroDiff
                 end
 
                 if Args.PopS_hat
-                    Obj(Iobj).S_hat = S_hat_I;
+                    Obj(Iobj).S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
                 end
-                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
 
                 if Args.PopSflux
                     Obj(Iobj).Sflux = Obj(Iobj).S;
@@ -722,7 +797,7 @@ classdef AstroZOGY < AstroDiff
                         case 'norm'
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
-                                                                      'Fun2Prob',[],...
+                                                                     'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
                             if Args.PopS_delta
                                 Obj(Iobj).S_delta = imUtil.image.normalize(Obj(Iobj).S_delta, 'PreDef',Args.NormMethod,...
@@ -776,6 +851,7 @@ classdef AstroZOGY < AstroDiff
             end
         end
 
+
         function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Obj, Args)
             % Return kn_hat, kr_hat, kn, kr
             %   Using imUtil.properSub.knkr
@@ -785,6 +861,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is @(x) abs(X)
             %            'Norm' - Normalize Kn and Kr to unity.
             %                   Default is false.
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.            
             % Output : - kn_hat
             %          - kr_hat
             %          - kn
@@ -796,13 +877,22 @@ classdef AstroZOGY < AstroDiff
                 Obj(1,1)
                 Args.AbsFun   = @(x) abs(x);
                 Args.Norm logical  = false;
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = 1;       
             end
 
             Iobj = 1;
+
+            Fr = Obj(Iobj).Fr;
+
+            if Args.OverwriteFr
+                Fr = Args.OverwriteFrVal;
+            end
+
             if nargout>2
-                [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Obj(Iobj).Fn, Obj(Iobj).Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
+                [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Obj(Iobj).Fn, Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
             else
-                [Kn_hat, Kr_hat] = imUtil.properSub.knkr(Obj(Iobj).Fn, Obj(Iobj).Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
+                [Kn_hat, Kr_hat] = imUtil.properSub.knkr(Obj(Iobj).Fn, Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
             end
         end
 
@@ -844,6 +934,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is false.
             %            'AbsFun' - Absolute value function - e.g., @(X) conj(X).*X or @(X) abs(X);
             %                   Default is @(x) abs(X)
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.            
             % Output : - An AstroZOGY object in which the Scorr property is
             %            updated.
             % Author : Eran Ofek (Feb 2024)
@@ -867,6 +962,8 @@ classdef AstroZOGY < AstroDiff
                 Args.NormKnKr logical       = false;
 
                 Args.AbsFun                 = @(x) abs(x);
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = 1;
             end
 
             Nobj = numel(Obj);
@@ -878,10 +975,7 @@ classdef AstroZOGY < AstroDiff
                 else
                     % assumne Args.Ncoadd is a keyword name
                     NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
-                    if isnan(NcoaddNew)
-                        NcoaddNew = 1;
-                    end
-                    if isempty(NcoaddNew)
+                    if isnan(NcoaddNew) || isempty(NcoaddNew)
                         NcoaddNew = 1;
                     end
                 end
@@ -891,10 +985,7 @@ classdef AstroZOGY < AstroDiff
                 else
                     % assumne Args.Ncoadd is a keyword name
                     NcoaddRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
-                    if isnan(NcoaddRef)
-                        NcoaddRef = 1;
-                    end
-                    if isempty(NcoaddRef)
+                    if isnan(NcoaddRef) || isempty(NcoaddRef)
                         NcoaddRef = 1;
                     end
                 end
@@ -902,7 +993,9 @@ classdef AstroZOGY < AstroDiff
                 RN_New = Args.RN_New;
                 RN_Ref = Args.RN_Ref;
 
-                [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, 'Norm',Args.NormKnKr);
+                [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, ...
+                    'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
+                    'OverwriteFrVal',Args.OverwriteFrVal);
 
                 % New and Ref should contain the images including
                 % background in units of electrons - i.e., the variance
