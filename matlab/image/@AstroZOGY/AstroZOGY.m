@@ -549,6 +549,8 @@ classdef AstroZOGY < AstroDiff
                                                                                                'CleanPd',Args.CleanPd);    
                 % calculate D
                 D = ifft2(Obj(Iobj).D_hat);
+
+                Obj(Iobj).ZpD = 2.5*log10(Obj(Iobj).Fd) + Obj(Iobj).ZpN;
                 
                 % create mask image propgated from New and Ref
                 if ~isempty(Args.CreateNewMask)
@@ -587,6 +589,7 @@ classdef AstroZOGY < AstroDiff
                 % Normalize to flux units (according to Fn, Fr)
                 if Args.NormDbyFd
                     D = D./Obj(Iobj).Fd;
+                    Obj(Iobj).ZpD = Obj(Iobj).ZpN;
                 end
                 Obj(Iobj).Image = D;
 
