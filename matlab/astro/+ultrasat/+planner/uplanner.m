@@ -1749,7 +1749,7 @@ classdef uplanner < Component
                     fprintf('---------------------------------\n');
                 end
                 %
-                if ismember('HCS',Args.Parts)                    
+                if ismember('hcs',lower(Args.Parts))                    
                     if Args.Verbose
                         fprintf('Start testing HCS plan...');
                     end
@@ -1767,7 +1767,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('LCS',Args.Parts)
+                if ismember('lcs',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start testing LCS plan...');
                     end
@@ -1835,7 +1835,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('TOO',Args.Parts)                    
+                if ismember('too',lower(Args.Parts))                    
                     if Args.Verbose
                         fprintf('Start ToO plan...\n');
                     end                    
@@ -1878,7 +1878,7 @@ classdef uplanner < Component
                                 fprintf('-------------------------\n');
                 end
                 %
-                if ismember('DDT',Args.Parts)
+                if ismember('ddt',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start DDT plan...');
                     end                    
@@ -1894,7 +1894,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('AllSS',Args.Parts)
+                if ismember('allss',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start AllSS plan...\n');
                     end
