@@ -120,10 +120,14 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
         Ip = Ip+1; 
         % try to settle the next point: if it is not possible, go to the previous point and choose the next branch    
         % (currently branching is switched off, because with the dithering the "previous point" is not well defined
-        if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been scheduled 
+        if Tab.Filled(Ip)==Tab.Visits(Ip) % the point has been fully scheduled
             fprintf('step %d point %d already scheduled, skipping\n',Ip, Ind(Ip));
             continue
-        end
+        end        
+        if Tab.FreeSlots(Ip) < Tab.Visits(Ip) % not enought free slots to complete a point
+            fprintf('step %d point %d: not enough free slots, skipping\n',Ip, Ind(Ip));
+            continue
+        end        
         
         Stuck = false; 
         LastTriedSlot = 0;
@@ -137,7 +141,7 @@ function [Schedule, Tab] = greedyRec_v2(Limits, Tab, Ind, DailyVisits, DailySlot
             VisPerDay = Nvis/4;      % for extragalactic sources the 4 visits should be done on 4 separate days
         else
             error('Incorrect number of visits');
-        end
+        end        
         
         if Args.Verbose
             fprintf('step %d point %d\n',Ip, SrcNum);

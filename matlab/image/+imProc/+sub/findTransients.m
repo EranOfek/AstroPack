@@ -119,9 +119,6 @@ function TranCat=findTransients(AD, Args)
         LocalMax = [PosLocalMax; NegLocalMax];
         Nsrc     = size(LocalMax,1);
 
-        [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
-            LocalMax(:,1), LocalMax(:,2));
-
         % Construct AstroCatalog holding transients candidates
 
         ColNames = {'XPEAK', 'YPEAK', 'SCORE'};
@@ -135,30 +132,40 @@ function TranCat=findTransients(AD, Args)
             continue
         end
 
+        if Args.include2ndMoment || Args.includePsfFit
+            [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Image, ...
+                LocalMax(:,1), LocalMax(:,2));
+            [M1N, M2N, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
+                LocalMax(:,1), LocalMax(:,2));
+        end
+
         if Args.includePsfFit
+
 
             % PSF fit all candidates in the D image
             PSFSize = floor(size(AD(Iobj).PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.X, M1.Y, PSFSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.RoundX, M1.RoundY, PSFSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            %Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
-            [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
+            [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
+                'PSF', AD(Iobj).PSFData.getPSF, 'ZP', AD(Iobj).ZpD);
 
             % PSF fit all candidates in the New image
-            CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, M1.X, M1.Y, CutHalfSize);
+            CutHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, M1N.RoundX, M1N.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
+            [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
+                'PSF', AD(Iobj).New.PSFData.getPSF, 'ZP', AD(Iobj).ZpN);
             
-            % PSF fit all candidates in the Ref image   
-            CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1.X, M1.Y, CutHalfSize);
+            % PSF fit all candidates in the Ref image
+            CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1N.RoundX, M1N.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).Ref.PSFData.getPSF, Args.psfPhotCubeArgs{:});
-        
+            [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF',...
+                AD(Iobj).Ref.PSFData.getPSF, 'ZP', AD(Iobj).ZpR);
+
             % Get chi2 per degrees of freedom of the PSF fit on the difference
             % image.
             CHI2DOF = ResultD.Chi2./ResultD.Dof;
@@ -214,14 +221,15 @@ function TranCat=findTransients(AD, Args)
         if Args.include2ndMoment
             % Get moments
 
-            PeakDist = sqrt((LocalMax(:,1)-M1.X).^2+(LocalMax(:,2)-M1.Y).^2);
+            PeakDist = sqrt((M1N.X-M1.X).^2+(M1N.Y-M1.Y).^2);
 
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
                 cast(M2.X2,'double'), cast(M2.Y2,'double'), cast(M2.XY,'double'),...
+                cast(M2N.X2,'double'), cast(M2N.Y2,'double'), cast(M2N.XY,'double'),...
                 cast(PeakDist,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
-                {'X1', 'Y1', 'X2', 'Y2', 'XY','PEAK_DIST'}, ...
-                {'','','','','',''});
+                {'X1', 'Y1', 'X2', 'Y2', 'XY','N_X2','N_Y2','N_XY','PEAK_DIST'}, ...
+                {'','','','','','','','',''});
         end
 
         if Args.includeBitMaskVal

@@ -110,8 +110,13 @@ else
 end
 
 
+
 E0 = pi.*ones(size(M));
 E1 = E0 + (M + Ecc.*sin(E0) - E0)./(1 - Ecc.*cos(E0));
+% FFU: this is faster, but need to test this with the pipeline
+%E0  = pi;
+%E1 = E0 + (M - E0)./(1 + Ecc);
+
 
 Ns = length(E1);
 IndUnsolved = (1:1:Ns).';
@@ -129,7 +134,7 @@ while (any(abs(E1-E0)>Tol))
     E0 = E1;
     E1 = E0 + (M + Ecc.*sin(E0) - E0)./(1 - Ecc.*cos(E0));
 
-     
+
    % The next line slow down the code:
    %IndUnsolved = find(abs(E1(IndUnsolved)-E0(IndUnsolved))>Tol);
 end

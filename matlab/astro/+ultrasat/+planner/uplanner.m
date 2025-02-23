@@ -124,11 +124,12 @@ classdef uplanner < Component
         AllSSHighLatThresh  double      = 30; % |b| [deg]
         HighLatVisits       uint8       = 16; % 1 visit = 3 x 300 s 
         LowLatVisits        uint8       =  2;      
-        DitherPattern                   = '2x2';
+        DitherPattern                   = '2x2'; % not used as of yet
+        Unscheduled                              % a table of unscheduled AllSS points left over a run of buildAllSS
         
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
-        TOOWindowDuration  duration     =  hours(3);       % [hrs]
+        TOOWindowDuration  duration     =  hours(3);        % [hrs]
         %TOOMaxTargets          uint8       =  4;   % Unused for now - check if needed later
         %TOOProbMap                                 % Unused for now - check if needed later 
         
@@ -280,7 +281,7 @@ classdef uplanner < Component
             Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
             % Schedule HCS field
-            Obj.scheduleTargets(1,Obj.StartTime,'Nexposures',Nexposures);
+            Obj.scheduleTargets(1,Obj.StartTime,'Nexp',Nexposures);
             
             % make a schedule 
             % show which observations in the existing plan are to be replaced 
@@ -419,7 +420,8 @@ classdef uplanner < Component
             end
             
             % Check visibility and shift the window if needed            
-            if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
+%             if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits ,1)
+            if ~all(Obj.Vis.SunLimits & Obj.Vis.EarthLimits & Obj.Vis.MoonLimits,'all')
                 fprintf('Visibility issue: immediate observation is not possible\n');              
                 % scan 6 months ahead and find the first occurence of an Obj.TOOWindowDuration window:
                 Obj.CheckTimes = [Obj.StartTime, Obj.StartTime + calmonths(6)]; 
@@ -580,7 +582,7 @@ classdef uplanner < Component
             if ScheduledVisits < VisitsToSchedule
                 Incomplete = PointTabSorted.Visits>PointTabSorted.Filled;
                 fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)
-                PointTabSorted(Incomplete,:)                 
+                Obj.Unscheduled = PointTabSorted(Incomplete,:)                  
             end
             
             % for each of the pre-scheduled days run the actual scheduler accounting for real retargeting times 
@@ -1255,6 +1257,7 @@ classdef uplanner < Component
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0); 
 
             if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+                fprintf('Target %d, JDstart %.2f\n',Obj.Plan.UniqTargInd(Plan_row),Obj.Plan.JDstart(Plan_row))
                 error('Issue with Sun/Earth/Moon limits');
             end
 
@@ -1746,7 +1749,7 @@ classdef uplanner < Component
                     fprintf('---------------------------------\n');
                 end
                 %
-                if ismember('HCS',Args.Parts)                    
+                if ismember('hcs',lower(Args.Parts))                    
                     if Args.Verbose
                         fprintf('Start testing HCS plan...');
                     end
@@ -1764,7 +1767,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('LCS',Args.Parts)
+                if ismember('lcs',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start testing LCS plan...');
                     end
@@ -1832,7 +1835,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('TOO',Args.Parts)                    
+                if ismember('too',lower(Args.Parts))                    
                     if Args.Verbose
                         fprintf('Start ToO plan...\n');
                     end                    
@@ -1844,6 +1847,7 @@ classdef uplanner < Component
                     upTOO = ultrasat.planner.uplanner('AstPlanner','YS','Type','TOO');
                     upTOO.buildTOO('RA',HCS_fields.RA,'Dec',HCS_fields.Dec,'Name',HCS_fields.Name);
                     if Args.Verbose
+                        fprintf('%d exposures scheduled\n',height(upTOO.Plan));
                         fprintf('completed\n');
                         fprintf('-------------------------\n');
                     end                    
@@ -1857,7 +1861,8 @@ classdef uplanner < Component
                     upTOO1 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
                     upTOO1.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
                                     'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0});            
+                                    'DrawMaps',0},'TOOWindowDuration',hours(3));            
+                                fprintf('%d exposures scheduled\n',height(upTOO1.Plan));
                                 fprintf('-------------------------\n');
                     MaxTarg = 100; MinProb = 0.9; 
                     if Args.Verbose
@@ -1868,11 +1873,12 @@ classdef uplanner < Component
                     upTOO2 = ultrasat.planner.uplanner('AstPlanner','AK','Type','TOO');
                     upTOO2.buildTOO('Map','~/matlab/data/ULTRASAT/lvc_2024_04_01_00_40_58_000000.csv',...
                                     'CoveragePar',{'MaxTarg',MaxTarg,'MinProb',MinProb,'Verbosity',0,...
-                                    'DrawMaps',0}); 
+                                    'DrawMaps',0},'TOOWindowDuration',hours(5)); 
+                                fprintf('%d exposures scheduled\n',height(upTOO2.Plan));
                                 fprintf('-------------------------\n');
                 end
                 %
-                if ismember('DDT',Args.Parts)
+                if ismember('ddt',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start DDT plan...');
                     end                    
@@ -1888,7 +1894,7 @@ classdef uplanner < Component
                     end                    
                 end
                 %
-                if ismember('AllSS',Args.Parts)
+                if ismember('allss',lower(Args.Parts))
                     if Args.Verbose
                         fprintf('Start AllSS plan...\n');
                     end
@@ -1897,12 +1903,22 @@ classdef uplanner < Component
                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS');
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
-                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);
-%                     upAllSS.EndTime   = upAllSS.StartTime + days(7);
+                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(1);                   
+                    ExtraGalMinIntervals = [1 3 9]; % [1 2 4] [1 3 9]
+                    BufferEarthDist   = 0.5;
+                    DailyWindowMaxDuration = hours(5.5);
                     
-                    upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',hours(5.5),...
-                                       'ExtraGalMinIntervals',[1 2 4],'AllowPartial',true,'Verbose',true,...
-                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',1.0,...
+%                     upAllSS.EndTime        = upAllSS.StartTime + days(7);
+%                     DailyWindowMaxDuration = hours(24);
+%                     BufferEarthDist        = 3.0;
+%                     ExtraGalMinIntervals   = [0 0 0];
+%                     % currently distributeAllSS cannot work with reduced
+%                     % number of extragalactic visits, need to be improved 
+% %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week?             
+                    
+                    upAllSS.buildAllSS('Grid','AllSS_grid_361.txt','DailyWindowMaxDuration',DailyWindowMaxDuration,...
+                                       'ExtraGalMinIntervals',ExtraGalMinIntervals,'AllowPartial',true,'Verbose',true,...
+                                       'BufferSunDist',0.5,'BufferMoonDist',0.5,'BufferEarthDist',BufferEarthDist,...
                                        'DistributeDitheredPoint',true,'DitherLeg',3.0,...
                                        'EmptyDay',false,'MergeSameTargets',false);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the

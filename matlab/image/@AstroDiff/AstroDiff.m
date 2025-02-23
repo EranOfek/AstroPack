@@ -37,6 +37,9 @@ classdef AstroDiff < AstroImage
         Fn
         Fr
         Fd
+        ZpN
+        ZpR
+        ZpD
         BackN
         BackR
         VarN
@@ -614,11 +617,17 @@ classdef AstroDiff < AstroImage
                     Fr = Args.RefZP;
                 end
 
+
                 % convert to flux units
                 if Args.IsMagZP
                     % Note that there should be no "-" sign here
+                    Obj(Iobj).ZpN = Fn;
+                    Obj(Iobj).ZpR = Fr;
                     Fn     = 10.^(0.4.*Fn);
                     Fr     = 10.^(0.4.*Fr);
+                else
+                    Obj(Iobj).ZpN = 2.5*log10(Fn);
+                    Obj(Iobj).ZpR = 2.5*log10(Fr);
                 end
                
                 if isempty(Args.Fn)
