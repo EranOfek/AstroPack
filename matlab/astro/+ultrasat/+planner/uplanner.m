@@ -281,7 +281,7 @@ classdef uplanner < Component
             Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
             % Schedule HCS field
-            Obj.scheduleTargets(1,Obj.StartTime,'Nexposures',Nexposures);
+            Obj.scheduleTargets(1,Obj.StartTime,'Nexp',Nexposures);
             
             % make a schedule 
             % show which observations in the existing plan are to be replaced 
