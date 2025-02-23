@@ -441,16 +441,8 @@ classdef AstroZOGY < AstroDiff
                 else
                     Result(Iobj).OptMadD = NaN;
                 end
-
-
-
             end
-
-
-
-
         end
-
     end
 
     methods % Subtraction tools
@@ -587,7 +579,6 @@ classdef AstroZOGY < AstroDiff
                 Args.OverwriteFrVal = NaN;
                 
             end
-
             
             if Args.ReplaceNaN
                 Obj.replaceNaN(Args.ReplaceNaNArgs{:});
@@ -683,11 +674,23 @@ classdef AstroZOGY < AstroDiff
                         HalfSizePSF = Args.HalfSizePSF;
                     end
                     HalfSizePSF = (HalfSizePSF(:).*ones(2,1)).';
-                    Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize', HalfSizePSF,...
-                                                   'IsCorner',true,...
-                                                   'Recenter',false,...
-                                                   'zeroConvArgs',Args.zeroConvArgs,...
-                                                   'Norm',Args.NormPSF);
+                    Pd = ifftshift(Pd);
+                    PdSize = size(Pd);
+
+                    %SizeDiff = PdSize(1) - HalfSizePSF(1);
+                    if (mod(HalfSizePSF(1),2) > 0) || (mod(PdSize(1),2) > 0)
+                        Pd = circshift(Pd, [-1, -1]);
+                    end
+
+                    CenterX = ceil(PdSize(1) / 2);
+                    CenterY = ceil(PdSize(2) / 2);
+                    
+                    CropX1 = CenterX - HalfSizePSF(1);
+                    CropX2 = CropX1 + NPx - 1;
+                    CropY1 = CenterY - HalfSizePSF(2);
+                    CropY2 = CropY1 + NPy - 1;
+                    
+                    Pd = Pd(CropX1:CropX2, CropY1:CropY2);
                     
                 end
                 if Args.SuppressEdgesPSF
@@ -850,7 +853,6 @@ classdef AstroZOGY < AstroDiff
                 
             end
         end
-
 
         function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Obj, Args)
             % Return kn_hat, kr_hat, kn, kr
