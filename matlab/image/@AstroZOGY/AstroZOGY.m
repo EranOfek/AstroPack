@@ -785,6 +785,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is @(x) abs(X)
             %            'Norm' - Normalize Kn and Kr to unity.
             %                   Default is false.
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.            
             % Output : - kn_hat
             %          - kr_hat
             %          - kn
@@ -796,13 +801,22 @@ classdef AstroZOGY < AstroDiff
                 Obj(1,1)
                 Args.AbsFun   = @(x) abs(x);
                 Args.Norm logical  = false;
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = 1;       
             end
 
             Iobj = 1;
+
+            Fr = Obj(Iobj).Fr;
+
+            if Args.OverwriteFr
+                Fr = Args.OverwriteFrVal;
+            end
+
             if nargout>2
-                [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Obj(Iobj).Fn, Obj(Iobj).Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
+                [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Obj(Iobj).Fn, Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
             else
-                [Kn_hat, Kr_hat] = imUtil.properSub.knkr(Obj(Iobj).Fn, Obj(Iobj).Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
+                [Kn_hat, Kr_hat] = imUtil.properSub.knkr(Obj(Iobj).Fn, Fr, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, Obj(Iobj).D_den_hat, Args.AbsFun);
             end
         end
 
@@ -844,6 +858,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is false.
             %            'AbsFun' - Absolute value function - e.g., @(X) conj(X).*X or @(X) abs(X);
             %                   Default is @(x) abs(X)
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.            
             % Output : - An AstroZOGY object in which the Scorr property is
             %            updated.
             % Author : Eran Ofek (Feb 2024)
@@ -867,6 +886,8 @@ classdef AstroZOGY < AstroDiff
                 Args.NormKnKr logical       = false;
 
                 Args.AbsFun                 = @(x) abs(x);
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = 1;
             end
 
             Nobj = numel(Obj);
@@ -878,10 +899,7 @@ classdef AstroZOGY < AstroDiff
                 else
                     % assumne Args.Ncoadd is a keyword name
                     NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
-                    if isnan(NcoaddNew)
-                        NcoaddNew = 1;
-                    end
-                    if isempty(NcoaddNew)
+                    if isnan(NcoaddNew) || isempty(NcoaddNew)
                         NcoaddNew = 1;
                     end
                 end
@@ -891,10 +909,7 @@ classdef AstroZOGY < AstroDiff
                 else
                     % assumne Args.Ncoadd is a keyword name
                     NcoaddRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
-                    if isnan(NcoaddRef)
-                        NcoaddRef = 1;
-                    end
-                    if isempty(NcoaddRef)
+                    if isnan(NcoaddRef) || isempty(NcoaddRef)
                         NcoaddRef = 1;
                     end
                 end
@@ -902,7 +917,9 @@ classdef AstroZOGY < AstroDiff
                 RN_New = Args.RN_New;
                 RN_Ref = Args.RN_Ref;
 
-                [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, 'Norm',Args.NormKnKr);
+                [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, ...
+                    'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
+                    'OverwriteFrVal',Args.OverwriteFrVal);
 
                 % New and Ref should contain the images including
                 % background in units of electrons - i.e., the variance
