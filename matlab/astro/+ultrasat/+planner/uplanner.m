@@ -2,6 +2,8 @@
 % List of functions:
 % - ultrasat.planner.uplanner(Args): Constructor
 %
+% - constructAllSSgrid(Args):       Construct or load the AllSS grid (incl. the UniqTarg property)  
+%
 % - Obj.set.Type(Type)             : Setter. Verify allowed Type
 % - Obj.set.StartTime(StartTime)   : Setter. Also sets TimeZone of StartTime
 % - Obj.set.EndTime(EndTime)       : Setter. Also sets TimeZone of EndTime
