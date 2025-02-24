@@ -1957,7 +1957,7 @@ classdef uplanner < Component
                     upAllSS.BufferSunDist          = 0.5;
                     upAllSS.BufferMoonDist         = 0.5;
                     upAllSS.DailyWindowMaxDuration = hours(5.5);
-                    upAllSS.DitherLeg              = 3.0;
+                    
                     upAllSS.EmptyDay               = false;
                     
 %                     upAllSS.EndTime                = upAllSS.StartTime + days(7);
@@ -1969,7 +1969,7 @@ classdef uplanner < Component
 % %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week?             
                     
                     upAllSS.buildAllSS('AllowPartial',true,'Verbose',true,...                                                                              
-                                       'MergeSameTargets',false);
+                                       'MergeSameTargets',false,'AverageSlew',60);
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     % note the "Incomplete" variable in buildAllSS
