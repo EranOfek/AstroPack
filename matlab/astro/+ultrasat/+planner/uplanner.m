@@ -124,7 +124,7 @@ classdef uplanner < Component
         AllSSgridFile                   = 'AllSS_grid_361.txt'; % the default AllSS grid
         PointTypeCriterion              = 'b'; % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
         AllSSHighLatThresh              = 30; % |b| [deg]
-        HighLatVisits                   = 16; % 1 visit = 3 x 300 s 
+        HighLatVisits                   =  4; % 1 visit = 3 x 300 s 
         LowLatVisits                    =  2;      
         DitherPattern                   = '2x2';  % not used as of yet
         DitherLeg                       = 0;      % [deg] dither leg size
@@ -208,6 +208,8 @@ classdef uplanner < Component
                 
                 Args.AllSSgridFile = [];                      % an alternative AllSS grid (the default is in the properties)
                 Args.ExtragalDitherLeg = [];                  % an alternative dither leg size for the AllSS grid
+                Args.Save          = [];
+                Args.Load          = [];
             end
             %          
             if isempty(Args.AstPlanner) 
@@ -255,7 +257,7 @@ classdef uplanner < Component
                 if ~isempty(Args.ExtragalDitherLeg)
                     Obj.DitherLeg = Args.ExtragalDitherLeg;
                 end
-                Obj.constructAllSSgrid;
+                Obj.constructAllSSgrid('Save',Args.Save,'Load',Args.Load);
             end
         end
         %
@@ -264,43 +266,56 @@ classdef uplanner < Component
             arguments
                 Obj
                 Args.Verbosity = 1;
+                Args.Save      = [];
+                Args.Load      = [];
             end
-            % read the main grid file                     
-            Grid = readtable(fullfile(Obj.BaseDataDir,Obj.AllSSgridFile)); 
-            
-            % determine the two types of sky points
-            RAD = 180/pi;  
-            if strcmpi(Obj.PointTypeCriterion,'b')       % distinction according to the Galactic latitude                  
-                [~, Grid.b] = celestial.coo.convert_coo(Grid.RA./RAD,Grid.Dec./RAD,'j2000.0','g');                    
-                Extragal = abs(Grid.b.*RAD) > Obj.AllSSHighLatThresh;
-            elseif strcmpi(Obj.PointTypeCriterion,'a_u') % distinction accoring to the averaged A_U                
-                Grid.A_U = ultrasat.tools.extinction(Grid.RA,Grid.Dec);
-                Extragal = Grid.A_U < 1;
+            if isempty(Args.Load)
+                % read the main grid file
+                Grid = readtable(fullfile(Obj.BaseDataDir,Obj.AllSSgridFile));
+                
+                % determine the two types of sky points
+                RAD = 180/pi;
+                if strcmpi(Obj.PointTypeCriterion,'b')       % distinction according to the Galactic latitude
+                    [~, Grid.b] = celestial.coo.convert_coo(Grid.RA./RAD,Grid.Dec./RAD,'j2000.0','g');
+                    Extragal = abs(Grid.b.*RAD) > Obj.AllSSHighLatThresh;
+                elseif strcmpi(Obj.PointTypeCriterion,'a_u') % distinction accoring to the averaged A_U
+                    Grid.A_U = ultrasat.tools.extinction(Grid.RA,Grid.Dec);
+                    Extragal = Grid.A_U < 1;
+                else
+                    error('Unknown point type criterion');
+                end
+                                if Args.Verbosity > 0
+                                    fprintf('Adding unique targets...\n'); tic
+                                end
+                % dither the extragalactic points:
+                [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Obj.DitherLeg,...
+                    'Ngrid',4,'Pattern',Obj.DitherPattern);
+                
+               % add the galactic points to the unique targets list:
+                Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),...
+                    'UpdateVisibility',false);
+                % add the extragalactic points to the unique targets list:
+                Obj.addUniqTargets(DitheredGrid.RA,DitheredGrid.Dec,'Name',num2cell(DitheredGrid.id),...
+                    'DitherGroup',DitherGroup,'UpdateVisibility',false);
+                
+                                if Args.Verbosity > 0
+                                    fprintf('%d unique targets added in %.0f s \n',height(Obj.UniqTarg),toc);
+                                end
+                % fill the scheduled status table
+                Obj.SchedStatus = table(Obj.UniqTarg.Name,Obj.UniqTarg.RA,Obj.UniqTarg.Dec,Obj.UniqTarg.DitherGroup,...
+                    repmat(0,1,Obj.N_uniqueTargets)','VariableNames',{'Name','RA','Dec','DithGroup','Status'});
             else
-                error('Unknown point type criterion');
-            end            
-                        if Args.Verbosity > 0
-                            fprintf('Adding unique targets...\n'); tic
-                        end            
-            % dither the extragalactic points:
-            [DitheredGrid, DitherGroup] = ultrasat.tools.ditherGrid(Grid(Extragal,:),'Leg',Obj.DitherLeg,...
-                'Ngrid',4,'Pattern',Obj.DitherPattern);
-            
-            Obj.HighLatVisits = Obj.HighLatVisits/4; % because the high galactic points are dithered
-            
-            % add the galactic points to the unique targets list:
-            Obj.addUniqTargets(Grid.RA(~Extragal),Grid.Dec(~Extragal),'Name',num2cell(Grid.id(~Extragal)),...
-                'UpdateVisibility',false);            
-            % add the extragalactic points to the unique targets list:
-            Obj.addUniqTargets(DitheredGrid.RA,DitheredGrid.Dec,'Name',num2cell(DitheredGrid.id),...
-                'DitherGroup',DitherGroup,'UpdateVisibility',false);
-            
-                        if Args.Verbosity > 0
-                            fprintf('%d unique targets added in %.0f s \n',height(Obj.UniqTarg),toc);
-                        end 
-            % fill the scheduled status table             
-            Obj.SchedStatus = table(Obj.UniqTarg.Name,Obj.UniqTarg.RA,Obj.UniqTarg.Dec,Obj.UniqTarg.DitherGroup,...
-                repmat(0,1,Obj.N_uniqueTargets)','VariableNames',{'Name','RA','Dec','DithGroup','Status'});
+                load(Args.Load)
+                Obj.UniqTarg    = UniqTarg;        
+                Obj.SchedStatus = SchedStatus;     
+                Obj.N_uniqueTargets = height(Obj.UniqTarg);
+            end
+            % save the unique target list grid in the file named Args.Save
+            if ~isempty(Args.Save)
+                UniqTarg    = Obj.UniqTarg;
+                SchedStatus = Obj.SchedStatus;
+                save(Args.Save,'UniqTarg','SchedStatus');
+            end
         end
     end 
     %
@@ -1223,8 +1238,7 @@ classdef uplanner < Component
 
             for ii = 1:numel(Args.TargList) % loop over targets 
                 
-                iT = Args.TargList(ii);
-                
+                iT = Args.TargList(ii);                
                 
                 RA0 = Obj.UniqTarg.RA(iT); Dec0 = Obj.UniqTarg.Dec(iT);                
                 % make a circular FOV region
@@ -1946,7 +1960,10 @@ classdef uplanner < Component
                     
                     % Example for AllSS plan:
                     DitherLeg = 3.0;
-                    upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS','ExtragalDitherLeg',DitherLeg);
+%                     upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS','ExtragalDitherLeg',DitherLeg,...
+%                         'Save','~/alss_uniq_targ.mat'); % first time we need to build the AllSS target list and save it
+                    upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS','ExtragalDitherLeg',DitherLeg,...
+                        'Load','~/matlab/data/ULTRASAT/alss_uniq_targ.mat');
                     
                     upAllSS.StartTime = '2028-07-01'; 
                     upAllSS.StartTime = upAllSS.StartTime + hours(12);  % 12 hr are added in order to alleviate visibility constraints 
@@ -1966,7 +1983,7 @@ classdef uplanner < Component
 %                     upAllSS.ExtragalMinIntervals   = [0 0 0];
 %                     % currently distributeAllSS cannot work with reduced
 %                     % number of extragalactic visits, need to be improved 
-% %                     upAllSS.HighLatVisits  = 4;    % only 1 (or 2?) extragal points for the first week?             
+% %                     upAllSS.HighLatVisits  = 1;    % only 1 (or 2?) extragal points for the first week?             
                     
                     upAllSS.buildAllSS('AllowPartial',true,'Verbose',true,...                                                                              
                                        'MergeSameTargets',false,'AverageSlew',60);
