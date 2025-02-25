@@ -431,8 +431,8 @@ classdef UltrasatPerf < Component
                 Args.OBSC_name   = 'Obscuration';                
                 Args.CaF2_name   = 'CaF2_AR';
                 Args.FS_name     = 'FS_AR';
-                Args.Mirror_name = 'M2';%'Mirror';
-                Args.Filter_name = 'Filter';
+                Args.Mirror_name = 'Mirror_asBuilt';%'M2';%'Mirror';
+                Args.Filter_name = 'Filter_asBuilt';%'Filter';
                 Args.QE_name     = 's3_T2_211';%T2_211';
                 Args.QE_subDir   = 'QE_scouts_experimental';%'QE_scouts_AOI_weighted';
                 Args.PSF_name    = 'chromPSF_60'; % This is the 90% PSF profile
@@ -524,7 +524,7 @@ classdef UltrasatPerf < Component
                 Args.Family = 'ULTRASAT';
                 Args.BaseBandName = 'R';
                 Args.BaseComment = 'deg off FOV center';
-                Args.source_info = 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'      
+                Args.source_info = 'Measured QE + AsBuilt Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + AsBuilt filter + Therotical Obscuration' ; % 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'        
             end
             
             Nr = numel(Obj.Rdeg);
