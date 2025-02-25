@@ -115,6 +115,15 @@ classdef ModelBase
             %
             % :param dt: A MATLAB datetime object.
             % :return: A string in the format 'YYYY-MM-DDTHH:MM:SS.FFFZ'.
+
+            % Ensure the datetime object is in UTC
+            if isempty(dt.TimeZone)
+                dt.TimeZone = 'UTC';
+            elseif dt.TimeZone ~= "UTC"
+                dt = datetime(dt, 'ConvertFrom', dt.TimeZone, 'TimeZone', 'UTC');
+            end
+
+            % Format the result as an ISO 8601 string
             result = datestr(dt, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
         end
 
@@ -124,46 +133,80 @@ classdef ModelBase
             %
             % :param data: Struct containing datetime fields.
             % :return: Struct with datetime fields converted to ISO format.
-    
+        
             if isstruct(data)
                 fields = fieldnames(data);
                 for i = 1:numel(fields)
                     fieldName = fields{i};
                     value = data.(fieldName);
-                    if isdatetime(value)
-                        data.(fieldName) = datestr(value, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
+                    
+                    % Convert datetime fields to ISO format if not empty
+                    if isdatetime(value) && ~isempty(value)
+                        data.(fieldName) = api.ModelBase.isoFormat(value);  % Convert datetime to string
+                    
+                    % Recursively handle struct fields
                     elseif isstruct(value)
-                        data.(fieldName) = api.ModelBase.convertDatetimeToString(value);
+                        if isempty(value)
+                            % If struct field is empty, keep it as empty struct
+                            data.(fieldName) = struct();
+                        elseif numel(value) > 1
+                            % Handle struct arrays
+                            for j = 1:numel(value)
+                                value(j) = api.ModelBase.convertDatetimeToString(value(j));
+                            end
+                            data.(fieldName) = value;
+                        else
+                            % Handle single struct
+                            data.(fieldName) = api.ModelBase.convertDatetimeToString(value);
+                        end
                     end
                 end
             end
         end
-    
+
 
         function data = convertStringToDatetime(data)
             % Recursively converts all ISO datetime strings in a struct to datetime objects
             %
             % :param data: Struct containing ISO datetime strings.
             % :return: Struct with datetime strings converted back to datetime.
-    
+        
             if isstruct(data)
                 fields = fieldnames(data);
                 for i = 1:numel(fields)
                     fieldName = fields{i};
                     value = data.(fieldName);
-                    if ischar(value) && contains(value, 'T') % Heuristic for ISO timestamps
+        
+                    % Convert ISO date string to datetime
+                    if (ischar(value) || isstring(value)) && contains(value, 'T') % Heuristic for ISO timestamps
                         try
-                            data.(fieldName) = datetime(value, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''');
+                            data.(fieldName) = datetime(value, ...
+                                'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''', ...
+                                'TimeZone', 'UTC');
                         catch
                             % If conversion fails, keep original string
                         end
+        
+                    % Recursively process struct fields
                     elseif isstruct(value)
-                        data.(fieldName) = api.ModelBase.convertStringToDatetime(value);
+                        if isempty(value)
+                            % Keep empty structs unchanged
+                            data.(fieldName) = struct();
+                        elseif numel(value) > 1
+                            % Handle struct arrays
+                            for j = 1:numel(value)
+                                value(j) = api.ModelBase.convertStringToDatetime(value(j));
+                            end
+                            data.(fieldName) = value;
+                        else
+                            % Handle single struct
+                            data.(fieldName) = api.ModelBase.convertStringToDatetime(value);
+                        end
                     end
                 end
             end
         end
-        
+           
 
         function isEqual = cmpstruct(A, B)
             % Compare two structs by converting them to JSON string, to

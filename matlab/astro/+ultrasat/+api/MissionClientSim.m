@@ -14,8 +14,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
     % 
     
     properties
-        DbPath          %
-        Validator
+        DbPath          % Path to simulator data files
+        Validator       % instance of ultrasat.api.ValidatorSim()
     end
 
 
@@ -91,7 +91,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 % Update current_user.json
                 currentUser = struct('UserName', UserName, 'Role', user.Role);
                 fid = fopen(currentUserFile, 'w');
-                fwrite(fid, jsonencode(currentUser), 'char');
+                fwrite(fid, jsonencode(currentUser, 'PrettyPrint', true), 'char');
                 fclose(fid);
         
                 response.ok = true;
@@ -130,7 +130,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
             % Clear current user
             fid = fopen(currentUserFile, 'w');
-            fwrite(fid, jsonencode(struct('UserName', '', 'Role', '')), 'char');
+            fwrite(fid, jsonencode(struct('UserName', '', 'Role', ''), 'PrettyPrint', true), 'char');
             fclose(fid);
         
             obj.msglog('logout: User %s logged out successfully.', UserName);
@@ -197,7 +197,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
             % Write updated data to the JSON file
             fid = fopen(dbFile, 'w');
-            fwrite(fid, jsonencode(db), 'char');
+            fwrite(fid, jsonencode(db, 'PrettyPrint', true), 'char');
             fclose(fid);
         
             response.status = 'ok';
@@ -263,6 +263,52 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -----------------------------------------------------------------        
 
+        function updateApprovedTargets(obj, targets, replace)
+            % Update the approved_targets.json file by either replacing or merging targets.
+            obj.msglog('updateApprovedTargets: targets: %d, replace=%d', numel(targets), replace);
+            approvedTargetsFile = fullfile(obj.DbPath, 'approved_targets.json');
+            
+            % Read existing file
+            if isfile(approvedTargetsFile)
+                fid = fopen(approvedTargetsFile, 'r');
+                raw = fread(fid, inf, 'char');
+                fclose(fid);
+                existingTargets = jsondecode(char(raw'));
+            else
+                existingTargets = [];
+            end
+            
+            if replace
+                % Replace all existing targets
+                updatedTargets = targets;
+            else
+                % Merge new targets with existing ones
+                updatedTargets = existingTargets;
+                
+                % Add new targets while preventing duplicates (based on `pk`)
+                existingPKs = [existingTargets.pk];
+                for i = 1:numel(targets)
+                    if ~ismember(targets(i).pk, existingPKs)
+                        updatedTargets(end+1) = targets(i);
+                    end
+                end
+            end
+        
+            % Sort targets by start_time
+            [~, sortIdx] = sort(datetime({updatedTargets.start_time}, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC'));
+            updatedTargets = updatedTargets(sortIdx);
+        
+            % Save back to JSON
+            fid = fopen(approvedTargetsFile, 'w');
+            fwrite(fid, jsonencode(updatedTargets, 'PrettyPrint', true), 'char');
+            fclose(fid);
+            
+            obj.msglog('Updated successfully: %s', approvedTargetsFile);
+        end
+        
+
+        % -----------------------------------------------------------------        
+
         function response = validatePlan(obj, Plan)
             % Validates the observation plan using the ValidatorSim class.
             obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
@@ -287,6 +333,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         function response = submitPlan(obj, Plan)
             % Submits the observation plan by updating targets, status, and history.
+            % Plan: array of struct, created by uplanner.planTable2struct()
+
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
@@ -316,6 +364,9 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             response.message = sprintf('Plan %d submitted successfully.', obj.PlanData.pk);
             response.ok = true;
             obj.msglog('Plan %d submitted successfully and updated in JSON file.', obj.PlanData.pk);
+
+            % Simulator version: replace exsiting Approved Targets by the targets of this plan
+            obj.updateApprovedTargets(Plan, true);
         end
 
         % -------------------------------------------------------------------
@@ -354,7 +405,6 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             for i = 1:numel(data)
                 row = data(i);
                 tNums = arrayfun(@(x) datenum(x{1}, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), row.timestamps);
-
         
                 if select_all || ...
                    ((isempty(healpix_indices) || ismember(row.healpix_index, healpix_indices)) && ...
@@ -378,7 +428,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -------------------------------------------------------------------
 
-        function response = getPlansList(obj)
+        function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
             % Returns a list of existing plans from JSON files in the DbPath folder.
             obj.msglog('getPlansList: Scanning for plans in %s', obj.DbPath);
             plansFolder = fullfile(obj.DbPath, 'plans');
@@ -392,6 +442,14 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 response.ok = false;
                 return;
             end
+
+            % Ensure timestamps are datetime objects
+            if ~isempty(start_timestamp) && ~isdatetime(start_timestamp)
+                start_timestamp = datetime(start_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
+            end
+            if ~isempty(end_timestamp) && ~isdatetime(end_timestamp)
+                end_timestamp = datetime(end_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
+            end            
         
             % Find all JSON files in the plans folder
             jsonFiles = dir(fullfile(plansFolder, '*.json'));
@@ -401,6 +459,27 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 raw = fread(fid, inf, 'char');
                 fclose(fid);
                 planData = jsondecode(char(raw'));
+
+                % Ensure planData has required fields
+                if ~isfield(planData, 'start_time') || ~isfield(planData, 'end_time') || ~isfield(planData, 'title')
+                    continue;
+                end
+        
+                % Convert time fields to datetime
+                planStartTime = datetime(planData.start_time, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
+                planEndTime = datetime(planData.end_time, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
+        
+                % Apply time filter if specified
+                if (~isempty(start_timestamp) && planEndTime < start_timestamp) || ...
+                   (~isempty(end_timestamp) && planStartTime > end_timestamp)
+                    continue;
+                end
+        
+                % Apply title search if specified
+                if ~isempty(title_subtext) && ~contains(lower(planData.title), lower(title_subtext))
+                    continue;
+                end
+
                 plansList = [plansList; planData];
             end
         
@@ -475,8 +554,11 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             jsonFile = fullfile(plansFolder, sprintf('%03d.json', obj.PlanData.pk));
             planStruct = obj.PlanData.toStruct();
             planStruct = rmfield(planStruct, 'planner');  % Remove planner for JSON
+
+            planStruct = api.ModelBase.convertDatetimeToString(planStruct);
+
             fid = fopen(jsonFile, 'w');
-            fwrite(fid, jsonencode(planStruct), 'char');
+            fwrite(fid, jsonencode(planStruct, 'PrettyPrint', true), 'char');
             fclose(fid);
         
             % Write MATLAB object (planner) to .mat file
@@ -492,8 +574,12 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
 
         function updateFromPlanner(obj)
+            % Update obj.PlanData with data from uplanner, including targets list (converted from table to array of struct)
             if ~isempty(obj.PlanData.planner)
-                obj.PlanData.targets = obj.PlanData.planner.planTable2struct;
+                obj.PlanData.title = obj.PlanData.planner.Title;
+                obj.PlanData.start_time = obj.PlanData.planner.StartTime;
+                obj.PlanData.end_time = obj.PlanData.planner.EndTime;
+                obj.PlanData.targets = obj.PlanData.planner.planTable2struct();
             end
                     
         end

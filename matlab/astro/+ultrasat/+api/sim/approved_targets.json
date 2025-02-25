@@ -9,7 +9,8 @@
         "end_time": "2025-03-01T00:15:00.000000Z",
         "exposure": 300,
         "image_count": 3,
-        "total_seconds": 900
+        "total_seconds": 900,
+		"tiles": "1,2,3,4"
     },
     {
         "pk": 2,
@@ -21,7 +22,8 @@
         "end_time": "2028-01-01T01:15:00.000000Z",
         "exposure": 300,
         "image_count": 3,
-        "total_seconds": 900
+        "total_seconds": 900,
+		"tiles": "1,2,3,4"
     },
     {
         "pk": 3,
@@ -33,7 +35,8 @@
         "end_time": "2028-01-01T02:15:00.000000Z",
         "exposure": 300,
         "image_count": 3,
-        "total_seconds": 900
+        "total_seconds": 900,
+		"tiles": "1,2,3,4"
     },
     {
         "pk": 4,
@@ -45,7 +48,8 @@
         "end_time": "2028-01-01T03:15:00.000000Z",
         "exposure": 300,
         "image_count": 3,
-        "total_seconds": 900
+        "total_seconds": 900,
+		"tiles": "1,2,3,4"
     },
     {
         "pk": 5,
@@ -57,6 +61,7 @@
         "end_time": "2028-01-01T04:15:00.000000Z",
         "exposure": 300,
         "image_count": 3,
-        "total_seconds": 900
+        "total_seconds": 900,
+		"tiles": "1,2,3,4"
     }
 ]

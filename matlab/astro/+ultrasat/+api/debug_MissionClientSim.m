@@ -20,11 +20,7 @@ function debug_MissionClientSim()
 
     % Initialize MissionClientSim object
     clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);
-
-
-    debugGetPlansList(clientSim);
-
-
+   
     % Test login
     fprintf('\n--- Testing login ---\n');
     debugLogin(clientSim, 'yossi', '123');          % Valid login
@@ -49,15 +45,22 @@ function debug_MissionClientSim()
     fprintf('\n--- Debugging getExposure ---\n');
     debugGetExposure(clientSim, 'sky_exposure', [101, 103], datetime('2028-01-01 00:00:00'), datetime('2028-01-01 04:00:00'), false);
 
-
+    fprintf('\n--- Debugging savePlan ---\n');
+    %debugSavePlan(clientSim);
+    
     fprintf('\n--- Debugging getPlansList ---\n');
-    debugGetPlansList(clientSim);
+    debugGetPlansList(clientSim, [], [], 'first');  
+    debugGetPlansList(clientSim, [], [], 'second');  
+    debugGetPlansList(clientSim, [], [], 'plan');  
+
+
+    debugGetPlansList(clientSim, [], [], []);  % Retrieve all plans
+    debugGetPlansList(clientSim, '2025-03-01T00:00:00.000000Z', '2025-03-05T00:00:00.000000Z', []);  % Retrieve plans from a specific time range
+    debugGetPlansList(clientSim, [], [], 'science');  % Retrieve plans with "science" in the title
+    debugGetPlansList(clientSim, '2025-03-01T00:00:00.000000Z', '2025-03-05T00:00:00.000000Z', 'mission');  % Retrieve plans with both time range and title filter
 
     fprintf('\n--- Debugging loadPlan ---\n');
     debugLoadPlan(clientSim, 15);
-
-    fprintf('\n--- Debugging savePlan ---\n');
-    debugSavePlan(clientSim);
 
     fprintf('\n--- Debugging deletePlan ---\n');
     debugDeletePlan(clientSim, 2);    
@@ -227,9 +230,9 @@ function savePlanFiles(folder, planData)
 end
 
 
-function debugGetPlansList(clientSim)
+function debugGetPlansList(clientSim, start_timestamp, end_timestamp, title_subtext)
     fprintf('Getting list of plans...\n');
-    response = clientSim.getPlansList();
+    response = clientSim.getPlansList(start_timestamp, end_timestamp, title_subtext);
     if response.ok
         fprintf('Plans list retrieved successfully:\n');
         disp(struct2table(response.plans));
@@ -254,19 +257,34 @@ end
 function debugSavePlan(clientSim)
     fprintf('Saving new plan...\n');
 
+    BaseDataDir = '~/matlab/data/ULTRASAT/';
+    if ispc
+        BaseDataDir =  'C:/AstroPack/Data/ULTRASAT/';
+    end
+
     % Create a new PlanData instance
     newPlan = ultrasat.api.PlanData();
     newPlan.id = '20250105163045123';
     newPlan.created_by = 'new_user';
     newPlan.plan_info = struct('details', 'New plan details');
     newPlan.targets = struct('target_list', 'TGT003');
-    newPlan.planner = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');  % Instance of your UPlanner class
+    newPlan.planner = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS', 'BaseDataDir', BaseDataDir);  % Instance of your UPlanner class
     newPlan.create_time = datetime('2025-01-05T16:30:45.123Z', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z');
     newPlan.update_time = datetime('2025-01-06T16:30:45.123Z', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z');
     newPlan.status = 'pending';
     newPlan.metadata = struct();
     newPlan.history = struct();
     newPlan.deleted = false;
+
+    build = true;
+    if build
+        upHCS = newPlan.planner;
+        HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
+        upHCS.StartTime = 'now';
+        upHCS.EndTime = upHCS.StartTime+calmonths(6)-days(1);
+        upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
+        upHCS.buildHCS;    
+    end
 
     % Set the client's PlanData and save
     clientSim.PlanData = newPlan;
