@@ -121,7 +121,7 @@ classdef UltrasatPerf < Component
 
             arguments
                 Nobj           = 1;   % array size
-                Args.PSF_name  = 'chromPSF_1';
+                Args.PSF_name  = 'chromPSF_60'; % This is the 90% PSF profile
                 Args.calcPerf  = false;
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
@@ -435,7 +435,7 @@ classdef UltrasatPerf < Component
                 Args.Filter_name = 'Filter';
                 Args.QE_name     = 's3_T2_211';%T2_211';
                 Args.QE_subDir   = 'QE_scouts_experimental';%'QE_scouts_AOI_weighted';
-                Args.PSF_name    = 'chromPSF_1';
+                Args.PSF_name    = 'chromPSF_60'; % This is the 90% PSF profile
                 Args.EE50_subDir = 'EE50';                
                 Args.AOI_fname   = 'aoi.txt';
                 Args.interp_mthd = 'linear';%'cubic'; % cubic generate negative tranimission....
