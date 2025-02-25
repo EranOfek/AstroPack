@@ -127,7 +127,7 @@ classdef UltrasatPerf < Component
 
             arguments
                 Nobj           = 1;   % array size
-                Args.DesignFunPar    = {}; % This is the 90% PSF profile
+                Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};
                 Args.calcPerf  = false;
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
@@ -519,29 +519,29 @@ classdef UltrasatPerf < Component
 
             % FF1 
             if ~isempty(Args.FF1_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF1_name));
-                FF1_2surf = eval(Args.FF1_name);
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF1_fname));
+                FF1_2surf = eval(Args.FF1_fname);
                 Obj.T_FF1_2surf = interp1(FF1_2surf.wavelength,FF1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
 
             % FF2 
             if ~isempty(Args.FF2_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF2_name));
-                FF2_2surf = eval(Args.FF2_name);
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF2_fname));
+                FF2_2surf = eval(Args.FF2_fname);
                 Obj.T_FF2_2surf = interp1(FF2_2surf.wavelength,FF2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
 
             % SC1 
             if ~isempty(Args.SC1_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_name));
-                SC1_2surf = eval(Args.SC1_name);
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_fname));
+                SC1_2surf = eval(Args.SC1_fname);
                 Obj.T_SC1_2surf = interp1(SC1_2surf.wavelength,SC1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
 
             % SC2 
             if ~isempty(Args.SC2_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC2_name));
-                SC2_2surf = eval(Args.SC2_name);
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC2_fname));
+                SC2_2surf = eval(Args.SC2_fname);
                 Obj.T_SC2_2surf = interp1(SC2_2surf.wavelength,SC2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
             
@@ -609,26 +609,28 @@ classdef UltrasatPerf < Component
             %totT = (Obj.T_CaF2.^Obj.N_CaF2) .* (Obj.T_FS.^Obj.N_FS) .* Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
 
             % add FS lenses
+            N_FS = Obj.N_FS;
             if ~isempty(Obj.T_FF1_2surf) % if FF1 is available
                 totT = totT.*Obj.T_FF1_2surf;
-                Obj.N_FS = Obj.N_FS-2;
+                N_FS = N_FS-2;
             end
             if ~isempty(Obj.T_SC1_2surf) % if SC1 is available
                 totT = totT.*Obj.T_SC1_2surf;
-                Obj.N_FS = Obj.N_FS-2;
+                N_FS = N_FS-2;
             end
-            totT = totT.*(Obj.T_FS.^Obj.N_FS);
+            totT = totT.*(Obj.T_FS.^N_FS);
 
             % add CaF2 lenses
+            N_CaF2 = Obj.N_CaF2;
             if ~isempty(Obj.T_FF2_2surf) % if FF2 is available
                 totT = totT.*Obj.T_FF2_2surf;
-                Obj.N_CaF2 = Obj.N_CaF2-2;
+                N_CaF2 = N_CaF2-2;
             end
             if ~isempty(Obj.T_SC2_2surf) % if SC2 is available
                 totT = totT.*Obj.T_SC2_2surf;
-                Obj.N_CaF2 = Obj.N_CaF2-2;
+                N_CaF2 = N_CaF2-2;
             end
-            totT = totT.*(Obj.T_CaF2.^Obj.N_CaF2);
+            totT = totT.*(Obj.T_CaF2.^N_CaF2);
         end
         
         function Obj = populate_QE(Obj,Args)
