@@ -10,7 +10,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              multiplying the stamp by a weight function). The user can
 %              supply the weight function, but by default is a Gaussian
 %              with a radius specified by the user. By default, the weight
-%              function width is adapeted iteratively, where in the first
+%              function width is adapted iteratively, where in the first
 %              iteration a flat window is used, and then a Gaussian with
 %              smaller and smaller sigma is used (see code for details).
 %              The central second moment is calculated around the 1st
