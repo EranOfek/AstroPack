@@ -9,12 +9,13 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     %         [RA, Dec, ~] = ultrasat.tools.coverProbMap(Map,'MaxTarg',4); 
     arguments
         SkyMap      
-        Args.MaxTarg           = 4;   % maximal number of exposures (unqi targets) to use
-        Args.MinProb           = 0.5; % minimal cumulative probability covered
-               
-        Args.FOVradius         = 7.0; % [deg] 
-        Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
-        Args.ProbThresh        = 0.1; % the limiting probability per ULTRASAT FOV (determines the maximal number of FOVs)
+        Args.MaxTarg           = 4;    % maximal number of exposures (unqi targets) to use
+        Args.MinProb           = 0.5;  % minimal cumulative probability covered
+        Args.MinAddedProb      = 0.05; % once adding one more target increases the sum covered probability 
+                                       % by less than this value, we does not need it and stop               
+        Args.FOVradius         = 7.0;  % [deg] 
+        Args.CleanThresh       = 0.1;  % cleaning probability [sr(-1)] 
+        Args.ProbThresh        = 0.03; % the limiting probability per ULTRASAT FOV (determines the maximal number of FOVs)
         
         Args.Verbosity         = 2;    
         Args.DrawMaps          = true;
@@ -28,8 +29,12 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     Stat.NCover      = 0; % number of exposures
     Stat.CoveredArea = 0; % covered area 
 
-    % read the alert map from a CSV file and filter out points < 0.1 sr(-1)
-    Map0 = readtable(SkyMap);
+    % read the alert map as input or from a CSV file and filter out points < 0.1 sr(-1)
+    if istable(SkyMap)
+        Map0 = SkyMap;
+    else
+        Map0 = readtable(SkyMap);
+    end
     Map1 = Map0(Map0.PROBDENSITY > Args.CleanThresh,:);      
     
         if Args.Verbosity > 1
@@ -70,7 +75,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
             fprintf('The target area is covered with %d FOVs \n',Ntarg0)
         end  
         
-    % sort the targets by covered probability (with no overlap treatment!) 
+    % sort the targets by covered probability (with no overlap treatment yet!) 
     [~, Ind] = sort([Targets0.Pr], 'descend'); 
      
     if Args.CalcCoverageCurve
@@ -78,13 +83,19 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         Nthresh = numel(Args.MinProb);        
         Stat.NCover(1:Nthresh) = 0;
         Stat.CoveredArea(1:Nthresh) = 0;
+        CoveredProb = zeros(1,Ntarg0);
         while It < Ntarg0 && Stat.NCover(Nthresh) < 1
             It = It+1;
             Targets = Targets0(Ind(1:It));  % select first It targets
             TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
-            [CoveredProb, CoveredArea] = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
+            [CoveredProb(It), CoveredArea] = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
+            if It > 1
+                DeltaCoveredProb = CoveredProb(It)-CoveredProb(It-1); % covered probability added with Target(It)
+            else
+                DeltaCoveredProb = CoveredProb(It);
+            end
             for i = 1:Nthresh
-                if CoveredProb > Args.MinProb(i) &&  Stat.NCover(i) < 1
+                if ( CoveredProb(It) > Args.MinProb(i) || DeltaCoveredProb < Args.MinAddedProb) &&  Stat.NCover(i) < 1
                     Stat.NCover(i) = It;
                     Stat.CoveredArea(i) = CoveredArea;
                 end                
@@ -121,6 +132,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     % extract the output lists:
     RA  = arrayfun(@(t) t.Coo(1), Targets);
     Dec = arrayfun(@(t) t.Coo(2), Targets);
+    Stat.IndividualCoveredProb = arrayfun(@(t) t.Pr, Targets);
 end
 
 %%% internal functions may be later replaced to calls to external tools
@@ -197,10 +209,10 @@ function [SumProb, SumArea] = sumProbability(Map, Args)
         Map = Map(Map.Select > 0,:);        
     end
     
-    Prob = Map.PROBDENSITY ./ SRAD; % probability per deg^2
+    ProbPerDeg = Map.PROBDENSITY ./ SRAD; % probability per deg^2
     
     Ind  = floor(log(Map.UNIQ/4)/(2*log(2)));    
-    SumProb = sum(NsideAreaDeg(Ind(:,1),2).*Prob);    
+    SumProb = sum(NsideAreaDeg(Ind(:,1),2).*ProbPerDeg);    
     SumArea = sum(NsideAreaDeg(Ind(:,1),2));       % deg^2
 end
 

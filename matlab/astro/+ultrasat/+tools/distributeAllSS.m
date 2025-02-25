@@ -270,11 +270,11 @@ function [SrcNum, Slots, Shift] = settle4points(Ip,StartSlot,Tab,Vis,IndFun)
     % find the 4 points by the major number 
     Ind = find( Tab.FieldNum == Tab.FieldNum(Ip) );
     % try 4 windows containing StartSlot: 
+    Shift = 0;
     if StartSlot+3 < size(Vis,1)+1
         Slots = StartSlot:StartSlot+3;
         Vis4 = Vis(Slots,IndFun(Ind));
-        SrcNumbers = find_bipartite_matching(Vis4);         
-        Shift = 0;
+        SrcNumbers = find_bipartite_matching(Vis4);                 
     end
     if isempty(SrcNumbers) && StartSlot+2 < size(Vis,1)+1 && StartSlot-1 > 0
         Slots = StartSlot-1:StartSlot+2;
