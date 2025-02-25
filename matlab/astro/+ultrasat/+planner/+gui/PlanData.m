@@ -18,7 +18,7 @@ classdef PlanData < handle
         UpdateTime              %
         Metadata                % 
 
-        Planner                 % ultrasat.planner.uplanner
+        Planner                 % ultrasat.planner.uplanner, it contains all targets
 
         % Status
         StatusText              % Status text for display        

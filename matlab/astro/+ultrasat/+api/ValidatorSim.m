@@ -27,7 +27,7 @@ classdef ValidatorSim < handle
             % Ensure the JSON file exists
             if ~isfile(obj.DbFilePath)
                 fid = fopen(obj.DbFilePath, 'w');
-                fwrite(fid, jsonencode(struct('validations', {})), 'char');
+                fwrite(fid, jsonencode(struct('validations', {}), 'PrettyPrint', true), 'char');
                 fclose(fid);
             end            
         end
