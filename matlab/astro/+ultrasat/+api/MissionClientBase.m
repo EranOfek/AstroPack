@@ -39,7 +39,7 @@ classdef MissionClientBase < handle
         function obj = MissionClientBase(Args)
             arguments          
                 Args.SubUrl = '/mission';  % planner_backend
-                Args.LogFileName 
+                Args.LogFileName = []
             end
 
             if isempty(Args.LogFileName)

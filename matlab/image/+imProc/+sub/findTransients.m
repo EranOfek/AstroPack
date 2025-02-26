@@ -134,9 +134,11 @@ function TranCat=findTransients(AD, Args)
 
         if Args.include2ndMoment || Args.includePsfFit
             [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Image, ...
-                LocalMax(:,1), LocalMax(:,2));
+                LocalMax(:,1), LocalMax(:,2),...
+                'MomRadius',1.7*AD(Iobj).PSFData.fwhm);
             [M1N, M2N, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
-                LocalMax(:,1), LocalMax(:,2));
+                LocalMax(:,1), LocalMax(:,2),...
+                'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
         end
 
         if Args.includePsfFit

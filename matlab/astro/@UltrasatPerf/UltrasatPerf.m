@@ -60,13 +60,19 @@ classdef UltrasatPerf < Component
         % Design
         FLmm                double = 360; % [mm] focal length
         obscuration(1,:)    double = [];  % [%] Obscuration as a function of radial distance
-        N_CaF2              double = 4;   % Number of CaF2 AR-coated surfaces
-        N_FS                double = 4;   % Number of FS AR-coated surfaces
         
+        N_CaF2              double = 4;   % Number of CaF2 AR-coated surfaces
+        N_FS                double = 4;   % Number of FS AR-coated surfaces        
         T_CaF2(:,1)         double = [];  % [%]  Transmission of single CaF2 AR-coated surface
         T_FS(:,1)           double = [];  % [%]  Transmission of single FS AR-coated surface
-        R_Mirror(:,1)       double = [];  % [%]  Mirror reflection
+
+        T_FF1_2surf(:,1)    double = [];  % [%]  Transmission of FF1 (FS AR-coated on two surfaces)
+        T_FF2_2surf(:,1)    double = [];  % [%]  Transmission of FF2 (CaF2 AR-coated on two surfaces)
+        T_SC1_2surf(:,1)    double = [];  % [%]  Transmission of SC1 (FS AR-coated on two surfaces)
+        T_SC2_2surf(:,1)    double = [];  % [%]  Transmission of SC2 (CaF2 AR-coated on two surfaces)
         
+
+        R_Mirror(:,1)       double = [];  % [%]  Mirror reflection        
         T_Filter(:,:)       double = [];  % [%]  2D (WL vs. AOI) Transmission of the sapphire filter (including ARC)
         QE(:,:)             double = [];  % [%]  2D (WL vs. AOI) detector QE
         AOI_dist(:,:)       double = [];  % [%]  2D (AOI vs R) AOI distribution for filter+detector
@@ -121,7 +127,7 @@ classdef UltrasatPerf < Component
 
             arguments
                 Nobj           = 1;   % array size
-                Args.PSF_name  = 'chromPSF_60'; % This is the 90% PSF profile
+                Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};
                 Args.calcPerf  = false;
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
@@ -136,7 +142,7 @@ classdef UltrasatPerf < Component
                 Nh = numel(List);
                 for Ih=1:1:Nh
                     Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
-                    Obj(Ih).populate_Design('PSF_name',Args.PSF_name); % Populate design
+                    Obj(Ih).populate_Design(Args.DesignFunPar{:});%'PSF_name',Args.PSF_name); % Populate design
                     if Args.calcPerf
                         Obj(Ih).calculatePerformance;
                     end
@@ -431,13 +437,17 @@ classdef UltrasatPerf < Component
                 Args.OBSC_name   = 'Obscuration';                
                 Args.CaF2_name   = 'CaF2_AR';
                 Args.FS_name     = 'FS_AR';
-                Args.Mirror_name = 'M2';%'Mirror';
-                Args.Filter_name = 'Filter';
+                Args.Mirror_name = 'Mirror_asBuilt';%'M2';%'Mirror';
+                Args.Filter_name = 'Filter_asBuilt';%'Filter';
                 Args.QE_name     = 's3_T2_211';%T2_211';
                 Args.QE_subDir   = 'QE_scouts_experimental';%'QE_scouts_AOI_weighted';
                 Args.PSF_name    = 'chromPSF_60'; % This is the 90% PSF profile
                 Args.EE50_subDir = 'EE50';                
                 Args.AOI_fname   = 'aoi.txt';
+                Args.FF1_fname   = '';
+                Args.FF2_fname   = '';
+                Args.SC1_fname   = '';
+                Args.SC2_fname   = '';
                 Args.interp_mthd = 'linear';%'cubic'; % cubic generate negative tranimission....
             end
 
@@ -506,6 +516,34 @@ classdef UltrasatPerf < Component
             
             % AOI
             Obj.read_AOI_dist(fullfile(UltrasatPerf.RawDataDir,Args.AOI_fname));
+
+            % FF1 
+            if ~isempty(Args.FF1_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF1_fname));
+                FF1_2surf = eval(Args.FF1_fname);
+                Obj.T_FF1_2surf = interp1(FF1_2surf.wavelength,FF1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % FF2 
+            if ~isempty(Args.FF2_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF2_fname));
+                FF2_2surf = eval(Args.FF2_fname);
+                Obj.T_FF2_2surf = interp1(FF2_2surf.wavelength,FF2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % SC1 
+            if ~isempty(Args.SC1_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_fname));
+                SC1_2surf = eval(Args.SC1_fname);
+                Obj.T_SC1_2surf = interp1(SC1_2surf.wavelength,SC1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % SC2 
+            if ~isempty(Args.SC2_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC2_fname));
+                SC2_2surf = eval(Args.SC2_fname);
+                Obj.T_SC2_2surf = interp1(SC2_2surf.wavelength,SC2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
             
             % totT
             Obj.TotT = zeros(numel(Obj.wavelength),numel(Obj.Rdeg));
@@ -524,7 +562,7 @@ classdef UltrasatPerf < Component
                 Args.Family = 'ULTRASAT';
                 Args.BaseBandName = 'R';
                 Args.BaseComment = 'deg off FOV center';
-                Args.source_info = 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'      
+                Args.source_info = 'Measured QE + AsBuilt Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + AsBuilt filter + Therotical Obscuration' ; % 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'        
             end
             
             Nr = numel(Obj.Rdeg);
@@ -566,7 +604,33 @@ classdef UltrasatPerf < Component
             AOI_m = repmat(AOI',numel(Obj.wavelength),1);
             T_filter_QE = sum(Obj.T_Filter.*Obj.QE.*AOI_m,2);
             
-            totT = (Obj.T_CaF2.^Obj.N_CaF2) .* (Obj.T_FS.^Obj.N_FS) .* Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+            % Initiate totT with Miror, Filter_QE, and obscuraton
+            totT = Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+            %totT = (Obj.T_CaF2.^Obj.N_CaF2) .* (Obj.T_FS.^Obj.N_FS) .* Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+
+            % add FS lenses
+            N_FS = Obj.N_FS;
+            if ~isempty(Obj.T_FF1_2surf) % if FF1 is available
+                totT = totT.*Obj.T_FF1_2surf;
+                N_FS = N_FS-2;
+            end
+            if ~isempty(Obj.T_SC1_2surf) % if SC1 is available
+                totT = totT.*Obj.T_SC1_2surf;
+                N_FS = N_FS-2;
+            end
+            totT = totT.*(Obj.T_FS.^N_FS);
+
+            % add CaF2 lenses
+            N_CaF2 = Obj.N_CaF2;
+            if ~isempty(Obj.T_FF2_2surf) % if FF2 is available
+                totT = totT.*Obj.T_FF2_2surf;
+                N_CaF2 = N_CaF2-2;
+            end
+            if ~isempty(Obj.T_SC2_2surf) % if SC2 is available
+                totT = totT.*Obj.T_SC2_2surf;
+                N_CaF2 = N_CaF2-2;
+            end
+            totT = totT.*(Obj.T_CaF2.^N_CaF2);
         end
         
         function Obj = populate_QE(Obj,Args)
