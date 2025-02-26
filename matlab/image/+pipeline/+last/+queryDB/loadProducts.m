@@ -166,7 +166,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
 
                         AllFiles(Icounter, Ipath) = AFND.genFile;
                         if Args.Load
-                            AI(Icounter, Ipath) = AstroCatalog({AllFiles{Icounter, Ipath}});
+                            AI(Icounter, Ipath) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
                         end
 
 
