@@ -1,67 +1,14 @@
 [
-    {
-        "pk": 1,
-        "target_id": "TGT001",
-        "ra": 11.0,
-        "decl": 12.0,
-        "roll": 0.0,
-        "start_time": "2025-03-01T00:00:00.000000Z",
-        "end_time": "2025-03-01T00:15:00.000000Z",
-        "exposure": 300,
-        "image_count": 3,
-        "total_seconds": 900,
-		"tiles": "1,2,3,4"
-    },
-    {
-        "pk": 2,
-        "target_id": "TGT002",
-        "ra": 21.0,
-        "decl": 22.0,
-        "roll": 0.0,
-        "start_time": "2028-01-01T01:00:00.000000Z",
-        "end_time": "2028-01-01T01:15:00.000000Z",
-        "exposure": 300,
-        "image_count": 3,
-        "total_seconds": 900,
-		"tiles": "1,2,3,4"
-    },
-    {
-        "pk": 3,
-        "target_id": "TGT003",
-        "ra": 31.0,
-        "decl": 32.0,
-        "roll": 0.0,
-        "start_time": "2028-01-01T02:00:00.000000Z",
-        "end_time": "2028-01-01T02:15:00.000000Z",
-        "exposure": 300,
-        "image_count": 3,
-        "total_seconds": 900,
-		"tiles": "1,2,3,4"
-    },
-    {
-        "pk": 4,
-        "target_id": "TGT004",
-        "ra": 41.0,
-        "decl": 42.0,
-        "roll": 0.0,
-        "start_time": "2028-01-01T03:00:00.000000Z",
-        "end_time": "2028-01-01T03:15:00.000000Z",
-        "exposure": 300,
-        "image_count": 3,
-        "total_seconds": 900,
-		"tiles": "1,2,3,4"
-    },
-    {
-        "pk": 5,
-        "target_id": "TGT005",
-        "ra": 51.0,
-        "decl": 52.0,
-        "roll": 0.0,
-        "start_time": "2028-01-01T04:00:00.000000Z",
-        "end_time": "2028-01-01T04:15:00.000000Z",
-        "exposure": 300,
-        "image_count": 3,
-        "total_seconds": 900,
-		"tiles": "1,2,3,4"
-    }
+  {
+    "title": "MyUniqueTarget",
+    "ra": 215,
+    "decl": 60,
+    "roll": 0,
+    "tiles": "1,2,3,4",
+    "start_time": "2028-01-01T12:00:00.000000Z",
+    "end_time": "2028-07-01T12:00:15.000000Z",
+    "exposure": 300,
+    "image_count": 52416,
+    "total_seconds": 1.5724815E+7
+  }
 ]

@@ -339,7 +339,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%d.json', obj.PlanData.pk));
+            jsonFile = fullfile(plansFolder, sprintf('%03d.json', obj.PlanData.pk));
             if ~isfile(jsonFile)
                 obj.msglog('Plan file not found for pk=%d', obj.PlanData.pk);
                 response.status = 'error';
@@ -495,8 +495,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%d.json', plan_pk));
-            matFile = fullfile(plansFolder, sprintf('%d.mat', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
+            matFile = fullfile(plansFolder, sprintf('%03d.mat', plan_pk));
         
             if ~isfile(jsonFile) || ~isfile(matFile)
                 obj.msglog('Plan files not found for pk=%d', plan_pk);
@@ -590,8 +590,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%d.json', plan_pk));
-            matFile = fullfile(plansFolder, sprintf('%d.mat', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
+            matFile = fullfile(plansFolder, sprintf('%03d.mat', plan_pk));
         
             if isfile(jsonFile)
                 delete(jsonFile);
@@ -614,7 +614,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%d.json', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
             if ~isfile(jsonFile)
                 obj.msglog('Plan file not found for pk=%d', plan_pk);
                 response.status = 'error';

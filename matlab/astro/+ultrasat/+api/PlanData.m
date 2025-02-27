@@ -67,6 +67,12 @@ classdef PlanData < handle
                 'history', obj.history, ...
                 'deleted', obj.deleted ...
             );
+
+            % MATLAB cannot have array with single struct item, the
+            % only solution is to convert the array to cellarray
+            %if numel(data.targets) == 1
+            %    data.targets = {data.targets};
+            %end            
         end
 
 
