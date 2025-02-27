@@ -398,8 +398,7 @@ function TranCat = flagNonTransients(Obj, Args)
             ProbN = mvnpdf(X2Y2N, Args.PSFShapeXYMeanN, Args.PSFShapeCovN);
             ProbD = mvnpdf(X2Y2D, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
-            PassesN = ProbN > Args.PSFShapeProbThresholdN |...
-                ((Cat.getCol('Dec') < 30) & (X2N < 1.25));
+            PassesN = ProbN > Args.PSFShapeProbThresholdN;
             PassesD = ProbD > Args.PSFShapeProbThresholdD;
             
             SecondMomentFlagged = PassesN & PassesD;
