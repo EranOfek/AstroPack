@@ -72,8 +72,8 @@
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate(Mclient,Args)                                   : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
-% - Obj.submit(Mclient,Args)                                     : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
+% - Obj.validate(Args)                                      : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.submit(Args)                                        : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
 % - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
 %
@@ -168,6 +168,7 @@ classdef uplanner < Component
         Status                  char        = 'draft';
         
         AstPlanner              char        % name of the Astronomer-Planner
+        Mclient                             % API client - MissionClient / MissionClientSim
     end
     % 
     properties(Hidden, Constant)
@@ -1018,7 +1019,6 @@ classdef uplanner < Component
                 Args.inputPlan = []; 
                 Args.WindowStartTime = []; 
                 Args.WindowEndTime = []; 
-                Args.Mclient 
             end        
             
             %for now, allow to get a uPlan and use it as refernce
@@ -1049,12 +1049,20 @@ classdef uplanner < Component
             if isstruct(Args.inputPlan)
                 structPlan = Args.inputPlan;
             else
-                structPlan = Args.Mclient.getApprovedTargets(Args.WindowStartTime, Args.WindowEndTime);
+                if isempty(Obj.Mclient)
+                    error('Obj.Mclient must be set'); 
+                end
+
+                structPlan = Obj.Mclient.getApprovedTargets(Args.WindowStartTime, Args.WindowEndTime);
             end
-            
-            TargetsTable = struct2table(structPlan.targets);
-            
+                       
             Obj.clearMissionApprovedPlan;
+
+            if isempty(structPlan.targets)
+                return;
+            end
+
+            TargetsTable = struct2table(structPlan.targets);            
             
             Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
             %Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
@@ -1393,47 +1401,53 @@ classdef uplanner < Component
             Obj.ScheduledTime = datetime('now','TimeZone', 'UTC');    
         end
         %
-        function validate(Obj,Mclient,Args)
+        function validate(Obj,Args)
             % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
             arguments
                 Obj
-                Mclient
                 Args.checkSelfConsistency       = true;
             end
             
-            if   Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
+            if Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
                 CheckStatus = upLCS.planSelfConsistencyCheck;
                 if ~CheckStatus
                     error('Plan is not self-consistent. Validation aborted'); 
                 end
             end
             
+            if isempty(Obj.Mclient)
+                error('Obj.Mclient must be set'); 
+            end
+
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
-            Mclient.validatePlan(planStruct);            
+            Obj.Mclient.validatePlan(planStruct);            
             
             Obj.Status    = 'validated';
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
         end        
         %
-        function submit(Obj,Mclient,Args)
+        function submit(Obj,Args)
             %  TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
             arguments
                 Obj
-                Mclient
                 Args.checkSelfConsistency       = true;
             end
             
-            if   Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
+            if Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
                 CheckStatus = Obj.planSelfConsistencyCheck;
                 if ~CheckStatus
                     error('Plan is not self-consistent. Submition aborted'); 
                 end
             end
 
+            if isempty(Obj.Mclient)
+                error('Obj.Mclient must be set'); 
+            end            
+
             planStruct = Obj.planTable2struct;
             % send struct plan to the Mission C&C.
-            Mclient.submitPlan(planStruct);
+            Obj.Mclient.submitPlan(planStruct);
             
             Obj.Status    = 'submitted';
             Obj.SubmittedTime = datetime('now','TimeZone', 'UTC'); 

@@ -294,9 +294,20 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 end
             end
         
+            % Add 'pk' field if not exist
+            for i = 1:numel(updatedTargets)
+                if ~isfield(updatedTargets(i), 'pk')
+                    updatedTargets(i).pk = 0;
+                end
+
+                if ~isfield(updatedTargets(i), 'target_id')
+                    updatedTargets(i).target_id = 'TRG';
+                end                
+            end
+
             % Sort targets by start_time
-            [~, sortIdx] = sort(datetime({updatedTargets.start_time}, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC'));
-            updatedTargets = updatedTargets(sortIdx);
+            % [~, sortIdx] = sort(datetime({updatedTargets.start_time}, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC'));
+            % updatedTargets = updatedTargets(sortIdx);
         
             % Save back to JSON
             fid = fopen(approvedTargetsFile, 'w');

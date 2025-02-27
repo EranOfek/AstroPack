@@ -116,6 +116,7 @@ classdef MainModule < handle
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
+            Planner.Mclient = obj.ApiClient;
         end
 
         % =================================================================
@@ -180,10 +181,33 @@ classdef MainModule < handle
             Result = str2double(strtrim(Value));
         end        
 
+
         function Result = getFieldDateTime(obj, Value)
+            % Return the value of date-time text field as a datetime object
+            if ~isempty(Value)
+                try
+                    % First, try parsing as ISO 8601 format
+                    Result = datetime(Value, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
+                catch
+                    try
+                        % If it fails, try parsing as 'yyyy-MM-dd HH:mm:ss'
+                        Result = datetime(Value, 'InputFormat', 'yyyy-MM-dd HH:mm:ss', 'TimeZone', 'UTC');
+                    catch
+                        % If parsing fails, return an empty datetime with UTC
+                        warning('Invalid date format: %s', Value);
+                        Result = datetime([], 'TimeZone', 'UTC');
+                    end
+                end
+            else
+                Result = [];
+            end
+        end
+        
+
+        function Result = getFieldDateTime0(obj, Value)
             % Return the value of date-time text field as datetime object
             if ~isempty(Value)
-                Result = datetime(Value);
+                Result = datetime(Value, 'TimeZone', 'UTC');
             else
                 Result = [];
             end
@@ -205,7 +229,7 @@ classdef MainModule < handle
             if isempty(dt)
                 Result = '';
             else
-                Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');
+                Result = datestr(dt, 'yyyy-mm-dd HH:MM:SS');
             end
         end
 
