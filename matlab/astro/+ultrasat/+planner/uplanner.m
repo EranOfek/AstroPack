@@ -1425,7 +1425,7 @@ classdef uplanner < Component
             end
             
             if   Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
-                CheckStatus = upLCS.planSelfConsistencyCheck;
+                CheckStatus = Obj.planSelfConsistencyCheck;
                 if ~CheckStatus
                     error('Plan is not self-consistent. Submition aborted'); 
                 end
@@ -1524,6 +1524,12 @@ classdef uplanner < Component
                 tmpTable = tmpTable(:,keepVars);
                 
                 planStruct = table2struct(tmpTable);
+
+                % MATLAB cannot have array with single struct item, the
+                % only solution is to convert the array to cellarray
+                %if numel(planStruct) == 1
+                %    planStruct = {planStruct};
+                %end
             else
                 error('Currently does not support non-standard fields');
             end
@@ -1562,7 +1568,7 @@ classdef uplanner < Component
                     ax = Args.AxesHandle;
                 end
                 
-                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(gca, 'YScale', 'log');
+                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(ax, 'YScale', 'log');
                 if ~isempty(Args.WaveRange)
                     xlim(ax,Args.WaveRange.*10);
                 end
@@ -1592,7 +1598,8 @@ classdef uplanner < Component
             else 
                 ax = Args.AxesHandle;
             end
-            hold on; box on;
+            hold(ax, 'on');  
+            box(ax, 'on');
             
             V = Obj.Vis;
             
@@ -1669,7 +1676,7 @@ classdef uplanner < Component
             ylabel(ax,'Angular distance [deg]');
             title(ax,sprintf('Visibility of UniqTarget #%d',UniqTargInd)); 
             legend('Sun','Earth','Moon','Location','best');
-            hold off;
+            hold(ax, 'off');  
         end
         %
         function plotMapPlan(Obj,Args)
@@ -1710,9 +1717,9 @@ classdef uplanner < Component
                 [RA_grid,Dec_grid] = meshgrid(RA_vec,Dec_vec);
                 A_u = ultrasat.tools.extinction(RA_grid,Dec_grid,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
                 imagesc(ax,RA_vec, Dec_vec, A_u);
-                c = colorbar;
+                c = colorbar(ax);
                 c.Label.String = 'A_{ULTRASAT}';
-                caxis([0,1.1]);
+                clim(ax, [0,1.1]);
                 set(ax,'YDir','normal');
             end
             
