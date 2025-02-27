@@ -58,7 +58,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
                 Scale = Args.Scale;
             end
             
-            [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',0.5});
+            [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1});  % see fix in issue #585
             FWHM_C = FWHM_C.*Scale;
             %FWHM_H = FWHM_H.*Scale;
         else

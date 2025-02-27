@@ -677,7 +677,6 @@ classdef AstroZOGY < AstroDiff
                     Pd = ifftshift(Pd);
                     PdSize = size(Pd);
 
-                    %SizeDiff = PdSize(1) - HalfSizePSF(1);
                     if (mod(HalfSizePSF(1),2) > 0) || (mod(PdSize(1),2) > 0)
                         Pd = circshift(Pd, [-1, -1]);
                     end

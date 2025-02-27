@@ -108,12 +108,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        %Args.DChi2dofLimits = [0.2 1.5];
-        %Args.NRChi2dofLimits = [0.1 1.60];
-        Args.PSFChi2Mean = [0.64096051, 0.65603272]
-        Args.PSFChi2CovInv = [11.06639904, -4.23111166;...
-            -4.23111166, 10.35510321];
-        Args.PSFChi2DistThreshold = 1.7;
+        Args.DChi2dofLimits = [0.2 1.5];
+        Args.NRChi2dofLimits = [0.1 2.0];
         
         Args.flagSaturated logical = true;
 
@@ -135,7 +131,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagRinging logical = true;
 
         Args.flagPeakDist logical = true;
-        Args.PeakDistThreshold = 1.0;
+        Args.PeakDistThreshold = 2.1;
 
         Args.flagLimitingMag logical = true;    
         Args.LimitingMagOverwriteVal = NaN;
@@ -144,11 +140,14 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PVDistThresh = 10;
 
         Args.flagPSFShape logical = true;
-        Args.PSFShapeFWHMThresh = 4.0;
-        Args.PSFShapeXYMean = [1.03249812, 1.07405709]
-        Args.PSFShapeCovInv = [15.98057534, -5.14461356;...
-            -5.14461356, 12.15646961];
-        Args.PSFShapeDistThreshold = 1.7;
+        Args.PSFShapeXYMeanN = [0.75694019, 0.82121291]
+        Args.PSFShapeCovN = [0.01267776, 0.005022;...
+            0.005022,  0.01129344];
+        Args.PSFShapeProbThresholdN = 0.05;
+        Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
+        Args.PSFShapeCovD = [0.06467546, 0.02720397;...
+            0.02720397, 0.06933742];
+        Args.PSFShapeProbThresholdD = 0.05;
         
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
@@ -162,6 +161,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagCR logical = true;
         Args.CRDeltaSN = 0.5;
+        Args.CRDeltaSN_BP = 5.0;
 
         Args.flagVariable logical = true;
         Args.VarStarDist = 3;
@@ -169,9 +169,10 @@ function TranCat = flagNonTransients(Obj, Args)
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
         Args.ScorrThreshold = 5.0;
+        Args.ScorrCorrectionParam = 0.7;
 
         Args.flagTranslients logical = true;
-        Args.TranslientCorrectionParam = 20;
+        Args.TranslientCorrectionParam = 30;
         Args.ignoreTranslient_NothingInRef = true;
     end
 
@@ -179,6 +180,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
     % Get transients filter bit dictionary
     BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
+
+    Arcsec2Rad = 4.84814e-6;
 
     for Iobj=Nobj:-1:1
         Cat = Obj(Iobj).CatData;
@@ -207,49 +210,21 @@ function TranCat = flagNonTransients(Obj, Args)
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
 
-            D_CHI2DOF = Cat.getCol('PSF_CHI2DOF');
+            %D_CHI2DOF = Cat.getCol('PSF_CHI2DOF');
             N_CHI2DOF = Cat.getCol('N_PSF_CHI2DOF');
             R_CHI2DOF = Cat.getCol('R_PSF_CHI2DOF');
             Negatives = Score < 0;
 
             NR_CHI2DOF = N_CHI2DOF;
             NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
-            Dchi2NRchi2 = [D_CHI2DOF(:),NR_CHI2DOF(:)];
 
-            Dchi2NRchi2Diff = Dchi2NRchi2 - Args.PSFChi2Mean;
+            GoodChi2dofNR = ...
+                (NR_CHI2DOF > Args.NRChi2dofLimits(1)) & ...
+                (NR_CHI2DOF < Args.NRChi2dofLimits(2));
 
-            MahalanobisDist = sqrt(sum(...
-                (Dchi2NRchi2Diff*Args.PSFChi2CovInv).*Dchi2NRchi2Diff,2));
-
-            Chi2dofFlagged = (MahalanobisDist > Args.PSFChi2DistThreshold);
-
+            Chi2dofFlagged = ~GoodChi2dofNR;
             TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
-            %{ 
-            DChi2 = Cat.getCol('PSF_CHI2DOF');
-            GoodChi2dofD = (DChi2 > Args.DChi2dofLimits(1)) &...
-                (DChi2 < Args.DChi2dofLimits(2));
-            GoodChi2dof = GoodChi2dofD;
-
-            % Demand also that in at least New or Ref, 
-            % the candidate is not overfitted
-            if Cat.isColumn('N_PSF_CHI2DOF') && Cat.isColumn('R_PSF_CHI2DOF')
-                NChi2 = Cat.getCol('N_PSF_CHI2DOF');
-                RChi2 = Cat.getCol('R_PSF_CHI2DOF');
-                PosSrc = Score > 0;
-                NegSrc = Score < 0;
-                
-                GoodChi2dofNR = true(CatSize,1);
-                GoodChi2dofNR(PosSrc) = ...
-                    (NChi2(PosSrc) > Args.NRChi2dofLimits(1)) & ...
-                    (NChi2(PosSrc) < Args.NRChi2dofLimits(2));
-                GoodChi2dofNR(NegSrc) = ...
-                    (RChi2(NegSrc) > Args.NRChi2dofLimits(1)) & ...
-                    (RChi2(NegSrc) < Args.NRChi2dofLimits(2));
-                GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;            
-            end
-
-            Chi2dofFlagged = ~GoodChi2dof;
-            %}
+ 
         end
     
         % Apply bit mask critera.
@@ -411,25 +386,25 @@ function TranCat = flagNonTransients(Obj, Args)
         end
         
         if Args.flagPSFShape
-            NFWHM = Obj(Iobj).New.PSFData.fwhm;
-            RFWHM = Obj(Iobj).Ref.PSFData.fwhm;
+            X2N = Cat.getCol('N_X2');
+            Y2N = Cat.getCol('N_Y2');
 
-            X2 = Cat.getCol('N_X2');
-            Y2 = Cat.getCol('N_Y2');
+            X2D = Cat.getCol('X2');
+            Y2D = Cat.getCol('Y2');
             
-            X2Y2 = [X2(:),Y2(:)];
+            X2Y2N = [X2N(:),Y2N(:)];
+            X2Y2D = [X2D(:),Y2D(:)];
 
-            X2Y2Diff = X2Y2 - Args.PSFShapeXYMean;
+            ProbN = mvnpdf(X2Y2N, Args.PSFShapeXYMeanN, Args.PSFShapeCovN);
+            ProbD = mvnpdf(X2Y2D, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
-            MahalanobisDist = sqrt(sum(...
-                (X2Y2Diff*Args.PSFShapeCovInv).*X2Y2Diff,2));
-
-            SecondMomentFlagged = (X2 < 0) | (Y2 < 0) | ...
-                (MahalanobisDist > Args.PSFShapeDistThreshold);
-            FWHMFlagged = ones(CatSize,1)*(NFWHM > Args.PSFShapeFWHMThresh...
-                | RFWHM > Args.PSFShapeFWHMThresh);
+            PassesN = ProbN > Args.PSFShapeProbThresholdN |...
+                ((Cat.getCol('Dec') < 30) & (X2N < 1.25));
+            PassesD = ProbD > Args.PSFShapeProbThresholdD;
             
-            PSFShapeFlagged = FWHMFlagged | SecondMomentFlagged;
+            SecondMomentFlagged = PassesN & PassesD;
+            
+            PSFShapeFlagged = ~SecondMomentFlagged;
             TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
         end
 
@@ -507,7 +482,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagCR
             SN_delta = Cat.getCol('SN_delta');
+            CR_BP_New = BD.findBit(BM_new,'CR_DeltaHT');
+
             NoNCRs = (abs(Score) - abs(SN_delta) >  Args.CRDeltaSN);
+
+            NoNCRs(CR_BP_New) = (...
+                abs(Score(CR_BP_New)) - abs(SN_delta(CR_BP_New)) >  Args.CRDeltaSN_BP);
+
             TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
         end
 
@@ -543,7 +524,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 [QSOLon, QSOLat] = QSOCat.getLonLat('rad');
     
                 MatchResQSO = VO.search.search_sortedlat_multi( ...
-                    [QSOLon, QSOLat], RA, Dec, -3*4.84814e-6);
+                    [QSOLon, QSOLat], RA, Dec, -3*Arcsec2Rad);
     
                 QSOmatch = vertcat(MatchResQSO.Nmatch) > 0;
     
@@ -569,7 +550,7 @@ function TranCat = flagNonTransients(Obj, Args)
     
                 MatchResVarStar = VO.search.search_sortedlat_multi( ...
                     [VarStarLon, VarStarLat], RA, Dec, ...
-                    -max(StarDist)*4.84814e-6);
+                    -max(StarDist)*Arcsec2Rad);
     
                 VarStarmatch = vertcat(MatchResVarStar.Nmatch) > 0;
                 
@@ -588,7 +569,8 @@ function TranCat = flagNonTransients(Obj, Args)
             Scorr = Cat.getCol('S_CORR');
 
             ScorrGood = (abs(Score) >= abs(Scorr)) ...
-                & (abs(Scorr) > Args.ScorrThreshold);
+                & ((abs(Scorr) > Args.ScorrThreshold) | ...
+                (abs(Score) - abs(Scorr) < Args.ScorrCorrectionParam));
 
             %TODO: Galaxy centers have overestimated significance either
             %due to source noise, wrong estimation of the zero point, or

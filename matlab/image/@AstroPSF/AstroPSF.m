@@ -545,6 +545,12 @@ classdef AstroPSF < Component
                     EpsVec = (1:1:N)'.*Args.EpsStep;
                     RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
                     RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                    if isnan(RadHalfCumSum(Iobj))
+                        % PSF is likely to narrow and the fuisrt cumsum
+                        % point is above 0.5
+                        % set RadHalfCumSum to the value of RadHalfPeak
+                        RadHalfCumSum(Iobj) = RadHalfPeak(Iobj);
+                    end
                 end
             end
             

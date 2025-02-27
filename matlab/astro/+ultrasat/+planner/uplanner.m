@@ -623,6 +623,10 @@ classdef uplanner < Component
                 Limits(Ind,:) = 0;
             end
             
+            % exclude already scheduled points (for multiple calls of the builder)
+            F = Obj.SchedStatus.Status > 0; 
+            Limits(:,F) = 0;                 
+            
             % schedule the AllSS points in the averaged same length time slots
             [DailyTab, PointTabSorted, ~, Schedule] = ultrasat.tools.distributeAllSS(...
                 Limits, Obj.UniqTarg.DitherGroup, Obj.MaxDailyVisits, Obj.DailySlots,...
@@ -630,11 +634,8 @@ classdef uplanner < Component
                 'MinIntervals',Obj.ExtragalMinIntervals, 'AllowPartial',Args.AllowPartial,'MaxBranch',Args.MaxBranch,...
                 'Verbose',Args.Verbose);
             
-            PointTab = sortrows(PointTabSorted,{'PointNum'}); 
-            Obj.SchedStatus.Status = PointTab.Visits == PointTab.Filled; % mark the scheduled points 
-            
             % warn if some of the points were not scheduled:
-            VisitsToSchedule = sum(Obj.UniqTarg.DitherGroup==0)*Obj.LowLatVisits + sum(Obj.UniqTarg.DitherGroup>0)*Obj.HighLatVisits; 
+            VisitsToSchedule = sum(Obj.UniqTarg.DitherGroup(~F)==0)*Obj.LowLatVisits + sum(Obj.UniqTarg.DitherGroup(~F)>0)*Obj.HighLatVisits; 
             ScheduledVisits  = sum(Schedule~=0);            
             if ScheduledVisits < VisitsToSchedule               
                 fprintf('Failed to schedule %d visits of %d\n',VisitsToSchedule-ScheduledVisits,VisitsToSchedule)               
@@ -680,8 +681,11 @@ classdef uplanner < Component
                     end
                 end
             end % planning days
+            
+            PointTab = sortrows(PointTabSorted,{'PointNum'}); 
+            Obj.SchedStatus.Status = (PointTab.Visits == PointTab.Filled) | (Obj.SchedStatus.Status>0); % mark the scheduled points             
         end % buildAllSS
-    end % method block
+    end % methods block
     %
     methods % Auxiliary functions
         %
@@ -1979,10 +1983,13 @@ classdef uplanner < Component
                     
                     upAllSS.EmptyDay               = false;
                     
-%                     upAllSS.EndTime                = upAllSS.StartTime + days(7);
-%                     upAllSS.DailyWindowMaxDuration = hours(24);
-%                     upAllSS.BufferEarthDist        = 3.0;
-%                     upAllSS.ExtragalMinIntervals   = [0 0 0];
+                    %%%%
+                    
+                    upAllSS.EndTime                = upAllSS.StartTime + days(7);
+                    upAllSS.DailyWindowMaxDuration = hours(24);
+                    upAllSS.BufferEarthDist        = 3.0;
+                    upAllSS.ExtragalMinIntervals   = [0 0 0];
+                    upAllSS.BufferEarthDist        = 8.0; % 6.0;
 %                     % currently distributeAllSS cannot work with reduced
 %                     % number of extragalactic visits, need to be improved 
 % %                     upAllSS.HighLatVisits  = 1;    % only 1 (or 2?) extragal points for the first week?             
@@ -1992,6 +1999,14 @@ classdef uplanner < Component
                     % TODO: make a 2-stage plan: 1 dedicated week + all the
                     % rest in the rest 180-7 days in 5.5 hr windows (along with the HCS) 
                     % note the "Incomplete" variable in buildAllSS
+                    
+                    upAllSS.StartTime = upAllSS.EndTime;
+                    upAllSS.EndTime   = upAllSS.StartTime + calmonths(6) - days(8);
+                    upAllSS.DailyWindowMaxDuration = hours(5.5);
+                    upAllSS.ExtragalMinIntervals   = [1 3 9];
+                    upAllSS.buildAllSS('AllowPartial',true,'Verbose',true,...                                                                              
+                                       'MergeSameTargets',false,'AverageSlew',60);
+
                     if Args.Verbose
                         fprintf('completed\n');
                         fprintf('-------------------------\n');

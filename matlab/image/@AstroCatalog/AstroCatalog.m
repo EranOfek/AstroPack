@@ -57,6 +57,7 @@ classdef AstroCatalog < AstroTable
             
             % construct AstroTable
             AT   = AstroTable(varargin{:});
+            
             FN   = fieldnames(AT);
             Nfn  = numel(FN);
             Nobj = numel(AT);
@@ -69,6 +70,10 @@ classdef AstroCatalog < AstroTable
 %                     end
                 end
                 Obj(Iobj).DataType = AstroDataType.Cat;
+            end
+
+            if nargin>0 && isnumeric(varargin{1})
+                Obj = reshape(Obj, size(AT));
             end
                 
         end
