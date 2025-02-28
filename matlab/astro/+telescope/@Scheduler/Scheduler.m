@@ -2432,6 +2432,40 @@ classdef Scheduler < Component
         %    % 
         %
         %end
+        
+        function plotMountConstraints(Obj, Mounts)
+            % Plot Az/Alt mount constraints
+            % Input  : - self.
+            %          - Mounts to plot. Default is (1:1:12)
+            % Output : plot the Az vs. Alt mount constraints per mount.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            %          S.populateMountAltConstraints(CMC);
+            %          S.plotMountConstraints([1 3])
+        
+            arguments
+                Obj(1,1)
+                Mounts = (1:1:12);
+            end
+                   
+            %Nmnt = numel(Obj.MountAltConstraints);
+            Nmnt = numel(Mounts);
+            [Colors,Markers] = plot.colorMarkerOrder;
+            for Im=1:1:Nmnt
+                Imnt = Mounts(Im);
+                H=plot(Obj.MountAltConstraints(Imnt).Con(:,1), Obj.MountAltConstraints(Imnt).Con(:,2));
+                H.Color = Colors(Imnt,:);
+                H.LineStyle = Markers{Imnt};
+                hold on;
+            end
+            axis([0 360 0 90]);
+            
+            CellMnt = num2cell(Mounts);
+            Str  = {'M%d'};
+            Cell = tools.cell.cell_sprintf(repmat(Str,Nmnt,1), CellMnt(:));
+            legend(Cell{:}, 'Location','NorthEast')
+        end
+            
     end
 
     
