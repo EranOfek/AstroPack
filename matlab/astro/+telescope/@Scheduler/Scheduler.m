@@ -1480,6 +1480,129 @@ classdef Scheduler < Component
     
     
     methods % visibility
+        function [SunSet, SunRise]=getSunSetRise(Obj, JD, Args)
+            % Get Sun rise/set above some reference altitude
+            % Input  : - self.
+            %          - JD or [D M Y] around to which to search for the
+            %            Sun set and rise.
+            %          * ...,key,val,...
+            %            'RefAlt' - Reference altitude [deg].
+            %                   Default is the 'MaxSunAlt' property.
+            %            'TimeStep' - Time step in which to calculate the
+            %                   Sun alt [day]. Default is 5./1440.
+            % Output : - JD of Sun set (crossing of ref. alt.).
+            %          - JD of Sun rise.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: [SunSet, SunRise]=S.getSunSetRise
+        
+            arguments
+                Obj
+                JD    = [];   % or [D M Y H M S]
+                Args.RefAlt   = [];
+                Args.TimeStep = 5./1440;
+            end
+            
+            if isempty(JD)
+                JD = celestial.time.julday;
+            end
+            if numel(JD)>1
+                JD = celestial.time.julday(JD);
+            end
+            if isempty(Args.RefAlt)
+                RefAlt = Obj.MaxSunAlt;
+            else
+                RefAlt = Args.RefAlt;
+            end
+            
+            SunJD  = ((JD-0.6):Args.TimeStep:(JD+1)).';
+            SunAlt = Obj.sunAlt(SunJD, Obj.GeoPos);
+            %SunAlt - Ob.MaxSunAlt;
+            
+            R0 = tools.find.find_local_zeros(SunJD, SunAlt - RefAlt);
+            I1 = find(R0(:,2)<0, 1, 'first');
+            SunSet  = R0(I1,1);
+            SunRise = R0(I1+1,1);
+        end
+        
+        function [Result, JD, MapAll]=mountConstraintsAnalaysis(Obj, Ind, JD, Args)
+            % Analyze mount obscuration constraints for target visibility.
+            % Input  : - self.
+            %          - Either target index in list or [RA Dec] in deg.
+            %          - UTC JD or [D M Y] of night or two elemnt vector with
+            %            start JD and stop JD in between to calculate the
+            %            visibility. If single time, then will calculate
+            %            visibility for the entire night.
+            %            Default is the current JD.
+            %          * ...,key,val,...
+            %            'Mount' - List of mounts for which to calculate
+            %                   visibility.
+            %                   Default is (1:1:12).'
+            %            'TimeStep' - Time step in which to calculate
+            %                   visibility [day]. Default is 5./1440
+            % Output : - A structure with the following fields:
+            %            .ObsTime - A vector of total visible time above
+            %                   AltMountConstraints tables. Entry per requested
+            %                   mount.
+            %            .BestObsTime - Longest observed time [day].
+            %            .BestMount - Index of best mount in Mount list.
+            %          - Vector of JD in which the visibility map was
+            %            calculated.
+            %          - Visibility map (JD, Mount) where NaN indicate not
+            %            visible and numbers are for the airmass.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            %          S.populateMountAltConstraints(CMC);
+            %          S.mountConstraintsAnalaysis
+            
+            arguments
+                Obj(1,1)
+                Ind
+                JD            = celestial.time.julday;
+                Args.Mount    = (1:1:12).';
+                Args.TimeStep = 5./1440;
+            end
+            RAD = 180./pi;
+            
+            if numel(Ind)==2
+                RA  = Ind(1);
+                Dec = Ind(2);
+            else
+                RA  = Obj.List.table.RA(Ind);
+                Dec = Obj.List.table.Dec(Ind);
+            end
+            
+            if numel(JD)>2
+                JD = celestial.time.julday(JD);
+            end
+            if numel(JD)==2
+                JD = (JD(1):Args.TimeStep:JD(2)).';
+            end
+            if numel(JD)==1
+                % calculate for entire night
+                [SunSet, SunRise] = Obj.getSunSetRise;
+                JD = (SunSet:Args.TimeStep:SunRise).';            
+            end
+            
+            [Az, Alt, AM] = celestial.coo.radec2azalt(JD, RA, Dec, 'GeoCoo',Obj.GeoPos, 'InUnits','deg');
+            
+            Nmnt = numel(Args.Mount);
+            Njd  = numel(JD);
+            MapAll = nan(Njd, Nmnt);
+            for Im=1:1:Nmnt
+                Imnt = Args.Mount(Im);
+                AzAltConst = Obj.MountAltConstraints(Imnt).Con;
+                
+                % Alt constraints for given Az
+                InterpAlt      = interp1(AzAltConst(:,1), AzAltConst(:,2), Az);
+                FlagObservable = Alt>InterpAlt;
+                
+                MapAll(FlagObservable,Imnt) = AM(FlagObservable);
+            end
+            
+            Result.ObsTime   = sum(~isnan(MapAll)).*Args.TimeStep;
+            [Result.BestObsTime, Result.BestMount] = max(Result.ObsTime);
+        end
+        
         function [Flag, Alt, AltLimit]=checkAltConstraints(Obj, JD, Mount)
             % Check Alt of targets agains the AltConstraints property.
             % Input  : - Self..
@@ -1845,7 +1968,6 @@ classdef Scheduler < Component
             SetJD = Ze(find(Ze(:,2)<0,1,"last"),1);
 
             Result = JD - SetJD;
-
 
         end
     end
@@ -2330,7 +2452,8 @@ classdef Scheduler < Component
         function dailyObservability(Obj, Ind, JD)
             % Daily observability plot for target
             % Input  : - Self.
-            %          - Target index.
+            %          - Target index, or a two element vector of
+            %            [RA, Dec] (deg).
             %          - JD. If empty, use object JD. Default is [].
             % Output : null
             % Author : Eran Ofek (Jul 2024)
@@ -2351,15 +2474,21 @@ classdef Scheduler < Component
                 end
             end
                         
-            RA  = Obj.List.Catalog.RA(Ind)./RAD;
-            Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            if numel(Ind)==2
+                RA  = Ind(1)./RAD;
+                Dec = Ind(2)./RAD;
+            else
+                RA  = Obj.List.Catalog.RA(Ind)./RAD;
+                Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            end
             telescope.obs.daily_observability(Obj.GeoPos(1:2)./RAD, JD, RA, Dec);
         end
         
         function yearlyObservability(Obj, Ind, Year, AirMassLimit)
             % Yearly observability plot for target
             % Input  : - Self.
-            %          - Target index.
+            %          - Target index, or a two element vector of
+            %            [RA, Dec] (deg).
             %          - Year. Default is 2024.
             %          - AirMass limit. Default is 2.
             % Output : null
@@ -2374,8 +2503,13 @@ classdef Scheduler < Component
             end
             RAD = 180./pi;            
                         
-            RA  = Obj.List.Catalog.RA(Ind)./RAD;
-            Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            if numel(Ind)==2
+                RA  = Ind(1)./RAD;
+                Dec = Ind(2)./RAD;
+            else
+                RA  = Obj.List.Catalog.RA(Ind)./RAD;
+                Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            end
             telescope.obs.yearly_observability(Year, [RA, Dec], Obj.GeoPos(1:2)./RAD, 0, AirMassLimit, 0);
         end
         
@@ -2432,6 +2566,40 @@ classdef Scheduler < Component
         %    % 
         %
         %end
+        
+        function plotMountConstraints(Obj, Mounts)
+            % Plot Az/Alt mount constraints
+            % Input  : - self.
+            %          - Mounts to plot. Default is (1:1:12)
+            % Output : plot the Az vs. Alt mount constraints per mount.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            %          S.populateMountAltConstraints(CMC);
+            %          S.plotMountConstraints([1 3])
+        
+            arguments
+                Obj(1,1)
+                Mounts = (1:1:12);
+            end
+                   
+            %Nmnt = numel(Obj.MountAltConstraints);
+            Nmnt = numel(Mounts);
+            [Colors,Markers] = plot.colorMarkerOrder;
+            for Im=1:1:Nmnt
+                Imnt = Mounts(Im);
+                H=plot(Obj.MountAltConstraints(Imnt).Con(:,1), Obj.MountAltConstraints(Imnt).Con(:,2));
+                H.Color = Colors(Imnt,:);
+                H.LineStyle = Markers{Imnt};
+                hold on;
+            end
+            axis([0 360 0 90]);
+            
+            CellMnt = num2cell(Mounts);
+            Str  = {'M%d'};
+            Cell = tools.cell.cell_sprintf(repmat(Str,Nmnt,1), CellMnt(:));
+            legend(Cell{:}, 'Location','NorthEast')
+        end
+            
     end
 
     
