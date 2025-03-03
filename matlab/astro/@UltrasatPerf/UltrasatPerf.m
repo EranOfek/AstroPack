@@ -562,7 +562,7 @@ classdef UltrasatPerf < Component
                 Args.Family = 'ULTRASAT';
                 Args.BaseBandName = 'R';
                 Args.BaseComment = 'deg off FOV center';
-                Args.source_info = 'Measured QE + AsBuilt Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + AsBuilt filter + Therotical Obscuration' ; % 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'        
+                Args.source_info = 'Measured QE + AsBuilt Mirror + Measured CaF2 (4 surfaces) + AsBuilt FF1 (V1) + Theoretical FS (2 surfaces) + AsBuilt filter + Therotical Obscuration' ; % 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'        
             end
             
             Nr = numel(Obj.Rdeg);

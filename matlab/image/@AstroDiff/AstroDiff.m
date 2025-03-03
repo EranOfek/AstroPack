@@ -1066,13 +1066,13 @@ classdef AstroDiff < AstroImage
         
                 Args.flagPeakDist logical = true;
                 Args.PeakDistThreshold = 2.1;
-        
+
                 Args.flagLimitingMag logical = true;
                 Args.LimitingMagOverwriteVal = NaN;
-        
+
                 Args.flagPeakValley logical = true;
                 Args.PVDistThresh = 10;
-        
+
                 Args.flagPSFShape logical = true;
                 Args.PSFShapeXYMeanN = [0.75694019, 0.82121291]
                 Args.PSFShapeCovN = [0.01267776, 0.005022;...
@@ -1092,6 +1092,7 @@ classdef AstroDiff < AstroImage
                 Args.NeighborNumThreshold = 30;
                 Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
                     'Ringing', 'Translient', 'Streak'};
+                Args.NeighborNumThresholdSaturated = 2;
         
                 Args.flagCR logical = true;
                 Args.CRDeltaSN = 0.5;
@@ -1148,6 +1149,7 @@ classdef AstroDiff < AstroImage
                     'NeighborDistanceThreshold', Args.NeighborDistanceThreshold, ...
                     'NeighborNumThreshold', Args.NeighborNumThreshold, ...
                     'NeighborExclude', Args.NeighborExclude, ...
+                    'NeighborNumThresholdSaturated',Args.NeighborNumThresholdSaturated, ...
                     'flagCR', Args.flagCR, ...
                     'CRDeltaSN', Args.CRDeltaSN, ...
                     'flagVariable', Args.flagVariable, ...

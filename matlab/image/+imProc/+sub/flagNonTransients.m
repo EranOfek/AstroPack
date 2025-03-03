@@ -158,6 +158,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NeighborNumThreshold = 30;
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
+        Args.NeighborNumThresholdSaturated = 2;
 
         Args.flagCR logical = true;
         Args.CRDeltaSN = 0.5;
@@ -238,11 +239,11 @@ function TranCat = flagNonTransients(Obj, Args)
         % Apply criterium for saturated candidates.
         if Args.flagSaturated && exist('BD','var')
 
-            FlagSrcNoiseDom_New = BD.findBit(BM_new,'Saturated');
-            FlagSrcNoiseDom_Ref = BD.findBit(BM_ref,'Saturated');
+            FlagSaturated_New = BD.findBit(BM_new,'Saturated');
+            FlagSaturated_Ref = BD.findBit(BM_ref,'Saturated');
             
             % Check if candidates are saturated in New and Ref, flag these.
-            SaturatedInBoth = FlagSrcNoiseDom_New & FlagSrcNoiseDom_Ref;
+            SaturatedInBoth = FlagSaturated_New & FlagSaturated_Ref;
 
             SaturationFlagged = SaturatedInBoth;
             TF_Flags = TF_Flags + SaturationFlagged.*2.^BD_TF.name2bit('Saturated');
@@ -398,8 +399,7 @@ function TranCat = flagNonTransients(Obj, Args)
             ProbN = mvnpdf(X2Y2N, Args.PSFShapeXYMeanN, Args.PSFShapeCovN);
             ProbD = mvnpdf(X2Y2D, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
-            PassesN = ProbN > Args.PSFShapeProbThresholdN |...
-                ((Cat.getCol('Dec') < 30) & (X2N < 1.25));
+            PassesN = ProbN > Args.PSFShapeProbThresholdN;
             PassesD = ProbD > Args.PSFShapeProbThresholdD;
             
             SecondMomentFlagged = PassesN & PassesD;
@@ -455,6 +455,8 @@ function TranCat = flagNonTransients(Obj, Args)
                     BD_TF.findBit(TF_Flags, Args.NeighborExclude{IExclude});
             end
 
+            FlagSaturated_Ref = BD.findBit(BM_ref,'Saturated');
+            NearSaturated = false(Ntran,1);
             % Iterate through each candidate
             for Itran = Ntran:-1:1
                 % Get distance to all other candidates
@@ -462,6 +464,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Test distance against threshold
                 IsNeighbor = NeighborDist < Args.NeighborDistanceThreshold;
                 % Remove excluded neighbors
+                NearSaturated0 = any(IsNeighbor & FlagSaturated_Ref);
+                NearSaturated(Itran) = NearSaturated0;
                 IsNeighbor = IsNeighbor & ~ExcludeNeighbor;
                 % Count remaining neighbors
                 % and remove itself if it was not excluded
@@ -473,9 +477,11 @@ function TranCat = flagNonTransients(Obj, Args)
             TranCat(Iobj) = Obj(Iobj).CatData.insertCol(cast(Nneighbors,'double'), ...
                 'SCORE', {'N_NEIGH'}, {''});
             % Test number of neighbors against threshold
-            Overdensity = (Nneighbors >= Args.NeighborNumThreshold);
+            Overdensity = (Nneighbors >= Args.NeighborNumThreshold) | ...
+                (NearSaturated & Nneighbors >= Args.NeighborNumThresholdSaturated);
             % Update flags
             OverdensityFlagged = Overdensity;
+
             TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
             
         end
