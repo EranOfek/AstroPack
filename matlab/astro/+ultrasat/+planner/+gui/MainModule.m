@@ -331,6 +331,8 @@ classdef MainModule < handle
                 obj.CurrentStatus = NewStatus;
             end
             
+            NewText = sprintf('%s %s', obj.nowUtcStr(), NewText);
+            
             % Append new text to StatusText
             if isempty(obj.StatusText)
                 obj.StatusText = NewText;
@@ -454,5 +456,18 @@ classdef MainModule < handle
             );
         end        
         
+
+        function Result = nowUtc(obj)
+            Result = datetime('now', 'TimeZone', 'UTC');
+        end
+
+        function Result = nowUtcStr(obj)
+            Result = datestr(datetime('now', 'TimeZone', 'UTC'), 'yyyy-MM-dd HH:mm:ss');            
+        end
+
+        function datetimeStr(obj, dt)
+            Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
+        end
     end
+
 end
