@@ -4,6 +4,11 @@ function Image=createLine(Image, Args)
     %          * ...,key,val,...
     %            'A' - Vector of lines slope to add to the image.
     %            'B' - Vector of lines intersection to add to the image.
+    %            'Xstart' - X start positions of lines.
+    %                   Refers to all images. Default is 1.
+    %            'Length' - Line length. If empty, then line end at right
+    %                   edge of image. Referes to all images.
+    %                   Default is [].
     %            'Fun' - Line profile function:
     %                   'flat' - A top hat function with width given by
     %                       2.*Sigma.git s
@@ -26,6 +31,8 @@ function Image=createLine(Image, Args)
         Image     % Image or [Y, X] size
         Args.A    % Line Slope: Y=A*X + B
         Args.B    % Line intersection: Y=A*X + B
+        Args.Xstart     = 1;
+        Args.Length     = [];
         Args.Fun        = 'gauss';  % % 'gauss'
         Args.Sigma      = 2;
         Args.Norm       = 1;
@@ -39,12 +46,21 @@ function Image=createLine(Image, Args)
         SizeIJ = size(Image);
     end
     
-    VecX = (1:1:SizeIJ(2));
+    if isempty(Args.Length)
+        EndX = SizeIJ(2);
+    else
+        Alpha = atan(Args.A(1));
+        EndX  = Args.Length.*cos(Alpha) + Args.Xstart;
+    end
+
+    VecX = (Args.Xstart:1:EndX);
     VecY = (1:1:SizeIJ(1)).';
     %[MatX, MatY] = meshgrid((1:1:SizeIJ(2)), (1:1:SizeIJ(1)));
     
     X = VecX.';
     Y = Args.A(:).' .*X + Args.B(:).';
+
+
     
     Nline = numel(Args.A);
     Bt = ones(Nline,1);
@@ -59,14 +75,14 @@ function Image=createLine(Image, Args)
             for Iline=1:1:Nline
                 %Dist  = abs(At(Iline).*MatX + Bt(Iline).*MatY + Ct(Iline))./sqrt(At(Iline).^2 + Bt(Iline).^2);
                 Dist  = abs(At(Iline).*VecX + Bt(Iline).*VecY + Ct(Iline))./sqrt(At(Iline).^2 + Bt(Iline).^2);
-                Image = Image + Args.Norm.*exp(-0.5.*(Dist./Sigma).^2)./(Sigma.*sqrt(2.*pi));
+                Image(:,Args.Xstart:EndX) = Image(:,Args.Xstart:EndX) + Args.Norm.*exp(-0.5.*(Dist./Sigma).^2)./(Sigma.*sqrt(2.*pi));
             end
         case 'flat'
             HalfWidth = Args.Sigma;
             for Iline=1:1:Nline
                 %Dist  = abs(At(Iline).*MatX + Bt(Iline).*MatY + Ct(Iline))./sqrt(At(Iline).^2 + Bt(Iline).^2);
                 Dist  = abs(At(Iline).*VecX + Bt(Iline).*VecY + Ct(Iline))./sqrt(At(Iline).^2 + Bt(Iline).^2);
-                Image = Image + Args.Norm.*(Dist<HalfWidth);
+                Image(:,Args.Xstart:EndX) = Image(:,Args.Xstart:EndX) + Args.Norm.*(Dist<HalfWidth);
             end
             
         otherwise

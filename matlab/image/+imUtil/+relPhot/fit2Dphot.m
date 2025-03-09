@@ -45,7 +45,7 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
     %            .UseFlag  - Vector of UseFlag logicals.
     %            .RStdGood - Robust std for used sources.
     % Author : Eran Ofek (2025 Feb) 
-    % Example: R = imUtil.relPhot.fit2D
+    % Example: R = imUtil.relPhot.fit2Dphot
 
     arguments
         InstMag                = [];
