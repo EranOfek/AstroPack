@@ -5,6 +5,7 @@ function [Stat,Res]=wget_irsa_forcedphot_diff(RA,Dec,varargin)
 %              ZTF archive.
 %              See more details in:
 %              http://web.ipac.caltech.edu/staff/fmasci/ztf/forcedphot.pdf
+%              https://irsa.ipac.caltech.edu/data/ZTF/docs/ztf_zfps_userguide.pdf
 % Input  : - J2000 RA [deg]
 %          - J2000 Dec [deg]
 %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
@@ -15,7 +16,7 @@ function [Stat,Res]=wget_irsa_forcedphot_diff(RA,Dec,varargin)
 %                        {'/home/eran/matlab/passwords/ztf_ipac_pass'}.
 %            'Pass'    - String containing the IRSA/IPAC password,.
 %                        Default is [].
-% Output : - 
+% Output : -
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Mar 2019
 %    URL : http://weizmann.ac.il/home/eofek/matlab/

@@ -1409,7 +1409,7 @@ classdef uplanner < Component
             end
             
             if Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
-                CheckStatus = upLCS.planSelfConsistencyCheck;
+                CheckStatus = Obj.planSelfConsistencyCheck;
                 if ~CheckStatus
                     error('Plan is not self-consistent. Validation aborted'); 
                 end
@@ -1582,7 +1582,10 @@ classdef uplanner < Component
                     ax = Args.AxesHandle;
                 end
                 
-                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); xlabel '\lambda [A]'; ylabel 'F [erg/cm(2)/s/A]'; set(ax, 'YScale', 'log');
+                errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); 
+                xlabel(ax, '\lambda [A]'); 
+                ylabel(ax, 'F [erg/cm(2)/s/A]'); 
+                set(ax, 'YScale', 'log');
                 if ~isempty(Args.WaveRange)
                     xlim(ax,Args.WaveRange.*10);
                 end
@@ -1638,7 +1641,7 @@ classdef uplanner < Component
                 nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
 
                 for i = 1:height(nonVisWindows)
-                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
                         [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                 end
             end
@@ -1653,7 +1656,7 @@ classdef uplanner < Component
                 nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
 
                 for i = 1:height(nonVisWindows)
-                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
                         [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                 end
             end
@@ -1668,7 +1671,7 @@ classdef uplanner < Component
                 nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
 
                 for i = 1:height(nonVisWindows)
-                    fill([nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
                         [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                 end            
             end
@@ -1689,7 +1692,7 @@ classdef uplanner < Component
             xlabel(ax,sprintf('JD-%.1f',Args.JD_offset)); 
             ylabel(ax,'Angular distance [deg]');
             title(ax,sprintf('Visibility of UniqTarget #%d',UniqTargInd)); 
-            legend('Sun','Earth','Moon','Location','best');
+            legend(ax, 'Sun','Earth','Moon','Location','best');
             hold(ax, 'off');  
         end
         %
