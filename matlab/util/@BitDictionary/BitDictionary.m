@@ -388,7 +388,38 @@ classdef BitDictionary < Component
             
         end
         
-        
+        function [Flag] = query(Obj, DecFlags, QueryStr)
+            % Execute a logical string-like query on bit names and return the logical result.
+            % Input  : - self.
+            %          - An array of decimal flags in which to search for
+            %            the open bits.
+            %          - A query string.
+            %            E.g., 'Saturated & ~LowRN'
+            % Output : - An array of outputs of the query per decimal flag.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: BD = BitDictionary;
+            %          BD.query(15621, 'Saturated & ~LowRN')
+            %          BD.query([15621; 2], 'Saturated & ~LowRN')
+            
+            Nbit = numel(Obj.Dic.BitName);
+            
+            I = 0;
+            ModQueryStr = QueryStr;
+            for Ibit=1:1:Nbit
+                if contains(QueryStr, Obj.Dic.BitName{Ibit})
+                    % QueryStr contains the Bit Name
+                    I = I + 1;
+                    St(I).BitName = Obj.Dic.BitName{Ibit};
+                    St(I).ColName = sprintf('Data%d', Ibit);
+                    St(I).ExtractedBit = findBit(Obj, DecFlags, {St(I).BitName});
+                    
+                    StrCol = sprintf('St(%d).ExtractedBit', I);
+                    ModQueryStr = strrep(ModQueryStr, St(I).BitName, StrCol);
+                end
+            end
+            Flag = eval(ModQueryStr);
+            
+        end
     
     end
     
