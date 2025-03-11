@@ -62,7 +62,10 @@ function Result = ransacLinear2d(Data, Time, Args)
     Ndata        = size(Data,1);
     Result.Found = false;
     
-    if Ndata<Args.NptFit
+    UniqueT  = unique(Time);
+    NUniqueT = numel(UniqueT);
+    
+    if NUniqueT<Args.MinNpt % || Ndata<Args.NptFit
         % not enough points - can't fit a model
     else
         X            = Data(:,1);
@@ -84,7 +87,7 @@ function Result = ransacLinear2d(Data, Time, Args)
         SimInd = zeros(Args.NptFit, Args.NtrialT);
         Itrial = 0;
         Found  = false;
-        while Itrial<Args.Ntrial || ~Found
+        while Itrial<Args.Ntrial && ~Found
             Itrial = Itrial + 1;
             % generate NptFit unique times indices
             IndT = randperm(Nut, Args.NptFit);

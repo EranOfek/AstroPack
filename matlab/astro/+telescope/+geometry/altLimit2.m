@@ -23,4 +23,8 @@ function [Result] = altLimit2(l,r1,r2,DH)
     A = atand((r1.*cosd(alpha) + r2.*sind(90-alpha) + DH)./( l - r1.*sind(alpha) -r2.*cosd(90-alpha)  ));
     Z = tools.find.find_local_zeros(alpha, A-alpha);
     Result = Z(:,1);
+    
+    
+    
+    
 end
