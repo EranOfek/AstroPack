@@ -66,6 +66,16 @@ classdef AppUtils < handle
             Result = questdlg(Msg, Title, 'Yes', 'No', []);
         end
 
+
+        function Result = askYesNoCancel(App, Msg, Title)
+            % Show modal dialog with Yes/No buttons
+            if nargin < 3
+                Title = 'Confirmation'; % Default title
+            end            
+            Result = questdlg(Msg, Title, 'Yes', 'No', 'Cance', []);
+        end        
+
+
         function Result = askSaveDiscard(App, Msg, Title)
             % Show modal dialog with Save/Discard buttons
             if nargin < 3
@@ -73,6 +83,14 @@ classdef AppUtils < handle
             end                        
             Result = questdlg(Msg, Title, 'Save', 'Discard', []);
         end        
+
+        function Result = askSaveDiscardCancel(App, Msg, Title)
+            % Show modal dialog with Save/Discard buttons
+            if nargin < 3
+                Title = 'Confirmation'; % Default title
+            end                        
+            Result = questdlg(Msg, Title, 'Save', 'Discard', 'Cancel', []);
+        end                
 
         function center(App)
             % Center the App window on the screen

@@ -443,6 +443,39 @@ classdef MainModule < handle
         end
 
 
+        function clearData(obj)
+            % Note: ApiClient, Preferences, MainApp, and LoggerApp are **not** cleared
+
+            % Clear planner-related data
+            obj.Planner = [];
+            obj.PlanData = [];
+            obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
+                       
+            % Clear plan type and permissions
+            obj.PlanType = [];
+            obj.ReadOnly = [];
+            obj.AllowEdit = [];
+        
+            % Reset status properties
+            obj.StatusText = [];
+            obj.CurrentStatus = [];
+            obj.BuildStatus = [];
+            obj.SelfConsistencyStatus = [];
+            obj.ValidateStatus = [];
+            obj.ValidateStatusText = [];
+            obj.SubmitStatus = [];
+        
+            % Clear status data
+            obj.BuildStatusData = [];
+            obj.ValidationStatusData = [];
+            obj.SubmitStatusData = [];
+        
+            % Reset modification tracking and debug paths
+            obj.Modified = false;
+            obj.AfterBuild = false;
+        end
+
+
         function data = newStatusData(obj, Status)
             % 
             
@@ -451,6 +484,7 @@ classdef MainModule < handle
                 'Status', Status, ...
                 'StartTime', datestr(now, 'yyyy-MM-dd HH:mm:ss'), ...
                 'UpdateTime', datestr(now, 'yyyy-MM-dd HH:mm:ss'), ...
+                'ShortStatus', [], ...
                 'Text', [], ...
                 'Html', [] ...
             );
