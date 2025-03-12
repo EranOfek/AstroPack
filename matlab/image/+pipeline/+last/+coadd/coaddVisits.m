@@ -132,7 +132,7 @@ function [CI, AI] = coaddVisits(In, Args)
         CI=imProc.sources.findMeasureSources(CI,'AddFlags',false);
         CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
         CI = imProc.psf.populatePSF(CI);
-        CI=imProc.calib.photometricZP(CI);
+        CI=imProc.calib.photometricZP(CI); 
         
     end
     
