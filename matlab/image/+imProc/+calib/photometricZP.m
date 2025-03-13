@@ -18,8 +18,11 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Main Sequence stars. Default is false.
     %            'MaxErr' - Max error of stars to use in solution.
     %                   Default is 0.02 mag.
-    %            'MaxSN' - Max S/N of sources to use.
+    %            'MaxSN' - Max S/N of sources to use for calibration and
+    %                   limiting magnitude estimate.
     %                   Default is 1000.
+    %            'MinSN' - Min S/N to use for limiting magnitude estimate.
+    %                   Default is 7.
     %            'CatColNameMag' - Mag. column name in Catalog.
     %                   This magnitude will be calibrated.
     %                   Default is {'MAG_PSF','MAG_APER_3'}.
@@ -126,6 +129,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.UseOnlyMainSeq logical   = false;
         Args.MaxErr                   = 0.02;
         Args.MaxSN                    = 1000;  % if empty, do not use
+        Args.MinSN                    = 7;
         
         Args.CatColNameMag            = {'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
         Args.CatColNameMagErr         = {'MAGERR_PSF', 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
@@ -156,7 +160,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.UpdateHeader logical     = true;
         
         % queryRange
-        Args.RangeMag                  = [12 19.5];
+        Args.RangeMag                  = [13 21.5];
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [0.1 100];  % remove galaxies
         
@@ -381,7 +385,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     else
                         %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
                         % select only positive S/N:
-                        Isn = find(SN>0);
+                        Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
                         ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
                         ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
                     end
