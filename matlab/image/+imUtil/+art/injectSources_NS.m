@@ -27,7 +27,7 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
     %          refactored by Enrico Segre (Jul 2023)
     % Example: PSF = imUtil.kernel2.gauss; 
     %          Cat = [rand(10,2)*100,rand(10,1)*1e5];
-    %          S = imUtil.art.injectSources(100,Cat,PSF)
+    %          S = imUtil.art.injectSources_NS(100,Cat,PSF)
     
     arguments
         Image;
@@ -71,6 +71,9 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
                 momt =imUtil.image.moment2(PSF,SizePSFX,SizePSFY);
                 DX = DX - (Xcenter - momt.X);
                 DY = DY - (Ycenter - momt.Y);
+                PSF_shifted = imUtil.trans.shift_fft(PSF,DX,DY);
+            else
+                PSF_shifted = PSF;
             end
 
             Xind_vec = 1:1:SizePSFX;
@@ -78,7 +81,7 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
             VecX= Xind_vec-Xcenter;
             VecY= Yind_vec-Ycenter;
             [matx,maty]= meshgrid(VecX,VecY);
-            PSF_shifted = imUtil.trans.shift_fft(PSF,DX,DY);
+            
         end
 
         Xind = matx+ Xround(i);
