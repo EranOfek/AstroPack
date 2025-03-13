@@ -4,7 +4,7 @@
 % File:   AppUtils.m
 % Author: Chen Tishler
 % Created: 07/01/2025
-% Updated: 28/01/2025
+% Updated: 12/03/2025
 %
 %==========================================================================
 
@@ -12,8 +12,8 @@ classdef AppUtils < handle
     % This class serves as DataModule in Delphi.
     
     properties
-        App                     %
-        MainApp                 %
+        App                     % Handle of main/current AppDesigner window - @TDB
+        MainApp                 % Handle of main AppDesigner window - @TBD
     end
     
 
@@ -31,8 +31,10 @@ classdef AppUtils < handle
         end
     end
 
+
     methods (Static)
         function msgOk(App, Msg, Title)
+            % Show popup window with message and Ok button
             if nargin < 3
                 Title = 'Message'; % Default title
             end                        
@@ -41,12 +43,13 @@ classdef AppUtils < handle
 
 
         function msgError(App, Msg, Title)
-            % Show popup window with error message
+            % Show popup window with error message and Ok button
             if nargin < 3
                 Title = 'Error'; % Default title
             end                        
             uialert(App.UIFigure, Msg, Title, 'Icon', 'error');
         end        
+
 
         function msgDebug(App, Msg, Title)
             % Show debug message
@@ -68,7 +71,7 @@ classdef AppUtils < handle
 
 
         function Result = askYesNoCancel(App, Msg, Title)
-            % Show modal dialog with Yes/No buttons
+            % Show modal dialog with Yes/No/Cancel buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
             end            
@@ -84,13 +87,15 @@ classdef AppUtils < handle
             Result = questdlg(Msg, Title, 'Save', 'Discard', []);
         end        
 
+
         function Result = askSaveDiscardCancel(App, Msg, Title)
-            % Show modal dialog with Save/Discard buttons
+            % Show modal dialog with Save/Discard/Cancel buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
             end                        
             Result = questdlg(Msg, Title, 'Save', 'Discard', 'Cancel', []);
         end                
+
 
         function center(App)
             % Center the App window on the screen
@@ -99,5 +104,3 @@ classdef AppUtils < handle
     end
     
 end
-
-

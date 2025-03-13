@@ -383,7 +383,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         % -------------------------------------------------------------------
 
         function response = retractPlan(obj, Plan)
-            % Called from uplanner
+            % Called from uplanner - @Todo - need to define and implement
+            % with @Yossi
         end                        
         
         % -------------------------------------------------------------------
@@ -527,7 +528,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             loadedMat = load(matFile, 'planner');
         
             % Populate obj.PlanData
-            obj.PlanData = ultrasat.api.PlanData(jsonData);
+            obj.PlanData = ultrasat.api.PlanData.fromStruct(jsonData);
             obj.PlanData.planner = loadedMat.planner;
         
             response.status = 'ok';
@@ -561,11 +562,13 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
             end
         
-            % Write JSON file without the 'planner' field
+            % Write JSON file without 'PlanData.planner' field, it will be
+            % stored separetly in .mat file (see below)
             jsonFile = fullfile(plansFolder, sprintf('%03d.json', obj.PlanData.pk));
             planStruct = obj.PlanData.toStruct();
             planStruct = rmfield(planStruct, 'planner');  % Remove planner for JSON
 
+            % Convert datetime objects to iso format
             planStruct = api.ModelBase.convertDatetimeToString(planStruct);
 
             fid = fopen(jsonFile, 'w');
@@ -591,6 +594,12 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 obj.PlanData.start_time = obj.PlanData.planner.StartTime;
                 obj.PlanData.end_time = obj.PlanData.planner.EndTime;
                 obj.PlanData.targets = obj.PlanData.planner.planTable2struct();
+
+                % MATLAB cannot have array with single struct item, the
+                % only solution is to convert the array to cellarray
+                if numel(obj.PlanData.targets) == 1
+                    obj.PlanData.targets = {obj.PlanData.targets};
+                end                
             end
                     
         end

@@ -14,6 +14,8 @@
 function debug_ModelBase()
     % Debugging function for the ModelBase class
 
+    debug_to_from_struct();
+
     % Create a sample struct to initialize the ModelBase object
     sampleData = struct(...
         'Name', 'SampleModel', ...
@@ -53,3 +55,29 @@ function debug_ModelBase()
     model.Data = cleanedData; % Update the model with cleaned data
     model.show();
 end
+
+
+function debug_to_from_struct()
+    % Create an instance of TestModel
+    originalObj = api.debug_ModelBase_MyClass();
+    
+    % Convert class to struct
+    s = api.ModelBase.class2struct(originalObj);
+    disp('Converted to struct:');
+    disp(s);
+    disp(jsonencode(s));
+
+    % Convert struct back to class
+    reconstructedObj = api.ModelBase.struct2class(s, 'api.debug_ModelBase_MyClass');
+    disp('Reconstructed object:');
+    disp(reconstructedObj);
+    
+    % Verify if the properties match
+    assert(isequal(originalObj.id, reconstructedObj.id), 'ID does not match');
+    assert(isequal(originalObj.name, reconstructedObj.name), 'Name does not match');
+    assert(isequal(originalObj.values, reconstructedObj.values), 'Values do not match');
+    
+    disp('Test Passed: Original and Reconstructed Objects Match!');
+
+end
+
