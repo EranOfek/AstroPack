@@ -1,0 +1,46 @@
+% MATLAB server script (matlab_server.m)
+input_fifo = '/tmp/matlab_fifo';
+output_fifo = '/tmp/matlab_output_fifo';
+
+% Remove old FIFOs if they exist
+if exist(input_fifo, 'file')
+    delete(input_fifo);
+end
+if exist(output_fifo, 'file')
+    delete(output_fifo);
+end
+
+% Create new FIFOs
+system(['mkfifo ', input_fifo]);
+system(['mkfifo ', output_fifo]);
+
+fprintf('MATLAB server started. Listening on %s\n', input_fifo);
+
+while true
+    fid = fopen(input_fifo, 'r'); % Open input FIFO
+    if fid ~= -1
+        command = fgetl(fid); % Read command
+        fclose(fid);
+
+        if ischar(command) && ~isempty(command)
+            try
+                result = evalc(command); % Evaluate and capture output
+
+		%fprintf('%s\n',result);
+
+                fout = fopen(output_fifo, 'w'); % Open output FIFO for writing
+                if fout ~= -1
+                    fprintf(fout, '%s\n', result); % Write result to output FIFO
+                    fclose(fout);
+                end
+            catch ME
+                fout = fopen(output_fifo, 'w');
+                if fout ~= -1
+                    fprintf(fout, 'MATLAB Error: %s\n', ME.message);
+                    fclose(fout);
+                end
+            end
+        end
+    end
+    pause(0.1);
+end

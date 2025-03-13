@@ -139,5 +139,6 @@ for FreqInd=1:1:Nf
 end
 
 % amplitude normalization
-PS = sqrt(sum(Par.Par(:,Args.PolyN+1:end).^2,2));
+Npoly = size(Hpoly,2);
+PS = sqrt(sum(Par.Par(:,Npoly+1:Npoly+2).^2,2));
 
