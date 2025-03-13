@@ -58,6 +58,72 @@ classdef ModelBase
 
     methods (Static)
 
+        function Result = nowUtc()
+            % Returns the current UTC datetime as a datetime object
+            Result = datetime('now', 'TimeZone', 'UTC');
+        end
+
+
+        function Result = nowUtcStr()
+            % Returns the current UTC datetime as a formatted string (YYYY-MM-DD HH:MM:SS)
+            Result = datestr(datetime('now', 'TimeZone', 'UTC'), 'yyyy-MM-dd HH:mm:ss');            
+        end
+
+
+        function datetimeStr(dt)
+            % Converts a given datetime object to a formatted string (YYYY-MM-DD HH:MM:SS)
+            Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
+        end
+
+
+        function dt = str2datetime(datetimeStr)
+            % Converts a formatted datetime string (YYYY-MM-DD HH:MM:SS) to a datetime object
+            dt = datetime(datetimeStr, 'InputFormat', 'yyyy-MM-dd HH:mm:ss', 'TimeZone', 'UTC');
+        end        
+    end
+
+    % ---------------------------------------------------------------------
+
+    methods (Static)
+
+        function s = class2struct(obj)
+            % Converts a MATLAB class instance to a struct with all properties
+            props = properties(obj); % Get all properties of the class
+            s = struct();
+            
+            for i = 1:numel(props)
+                s.(props{i}) = obj.(props{i}); % Copy each property to struct
+            end
+        end
+
+
+        function js = class2json(obj)            
+            % Converts a MATLAB class instance to a struct with all properties
+            data = api.ModelBase.class2struct(obj);
+            js = api.ModelBase.struct2json(data);
+        end        
+
+
+        function obj = struct2class(s, className)
+            % Converts a struct back to an instance of the specified class
+            obj = feval(className); % Create an empty instance of the class
+            props = properties(obj); % Get all properties of the class
+        
+            for i = 1:numel(props)
+                if isfield(s, props{i})
+                    obj.(props{i}) = s.(props{i}); % Assign struct fields to class properties
+                end
+            end
+        end
+
+
+        function obj = json2class(js, className)
+            % Converts a struct back to an instance of the specified class
+            data = api.ModelBase.json2struct(js);
+            obj = api.ModelBase.struct2class(data, className);
+        end
+
+
         function jsonStr = struct2json(Data)
             % Converts the Data property to a JSON string, converting datetime fields
             jsonReadyData = api.ModelBase.convertDatetimeToString(Data);
@@ -73,6 +139,7 @@ classdef ModelBase
             decodedStruct = jsondecode(jsonStr);
             jsonStruct = api.ModelBase.convertStringToDatetime(decodedStruct);
         end        
+
 
 
         function Model = fromJson(jsonStr)

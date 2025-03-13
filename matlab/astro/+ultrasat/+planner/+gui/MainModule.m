@@ -7,6 +7,9 @@
 % Updated: 28/01/2025
 % Title:   
 %==========================================================================
+% Debug:
+%   DM = ultrasat.planner.gui.MainModule()
+%
 
 classdef MainModule < handle
     % This class serves like a DataModule in Delphi.
@@ -22,22 +25,11 @@ classdef MainModule < handle
         PlanType                % Current plan type: HCS, LCS, AllSS, DDT, TOO (= ultrasat.planner.uplanner.Type)
         Planner                 % instance of ultrasat.planner.uplanner
         PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
-        ReadOnly                % = ~AllowEdit
-        AllowEdit               % = ~ReadOnly
+        AllowEdit               % False for read-only mode
 
         % Status
         StatusText              % Status text for display        
         CurrentStatus           % 'OK', 'Error', 'Warning'
-
-        BuildStatus             % @Todo - Consider if we need it here of take it from Planner? Check & Think
-        SelfConsistencyStatus   %
-        ValidateStatus          %
-        ValidateStatusText      %
-        SubmitStatus            %
-
-        BuildStatusData         %
-        ValidationStatusData    %
-        SubmitStatusData        %
 
         %
         Modified = false;       % True after data is being modified        
@@ -293,20 +285,16 @@ classdef MainModule < handle
 
         function clearModified(obj)
             % Clear the Modified flag
-            obj.Modified = true;
+            obj.Modified = false;
         end
 
         function clearStatus(obj)
             % Clear current status fields
             obj.CurrentStatus = [];
             obj.StatusText = [];
-            obj.BuildStatus = [];
-            obj.SelfConsistencyStatus = [];
-
-            %
-            obj.BuildStatusData = obj.newStatusData('');
-            obj.ValidationStatusData = obj.newStatusData('');
-            obj.SubmitStatusData = obj.newStatusData('');
+            if ~isempty(obj.PlanData)
+                obj.PlanData.clearStatus();
+            end
         end
 
 
@@ -331,7 +319,7 @@ classdef MainModule < handle
                 obj.CurrentStatus = NewStatus;
             end
             
-            NewText = sprintf('%s %s', obj.nowUtcStr(), NewText);
+            NewText = sprintf('%s %s', api.ModelBase.nowUtcStr(), NewText);
             
             % Append new text to StatusText
             if isempty(obj.StatusText)
@@ -443,6 +431,18 @@ classdef MainModule < handle
         end
 
 
+        function setPlanData(obj, Data)
+            % Set PlanData
+            obj.PlanData = Data;
+
+            % Link current instance to ApiClient
+            obj.ApiClient.PlanData = obj.PlanData;
+            if ~isempty(obj.PlanData.planner)
+                obj.setPlanner(obj.PlanData.planner);
+            end
+        end        
+
+
         function clearData(obj)
             % Note: ApiClient, Preferences, MainApp, and LoggerApp are **not** cleared
 
@@ -453,55 +453,39 @@ classdef MainModule < handle
                        
             % Clear plan type and permissions
             obj.PlanType = [];
-            obj.ReadOnly = [];
             obj.AllowEdit = [];
         
             % Reset status properties
             obj.StatusText = [];
             obj.CurrentStatus = [];
-            obj.BuildStatus = [];
-            obj.SelfConsistencyStatus = [];
-            obj.ValidateStatus = [];
-            obj.ValidateStatusText = [];
-            obj.SubmitStatus = [];
-        
-            % Clear status data
-            obj.BuildStatusData = [];
-            obj.ValidationStatusData = [];
-            obj.SubmitStatusData = [];
         
             % Reset modification tracking and debug paths
             obj.Modified = false;
             obj.AfterBuild = false;
         end
 
+        % =================================================================
+        %
+        % =================================================================
 
-        function data = newStatusData(obj, Status)
-            % 
+        function tbl = convertTableDatetimeToString(obj, tbl)
+            % Scans a table and converts all datetime fields to string format (yyyy-MM-dd HH:mm:ss)
             
-            % Define the data for the model with all fields set to []
-            data = struct(...
-                'Status', Status, ...
-                'StartTime', datestr(now, 'yyyy-MM-dd HH:mm:ss'), ...
-                'UpdateTime', datestr(now, 'yyyy-MM-dd HH:mm:ss'), ...
-                'ShortStatus', [], ...
-                'Text', [], ...
-                'Html', [] ...
-            );
-        end        
+            % Get all variable (column) names
+            varNames = tbl.Properties.VariableNames;
+            
+            % Iterate through each column
+            for i = 1:numel(varNames)
+                colName = varNames{i};
+                
+                % Check if the column contains datetime values
+                if isa(tbl.(colName), 'datetime')
+                    % Convert datetime to string format
+                    tbl.(colName) = string(datestr(tbl.(colName), 'yyyy-MM-dd HH:mm:ss'));
+                end
+            end
+        end
         
-
-        function Result = nowUtc(obj)
-            Result = datetime('now', 'TimeZone', 'UTC');
-        end
-
-        function Result = nowUtcStr(obj)
-            Result = datestr(datetime('now', 'TimeZone', 'UTC'), 'yyyy-MM-dd HH:mm:ss');            
-        end
-
-        function datetimeStr(obj, dt)
-            Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
-        end
     end
 
 end

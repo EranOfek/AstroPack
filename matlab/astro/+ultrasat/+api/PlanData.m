@@ -4,82 +4,155 @@
 % File:   PlanData.m
 % Author: Chen Tishler
 % Created: 17/02/2025
-% Updated: 17/02/2025
+% Updated: 17/03/2025
 %
 %==========================================================================
 
 classdef PlanData < handle
     properties
+        % The properties here are mapped to Postgres table columns
         pk = []                % Primary key
         id = ''                % Unique plan ID
+        title = ''             % Title of the plan        
+        status = ''            % Plan status        
         created_by = ''        % User who created the plan
-        plan_info = struct()   % JSON structure for plan details
-        targets = struct()     % JSON structure for targets
-        planner = []           % MATLAB object (binary data) - instance of ultrasat.uplanner 
         create_time = []       % Timestamp for creation
         update_time = []       % Timestamp for last update
         start_time = []        % Start time of the plan
         end_time = []          % End time of the plan
-        title = ''             % Title of the plan        
-        status = ''            % Plan status
-        metadata = struct()    % JSON structure for metadata
-        history = struct()     % JSON structure for history
+        allow_edit = true      % Allow edit or false for read-only
         deleted = false        % Soft delete flag
+
+        metadata = struct()    % Metadata, created by newMetadata() below
+        history = struct()     % Array of struct, see addHistory() below
+        targets = struct()     % Array of struct, created by uplanner.planTable2struct()        
+        planner = []           % MATLAB object (binary data) - instance of ultrasat.uplanner         
     end
 
-    
-    methods
-        function obj = PlanData(data)
-            % Constructor for PlanData
-            if nargin > 0
-                obj.fromStruct(data);
-            end
+
+    methods (Static)
+        function obj = fromStruct(data)
+            % Create new class instance from struct
+            obj = api.ModelBase.struct2class(data, 'ultrasat.api.PlanData');
         end
 
 
-        function fromStruct(obj, data)
-            % Sets the properties from a provided struct
-            fields = fieldnames(data);
-            for i = 1:numel(fields)
-                if isprop(obj, fields{i})
-                    obj.(fields{i}) = data.(fields{i});
-                end
-            end
+        function obj = fromJson(js)
+            % Create new class instance from JSON text
+            obj = api.ModelBase.json2class(js, 'ultrasat.api.PlanData');
+        end        
+    end
+
+
+    methods
+        function obj = PlanData()
+            obj.create_time = api.ModelBase.nowUtc();
+            obj.metadata = obj.newMetadata();
+        end
+
+        
+        function metadata = newMetadata(obj)
+            % Create new Metadata struct
+            metadata = struct(...
+                'SelfConsitencyStatus', obj.newStatusData(), ...
+                'BuildStatus', obj.newStatusData(), ...
+                'ValidationStatus', obj.newStatusData(), ...
+                'SubmitStatus', obj.newStatusData() ...
+            );
         end
 
 
         function data = toStruct(obj)
             % Converts the object back to a struct
-            data = struct(...
-                'pk', obj.pk, ...
-                'id', obj.id, ...
-                'created_by', obj.created_by, ...
-                'plan_info', obj.plan_info, ...
-                'targets', obj.targets, ...
-                'planner', obj.planner, ...
-                'create_time', obj.create_time, ...
-                'update_time', obj.update_time, ...
-                'start_time', obj.start_time, ...
-                'end_time', obj.end_time, ...
-                'title', obj.title, ...                
-                'status', obj.status, ...
-                'metadata', obj.metadata, ...
-                'history', obj.history, ...
-                'deleted', obj.deleted ...
-            );
-
-            % MATLAB cannot have array with single struct item, the
-            % only solution is to convert the array to cellarray
-            %if numel(data.targets) == 1
-            %    data.targets = {data.targets};
-            %end            
+            data = api.ModelBase.class2struct(obj);
         end
 
 
+        function js = toJson(obj)
+            % Converts the object back to a struct
+            js = api.ModelBase.class2json(obj);
+        end        
+
+
+        % MATLAB cannot have array with single struct item, the
+        % only solution is to convert the array to cellarray
+        %if numel(data.targets) == 1
+        %    data.targets = {data.targets};
+        %end            
+
+
+        function data = newStatusData(obj, Status)
+            % 
+            if nargin < 2
+                Status = [];
+            end
+
+            % Define the data for the model with all fields set to []
+            data = struct(...
+                'Status', Status, ...   % 'OK', 'Error', 'Warning'
+                'StartTime', [], ...    % Operation start time (i.e. validation start time)
+                'UpdateTime', [], ...   % Status update time 
+                'ShortStatus', [], ...  % Short status plain text
+                'Text', [], ...         % Detailed status as plain text
+                'Html', [] ...          % Detailed status as HTML
+            );
+        end        
+
+
+        function obj = setStatus(obj, fieldName, Status, Args)
+            % Updates a status struct with new values
+            % - Status (Required): New status ('OK', 'Error', etc.)
+            % - Args.ShortStatus (Optional): Short description
+            % - Args.Text (Optional): Detailed plain text message
+            % - Args.Html (Optional): Detailed HTML message
+            % - UpdateTime is always set to nowUtc()
+            % - If StartTime is empty, it is set to UpdateTime
+    
+            arguments
+                obj
+                fieldName
+                Status
+                Args.ShortStatus = []
+                Args.Text = []
+                Args.Html = []
+            end
+
+            % Ensure the field exists in obj.metadata
+            if ~isfield(obj.metadata, fieldName)
+                error('Field "%s" does not exist in obj.metadata', fieldName);
+            end
+            
+            % Directly modify obj.metadata.<fieldName>
+            obj.metadata.(fieldName).Status = Status;
+    
+            % Assign optional fields if provided
+            if ~isempty(Args.ShortStatus), obj.metadata.(fieldName).ShortStatus = Args.ShortStatus; end
+            if ~isempty(Args.Text), obj.metadata.(fieldName).Text = Args.Text; end
+            if ~isempty(Args.Html), obj.metadata.(fieldName).Html = Args.Html; end
+    
+            % Set UpdateTime to current UTC time
+            obj.metadata.(fieldName).UpdateTime = api.ModelBase.nowUtc();
+    
+            % If StartTime is empty, set it to UpdateTime
+            if isempty(obj.metadata.(fieldName).StartTime)
+                obj.metadata.(fieldName).StartTime = obj.metadata.(fieldName).UpdateTime;
+            end
+        end
+        
+
+        function clearStatus(obj)
+            % Clear all status fields
+            obj.metadata.SelfConsitencyStatus = obj.newStatusData();
+            obj.metadata.BuildStatus = obj.newStatusData();
+            obj.metadata.ValidationStatus = obj.newStatusData();
+            obj.metadata.SubmitStatus = obj.newStatusData();
+        end
+
+        
         function addHistory(obj, message)
             % Adds a new entry to the history with the current timestamp.
             newHistoryEntry = struct(...
-                'timestamp', datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
+                'timestamp', api.ModelBase.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'message', message ...
             );
     
@@ -93,10 +166,5 @@ classdef PlanData < handle
             end
         end
 
-
-        function display(obj)
-            % Display method to show the object contents
-            disp(obj.toStruct());
-        end
     end
 end

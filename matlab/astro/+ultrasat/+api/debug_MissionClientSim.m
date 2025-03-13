@@ -19,8 +19,12 @@ function debug_MissionClientSim()
     % createSampleUsersFile(DbPath);
 
     % Initialize MissionClientSim object
-    clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);
-   
+    clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);  
+
+    %debugSavePlan(clientSim);
+    debugLoadPlan(clientSim, 2);
+    return;
+
     % Test login
     fprintf('\n--- Testing login ---\n');
     debugLogin(clientSim, 'yossi', '123');          % Valid login
@@ -266,15 +270,10 @@ function debugSavePlan(clientSim)
     newPlan = ultrasat.api.PlanData();
     newPlan.id = '20250105163045123';
     newPlan.created_by = 'new_user';
-    newPlan.plan_info = struct('details', 'New plan details');
-    newPlan.targets = struct('target_list', 'TGT003');
     newPlan.planner = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS', 'BaseDataDir', BaseDataDir);  % Instance of your UPlanner class
     newPlan.create_time = datetime('2025-01-05T16:30:45.123Z', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z');
     newPlan.update_time = datetime('2025-01-06T16:30:45.123Z', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z');
     newPlan.status = 'pending';
-    newPlan.metadata = struct();
-    newPlan.history = struct();
-    newPlan.deleted = false;
 
     build = true;
     if build

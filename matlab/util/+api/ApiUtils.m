@@ -19,7 +19,7 @@ classdef ApiUtils < handle
 
 
     methods (Static)
-
+       
         function msglog(LogFileName, Prefix, varargin)
             % Logs a formatted message to the console and appends it to a log file.
             %
@@ -104,6 +104,6 @@ classdef ApiUtils < handle
                 end
             end
         end       
-
+       
     end
 end
