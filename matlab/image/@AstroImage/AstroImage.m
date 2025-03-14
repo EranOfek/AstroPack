@@ -1781,6 +1781,7 @@ classdef AstroImage < Component
             %            .Center - [RA, Dec] of center (of CCDSEC).
             %            .Corners - [RA, Dec] of 4 image corners.
             %            .FOV_Radius - max Radius to corners.
+            %            .CCDSEC - CCDSEC used.
             % Author : Eran Ofek (Jan 2023)
             % Example: RR=AI.cooImage([1 1000 1 1000])
             %          RR=AI.cooImage([])
@@ -1815,6 +1816,8 @@ classdef AstroImage < Component
                 % add Radius:
                 Result(Iobj).FOV_Radius = max(celestial.coo.sphere_dist_fast(Result(Iobj).Center(1).*Factor, Result(Iobj).Center(2).*Factor, Result(Iobj).Corners(:,1).*Factor, Result(Iobj).Corners(:,2).*Factor))./Factor;
                 
+                % add CCDSEC
+                Result(Iobj).CCDSEC = CCDSECxy;
             end
             
             
