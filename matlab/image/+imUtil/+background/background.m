@@ -47,6 +47,14 @@ function [Back,Var]=background(Image,Args)
 %            'DiluteStep' - Dilution for background calculation. This is
 %                   the step size in which the data in each sub image is selected.
 %                   Default is 1 (no dilution).
+%            'Mask' - An optional indices or logical mask indicating
+%                   which pixels to use in the background/variance estimation.
+%                   If empty, then use all pixels.
+%                   Default is [].
+%            'Min' - Remove pixels below this vale.
+%                   If empty, do not remove. Default is [].
+%            'Max' - Remove pixels above this vale.
+%                   If empty, do not remove. Default is [].
 %            'ExtendFull' - A logical indicating if to extend the
 %                   background map into a full-size image. Default is true.
 %         Not relevent anymore:
@@ -83,6 +91,10 @@ arguments
     Args.ExtendFull(1,1) logical = true;
     %Args.ExtendMethod            = 'conv'; %'interp_sparse2full'; %'imresize';  % 'imresize' | 'interp_sparse2full'
     Args.FieldName               = 'Im';
+    
+    Args.Mask                    = [];
+    Args.Min                     = [];
+    Args.Max                     = [];
 end
 
 
@@ -125,6 +137,7 @@ end
 
 % calc background for each sub image
 Nsub = numel(SubImage);
+%SubImage = struct('Back',cell(Nsub,1), 'Var',cell(Nsub',1));
 for Isub=1:1:Nsub
     %
     if Args.DiluteStep==1
@@ -156,6 +169,30 @@ for Isub=1:1:Nsub
     end
     
 end
+
+%% NEW:
+if 1==0
+% calc background for each sub image
+Nsub = numel(SubImage);
+SubBack = nan(Nsub,1);
+SubVar  = nan(Nsub,1);
+for Isub=1:1:Nsub
+    %
+    [SubBack(Isub), SubVar(Isub)] = imUtil.background.backgroundCore(SubImage(Isub).(Args.FieldName),...
+                            'Back',Args.BackFun,...
+                            'BackArgs',Args.BackFunPar,...
+                            'Var',Args.VarFun,...
+                            'VarArgs',Args.VarFunPar,...
+                            'Dilute',Args.DiluteStep,...
+                            'Mask',Args.Mask,...
+                            'Min',Args.Min,...
+                            'Max',Args.Max);
+    
+end
+
+% replace [SubImage.Back] by SubBack, etc.
+end
+%%% END NEW
 
 
 

@@ -40,7 +40,7 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
     %            'SigmaClip' - Sigma clipping. Default is [-3 3].
     %            'Niter' - Number of iterations. Default is 2.
     % Output : - A structure with the following fields:
-    %            .ModelMag - Fitted Model mag (H*Par)
+    %            .ModelMag - Fitted Model mag (H*Par + RefMag)
     %            .Resid    - Residuals for all sources.
     %            .UseFlag  - Vector of UseFlag logicals.
     %            .RStdGood - Robust std for used sources.
@@ -138,6 +138,7 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
         end
         H = [H, Hcam];
     end
+    UseFlag = UseFlag & ~any(isnan(H),2) & ~any(isnan(DeltaMag),2);
     
     for Iiter=1:1:Args.Niter
         switch Args.SolveMethod
@@ -152,8 +153,12 @@ function [Result] = fit2Dphot(InstMag, RefMag, X, Y, Args)
                 error('Unknown SolveMethod option');
         end
 
-        ModelMag   = H*Par;
-        Resid      = DeltaMag - ModelMag;
+        % Logic:
+        %   H*Par ~ InstMag - RefMag ->
+        %   RefMag_OfInstMag = InstMag - H*Par
+        %
+        ModelMag   = InstMag - H*Par;
+        Resid      = ModelMag - RefMag;
         RStdGood   = tools.math.stat.rstd(Resid(UseFlag));
         ResidSigma = Resid./RStdGood;
         if Iiter<Args.Niter

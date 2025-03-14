@@ -23,6 +23,8 @@ function Result = zp_meddiff(MS, Args)
     %            'UseWMedian' - A logical indicating if to use weighted
     %                   median instead of median.
     %                   Default is true.
+    %
+    %
     % Output : - A structure array (element per MatchedSources element)
     %            with the following fields:
     %            .FitZP    - Fitted ZP [mag] per image. Add to image in
@@ -55,6 +57,12 @@ function Result = zp_meddiff(MS, Args)
         Args.UseWMedian logical     = false;
         
         %Args.Plot(1,1) logical      = false;
+        
+        % FFU: add flags removal!
+        %Args.RemoveFlags              = {};
+        %Args.FieldFlags               = 'FLAGS';
+        %Args.BitDict                  = BitDictionary;
+        
     end
     
     Nms = numel(MS);
