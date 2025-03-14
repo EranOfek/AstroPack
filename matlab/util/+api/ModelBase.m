@@ -70,9 +70,13 @@ classdef ModelBase
         end
 
 
-        function datetimeStr(dt)
+        function Result = datetimeStr(dt)
             % Converts a given datetime object to a formatted string (YYYY-MM-DD HH:MM:SS)
-            Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
+            if isempty(dt)
+                Result = 'None';
+            else
+                Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
+            end
         end
 
 
@@ -132,9 +136,10 @@ classdef ModelBase
 
 
         function jsonStruct = json2struct(jsonStr)
-            % Converts JSON string to struct, decode timestamp strings to
-            % MATLAB's datetime type.
+            % Converts JSON string to struct, decode timestamp strings to MATLAB's datetime type.
+            % If `jsonStr` is a filename, it reads the file first.
             %
+            % :param jsonStr: JSON string or a filename containing JSON.
             % :return: struct
             decodedStruct = jsondecode(jsonStr);
             jsonStruct = api.ModelBase.convertStringToDatetime(decodedStruct);

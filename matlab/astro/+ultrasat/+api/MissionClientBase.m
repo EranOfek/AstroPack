@@ -32,6 +32,9 @@ classdef MissionClientBase < handle
         ApiUrl          %
         PlanData        % instance of ultrasat.api.PlanData
         LogFileName
+
+        ApprovedTargetsStartTime        % Updated by getApprovedTargets()
+        ApprovedTargetsEndTime          % Updated by getApprovedTargets()
     end
 
 

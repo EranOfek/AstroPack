@@ -1057,6 +1057,7 @@ classdef uplanner < Component
             end
                        
             Obj.clearMissionApprovedPlan;
+            Obj.RetrivedMissionTime = datetime('now','TimeZone', Obj.SysTimeZone);            
 
             if isempty(structPlan.targets)
                 return;
@@ -1065,7 +1066,7 @@ classdef uplanner < Component
             TargetsTable = struct2table(structPlan.targets);            
             
             Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
-            %Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
+            Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
             Obj.MissionApprovedPlan.pk(1:height(TargetsTable))  = TargetsTable.pk; 
             Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
             Obj.MissionApprovedPlan.RA       = TargetsTable.ra ;
@@ -1075,9 +1076,7 @@ classdef uplanner < Component
             Obj.MissionApprovedPlan.Tend     = datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
             Obj.MissionApprovedPlan.ExpTime  = seconds(TargetsTable.exposure);
             Obj.MissionApprovedPlan.Nexposures = TargetsTable.image_count;
-            Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);    
-            
-            Obj.RetrivedMissionTime = datetime('now','TimeZone', Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);               
         end
          %
         function clearMissionApprovedPlan(Obj)

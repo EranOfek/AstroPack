@@ -13,6 +13,8 @@ classdef PlanData < handle
         % The properties here are mapped to Postgres table columns
         pk = []                % Primary key
         id = ''                % Unique plan ID
+        plan_type = ''         % Plan type (LCS, etc.)
+        ast_planner = ''       %
         title = ''             % Title of the plan        
         status = ''            % Plan status        
         created_by = ''        % User who created the plan
