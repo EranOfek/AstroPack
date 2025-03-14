@@ -42,8 +42,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
             % Create an instance of ValidatorSim
             obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
-        end        
-        
+        end                
 
         % -------------------------------------------------------------------
 
@@ -219,6 +218,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             start_time.TimeZone = 'UTC';
             end_time.TimeZone = 'UTC';
 
+            % Store the times, will be displayed to the user in GUI
+            obj.ApprovedTargetsStartTime = start_time;
+            obj.ApprovedTargetsEndTime = end_time;
+
             obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
             targetsFile = fullfile(obj.DbPath, 'approved_targets.json');
             response = struct();
@@ -317,7 +320,6 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             obj.msglog('Updated successfully: %s', approvedTargetsFile);
         end
         
-
         % -----------------------------------------------------------------        
 
         function response = validatePlan(obj, Plan)
@@ -329,8 +331,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             % Call validateTargets with the provided Plan (array of structs)
             response = obj.Validator.validateTargets(Plan);
         
-            if isfield(response, 'task') && isfield(response.task, 'status')
-                obj.msglog('Validation status: %s', response.task.status);
+            if isfield(response, 'task') && isfield(response, 'status')
+                obj.msglog('Validation status: %s', response.status);
                 response.ok = true;
             else
                 obj.msglog('Validation failed or returned unexpected output.');
@@ -470,20 +472,11 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 fid = fopen(filePath, 'r');
                 raw = fread(fid, inf, 'char');
                 fclose(fid);
-                planData = jsondecode(char(raw'));
-
-                % Ensure planData has required fields
-                if ~isfield(planData, 'start_time') || ~isfield(planData, 'end_time') || ~isfield(planData, 'title')
-                    continue;
-                end
-        
-                % Convert time fields to datetime
-                planStartTime = datetime(planData.start_time, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
-                planEndTime = datetime(planData.end_time, 'TimeZone', 'UTC', 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
-        
+                planData = api.ModelBase.json2struct(char(raw'));  %ultrasat.api.PlanData.fromJson(char(raw'));
+       
                 % Apply time filter if specified
-                if (~isempty(start_timestamp) && planEndTime < start_timestamp) || ...
-                   (~isempty(end_timestamp) && planStartTime > end_timestamp)
+                if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
+                   (~isempty(end_timestamp) && planData.start_time > end_timestamp)
                     continue;
                 end
         
@@ -522,13 +515,13 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             fid = fopen(jsonFile, 'r');
             raw = fread(fid, inf, 'char');
             fclose(fid);
-            jsonData = jsondecode(char(raw'));
+            text = char(raw');
         
             % Load MATLAB object (planner) from .mat file
             loadedMat = load(matFile, 'planner');
         
             % Populate obj.PlanData
-            obj.PlanData = ultrasat.api.PlanData.fromStruct(jsonData);
+            obj.PlanData = ultrasat.api.PlanData.fromJson(text);
             obj.PlanData.planner = loadedMat.planner;
         
             response.status = 'ok';
@@ -590,6 +583,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function updateFromPlanner(obj)
             % Update obj.PlanData with data from uplanner, including targets list (converted from table to array of struct)
             if ~isempty(obj.PlanData.planner)
+                obj.PlanData.plan_type = obj.PlanData.planner.Type;
+                obj.PlanData.ast_planner = obj.PlanData.planner.AstPlanner;
                 obj.PlanData.title = obj.PlanData.planner.Title;
                 obj.PlanData.start_time = obj.PlanData.planner.StartTime;
                 obj.PlanData.end_time = obj.PlanData.planner.EndTime;

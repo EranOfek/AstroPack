@@ -21,6 +21,10 @@ function debug_MissionClientSim()
     % Initialize MissionClientSim object
     clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);  
 
+    debugGetPlansList(clientSim, [], [], []);  
+    
+    return;
+
     %debugSavePlan(clientSim);
     debugLoadPlan(clientSim, 2);
     return;
