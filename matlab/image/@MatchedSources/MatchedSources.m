@@ -2286,7 +2286,7 @@ classdef MatchedSources < Component
             %                   property. Default is 'FLAGS'.
             %            'FlagsList' - A cell array containing a list of
             %                   bit names to identify.
-            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %                   Default is {'NearEdge','Saturated','NaN','Negativge'}
             %            'Operator' - If multiple bit names are requested
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
@@ -3907,6 +3907,10 @@ classdef MatchedSources < Component
             %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
             %                   If empty, will use rms of FieldX.
             %                   Default is {}.
+            %            'UseFlag' - A vector of logicals of sources to
+            %                   plot. If empty, plot all. Default is [].
+            %            'RemoveFlags' - A cell array of flag names to remove
+            %                   from the plot. If empty, show all. Default is {}.
             %            'FactorRMS' - Factor by which to multiply the
             %                   Y-axis. E.g., for units conversion.
             %                   Default is 1.
@@ -3941,11 +3945,16 @@ classdef MatchedSources < Component
             %          MS.addMatrix(rand(100,200),'MAG_PSF');
             %          MS.plotRMS
             %          MS.plotRMS('BinSize',0.1)
+            %          MS.plotRMS('FieldX','MAG_BEST','PlotColor','r','PlotSymbol','o','RemoveFlags',{'Saturated','NearEdge'})
            
             arguments
                 Obj(1,1)
                 Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
                 Args.FieldY                   = {};
+                Args.UseFlag                  = [];
+                Args.RemoveFlags              = {};
+                Args.FieldFlags               = 'FLAGS';
+                Args.BitDict                  = BitDictionary;
                 Args.FactorRMS                = 1;
                 Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
                 Args.PlotColor                = 'k';
@@ -4009,7 +4018,23 @@ classdef MatchedSources < Component
             end
             AxisY = AxisY.*Args.FactorRMS;
             
-            H = plot(AxisX, AxisY, Args.PlotSymbol{:});
+            if ~isempty(Args.RemoveFlags)
+                Obj.addSrcData;
+                IndNN          = find(~isnan(Obj.SrcData.(Args.FieldFlags)(:)));
+                BitFlag        = false(Obj.Nsrc, 1);
+                BitFlag(IndNN) = ~imProc.cat.findBit(Obj.SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                
+                if isempty(Args.UseFlag)
+                    Args.UseFlag = true(Obj.Nsrc, 1);
+                end
+                Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
+            end
+            
+            if isempty(Args.UseFlag)
+                H = plot(AxisX, AxisY, Args.PlotSymbol{:});
+            else
+                H = plot(AxisX(Args.UseFlag), AxisY(Args.UseFlag), Args.PlotSymbol{:});
+            end
             H.Color = Args.PlotColor;
             
             if ~isempty(Args.BinSize)
