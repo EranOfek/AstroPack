@@ -24,6 +24,15 @@ function Result = zp_meddiff(MS, Args)
     %                   median instead of median.
     %                   Default is true.
     %
+    %            'RemoveFlags' - A cell array of flag names to remove
+    %                   from the plot. If empty, show all. Default is {}.
+    %            'FieldFlags' - Field containing the flags data.
+    %                   Default is 'FLAGS'.
+    %            'BitDict' - BitDictionary. This is needed only if
+    %                   RemovedFlags is not empty.
+    %                   Default is BitDictionary (but generated only if
+    %                   needed).
+    %
     %
     % Output : - A structure array (element per MatchedSources element)
     %            with the following fields:
@@ -58,23 +67,39 @@ function Result = zp_meddiff(MS, Args)
         
         %Args.Plot(1,1) logical      = false;
         
-        % FFU: add flags removal!
-        %Args.RemoveFlags              = {};
-        %Args.FieldFlags               = 'FLAGS';
-        %Args.BitDict                  = BitDictionary;
+        Args.RemoveFlags              = {};
+        Args.FieldFlags               = 'FLAGS';
+        Args.BitDict                  = [];
         
+    end
+    
+    % Generate BitDictionary only if needed:
+    if ~isempty(Args.RemoveFlags)
+        if isempty(Args.BitDict)
+            Args.BitDict = BitDictionary;
+        end
     end
     
     Nms = numel(MS);
     for Ims=1:1:Nms
+        BitFlag        = true(MS(Ims).Nsrc, 1);
+        if ~isempty(Args.RemoveFlags)
+           % remove data points with specific flags
+           MS(Ims).addSrcData;
+           
+           IndNN          = find(~isnan(MS(Ims).SrcData.(Args.FieldFlags)(:)));
+           BitFlag(IndNN) = ~imProc.cat.findBit(MS(Ims).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+         
+        end
+        
         Mag    = getMatrix(MS(Ims), Args.MagField);
         MagErr = getMatrix(MS(Ims), Args.MagErrField);
 
         MedMagErr = median(MagErr, 1, 'omitnan');
-        FlagMM    = MedMagErr<Args.MaxMagErr;
+        FlagMM    = BitFlag(:).' & MedMagErr<Args.MaxMagErr;
         Mag       = Mag(:,FlagMM);
-        MagErr    = MagErr(:,FlagMM);
-
+        MagErr    = MagErr(:,FlagMM);        
+        
         %[Nep, Nsrc] = size(Mag);
 
         % select sources with minimum number of observations
