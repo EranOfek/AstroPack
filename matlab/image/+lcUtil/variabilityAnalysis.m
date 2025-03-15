@@ -79,19 +79,24 @@ function [Result] = variabilityAnalysis(Obj, Args)
     
     
     % power spectrum
-    TablePS = lcUtil.reportPowerSpec(Result, 'FieldMag',Args.FieldMag);
+    TablePS       = lcUtil.reportPowerSpec(Result, 'FieldMag',Args.FieldMag);
     
-    lcUtil.reportRMS
+    % rms
+    TableRMS      = lcUtil.reportRMS(Result, 'FieldMag',Args.FieldMag);
     
     % polynomail fitting
-    TablePolyHyp = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
+    TablePolyHyp  = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
     
-    lcUtil.reportRunMean
+    % run mean filter
+    TableRMF      = lcUtil.reportRunMean(Result, 'FieldMag',Args.FieldMag);
     
+    % flare above NaN
     TableFlareNan = lcUtil.searchFlareAboveNan(Result);
     
+    % correlations
     TableCorr     = lcUtil.reportCorr(Result);
     
+    % proper motion
     TableMotion   = lcUtil.reportMotion(Result);
     
     
