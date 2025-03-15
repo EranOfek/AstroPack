@@ -46,43 +46,53 @@ function [Result] = variabilityAnalysis(Obj, Args)
         Result = Obj;
     end
     
+    
+    Iobj = 1;
+    
     % populate:
-    Result.bestMag;
-    Result.addSrcData;
+    NsrcAll = Result(Iobj).Nsrc;
+    Result(Iobj).bestMag;
+    Result(Iobj).addSrcData;
     
     % clean data
-    F = Result.searchFlags('UseSrcData',true, 'BitDict',Args.BitDict, 'FieldFlags',Args.FieldFlags, 'FlagsList',Args.RemoveFlags);
+    F = Result(Iobj).searchFlags('UseSrcData',true, 'BitDict',Args.BitDict, 'FieldFlags',Args.FieldFlags, 'FlagsList',Args.RemoveFlags);
     Result.selectBySrcIndex(~F, 'CreateNewObj',false);
+    Nsrc   = Result.Nsrc;
     
     % detrend data
     if Args.Detrend2D
-        Result = lcUtil.zp_fit2D(Result, 'FieldMag',Args.FieldMag, 'FieldMagErr',Args.FieldMagErr, 'CreateNewObj',false, 'BitDict',Args.BitDict, Args.zp_fit2DArgs{:});
+        Result = lcUtil.zp_fit2D(Result(Iobj), 'FieldMag',Args.FieldMag, 'FieldMagErr',Args.FieldMagErr, 'CreateNewObj',false, 'BitDict',Args.BitDict, Args.zp_fit2DArgs{:});
     end
     if Args.DetrendZP
-        Rzp = lcUtil.zp_meddiff(Result, 'MagField',Args.FieldMag, 'MagErrField',Args.FieldMagErr, 'BitDict',Args.BitDict, Args.zp_meddiffArgs{:});
+        Rzp = lcUtil.zp_meddiff(Result(Iobj), 'MagField',Args.FieldMag, 'MagErrField',Args.FieldMagErr, 'BitDict',Args.BitDict, Args.zp_meddiffArgs{:});
         Result.applyZP(Rzp);
     end
     
     % MatchedSources stat:
     % Nsrc, NsrcAll, Nep, MinJD, MaxJD, Duration, MidJD, Node, Mount,
     % Camera, CropID, Visit, VisitDate, FullFileNames
+    MinJD = min(Result(Iobj).JD);
+    MaxJD = max(Result(Iobj).JD);
     
+    %TableStat = [Nsrc, NsrcAll, Result(Iobj).Nepoch, MinJD, MaxJD, MaxJD-MinJD, 0.5.*(MinJD + MaxJD), ...
+    %             Node, Mount, Camera, CropID, Visit, VisitDate, FullFileNames];
     
     
     % power spectrum
-    [~,TablePS] = lcUtil.variabilityPS(Result);
+    TablePS = lcUtil.reportPowerSpec(Result, 'FieldMag',Args.FieldMag);
     
+    lcUtil.reportRMS
     
-    lcUtil.variabilityRMS
+    % polynomail fitting
+    TablePolyHyp = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
     
-    lcUtil.variabilityPoly
+    lcUtil.reportRunMean
     
-    lcUtil.variabilityRunMean
+    TableFlareNan = lcUtil.searchFlareAboveNan(Result);
     
-    lcUtil.variabilityFlareNan
+    TableCorr     = lcUtil.reportCorr(Result);
     
-    lcUtil.variabilityCorr
-    
+    TableMotion   = lcUtil.reportMotion(Result);
     
     
     

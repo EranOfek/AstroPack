@@ -24,10 +24,11 @@ function [Result] = runMeanFilter(M, Args)
     %            'EndPoint' - Endpoints parameter for the MoveFun.
     %                   Default is "fill".
     %            'StdFun' - Std function.
-    %                   Either a function handle, or the option: 'OutWin'.
+    %                   Either a function handle, or the option: 'one','OutWin'.
     %                   E.g., @tools.math.stat.rstd.
     %                   'OutWin' - will calculate the std based on all the
     %                   points outside the window.
+    %                   'one' will set the std to 1 (good if input is S/N).
     %                   Default is 'OutWin'.
     %            'OutWinExtra' - In case that the StdFun is 'OutWin', this
     %                   is the extra size of the inner gap above the window half
@@ -129,7 +130,9 @@ function [Result] = runMeanFilter(M, Args)
         switch lower(Args.StdFun)
             case 'outwin'
                 [Nep, ~] = size(ResidM);
-                StdM        = timeSeries.filter.filterStd(ResidM,[Args.OutWinExtra+ceil(Args.WinSize.*0.5) Nep], 'Dim',1);
+                StdM     = timeSeries.filter.filterStd(ResidM,[Args.OutWinExtra+ceil(Args.WinSize.*0.5) Nep], 'Dim',1);
+            case 'one'
+                StdM     = 1;
             otherwise
                 error('Unknown StdFun option');
         end
