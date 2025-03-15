@@ -2659,7 +2659,7 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 30;
 
                 % Save data products
-                Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
+                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};      % 'all'
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;

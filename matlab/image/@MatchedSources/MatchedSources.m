@@ -2286,7 +2286,7 @@ classdef MatchedSources < Component
             %                   property. Default is 'FLAGS'.
             %            'FlagsList' - A cell array containing a list of
             %                   bit names to identify.
-            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %                   Default is {'NearEdge','Saturated','NaN','Negativge'}
             %            'Operator' - If multiple bit names are requested
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
