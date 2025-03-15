@@ -329,7 +329,13 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             Plan = obj.convertPlanTimesToUtc(Plan);
 
             % Call validateTargets with the provided Plan (array of structs)
-            response = obj.Validator.validateTargets(Plan);
+            try
+                response = obj.Validator.validateTargets(Plan);
+            catch ME
+            end
+
+            % Store
+            obj.PlanData.metadata.ValidationResponse = response;
         
             if isfield(response, 'task') && isfield(response, 'status')
                 obj.msglog('Validation status: %s', response.status);

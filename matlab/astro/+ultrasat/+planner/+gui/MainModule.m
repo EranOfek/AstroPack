@@ -485,7 +485,31 @@ classdef MainModule < handle
                 end
             end
         end
+
+
+        function htmlStr = jsonToHtml(obj, jsonData)
+            % Converts a JSON string or struct to HTML with syntax highlighting
+            
+            % Convert struct to JSON if needed
+            if isstruct(jsonData) || iscell(jsonData)
+                jsonData = jsonencode(jsonData, 'PrettyPrint', true);
+            end
         
+            % Escape HTML special characters
+            jsonData = strrep(jsonData, '&', '&amp;');
+            jsonData = strrep(jsonData, '<', '&lt;');
+            jsonData = strrep(jsonData, '>', '&gt;');
+        
+            % Apply syntax highlighting
+            jsonData = regexprep(jsonData, '"(.*?)"(\s*:\s*)', '<span style="color:blue;">"$1"</span>$2'); % Keys
+            jsonData = regexprep(jsonData, '(:\s*)(\d+)', '$1<span style="color:green;">$2</span>'); % Numbers
+            jsonData = regexprep(jsonData, '(:\s*)"(.*?)"', '$1<span style="color:maroon;">"$2"</span>'); % Strings
+            jsonData = regexprep(jsonData, '(:\s*)(true|false|null)', '$1<span style="color:purple;">$2</span>'); % Boolean/Null
+        
+            % Wrap in preformatted HTML block
+            htmlStr = sprintf('<pre style="background:#f5f5f5; padding:10px; border:1px solid #ddd;">%s</pre>', jsonData);
+        end
+               
     end
 
 end
