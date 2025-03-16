@@ -166,6 +166,8 @@ classdef uplanner < Component
         ValidatedTime           datetime    % date or empty
         SubmittedTime           datetime    % date or empty
         Status                  char        = 'draft';
+
+        ValidationResponse  struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
         
         AstPlanner              char        % name of the Astronomer-Planner
         Mclient                             % API client - MissionClient / MissionClientSim
@@ -178,10 +180,14 @@ classdef uplanner < Component
         
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
-                              'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets'};
+                              'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets',...
+                              'ValidationStatus','PowerStatus','ObrdStatus','Tend_ValidationEstimate','Roll_ValidationEstimate',...
+                              'ValidationWarning','MissionApproveStatus','MissionApproveComment'};
         Plan_DefVarTypes   = {'string','double','double','double','double','double','string',...
                               'datetime','datetime','double','double','duration','double','duration','duration',...
-                              'logical','logical','double','double','double','double','double','cell'};
+                              'logical','logical','double','double','double','double','double','cell',...
+                              'string','string','string','datetime','double',...
+                              'struct','string','struct'};
                                                                 
         Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
         Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'double'};  
@@ -1420,8 +1426,21 @@ classdef uplanner < Component
 
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
-            Obj.Mclient.validatePlan(planStruct);            
-            
+            Obj.ValidationResponse = Obj.Mclient.validatePlan(planStruct);      
+
+            if numel(Obj.ValidationResponse.targets)~=heighth(Obj.Plan)
+                error('Number of targets in validation response do not match the number of targets in the plan. Validation aborted');
+            else
+                for i = 1:numel(Obj.ValidationResponse.targets)  % assumes same order of target SHOULD VERIFY!
+                    Obj.Plan.ValidationStatus(i) = Obj.ValidationResponse.targets(i).status;
+                    Obj.Plan.PowerStatus(i) = Obj.ValidationResponse.targets(i).power_status;
+                    Obj.Plan.ObrdStatus(i) = Obj.ValidationResponse.targets(i).obrd_status;
+                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(Obj.ValidationResponse.targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
+                    Obj.Plan.Roll_ValidationEstimate(i) = Obj.ValidationResponse.targets(i).coord_roll;
+                    Obj.Plan.ValidationWarning(i) = Obj.ValidationResponse.targets(i).warning;
+                end
+            end
+                        
             Obj.Status    = 'validated';
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
         end        
