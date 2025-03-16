@@ -97,6 +97,8 @@
 % 
 % 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
 %
+% 5. clearValidationData - link to edit\delete plan row
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef uplanner < Component 
