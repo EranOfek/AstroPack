@@ -187,7 +187,7 @@ classdef uplanner < Component
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell',...
                               'string','string','string','datetime','double',...
-                              'struct','string','struct'};
+                              'cell','string','cell'};
                                                                 
         Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
         Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'double'};  
@@ -242,6 +242,7 @@ classdef uplanner < Component
                             
             Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
+            Obj.Plan.Tend_ValidationEstimate.TimeZone = Obj.SysTimeZone;
             %
             Obj.UniqTarg = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
@@ -1437,7 +1438,7 @@ classdef uplanner < Component
                     Obj.Plan.ObrdStatus(i) = Obj.ValidationResponse.targets(i).obrd_status;
                     Obj.Plan.Tend_ValidationEstimate(i) = datetime(Obj.ValidationResponse.targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
                     Obj.Plan.Roll_ValidationEstimate(i) = Obj.ValidationResponse.targets(i).coord_roll;
-                    Obj.Plan.ValidationWarning(i) = Obj.ValidationResponse.targets(i).warning;
+                    Obj.Plan.ValidationWarning{i} = Obj.ValidationResponse.targets(i).warning;
                 end
             end
                         
