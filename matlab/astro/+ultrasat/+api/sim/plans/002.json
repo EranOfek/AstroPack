@@ -1,0 +1,30 @@
+{
+  "pk": 2,
+  "id": "",
+  "created_by": "",
+  "plan_info": {},
+  "targets": {
+    "title": "N3",
+    "ra": 254,
+    "decl": 64,
+    "roll": 0,
+    "tiles": "1,2,3,4",
+    "start_time": "2028-01-01T12:00:00.000Z",
+    "end_time": "2028-07-01T12:00:15.000Z",
+    "exposure": 300,
+    "image_count": 52416,
+    "total_seconds": 1.5724815E+7
+  },
+  "create_time": [],
+  "update_time": [],
+  "start_time": "2028-01-01T12:00:00.000Z",
+  "end_time": "2028-07-01T12:00:15.000Z",
+  "title": "New plan",
+  "status": "submitted",
+  "metadata": {},
+  "history": {
+    "timestamp": "2025-03-09T10:25:14.053Z",
+    "message": "plan submitted by "
+  },
+  "deleted": false
+}
