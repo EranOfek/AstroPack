@@ -53,7 +53,7 @@ function [Result] = reportFlareAboveNan(Obj, Args)
             end
             Iobj = 1;
             Result = table(Tmp(Iobj).Flag(:), Tmp(Iobj).MaxSN(:));
-            Result.Properties.VariablesName = {'FlareNanFlag', 'FlareNanSN'};
+            Result.Properties.VariableNames = {'FlareNanFlag', 'FlareNanSN'};
             
         otherwise
             % do nothing

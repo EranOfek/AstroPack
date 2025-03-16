@@ -1,41 +1,44 @@
-function [Result] = variabilityAnalysis(Obj, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+function [AC, Result] = variabilityAnalysis(Obj, Args)
+    % Perform variability analysis and search on a MatchedSources object.
+    %   The outputs include: a modified calibrated MatchedSources object with the
+    %   added information, and a table of selected variable candidates with
+    %   their properties.
+    %
+    % Input  : - A single element MatchedSources object.
     %          * ...,key,val,... 
-    % Output : - 
+    %            See code for options.
+    % Output : - An updated MatchedSources object.
+    %          - An AstroCatalog object with a table with the selected variable candidates.
     % Author : Eran Ofek (2025 Mar) 
-    % Example: 
+    % Example: [AC, Result] = lcUtil.variabilityAnalysis(MS)
 
     arguments
         Obj MatchedSources
+        Args.Visit                    = NaN;
         Args.RemoveFlags              = {'Saturated', 'NearEdge', 'Overlap', 'NaN', 'Negative'};
         Args.BitDict                  = BitDictionary;
         Args.FieldFlags               = 'FLAGS';
         Args.FieldMag                 = 'MAG_BEST';
         Args.FieldMagErr              = 'MAGERR_PSF';
+        Args.FieldSN                  = 'SN_3';
         Args.Detrend2D logical        = true;
         Args.zp_fit2DArgs             = {};
         Args.DetrendZP logical        = true;
         Args.zp_meddiffArgs           = {};
         
-        Args.PeriodMinPower           = 12;   % Inf will not run
-        Args.PeriodMinN               = 16;
+        %
+        Args.PS_MaxFreq               = 60./86400;
+        Args.PS_ThresholdNp           = 12;
+        Args.PS_Threshold             = 12;
         
-        Args.RMSMinSigma              = 10;   % Inf will not run
-        Args.RMSMinN                  = 16;
+        Args.RMS_NsigmaPred           = 10;
         
-        Args.PolyMinChi2              = 20;   % Inf will not run
-        Args.PolyOrders               = (0:1:5);
-        Args.PolyMinN                 = 16;
+        Args.Poly1_MinDeltaChi2       = 15;
+        Args.Poly5_MinDeltaChi2       = 25;
         
-        Args.RunMeanMinSN             = 8;    % Inf will not run
-        Args.RunMeanWin               = [2 3 4 5 6];
-        Args.RunMeanMinN              = 16;
+        Args.RM_MinAbsSN              = 8
         
-        Args.FlareNanMinSN            = 8;
-        Args.FlareNanMinN             = 2;
+        Args.FlareNaN_MinSN           = 8;
         
         Args.CreateNewObj logical     = false;
     end
@@ -55,9 +58,9 @@ function [Result] = variabilityAnalysis(Obj, Args)
     Result(Iobj).addSrcData;
     
     % clean data
-    F = Result(Iobj).searchFlags('UseSrcData',true, 'BitDict',Args.BitDict, 'FieldFlags',Args.FieldFlags, 'FlagsList',Args.RemoveFlags);
+    F = Result(Iobj).searchFlags('UseSrcData',true, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlags, 'FlagsList',Args.RemoveFlags);
     Result.selectBySrcIndex(~F, 'CreateNewObj',false);
-    Nsrc   = Result.Nsrc;
+    NsrcGood = Result.Nsrc;
     
     % detrend data
     if Args.Detrend2D
@@ -77,12 +80,15 @@ function [Result] = variabilityAnalysis(Obj, Args)
     %TableStat = [Nsrc, NsrcAll, Result(Iobj).Nepoch, MinJD, MaxJD, MaxJD-MinJD, 0.5.*(MinJD + MaxJD), ...
     %             Node, Mount, Camera, CropID, Visit, VisitDate, FullFileNames];
     
-    
     % power spectrum
-    TablePS       = lcUtil.reportPowerSpec(Result, 'FieldMag',Args.FieldMag);
-    
+    TablePS       = lcUtil.reportPowerSpec(Result, 'FieldMag',Args.FieldMag,...
+                                                   'MaxFreq',Args.PS_MaxFreq,...
+                                                   'ThresholdNp',Args.PS_ThresholdNp,...
+                                                   'Threshold',0);
+            
     % rms
-    TableRMS      = lcUtil.reportRMS(Result, 'FieldMag',Args.FieldMag);
+    TableRMS      = lcUtil.reportRMS(Result, 'FieldMag',Args.FieldMag,...
+                                             'ThresholdRMSpred',-Inf);
     
     % polynomail fitting
     TablePolyHyp  = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
@@ -91,7 +97,7 @@ function [Result] = variabilityAnalysis(Obj, Args)
     TableRMF      = lcUtil.reportRunMean(Result, 'FieldMag',Args.FieldMag);
     
     % flare above NaN
-    TableFlareNan = lcUtil.searchFlareAboveNan(Result);
+    TableFlareNan = lcUtil.reportFlareAboveNan(Result, 'MinSN',Args.FlareNaN_MinSN, 'FieldSN',Args.FieldSN);
     
     % correlations
     TableCorr     = lcUtil.reportCorr(Result);
@@ -99,6 +105,57 @@ function [Result] = variabilityAnalysis(Obj, Args)
     % proper motion
     TableMotion   = lcUtil.reportMotion(Result);
     
+    % Positions and SN
+    TableMain = array2table([Result.SrcData.RA(:), Result.SrcData.Dec(:), Result.SrcData.(Args.FieldSN)(:)]);
+    TableMain.Properties.VariableNames = {'RA', 'Dec', 'SN'};
+    
+    % merged Table
+    Table = [TableMain, TablePS, TableRMS, TablePolyHyp, TableRMF, TableFlareNan, TableCorr, TableMotion];
+    
+    
+    % select
+    Flag = Table.MaxPower>Args.PS_Threshold | ...
+           Table.RMS_NsigmaPred>Args.RMS_NsigmaPred | ...
+           Table.Poly1_DeltaChi2>Args.Poly1_MinDeltaChi2 | ...
+           Table.Poly5_DeltaChi2>Args.Poly5_MinDeltaChi2 | ...
+           Table.RM_MinSN_Win2>Args.RM_MinAbsSN | ...
+           Table.RM_MaxSN_Win2>Args.RM_MinAbsSN | ...
+           Table.RM_MinSN_Win3>Args.RM_MinAbsSN | ...
+           Table.RM_MaxSN_Win3>Args.RM_MinAbsSN | ...
+           Table.RM_MinSN_Win4>Args.RM_MinAbsSN | ...
+           Table.RM_MaxSN_Win4>Args.RM_MinAbsSN | ...
+           Table.RM_MinSN_Win5>Args.RM_MinAbsSN | ...
+           Table.RM_MaxSN_Win5>Args.RM_MinAbsSN | ...
+           Table.FlareNanFlag;
+       
+    %
+    Table = Table(Flag,:);
+    
+    Nsrc = size(Table,1);
+    
+    TableNstat = array2table([Nsrc, NsrcGood, NsrcAll, MinJD, MaxJD].*ones(Nsrc,1));
+    TableNstat.Properties.VariableNames = {'Nfound', 'NsrcGood', 'NsrcAll', 'MinJD', 'MaxJD'};
+    
+    FN = FileNames.generateFromFileName(Result.FileName);
+    
+    ProjName = FN.ProjName{1};
+    FieldID  = FN.FieldID{1};
+    CropID   = FN.CropID(1);
+    Nfiles   = numel(FN.Time);
+    Visit    = Args.Visit;
+    
+    TableFile = {ProjName, FieldID, CropID, Nfiles, Visit};
+    TableFile = repmat(TableFile,Nsrc,1);
+    TableFile = cell2table(TableFile);
+    TableFile.Properties.VariableNames = {'ProjName', 'FieldID', 'CropID', 'Nfiles', 'Visit'};
+    
+    Table = [Table, TableNstat, TableFile];
+    
+    AC = AstroCatalog;
+    AC.Catalog = Table;
+    
+    AC = imProc.match.match_catsHTMmerged(AC);
+    AC = imProc.match.match_catsHTM(AC, 'GAIADR3');
     
     
 end

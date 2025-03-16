@@ -12,6 +12,8 @@ function [Result, ColNames] = reportRMS(Obj, Args)
     %                   'matrix' - Matrix output.
     %                   'table' - table output.
     %                   Default is 'table'.
+    %            'ThresholdRMSpred' - Selected only sources with RMS_NsigmaPred
+    %                   above this value. Default is -Inf.
     % Output : - A matrix or table with the columns:
     %            [Ndet, MeanMag, Std, NsigmaPred, NsigmaStd]
     % Author : Eran Ofek (2025 Mar) 
@@ -22,6 +24,7 @@ function [Result, ColNames] = reportRMS(Obj, Args)
         Args.FieldMag          = 'MAG_BEST';
         Args.rmsMagArgs        = {};
         Args.OutType           = 'table';
+        Args.ThresholdRMSpred  = -Inf;
     end
     
 
@@ -30,6 +33,10 @@ function [Result, ColNames] = reportRMS(Obj, Args)
     ColNames = {'Ndet', 'MeanMag', 'Std', 'RMS_NsigmaPred', 'RMS_NsigmaStd'};
     Result = [ResRms.Ndet(:) ResRms.MeanMag(:), ResRms.StdPar(:), ResRms.NsigmaPred(:), ResRms.NsigmaStd(:)];
     
+    if Args.ThresholdRMSpred>-Inf
+        FlagSelected = Result.RMS_NsigmaPred>Args.ThresholdRMSpred;
+        Result       = Result(FlagSelected,:);
+    end
     
     switch lower(Args.OutType)
         case 'table'
