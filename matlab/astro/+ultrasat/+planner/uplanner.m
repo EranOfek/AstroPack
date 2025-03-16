@@ -73,6 +73,7 @@
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
 % - Obj.validate(Args)                                      : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.clearValidationData                                 : Clears valiation data from Plan table, delete the ValidationTime and ValidationResponse and change status back to draft
 % - Obj.submit(Args)                                        : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
 % - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
@@ -1444,6 +1445,22 @@ classdef uplanner < Component
                         
             Obj.Status    = 'validated';
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
+        end        
+        %
+        function clearValidationData(Obj)
+            % Clears valiation data from Plan table, delete the ValidationTime and ValidationResponse and change status back to draft
+            
+            Obj.Plan.ValidationStatus(:) = string(missing);
+            Obj.Plan.PowerStatus(:) = string(missing);
+            Obj.Plan.ObrdStatus(:) = string(missing);
+            Obj.Plan.Tend_ValidationEstimate(:) = NaT;
+            Obj.Plan.Roll_ValidationEstimate(:) = 0;
+            Obj.Plan.ValidationWarning(:) = cell(size(Obj.Plan.ValidationWarning));
+
+            Obj.ValidationResponse = [];      
+
+            Obj.Status    = 'draft';
+            Obj.ValidatedTime = NaT;     
         end        
         %
         function submit(Obj,Args)
