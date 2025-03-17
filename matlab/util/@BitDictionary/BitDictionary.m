@@ -403,6 +403,9 @@ classdef BitDictionary < Component
             
             Nbit = numel(Obj.Dic.BitName);
             
+            % Convert DecFlags to uint*
+            DecFlags = Obj.Class(DecFlags);
+
             I = 0;
             ModQueryStr = QueryStr;
             for Ibit=1:1:Nbit
