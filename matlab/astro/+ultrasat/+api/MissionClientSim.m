@@ -332,10 +332,21 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             try
                 response = obj.Validator.validateTargets(Plan);
             catch ME
+                obj.msglog('Validation error: %s', ME.message);
+                response = obj.newResponse();
+                response.status = 'error';
+                response.message = 'Validation failed due to an exception.';                
             end
 
-            % Store
-            obj.PlanData.metadata.ValidationResponse = response;
+            % Ensure metadata.ValidationResponse exists as a cell array
+            if ~isfield(obj.PlanData.metadata, 'ValidationResponse') || isempty(obj.PlanData.metadata.ValidationResponse)
+                obj.PlanData.metadata.ValidationResponse = {}; % Initialize as empty cell array
+            elseif ~iscell(obj.PlanData.metadata.ValidationResponse)
+                obj.PlanData.metadata.ValidationResponse = {obj.PlanData.metadata.ValidationResponse}; % Convert to cell if needed
+            end
+        
+            % Insert the latest response at the beginning of the array (most recent first)
+            obj.PlanData.metadata.ValidationResponse = [{response}, obj.PlanData.metadata.ValidationResponse];           
         
             if isfield(response, 'task') && isfield(response, 'status')
                 obj.msglog('Validation status: %s', response.status);

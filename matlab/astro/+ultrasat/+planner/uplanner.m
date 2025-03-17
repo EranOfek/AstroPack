@@ -73,6 +73,7 @@
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
 % - Obj.validate(Args)                                      : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.clearValidationData                                 : Clears valiation data from Plan table, delete the ValidationTime and ValidationResponse and change status back to draft
 % - Obj.submit(Args)                                        : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
 % - planStruct = planTable2struct(Obj,Args)                 : Return a struct array of a conversion of the Obj.Plan table, in the correct naming and format for validation/submission
@@ -95,6 +96,8 @@
 % Verify all param range/valid values (e.g., Exp time >readtime)
 % 
 % 4. In all error messages (including planSelfConsistencyCheck), give more information, i.e. which rows overlap etc.
+%
+% 5. clearValidationData - link to edit\delete plan row
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -187,7 +190,7 @@ classdef uplanner < Component
                               'datetime','datetime','double','double','duration','double','duration','duration',...
                               'logical','logical','double','double','double','double','double','cell',...
                               'string','string','string','datetime','double',...
-                              'struct','string','struct'};
+                              'cell','string','cell'};
                                                                 
         Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
         Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'double'};  
@@ -242,6 +245,7 @@ classdef uplanner < Component
                             
             Obj.Plan.Tstart.TimeZone = Obj.SysTimeZone;
             Obj.Plan.Tend.TimeZone = Obj.SysTimeZone;
+            Obj.Plan.Tend_ValidationEstimate.TimeZone = Obj.SysTimeZone;
             %
             Obj.UniqTarg = table('Size',[Obj.N_uniqueTargets,numel(Obj.Target_DefVarNames)],'VariableNames', Obj.Target_DefVarNames,...
                                 'VariableTypes',Obj.Target_DefVarTypes); 
@@ -1427,22 +1431,39 @@ classdef uplanner < Component
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
             Obj.ValidationResponse = Obj.Mclient.validatePlan(planStruct);      
+            targets = Obj.ValidationResponse.task.targets;
 
-            if numel(Obj.ValidationResponse.targets)~=heighth(Obj.Plan)
+            if numel(targets)~=height(Obj.Plan)
                 error('Number of targets in validation response do not match the number of targets in the plan. Validation aborted');
             else
-                for i = 1:numel(Obj.ValidationResponse.targets)  % assumes same order of target SHOULD VERIFY!
-                    Obj.Plan.ValidationStatus(i) = Obj.ValidationResponse.targets(i).status;
-                    Obj.Plan.PowerStatus(i) = Obj.ValidationResponse.targets(i).power_status;
-                    Obj.Plan.ObrdStatus(i) = Obj.ValidationResponse.targets(i).obrd_status;
-                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(Obj.ValidationResponse.targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
-                    Obj.Plan.Roll_ValidationEstimate(i) = Obj.ValidationResponse.targets(i).coord_roll;
-                    Obj.Plan.ValidationWarning(i) = Obj.ValidationResponse.targets(i).warning;
+                for i = 1:numel(targets)  % assumes same order of target SHOULD VERIFY!
+                    Obj.Plan.ValidationStatus(i) = targets(i).status;
+                    Obj.Plan.PowerStatus(i) = targets(i).power_status;
+                    Obj.Plan.ObrdStatus(i) = targets(i).obrd_status;
+                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
+                    Obj.Plan.Roll_ValidationEstimate(i) = targets(i).coord_roll;
+                    Obj.Plan.ValidationWarning{i} = targets(i).warning;
                 end
             end
                         
             Obj.Status    = 'validated';
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
+        end        
+        %
+        function clearValidationData(Obj)
+            % Clears valiation data from Plan table, delete the ValidationTime and ValidationResponse and change status back to draft
+            
+            Obj.Plan.ValidationStatus(:) = string(missing);
+            Obj.Plan.PowerStatus(:) = string(missing);
+            Obj.Plan.ObrdStatus(:) = string(missing);
+            Obj.Plan.Tend_ValidationEstimate(:) = NaT;
+            Obj.Plan.Roll_ValidationEstimate(:) = 0;
+            Obj.Plan.ValidationWarning(:) = cell(size(Obj.Plan.ValidationWarning));
+
+            Obj.ValidationResponse = [];      
+
+            Obj.Status    = 'draft';
+            Obj.ValidatedTime = NaT;     
         end        
         %
         function submit(Obj,Args)

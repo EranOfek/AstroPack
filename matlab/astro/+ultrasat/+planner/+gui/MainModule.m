@@ -467,21 +467,34 @@ classdef MainModule < handle
         % =================================================================
         %
         % =================================================================
-
+        
         function tbl = convertTableDatetimeToString(obj, tbl)
-            % Scans a table and converts all datetime fields to string format (yyyy-MM-dd HH:mm:ss)
-            
+            % Converts all datetime columns in a table to string format (yyyy-MM-dd HH:mm:ss)
+            % Handles empty datetime (NaT) values correctly.
+        
             % Get all variable (column) names
             varNames = tbl.Properties.VariableNames;
-            
+        
             % Iterate through each column
             for i = 1:numel(varNames)
                 colName = varNames{i};
-                
+        
                 % Check if the column contains datetime values
                 if isa(tbl.(colName), 'datetime')
-                    % Convert datetime to string format
-                    tbl.(colName) = string(datestr(tbl.(colName), 'yyyy-MM-dd HH:mm:ss'));
+                    % Initialize new column as cell array of strings
+                    newCol = cell(height(tbl), 1);
+        
+                    % Loop through all rows in the column
+                    for j = 1:height(tbl)
+                        if isnat(tbl.(colName)(j))  % Check if it's NaT
+                            newCol{j} = "";  % Empty string for NaT values
+                        else
+                            newCol{j} = datestr(tbl.(colName)(j), 'yyyy-MM-dd HH:mm:ss'); % Convert datetime to string
+                        end
+                    end
+        
+                    % Convert cell array to string array and assign back to table
+                    tbl.(colName) = string(newCol);
                 end
             end
         end
