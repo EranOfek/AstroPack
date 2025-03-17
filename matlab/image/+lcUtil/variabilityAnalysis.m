@@ -159,6 +159,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     
     Table = [Table, TableNstat, TableFile];
     
+    
     AC = AstroCatalog;
     AC.Catalog  = Table;
     %AC.ColNames = Table.Properties.VariableNames;
@@ -181,7 +182,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         if GAIA.sizeCatalog>0
             GAIA = imProc.cat.applyProperMotion(GAIA, EpochIn, MinJD,'EpochInUnits','J','EpochOutUnits','JD','ApplyPlx',false);
         end
-        
+
         Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, GAIA.Catalog(:,1), GAIA.Catalog(:,2)).*RAD.*3600;
         
         [MinDist, MinI] = min(Dist);
