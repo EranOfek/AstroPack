@@ -141,6 +141,9 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableNstat = array2table([Nsrc, NsrcGood, NsrcAll, MinJD, MaxJD].*ones(Nsrc,1));
     TableNstat.Properties.VariableNames = {'Nfound', 'NsrcGood', 'NsrcAll', 'MinJD', 'MaxJD'};
     
+    if ~iscell(Result.FileName)
+        Result.FileName = {Result.FileName};
+    end
     FN = FileNames.generateFromFileName(Result.FileName);
     
     ProjName = FN.ProjName{1};
@@ -166,18 +169,19 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         MergedCat = catsHTM.cone_search('MergedCat',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
         Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, MergedCat.Catalog(:,1), MergedCat.Catalog(:,2)).*RAD.*3600;
         Flag = Dist<MergedCat.Catalog(:,4);
-        MergedCatBitMask(Isrc) = tools.array.bitor_array(uint32(MergedCat.Catalog(Flag,3)),1,true);
-
-        
-
+        if sum(Flag)>0
+            MergedCatBitMask(Isrc) = tools.array.bitor_array(uint32(MergedCat.Catalog(Flag,3)),1,true);
+        end
 
 
         GAIA = catsHTM.cone_search('GAIADR3',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
         % apply PM
         
-        EpochIn = GAIA.Catalog(1,3);
-        GAIA = imProc.cat.applyProperMotion(GAIA, EpochIn, MinJD,'EpochInUnits','J','EpochOutUnits','JD','ApplyPlx',false);
-
+        EpochIn = 2016; %GAIA.Catalog(1,3);
+        if GAIA.sizeCatalog>0
+            GAIA = imProc.cat.applyProperMotion(GAIA, EpochIn, MinJD,'EpochInUnits','J','EpochOutUnits','JD','ApplyPlx',false);
+        end
+        
         Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, GAIA.Catalog(:,1), GAIA.Catalog(:,2)).*RAD.*3600;
         
         [MinDist, MinI] = min(Dist);
