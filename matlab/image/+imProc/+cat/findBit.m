@@ -61,7 +61,7 @@ function [Result] = findBit(Obj, Bits, Col, BD, Args)
     if isa(Obj, 'AstroCatalog')
         ColData = Obj.getCol(Col);
     elseif istable(Obj)
-        if inumeric(Col)
+        if isnumeric(Col)
             ColData = table2array(Obj(:,Col));
         else
             ColData = Obj.(Col);
@@ -80,7 +80,7 @@ function [Result] = findBit(Obj, Bits, Col, BD, Args)
     if iscell(Bits) || isnumeric(Bits)
         Result = BD.findBit(ColData, Bits, 'Method', Args.Method);
     else
-        Result = BD.query(ColData, Bits)
+        Result = BD.query(ColData, Bits);
     end
         
     

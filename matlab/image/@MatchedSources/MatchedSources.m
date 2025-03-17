@@ -3292,6 +3292,7 @@ classdef MatchedSources < Component
             end
 
             T        = Obj.JD(:);
+            T        = T - T(1);  % 
 
             FreqVec = timeSeries.period.getFreq(T, Freq, Args.getFreqArgs{:});
 

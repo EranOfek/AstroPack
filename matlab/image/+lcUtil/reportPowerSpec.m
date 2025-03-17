@@ -28,7 +28,7 @@ function [Result] = reportPowerSpec(Obj, Args)
         Args.Threshold         = 0; % select only peaks above this
     end
     
-    VecFreq = timeSeries.period.getFreq(Obj.JD, 'MaxFreq',Args.MaxFreq);
+    VecFreq = timeSeries.period.getFreq(Obj.JD-Obj.JD(1), 'MaxFreq',Args.MaxFreq);
     [VecFreq, MatPS] = Obj.period(VecFreq, 'MagField',Args.FieldMag);
     
     [MaxPS, MaxI] = max(MatPS, [], 1);

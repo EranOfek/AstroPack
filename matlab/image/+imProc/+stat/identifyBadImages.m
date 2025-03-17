@@ -4,6 +4,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %       Number of pixels in the ACF above some threshold correlation.
     %       Distance from ACF center to the furthest ACF value above some
     %       threshold.
+    %       Also look for histogram anomaly using: imUtil.image.histAnomaly
     %       NOTE: I guess that staellites constellations may be identified
     %       as bad images.
     % Input  : - An AstroImage object, or a char file name with optional
@@ -58,6 +59,8 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            .Npix
     %            .NpixAboveThresholdVal
     %            .NpixAboveThresholdACF
+    %            .HistAnomaly - logical indicating if hist anomaly was
+    %                   detected.
     %            .BadImageFlag - true if image is bad.
     %          - The ACF of the background subtracted image.
     %            Only, the last analyzed image is returned.
@@ -138,6 +141,8 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         end
         
         
+        Result(Iobj).HistAnomaly = imUtil.image.histAnomaly(Image);
+        
         % Number of pixels above threshold
         Result(Iobj).Npix = numel(Image);
         Result(Iobj).NpixAboveThresholdVal =  sum(Image > Args.ThresholdVal, 'all');
@@ -193,7 +198,8 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
             Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF || ...
                                     Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF || ...
-                                    Result(Iobj).N32768>Args.N32768;
+                                    Result(Iobj).N32768>Args.N32768 || ...
+                                    Result(Iobj).HistAnomaly;
         end
     end
 end

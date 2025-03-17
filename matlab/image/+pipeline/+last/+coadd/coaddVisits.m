@@ -121,6 +121,7 @@ function [CI, AI] = coaddVisits(In, Args)
         
         %CI(Icrop)   = imProc.stack.coadd(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs, 'UseWeights',false);
         CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
+        CI(Icrop).HeaderData.replaceVal({'BACKMAG'},{'NaN'});
     end
 
    % Args.FindSrc=false;
