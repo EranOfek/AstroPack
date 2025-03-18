@@ -1431,17 +1431,18 @@ classdef uplanner < Component
             planStruct = Obj.planTable2struct;
             % send struct plan to the validator.
             Obj.ValidationResponse = Obj.Mclient.validatePlan(planStruct);      
+            targets = Obj.ValidationResponse.task.targets;
 
-            if numel(Obj.ValidationResponse.targets)~=heighth(Obj.Plan)
+            if numel(targets)~=height(Obj.Plan)
                 error('Number of targets in validation response do not match the number of targets in the plan. Validation aborted');
             else
-                for i = 1:numel(Obj.ValidationResponse.targets)  % assumes same order of target SHOULD VERIFY!
-                    Obj.Plan.ValidationStatus(i) = Obj.ValidationResponse.targets(i).status;
-                    Obj.Plan.PowerStatus(i) = Obj.ValidationResponse.targets(i).power_status;
-                    Obj.Plan.ObrdStatus(i) = Obj.ValidationResponse.targets(i).obrd_status;
-                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(Obj.ValidationResponse.targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
-                    Obj.Plan.Roll_ValidationEstimate(i) = Obj.ValidationResponse.targets(i).coord_roll;
-                    Obj.Plan.ValidationWarning{i} = Obj.ValidationResponse.targets(i).warning;
+                for i = 1:numel(targets)  % assumes same order of target SHOULD VERIFY!
+                    Obj.Plan.ValidationStatus(i) = targets(i).status;
+                    Obj.Plan.PowerStatus(i) = targets(i).power_status;
+                    Obj.Plan.ObrdStatus(i) = targets(i).obrd_status;
+                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
+                    Obj.Plan.Roll_ValidationEstimate(i) = targets(i).coord_roll;
+                    Obj.Plan.ValidationWarning{i} = targets(i).warning;
                 end
             end
                         

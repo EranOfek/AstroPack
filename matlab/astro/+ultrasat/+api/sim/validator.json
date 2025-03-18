@@ -1,1 +1,51 @@
-[]
+{
+  "validations": [
+    {
+      "serial": 1,
+      "timestamp": "2025-03-17T17:02:06.289Z",
+      "input": {
+        "title": "MyUniqueTarget",
+        "ra": 215,
+        "decl": 60,
+        "roll": 0,
+        "tiles": "1,2,3,4",
+        "start_time": "2028-01-01T12:00:00.000000Z",
+        "end_time": "2028-07-01T12:00:15.000000Z",
+        "exposure": 300,
+        "image_count": 52416,
+        "total_seconds": 1.5724815E+7
+      },
+      "output": {
+        "validation_time": "17-Mar-2025 17:02:06",
+        "status": "approved",
+        "task": {
+          "task_id": "tsk_20250317170206",
+          "start_time": "2028-01-01T12:00:00.000Z",
+          "estimated_end_time": "2028-01-01T12:00:05.000Z",
+          "task_type": "validation",
+          "target_count": 1,
+          "first_modified_target": "",
+          "targets": {
+            "title": "MyUniqueTarget",
+            "ra": 215,
+            "decl": 60,
+            "roll": 0,
+            "tiles": "1,2,3,4",
+            "start_time": "2028-01-01T12:00:00.000000Z",
+            "end_time": "2028-07-01T12:00:15.000000Z",
+            "exposure": 300,
+            "image_count": 52416,
+            "total_seconds": 1.5724815E+7,
+            "target_id": "trg_20280101120000",
+            "estimated_end_time": "2028-07-04T12:48:00.000000Z",
+            "status": "approved",
+            "power_status": "ok",
+            "obrd_status": "ok",
+            "coord_roll": 0,
+            "warning": {}
+          }
+        }
+      }
+    }
+  ]
+}

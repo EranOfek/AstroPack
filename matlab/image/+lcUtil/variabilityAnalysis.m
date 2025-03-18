@@ -10,7 +10,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     % Output : - An updated MatchedSources object.
     %          - An AstroCatalog object with a table with the selected variable candidates.
     % Author : Eran Ofek (2025 Mar) 
-    % Example: [AC, Result] = lcUtil.variabilityAnalysis(MS)
+    % Example: MS=MatchedSources.read({'/marvin/LAST.01.01.01/2025/03/15/proc/004325v0/LAST.01.01.01_20250316.004635.263_clear_1362_000_001_010_sci_merged_MergedMat_1.hdf5'})
+    %          [AC, Result] = lcUtil.variabilityAnalysis(MS)
 
     arguments
         Obj MatchedSources
@@ -27,7 +28,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.zp_meddiffArgs           = {};
         
         %
-        Args.PS_MaxFreq               = 60./86400;
+        Args.PS_MaxFreq               = 86400./60;
         Args.PS_ThresholdNp           = 12;
         Args.PS_Threshold             = 12;
         
@@ -40,8 +41,12 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         
         Args.FlareNaN_MinSN           = 8;
         
+        Args.SearchRadius             = 60;
+
         Args.CreateNewObj logical     = false;
     end
+    RAD = 180./pi;
+
 
     if Args.CreateNewObj
         Result = Obj.copy;
@@ -136,6 +141,9 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableNstat = array2table([Nsrc, NsrcGood, NsrcAll, MinJD, MaxJD].*ones(Nsrc,1));
     TableNstat.Properties.VariableNames = {'Nfound', 'NsrcGood', 'NsrcAll', 'MinJD', 'MaxJD'};
     
+    if ~iscell(Result.FileName)
+        Result.FileName = {Result.FileName};
+    end
     FN = FileNames.generateFromFileName(Result.FileName);
     
     ProjName = FN.ProjName{1};
@@ -151,11 +159,49 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     
     Table = [Table, TableNstat, TableFile];
     
+    
     AC = AstroCatalog;
-    AC.Catalog = Table;
-    
-    AC = imProc.match.match_catsHTMmerged(AC);
-    AC = imProc.match.match_catsHTM(AC, 'GAIADR3');
-    
-    
+    AC.Catalog  = Table;
+    %AC.ColNames = Table.Properties.VariableNames;
+
+    MergedCatBitMask = uint32(zeros(Nsrc, 1));
+    InfoGAIA         = nan(Nsrc, 11);
+    for Isrc=1:1:Nsrc
+        MergedCat = catsHTM.cone_search('MergedCat',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
+        Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, MergedCat.Catalog(:,1), MergedCat.Catalog(:,2)).*RAD.*3600;
+        Flag = Dist<MergedCat.Catalog(:,4);
+        if sum(Flag)>0
+            MergedCatBitMask(Isrc) = tools.array.bitor_array(uint32(MergedCat.Catalog(Flag,3)),1,true);
+        end
+
+
+        GAIA = catsHTM.cone_search('GAIADR3',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
+        % apply PM
+        
+        EpochIn = 2016; %GAIA.Catalog(1,3);
+        if GAIA.sizeCatalog>0
+            GAIA = imProc.cat.applyProperMotion(GAIA, EpochIn, MinJD,'EpochInUnits','J','EpochOutUnits','JD','ApplyPlx',false);
+        end
+
+        Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, GAIA.Catalog(:,1), GAIA.Catalog(:,2)).*RAD.*3600;
+        
+        [MinDist, MinI] = min(Dist);
+        Nstar5          = numel(Dist<5);
+        
+        InfoGAIA(Isrc,:) = [MinDist, Nstar5, GAIA.Table.Plx(MinI),...
+                                     GAIA.Table.ErrPlx(MinI),...
+                                     GAIA.Table.phot_bp_mean_mag(MinI),...
+                                     GAIA.Table.phot_rp_mean_mag(MinI),...
+                                     GAIA.Table.phot_g_mean_mag(MinI),...
+                                     GAIA.Table.teff_gspphot(MinI),...
+                                     GAIA.Table.logg_gspphot(MinI),...
+                                     GAIA.Table.non_single_star(MinI),...
+                                     GAIA.Table.astrometric_excess_noise(MinI)];
+
+
+    end
+    AC.Catalog.MergedCat = MergedCatBitMask;
+    InfoGAIA = array2table(InfoGAIA, 'VariableNames',{'GAIA_MinDist','GAIA_Nstar5','GAIA_Plx','GAIA_ErrPlx','GAIA_Bp','GAIA_Rp','GAIA_G','GAIA_Teff','GAIA_logg','GAIA_NonSingle','GAIA_ExcessNoise'});
+    AC.Catalog = [AC.Catalog, InfoGAIA];
+    AC.ColNames = AC.Catalog.Properties.VariableNames;
 end
