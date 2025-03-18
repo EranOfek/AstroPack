@@ -4,7 +4,7 @@
 % File:   ultrasat.MissionClientSim.m
 % Author: Chen Tishler
 % Created: 01/12/2024
-% Updated: 16/02/2025
+% Updated: 16/03/2025
 %
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
@@ -28,13 +28,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
 
-            % May move to another folder @Todo
-            %obj.DbPath = 'c:/soc/planner/sim';
-
+            % Use sim/ subfolder under current folder, there should be a .gitignore file
             currentFile = mfilename('fullpath');
             currentFolder = fileparts(currentFile);
             obj.DbPath = fullfile(currentFolder, 'sim');
-
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
@@ -48,7 +45,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         function response = login(obj, UserName, Password)
             % Simulate login by checking credentials from users.json and updating current_user.json
-            obj.msglog('login: user=%s, password=%s - @TODO', UserName, Password);
+            obj.msglog('login: user=%s, password=%s', UserName, Password);
           
             usersFile = fullfile(obj.DbPath, 'users.json');
             currentUserFile = fullfile(obj.DbPath, 'current_user.json');
@@ -402,8 +399,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         % -------------------------------------------------------------------
 
         function response = retractPlan(obj, Plan)
-            % Called from uplanner - @Todo - need to define and implement
-            % with @Yossi
+            % Called from uplanner - @Future - need to define and implement
         end                        
         
         % -------------------------------------------------------------------
@@ -560,7 +556,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 mkdir(plansFolder);
             end
         
-            % Generate pk if not provided
+            % Generate pk if not provided, as next file number (i.e '003')
             if isempty(obj.PlanData.pk)
                 existingFiles = dir(fullfile(plansFolder, '*.json'));
                 pks = [];

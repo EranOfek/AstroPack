@@ -4,7 +4,7 @@
 % File:   ValidatorSim.m
 % Author: Chen Tishler
 % Created: 17/02/2025
-% Updated: 17/02/2025
+% Updated: 17/03/2025
 %
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
@@ -60,7 +60,7 @@ classdef ValidatorSim < handle
         function response = newResponse(obj)
             % Creates a new response struct with a status field
             response = struct(...
-                'validation_time', api.ModelBase.nowUtcStr(), ... % Do need to use nowUtc() and convert to str on saving???
+                'validation_time', api.ModelBase.nowUtc(), ...
                 'status', 'pending', ... % Default status
                 'task', struct() ...     % Task data will be populated later
             );

@@ -1,2 +1,7 @@
 sim/*
+sim/plans/*
+
+
+!sim/README.md
 !sim/users.json
+!unique_targets.csv
