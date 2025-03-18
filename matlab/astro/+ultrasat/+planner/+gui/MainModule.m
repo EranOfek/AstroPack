@@ -46,18 +46,18 @@ classdef MainModule < handle
             % Constructor
             disp('app.MainModule');
                        
-            % Temporary solution, @Todo @Yossi
+            % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
             obj.PlannerPath = '~/matlab/data/ULTRASAT/Planner/';
             if ispc
-                obj.BaseDataDir =  'C:/AstroPack/Data/ULTRASAT/';
-                obj.PlannerPath = 'C:/Temp/_planner';                
+                obj.BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
+                obj.PlannerPath = fullfile(obj.BaseDataDir, 'PlannerGUI');
             end
 
             if ~exist(obj.PlannerPath, 'dir')
                 mkdir(obj.PlannerPath);
             end
-            obj.DebugPath = obj.PlannerPath;  %fullfile(obj.PlannerPath, 'debug');
+            obj.DebugPath = obj.PlannerPath;
             obj.LogFileName = fullfile(obj.PlannerPath, 'planner.log');
             obj.msglog('MainModule started');
 
@@ -95,10 +95,14 @@ classdef MainModule < handle
 
         function Result = logout(obj)
             % Logout from server
-            obj.UserName = [];
-            Result = obj.ApiClient.logout(obj.UserName);
-            if Result
+            if ~isempty(obj.UserName)
+                Result = true;
+            end
+            Result = false;
+            response = obj.ApiClient.logout(obj.UserName);
+            if response.ok
                 obj.UserName = [];
+                Result = true;
             end
         end        
 
@@ -113,19 +117,58 @@ classdef MainModule < handle
 
         % =================================================================
 
-        function Result = startValidation(obj, Planner)
-            Result = true;
+        function color = getValidationStatusColor(obj, status)
+            % Returns text color (RGB) based on the validation status
+        
+            % Convert status to lowercase to ensure case insensitivity
+            status = lower(string(status));
+        
+            switch status
+                case ""  % Empty status (Default black)
+                    color = [0 0 0]; % Black
+                case "approved"
+                    color = [0 0.5 0]; % Green
+                case "warning"
+                    color = [0.5 0 0.5]; % Purple
+                case "failed"
+                    color = [0.8 0 0]; % Red
+                otherwise
+                    color = [0.8 0 0]; % Default to Red for unknown statuses
+            end
         end
 
 
-        function Result = stopValidation(obj)
-            Result = true;
-        end        
+        function color = getValidationStatusBackgroundColor(obj, status)
+            % Returns background color (RGB) for black text based on the validation status
+        
+            % Convert status to lowercase to ensure case insensitivity
+            status = lower(string(status));
+        
+            switch status
+                case ""  % Empty status (Light yellowish background)
+                    color = [1.00 0.99 0.82]; % Light pastel yellow
+                case "approved"
+                    color = [0.85 1 0.85]; % Light green
+                case "warning"
+                    color = [0.95 0.85 1]; % Light purple
+                case "failed"
+                    color = [1 0.85 0.85]; % Light red
+                otherwise
+                    color = [1 0.85 0.85]; % Default to Light Red for unknown statuses
+            end
+        end
 
 
-        function Result = getValidationStatus(obj)
-            Result = true;  % struct() - @Todo
-        end        
+        function style = getValidationStatusStyle(obj, status)
+            % Returns the appropriate uistyle based on the validation status
+        
+            % Get the corresponding text color
+            color = obj.getValidationStatusColor(status);
+        
+            % Create and return the style
+            style = uistyle("FontColor", color);
+        end
+        
 
         % =================================================================
         %                           Get UI Field Values
@@ -228,7 +271,6 @@ classdef MainModule < handle
 
         function Result = num2Str(obj, Value)
             % Convert number to string
-            % @Todo - need to support sexa, etc.
             if ~isempty(Value)
                 Result = num2str(Value);
             else

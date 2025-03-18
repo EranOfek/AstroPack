@@ -57,7 +57,7 @@ classdef AppUtils < handle
                 Title = 'Debug'; % Default title
             end                        
             %uialert(App.UIFigure, Msg, Title, 'Icon', 'success');
-            disp(Msg);
+            %disp(Msg);
         end
 
 
@@ -66,7 +66,12 @@ classdef AppUtils < handle
             if nargin < 3
                 Title = 'Confirmation'; % Default title
             end            
-            Result = questdlg(Msg, Title, 'Yes', 'No', []);
+           Result = uiconfirm(App.UIFigure, Msg, Title, ...
+                'Options', {'Yes', 'No'}, ...
+                'Icon', 'question', ...
+                'DefaultOption', 2, ...
+                'CancelOption', 2);  % 'No' is default and cancel
+            %Result = questdlg(Msg, Title, 'Yes', 'No', []);
         end
 
 
@@ -74,8 +79,13 @@ classdef AppUtils < handle
             % Show modal dialog with Yes/No/Cancel buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
-            end            
-            Result = questdlg(Msg, Title, 'Yes', 'No', 'Cance', []);
+            end        
+            Result = uiconfirm(App.UIFigure, Msg, Title, ...
+                'Options', {'Yes', 'No', 'Cancel'}, ...
+                'Icon', 'question', ...
+                'DefaultOption', 1, ...
+                'CancelOption', 3); % 'Cancel' is the default cancel option            
+            %Result = questdlg(Msg, Title, 'Yes', 'No', 'Cance', []);
         end        
 
 
@@ -84,7 +94,13 @@ classdef AppUtils < handle
             if nargin < 3
                 Title = 'Confirmation'; % Default title
             end                        
-            Result = questdlg(Msg, Title, 'Save', 'Discard', []);
+            % Use modern UI confirmation
+            Result = uiconfirm(App.UIFigure, Msg, Title, ...
+                'Options', {'Save', 'Discard'}, ...
+                'Icon', 'warning', ...
+                'DefaultOption', 1, ...
+                'CancelOption', 2); % 'Discard' as the default cancel option            
+            %Result = questdlg(Msg, Title, 'Save', 'Discard', []);
         end        
 
 
@@ -93,7 +109,13 @@ classdef AppUtils < handle
             if nargin < 3
                 Title = 'Confirmation'; % Default title
             end                        
-            Result = questdlg(Msg, Title, 'Save', 'Discard', 'Cancel', []);
+            % Use modern UI confirmation
+            Result = uiconfirm(App.UIFigure, Msg, Title, ...
+                'Options', {'Save', 'Discard', 'Cancel'}, ...
+                'Icon', 'warning', ...
+                'DefaultOption', 1, ...
+                'CancelOption', 3); % 'Cancel' is the cancel option            
+            %Result = questdlg(Msg, Title, 'Save', 'Discard', 'Cancel', []);
         end                
 
 
