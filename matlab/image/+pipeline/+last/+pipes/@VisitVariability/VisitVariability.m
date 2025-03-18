@@ -87,6 +87,8 @@ classdef VisitVariability < Component
             %            'WriteDB' - A logical indicating if to write
             %                   results to DB. Default is true.
             % Output : 
+            % Example:
+            % TV=pipeline.last.pipes.VisitVariability.analyzeVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
             
             arguments
                 Path                      = [];
@@ -104,8 +106,9 @@ classdef VisitVariability < Component
             Files = dir(Args.FileTemp);
             Nf    = numel(Files);
             for If=1:1:Nf
-                MS = MatchedSources.read({Files(If).name});
-                AC = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                MS = MatchedSources.read({Files(If).name
+
+                AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
         
                 if If==1
                     Table = AC(If).Catalog;

@@ -6,6 +6,10 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     %            See code for options.
     % Output : - A structure with:
     %            .docNode - XML doc node.
+    % Documentation: https://minorplanetcenter.net/mpcops/documentation/valid-ades-values/#astCat
+    %           https://minorplanetcenter.net/iau/info/ADES.html
+    %           https://github.com/IAU-ADES/ADES-Master/blob/master/ades_master.pdf
+    %           https://minorplanetcenter.net/submit_xml?method=post
     % Author : Eran Ofek (2025 Mar) 
     % Example: imUtil.asteroids.generateReportMPC_ADES
 
@@ -14,11 +18,11 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         FileName                     = 'test.xml';
         Args.ObsCode                 = "M01";
         Args.ObsName                 = "LAST";
-        Args.Submitter               = ["D. Polishook", "E. Ofek"];
+        Args.Submitter               = ["D. Polishook"]; %, "E. Ofek"];
         Args.Observer                = ["L. Auto"];
         Args.Measurer                = ["L. Pipeline", "E. Ofek"];
         Args.TelescopeDesign         = "Rowe-Ackerman Schmidt";
-        Args.TelescopeAper           = "28 cm";
+        Args.TelescopeAper           = "0.28";
         Args.Detector                = "CCD";
         Args.Comment                 = ["LAST Node 01, Telescope 03, Camera 02"];
         
@@ -26,6 +30,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         Args.ColProvID               = 'Designation';
         Args.ColTrkSub               = 'AstIndex';                  % column for: Observer-assigned tracklet identifier,
                                                          % unique within a submission batch. Not
+   
                                                          % altered by the
                                                          % MPC. 8 char
         Args.ColProg                 = 'ProgramMPC';   % 2 chars assigned by MPC for observatory program
@@ -37,13 +42,13 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         Args.ColErrDec               = 'ErrDec';
         Args.ColCorrRADec            = 'CorrRADec';
         
-        Args.AstCat                  = 'GAIA-DR3';
+        Args.AstCat                  = 'Gaia3';
         Args.ColMag                  = 'MAG_PSF';
         Args.ColErrMag               = 'MAGERR_PSF';   % or numeric value
         Args.Band                    = 'c';
         Args.ColSN                   = 'SN';
         Args.ColSeeing               = 'FWHM';
-        Args.PhotCat                 = 'GAIA-DR3';
+        Args.PhotCat                 = 'Gaia3';
         Args.ColExpTime              = 'ExpTime';  % or a number
     end
     
@@ -140,7 +145,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
                 TrkSub = sprintf('%8d',Table.(Args.ColTrkSub)(Iobs));
             else
-                TrkSub = Table.(Args.ColTrkSub){Isub};
+                TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
             addTextElement(docNode, optical, 'trkSub', TrkSub);
         end
