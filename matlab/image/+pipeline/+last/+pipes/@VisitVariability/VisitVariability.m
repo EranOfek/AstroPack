@@ -130,7 +130,7 @@ classdef VisitVariability < Component
             cd(PWD);
             
             if Args.WriteDB
-                fprintf('Write to DB not operational yet');
+                %fprintf('Write to DB not operational yet\n');
             end
             
         end
