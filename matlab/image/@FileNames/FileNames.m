@@ -29,7 +29,7 @@ classdef FileNames < Component
         Level               = {'raw'};
         Product             = {'Image'};
         Version             = [1];
-        FileType cell       = {'fits'};
+        FileType            = {'fits'};
         
         
         %
@@ -177,6 +177,14 @@ classdef FileNames < Component
                 Val = {Val};
             end
             Obj.Filter = Val;
+        end
+        function Obj = set.FileType(Obj, Val)
+            % Setter for FileType
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.FileType = Val;
+            Obj.validateProduct;
         end
         
         

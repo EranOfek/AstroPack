@@ -33,6 +33,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.PS_Threshold             = 12;
         
         Args.RMS_NsigmaPred           = 10;
+        Args.RMS_MinNdet              = 10;
         
         Args.Poly1_MinDeltaChi2       = 15;
         Args.Poly5_MinDeltaChi2       = 25;
@@ -40,6 +41,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.RM_MinAbsSN              = 8
         
         Args.FlareNaN_MinSN           = 8;
+        Args.FlareNaN_MinNdet         = 1;  % 1 produce a lot of bad detections, but may be useful for satellite glints?
         
         Args.SearchRadius             = 60;
 
@@ -93,7 +95,10 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
             
     % rms
     TableRMS      = lcUtil.reportRMS(Result, 'FieldMag',Args.FieldMag,...
-                                             'ThresholdRMSpred',-Inf);
+                                             'ThresholdRMSpred',-Inf,...
+                                             'ThresholdNdet',0);
+
+    
     
     % polynomail fitting
     TablePolyHyp  = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
@@ -111,8 +116,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableMotion   = lcUtil.reportMotion(Result);
     
     % Positions and SN
-    TableMain = array2table([Result.SrcData.RA(:), Result.SrcData.Dec(:), Result.SrcData.(Args.FieldSN)(:)]);
-    TableMain.Properties.VariableNames = {'RA', 'Dec', 'SN'};
+    TableMain = array2table([Result.SrcData.RA(:), Result.SrcData.Dec(:), Result.SrcData.(Args.FieldSN)(:), Result.SrcData.(Args.FieldFlags)(:)]);
+    TableMain.Properties.VariableNames = {'RA', 'Dec', 'SN', 'FLAGS'};
     
     % merged Table
     Table = [TableMain, TablePS, TableRMS, TablePolyHyp, TableRMF, TableFlareNan, TableCorr, TableMotion];
@@ -120,7 +125,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     
     % select
     Flag = Table.MaxPower>Args.PS_Threshold | ...
-           Table.RMS_NsigmaPred>Args.RMS_NsigmaPred | ...
+           (Table.RMS_NsigmaPred>Args.RMS_NsigmaPred & Table.Ndet>=Args.RMS_MinNdet) | ...
            Table.Poly1_DeltaChi2>Args.Poly1_MinDeltaChi2 | ...
            Table.Poly5_DeltaChi2>Args.Poly5_MinDeltaChi2 | ...
            Table.RM_MinSN_Win2>Args.RM_MinAbsSN | ...
@@ -131,7 +136,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
            Table.RM_MaxSN_Win4>Args.RM_MinAbsSN | ...
            Table.RM_MinSN_Win5>Args.RM_MinAbsSN | ...
            Table.RM_MaxSN_Win5>Args.RM_MinAbsSN | ...
-           Table.FlareNanFlag;
+           (Table.FlareNanFlag & Table.Ndet>=Args.FlareNaN_MinNdet);
        
     %
     Table = Table(Flag,:);
@@ -159,7 +164,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     
     Table = [Table, TableNstat, TableFile];
     
-    
+
     AC = AstroCatalog;
     AC.Catalog  = Table;
     %AC.ColNames = Table.Properties.VariableNames;

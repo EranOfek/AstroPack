@@ -86,7 +86,8 @@ classdef VisitVariability < Component
             %                   product to visit dir.
             %            'WriteDB' - A logical indicating if to write
             %                   results to DB. Default is true.
-            % Output : 
+            % Output : - A table with all variable source candidates found
+            %            in all cropIDs in visit.
             % Example:
             % TV=pipeline.last.pipes.VisitVariability.analyzeVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
             
@@ -106,7 +107,7 @@ classdef VisitVariability < Component
             Files = dir(Args.FileTemp);
             Nf    = numel(Files);
             for If=1:1:Nf
-                MS = MatchedSources.read({Files(If).name
+                MS = MatchedSources.read({Files(If).name});
 
                 AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
         
@@ -137,40 +138,40 @@ classdef VisitVariability < Component
     
     
     methods % run on data functionality
-        function analayzeAllData
+        function OutTable=analayzeAllData(Obj)
             %
+            % Example: VV=pipeline.last.pipes.VisitVariability;
+            %          Tout = VV.analayzeAllData;
            
             
             JD = celestial.time.julday([1 1 2025]);
-            T = DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
+            T = Obj.DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
+            Nt = size(T,1);
+            VecNotDone = true(Nt,1);
 
-            %%% MODIFY
+            Cont = true;
+            Counter = 0;
+            while Cont && Counter<500
+                I = find(VecNotDone ,1, 'first');
+
+                FN=pipeline.last.queryDB.table2path(T(I,:));
+                Path = FN.genPath('AddSubDir',true);
             
-            PWD = pwd;
+                
+                %tic;
+                TV = pipeline.last.pipes.VisitVariability.analyzeVisitDir(Path,'WriteProduct',false);
+                %toc
 
-            tic;
-            K = 0;
-            for I=1:1:100
-                %FN = pipeline.last.queryDB.table2path(T(I,:));
-                %Dir = FN.genPath('AddSubDir',1);
-                %cd(Dir);
-
-                MS=pipeline.last.queryDB.loadProducts(T(I,:),'merged','MergedMat');
-
-                [AC(I)] = lcUtil.variabilityAnalysis(MS);
-
-                if AC(I).sizeCatalog>0
-                    K = K + 1;
-                    if K==1
-                        Table = AC(I).Catalog;
-                    else
-                        Table = [Table; AC(I).Catalog];
-                    end
+                Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
+                VecNotDone(Idone) = false;
+                Counter = Counter + 1;
+                
+                if Counter==1
+                    OutTable = TV;
+                else
+                    OutTable = [OutTable; TV];
                 end
-
             end
-            toc
-
 
             
         end
