@@ -22,7 +22,7 @@ function Msg = generateReportMPC(Table, Args)
     
     arguments
         Table                % [JD, RA, Dec, Mag, Filter, AstIndex]
-        Args.Filter           = 'C';
+        Args.Filter           = 'c';
         Args.ColJD            = 1;
         Args.ColRA            = 2;
         Args.ColDec           = 3;
@@ -45,7 +45,7 @@ function Msg = generateReportMPC(Table, Args)
         Args.ObsAlt           = 415.4;
         Args.ObsAltUnits      = 'm';
         Args.ObsSys           = 'WGS84';
-        Args.ObsName          = 'Large Array Survey Telescope (LAST) Node 01 Mount 01';  %'Weizmann Institute Observatory at Neot Smadar';
+        Args.ObsName          = 'Large Array Survey Telescope (LAST) Node 01 Mount 03 Camera 02';  %'Weizmann Institute Observatory at Neot Smadar';
         Args.ObsAddress       = 'Weizmann Institute of Science, 234 Herzl St. Rehovot 76100, Israel';
         Args.Telescope        = '11-inch f/2.2 Schmidt + 9K x 6K CMOS';
         Args.RefCatalog       = 'GAIA-DR3';
