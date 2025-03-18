@@ -39,7 +39,7 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
         if Args.StartWith0
             Result.MinFreq = 0;
         else
-            Result.MinFreq = DeltaFreq;
+            Result.MinFreq = Result.DeltaFreq;
         end
     
         TypicalDiff = Args.DiffFun(diff(sort(T)));

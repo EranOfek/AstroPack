@@ -29,7 +29,7 @@ classdef FileNames < Component
         Level               = {'raw'};
         Product             = {'Image'};
         Version             = [1];
-        FileType cell       = {'fits'};
+        FileType            = {'fits'};
         
         
         %
@@ -60,7 +60,7 @@ classdef FileNames < Component
     properties (Hidden, Constant)
         ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' , 'log'};
         ListLevel       = { 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk', 'proc.zogyD','coadd.zogyD'};
-        ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids','Pipeline', 'TransientsCat'};
+        ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids','Pipeline', 'TransientsCat', 'VariablesCat'};
     end
     
     
@@ -177,6 +177,14 @@ classdef FileNames < Component
                 Val = {Val};
             end
             Obj.Filter = Val;
+        end
+        function Obj = set.FileType(Obj, Val)
+            % Setter for FileType
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.FileType = Val;
+            Obj.validateProduct;
         end
         
         

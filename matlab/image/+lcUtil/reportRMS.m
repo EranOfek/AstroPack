@@ -14,6 +14,9 @@ function [Result, ColNames] = reportRMS(Obj, Args)
     %                   Default is 'table'.
     %            'ThresholdRMSpred' - Selected only sources with RMS_NsigmaPred
     %                   above this value. Default is -Inf.
+    %            'ThresholdNdet' - Select pnly sources with number of
+    %                   detections equal or higher than this value.
+    %                   Default is 0.
     % Output : - A matrix or table with the columns:
     %            [Ndet, MeanMag, Std, NsigmaPred, NsigmaStd]
     % Author : Eran Ofek (2025 Mar) 
@@ -25,6 +28,7 @@ function [Result, ColNames] = reportRMS(Obj, Args)
         Args.rmsMagArgs        = {};
         Args.OutType           = 'table';
         Args.ThresholdRMSpred  = -Inf;
+        Args.ThresholdNdet     = 0;
     end
     
 
@@ -34,9 +38,11 @@ function [Result, ColNames] = reportRMS(Obj, Args)
     Result = [ResRms.Ndet(:) ResRms.MeanMag(:), ResRms.StdPar(:), ResRms.NsigmaPred(:), ResRms.NsigmaStd(:)];
     
     if Args.ThresholdRMSpred>-Inf
-        FlagSelected = Result.RMS_NsigmaPred>Args.ThresholdRMSpred;
+        FlagSelected = Result(:,4)>Args.ThresholdRMSpred;
         Result       = Result(FlagSelected,:);
     end
+    FlagSelected = Result(:,1)>=Args.ThresholdNdet;
+    Result       = Result(FlagSelected,:);
     
     switch lower(Args.OutType)
         case 'table'

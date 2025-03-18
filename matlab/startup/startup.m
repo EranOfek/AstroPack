@@ -46,6 +46,10 @@ function startup(Args)
     %                   dir. Default is 'ASTROPACK_CATSHTM_PATH'.
     %          'EnvVar_ConfigPath' - Like 'EnvVar_BasePath', but for the data
     %                   dir. Default is 'ASTROPACK_CONFIG_PATH'.
+    %
+    %          'UpdateTime' - Update Installer/install('Time') IERS tables.
+    %                   Default is true.
+    %
     % Author : Eran Ofek (Jan 2022)
     % Example: startup,
     %          startup('AstroPack_CatsHTMPath','/last01/data/catsHTM','AstroPack_BasePath',  '/home/last01/ocs/matlab/LAST/AstroPack', 'AstroPack_ConfigPath','/home/last01/ocs/matlab/LAST/AstroPack/config', 'AstroPack_DataPath','/home/last01/ocs/matlab/data');
@@ -66,6 +70,8 @@ function startup(Args)
         Args.EnvVar_DataPath             = 'ASTROPACK_DATA_PATH';
         Args.EnvVar_CatsHTMPath          = 'ASTROPACK_CATSHTM_PATH';
         Args.EnvVar_ConfigPath           = 'ASTROPACK_CONFIG_PATH';
+        
+        Args.UpdateTime logical          = true;
     end
     
     PWD = pwd;
@@ -162,13 +168,21 @@ function startup(Args)
     
     
     % update Time tables
-    I = Installer;
-    TimeTable = I.readIERS_EOP;
-    Ilast = find(strcmp(TimeTable.Type, 'final'),1,'last');
-    if (max(convert.time(TimeTable.MJD(Ilast),'MJD','JD'))-celestial.time.julday)>32
-        % download Time tables
-        fprintf('Downloading Time tables - may take about 30 s\n');
-        I.install('Time');
+    if Args.UpdateTime
+        I = Installer;
+        try
+            TimeTable = I.readIERS_EOP;
+            
+            Ilast = find(strcmp(TimeTable.Type, 'final'),1,'last');
+            if (max(convert.time(TimeTable.MJD(Ilast),'MJD','JD'))-celestial.time.julday)>32
+                % download Time tables
+                fprintf('Downloading Time tables - may take about 30 s\n');
+                I.install('Time');
+            end
+        catch
+            I.install('Time');
+        end
+        
     end
     
     

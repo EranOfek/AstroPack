@@ -6,29 +6,34 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     %            See code for options.
     % Output : - A structure with:
     %            .docNode - XML doc node.
+    % Documentation: https://minorplanetcenter.net/mpcops/documentation/valid-ades-values/#astCat
+    %           https://minorplanetcenter.net/iau/info/ADES.html
+    %           https://github.com/IAU-ADES/ADES-Master/blob/master/ades_master.pdf
+    %           https://minorplanetcenter.net/submit_xml?method=post
     % Author : Eran Ofek (2025 Mar) 
     % Example: imUtil.asteroids.generateReportMPC_ADES
 
     arguments
         Table
-        FileName
+        FileName                     = 'test.xml';
         Args.ObsCode                 = "M01";
         Args.ObsName                 = "LAST";
-        Args.Submitter               = ["D. Polishook", "E. Ofek"];
+        Args.Submitter               = ["D. Polishook"]; %, "E. Ofek"];
         Args.Observer                = ["L. Auto"];
         Args.Measurer                = ["L. Pipeline", "E. Ofek"];
         Args.TelescopeDesign         = "Rowe-Ackerman Schmidt";
-        Args.TelescopeAper           = "28 cm";
+        Args.TelescopeAper           = "0.28";
         Args.Detector                = "CCD";
-        Args.Comment                 = [];
+        Args.Comment                 = ["LAST Node 01, Telescope 03, Camera 02"];
         
         Args.ColPermID               = 'Number';
         Args.ColProvID               = 'Designation';
-        Args.ColTrkSub               =                   % column for: Observer-assigned tracklet identifier,
+        Args.ColTrkSub               = 'AstIndex';                  % column for: Observer-assigned tracklet identifier,
                                                          % unique within a submission batch. Not
+   
                                                          % altered by the
                                                          % MPC. 8 char
-        Args.ColProg                 = [];   % 2 chars assigned by MPC for observatory program
+        Args.ColProg                 = 'ProgramMPC';   % 2 chars assigned by MPC for observatory program
         Args.ColJD                   = 'JD';
         Args.ColTimeRMS              = 0.01;
         Args.ColRA                   = 'RA';
@@ -37,13 +42,13 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         Args.ColErrDec               = 'ErrDec';
         Args.ColCorrRADec            = 'CorrRADec';
         
-        Args.AstCat                  = 'GAIA-DR3';
+        Args.AstCat                  = 'Gaia3';
         Args.ColMag                  = 'MAG_PSF';
-        Args.ColErrMag               = 'MAGERR_PSF';
+        Args.ColErrMag               = 'MAGERR_PSF';   % or numeric value
         Args.Band                    = 'c';
         Args.ColSN                   = 'SN';
         Args.ColSeeing               = 'FWHM';
-        Args.PhotCat                 = 'GAIA-DR3';
+        Args.PhotCat                 = 'Gaia3';
         Args.ColExpTime              = 'ExpTime';  % or a number
     end
     
@@ -124,7 +129,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         obsData.appendChild(optical);
     
         % Add optical observation details
-        if tools.table.isColum(Table.(Args.ColPermID))
+        if tools.table.isColumn(Table, Args.ColPermID)
             if isnumeric(Table.(Args.ColPermID)(Iobs))
                 PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
             else
@@ -132,15 +137,15 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
             end
             addTextElement(docNode, optical, 'permID', PermID);
         end
-        if tools.table.isColumn(Table.(Args.ColProvID)
+        if tools.table.isColumn(Table, Args.ColProvID)
             addTextElement(docNode, optical, 'provID', Table.(Args.ColProvID){Iobs});
         end
         
-        if tools.table.isColumn(Table.(Args.ColTrkSub)
+        if tools.table.isColumn(Table, Args.ColTrkSub)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
                 TrkSub = sprintf('%8d',Table.(Args.ColTrkSub)(Iobs));
             else
-                TrkSub = Table.(Args.ColTrkSub){Isub};
+                TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
             addTextElement(docNode, optical, 'trkSub', TrkSub);
         end
@@ -150,14 +155,14 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         
         addTextElement(docNode, optical, 'stn', Args.ObsCode);
         
-        if tools.table.isColumn(Table.(Args.ColProg))
+        if tools.table.isColumn(Table, Args.ColProg)
             Prog = sprintf('%2d',Table.(Args.ColProg)(Iobs));
             addTextElement(docNode, optical, 'prog', Prog);
         end
         
         if isnumeric(Table.(Args.ColJD))
             % JD is provided - convert to date
-            Date = convert.time(2451545,'JD','StrDate');
+            Date = convert.time(Table.(Args.ColJD)(Iobs),'JD','StrDate');
             Date = [Date{1}, 'Z'];
         
             addTextElement(docNode, optical, 'obsTime', Date);
@@ -167,10 +172,10 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         
         if ~isempty(Args.ColTimeRMS)
             if isnumeric(Args.ColTimeRMS)
-                addTextElement(docNode, optical, 'obsTime', sprintf('%8.5f',Args.ColTimeRMS));
+                addTextElement(docNode, optical, 'rmsTime', sprintf('%8.5f',Args.ColTimeRMS));
             else
-                if tools.table.isColumn(Table.(Args.ColTimeRMS))
-                    addTextElement(docNode, optical, 'obsTime', sprintf('%8.5f',Table.(Args.ColTimeRMS)(Iobs)));
+                if tools.table.isColumn(Table, Args.ColTimeRMS)
+                    addTextElement(docNode, optical, 'rmsTime', sprintf('%8.5f',Table.(Args.ColTimeRMS)(Iobs)));
                 end
             end
         end
@@ -179,15 +184,15 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         addTextElement(docNode, optical, 'ra',  sprintf('%11.7f',Table.(Args.ColRA)(Iobs)));
         addTextElement(docNode, optical, 'dec', sprintf('%11.7f',Table.(Args.ColDec)(Iobs)));
         
-        if tools.table.isColumn(Table.(Args.ColErrRA))
-            addTextElement(docNode, optical, 'rmsRA', sprintf('%5.3f',Tavle.(Args.ColErrRA)(Iobs));
+        if tools.table.isColumn(Table, Args.ColErrRA)
+            addTextElement(docNode, optical, 'rmsRA', sprintf('%5.3f',Table.(Args.ColErrRA)(Iobs)));
         end
-        if tools.table.isColumn(Table.(Args.ColErrDec))
-            addTextElement(docNode, optical, 'rmsDec', sprintf('%5.3f',Tavle.(Args.ColErrDec)(Iobs));
+        if tools.table.isColumn(Table, Args.ColErrDec)
+            addTextElement(docNode, optical, 'rmsDec', sprintf('%5.3f',Table.(Args.ColErrDec)(Iobs)));
         end
-        ColCorrRADec
-        if tools.table.isColumn(Table.(Args.ColCorrRADec))
-            addTextElement(docNode, optical, 'rmsCorr', sprintf('%6.3f',Tavle.(Args.ColCorrRADec)(Iobs));
+        
+        if tools.table.isColumn(Table, Args.ColCorrRADec)
+            addTextElement(docNode, optical, 'rmsCorr', sprintf('%6.3f',Table.(Args.ColCorrRADec)(Iobs)));
         end
         
         
@@ -195,24 +200,28 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         addTextElement(docNode, optical, 'astCat', Args.AstCat);
         
         addTextElement(docNode, optical, 'mag', Table.(Args.ColMag)(Iobs));
-        addTextElement(docNode, optical, 'rmsMag', Table.(Args.ColErrMag)(Iobs));
+        if isnumeric(Args.ColErrMag)
+            addTextElement(docNode, optical, 'rmsMag', sprintf('%4.2f',Args.ColErrMag));
+        else
+            addTextElement(docNode, optical, 'rmsMag', sprintf('%4.2f',Table.(Args.ColErrMag)(Iobs)));
+        end
         addTextElement(docNode, optical, 'band', Args.Band);
         addTextElement(docNode, optical, 'photCat', Args.PhotCat);
         %addTextElement(docNode, optical, 'photAp', '13.3');
-        if tools.table.isColumn(Table.(Args.ColSN))
+        if tools.table.isColumn(Table, Args.ColSN)
             addTextElement(docNode, optical, 'logSNR', sprintf('%4.2f',log10(Table.(Args.ColSN)(Iobs))));
         end
-        if tools.table.isColumn(Table.(Args.ColSeeing))
+        if tools.table.isColumn(Table, Args.ColSeeing)
             addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',log10(Table.(Args.ColSeeing)(Iobs))));
         end
         
-        if tools.table.isColumn(Table.(Args.ColSeeing))
+        if tools.table.isColumn(Table, Args.ColSeeing)
             addTextElement(docNode, optical, 'logSNR', log10(Table.(Args.ColSN)(Iobs)));
         end
         
         if ~isempty(Args.ColExpTime)
-            if isnumeric(Arg.ColExpTime)
-                ExpTime = sprintf('%6d',Arg.ColExpTime);
+            if isnumeric(Args.ColExpTime)
+                ExpTime = sprintf('%6d',Args.ColExpTime);
             else
                 ExpTime = sprintf('%6d',Table.(Args.ColExpTime)(Iobs));
             end
@@ -225,7 +234,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     % Write to XML file
     xmlwrite(FileName, docNode);
     
-    disp(['XML file created: ', filename]);
+    disp(['XML file created: ', FileName]);
     Result.docNode = docNode;
 
     %function addTextElement(doc, parent, tag, text)
@@ -236,3 +245,11 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     %end
     
 end
+
+function addTextElement(doc, parent, tag, text)
+    % Helper function to add an element with text content
+    elem = doc.createElement(tag);
+    elem.appendChild(doc.createTextNode(string(text)));
+    parent.appendChild(elem);
+end
+
