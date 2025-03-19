@@ -27,7 +27,7 @@ function [Flag] = histAnomaly(Image, Args)
         Args.Dilute            = 1;
         Args.HistEdges         = (-0.5:5:5000.5);
         Args.RelPeakHeight     = 0.2;
-        Args.RangeDistPeaks    = [20 200]
+        Args.RangeDistPeaks    = [15 200]
     end
 
     % trim image using CCDSEC

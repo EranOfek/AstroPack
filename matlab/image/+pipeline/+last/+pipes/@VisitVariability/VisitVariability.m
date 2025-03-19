@@ -151,7 +151,11 @@ classdef VisitVariability < Component
 
             Cont = true;
             Counter = 0;
+            K       = 0;
             while Cont && Counter<500
+                K = K + 1;
+                K
+                
                 I = find(VecNotDone ,1, 'first');
 
                 FN=pipeline.last.queryDB.table2path(T(I,:));
