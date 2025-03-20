@@ -45,7 +45,7 @@ function [Flag] = histAnomaly(Image, Args)
     BinCenter = (Args.HistEdges(1:end-1) + Args.HistEdges(2:end)).*0.5;
     Nh        = Nh./max(Nh);
 
-    %plot(BinCenter, Nh)
+    plot(BinCenter, Nh)
     
     % highest peak
     R=timeSeries.peaks.localMax(Nh(:), 'Filter', [], 'ValThreshold',Args.RelPeakHeight);
@@ -56,8 +56,9 @@ function [Flag] = histAnomaly(Image, Args)
     else
         DP = PeaksP - PeaksP.';
         DP = DP(DP>0);
-        MaxDP = max(DP);
-        if MaxDP>Args.RangeDistPeaks(1) && MaxDP<Args.RangeDistPeaks(2)
+        %MaxDP = max(DP);
+        if any(DP>Args.RangeDistPeaks(1) & DP<Args.RangeDistPeaks(2))
+            %if MaxDP>Args.RangeDistPeaks(1) && MaxDP<Args.RangeDistPeaks(2)
             % hist anomaly detected
             Flag = true;  
         else

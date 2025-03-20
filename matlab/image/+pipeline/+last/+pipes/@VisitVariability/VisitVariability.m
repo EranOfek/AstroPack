@@ -89,7 +89,7 @@ classdef VisitVariability < Component
             % Output : - A table with all variable source candidates found
             %            in all cropIDs in visit.
             % Example:
-            % TV=pipeline.last.pipes.VisitVariability.searchVarVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
+            % [TV,TA]=pipeline.last.pipes.VisitVariability.searchVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
             
             arguments
                 Path                      = [];

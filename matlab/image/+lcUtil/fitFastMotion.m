@@ -59,6 +59,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     end
 
     ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
+    Table    = table([],[],[],[],[],[],[],[],[]);
+    Table.Properties.VariableNames = ColNames;
     
     % remove bad flags
     FlagBad = searchFlags(Obj, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlag, 'FlagsList',Args.FlagsList, 'UseSrcData',true);
