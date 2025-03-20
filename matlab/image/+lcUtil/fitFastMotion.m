@@ -71,9 +71,6 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         % add SrcData
-        if isempty(Obj(Iobj).SrcData)
-            Obj(Iobj).addSrcData;
-        end
 
         [Tmp] = imUtil.asteroids.fitFastMotion(Obj(Iobj).JD, Obj(Iobj).Data.RA, Obj(Iobj).Data.Dec,...
                                                     'FlagGood',~FlagBad, 'Tag',Iobj,...
