@@ -72,7 +72,7 @@ classdef VisitVariability < Component
             
         end
         
-        function [Table] = searchVisitDir(Path, Args)
+        function [Table,TableAst] = searchVisitDir(Path, Args)
             % Analyze (search for variability) in all MergedMat files in a visit dir, and write product to the visit dir.
             % Input  : - Path for visit to analyze.
             %            If empty, use current dir. Default is [].
@@ -97,8 +97,11 @@ classdef VisitVariability < Component
                 Args.FileTemp             = 'LAST*_MergedMat*.hdf5';
                 Args.WriteProduct logical = true; 
                 Args.WriteDB logical      = true;
+                Args.AstIndex             = 0;
             end
            
+            AstIndex = Args.AstIndex;
+
             PWD = pwd;
             if ~isempty(Path)
                 cd(Path);
@@ -111,10 +114,14 @@ classdef VisitVariability < Component
 
                 AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
         
+                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex);
+
                 if If==1
                     Table = AC(If).Catalog;
+                    TableAst = TmpAst;
                 else
                     Table = [Table; AC(If).Catalog];
+                    TableAst = [TableAst; TmpAst];
                 end
             end
             
