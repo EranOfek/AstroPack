@@ -4,38 +4,42 @@
 % File:   +planner/+gui/Preferences.m
 % Author:  Chen Tishler
 % Created: 20/01/2025
-% Updated: 20/01/2025
+% Updated: 20/03/2025
 % Title:   
 %==========================================================================
 
 classdef Preferences < handle
-    % This class serves as DataModule in Delphi.
+    % This class manages the loading and saving of user preferences to/from a JSON file.
+    % The class will be enhanced later with additional preference options.
     
     properties
-        FileName                    %
-        UserName                    % Current user
+        FileName                    % Full path to the preferences JSON file
+        UserName                    % Current user name for personalization
 
-        UniqueTargetsFileName       %        
-        UniqueTargetsFolder         %
+        UniqueTargetsFileName       % Name of the file storing unique targets
+        UniqueTargetsFolder         % Directory path where unique targets are stored
 
-        LocalPlanFileName           %
-        LocalPlanFolder             %
+        LocalPlanFileName           % Name of the file storing the local observation plan
+        LocalPlanFolder             % Directory path where local plans are stored
     end
     
 
     methods
         function obj = Preferences(FileName)
-            % Constructor
+            % Constructor for Preferences class.
+            % Initializes the Preferences object with a file name for JSON storage.
             obj.FileName = FileName;
         end
 
 
         function save(obj)
+            % Saves the user preferences to the JSON file.
             obj.saveToJson(obj.FileName);
         end
 
 
         function load(obj)
+            % Loads user preferences from the JSON file.
             obj.loadFromJson(obj.FileName);
         end        
 
@@ -43,9 +47,9 @@ classdef Preferences < handle
         %                                Save
         % =================================================================        
         function saveToJson(obj, filePath)
-            % Saves the Preferences object to a JSON file.
-            %
-            % :param filePath: Full path of the JSON file.
+            % Saves the Preferences object to the specified JSON file.
+            % Converts the current object properties into a JSON string
+            % and writes them to the specified file.
             
             % Convert object properties to a struct
             dataStruct = struct(...
@@ -74,9 +78,8 @@ classdef Preferences < handle
         % =================================================================        
 
         function loadFromJson(obj, filePath)
-            % Loads the Preferences object from a JSON file.
-            %
-            % :param filePath: Full path of the JSON file.
+            % Loads the Preferences object from the specified JSON file.
+            % Reads the JSON file, decodes it, and updates object properties.
 
             % Check if the file exists
             if ~isfile(filePath)
