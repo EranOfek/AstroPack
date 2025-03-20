@@ -35,7 +35,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         TranCatLevel1
 
         Args.SubselectionFalse = {'BadPixelHard', 'LIMMAG', 'Negative', ...
-            'Overdensity', 'PVDist', 'Streak', 'PeakDist', 'Variable'};
+            'Overdensity', 'PVDist', 'Streak', 'NPSFShape', 'Variable'};
         Args.LookBackJD = 60;
         Args.SearchRad = 3;
 
