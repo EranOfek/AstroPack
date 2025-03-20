@@ -111,7 +111,8 @@ classdef VisitVariability < Component
             Nf    = numel(Files);
             for If=1:1:Nf
                 MS = MatchedSources.read({Files(If).name});
-
+                MS.addSrcData;
+                
                 [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex);
 
                 % Note that the following function may modify MS
