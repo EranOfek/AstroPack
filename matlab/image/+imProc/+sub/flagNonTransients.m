@@ -135,7 +135,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.SecondMomSoftLim = 1.14;
         Args.SecondMomHardLim = 1.84;
         Args.OmniDirectionThreshold = [0.7 0.8];
-        Args.PeakDistThreshold = 1.1;
+        Args.PeakDistThreshold = 3.0;
 
         Args.flagDPSFShape logical = true;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
