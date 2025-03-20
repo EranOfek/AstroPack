@@ -118,7 +118,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
                                Args.AstIndex.*ones(Nobs,1)];
                         Table(K).ColNames = ColNames;
-                        Table(K).FileName = Obj(Iobj).FileName;
+                        Table(K).Name = Obj(Iobj).FileName;
                     end
                 case 'table'
                     % prep table of observations - all in one table
