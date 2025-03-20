@@ -35,8 +35,9 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     %            found. See details in imUtil.asteroids.fitFastMotion
     %            The .Tag field specify the index of the MatchedSources
     %            object element.
-    %          - 
-    %          - 
+    %          - Table of all asteroid candidates observations', with columns:
+    %            {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
+    %          - AstIndex of latest asteroid found.
     % Author : Eran Ofek (2025 Mar) 
     % Example: R=lcUtil.fitFastMotion(MS);
 
