@@ -58,20 +58,27 @@ Inn = find(~isnan(X) & ~isnan(Y));
 X   = X(Inn);
 Y   = Y(Inn);
 
-Corr = corr(X,Y,varargin{:});
-N = length(X);
-
-PermInd = ceil(rand(N,Nsim).*N);
-
-switch lower(PermType)
- case 'y'
-    SimCorr = corr(X,Y(PermInd),varargin{:});
- case 'x'
-    SimCorr = corr(X(PermInd),Y,varargin{:});
- otherwise
-    error('Unknown PermInd option');
+if isempty(Inn)
+    Corr    = NaN;
+    N       = 0;
+    SimCorr = NaN;
+    Prob    = NaN;
+else
+    Corr = corr(X,Y,varargin{:});
+    N = length(X);
+    
+    PermInd = ceil(rand(N,Nsim).*N);
+    
+    switch lower(PermType)
+     case 'y'
+        SimCorr = corr(X,Y(PermInd),varargin{:});
+     case 'x'
+        SimCorr = corr(X(PermInd),Y,varargin{:});
+     otherwise
+        error('Unknown PermInd option');
+    end
+    
+    
+    Ngt = length(find(SimCorr>Corr));
+    Prob = Ngt./Nsim;
 end
-
-
-Ngt = length(find(SimCorr>Corr));
-Prob = Ngt./Nsim;

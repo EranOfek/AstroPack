@@ -27,7 +27,7 @@ function [Flag] = histAnomaly(Image, Args)
         Args.Dilute            = 1;
         Args.HistEdges         = (-0.5:5:5000.5);
         Args.RelPeakHeight     = 0.2;
-        Args.RangeDistPeaks    = [20 200]
+        Args.RangeDistPeaks    = [15 200]
     end
 
     % trim image using CCDSEC
@@ -56,8 +56,9 @@ function [Flag] = histAnomaly(Image, Args)
     else
         DP = PeaksP - PeaksP.';
         DP = DP(DP>0);
-        MaxDP = max(DP);
-        if MaxDP>Args.RangeDistPeaks(1) && MaxDP<Args.RangeDistPeaks(2)
+        %MaxDP = max(DP);
+        if any(DP>Args.RangeDistPeaks(1) & DP<Args.RangeDistPeaks(2))
+            %if MaxDP>Args.RangeDistPeaks(1) && MaxDP<Args.RangeDistPeaks(2)
             % hist anomaly detected
             Flag = true;  
         else

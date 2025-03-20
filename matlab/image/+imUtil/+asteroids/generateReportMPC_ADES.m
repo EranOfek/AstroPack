@@ -18,13 +18,13 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         FileName                     = 'test.xml';
         Args.ObsCode                 = "M01";
         Args.ObsName                 = "LAST";
-        Args.Submitter               = ["D. Polishook"]; %, "E. Ofek"];
+        Args.Submitter               = ["E. Ofek"]; %["D. Polishook"]; %, "E. Ofek"];
         Args.Observer                = ["L. Auto"];
         Args.Measurer                = ["L. Pipeline", "E. Ofek"];
         Args.TelescopeDesign         = "Rowe-Ackerman Schmidt";
         Args.TelescopeAper           = "0.28";
         Args.Detector                = "CCD";
-        Args.Comment                 = ["LAST Node 01, Telescope 03, Camera 02"];
+        Args.Comment                 = ["LAST Node 01, Telescope 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
         
         Args.ColPermID               = 'Number';
         Args.ColProvID               = 'Designation';
