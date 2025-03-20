@@ -57,7 +57,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.MinNpt            = 8;
         Args.ThresholdDist     = 3;  % arcsec
         Args.AstIndex          = 0;
-    end
+    end 
 
     ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex'};
     Table    = table([],[],[],[],[],[],[],[],[],[]);
@@ -70,6 +70,11 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     K = 0;
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
+        % add SrcData
+        if isempty(Obj(Iobj).SrcData)
+            Obj(Iobj).addSrcData;
+        end
+
         [Tmp] = imUtil.asteroids.fitFastMotion(Obj(Iobj).JD, Obj(Iobj).Data.RA, Obj(Iobj).Data.Dec,...
                                                     'FlagGood',~FlagBad, 'Tag',Iobj,...
                                                     'DimEpoch',Obj.DimEpoch,...

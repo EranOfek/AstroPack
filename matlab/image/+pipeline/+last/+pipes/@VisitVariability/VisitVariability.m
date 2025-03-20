@@ -112,9 +112,11 @@ classdef VisitVariability < Component
             for If=1:1:Nf
                 MS = MatchedSources.read({Files(If).name});
 
+                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex);
+
+                % Note that the following function may modify MS
                 AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
         
-                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex);
 
                 if If==1
                     Table = AC(If).Catalog;
