@@ -30,6 +30,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     %            'AstIndex' - Last AsteroidIndex used. This is the internal
     %                   number of the asteroid in the report.
     %                   Default is 0.
+    %            'OutType' - Type of second output argument:
+    %                   'table'|'AstroCatalog'. Default is 'AstroCatalog'.
     %
     % Output : - A structure array with element per fast moving source
     %            found. See details in imUtil.asteroids.fitFastMotion
@@ -57,6 +59,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.MinNpt            = 8;
         Args.ThresholdDist     = 3;  % arcsec
         Args.AstIndex          = 0;
+
+        Args.OutType           = 'AstroCatalog';  % 'table'|'AstroCatalog'
     end 
 
     ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex'};
@@ -67,8 +71,9 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     FlagBad = searchFlags(Obj, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlag, 'FlagsList',Args.FlagsList, 'UseSrcData',true);
 
     
-    K = 0;
-    Nobj = numel(Obj);
+    K      = 0;
+    Nobj   = numel(Obj);
+    Result = [];
     for Iobj=1:1:Nobj
         % add SrcData
 
@@ -82,21 +87,27 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                                     'NptFit',Args.NptFit,...
                                                     'MinNpt',Args.MinNpt,...
                                                     'ThresholdDist',Args.ThresholdDist);
+        
+        
         if Iobj==1
             Result = Tmp(:);
         else
             Result = [Result; Tmp(:)];
         end
-        
+
         if nargout>1
-            % prep table of observations:
-            Ntmp = numel(Tmp);
-            for Itmp=1:1:Ntmp
-                Args.AstIndex = Args.AstIndex + 1;
-                K = K + 1;
-                Nobs = Tmp(Itmp).Npt;
-                % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex]
-                TmpTab = table(Tmp(Itmp).JD,...
+            switch lower(Args.OutType)
+                case 'astrocatalog'
+                    % prep AstroCatalog output (element per asteroid)
+                    Ntmp = numel(Tmp);
+                    for Itmp=1:1:Ntmp
+                        Args.AstIndex = Args.AstIndex + 1;
+                        K = K + 1;
+                        if K==1
+                            Table = AstroCatalog;
+                        end
+                        Nobs = Tmp(Itmp).Npt;
+                        Table(K).Catalog = [Tmp(Itmp).JD,...
                                Tmp(Itmp).RA,...
                                Tmp(Itmp).Dec,...
                                Tmp(Itmp).FitRA,...
@@ -105,11 +116,34 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
                                Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
                                Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
-                               Args.AstIndex.*ones(Nobs,1),...
-                          'VariableNames',ColNames);
-                
-                Table = [Table; TmpTab];
-                                
+                               Args.AstIndex.*ones(Nobs,1)];
+                        Table(K).ColNames = ColNames;
+                        Table(K).FileName = Obj(Iobj).FileName;
+                    end
+                case 'table'
+                    % prep table of observations - all in one table
+                    Ntmp = numel(Tmp);
+                    for Itmp=1:1:Ntmp
+                        Args.AstIndex = Args.AstIndex + 1;
+                        K = K + 1;
+                        Nobs = Tmp(Itmp).Npt;
+                        % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex]
+                        TmpTab = table(Tmp(Itmp).JD,...
+                                       Tmp(Itmp).RA,...
+                                       Tmp(Itmp).Dec,...
+                                       Tmp(Itmp).FitRA,...
+                                       Tmp(Itmp).FitDec,...
+                                       Tmp(Itmp).RMS.*ones(Nobs,1),...
+                                       Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
+                                       Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
+                                       Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
+                                       Args.AstIndex.*ones(Nobs,1),...
+                                  'VariableNames',ColNames);
+                        
+                        Table = [Table; TmpTab];
+                    end
+                otherwise
+                    error('Unknown OutType option');                                
             end
                           
         end

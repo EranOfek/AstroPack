@@ -72,7 +72,7 @@ classdef VisitVariability < Component
             
         end
         
-        function [Table,TableAst] = searchVisitDir(Path, Args)
+        function [AC,AstC,AstIndex] = searchVisitDir(Path, Args)
             % Analyze (search for variability) in all MergedMat files in a visit dir, and write product to the visit dir.
             % Input  : - Path for visit to analyze.
             %            If empty, use current dir. Default is [].
@@ -86,8 +86,15 @@ classdef VisitVariability < Component
             %                   product to visit dir.
             %            'WriteDB' - A logical indicating if to write
             %                   results to DB. Default is true.
-            % Output : - A table with all variable source candidates found
+            %            'AstIndex' - Index of last asteroid candidate
+            %                   detected. Default is 0.
+            % Output : - An AstroCatalog object, with element per MatchedSources file
+            %            (i.e., cropID) with all variable source candidates found
             %            in all cropIDs in visit.
+            %          - An AstroCatalog object, with element per MatchedSources file
+            %            (i.e., cropID) with all fast moving asteroid
+            %            candidates.
+            %          - AstIndex of latest found asteroid.
             % Example:
             % [TV,TA]=pipeline.last.pipes.VisitVariability.searchVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
             
@@ -109,23 +116,28 @@ classdef VisitVariability < Component
             
             Files = dir(Args.FileTemp);
             Nf    = numel(Files);
+            AstC  = [];
             for If=1:1:Nf
                 MS = MatchedSources.read({Files(If).name});
                 MS.addSrcData;
-                
-                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex);
 
+                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog');
+                if ~isempty(TmpAst)
+                    if isempty(AstC)
+                        AstC = TmpAst;
+                    else
+                        AstC(end+1) = TmpAst;
+                    end
+                end
                 % Note that the following function may modify MS
                 AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
         
 
-                if If==1
-                    Table = AC(If).Catalog;
-                    TableAst = TmpAst;
-                else
-                    Table = [Table; AC(If).Catalog];
-                    TableAst = [TableAst; TmpAst];
-                end
+                % if If==1
+                %     TableAst = TmpAst;
+                % else
+                %     TableAst = [TableAst; TmpAst];
+                % end
             end
             
             if Args.WriteProduct
@@ -148,13 +160,14 @@ classdef VisitVariability < Component
     
     
     methods % run on data functionality
-        function OutTable=analayzeAllData(Obj)
+        function [ACVar,ACAst]=analayzeAllData(Obj)
             %
             % Example: VV=pipeline.last.pipes.VisitVariability;
-            %          Tout = VV.analayzeAllData;
+            %          [Tvar, Tast] = VV.analayzeAllData;
            
+            AstIndex = 0;
             
-            JD = celestial.time.julday([1 1 2025]);
+            JD = celestial.time.julday([5 1 2025]);
             T = Obj.DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
             Nt = size(T,1);
             VecNotDone = true(Nt,1);
@@ -162,7 +175,9 @@ classdef VisitVariability < Component
             Cont = true;
             Counter = 0;
             K       = 0;
-            while Cont && Counter<500
+            KA      = 0;
+            ACAst   = [];
+            while Cont && Counter<1000
                 K = K + 1;
                 K
                 
@@ -173,18 +188,35 @@ classdef VisitVariability < Component
             
                 
                 %tic;
-                TV = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false);
+                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex);
                 %toc
+
+                if K==1
+                    ACVar = TV(:);
+                else
+                    ACVar = [ACVar; TV(:)];
+                end
+
+
+
+                if ~isempty(TA)
+                    KA = KA + 1;
+                    
+
+                    if isempty(ACAst)
+                        ACAst = TA;
+                    else
+                        Nex = numel(ACAst);
+                        Nad = numel(TA);
+                        ACAst(Nex+1:Nex+Nad) = TA(:);
+                    end
+                end
+
 
                 Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
                 VecNotDone(Idone) = false;
                 Counter = Counter + 1;
                 
-                if Counter==1
-                    OutTable = TV;
-                else
-                    OutTable = [OutTable; TV];
-                end
             end
 
             

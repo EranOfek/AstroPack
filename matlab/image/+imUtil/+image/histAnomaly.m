@@ -26,8 +26,8 @@ function [Flag] = histAnomaly(Image, Args)
         Args.CCDSEC            = [];
         Args.Dilute            = 1;
         Args.HistEdges         = (-0.5:5:5000.5);
-        Args.RelPeakHeight     = 0.2;
-        Args.RangeDistPeaks    = [15 200]
+        Args.RelPeakHeight     = 0.04;
+        Args.RangeDistPeaks    = [15 400]
     end
 
     % trim image using CCDSEC
@@ -45,7 +45,7 @@ function [Flag] = histAnomaly(Image, Args)
     BinCenter = (Args.HistEdges(1:end-1) + Args.HistEdges(2:end)).*0.5;
     Nh        = Nh./max(Nh);
 
-    %plot(BinCenter, Nh)
+    plot(BinCenter, Nh)
     
     % highest peak
     R=timeSeries.peaks.localMax(Nh(:), 'Filter', [], 'ValThreshold',Args.RelPeakHeight);

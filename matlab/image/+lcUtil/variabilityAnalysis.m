@@ -168,6 +168,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     AC = AstroCatalog;
     AC.Catalog  = Table;
     %AC.ColNames = Table.Properties.VariableNames;
+    AC.Name = Result.FileName;
+
 
     MergedCatBitMask = uint32(zeros(Nsrc, 1));
     InfoGAIA         = nan(Nsrc, 11);
