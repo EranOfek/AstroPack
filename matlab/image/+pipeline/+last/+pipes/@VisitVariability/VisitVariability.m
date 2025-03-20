@@ -146,7 +146,7 @@ classdef VisitVariability < Component
                 FN.FileType = 'mat';
                 OutFileName = FN.genFile;
                 
-                save('-v7.3', OutFileName, 'Table');
+                save('-v7.3', OutFileName, 'AC');
             end
             
             cd(PWD);
@@ -221,6 +221,16 @@ classdef VisitVariability < Component
 
             
         end
+        
+    end
+    
+    methods % data retrival functions
+        %function MS=getMatchedSources
+        %end
+        
+        %function [LC, MS]=getLC
+        %end
+        
         
     end
     
