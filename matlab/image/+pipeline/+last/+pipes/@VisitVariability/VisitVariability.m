@@ -32,7 +32,7 @@ classdef VisitVariability < Component
     
     
     methods (Static) % main functionality
-        function [MS, AC, Table] = analyzeMatchedSourcesFile(FileName, Path, Args)
+        function [MS, AC, Table] = searchVarMatchedSourcesFile(FileName, Path, Args)
             % Search for variable sources in a single MatchedSources file
             % Input  : - FileName or MatchedSources object.
             %          - Path. If empty, read from current dir.
@@ -45,7 +45,7 @@ classdef VisitVariability < Component
             %          - AstroCatalog object with output variability table.
             %          - Output variability table.
             % Author : Eran Ofek (Mar 2025)
-            % Example: [MS,AC]=pipeline.last.pipes.VisitVariability.analyzeMatchedSourcesFile(MS)
+            % Example: [MS,AC,Table]=pipeline.last.pipes.VisitVariability.searchVarMatchedSourcesFile(MS)
             
             arguments
                 FileName
@@ -72,7 +72,7 @@ classdef VisitVariability < Component
             
         end
         
-        function [Table] = analyzeVisitDir(Path, Args)
+        function [Table] = searchVisitDir(Path, Args)
             % Analyze (search for variability) in all MergedMat files in a visit dir, and write product to the visit dir.
             % Input  : - Path for visit to analyze.
             %            If empty, use current dir. Default is [].
@@ -89,7 +89,7 @@ classdef VisitVariability < Component
             % Output : - A table with all variable source candidates found
             %            in all cropIDs in visit.
             % Example:
-            % TV=pipeline.last.pipes.VisitVariability.analyzeVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
+            % TV=pipeline.last.pipes.VisitVariability.searchVarVisitDir('/marvin/LAST.01.03.02/2025/03/12/proc/184350v0');
             
             arguments
                 Path                      = [];
@@ -163,7 +163,7 @@ classdef VisitVariability < Component
             
                 
                 %tic;
-                TV = pipeline.last.pipes.VisitVariability.analyzeVisitDir(Path,'WriteProduct',false);
+                TV = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false);
                 %toc
 
                 Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);

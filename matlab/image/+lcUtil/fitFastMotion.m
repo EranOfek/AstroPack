@@ -1,4 +1,4 @@
-function [Result] = fitFastMotion(Obj, Args)
+function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     % Search fast moving asteroids in MatchedSources object.
     %     See details / using: imUtil.asteroids.fitFastMotion
     % Input  : - A MatchedSources object.
@@ -27,11 +27,16 @@ function [Result] = fitFastMotion(Obj, Args)
     %            'ThresholdDist' - Threshold distance of points in
     %                   best fit solution from the linear motion.
     %                   Default is 3 arcsec.
+    %            'AstIndex' - Last AsteroidIndex used. This is the internal
+    %                   number of the asteroid in the report.
+    %                   Default is 0.
     %
     % Output : - A structure array with element per fast moving source
     %            found. See details in imUtil.asteroids.fitFastMotion
     %            The .Tag field specify the index of the MatchedSources
     %            object element.
+    %          - 
+    %          - 
     % Author : Eran Ofek (2025 Mar) 
     % Example: R=lcUtil.fitFastMotion(MS);
 
@@ -49,12 +54,16 @@ function [Result] = fitFastMotion(Obj, Args)
         Args.NptFit            = 3;
         Args.MinNpt            = 8;
         Args.ThresholdDist     = 3;  % arcsec
+        Args.AstIndex          = 0;
     end
 
+    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
+    
     % remove bad flags
     FlagBad = searchFlags(Obj, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlag, 'FlagsList',Args.FlagsList, 'UseSrcData',true);
 
     
+    K = 0;
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         [Tmp] = imUtil.asteroids.fitFastMotion(Obj(Iobj).JD, Obj(Iobj).Data.RA, Obj(Iobj).Data.Dec,...
@@ -72,6 +81,36 @@ function [Result] = fitFastMotion(Obj, Args)
         else
             Result = [Result; Tmp(:)];
         end
+        
+        if nargout>1
+            % prep table of observations:
+            Ntmp = numel(Tmp);
+            for Itmp=1:1:Ntmp
+                Args.AstIndex = Args.AstIndex + 1;
+                K = K + 1;
+                Nobs = Tmp(Itmp).Npt;
+                % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex]
+                TmpTab = array2table([Tmp(Itmp).JD,...
+                          Tmp(Itmp).RA,...
+                          Tmp(Itmp).Dec,...
+                          Tmp(Itmp).FitRA,...
+                          Tmp(Itmp).FitDec,...
+                          Tmp(Itmp).RMS.*ones(Nobs,1),...
+                          Obj(Iobj).Data.(FieldMag)(Tmp(Itmp).Ind),...
+                          Obj(Iobj).Data.(FieldFlag)(Tmp(Itmp).Ind),...
+                          Args.AstIndex.*ones(Nobs,1)],...
+                          'VariableNames',ColNames);
+                if K==1
+                    Table = TmpTab;
+                else
+                    Table = [Table; TmpTab];
+                end
+                
+            end
+                          
+        end
+            
     end
+    AstIndex = Args.AstIndex;
 
 end

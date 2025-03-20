@@ -46,6 +46,8 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
     %            .NuniqueJD - Number of unique JD points in solution.
     %                   if NuniqueJD<Npt, then there may be a problem.
     %            .RMS - RMS [arcsec] of the best fit solution.
+    %            .FitRA - Best Fit RA positions.
+    %            .FitDec - Best fit Dec positions.
     %            .ParX
     %            .PatY
     %            .Epoch
@@ -174,15 +176,21 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
                 Result(K).Ind = CandsInd(IndF);
                 Result(K).RMS = ResultRS(K).FlagRMS.*RAD.*ARCSEC_DEG;
                 
+                Result(K).ParX  = ResultRS(K).ParX;
+                Result(K).ParY  = ResultRS(K).ParY;
+                Result(K).Epoch = ResultRS(K).Epoch;
+                Result(K).Tag   = Args.Tag;
+                
+                RelTime = Result(K).JD - Result(K).Epoch;
+                Result(K).FitRA  = polyval(flipud(Result(K).ParX)./AngFactor, RelTime);
+                Result(K).FitDec = polyval(flipud(Result(K).ParY)./AngFactor, RelTime);
+                
                 % check consistency of detection.
                 % The source should appear only once at each epoch
                 Result(K).Npt = numel(IndF);
                 Result(K).NuniqueJD = numel(unique(Result(K).JD));
                 
-                Result(K).ParX  = ResultRS(K).ParX;
-                Result(K).ParY  = ResultRS(K).ParY;
-                Result(K).Epoch = ResultRS(K).Epoch;
-                Result(K).Tag   = Args.Tag;
+                
             end
            
         end
