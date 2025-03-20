@@ -45,7 +45,7 @@ function [Flag] = histAnomaly(Image, Args)
     BinCenter = (Args.HistEdges(1:end-1) + Args.HistEdges(2:end)).*0.5;
     Nh        = Nh./max(Nh);
 
-    plot(BinCenter, Nh)
+    %plot(BinCenter, Nh)
     
     % highest peak
     R=timeSeries.peaks.localMax(Nh(:), 'Filter', [], 'ValThreshold',Args.RelPeakHeight);
