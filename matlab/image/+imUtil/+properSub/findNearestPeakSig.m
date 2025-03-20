@@ -66,5 +66,5 @@ function [TS, Sig, AIC] = findNearestPeakSig(TSMap, XVec, YVec, DoF, Args)
     Sig = -norminv(PVal);
     Sig(isinf(Sig)) = nan;
 
-    AIC = TS - 2*DoF;
+    AIC = 2*DoF - 2.*log(TS) + (2*DoF^2+2*DoF)/(1-DoF-1);
 end
