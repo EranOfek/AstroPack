@@ -61,7 +61,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
     Table    = table([],[],[],[],[],[],[],[],[]);
     Table.Properties.VariableNames = ColNames;
-    
+
     % remove bad flags
     FlagBad = searchFlags(Obj, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlag, 'FlagsList',Args.FlagsList, 'UseSrcData',true);
 
@@ -99,16 +99,13 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                           Tmp(Itmp).FitRA,...
                           Tmp(Itmp).FitDec,...
                           Tmp(Itmp).RMS.*ones(Nobs,1),...
-                          Obj(Iobj).Data.(FieldMag)(Tmp(Itmp).Ind),...
-                          Obj(Iobj).Data.(FieldFlag)(Tmp(Itmp).Ind),...
+                          Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
+                          Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
                           Args.AstIndex.*ones(Nobs,1)],...
                           'VariableNames',ColNames);
-                if K==1
-                    Table = TmpTab;
-                else
-                    Table = [Table; TmpTab];
-                end
                 
+                Table = [Table; TmpTab];
+                                
             end
                           
         end
