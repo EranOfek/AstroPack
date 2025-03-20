@@ -36,7 +36,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     %            The .Tag field specify the index of the MatchedSources
     %            object element.
     %          - Table of all asteroid candidates observations', with columns:
-    %            {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
+    %            {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex'};
     %          - AstIndex of latest asteroid found.
     % Author : Eran Ofek (2025 Mar) 
     % Example: R=lcUtil.fitFastMotion(MS);
@@ -47,7 +47,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.BitDict                  = BitDictionary;
         Args.FieldFlag                = 'FLAGS';
         Args.FlagsList                = {'NearEdge','Saturated','NaN','Negative'};
-        
+        Args.FieldSN                  = 'SN_3';
+
         Args.MaxNdet           = 7;
         Args.MaxTimeDiff       = 7.*20./86400;  % days
         Args.MaxDist           = 0.03;  % deg
@@ -58,8 +59,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.AstIndex          = 0;
     end
 
-    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'Flags', 'AstIndex'};
-    Table    = table([],[],[],[],[],[],[],[],[]);
+    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex'};
+    Table    = table([],[],[],[],[],[],[],[],[],[]);
     Table.Properties.VariableNames = ColNames;
 
     % remove bad flags
@@ -100,6 +101,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                           Tmp(Itmp).FitDec,...
                           Tmp(Itmp).RMS.*ones(Nobs,1),...
                           Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
+                          Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
                           Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
                           Args.AstIndex.*ones(Nobs,1)],...
                           'VariableNames',ColNames);
