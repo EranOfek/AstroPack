@@ -12,9 +12,10 @@ function A_U = extinction(RA, Dec, Args)
     end
 
 	% Temporary solution for development, @Todo @Yossi
-	if ispc
-        Args.AveragedExt = 'C:/AstroPack/Data/ULTRASAT/A_USat_aver7deg_hp49152.mat';
-	end
+    if ispc
+        BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
+        Args.AveragedExt = fullfile(BaseDataDir, 'A_USat_aver7deg_hp49152_v2.mat');
+    end
 
     %
     load(Args.AveragedExt); % load the interpolation function A_Uaver7deg

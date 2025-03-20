@@ -59,10 +59,11 @@ function TranCat = flagNonTransients(Obj, Args)
                 'NeighborNumThreshold' - Threshold for the number of
                        neighbors at which to filter the transients
                        candidate. Default is 2.
-                'flagPeakDist' - Bool on whether to flag transients for
-                       which the peak pixel coordinates deviates too far
-                       from the peak sub-pixel coordinates. Default is
+                'flagNPsfShape' - Bool on whether to flag transients for
+                       which the N-image PSF is misshapen. Default is
                        true.
+                'NPsfContainmentThreshold' 
+                'OmniDirectionThreshold' 
                 'PeakDistThreshold' - Threshold distance for the pixel to
                        sub-pixel peak distance filter. Default is 1.33.
                 'flagLimitingMag' - Bool on whether to flag candidates that
@@ -130,28 +131,28 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagRinging logical = true;
 
-        Args.flagPeakDist logical = true;
-        Args.PeakDistThreshold = 2.1;
+        Args.flagNPsfShape logical = true;
+        Args.SecondMomSoftLim = 1.14;
+        Args.SecondMomHardLim = 1.84;
+        Args.OmniDirectionThreshold = [0.7 0.8];
+        Args.PeakDistThreshold = 3.0;
 
-        Args.flagLimitingMag logical = true;    
-        Args.LimitingMagOverwriteVal = NaN;
-
-        Args.flagPeakValley logical = true;
-        Args.PVDistThresh = 10;
-
-        Args.flagPSFShape logical = true;
-        Args.PSFShapeXYMeanN = [0.75694019, 0.82121291]
-        Args.PSFShapeCovN = [0.01267776, 0.005022;...
-            0.005022,  0.01129344];
-        Args.PSFShapeProbThresholdN = 0.05;
+        Args.flagDPSFShape logical = true;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
         Args.PSFShapeCovD = [0.06467546, 0.02720397;...
             0.02720397, 0.06933742];
         Args.PSFShapeProbThresholdD = 0.05;
         
+        Args.flagLimitingMag logical = true;
+        Args.LimitingMagOverwriteVal = NaN;
+
+        Args.flagPeakValley logical = true;
+        Args.PVDistThresh = 10;
+       
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient'};
+        Args.StreakDistanceThreshold = 20;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -159,7 +160,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
         Args.NeighborNumThresholdSaturated = 2;
-
+    
         Args.flagCR logical = true;
         Args.CRDeltaSN = 0.5;
         Args.CRDeltaSN_BP = 5.0;
@@ -173,8 +174,10 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ScorrCorrectionParam = 0.7;
 
         Args.flagTranslients logical = true;
-        Args.TranslientCorrectionParam = 30;
+        Args.TranslientSubTresholdAIC = 7.0;
+        Args.TranslientSubTresholdMag = 0.1;
         Args.ignoreTranslient_NothingInRef = true;
+        Args.TranslientMagDiffException = 1.0;
     end
 
     Nobj = numel(Obj);
@@ -348,14 +351,39 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
-        if Args.flagPeakDist && Cat.isColumn('PEAK_DIST')
+        if Args.flagNPsfShape && Cat.isColumn('N_X2') && Cat.isColumn('N_Y2')
 
-            PeakDist = Cat.getCol('PEAK_DIST');
-            PeakTooFar = PeakDist > Args.PeakDistThreshold;
+            X2N = Cat.getCol('N_X2');
+            Y2N = Cat.getCol('N_Y2');
 
-            PeakFlagged = PeakTooFar;
-            TF_Flags = TF_Flags + PeakFlagged.*2.^BD_TF.name2bit('PeakDist');
+            PassesN = (X2N < Args.SecondMomSoftLim) & ...
+                      (Y2N < Args.SecondMomSoftLim);
 
+            if Args.flagTranslients
+                AdjustedTranslientDiff = (~PassesN).*2;
+            end
+
+            if Cat.isColumn('GDIRCVAR') && Cat.isColumn('GDIRERROR') && ...
+                    Cat.isColumn('PEAK_DIST')
+              
+                GDIRCVAR = Cat.getCol('GDIRCVAR');
+                GDIRERROR = Cat.getCol('GDIRERROR');
+                PassesGDir = (GDIRCVAR > Args.OmniDirectionThreshold(1)) & ...
+                             (GDIRERROR < 57.0);
+                %            (GDIRCVAR < Args.OmniDirectionThreshold(2)) & ...
+
+                PeakDist = Cat.getCol('PEAK_DIST');
+                PassesPeak = PeakDist < Args.PeakDistThreshold;
+
+                PassesHardLim = (X2N < Args.SecondMomHardLim) & ...
+                                (Y2N < Args.SecondMomHardLim);
+
+                PassesN = PassesN | (PassesPeak & PassesGDir & PassesHardLim);
+            end
+
+            NShapeFlagged = ~PassesN;
+
+            TF_Flags = TF_Flags + NShapeFlagged.*2.^BD_TF.name2bit('NPSFShape');
         end
 
         if Args.flagLimitingMag
@@ -386,26 +414,18 @@ function TranCat = flagNonTransients(Obj, Args)
 
         end
         
-        if Args.flagPSFShape
-            X2N = Cat.getCol('N_X2');
-            Y2N = Cat.getCol('N_Y2');
-
+        if Args.flagDPSFShape
             X2D = Cat.getCol('X2');
             Y2D = Cat.getCol('Y2');
-            
-            X2Y2N = [X2N(:),Y2N(:)];
+
             X2Y2D = [X2D(:),Y2D(:)];
 
-            ProbN = mvnpdf(X2Y2N, Args.PSFShapeXYMeanN, Args.PSFShapeCovN);
             ProbD = mvnpdf(X2Y2D, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
-            PassesN = ProbN > Args.PSFShapeProbThresholdN;
             PassesD = ProbD > Args.PSFShapeProbThresholdD;
             
-            SecondMomentFlagged = PassesN & PassesD;
-            
-            PSFShapeFlagged = ~SecondMomentFlagged;
-            TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('PSFShape');
+            PSFShapeFlagged = ~PassesD;
+            TF_Flags = TF_Flags + PSFShapeFlagged.*2.^BD_TF.name2bit('DPSFShape');
         end
 
         if Args.flagStreak
@@ -436,8 +456,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
             if Res.Found
                 ModY = Res.Par(1)+Xt.*Res.Par(2);
-                Streaked = abs(ModY - Yt) < 20;
-                TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('PSFShape');
+                Streaked = abs(ModY - Yt) < Args.StreakDistanceThreshold;
+                TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('Streak');
             end
         end
 
@@ -549,7 +569,6 @@ function TranCat = flagNonTransients(Obj, Args)
             if VarStarCat.sizeCatalog < 1
                 VariableStar = zeros(CatSize,1);
             else
-
                 VarStarCat.sortrows('Dec');
         
                 [VarStarLon, VarStarLat] = VarStarCat.getLonLat('rad');
@@ -600,19 +619,32 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagTranslients && Cat.isColumn('S2_AIC') && Cat.isColumn('Z2_AIC')
             S2_AIC = Cat.getCol('S2_AIC');
             Z2_AIC = Cat.getCol('Z2_AIC');
+            
+            AIC_Diff = S2_AIC - Z2_AIC;
 
-            IgnoreTranslientCol = false(CatSize,1);
-            if Args.ignoreTranslient_NothingInRef
-                LimitingMagVal_R = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
-                R_Mag = Cat.getCol('R_MAG_PSF');
-                IgnoreTranslientCol = IgnoreTranslientCol | ...
-                    (R_Mag > LimitingMagVal_R);
+            if Args.flagNPsfShape
+                AIC_Diff = AIC_Diff + AdjustedTranslientDiff;
             end
-        
-            Z2_AIC = Z2_AIC - Args.TranslientCorrectionParam;
-            IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
 
-            TranslientFlagged = IsTranslient;
+            IsNotTranslient = (AIC_Diff < 0);
+
+            if Cat.isColumn('R_MAG_PSF') && Cat.isColumn('R_SN')
+                R_MAG = Cat.getCol('R_MAG_PSF');
+                R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
+                R_SN = Cat.getCol('R_SN');
+                NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
+                IsNotTranslient = IsNotTranslient | ...
+                    (NothingInRef & (AIC_Diff < 2));
+            end
+
+            if Cat.isColumn('GAL_DIST')
+                GalaxyDist = Cat.getCol('GAL_DIST');
+                NotNuclear = GalaxyDist > 3;
+                IsNotTranslient = IsNotTranslient | ...
+                    (NotNuclear & (AIC_Diff < 7.0));
+            end
+
+            TranslientFlagged = ~IsNotTranslient;
             TF_Flags = TF_Flags + TranslientFlagged.*2.^BD_TF.name2bit('Translient');
 
         end

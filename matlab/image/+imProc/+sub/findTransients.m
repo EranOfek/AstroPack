@@ -89,6 +89,8 @@ function TranCat=findTransients(AD, Args)
         Args.includeAperturePhot logical = true;
         Args.include2ndMoment logical = true;
 
+        Args.includeGradientDir logical = true;
+
         Args.includeBitMaskVal logical  = true;
         Args.BitCutHalfSize             = 3;
 
@@ -143,6 +145,46 @@ function TranCat=findTransients(AD, Args)
             [~, M2N, ~] = imUtil.image.moment2(AD(Iobj).New.PSF, ...
                 NewPSFSize, NewPSFSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
+        end
+
+        if Args.includeGradientDir
+            PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(...
+                AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), PSFSize);
+
+            FullSizeX = 2*PSFSize + 1;
+            FullSizeY = 2*PSFSize + 1;
+            CenterX = PSFSize + 1;
+            CenterY = PSFSize + 1;
+
+            % Compute expected radial direction
+            [Xmesh, Ymesh] = meshgrid(1:FullSizeX, 1:FullSizeY);
+            % Flip the X-axis so the convetion agrees with imgradient
+            ExpectedAngle = atan2(Ymesh - CenterY, -(Xmesh - CenterX));
+            ExpectedAngleDeg = rad2deg(ExpectedAngle);
+
+            for ITran=Nsrc:-1:1
+                MaskBack = (Cube(:,:,ITran) > ...
+                    (AD(Iobj).BackN + sqrt(AD(Iobj).VarN)));
+                if sum(MaskBack(:)) < 1
+                    MaskBack = ones(size(Cube(:,:,ITran)));
+                end
+                
+                [~, Gdir] = imgradient(Cube(:,:,ITran), 'sobel');
+                Gdir_rad = deg2rad(Gdir(MaskBack));
+                GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all"));
+
+                AngleDiff = abs(Gdir - ExpectedAngleDeg);
+                % Correct for wrapping issues (e.g., -179° vs 179° should be close)
+                AngleDiff = min(AngleDiff, 360 - AngleDiff);
+                % Compute the mean alignment error
+                GDIRERROR(ITran,1) = mean(AngleDiff(MaskBack),"all");
+            end
+
+            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRCVAR,'double'), ...
+                'SCORE', {'GDIRCVAR'}, {''});
+            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRERROR,'double'), ...
+                'SCORE', {'GDIRERROR'}, {''});
         end
 
         if Args.includePsfFit

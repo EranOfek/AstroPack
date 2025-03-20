@@ -239,6 +239,28 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
+
+    % Check if New and Ref are taken on the same sky
+    NoOverlap = 0;
+    for Iobj = Nobj:-1:1
+        RefRADec = AD(Iobj).Ref.WCS.CRVAL;
+        NewRADec = AD(Iobj).New.WCS.CRVAL;
+        CRValDist = rad2deg(celestial.coo.sphere_dist(...
+            RefRADec(1), RefRADec(2), NewRADec(1), NewRADec(2), 'deg'));
+        if CRValDist > 2.0
+            NoOverlap = NoOverlap +1;
+            AD(Iobj) = [];
+        end
+    end
+
+    % If all no overlap, return.
+    if NoOverlap == Nobj
+        Status = 'All New and Ref images have no overlap.';
+        return;
+    end    
+
+    % Remember new number of AstroDiffs
+    Nobj = numel(AD);
     
     % Register New and Ref
     AD.register;
