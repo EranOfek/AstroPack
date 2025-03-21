@@ -84,6 +84,9 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     %            'Field1', 'Field2' - This are the fields in the output
     %                   from which the linezrized trace is generated.
     %                   Default are: 'FitMomFilt', 'FitY'.
+    %            'FieldMom1', 'FieldMom2' - This are the fields in the output
+    %                   from which the second moment trace is generated.
+    %                   Default are: 'FitMomFilt', 'X2W'.
     %
     % Output : - A structure array with element per trace, and the
     %            following fields:
@@ -144,6 +147,8 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         
         Args.Field1                 = 'FitMomFilt';
         Args.Field2                 = 'FitY';
+        Args.FieldMom1              = 'ResMomFilt';
+        Args.FieldMom2              = 'X2W';
     end
     
     if Args.UseWeightedMom
@@ -234,19 +239,34 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
     [MinDist,MinInd] = min(abs(Diff),[],1);
     FlagFound = MinDist<Args.ExpectedSpatPosErr;
 
-    Result = struct('Pos',cell(Npos,1), 'ExpectedSpatPos',cell(Npos,1), 'SN',cell(Npos,1),...
+    
+    Result = struct('DinWave',cell(Npos,1), 'PosMean',cell(Npos,1), 'ExpectedSpatPos',cell(Npos,1), 'ExtractedShift',cell(Npos,1),...
+                    'SNdet',cell(Npos,1),...
+                    'WavePix',cell(Npos,1), ...
                     'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
                     'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
                     'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1),...
-                    'DimWave',cell(Npos,1), 'BestFit',cell(Npos,1),...
-                    'Intensity',cell(Npos,1));
+                    'PosMethod',cell(Npos,1), 'PosBest',cell(Npos,1),...
+                    'BestFit',cell(Npos,1),...
+                    'Mom2',cell(Npos,1),...
+                    'FluxPeak',cell(Npos,1));
 
     for Ipos=1:1:Npos
         Result(Ipos).ExpectedSpatPos = Args.ExpectedSpatPos(Ipos);
         if FlagFound(Ipos)
             IposMin  = MinInd(Ipos);
-            Result(Ipos).Pos         = PeakDet.PeakPos(IposMin);
-            Result(Ipos).SN          = PeakDet.PeakSN(IposMin);
+            
+            % Properties common to SpecTrace
+            Result(Ipos).DimWave         = Args.DimWave;
+            %Result(Ipos).ExpectedSpatPos = Args.ExpectedSpatPos;
+            Result(Ipos).PosMean         = PeakDet.PeakPos(IposMin);
+            Result(Ipos).SNdet           = PeakDet.PeakSN(IposMin);
+            
+            
+            % properties not SpecTrace
+                      
+            %Result(Ipos).Pos         = PeakDet.PeakPos(IposMin);
+            %Result(Ipos).SN          = PeakDet.PeakSN(IposMin);
 
             % fit the traces:
             Result(Ipos).ResMomFilt   = imUtil.spec.trace.moment1d(SN, PeakDet.PeakPos(IposMin), 'Dim',1, Args.Moments1dArgs{:});
@@ -255,16 +275,21 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
             Result(Ipos).FitMomFilt   = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomFilt.(MomField)(:));
             Result(Ipos).FitMomUnFilt = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomUnFilt.(MomField)(:));
             
-            Result(Ipos).BestFit      = Result(Ipos).(Args.Field1).(Args.Field2);
-            Result(Ipos).PosPix       = (1:1:numel(Result(Ipos).BestFit)).';
+            %
+            Result(Ipos).PosMethod    = {Args.Field1, Args.Field2};
+            Result(Ipos).PosBest      = Result(Ipos).(Args.Field1).(Args.Field2);
+            Result(Ipos).Mom2         = Result(Ipos).(Args.FieldMom1).(Args.FieldMom2);
+            Result(Ipos).WavePix      = (1:1:numel(Result(Ipos).PosBest)).';
+            %Result(Ipos).BestFit      = Result(Ipos).(Args.Field1).(Args.Field2);
+            %Result(Ipos).PosPix       = (1:1:numel(Result(Ipos).BestFit)).';
             [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,...
                                     Result(Ipos).(Args.Field1).(Args.Field2)+Args.ExtractShift,...
                                     'DimWave',2,...
                                     'HalfWidth',Args.LinTraceHalfWidth,...
                                     Args.linearizeTraceArgs{:});
-            Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
+            %Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
+            Result(Ipos).FluxPeak     = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
             Result(Ipos).ExtractShift = Args.ExtractShift;
-            Result(Ipos).DimWave = Args.DimWave;
         end
     end
             

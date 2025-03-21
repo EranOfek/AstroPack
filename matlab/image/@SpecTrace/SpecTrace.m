@@ -13,22 +13,42 @@ classdef SpecTrace < Component
     properties (SetAccess = public)
         DimWave
         ExpectedSpatPos            % user specified expected spatial position of the trace
-        ExpectedWavePos      = [];
-        SN
+        %ExpectedWavePos      = [];
+        SNdet                      % detection S/N
+        SNint                      % integrated S/N
         %MeasuredSpatPos            % measured spatial mean position of the trace
         %Traces               = struct('MeanX',[], 'WavePix',[], 'Wave',[], 'X',[], 'Intensity',[], 'X2',[], 'FWHM',[], 'Image',[], 'Name',[], 'SN',[], 'ExpectedSpatPos',[], 'ExpectedWavePos',[],);
-        MeanSpatPos
+        
+        % Wave, WavePix - refer to Wave direction
+        % Pos - refer to spatial position
         
         Wave
-        DispPixPos
-        SpatPixPos
+        WavePix
+        PosBest
+        PosMean
+        PosMethod
+        FluxPeak
+        FluxPSF
+        FluxAper
+        
+        Mom2
+        FWHM
+                
+        
+        
+        %MeanSpatPos
+        
+        %DispPos
+        %SpatPos
         ExtractShift       = 0;
-        Intensity
-        SpatMom2
-        SpatFWHM
+        %Intensity
+        
+        %SpatMom2
+        %SpatFWHM
+        
         LinTraceImage
         LinTracePos
-        Name
+        
         FitInfo
         MatchedInfo
         Pix2Wave            

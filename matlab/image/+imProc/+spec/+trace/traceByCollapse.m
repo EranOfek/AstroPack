@@ -85,16 +85,17 @@ function [Result] = traceByCollapse(AI, varargin)
     %            'Field1', 'Field2' - This are the fields in the output
     %                   from which the linezrized trace is generated.
     %                   Default are: 'FitMomFilt', 'FitY'.
-    %
+    %    
     % Output : - An AstroImage object in which the Trace property is populated
     %            with a SpecTrace object.
     %
     % Author : Eran Ofek (2025 Jan)
     % Example: AI=AstroImage('red0042.fits'); AI.cast('single');
-    %          Tr=imProc.spec.trace.traceByCollapse(AI);
+    %          AI=imProc.spec.trace.traceByCollapse(AI);
     
    
-    PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
+    %PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
+    PropCopy = ["DimWave", "ExpectedSpatPos", "PosMean", "SNdet", "LinTraceImage", "LinTracePos", "WavePix", "FluxPeak", "ExtractShift", "Mom2"];
     Nprop    = numel(PropCopy);
     %WaveSolutionInfo
    
@@ -116,7 +117,17 @@ function [Result] = traceByCollapse(AI, varargin)
         Output = imUtil.spec.trace.traceByCollapse(AI(Iim).Image, varargin{:});
         Ntrace = numel(Output);
      
+        % populate the .Trace property of AstroImage
+        % Its content is a SpecTrace object with element per trace
+                
         for Itrace=1:1:Ntrace
+            
+            if Itrace==1
+                Result(Iim).Trace         = SpecTrace;
+            else
+                Result(Iim).Trace(Itrace) = SpecTrace;
+            end
+            
             for Iprop=1:1:Nprop
                 Result(Iim).Trace(Itrace).(PropCopy{Iprop}) = Output(Itrace).(PropCopy{Iprop});
             end
