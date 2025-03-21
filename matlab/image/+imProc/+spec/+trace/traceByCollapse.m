@@ -95,7 +95,7 @@ function [Result] = traceByCollapse(AI, varargin)
     
    
     %PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
-    PropCopy = ["DimWave", "ExpectedSpatPos", "PosMean", "SNdet", "LinTraceImage", "LinTracePos", "WavePix", "FluxPeak", "ExtractShift", "Mom2"];
+    PropCopy = ["DimWave", "ExpectedSpatPos", "PosMean", "PosBest", "SNdet", "LinTraceImage", "LinTracePos", "WavePix", "FluxPeak", "ExtractShift", "Mom2"];
     Nprop    = numel(PropCopy);
     %WaveSolutionInfo
    
