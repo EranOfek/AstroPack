@@ -230,6 +230,16 @@ classdef VisitVariability < Component
         
     end
     
+    methods % data retrival functions
+        %function MS=getMatchedSources
+        %end
+        
+        %function [LC, MS]=getLC
+        %end
+        
+        
+    end
+    
    
     methods (Static) % UnitTest
         Result = unitTest()
