@@ -121,7 +121,11 @@ classdef VisitVariability < Component
                 MS = MatchedSources.read({Files(If).name});
                 MS.addSrcData;
 
-                [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog');
+                try
+                    [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog');
+                catch
+                    TmpAst = [];
+                end
                 if ~isempty(TmpAst)
                     if isempty(AstC)
                         AstC = TmpAst;
@@ -130,7 +134,11 @@ classdef VisitVariability < Component
                     end
                 end
                 % Note that the following function may modify MS
-                TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                try
+                    TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                catch
+                    TmpVar = [];
+                end
                 if ~isempty(TmpVar)
                     AC(If) = TmpVar;
                 end
