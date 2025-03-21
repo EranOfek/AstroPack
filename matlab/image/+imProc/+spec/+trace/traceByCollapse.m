@@ -7,7 +7,7 @@ function [Result] = traceByCollapse(AI, varargin)
     %      second which is a delta function (for CR removal).
     %   3. Optionally mask bad positions in the detector
     %   4. Detect peaks in 2D filtered image.
-    %   5. Collapse filtered image and find locak maxima (initial trace
+    %   5. Collapse filtered image and find local maxima (initial trace
     %      positions).
     %   6. For each possible trace, calculate moments along the trace and
     %      fit it with smooth polynomial.
@@ -90,7 +90,8 @@ function [Result] = traceByCollapse(AI, varargin)
     %            with a SpecTrace object.
     %
     % Author : Eran Ofek (2025 Jan)
-    % Example: Tr=imProc.spec.trace.traceByCollapse(AI);
+    % Example: AI=AstroImage('red0042.fits'); AI.cast('single');
+    %          Tr=imProc.spec.trace.traceByCollapse(AI);
     
    
     PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
@@ -101,6 +102,12 @@ function [Result] = traceByCollapse(AI, varargin)
         Result = AstroImage({AI});
     else
         Result = AI;
+    end
+    
+    % check that input image is in single or double format
+    if ~(isa(AI(1).Image,'single') || isa(AI(1).Image,'double'))
+        % cast to single
+        AI.cast('single');
     end
     
     Nim = numel(Result);

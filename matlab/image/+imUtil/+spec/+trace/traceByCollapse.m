@@ -139,7 +139,7 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         
         Args.LinTraceHalfWidth      = 50;
         Args.linearizeTraceArgs     = {};
-        Args.ExtratShift            = 0;
+        Args.ExtractShift           = 0;
         
         
         Args.Field1                 = 'FitMomFilt';
