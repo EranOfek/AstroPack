@@ -130,8 +130,12 @@ classdef VisitVariability < Component
                     end
                 end
                 % Note that the following function may modify MS
-                AC(If) = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
-        
+                TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                if ~isempty(TmpVar)
+                    AC(If) = TmpVar;
+                end
+                %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
+
 
                 % if If==1
                 %     TableAst = TmpAst;
@@ -146,7 +150,7 @@ classdef VisitVariability < Component
                 FN.FileType = 'mat';
                 OutFileName = FN.genFile;
                 
-                save('-v7.3', OutFileName, 'Table');
+                save('-v7.3', OutFileName, 'AC');
             end
             
             cd(PWD);
@@ -194,7 +198,9 @@ classdef VisitVariability < Component
                 if K==1
                     ACVar = TV(:);
                 else
-                    ACVar = [ACVar; TV(:)];
+                    if ~isempty(TV)
+                        ACVar = [ACVar; TV(:)];
+                    end
                 end
 
 
