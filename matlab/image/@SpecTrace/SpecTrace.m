@@ -357,6 +357,22 @@ classdef SpecTrace < Component
         
         function Result=psfphot(Obj, Args)
             %
+            
+            arguments
+                Obj
+                Args
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                
+                % measure PSF
+                % [R,W,SpatPos,SN,Bstd,Res] = imUtil.spec.extract.measurePSF(BackSubIm,'DimWave',Obj(Iobj).DimWave, 'WaveEdges',(1:100:2800));
+                
+                % PSF fitting
+                %[F]=imUtil.spec.extract.fitPSF1d(BackSubIm, [], 'PSF',PSF,'WaveAxisPSF',WavePSF, 'DimWave',Obj(Iobj).DimWave);
+
+            end
         end
     end
     
