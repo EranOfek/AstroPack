@@ -91,7 +91,7 @@ function [Result] = traceByCollapse(AI, varargin)
     %
     % Author : Eran Ofek (2025 Jan)
     % Example: AI=AstroImage('red0042.fits'); AI.cast('single');
-    %          AI=imProc.spec.trace.traceByCollapse(AI);
+    %          AI=imProc.spec.trace.traceByCollapse(AI, 'DimWave',2);
     
    
     %PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];

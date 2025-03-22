@@ -157,12 +157,12 @@ function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
         MomField = 'X1';
     end
     
-    if Args.DimWave==2
+    if Args.DimWave==1
         Array = Array.';
     end
     Dim = 1;
     
-    % Estimate background and variance
+    % Estimate global background and variance
     if isempty(Args.Back) || isempty(Args.Var)
         % this is problematic - a different back sub approac is needed
         %[Back,Var]=imUtil.background.background(Array, Args.BackArgs{:});
