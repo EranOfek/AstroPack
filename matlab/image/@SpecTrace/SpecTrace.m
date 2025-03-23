@@ -323,7 +323,7 @@ classdef SpecTrace < Component
             %            .BackStd - A column vector of std of background.
             %            .AperRadius - A vector of aperture radius used.
             % Author : Eran Ofek (Mar 2025)
-            % Example: RR=AI.Trace.extract
+            % Example: RR=AI.Trace.aperphot
             
             arguments
                 Obj
@@ -367,7 +367,10 @@ classdef SpecTrace < Component
             for Iobj=1:1:Nobj
                 
                 % measure PSF
-                % [R,W,SpatPos,SN,Bstd,Res] = imUtil.spec.extract.measurePSF(BackSubIm,'DimWave',Obj(Iobj).DimWave, 'WaveEdges',(1:100:2800));
+                [R,W,SpatPos,SN,Bstd,Res] = imUtil.spec.extract.measurePSF(Obj(Iobj).LinTraceImage,...
+                                                                           'DimWave',Obj(Iobj).DimWave,...
+                                                                           'WaveEdges',[]);
+                                                                           
                 
                 % PSF fitting
                 %[F]=imUtil.spec.extract.fitPSF1d(BackSubIm, [], 'PSF',PSF,'WaveAxisPSF',WavePSF, 'DimWave',Obj(Iobj).DimWave);
