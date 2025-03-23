@@ -248,12 +248,28 @@ classdef MainModule < handle
             end
         end
 
+
         function Result = getFieldDuration(obj, Value)
-            % Return the value of duration text field as duration object
-            if ~isempty(Value)
-                Result = duration(Value);
+            % Return the value of a duration text field as a duration object
+            % If input is a valid integer, interpret it as seconds
+            
+            if isempty(Value)
+                Result = [];
+                return;
+            end
+        
+            % Convert to string and trim whitespace
+            strValue = strtrim(string(Value));
+        
+            % Try converting to a number
+            numValue = str2double(strValue);
+        
+            if ~isnan(numValue) && mod(numValue, 1) == 0
+                % Valid integer: interpret as seconds
+                Result = seconds(numValue);
             else
-                Result = []; 
+                % Otherwise, try parsing as duration string (e.g., "00:10:00")
+                Result = duration(strValue);
             end
         end        
 
@@ -318,6 +334,15 @@ classdef MainModule < handle
             charArray = char(strjoin(strArray, ','));
         end
         
+
+        function Value = safeStr(obj, s)
+            if isempty(s)
+                Value = '';
+            else
+                Value = string(s);
+            end
+        end
+ 
         % =================================================================
 
         function setModified(obj)
