@@ -8,7 +8,7 @@
 % - Obj.set.StartTime(StartTime)   : Setter. Also sets TimeZone of StartTime
 % - Obj.set.EndTime(EndTime)       : Setter. Also sets TimeZone of EndTime
 %
-% - Obj.buildHCS                   : Build a plan for a HCS field. 
+% - Obj.buildHCS(Args)             : Build a plan for a HCS field. 
 %                                    All relevant parameters should be set before calling this function
 %                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) ==1)
 %                                    TODO: allow to select a target from UniqTarg
@@ -357,10 +357,15 @@ classdef uplanner < Component
     %
     methods % Building the plans          
         %
-        function buildHCS(Obj)
-            % Build a plan for a HCS field. 
+        function buildHCS(Obj,Args)
+            % Build a plan for a HCS field, using a single selected UniqTarget 
             % All relevant parameters should be set before calling this function
-            % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) ==1)
+            % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) >=1)
+            arguments
+                Obj
+                Args.HCS_UniqTarg = 1; % Default is the first line if not selected
+            end               
+
             
             % Verify all relevant parameters are set
             
@@ -373,23 +378,19 @@ classdef uplanner < Component
             if Obj.StartTime > Obj.EndTime
                 error('StartTime is after EndTime');
             end
-            if height(Obj.UniqTarg) ~=1
+            if height(Obj.UniqTarg) < 1
+                error('HCS requires a unique target target');
+            end            
+            if numel(Args.HCS_UniqTarg) ~=1
                 error('HCS requires one single target');
             end
-                  
+
+
             % Calc number of exposures within the plan time 
             Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
             
             % Schedule HCS field
-            Obj.scheduleTargets(1,Obj.StartTime,'Nexp',Nexposures);
-            
-            % make a schedule 
-            % show which observations in the existing plan are to be replaced 
-                % this is not needed for the HCS?
-            % validate the plan
-%            Obj.validate
-            % submit the plan as JSON and save the plan in a .mat object
-%            Obj.submit
+            Obj.scheduleTargets(Args.HCS_UniqTarg,Obj.StartTime,'Nexp',Nexposures);
         end
         %
         function buildLCS(Obj,Args)

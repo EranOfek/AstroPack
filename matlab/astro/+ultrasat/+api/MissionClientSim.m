@@ -225,6 +225,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
             if ~isfile(targetsFile)
                 obj.msglog('Approved targets file not found at %s', targetsFile);
+                response.targets = [];
                 response.status = 'error';
                 response.message = 'Approved targets database not found.';
                 response.ok = false;

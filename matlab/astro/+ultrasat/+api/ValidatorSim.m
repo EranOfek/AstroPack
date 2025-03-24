@@ -10,6 +10,12 @@
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
 classdef ValidatorSim < handle
+    % ValidatorSim - Simulates an external validation system for observation targets
+    %
+    % This class handles the simulation of target validation, including random delays,
+    % generating validation results, and storing validation history in a JSON database.
+    % It's designed for testing observation planning systems without connecting to 
+    % actual validation services.
 
     properties
         DbFilePath          % JSON file to store validation history
@@ -20,6 +26,10 @@ classdef ValidatorSim < handle
     methods
         function obj = ValidatorSim(DbFilePath, LogFileName)
             % Constructor for ValidatorSim
+            %
+            % Arguments:
+            %   - DbFilePath Path to JSON file for storing validation history
+            %   - LogFileName Path to log file for messages
 
             obj.DbFilePath = DbFilePath;
             obj.LogFileName = LogFileName;
@@ -34,7 +44,14 @@ classdef ValidatorSim < handle
         
 
         function Result = validateTargets(obj, targets)
-            % Simulate external validation with random delay and generate validation results.
+            % Simulates external validation for a set of targets with random delay
+            %
+            % Arguments:
+            %   - targets Array of target structs to validate
+            %
+            % Return:
+            %   - Result Validation response struct with results for all targets
+
             obj.msglog('Starting validation for %d targets...', numel(targets));
             pause(rand() * 0.5 + 2.5);  % Random delay between 0.5 to 3 seconds
             
@@ -109,7 +126,7 @@ classdef ValidatorSim < handle
 
 
         function appendValidationToDb(obj, targets, response)
-            % Appends validation request and response to the JSON log file.
+            % Appends validation request and response to the JSON 'database' file.
             % - Handles cases where the file does not exist or is empty.
             % - Ensures `logData.validations` exists before appending.
 
@@ -173,7 +190,7 @@ classdef ValidatorSim < handle
 
 
         function msglog(obj, varargin)
-            % Logs a formatted message
+            % Logs a formatted message to the log file
             api.ApiUtils.msglog(obj.LogFileName, 'ValidatorSim', varargin{:});
         end
     end
@@ -181,7 +198,7 @@ classdef ValidatorSim < handle
 
     methods(Static)
         function response = createSampleValidationResponse()
-
+            % Create sample validation response, used for development of 'uplanner' class
             targets(1) = struct(...
                 'target_id', 'trg_20250302120000', ...
                 'target_type', 'imaging', ...
