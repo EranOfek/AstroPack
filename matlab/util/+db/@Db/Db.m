@@ -527,9 +527,9 @@ classdef Db < Component
             end
 
             if isempty(WhereClause)
-                Result = sprintf('SELECT %s %s FROM %s %s %s', TopClause, SelectClause, FromClause, Args.Join, SortClause);
+                Result = sprintf("SELECT %s %s FROM %s %s %s", TopClause, SelectClause, FromClause, Args.Join, SortClause);
             else
-                Result = sprintf('SELECT %s %s FROM %s %s WHERE %s %s', TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
+                Result = sprintf("SELECT %s %s FROM %s %s WHERE %s %s", TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
             end
 
         end

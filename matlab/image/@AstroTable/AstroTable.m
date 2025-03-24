@@ -1231,7 +1231,7 @@ classdef AstroTable < Component
             arguments
                 Obj
                 Columns                       = [];
-                Args.IsTable(1,1) logical     = false;
+                Args.IsTable logical          = false;
                 Args.AddEntryPerElement       = [];
                 Args.AddColNames cell         = {};
             end
@@ -1275,6 +1275,7 @@ classdef AstroTable < Component
                             NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), repmat(ExtraCols, Nrow, 1)]];
                         end
                     end
+                    
                 end
             end
             % if isempty(NewObj.ColNames)

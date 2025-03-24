@@ -126,6 +126,13 @@ classdef VisitVariability < Component
                 catch
                     TmpAst = [];
                 end
+
+                if ~isempty(TmpAst)
+                    % match to known asteroids
+
+                    %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
+                end
+
                 if ~isempty(TmpAst)
                     if isempty(AstC)
                         AstC = TmpAst;
@@ -142,7 +149,8 @@ classdef VisitVariability < Component
                 if ~isempty(TmpVar)
                     AC(If) = TmpVar;
                 end
-                %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
+
+                
 
 
                 % if If==1
@@ -152,6 +160,13 @@ classdef VisitVariability < Component
                 % end
             end
             
+            if ~exist('AC','Var')
+                AC = [];
+            end
+            if ~exist("AstC","var")
+                AstC = [];
+            end
+
             if Args.WriteProduct
                 FN = FileNames.generateFromFileName(Files(1).name);
                 FN.Product  = 'VariablesCat';

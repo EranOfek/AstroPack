@@ -88,6 +88,12 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                                     'MinNpt',Args.MinNpt,...
                                                     'ThresholdDist',Args.ThresholdDist);
         
+        % Match to known asteroids
+        if ~isempty(Tmp)
+            TmpAC = AstroCatalog()
+            [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1, 'INPOP',IN);
+        end
+
         
         if Iobj==1
             Result = Tmp(:);
