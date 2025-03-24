@@ -427,6 +427,10 @@ classdef Db < Component
                     end
                 elseif ischar(ColRange) || isstring(ColRange)
                     % assume string comparison using LIKE
+                    % convert to string
+                    ColRange = string(ColRange);
+                    % reColRangeplace ' with ''
+                    ColRange = strrep(ColRange,"'","''");
                     WhereClause = sprintf("%s %s LIKE '%s'", WhereClause, Column{Icol}, ColRange);
                 elseif iscell(ColRange)
                     error('No treatment yet');
