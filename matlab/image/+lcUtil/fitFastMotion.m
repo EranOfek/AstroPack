@@ -61,10 +61,13 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.AstIndex          = 0;
 
         Args.OutType           = 'AstroCatalog';  % 'table'|'AstroCatalog'
+
+        Args.INPOP             = celestial.INPOP.init;
+        Args.OrbEl             = [];
     end 
 
-    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex'};
-    Table    = table([],[],[],[],[],[],[],[],[],[]);
+    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP'};
+    Table    = table([],[],[],[],[],[],[],[],[],[],[],[]);
     Table.Properties.VariableNames = ColNames;
 
     % remove bad flags
@@ -90,12 +93,17 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                                     'ThresholdDist',Args.ThresholdDist);
         
         % Match to known asteroids
-        if ~isempty(Tmp)
-            TmpAC = AstroCatalog()
-            [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1, 'INPOP',IN);
+        Ntmp = numel(Tmp);
+        DistMP = nan(Ntmp,1);
+        for Itmp=1:1:Ntmp
+            MedRA  = median(Tmp(Itmp).RA);
+            MedDec = median(Tmp(Itmp).Dec);
+            MedJD  = median(Tmp(Itmp).JD);
+            TmpAC = AstroCatalog({[MedRA, MedDec]}, 'ColNames',{'RA','Dec'});
+            [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(TmpAC, 'JD',MedJD, 'GeoPos',[], 'OrbEl',Args.OrbEl, 'SearchRadius',10, 'INPOP',Args.INPOP, 'RA',MedRA, 'Dec',MedDec, 'FOV_Radius',0.1, 'InCooUnits','deg');
+            DistMP(Itmp) = AC1.Catalog(1,3);
         end
 
-        
         if Iobj==1
             Result = Tmp(:);
         else
@@ -108,6 +116,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                     % prep AstroCatalog output (element per asteroid)
                     Ntmp = numel(Tmp);
                     for Itmp=1:1:Ntmp
+                        
                         Args.AstIndex = Args.AstIndex + 1;
                         K = K + 1;
                         if K==1
@@ -123,7 +132,9 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
                                Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
                                Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
-                               Args.AstIndex.*ones(Nobs,1)];
+                               Args.AstIndex.*ones(Nobs,1),...
+                               Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
+                               DistMP(Itmp).*ones(Nobs,1)];
                         Table(K).ColNames = ColNames;
                         Table(K).Name = Obj(Iobj).FileName;
                     end
@@ -134,7 +145,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                         Args.AstIndex = Args.AstIndex + 1;
                         K = K + 1;
                         Nobs = Tmp(Itmp).Npt;
-                        % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex]
+                        % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex, DistMP]
                         TmpTab = table(Tmp(Itmp).JD,...
                                        Tmp(Itmp).RA,...
                                        Tmp(Itmp).Dec,...
@@ -145,6 +156,8 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                        Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
                                        Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
                                        Args.AstIndex.*ones(Nobs,1),...
+                                       Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
+                                       DistMP(Itmp).*ones(Nobs,1),...
                                   'VariableNames',ColNames);
                         
                         Table = [Table; TmpTab];

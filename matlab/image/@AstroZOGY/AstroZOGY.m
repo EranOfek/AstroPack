@@ -538,7 +538,7 @@ classdef AstroZOGY < AstroDiff
             %                   subtraction with a custom Fr value. Default
             %                   is false.
             %            'OverwriteFrVal' - Value of custom Fr to be used
-            %                   in case OverwriteFr is true. Default is 1.
+            %                   in case OverwriteFr is true. Default is NaN.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -594,7 +594,7 @@ classdef AstroZOGY < AstroDiff
 
                 FrVal = Obj(Iobj).Fr;
                 if Args.OverwriteFr
-                    FrVal = Args.OverwriteFr;
+                    FrVal = Args.OverwriteFrVal;
                 end
 
                 [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S,...
