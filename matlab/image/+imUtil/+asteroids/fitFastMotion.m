@@ -52,6 +52,7 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
     %            .PatY
     %            .Epoch
     %            .Tag - The tag input argument.
+    %            .ProperMotion [deg/day].
     %          - A structure array of RANSAC solutions.
     %            Note that ParX, and ParY contains the linear motion
     %            parameters (in radians, and radians per day) relative to
@@ -143,7 +144,8 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
     Cont       = true;
     Result     = struct('JD',cell(0,1), 'RA',cell(0,1), 'Dec',cell(0,1), 'Ind',cell(0,1),...
                         'RMS',cell(0,1), 'Npt',cell(0,1), 'NuniqueJD',cell(0,1),...
-                        'ParX',cell(0,1), 'ParY',cell(0,1), 'Epoch',cell(0,1), 'Tag',cell(0,1));
+                        'ParX',cell(0,1), 'ParY',cell(0,1), 'Epoch',cell(0,1), 'Tag',cell(0,1),...
+                        'ProperMotion',cell(0,1));
     while Cont
         Ipt = find(~PointFound, 1, 'first');
         Dist = celestial.coo.sphere_dist_fast(CandsRA(Ipt), CandsDec(Ipt), CandsRA, CandsDec);
@@ -190,7 +192,8 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
                 Result(K).Npt = numel(IndF);
                 Result(K).NuniqueJD = numel(unique(Result(K).JD));
                 
-                
+                Result(K).ProperMotion = sqrt(Result(K).ParX(2).^2 + Result(K).ParY(2).^2)./AngFactor;
+
             end
            
         end

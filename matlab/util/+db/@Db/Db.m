@@ -427,6 +427,10 @@ classdef Db < Component
                     end
                 elseif ischar(ColRange) || isstring(ColRange)
                     % assume string comparison using LIKE
+                    % convert to string
+                    ColRange = string(ColRange);
+                    % reColRangeplace ' with ''
+                    ColRange = strrep(ColRange,"'","''");
                     WhereClause = sprintf("%s %s LIKE '%s'", WhereClause, Column{Icol}, ColRange);
                 elseif iscell(ColRange)
                     error('No treatment yet');
@@ -527,9 +531,9 @@ classdef Db < Component
             end
 
             if isempty(WhereClause)
-                Result = sprintf('SELECT %s %s FROM %s %s %s', TopClause, SelectClause, FromClause, Args.Join, SortClause);
+                Result = sprintf("SELECT %s %s FROM %s %s %s", TopClause, SelectClause, FromClause, Args.Join, SortClause);
             else
-                Result = sprintf('SELECT %s %s FROM %s %s WHERE %s %s', TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
+                Result = sprintf("SELECT %s %s FROM %s %s WHERE %s %s", TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
             end
 
         end

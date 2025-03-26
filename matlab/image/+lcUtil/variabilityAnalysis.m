@@ -157,7 +157,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     Nfiles   = numel(FN.Time);
     Visit    = Args.Visit;
     
-    TableFile = {ProjName, FieldID, CropID, Nfiles, Visit};
+    TableFile = {string(ProjName), string(FieldID), CropID, Nfiles, Visit};
     TableFile = repmat(TableFile,Nsrc,1);
     TableFile = cell2table(TableFile);
     TableFile.Properties.VariableNames = {'ProjName', 'FieldID', 'CropID', 'Nfiles', 'Visit'};

@@ -585,7 +585,14 @@ classdef AstroDiff < AstroImage
             %            'IsMagZP' - If true, then the units of the ZP is
             %                   mag, if false, then units are flux.
             %                   Default is true.
-            %
+            %            'Fn' - Force Fn to this number.
+            %                   If also 'Fr' is given then this parameter
+            %                   is ignored. If empty, use flux zp as is.
+            %                   Default is 1.
+            %            'Fr' - Force Fr to this value. 
+            %                   If empty, use flux zp as is.
+            %                   If given, then this parameter overrides 'Fn'.
+            %                   Default is [].
             % Output : - An AstroDiff object in which the Fn and Fr flux
             %            matching values are populated.
             %          - The last value of Fn
@@ -600,6 +607,7 @@ classdef AstroDiff < AstroImage
                 Args.RefZP            = 'PH_ZP';
                 Args.IsMagZP logical  = true;
                 Args.Fn               = 1;
+                Args.Fr               = [];  % superceed Fn
         
             end
 
@@ -617,9 +625,13 @@ classdef AstroDiff < AstroImage
                     Fr = Args.RefZP;
                 end
 
-
                 % convert to flux units
                 if Args.IsMagZP
+                    % Very important!
+                    % Increment this number if you thought the Fr 
+                    % calculation is wrong but it turned 
+                    % out to be correct: 3
+
                     % Note that there should be no "-" sign here
                     Obj(Iobj).ZpN = Fn;
                     Obj(Iobj).ZpR = Fr;
@@ -629,13 +641,24 @@ classdef AstroDiff < AstroImage
                     Obj(Iobj).ZpN = 2.5*log10(Fn);
                     Obj(Iobj).ZpR = 2.5*log10(Fr);
                 end
-               
-                if isempty(Args.Fn)
-                    % no normalization
+                
+                if isempty(Args.Fr)
+                    if isempty(Args.Fn)
+                        % no normalization
+                    else
+                        % Normalize by Fn value.
+                        Fr = Args.Fn .* Fr./Fn;
+                        Fn = Args.Fn;
+                    end
                 else
-                    % Normalize by Fn value.
-                    Fr = Args.Fn .* Fr./Fn;
-                    Fn = Args.Fn;
+                    % Args.Fr superceeds Args.Fn
+                    if isempty(Args.Fn)
+                        % no normalization
+                    else
+                        % Normalize by Fr value.
+                        Fn = Args.Fr .* Fn./Fr;
+                        Fr = Args.Fr;
+                    end
                 end
                 
                 % Its important not to use the Fn/Fr getters

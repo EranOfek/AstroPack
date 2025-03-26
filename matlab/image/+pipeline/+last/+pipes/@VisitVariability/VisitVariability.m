@@ -105,6 +105,12 @@ classdef VisitVariability < Component
                 Args.WriteProduct logical = true; 
                 Args.WriteDB logical      = true;
                 Args.AstIndex             = 0;
+
+                Args.INPOP             = celestial.INPOP.init;
+                Args.OrbEl             = [];
+
+                Args.SearchVar logical  = true;
+                Args.SearchAst logical  = true;
             end
            
             AstIndex = Args.AstIndex;
@@ -121,28 +127,45 @@ classdef VisitVariability < Component
                 MS = MatchedSources.read({Files(If).name});
                 MS.addSrcData;
 
-                try
-                    [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog');
-                catch
-                    TmpAst = [];
-                end
-                if ~isempty(TmpAst)
-                    if isempty(AstC)
-                        AstC = TmpAst;
-                    else
-                        AstC(end+1) = TmpAst;
+                if Args.SearchAst
+                    try
+                        [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl);
+                    catch ME
+                        TmpAst = [];
                     end
+    
+                    if ~isempty(TmpAst)
+                        % match to known asteroids
+    
+                        %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
+                    end
+    
+                    if ~isempty(TmpAst)
+                        if isempty(AstC)
+                            AstC = TmpAst;
+                        else
+                            AstC(end+1) = TmpAst;
+                        end
+                    end
+
+                else
+                    AstC     = [];
+                    AstIndex = [];
                 end
-                % Note that the following function may modify MS
-                try
-                    TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
-                catch
-                    TmpVar = [];
+
+                if Args.SearchVar
+                    % Note that the following function may modify MS
+                    try
+                        TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                    catch
+                        TmpVar = [];
+                    end
+                    if ~isempty(TmpVar)
+                        AC(If) = TmpVar;
+                    end
+                else
+                    AC = [];
                 end
-                if ~isempty(TmpVar)
-                    AC(If) = TmpVar;
-                end
-                %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
 
 
                 % if If==1
@@ -152,6 +175,13 @@ classdef VisitVariability < Component
                 % end
             end
             
+            if ~exist('AC','Var')
+                AC = [];
+            end
+            if ~exist("AstC","var")
+                AstC = [];
+            end
+
             if Args.WriteProduct
                 FN = FileNames.generateFromFileName(Files(1).name);
                 FN.Product  = 'VariablesCat';
@@ -172,11 +202,18 @@ classdef VisitVariability < Component
     
     
     methods % run on data functionality
-        function [ACVar,ACAst]=analayzeAllData(Obj)
+        function [ACVar,ACAst]=analayzeAllData(Obj, Args)
             %
             % Example: VV=pipeline.last.pipes.VisitVariability;
             %          [Tvar, Tast] = VV.analayzeAllData;
            
+
+            arguments
+                Obj
+                Args.INPOP             = celestial.INPOP.init;
+                Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');
+            end
+
             AstIndex = 0;
             
             JD = celestial.time.julday([5 1 2025]);
@@ -189,7 +226,7 @@ classdef VisitVariability < Component
             K       = 0;
             KA      = 0;
             ACAst   = [];
-            while Cont && Counter<1000
+            while Cont && Counter<2000
                 K = K + 1;
                 K
                 
@@ -200,7 +237,7 @@ classdef VisitVariability < Component
             
                 
                 %tic;
-                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex);
+                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl);
                 %toc
 
                 if K==1
