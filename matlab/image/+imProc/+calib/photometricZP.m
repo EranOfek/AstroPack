@@ -131,7 +131,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.MaxSN                    = 1000;  % if empty, do not use
         Args.MinSN                    = 7;
         
-        Args.CatColNameMag            = {'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
+        Args.CatColNameMag            = 'MAG_APER_3'; %{'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
         Args.CatColNameMagErr         = {'MAGERR_PSF', 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
         Args.CatColNameSN             = 'SN_2'; %'SN_3';
         Args.MagZP                    = 25;
@@ -494,16 +494,25 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
 
             if Args.UpdateMagCols
-                if ischar(Args.MagColName2update)
-                    MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));
-                else
-                    MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
-                end
 
-                %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
-                %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                
+                %InstMag = Cat.getCol(UsedColMag);
+                DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
+                Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
 
-                Cat.Catalog(:,MagColFlag) = ResFit(Iobj).Fun(ResFit(Iobj).Par, Cat.Catalog(:,MagColFlag), Args.CatMagColor, ResFit(Iobj).MedC);
+                % OLD CODE:
+                % if ischar(Args.MagColName2update)
+                %     MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));
+                % else
+                %     MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
+                % end
+                % 
+                % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                % 
+                % Cat.Catalog(:,MagColFlag) = ResFit(Iobj).Fun(ResFit(Iobj).Par, Cat.Catalog(:,MagColFlag), Args.CatMagColor, ResFit(Iobj).MedC);
+                % 
+
 
                 % This should happen automatically, but we are doing this for
                 % readability and order
@@ -512,6 +521,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 else
                     Result(Iobj) = Cat;
                 end
+
             end
 
 
