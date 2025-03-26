@@ -226,7 +226,7 @@ classdef VisitVariability < Component
             K       = 0;
             KA      = 0;
             ACAst   = [];
-            while Cont && Counter<100
+            while Cont && Counter<2000
                 K = K + 1;
                 K
                 

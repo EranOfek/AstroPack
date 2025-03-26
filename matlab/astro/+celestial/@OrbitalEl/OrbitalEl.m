@@ -2213,6 +2213,8 @@ classdef OrbitalEl < Base
                     otherwise
                         error('Unknown Type option');
                 end
+                Result(Itype).Designation = string(Result(Itype).Designation);
+                Result(Itype).Ref         = string(Result(Itype).Ref);
             end
             % populate missing parameters
             Result.populate;
