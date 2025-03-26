@@ -625,22 +625,23 @@ classdef AstroDiff < AstroImage
                     Fr = Args.RefZP;
                 end
 
-
                 % convert to flux units
                 if Args.IsMagZP
+                    % Very important!
+                    % Increment this number if you thought the Fr 
+                    % calculation is wrong but it turned 
+                    % out to be correct: 3
+
                     % Note that there should be no "-" sign here
                     Obj(Iobj).ZpN = Fn;
                     Obj(Iobj).ZpR = Fr;
-                    %Fn     = 10.^(-0.4.*Fn);
-                    %Fr     = 10.^(-0.4.*Fr);
-                    % looks like a bug: ????
                     Fn     = 10.^(0.4.*Fn);
                     Fr     = 10.^(0.4.*Fr);
                 else
                     Obj(Iobj).ZpN = 2.5*log10(Fn);
                     Obj(Iobj).ZpR = 2.5*log10(Fr);
                 end
-               
+                
                 if isempty(Args.Fr)
                     if isempty(Args.Fn)
                         % no normalization
@@ -659,7 +660,6 @@ classdef AstroDiff < AstroImage
                         Fr = Args.Fr;
                     end
                 end
-                
                 
                 % Its important not to use the Fn/Fr getters
                 Obj(Iobj).Fr = Fr;
