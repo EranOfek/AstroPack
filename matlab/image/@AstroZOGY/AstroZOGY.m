@@ -1009,6 +1009,8 @@ classdef AstroZOGY < AstroDiff
 
                     [Vsrc]      = abs(imUtil.properSub.sourceNoise(VN, VR, Kn, Kr));
                 else
+
+                    
                     Vsrc = 0;
                 end
 
