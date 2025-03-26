@@ -1,5 +1,5 @@
 function [Vcorr, V_Sn, V_Sr] = sourceNoise(VN, VR, Kn, Kr)
-    % Calculate the subtraction source noise varainace based on kr_hat, kn_hat
+    % Calculate the subtraction source noise variance based on kr_hat, kn_hat
     %    ZOGY Equations 26-29
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
