@@ -1986,6 +1986,9 @@ classdef OrbitalEl < Base
                 Desig = {Desig};
             end
 
+            % if the search Desig is a long list then use:
+            %Ind = tools.string.mex.findAllInAll(A,B)
+
             Ndesig = numel(Desig);
             Number = zeros(Ndesig,1);
             for Idesig=1:1:Ndesig
