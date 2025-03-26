@@ -632,7 +632,7 @@ classdef AstroZOGY < AstroDiff
                 end
                 
                 % Copy Header
-                if ~isempty(Args.CreateNewHeader)
+                if ~isempty(Args.CreateNewHeader)   
                     if Args.CreateNewHeader
                         Obj(Iobj).HeaderData = Obj(Iobj).New.HeaderData.copy;
                     else
@@ -907,6 +907,16 @@ classdef AstroZOGY < AstroDiff
             %                   include source noise. Default is true.
             %            'IncludeAstromNoise' - A logical indicating if to
             %                   include astrometric noise. Default is false.
+            %            'ExpTimeNewArr' - A 2 element cell array {a,b}.
+            %                   a is the total exposure time of the
+            %                   New image or the header key value under
+            %                   which the total exposure time is saved. b
+            %                   is the average single image exposure time
+            %                   or the header key value under which the
+            %                   average single image exposure time is
+            %                   saved. Default is {'EXPTIME', 20}.
+            %            'ExpTimeRefArr' - Same as ExpTimeNewArr but for
+            %                   the Ref image. Default is {'EXPTIME', 20}.
             %            'NcoaddNew' - Number of images from which the New
             %                   image is compose (assuming the mean
             %                   operator was used).
@@ -950,6 +960,8 @@ classdef AstroZOGY < AstroDiff
                 Args.IncludeSourceNoise logical    = true;
                 Args.IncludeAstromNoise logical    = false;
                 
+                Args.ExpTimeNewArr  = {'EXPTIME', 20};
+                Args.ExpTimeRefArr  = {'EXPTIME', 20};
                 Args.NcoaddNew   = 'NCOADD';
                 Args.NcoaddRef   = 'NCOADD';
                 Args.RN_New      = 2.7;  % Read noise in electrons [single image]
@@ -970,27 +982,90 @@ classdef AstroZOGY < AstroDiff
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
 
+                NcoaddNewSet = false;
+
                 % Read Ncoadd
-                if isnumeric(Args.NcoaddNew)
-                    NcoaddNew      = Args.NcoaddNew;
-                else
-                    % assumne Args.Ncoadd is a keyword name
-                    NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
-                    if isnan(NcoaddNew) || isempty(NcoaddNew)
+                if numel(Args.ExpTimeNewArr) == 2
+
+                    if isnumeric(Args.ExpTimeNewArr{1})
+                        ExpTimeNew = Args.ExpTimeNewArr{1};
+                    elseif Obj(Iobj).New.HeaderData.isKeyExist(...
+                            Args.ExpTimeNewArr{1})
+                        ExpTimeNew = Obj(Iobj).New.HeaderData.getVal(...
+                            Args.ExpTimeNewArr{1});
+                    else
+                        ExpTimeNew = 0;
+                    end
+
+                    if isnumeric(Args.ExpTimeNewArr{2})
+                        MExpTimeNew = Args.ExpTimeNewArr{2};
+                    elseif Obj(Iobj).New.HeaderData.isKeyExist(...
+                            Args.ExpTimeNewArr{2})
+                        MExpTimeNew = Obj(Iobj).New.HeaderData.getVal(...
+                            Args.ExpTimeNewArr{2});
+                    else
+                        MExpTimeNew = 0;
+                    end
+
+                    if (ExpTimeNew > 0) && (MExpTimeNew > 0)
+                        NcoaddNew = ExpTimeNew/MExpTimeNew;
+                        NcoaddNewSet = true;
+                    end
+                end  
+
+                if ~NcoaddNewSet
+                    if isnumeric(Args.NcoaddNew)
+                        NcoaddNew      = Args.NcoaddNew;
+                    elseif Obj(Iobj).New.HeaderData.isKeyExist(Args.NcoaddNew)
+                        % assumne Args.Ncoadd is a keyword name
+                        NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
+                    else
                         NcoaddNew = 1;
                     end
                 end
 
-                if isnumeric(Args.NcoaddRef)
-                    NcoaddRef      = Args.NcoaddRef;
-                else
-                    % assumne Args.Ncoadd is a keyword name
-                    NcoaddRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
-                    if isnan(NcoaddRef) || isempty(NcoaddRef)
-                        NcoaddRef = 1;
+                NcoaddRefSet = false;
+
+                % Read Ncoadd
+                if numel(Args.ExpTimeRefArr) == 2
+
+                    if isnumeric(Args.ExpTimeRefArr{1})
+                        ExpTimeRef = Args.ExpTimeRefArr{1};
+                    elseif Obj(Iobj).Ref.HeaderData.isKeyExist(...
+                            Args.ExpTimeRefArr{1})
+                        ExpTimeRef = Obj(Iobj).Ref.HeaderData.getVal(...
+                            Args.ExpTimeRefArr{1});
+                    else
+                        ExpTimeRef = 0;
+                    end
+
+                    if isnumeric(Args.ExpTimeRefArr{2})
+                        MExpTimeRef = Args.ExpTimeRefArr{2};
+                    elseif Obj(Iobj).Ref.HeaderData.isKeyExist(...
+                            Args.ExpTimeRefArr{2})
+                        MExpTimeRef = Obj(Iobj).Ref.HeaderData.getVal(...
+                            Args.ExpTimeRefArr{2});
+                    else
+                        MExpTimeRef = 0;
+                    end
+
+                    if (ExpTimeRef > 0) && (MExpTimeRef > 0)
+                        NcoaddRef = ExpTimeRef/MExpTimeRef;
+                        NcoaddRefSet = true;
                     end
                 end
 
+                if ~NcoaddRefSet
+                    if isnumeric(Args.NcoaddRef)
+                        NcoaddRef      = Args.NcoaddRef;
+                    elseif Obj(Iobj).Ref.HeaderData.isKeyExist(Args.NcoaddRef)
+                        % assumne Args.Ncoadd is a keyword name
+                        NcoaddRef = Obj(Iobj).Ref.HeaderData.getVal(Args.NcoaddRef);
+                    else
+                        NcoaddRef = 1;
+                    end
+                end
+                
                 RN_New = Args.RN_New;
                 RN_Ref = Args.RN_Ref;
 
