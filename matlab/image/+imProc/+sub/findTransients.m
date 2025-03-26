@@ -142,7 +142,15 @@ function TranCat=findTransients(AD, Args)
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
             NewPSFSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2)+1;
-            [~, M2N, ~] = imUtil.image.moment2(AD(Iobj).New.PSF, ...
+
+            % rotate the PSF so that ellipse axes agree with
+            % x-y-coordinates
+            NewPSF = AD(Iobj).New.PSF;
+            PSFbw = imbinarize(NewPSF);
+            stats = regionprops(PSFbw, 'Orientation');
+            PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
+
+            [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
                 NewPSFSize, NewPSFSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
         end
