@@ -111,6 +111,11 @@ classdef VisitVariability < Component
 
                 Args.SearchVar logical  = true;
                 Args.SearchAst logical  = true;
+
+                Args.HealpixType   = 'nested';
+                Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
+                Args.ColHealpix    = ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"];
+                Args.UniqueID logical = true;
             end
            
 
@@ -203,7 +208,12 @@ classdef VisitVariability < Component
             if Args.WriteDB
                 %fprintf('Write to DB not operational yet\n');
 
-
+                if ~isempty(AstC)
+                    AstC.Catalog=db.util.insertHealpixIndex2table(AstC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                                          'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                          'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                end
+                
             end
             
         end

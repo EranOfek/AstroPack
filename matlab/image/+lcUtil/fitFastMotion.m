@@ -71,7 +71,11 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
 
      
     
-    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID', 'ProjName', 'FieldID', 'Visit', 'ID', 'ObsNumber'};
+    ColNames1 = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID'};
+    ColNames2 = {'ProjName', 'FieldID', 'Visit'};
+    ColNames3 = {'ID', 'ObsNumber'};
+    ColNames  = [ColNames1, ColNames2, ColNames3];
+
     EmptyCell = cell(1,numel(ColNames));
     Table    = table(EmptyCell{:});
     %Table.Properties.VariableNames = ColNames;
@@ -143,7 +147,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                             Table = AstroCatalog;
                         end
                         Nobs = Tmp(Itmp).Npt;
-                        Table(K).Catalog = [Tmp(Itmp).JD,...
+                        Table(K).Catalog = array2table([Tmp(Itmp).JD,...
                                Tmp(Itmp).RA,...
                                Tmp(Itmp).Dec,...
                                Tmp(Itmp).FitRA,...
@@ -155,21 +159,22 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Args.AstIndex.*ones(Nobs,1),...
                                Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
                                DistMP(Itmp).*ones(Nobs,1),...
-                               CropID.*ones(Nobs,1)];
+                               CropID.*ones(Nobs,1)], 'VariableNames',ColNames1);
 
                         
-                       
-                        Table(K).Catalog = [Table(K).Catalog, repmat(AddColData, Nobs, 1)];
+                        
+                        Table(K).Catalog = [Table(K).Catalog, array2table(repmat(AddColData, Nobs, 1), 'VariableNames',ColNames2)];
                        
                         % Insert ID:
-                        Tmp = split(ProjName,'.');
-                        Node  = str2double(Tmp{2});
-                        Mount = str2double(Tmp{3});
-                        Cam   = str2double(Tmp{4});
-                        ID  = db.Db.generateID({'sci','merged',Node, Mount, Cam, CropID});
+                        MidJD = (Tmp(Itmp).JD(1) + Tmp(Itmp).JD(end)).*0.5;
+                        TmpP = split(ProjName,'.');
+                        Node  = str2double(TmpP{2});
+                        Mount = str2double(TmpP{3});
+                        Cam   = str2double(TmpP{4});
+                        ID  = db.Db.generateID({'sci','merged',Node, Mount, Cam, CropID, MidJD});
                         ObsNumber = (1:1:Nobs).';
                         ID  = repmat(ID, Nobs, 1);
-                        Table(K).Catalog = [Table(K).Catalog, ID, ObsNumber];
+                        Table(K).Catalog = [Table(K).Catalog, table(ID, ObsNumber)];
 
                         Table(K).ColNames = ColNames;
                         Table(K).Name = Obj(Iobj).FileName;
