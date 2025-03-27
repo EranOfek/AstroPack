@@ -138,8 +138,7 @@ function [Result] = coaddW(Obj, Args)
             end
             MedZP = median(ZP);
     
-            Args.FluxMatch =
-            10.^(0.4.*(ZP-MedZP));
+            Args.FluxMatch = 10.^(0.4.*(ZP-MedZP));
         end
         ImageCube = ImageCube./Args.FluxMatch;
     end
