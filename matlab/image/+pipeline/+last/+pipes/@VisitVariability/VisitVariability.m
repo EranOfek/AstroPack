@@ -174,6 +174,7 @@ classdef VisitVariability < Component
                 end
 
 
+     
                 % if If==1
                 %     TableAst = TmpAst;
                 % else
@@ -201,6 +202,8 @@ classdef VisitVariability < Component
             
             if Args.WriteDB
                 %fprintf('Write to DB not operational yet\n');
+
+
             end
             
         end

@@ -142,6 +142,7 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         if isa(Obj, 'AstroImage')
             Tmp = Obj(Iobj).CatData.Table;
 
+            
             if Args.InsertID
                 % get Image ID from header
                 ID = Obj(Iobj).HeaderData.getKeyVal(Args.KeyID, 'Val2Num',false);

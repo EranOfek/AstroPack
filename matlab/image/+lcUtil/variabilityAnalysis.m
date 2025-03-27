@@ -164,8 +164,20 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableFile = repmat(TableFile,Nsrc,1);
     TableFile = cell2table(TableFile);
     TableFile.Properties.VariableNames = {'ProjName', 'FieldID', 'CropID', 'Nfiles', 'Visit'};
-    
-    Table = [Table, TableNstat, TableFile];
+   
+    TmpP = split(ProjName,'.');
+    Node  = str2double(TmpP{2});
+    Mount = str2double(TmpP{3});
+    Cam   = str2double(TmpP{4});
+    ID    = uint64(zeros(Nsrc,1));
+    SrcNumber = (1:1:Nsrc).';
+    for Isrc=1:1:Nsrc
+        ID(Isrc)  = db.Db.generateID({'sci','merged',Node, Mount, Cam, CropID, Table.PM_JD(Isrc)});
+    end
+    TableID = table(ID, SrcNumber);
+    TableID.Properties.VariableNames = {'ID', 'SrcNumber'}; 
+
+    Table = [Table, TableNstat, TableFile, TableID];
     
 
     AC = AstroCatalog;

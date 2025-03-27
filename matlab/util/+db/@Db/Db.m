@@ -49,6 +49,7 @@ classdef Db < Component
     
     properties (Hidden)
         Conn     = []; % connectivity information (for ConnType=java)
+
     end
     
     properties (Hidden, Constant)
@@ -134,7 +135,26 @@ classdef Db < Component
                 Obj.Password = Pass;
                 Val = User;
             else
-                Val = Obj.User;
+                if contains(Obj.User,'/')
+                    switch Obj.User
+                        case 'socsrv/user'
+                            Obj.User = {'LASTDB_User','last_user'};
+                            Obj.Host = 'socsrv';
+                        case 'socsrv/root'
+                            Obj.User = {'LASTDB_Root','default'};
+                            Obj.Host = 'socsrv';
+                        case 'last0/user'
+                            Obj.User = {'LASTDB_User','last_user'};
+                            Obj.Host = '10.23.1.25';
+                        case 'last0/root'
+                            Obj.User = {'LASTDB_Root','default'};
+                            Obj.Host = '10.23.1.25';
+                        otherwise
+                            error('Unidentified user name pattern');
+                    end
+                else
+                    Val = Obj.User;
+                end
             end
         end
 
@@ -543,6 +563,74 @@ classdef Db < Component
 
         end
        
+        function Result = convertClass2DB_Class(Type, TypeDB)
+            % Convert matlab class names to DB class names.
+            % Input  : - A cell array or string array of matlab class names
+            % Output : - A string array of DB class names.
+            % Author : Eran Ofek (Mar 2025)
+            % Example: R=db.Db.convertClass2DB_Class({'int8','uint32','single'})
+
+            arguments
+                Type
+                TypeDB = 'ClickHouse';
+            end
+
+            switch lower(TypeDB)
+                case 'clickhouse'
+                    TypeM  = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "logical", "single", "double"];
+                    TypeDB = ["Int8", "In16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "UInt8",    "Float32", "Float64"];
+                otherwise
+                    error('Unkown DB type');
+            end
+            
+            % convert to cell array:
+            Type   = {Type{:}};
+            Ind    = tools.string.mex.findAllInAll(Type,{TypeM{:}});
+            Result = TypeDB(Ind);
+        end
+    
+        function ID = generateID(C, Args)
+            % generate ID for DB
+            %   see also: imProc.db.generateImageID
+            % Input  : - A cell array of values corresponding to the keys.
+            %          * ...,key,val,...
+            %            'FormatSt' - Default is:
+            %                       struct("Key",{'IMTYPE','LEVEL','NODENUMB','MOUNTNUM','CAMNUM','CROPID','JD'},...
+            %                                       "BitNum", {4, 5, 5, 5, 3, 6, 36},...
+            %                                        "Fun", {@(x) find(strcmp(x, AstroFileName.ListType)),...
+            %                                            @(x) find(strcmp(x, AstroFileName.ListLevel)),...
+            %                                            @(x) x,...
+            %                                            @(x) x,...
+            %                                            @(x) x,...
+            %                                            @(x) tools.array.replace(x,NaN,0),...
+            %                                            @(jd) uint64((jd-2451545.5).*86400.*10)});
+            % Output : - ID
+            % Author : Eran Ofek (Mar 2025)
+            % Example: ID = db.Db.generateID({'sci','merged',1,1,1,10,2460000.0})
+
+            arguments
+                C    % a cell array of ['IMTYPE','LEVEL','NODENUMB','MOUNTNUM','CAMNUM','CROPID','JD']
+                Args.FormatSt          = struct("Key",{'IMTYPE','LEVEL','NODENUMB','MOUNTNUM','CAMNUM','CROPID','JD'},...
+                                                "BitNum", {4, 5, 5, 5, 3, 6, 36},...
+                                                "Fun", {@(x) find(strcmp(x, AstroFileName.ListType)),...
+                                                        @(x) find(strcmp(x, AstroFileName.ListLevel)),...
+                                                        @(x) x,...
+                                                        @(x) x,...
+                                                        @(x) x,...
+                                                        @(x) tools.array.replace(x,NaN,0),...
+                                                        @(jd) uint64((jd-2451545.5).*86400.*10)});
+            end
+
+            Nsub = numel(Args.FormatSt);
+            BitNum = zeros(1,Nsub);
+            BitVal = zeros(1,Nsub);
+            for Isub=1:1:Nsub
+                BitVal(Isub) = Args.FormatSt(Isub).Fun(C{Isub});
+                BitNum(Isub) = Args.FormatSt(Isub).BitNum;
+            end
+            ID = tools.bit.bitEncode(BitNum, BitVal);
+        end
+
     end
     
     methods % utilities
@@ -670,8 +758,12 @@ classdef Db < Component
             % Input  : - self.
             %          - Table name.
             %          - Cell array or string array of column names.
+            %            Alternatively, if this is a table and the next
+            %            argument is empty, then will use the column names
+            %            and types.
             %          - Cell array or string arry of column types (one
             %            type per column name).
+            %            Default is empty.
             %          * ...,key,val,...
             %            'Engine' - Search engine.
             %                   Ask ChatGPT for more options.
@@ -686,11 +778,17 @@ classdef Db < Component
                 Obj
                 TableName
                 ColNames
-                ColTypes
+                ColTypes     = [];
                 Args.Engine  = 'MergeTree()';
                 Args.OrderBy = 'id';
             end
            
+            if istable(ColNames) && isempty(ColTypes)
+                % use column names from table
+                ColTypes = string(varfun(@class, ColNames, 'OutputFormat', 'cell'));
+                ColNames = string(ColNames.Properties.VariableNames);
+            end
+
             Ncol = numel(ColNames);
             Command = sprintf('CREATE TABLE %s (',TableName);
             for Icol=1:1:Ncol

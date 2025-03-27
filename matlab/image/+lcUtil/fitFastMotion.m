@@ -71,7 +71,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
 
      
     
-    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID', 'ProjName', 'FieldID', 'Visit'};
+    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID', 'ProjName', 'FieldID', 'Visit', 'ID', 'ObsNumber'};
     EmptyCell = cell(1,numel(ColNames));
     Table    = table(EmptyCell{:});
     %Table.Properties.VariableNames = ColNames;
@@ -156,9 +156,20 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
                                DistMP(Itmp).*ones(Nobs,1),...
                                CropID.*ones(Nobs,1)];
+
+                        
                        
-                        Table(K).Catalog = [Table(K).Catalog; repmat(AddColData, Nobs, 1)];
+                        Table(K).Catalog = [Table(K).Catalog, repmat(AddColData, Nobs, 1)];
                        
+                        % Insert ID:
+                        Tmp = split(ProjName,'.');
+                        Node  = str2double(Tmp{2});
+                        Mount = str2double(Tmp{3});
+                        Cam   = str2double(Tmp{4});
+                        ID  = db.Db.generateID({'sci','merged',Node, Mount, Cam, CropID});
+                        ObsNumber = (1:1:Nobs).';
+                        ID  = repmat(ID, Nobs, 1);
+                        Table(K).Catalog = [Table(K).Catalog, ID, ObsNumber];
 
                         Table(K).ColNames = ColNames;
                         Table(K).Name = Obj(Iobj).FileName;
