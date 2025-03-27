@@ -482,6 +482,8 @@ classdef Db < Component
             %                   Default is 'AND'.
             %            'Join' - Join clause of the form: 
             %                   [INNER | LEFT | RIGHT] JOIN table2 ON table1.column = table2.column
+            %            'AddAfterWhere' - Add string after where.
+            %                   Default is ''.
             % Output : - A full query clause.
             % Author : Eran Ofek (Dec 2024)
             % Example: db.Db.genQuery('last_vistits')
@@ -497,6 +499,7 @@ classdef Db < Component
                 Args.SortOrder = 'ASC';  % or 'DESC'
                 Args.Operator  = 'AND';
                 Args.Join      = '';
+                Args.AddAfterWhere = '';
             end
 
             if ischar(Columns)
@@ -535,6 +538,8 @@ classdef Db < Component
             else
                 Result = sprintf("SELECT %s %s FROM %s %s WHERE %s %s", TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
             end
+
+            Result = sprintf('%s %s',Args.AddAfterWhere);
 
         end
        
