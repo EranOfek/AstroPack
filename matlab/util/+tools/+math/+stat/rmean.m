@@ -52,15 +52,15 @@ if (Low>=High)
     Mean = [];
 else
     if ischar(Dim)
-        Mean = nanmean(SortedMat(Low:High,:),'all');
+        Mean = mean(SortedMat(Low:High,:),'all','omitnan');
     else
         
         if (Dim==1)
-            Mean = nanmean(SortedMat(Low:High,:),1);
+            Mean = mean(SortedMat(Low:High,:),1,'omitnan');
         elseif (Dim==2)
-            Mean = nanmean(SortedMat(:,Low:High),2);
+            Mean = mean(SortedMat(:,Low:High),2,'omitnan');
         elseif (Dim==3)
-            Mean = nanmean(SortedMat(:,:,Low:High),3);
+            Mean = mean(SortedMat(:,:,Low:High),3,'omitnan');
         else
             error('Dim must be 1,2 or 3');
         end

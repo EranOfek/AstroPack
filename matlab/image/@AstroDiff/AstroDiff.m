@@ -757,7 +757,7 @@ classdef AstroDiff < AstroImage
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
 
-                Args.useHeaderVal                = true;
+                Args.useHeaderVal                = true;   % use Back/Var from header, if image doesn't exist.
                 Args.HeaderBackKey               = 'MEDBCK';
                 Args.HeaderVarKey                = 'MEDVAR';
             end
@@ -765,18 +765,23 @@ classdef AstroDiff < AstroImage
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
 
+                % New image:
                 if any(isemptyImage(Obj(Iobj).New, {'Back','Var'}), 'all')
+                    % New image: Back or Var properties are empty
                     if (Args.useHeaderVal && Obj(Iobj).New.HeaderData.isKeyExist(Args.HeaderBackKey) ...
                             && Obj(Iobj).New.HeaderData.isKeyExist(Args.HeaderVarKey))
+                        % use back/var from header keywords
 
-                        ImageSize = Obj(Iobj).New.sizeImage;
+                        [ImageSizeY, ImageSizeX] = Obj(Iobj).New.sizeImage;
                         Obj(Iobj).New.Back = repmat(...
                             Obj(Iobj).New.HeaderData.getVal(Args.HeaderBackKey), ...
-                            ImageSize, ImageSize);
+                            ImageSizeY, ImageSizeX);
                         Obj(Iobj).New.Var = repmat(...
                             Obj(Iobj).New.HeaderData.getVal(Args.HeaderVarKey), ...
-                            ImageSize, ImageSize);
+                            ImageSizeY, ImageSizeX);
                     else
+                        % populate Back and Var images of New image:
+
                         Obj(Iobj).New = imProc.background.background(...
                             Obj(Iobj).New, 'BackFun',Args.BackFun,...
                             'BackFunPar',Args.BackFunPar,...
@@ -788,23 +793,31 @@ classdef AstroDiff < AstroImage
                     end
                 end
 
+                % Ref image:
                 if any(isemptyImage(Obj(Iobj).Ref, {'Back','Var'}), 'all')
+                    % Ref image: Back or Var properties are empty
                     if Obj(Iobj).RefIsBackgroundSubtracted
-                            ImageSize = Obj(Iobj).Ref.sizeImage;
-                            Obj(Iobj).Ref.Back = zeros(ImageSize, ImageSize);
+                            % Ref is background subtracted - use simple
+                            % methods:
+                            [ImageSizeX,ImageSizeY] = Obj(Iobj).Ref.sizeImage;
+                            
+                            Obj(Iobj).Ref.Back = zeros(ImageSizeX, ImageSizeY);
+
                             Obj(Iobj).Ref.Var = repmat(imUtil.background.rvar(Obj(Iobj).Ref.Image),...
-                                ImageSize, ImageSize);
+                                ImageSizeX, ImageSizeY);
                     else
                         if (Args.useHeaderVal && Obj(Iobj).Ref.HeaderData.isKeyExist(Args.HeaderBackKey) ...
                                 && Obj(Iobj).Ref.HeaderData.isKeyExist(Args.HeaderVarKey))
-                            ImageSize = Obj(Iobj).Ref.sizeImage;
+                            % Use header values:
+                            [ImageSizeX, ImageSizeY] = Obj(Iobj).Ref.sizeImage;
                             Obj(Iobj).Ref.Back = repmat(...
                                 Obj(Iobj).Ref.HeaderData.getVal(Args.HeaderBackKey), ...
-                                ImageSize, ImageSize);
+                                ImageSizeX, ImageSizeY);
                             Obj(Iobj).Ref.Var = repmat(...
                                 Obj(Iobj).Ref.HeaderData.getVal(Args.HeaderVarKey), ...
-                                ImageSize, ImageSize);
+                                ImageSizeX, ImageSizeY);
                         else
+                            % Calculate background:
                             Obj(Iobj).Ref = imProc.background.background(...
                                 Obj(Iobj).Ref, 'BackFun',Args.BackFun,...
                                 'BackFunPar',Args.BackFunPar,...
