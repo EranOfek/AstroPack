@@ -137,7 +137,9 @@ function [Result] = coaddW(Obj, Args)
                 error('ZP is NaN or not in header');
             end
             MedZP = median(ZP);
-            Args.FluxMatch = 10.^(0.4.*(ZP-MedZP));
+    
+            Args.FluxMatch =
+            10.^(0.4.*(ZP-MedZP));
         end
         ImageCube = ImageCube./Args.FluxMatch;
     end

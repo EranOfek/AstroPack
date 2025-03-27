@@ -1,4 +1,4 @@
-function [Result,FreqVec] = perid_FalseAlarmRedNoise(Time, Flux, Args)
+function [Result,FreqVec] = period_FalseAlarmRedNoise(Time, Flux, Args)
     % Return the simulations of the power-spectrum of a lgight curve with a red-power-law spectrum.
     %     The simulations have a user specified power-law index and their
     %     std is equal to that of the std of the flux of the observations.
@@ -18,7 +18,8 @@ function [Result,FreqVec] = perid_FalseAlarmRedNoise(Time, Flux, Args)
     %            frequency.
     %          - A vector of frequencies.
     % Author : Eran Ofek (2025 Feb) 
-    % Example: [PS,F]=timeSeries.period.perid_FalseAlarmRedNoise;
+    % Example: [PS,F]=timeSeries.period.period_FalseAlarmRedNoise;
+
     %          loglog(F,max(PS,[],2))
     %          loglog(F,quantile(PS,0.95,2))
     

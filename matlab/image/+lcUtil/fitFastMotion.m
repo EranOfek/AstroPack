@@ -64,11 +64,17 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
 
         Args.INPOP             = celestial.INPOP.init;
         Args.OrbEl             = [];
+
+        Args.Visit             = "";
+
     end 
 
-    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP'};
-    Table    = table([],[],[],[],[],[],[],[],[],[],[],[]);
-    Table.Properties.VariableNames = ColNames;
+     
+    
+    ColNames = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID', 'ProjName', 'FieldID', 'Visit'};
+    EmptyCell = cell(1,numel(ColNames));
+    Table    = table(EmptyCell{:});
+    %Table.Properties.VariableNames = ColNames;
 
     % remove bad flags
     FlagBad = searchFlags(Obj, 'BitDic',Args.BitDict, 'PropFlags',Args.FieldFlag, 'FlagsList',Args.FlagsList, 'UseSrcData',true);
@@ -79,6 +85,9 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     Result = [];
     for Iobj=1:1:Nobj
         % add SrcData
+
+
+
 
         [Tmp] = imUtil.asteroids.fitFastMotion(Obj(Iobj).JD, Obj(Iobj).Data.RA, Obj(Iobj).Data.Dec,...
                                                     'FlagGood',~FlagBad,...
@@ -114,6 +123,17 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
             switch lower(Args.OutType)
                 case 'astrocatalog'
                     % prep AstroCatalog output (element per asteroid)
+
+                    FN = FileNames.generateFromFileName(Obj(Iobj).FileName);
+    
+                    ProjName = string(FN.ProjName{1});
+                    FieldID  = string(FN.FieldID{1});
+                    CropID   = FN.CropID(1);
+                    Nfiles   = numel(FN.Time);
+                    Visit    = string(Args.Visit);
+
+                    AddColData = [ProjName, FieldID, Visit];
+
                     Ntmp = numel(Tmp);
                     for Itmp=1:1:Ntmp
                         
@@ -134,34 +154,40 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
                                Args.AstIndex.*ones(Nobs,1),...
                                Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
-                               DistMP(Itmp).*ones(Nobs,1)];
+                               DistMP(Itmp).*ones(Nobs,1),...
+                               CropID.*ones(Nobs,1)];
+                       
+                        Table(K).Catalog = [Table(K).Catalog; repmat(AddColData, Nobs, 1)];
+                       
+
                         Table(K).ColNames = ColNames;
                         Table(K).Name = Obj(Iobj).FileName;
                     end
-                case 'table'
-                    % prep table of observations - all in one table
-                    Ntmp = numel(Tmp);
-                    for Itmp=1:1:Ntmp
-                        Args.AstIndex = Args.AstIndex + 1;
-                        K = K + 1;
-                        Nobs = Tmp(Itmp).Npt;
-                        % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex, DistMP]
-                        TmpTab = table(Tmp(Itmp).JD,...
-                                       Tmp(Itmp).RA,...
-                                       Tmp(Itmp).Dec,...
-                                       Tmp(Itmp).FitRA,...
-                                       Tmp(Itmp).FitDec,...
-                                       Tmp(Itmp).RMS.*ones(Nobs,1),...
-                                       Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
-                                       Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
-                                       Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
-                                       Args.AstIndex.*ones(Nobs,1),...
-                                       Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
-                                       DistMP(Itmp).*ones(Nobs,1),...
-                                  'VariableNames',ColNames);
-                        
-                        Table = [Table; TmpTab];
-                    end
+                % case 'table'
+                %     % prep table of observations - all in one table
+                %     Ntmp = numel(Tmp);
+                %     for Itmp=1:1:Ntmp
+                %         Args.AstIndex = Args.AstIndex + 1;
+                %         K = K + 1;
+                %         Nobs = Tmp(Itmp).Npt;
+                %         % [JD, RA, Dec, FitRA, FitDec, RMS, Mag, Flags, AstIndex, DistMP]
+                %         TmpTab = table(Tmp(Itmp).JD,...
+                %                        Tmp(Itmp).RA,...
+                %                        Tmp(Itmp).Dec,...
+                %                        Tmp(Itmp).FitRA,...
+                %                        Tmp(Itmp).FitDec,...
+                %                        Tmp(Itmp).RMS.*ones(Nobs,1),...
+                %                        Obj(Iobj).Data.(Args.FieldMag)(Tmp(Itmp).Ind),...
+                %                        Obj(Iobj).Data.(Args.FieldSN)(Tmp(Itmp).Ind),...
+                %                        Obj(Iobj).Data.(Args.FieldFlag)(Tmp(Itmp).Ind),...
+                %                        Args.AstIndex.*ones(Nobs,1),...
+                %                        Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
+                %                        DistMP(Itmp).*ones(Nobs,1),...
+                %                        repmat(Args.DataPath,Nobs,1),...
+                %                   'VariableNames',ColNames);
+                % 
+                %         Table = [Table; TmpTab];
+                %     end
                 otherwise
                     error('Unknown OutType option');                                
             end

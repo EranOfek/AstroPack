@@ -15,7 +15,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
 
     arguments
         Obj MatchedSources
-        Args.Visit                    = NaN;
+        Args.Visit                    = "";
         Args.RemoveFlags              = {'Saturated', 'NearEdge', 'Overlap', 'NaN', 'Negative'};
         Args.BitDict                  = BitDictionary;
         Args.FieldFlags               = 'FLAGS';
@@ -46,6 +46,9 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.SearchRadius             = 60;
 
         Args.CreateNewObj logical     = false;
+
+        %Args.AddColNames              = [];
+        %Args.AddColData               = [];
     end
     RAD = 180./pi;
 

@@ -113,6 +113,7 @@ classdef VisitVariability < Component
                 Args.SearchAst logical  = true;
             end
            
+
             AstIndex = Args.AstIndex;
 
             PWD = pwd;
@@ -127,9 +128,14 @@ classdef VisitVariability < Component
                 MS = MatchedSources.read({Files(If).name});
                 MS.addSrcData;
 
+                DataPath = string(pwd);
+                Tmp      = split(DataPath,'/');
+                ProjName = Tmp{3};
+                Visit    = Tmp(end);
+
                 if Args.SearchAst
                     try
-                        [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl);
+                        [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'Visit',Visit);
                     catch ME
                         TmpAst = [];
                     end
@@ -156,7 +162,7 @@ classdef VisitVariability < Component
                 if Args.SearchVar
                     % Note that the following function may modify MS
                     try
-                        TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:});
+                        TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:}, 'Visit',Visit);
                     catch
                         TmpVar = [];
                     end
@@ -226,7 +232,7 @@ classdef VisitVariability < Component
             K       = 0;
             KA      = 0;
             ACAst   = [];
-            while Cont && Counter<2000
+            while Cont && Counter<100
                 K = K + 1;
                 K
                 
