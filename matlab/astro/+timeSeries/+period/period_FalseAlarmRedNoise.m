@@ -42,13 +42,16 @@ function [Result,FreqVec] = period_FalseAlarmRedNoise(Time, Flux, Args)
     
     [Time, SI] = sort(Time);
     Flux       = Flux(SI);
-    Time       = Time - Time(1);
+    Time       = Time - min(Time);
     Flux       = Flux - mean(Flux);
+    MaxTime    = max(Time);
     
     MaxFreq = 0.5./min(diff(Time));
     MinFreq = 0.5./range(Time);
     Nfreq   = 2.*ceil(MaxFreq./MinFreq);
     
+    TimeNorm = MaxTime./(Nfreq-1);
+
     if isempty(Args.FreqVec)
         FreqVec = timeSeries.period.getFreq(Time);
     else
@@ -60,7 +63,7 @@ function [Result,FreqVec] = period_FalseAlarmRedNoise(Time, Flux, Args)
     for Isim=1:1:Args.Nsim
         F_w = timeSeries.timeDelay.rand_psd(Nfreq,Args.PL);
         RandFlux = ifft(F_w);
-        InterpFlux = interp1((0:1:Nfreq-1).', RandFlux, Time);
+        InterpFlux = interp1((0:1:Nfreq-1).'.*TimeNorm, RandFlux, Time);
         InterpFlux = InterpFlux.*StdFlux./std(InterpFlux);
         
         PS = timeSeries.period.period([Time, InterpFlux], FreqVec);

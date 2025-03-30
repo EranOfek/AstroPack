@@ -1013,6 +1013,37 @@ classdef AstroFileName < Component
         
     end
     
+    methods (Static) % static time utilities
+        function [Date, DateDir] = jd2datedir(JD, TimeZone)
+            % convert JD to date dir of the form: YYYY/MM/DD (changed at local noon)
+            % Input  : - JD
+            %          - Time Zond (days). Default is 2./24
+            % Output : - Date vector.
+            %          - Date dir of the form: YYYY/MM/DD
+            % Author : Eran Ofek (Mar 2025)
+            % Example: [Date, DateDir] = AstroFileName.jd2datedir(2451545.5+[0;100])
+
+            arguments
+                JD
+                TimeZone  = 2./24;
+            end
+
+            JD = JD + TimeZone./24;
+            JD = floor(JD);
+            %JD = JD(Ind);
+            Date = celestial.time.jd2date(JD);
+
+            if nargout>1
+                N = numel(JD);
+                DateDir = strings(N,1);
+                for I=1:1:N
+                    DateDir(I) = sprintf("%04d%s%02d%s%02d",Date(I,3),filesep,Date(I,2),filesep,Date(I,1));
+                end
+            end
+
+        end
+    end
+
     methods % time utilities
         % DONE
         function JD = julday(Obj, TimeFormat)

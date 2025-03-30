@@ -559,7 +559,7 @@ classdef Db < Component
                 Result = sprintf("SELECT %s %s FROM %s %s WHERE %s %s", TopClause, SelectClause, FromClause, Args.Join, WhereClause, SortClause);
             end
 
-            Result = sprintf('%s %s',Args.AddAfterWhere);
+            Result = sprintf('%s %s',Result, Args.AddAfterWhere);
 
         end
        
@@ -577,8 +577,8 @@ classdef Db < Component
 
             switch lower(TypeDB)
                 case 'clickhouse'
-                    TypeM  = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "logical", "single", "double"];
-                    TypeDB = ["Int8", "In16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "UInt8",    "Float32", "Float64"];
+                    TypeM  = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "logical", "single", "double", "string", "char"];
+                    TypeDB = ["Int8", "In16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64", "UInt8",    "Float32", "Float64", "String", "String"];
                 otherwise
                     error('Unkown DB type');
             end
@@ -770,56 +770,101 @@ classdef Db < Component
             %                   Default is 'MergeTree()'
             %            'OrderBy' - ORDER BY column name.
             %                   Default is 'id'.
+            %            'LowerCase' - true will convert column names to
+            %                   lower case. Default is true.
+            %            'Index' - A ceel array of additional index lines - e.g.,
+            %                   'INDEX name_index name TYPE set(100) GRANULARITY 1'
+            %                   Default is {}
             % Output : - Error message.
             % Author : Eran Ofek (Oct 2024)
             % Example: D.createTable('test_db',["id"; "name"; "age"], ["UInt32"; "String"; "UInt8"]);
-            
+            %          D.createTable('test_db',["id"; "name"; "age"],["UInt32"; "String"; "UInt8"], 'Index', {'INDEX id_index id TYPE minmax GRANULARITY 1'})
+            %          DB.createTable('fastmoving_asteroids1',AstC.Table);
+            %          DB.createTable('mergedmat_var1',ACm.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
+            %          DB.createTable('fastmoving_asteroids1',AstC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
+            % [~,Error] = DB.query('DROP TABLE IF EXISTS mergedmat_var1', 'IsExec',true)
+
             arguments
                 Obj
                 TableName
                 ColNames
-                ColTypes     = [];
-                Args.Engine  = 'MergeTree()';
-                Args.OrderBy = 'id';
+                ColTypes       = [];
+                Args.Engine    = 'MergeTree()';
+                Args.OrderBy   = 'id';
+                Args.LowerCase = true;
+                Args.Index     = {};
             end
            
             if istable(ColNames) && isempty(ColTypes)
                 % use column names from table
                 ColTypes = string(varfun(@class, ColNames, 'OutputFormat', 'cell'));
+                ColTypes = db.Db.convertClass2DB_Class(ColTypes);
                 ColNames = string(ColNames.Properties.VariableNames);
+            end
+            if Args.LowerCase
+                ColNames = lower(ColNames);
             end
 
             Ncol = numel(ColNames);
-            Command = sprintf('CREATE TABLE %s (',TableName);
+            Command = sprintf('CREATE TABLE %s \n(\n',TableName);
             for Icol=1:1:Ncol
                 if Icol==Ncol
-                    Command = sprintf('%s %s %s)', Command, ColNames{Icol}, ColTypes{Icol});
+                    Nindex = numel(Args.Index);
+                    if Nindex==0
+                        Command = sprintf('%s %s %s\n)', Command, ColNames{Icol}, ColTypes{Icol});
+                    else
+                        Command = sprintf('%s %s %s,\n', Command, ColNames{Icol}, ColTypes{Icol});
+                        for Iindex=1:1:Nindex
+                            if Iindex==Nindex
+                                Command = sprintf('%s %s\n',Command, Args.Index{Iindex});
+                            else
+                                Command = sprintf('%s %s,\n',Command, Args.Index{Iindex});
+                            end
+                        end
+                        Command = sprintf('%s)',Command);
+                    end
                 else
-                    Command = sprintf('%s %s %s,', Command, ColNames{Icol}, ColTypes{Icol});
+                    Command = sprintf('%s %s %s,\n', Command, ColNames{Icol}, ColTypes{Icol});
                 end
+
+                
+                    
             end
-            Command = sprintf('%s ENGINE = %s  ORDER BY %s', Command, Args.Engine, Args.OrderBy);
+            Command = sprintf('%s\n ENGINE = %s\n  ORDER BY %s;', Command, Args.Engine, Args.OrderBy);
             
             [~,Error] = Obj.query(Command, 'IsExec',true);
             
         end
 
-        function Error=insertCharDump(Obj, TableName, InputTable)
+        function Error=insertCharDump(Obj, TableName, InputTable, Args)
             % Insert entries in table object into ClickHouse table using char dump (direct insert)
             %   Good for insertion of small tables.
             %   See also db.Db/insertCsv and db.Db/insert
             % Input  : - self.
             %          - Table name to which to insert the data.
             %          - An object table containing the data to insert.
+            %          * ...,key,val,...
+            %            'LowerCase' - Make column names lower case.
+            %                   Default is true.
             % Output : - Error message. If empty, then ok.      
             % Author : Eran Ofek (Oct 2024)
             % Dxample: D.insertCharDump('Images',T)
             
+            arguments
+                Obj
+                TableName
+                InputTable
+                Args.LowerCase  = true;
+            end
+
             ColNames    = InputTable.Properties.VariableNames;
             StrColNames = sprintf('%s, ',string(ColNames));
             StrColNames = StrColNames(1:end-2);
+            if Args.LowerCase
+                StrColNames = lower(StrColNames);
+            end
             ValuesStr   = db.Db.table2charDump(InputTable);
-            Command     = sprintf('INSERT INTO %s (%s) VALUES %s', TableName, StrColNames, ValuesStr);
+            Command     = sprintf("INSERT INTO %s (%s) VALUES %s", TableName, StrColNames, ValuesStr);
 
             [~,Error]   = Obj.query(Command, 'IsExec',true);
 

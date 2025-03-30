@@ -1,5 +1,6 @@
-% pipeline.last.pipes.VisitVariability - A class for searching for variable
-% sources in the visit level data.
+% p
+% ipeline.last.pipes.VisitVariability - A class for searching
+
 %
 % Properties :
 %
@@ -88,6 +89,7 @@ classdef VisitVariability < Component
             %                   results to DB. Default is true.
             %            'AstIndex' - Index of last asteroid candidate
             %                   detected. Default is 0.
+            %            'DB' - DB object (must be supplied).
             % Output : - An AstroCatalog object, with element per MatchedSources file
             %            (i.e., cropID) with all variable source candidates found
             %            in all cropIDs in visit.
@@ -103,7 +105,6 @@ classdef VisitVariability < Component
                 Args.varAnalysisArgs      = {};
                 Args.FileTemp             = 'LAST*_MergedMat*.hdf5';
                 Args.WriteProduct logical = true; 
-                Args.WriteDB logical      = true;
                 Args.AstIndex             = 0;
 
                 Args.INPOP             = celestial.INPOP.init;
@@ -116,6 +117,7 @@ classdef VisitVariability < Component
                 Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
                 Args.ColHealpix    = ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"];
                 Args.UniqueID logical = true;
+                Args.DB               = [];
             end
            
 
@@ -141,24 +143,20 @@ classdef VisitVariability < Component
                 if Args.SearchAst
                     try
                         [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'Visit',Visit);
+                    
+                        if ~isempty(TmpAst)
+                            if isempty(AstC)
+                                AstC = TmpAst;
+                            else
+                                AstC(end+1) = TmpAst;
+                            end
+                        end
                     catch ME
                         TmpAst = [];
+                        AstC   = [];
+                        AstIndex = [];
                     end
     
-                    if ~isempty(TmpAst)
-                        % match to known asteroids
-    
-                        %[OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(ACVar(1), 'JD',ACVar(1).Table(1,:).MinJD, 'RA',ACVar(1).Table(1,:).RA, 'Dec',ACVar(1).Table(1,:).Dec, 'FOV_Radius',1,'InCooUnits','deg')
-                    end
-    
-                    if ~isempty(TmpAst)
-                        if isempty(AstC)
-                            AstC = TmpAst;
-                        else
-                            AstC(end+1) = TmpAst;
-                        end
-                    end
-
                 else
                     AstC     = [];
                     AstIndex = [];
@@ -168,23 +166,18 @@ classdef VisitVariability < Component
                     % Note that the following function may modify MS
                     try
                         TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:}, 'Visit',Visit);
+                        if ~isempty(TmpVar)
+                            AC(If) = TmpVar;
+                        end
                     catch
                         TmpVar = [];
+                        AC     = [];
                     end
-                    if ~isempty(TmpVar)
-                        AC(If) = TmpVar;
-                    end
+                    
                 else
                     AC = [];
                 end
 
-
-     
-                % if If==1
-                %     TableAst = TmpAst;
-                % else
-                %     TableAst = [TableAst; TmpAst];
-                % end
             end
             
             if ~exist('AC','Var')
@@ -205,15 +198,27 @@ classdef VisitVariability < Component
             
             cd(PWD);
             
-            if Args.WriteDB
+            if ~isempty(Args.DB)
                 %fprintf('Write to DB not operational yet\n');
 
                 if ~isempty(AstC)
-                    AstC.Catalog=db.util.insertHealpixIndex2table(AstC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                    AstCm=AstC.merge('IsTable',true);
+                    AstCm.Catalog=db.util.insertHealpixIndex2table(AstCm.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
                                           'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
                                           'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                    AstCm.Catalog.Flags = uint32(AstCm.Catalog.Flags);
+
+                    Args.DB.insertCharDump('fastmoving_asteroids1',AstCm.Catalog);
                 end
-                
+
+                if ~isempty(AC)
+                    ACm=AC.merge('IsTable',true);
+                    ACm.Catalog=db.util.insertHealpixIndex2table(ACm.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                                          'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                          'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                    ACm.Catalog.FLAGS = uint32(ACm.Catalog.FLAGS);
+                    Args.DB.insertCharDump('mergedmat_var1',ACm.Catalog);
+                end
             end
             
         end
@@ -224,13 +229,14 @@ classdef VisitVariability < Component
         function [ACVar,ACAst]=analayzeAllData(Obj, Args)
             %
             % Example: VV=pipeline.last.pipes.VisitVariability;
-            %          [Tvar, Tast] = VV.analayzeAllData;
+            %          [Tvar, Tast] = VV.analayzeAllData('DB',DB);
            
 
             arguments
                 Obj
                 Args.INPOP             = celestial.INPOP.init;
                 Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');
+                Args.DB                = []; % must be supplied
             end
 
             AstIndex = 0;
@@ -245,9 +251,10 @@ classdef VisitVariability < Component
             K       = 0;
             KA      = 0;
             ACAst   = [];
-            while Cont && Counter<100
+            while Cont  % && Counter<100
+                
                 K = K + 1;
-                K
+                [Counter, K]
                 
                 I = find(VecNotDone ,1, 'first');
 
@@ -256,32 +263,32 @@ classdef VisitVariability < Component
             
                 
                 %tic;
-                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl);
+                
+                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB);
                 %toc
 
-                if K==1
-                    ACVar = TV(:);
-                else
-                    if ~isempty(TV)
-                        ACVar = [ACVar; TV(:)];
-                    end
-                end
-
-
-
-                if ~isempty(TA)
-                    KA = KA + 1;
-                    
-
-                    if isempty(ACAst)
-                        ACAst = TA;
+                if nargout>0
+                    if K==1
+                        ACVar = TV(:);
                     else
-                        Nex = numel(ACAst);
-                        Nad = numel(TA);
-                        ACAst(Nex+1:Nex+Nad) = TA(:);
+                        if ~isempty(TV)
+                            ACVar = [ACVar; TV(:)];
+                        end
+                    end
+    
+                    if ~isempty(TA)
+                        KA = KA + 1;
+                        
+    
+                        if isempty(ACAst)
+                            ACAst = TA;
+                        else
+                            Nex = numel(ACAst);
+                            Nad = numel(TA);
+                            ACAst(Nex+1:Nex+Nad) = TA(:);
+                        end
                     end
                 end
-
 
                 Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
                 VecNotDone(Idone) = false;
@@ -294,10 +301,113 @@ classdef VisitVariability < Component
         
     end
     
-    methods % data retrival functions
-        %function MS=getMatchedSources
-        %end
+    methods (Static) % data retrival functions from DB
+        function [AFN,AllPath]=getLocationFromDB(T, Args)
+            % Given a table of variable/fast moving - generate visit path.
+            % Input  : - A table which is the output of a DB query of the
+            %            fast moving or variables in visit.
+            %          * ...,key,val,...
+            %            'ColProjName' - Column in table containing ProjName.
+            %                   Default is 'projname'.
+            %            'ColJD' - Column in table containing JD.
+            %                   Default is 'jd'.
+            %            'ColSubDir' - Column in table containing
+            %                   SubDir/visit name. Default is 'visit'.
+            %            'ColCropID' - Column of CropID number.
+            %                   Default is 'cropid'.
+            % Output : - An AstroFileName object with the path information.
+            %          - A string array of paths per table entry.
+            % Author : Eran Ofek (Mar 2025)
+            % Example:
+            % AFN=pipeline.last.pipes.VisitVariability.getLocationFromDB(T(1:10,:))
+            
+            arguments
+                T
+                Args.ColProjName = 'projname';
+                Args.ColJD       = 'jd';
+                Args.ColSubDir   = 'visit';
+                Args.ColCropID   = 'cropid';
+
+            end
+
+            Nt = size(T,1);
+            AFN = AstroFileName;
+            AFN.JD = T.(Args.ColJD);
+            AFN.julday2time;
+            AFN.SubDir = T.(Args.ColSubDir);
+
+            AFN.CropID   = T.(Args.ColCropID);
+            AFN.ProjName = T.(Args.ColProjName);
+
+            if nargout>1
+                AllPath = AFN.genPath([], 'AddSubDir',true);
+            end
+
+        end
         
+        function Result=getProductFromDB(T, Level, Args)
+            % Given a fast moving or visit variability entry - get coadd or MatchedSources product.
+            % Input  : - A table which is the output of a DB query of the
+            %            fast moving or variables in visit.
+            %          - Product Level: 'coadd' | 'merged'.
+            %            Default is 'coadd'.
+            %          * ...,key,val,...
+            %            'ColProjName' - Column in table containing ProjName.
+            %                   Default is 'projname'.
+            %            'ColJD' - Column in table containing JD.
+            %                   Default is 'jd'.
+            %            'ColSubDir' - Column in table containing
+            %                   SubDir/visit name. Default is 'visit'.
+            %            'ColCropID' - Column of CropID number.
+            %                   Default is 'cropid'.
+            % Example:
+            % R=pipeline.last.pipes.VisitVariability.getProductFromDB(T(1,:),'merged')
+            % R=pipeline.last.pipes.VisitVariability.getProductFromDB(T(1,:),'coadd')
+
+            arguments
+                T
+                Level            = 'coadd';
+                Args.ColProjName = 'projname';
+                Args.ColJD       = 'jd';
+                Args.ColSubDir   = 'visit';
+                Args.ColCropID   = 'cropid';
+            end
+
+            [AFN, AllPath] = pipeline.last.pipes.VisitVariability.getLocationFromDB(T, 'ColProjName',Args.ColProjName, 'ColJD',Args.ColJD, 'ColSubDir',Args.ColSubDir, 'ColCropID',Args.ColCropID);
+
+            AFN.Level  = Level;
+            PWD = pwd;
+            Npath = numel(AllPath);
+            for Ipath=1:1:Npath
+                cd(AllPath(Ipath));
+                switch Level
+                    case 'coadd'
+                        Product  = 'Image';
+                        FileType = 'fits';
+                        TempFileName = AFN.genFile(Ipath,'Time','*', 'Filter','*', 'FieldID','*', 'Counter','*', 'CCDID','*', 'Product',Product, 'Version', '*', 'FileType',FileType);
+                        F = dir(TempFileName);
+                        if isempty(F)
+                            error('File %s not found','TempFileName');
+                        end
+                        %Result(Ipath) = AstroImage.readProducts(F(1).name, 'Path',[], 'Level',Level, 'ExtraOutProduct',["Mask", "PSF", "Cat"]);
+                        Result(Ipath) = AstroImage.readFileNamesObj(F(1).name, 'Path',[], 'AddProduct',{'Mask', 'PSF', 'Cat'});
+                    case 'merged'
+                        Product  = 'MergedMat';
+                        FileType = 'hdf5';
+                        TempFileName = AFN.genFile(Ipath,'Time','*', 'Filter','*', 'FieldID','*', 'Counter','*', 'CCDID','*', 'Product',Product, 'Version', '*', 'FileType',FileType);
+                        F = dir(TempFileName);
+                        if isempty(F)
+                            error('File %s not found','TempFileName');
+                        end
+                        Result(Ipath) = MatchedSources.read(F(1).name);
+                    otherwise
+                        error('Unknown product Level option');
+                end
+            end
+            cd(PWD);
+
+        end
+
         %function [LC, MS]=getLC
         %end
         
