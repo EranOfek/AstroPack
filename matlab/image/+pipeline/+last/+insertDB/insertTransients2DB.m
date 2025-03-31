@@ -55,9 +55,16 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     NCrop  = numel(CropID);
     CatByCrop  = struct([]);
     HeadByCrop = repmat(AstroHeader,1,NCrop);
+    HeaderCrop = zeros(NCrop,1);
+    
     for Icrop = 1:NCrop
-        CatByCrop(Icrop).Table = Cat.Table(Cat.Table.CROPID == CropID(Icrop), :); % select the lines by cropid
-        HeadByCrop(Icrop) = Headers(CropID(Icrop));                               % for each cropid read the appropriate header
+        HeaderCrop(Icrop) = Headers(Icrop).getVal('CROPID');
+    end
+    
+    for Icrop = 1:NCrop
+        CurrentCrops = Cat.Table.CROPID == CropID(Icrop);
+        CatByCrop(Icrop).Table = Cat.Table(CurrentCrops, :); % select the lines by cropid
+        HeadByCrop(Icrop) = Headers(HeaderCrop == CropID(Icrop)); % for each cropid read the appropriate header
     end
     %    
     CsvFN = sprintf('/tmp/tempDBinsert%.20f.csv',rand); % temporary csv file name
