@@ -27,6 +27,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.DetrendZP logical        = true;
         Args.zp_meddiffArgs           = {};
         
+        Args.CorrNsim                 = 100;
         %
         Args.PS_MaxFreq               = 86400./60;
         Args.PS_ThresholdNp           = 12;
@@ -41,7 +42,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.RM_MinAbsSN              = 8
         
         Args.FlareNaN_MinSN           = 8;
-        Args.FlareNaN_MinNdet         = 1;  % 1 produce a lot of bad detections, but may be useful for satellite glints?
+        Args.FlareNaN_MinNdet         = 2;  % 1 produce a lot of bad detections, but may be useful for satellite glints?
         
         Args.SearchRadius             = 60;
 
@@ -106,6 +107,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     % polynomail fitting
     TablePolyHyp  = lcUtil.reportPolyHyp(Result, 'FieldMag',Args.FieldMag);
     
+
     % run mean filter
     TableRMF      = lcUtil.reportRunMean(Result, 'FieldMag',Args.FieldMag);
     
@@ -113,14 +115,19 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableFlareNan = lcUtil.reportFlareAboveNan(Result, 'MinSN',Args.FlareNaN_MinSN, 'FieldSN',Args.FieldSN);
     
     % correlations
-    TableCorr     = lcUtil.reportCorr(Result);
+    TableCorr     = lcUtil.reportCorr(Result, 'Nsim',Args.CorrNsim);
     
     % proper motion
     TableMotion   = lcUtil.reportMotion(Result);
     
     % Positions and SN
-    TableMain = array2table([Result.SrcData.RA(:), Result.SrcData.Dec(:), Result.SrcData.(Args.FieldSN)(:), Result.SrcData.(Args.FieldFlags)(:)]);
-    TableMain.Properties.VariableNames = {'RA', 'Dec', 'SN', 'FLAGS'};
+    TableMain.RA    = Result.SrcData.RA(:);
+    TableMain.Dec   = Result.SrcData.Dec(:);
+    TableMain.SN    = Result.SrcData.(Args.FieldSN)(:);
+    TableMain.FLAGS = uint32(Result.SrcData.(Args.FieldFlags)(:));
+    TableMain       = struct2table(TableMain);
+    %TableMain = array2table([Result.SrcData.RA(:), Result.SrcData.Dec(:), Result.SrcData.(Args.FieldSN)(:), Result.SrcData.(Args.FieldFlags)(:)]);
+    %TableMain.Properties.VariableNames = {'RA', 'Dec', 'SN', 'FLAGS'};
     
     % merged Table
     Table = [TableMain, TablePS, TableRMS, TablePolyHyp, TableRMF, TableFlareNan, TableCorr, TableMotion];

@@ -10,11 +10,12 @@
 
 
 
+
 classdef VisitVariability < Component
     properties (Dependent) % Access image data directly
         
     end
-    
+
     properties (SetAccess = public)
         BaseDir   = '/marvin';
         DB        = db.Db;
@@ -73,7 +74,7 @@ classdef VisitVariability < Component
             
         end
         
-        function [AC,AstC,AstIndex] = searchVisitDir(Path, Args)
+        function searchVisitDir(Path, Args)
             % Analyze (search for variability) in all MergedMat files in a visit dir, and write product to the visit dir.
             % Input  : - Path for visit to analyze.
             %            If empty, use current dir. Default is [].
@@ -118,6 +119,10 @@ classdef VisitVariability < Component
                 Args.ColHealpix    = ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"];
                 Args.UniqueID logical = true;
                 Args.DB               = [];
+
+                Args.VarTableName      = [];
+                Args.AstTableName      = [];
+
             end
            
 
@@ -130,96 +135,73 @@ classdef VisitVariability < Component
             
             Files = dir(Args.FileTemp);
             Nf    = numel(Files);
-            AstC  = [];
+            %AstC  = [];
+            %AC    = [];
             for If=1:1:Nf
                 MS = MatchedSources.read({Files(If).name});
-                MS.addSrcData;
+                if MS.Nepoch>14 && MS.Nsrc>100
 
-                DataPath = string(pwd);
-                Tmp      = split(DataPath,'/');
-                ProjName = Tmp{3};
-                Visit    = Tmp(end);
+                    MS.addSrcData;
+    
+                    DataPath = string(pwd);
+                    Tmp      = split(DataPath,'/');
+                    ProjName = Tmp{3};
+                    Visit    = Tmp(end);
+    
+                    if Args.SearchAst
+                        %'motion'
+                        %tic;
+                        [~,AstAC, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'Visit',Visit);
+                        %toc
+    
+                        if ~isempty(AstAC) && AstAC.sizeCatalog>0
+                            %AstCm=AstC.merge('IsTable',true);
+                            AstAC.Catalog=db.util.insertHealpixIndex2table(AstAC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                                              'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                              'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                            AstAC.Catalog.Flags = uint32(AstAC.Catalog.Flags);
 
-                if Args.SearchAst
-                    try
-                        [~,TmpAst, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'Visit',Visit);
-                    
-                        if ~isempty(TmpAst)
-                            if isempty(AstC)
-                                AstC = TmpAst;
-                            else
-                                AstC(end+1) = TmpAst;
-                            end
+                            
+                            Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
+                            
                         end
-                    catch ME
-                        TmpAst = [];
-                        AstC   = [];
-                        AstIndex = [];
+                           
                     end
     
-                else
-                    AstC     = [];
-                    AstIndex = [];
-                end
+                    if Args.SearchVar
+                        % Note that the following function may modify MS
+                        %'var'
+                        %tic;
+                        VarAC = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:}, 'Visit',Visit);
+                        %toc
+    
+                        if ~isempty(VarAC) && VarAC.sizeCatalog>0
+                            %VarAC = VarAC.merge('IsTable',true);
+                            VarAC.Catalog=db.util.insertHealpixIndex2table(VarAC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                                                  'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                                  'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                            VarAC.Catalog.FLAGS = uint32(VarAC.Catalog.FLAGS);
 
-                if Args.SearchVar
-                    % Note that the following function may modify MS
-                    try
-                        TmpVar = lcUtil.variabilityAnalysis(MS, Args.varAnalysisArgs{:}, 'Visit',Visit);
-                        if ~isempty(TmpVar)
-                            AC(If) = TmpVar;
+                            
+                            Args.DB.insertCharDump(Args.VarTableName, VarAC.Catalog);
+                            
                         end
-                    catch
-                        TmpVar = [];
-                        AC     = [];
                     end
-                    
-                else
-                    AC = [];
                 end
 
             end
             
-            if ~exist('AC','Var')
-                AC = [];
-            end
-            if ~exist("AstC","var")
-                AstC = [];
-            end
-
-            if Args.WriteProduct
-                FN = FileNames.generateFromFileName(Files(1).name);
-                FN.Product  = 'VariablesCat';
-                FN.FileType = 'mat';
-                OutFileName = FN.genFile;
-                
-                save('-v7.3', OutFileName, 'AC');
-            end
+            % if Args.WriteProduct
+            %     FN = FileNames.generateFromFileName(Files(1).name);
+            %     FN.Product  = 'VariablesCat';
+            %     FN.FileType = 'mat';
+            %     OutFileName = FN.genFile;
+            % 
+            %     save('-v7.3', OutFileName, 'AC');
+            % end
             
             cd(PWD);
             
-            if ~isempty(Args.DB)
-                %fprintf('Write to DB not operational yet\n');
-
-                if ~isempty(AstC)
-                    AstCm=AstC.merge('IsTable',true);
-                    AstCm.Catalog=db.util.insertHealpixIndex2table(AstCm.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
-                                          'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
-                                          'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
-                    AstCm.Catalog.Flags = uint32(AstCm.Catalog.Flags);
-
-                    Args.DB.insertCharDump('fastmoving_asteroids1',AstCm.Catalog);
-                end
-
-                if ~isempty(AC)
-                    ACm=AC.merge('IsTable',true);
-                    ACm.Catalog=db.util.insertHealpixIndex2table(ACm.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
-                                          'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
-                                          'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
-                    ACm.Catalog.FLAGS = uint32(ACm.Catalog.FLAGS);
-                    Args.DB.insertCharDump('mergedmat_var1',ACm.Catalog);
-                end
-            end
             
         end
     end
@@ -229,71 +211,122 @@ classdef VisitVariability < Component
         function [ACVar,ACAst]=analayzeAllData(Obj, Args)
             %
             % Example: VV=pipeline.last.pipes.VisitVariability;
-            %          [Tvar, Tast] = VV.analayzeAllData('DB',DB);
+            %          DB=db.Db, DB.User='socsrv/root'; DB, DB.connect; DB.useDB('last');
+            %          T = DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
+            %          Ind = (1:1000)';
+            %          VV.analayzeAllData('DB',DB, 'T',T, 'Ind',Ind);
+            %          VV.analayzeAllData('DB',DB, 'T','VisitImages.mat', 'Ind',Ind);
            
 
             arguments
                 Obj
+                Args.T                 = [];
+                Args.Ind               = [];
                 Args.INPOP             = celestial.INPOP.init;
                 Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');
                 Args.DB                = []; % must be supplied
+                Args.VarTableName      = 'last.mergedmat_var2';
+                Args.AstTableName      = 'last.fastmoving_asteroids2';
             end
 
             AstIndex = 0;
             
-            JD = celestial.time.julday([5 1 2025]);
-            T = Obj.DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
+            %JD = celestial.time.julday([5 1 2025]);
+            %T = Args.DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
+            if isempty(Args.T)
+                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
+            else
+                if istable(Args.T)
+                    T = Args.T;
+                else
+                    % T is in a file
+                    T = io.files.load2(Args.T);
+                end
+            end
+
+            if ~isempty(Args.Ind)
+                T = T(Args.Ind,:);
+            end
+
+            %Npool = 15;
             Nt = size(T,1);
-            VecNotDone = true(Nt,1);
+            %VecI = (1:1:Nt).';
+            %IndPool = ceil(VecI./(Nt./15));
 
-            Cont = true;
-            Counter = 0;
-            K       = 0;
-            KA      = 0;
+            %VecNotDone = true(Nt,1);
+
+            % Cont = true;
+            % Counter = 0;
+            % K       = 0;
+            % KA      = 0;
             ACAst   = [];
-            while Cont  % && Counter<100
-                
-                K = K + 1;
-                [Counter, K]
-                
-                I = find(VecNotDone ,1, 'first');
 
-                FN=pipeline.last.queryDB.table2path(T(I,:));
-                Path = FN.genPath('AddSubDir',true);
-            
+            % delete(gcp('nocreate'))
+            %if isempty(gcp('nocreate'))
+            %    parpool(Npool)
+            %end
+
+            %parfor Ipool=1:Npool
+            for It=1:Nt
+
+                %sprintf('Connect DB %d',Ipool)
+                %DB = db.Db;
+                %DB.User = 'socsrv/root';
+                %DB.connect;
+                %DB.useDB('last');
+
+                %IndInPool = VecI(IndPool==Ipool);
+                %NinPool   = numel(IndInPool);
+
+                %for Iin=1:1:NinPool
+                    %It = IndInPool(Iin);
                 
-                %tic;
+                    % 
+                    %[Ipool, It, NinPool]
+                    [It, Nt]
+                    
+                    FN=pipeline.last.queryDB.table2path(T(It,:));
+                    Path = FN.genPath('AddSubDir',true);
                 
-                [TV,TA,AstIndex] = pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB);
+                    tic;
+                    try
+    
+                        pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB, 'VarTableName',Args.VarTableName, 'AstTableName',Args.AstTableName);
+                    catch ME
+                        'a'
+                    end
+                    toc
                 %toc
 
-                if nargout>0
-                    if K==1
-                        ACVar = TV(:);
-                    else
-                        if ~isempty(TV)
-                            ACVar = [ACVar; TV(:)];
-                        end
-                    end
-    
-                    if ~isempty(TA)
-                        KA = KA + 1;
-                        
-    
-                        if isempty(ACAst)
-                            ACAst = TA;
-                        else
-                            Nex = numel(ACAst);
-                            Nad = numel(TA);
-                            ACAst(Nex+1:Nex+Nad) = TA(:);
-                        end
-                    end
-                end
-
-                Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
-                VecNotDone(Idone) = false;
-                Counter = Counter + 1;
+                % if nargout>0
+                %     if K==1
+                %         ACVar = TV(:);
+                %     else
+                % 
+                %         if ~isempty(TV)
+                %             ACVar = [ACVar; TV(:)];
+                %         end
+                %     end
+                % 
+                %     if ~isempty(TA)
+                %         KA = KA + 1;
+                % 
+                % 
+                %         if isempty(ACAst)
+                %             ACAst = TA;
+                %         else
+                %             Nex = numel(ACAst);
+                %             Nad = numel(TA);
+                %             ACAst(Nex+1:Nex+Nad) = TA(:);
+                %         end
+                %     end
+                % end
+                % 
+                % Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
+                % VecNotDone(Idone) = false;
+                % Counter = Counter + 1;
                 
+            %end
             end
 
             
@@ -310,7 +343,9 @@ classdef VisitVariability < Component
             %            'ColProjName' - Column in table containing ProjName.
             %                   Default is 'projname'.
             %            'ColJD' - Column in table containing JD.
-            %                   Default is 'jd'.
+            %                   If a string array then will chose the first
+            %                   existing column name in table.
+            %                   Default is ["jd", "midjd", "pm_jd"]
             %            'ColSubDir' - Column in table containing
             %                   SubDir/visit name. Default is 'visit'.
             %            'ColCropID' - Column of CropID number.
@@ -324,11 +359,13 @@ classdef VisitVariability < Component
             arguments
                 T
                 Args.ColProjName = 'projname';
-                Args.ColJD       = 'jd';
+                Args.ColJD       = ["jd", "midjd", "pm_jd"];
                 Args.ColSubDir   = 'visit';
                 Args.ColCropID   = 'cropid';
 
             end
+
+            [~, Args.ColJD] = tools.table.isColumn(T, Args.ColJD);
 
             Nt = size(T,1);
             AFN = AstroFileName;
@@ -355,7 +392,9 @@ classdef VisitVariability < Component
             %            'ColProjName' - Column in table containing ProjName.
             %                   Default is 'projname'.
             %            'ColJD' - Column in table containing JD.
-            %                   Default is 'jd'.
+            %                   If a string array then will chose the first
+            %                   existing column name in table.
+            %                   Default is ["jd", "midjd", "pm_jd"]
             %            'ColSubDir' - Column in table containing
             %                   SubDir/visit name. Default is 'visit'.
             %            'ColCropID' - Column of CropID number.
@@ -368,7 +407,7 @@ classdef VisitVariability < Component
                 T
                 Level            = 'coadd';
                 Args.ColProjName = 'projname';
-                Args.ColJD       = 'jd';
+                Args.ColJD       = ["jd", "midjd", "pm_jd"];
                 Args.ColSubDir   = 'visit';
                 Args.ColCropID   = 'cropid';
             end
@@ -408,8 +447,48 @@ classdef VisitVariability < Component
 
         end
 
-        %function [LC, MS]=getLC
-        %end
+        function [Result, Found, MS]=getLC(T, Args)
+            % Given a table of variables - get objects LC.
+            % Input  : - A table which is the output of a DB query of the
+            %            fast moving or variables in visit.
+            %          * ...,key,val,...
+            %            See code for options.
+            % Output : - A structure array of LCs with fields:
+            %            .JD
+            %            .Mag
+            %          - A structure array of found objects in
+            %            MatchedSources objects (i.e., source index).
+            %          - A MatchedSources objects from which the LCs were
+            %            retrieved.
+            % Author : Eran Ofek (Mar 2025)
+            % Example: R=pipeline.last.pipes.VisitVariability.getLC(T(1:2));
+
+            arguments
+                T
+                Args.SearchRadius      = 3;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.ColRA             = 'ra';
+                Args.ColDec            = 'dec';
+                Args.FieldRA           = 'RA';
+                Args.FieldDec          = 'Dec';
+                Args.CooUnits          = 'deg';
+
+                Args.FieldMag          = {'MAG_BEST', 'MAG_PSF', 'MAG_APER_3'};
+            end
+
+            MS = pipeline.last.pipes.VisitVariability.getProductFromDB(T, 'merged');
+            TargetRA  = T.(Args.ColRA);
+            TargetDec = T.(Args.ColDec);
+
+            N = numel(TargetRA);
+            for I=1:1:N
+                [Found(I)] = coneSearch(MS(I), TargetRA(I), TargetDec(I), Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits, 'CooUnits',Args.CooUnits);
+
+                [Result(I).JD, Result(I).Mag] = MS(I).getLC_ind(Found(I).Ind, Args.FieldMag);
+            end
+
+
+        end
         
         
     end

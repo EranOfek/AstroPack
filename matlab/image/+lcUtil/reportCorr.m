@@ -12,6 +12,8 @@ function [Result] = reportCorr(Obj, Args)
     %                   'matrix' - Matrix output.
     %                   'table' - table output.
     %                   Default is 'table'.
+    %            'Nsim' - Number of correlation simulations.
+    %                   Default is 100.
     % Output : - A matrix or table of corr. coef. and p-val between
     %            selected fields for each source.
     % Author : Eran Ofek (2025 Mar) 
@@ -24,6 +26,7 @@ function [Result] = reportCorr(Obj, Args)
                                       'MAG_BEST','RA';
                                       'MAG_BEST','Dec'};
         Args.OutType               = 'table';
+        Args.Nsim                  = 100;
     end
     Ncol  = 2;
     
@@ -32,7 +35,7 @@ function [Result] = reportCorr(Obj, Args)
     ColNames = cell(1, Npair.*Ncol);
     for Ipair=1:1:Npair
         ColI    = (Ipair-1).*Ncol;
-        Corr = Obj.corrFields('Field1',Args.Pairs{Ipair,1}, 'Field2',Args.Pairs{Ipair,2}, 'Type','pairs_sim');
+        Corr = Obj.corrFields('Field1',Args.Pairs{Ipair,1}, 'Field2',Args.Pairs{Ipair,2}, 'Type','pairs_sim', 'Nsim',Args.Nsim);
         
         ColNames{ColI+1} = sprintf('CorrC_%s_%s',Args.Pairs{Ipair,1}, Args.Pairs{Ipair,2});
         ColNames{ColI+2} = sprintf('CorrP_%s_%s',Args.Pairs{Ipair,1}, Args.Pairs{Ipair,2});

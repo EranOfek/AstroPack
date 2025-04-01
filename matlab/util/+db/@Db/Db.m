@@ -780,8 +780,9 @@ classdef Db < Component
             % Example: D.createTable('test_db',["id"; "name"; "age"], ["UInt32"; "String"; "UInt8"]);
             %          D.createTable('test_db',["id"; "name"; "age"],["UInt32"; "String"; "UInt8"], 'Index', {'INDEX id_index id TYPE minmax GRANULARITY 1'})
             %          DB.createTable('fastmoving_asteroids1',AstC.Table);
-            %          DB.createTable('mergedmat_var1',ACm.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
-            %          DB.createTable('fastmoving_asteroids1',AstC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
+            %
+            %          Error=DB.createTable('mergedmat_var2',VarAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
+            %          DB.createTable('fastmoving_asteroids2',AstCm.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
             % [~,Error] = DB.query('DROP TABLE IF EXISTS mergedmat_var1', 'IsExec',true)
 
             arguments
@@ -797,7 +798,7 @@ classdef Db < Component
            
             if istable(ColNames) && isempty(ColTypes)
                 % use column names from table
-                ColTypes = string(varfun(@class, ColNames, 'OutputFormat', 'cell'));
+                ColTypes = tools.table.colClass(ColNames);
                 ColTypes = db.Db.convertClass2DB_Class(ColTypes);
                 ColNames = string(ColNames.Properties.VariableNames);
             end
