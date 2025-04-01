@@ -1,5 +1,5 @@
 function [Flag,Poly] = selectPointsInPoly(Hg, Poly, Args)
-    % Given a plot with data points, interatively plot  a polygon and choose points inside polygon.
+    % Given a plot with data points, interatively plot a polygon and choose points inside polygon.
     % Input  : - Axes handle. Default is gca.
     %          - Two column matrix of polygon verteces: [X, Y].
     %            If empty, then choose points interactively using mouse.
