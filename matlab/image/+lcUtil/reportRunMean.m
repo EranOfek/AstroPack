@@ -5,6 +5,10 @@ function [Result, ColNames] = reportRunMean(Obj, Args)
     %            'FieldMag' - Default is 'MAG_BEST'.
     %            'WinSize' - Run mean filters to test.
     %                   Default is [2 3 4 5].
+    %            'PolyFit' - A vector of polynomial orders to fit and
+    %                   subtract from data prior to filtering.
+    %                   If empty, then skip this step.
+    %                   Default is [0].
     %            'OutType' - Output type:
     %                   'matrix' - Matrix output.
     %                   'table' - table output.
@@ -18,6 +22,7 @@ function [Result, ColNames] = reportRunMean(Obj, Args)
         Obj(1,1)
         Args.FieldMag          = 'MAG_BEST';
         Args.WinSize           = [2 3 4 5];
+        Args.PolyFit           = 0;
         %Args.MinSN             = 8;
         Args.OutType           = 'table';
     end
@@ -29,7 +34,7 @@ function [Result, ColNames] = reportRunMean(Obj, Args)
     ColNames = cell(1, Nwin.*Ncol);
     for Iwin=1:1:Nwin
         ColI = (Iwin-1).*Ncol;
-        Res   = timeSeries.filter.runMeanFilter(Obj.Data.(Args.FieldMag), 'WinSize',Args.WinSize(Iwin));
+        Res   = timeSeries.filter.runMeanFilter(Obj.Data.(Args.FieldMag), 'WinSize',Args.WinSize(Iwin), 'PolyFit',Args.PolyFit);
         
         [MaxSN, MaxInd] = max(Res.Z, [], 1);
         JDmaxSN         = Obj.JD(MaxInd);

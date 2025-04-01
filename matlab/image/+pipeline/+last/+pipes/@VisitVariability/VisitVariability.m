@@ -283,7 +283,7 @@ classdef VisitVariability < Component
                 
                     % 
                     %[Ipool, It, NinPool]
-                    [It, Nt]
+                    [It, Nt, Args.Ind(It)]
                     
                     FN=pipeline.last.queryDB.table2path(T(It,:));
                     Path = FN.genPath('AddSubDir',true);
@@ -333,7 +333,27 @@ classdef VisitVariability < Component
         end
         
     end
+
+    methods (Static)% select interesting candidates
+        function select1(T)
+            %
+
+            Fsel = T.ndet>15 & abs(T.corrc_mag_best_dec)<0.5 & abs(T.corrc_mag_best_ra)<0.5 & T.nfound<5;
+            Tg   = T(Fsel,:);
+            Color = Tg.gaia_bp-Tg.gaia_rp;
+            AbsMag = Tg.gaia_bp - (5.*log10(1000./Tg.gaia_plx) - 5);
+
+            F = Tg.poly5_residstd./Tg.poly1_residstd<0.3;
+            R=pipeline.last.pipes.VisitVariability.getLC(Tg(F,:));
+
+            
+            F = abs(Tg.rm_minsn_win3)>5;
+
+        end
     
+
+    end
+        
     methods (Static) % data retrival functions from DB
         function [AFN,AllPath]=getLocationFromDB(T, Args)
             % Given a table of variable/fast moving - generate visit path.
@@ -381,7 +401,7 @@ classdef VisitVariability < Component
             end
 
         end
-        
+    
         function Result=getProductFromDB(T, Level, Args)
             % Given a fast moving or visit variability entry - get coadd or MatchedSources product.
             % Input  : - A table which is the output of a DB query of the

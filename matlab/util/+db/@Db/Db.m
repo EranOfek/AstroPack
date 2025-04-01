@@ -784,6 +784,7 @@ classdef Db < Component
             %          Error=DB.createTable('mergedmat_var2',VarAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
             %          DB.createTable('fastmoving_asteroids2',AstCm.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
             % [~,Error] = DB.query('DROP TABLE IF EXISTS mergedmat_var1', 'IsExec',true)
+            % [~,Error] = DB.query('TRUNCATE TABLE mergedmat_var2', 'IsExec',true)
 
             arguments
                 Obj

@@ -21,10 +21,11 @@ function [Result] = reportCorr(Obj, Args)
 
     arguments
         Obj(1,1)
-        Args.Pairs                 = {'MAG_BEST','X1';
-                                      'MAG_BEST','Y1';
-                                      'MAG_BEST','RA';
-                                      'MAG_BEST','Dec'};
+        Args.Pairs                 = {'MAG_BEST','X1';...
+                                      'MAG_BEST','Y1';...
+                                      'MAG_BEST','RA';...
+                                      'MAG_BEST','Dec';...
+                                      'MAG_APER_3','MAG_PSF'};
         Args.OutType               = 'table';
         Args.Nsim                  = 100;
     end
