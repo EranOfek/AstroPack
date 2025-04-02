@@ -229,22 +229,6 @@ classdef VisitVariability < Component
                 Args.AstTableName      = 'last.fastmoving_asteroids2';
             end
 
-            AstIndex = 0;
-            
-            %JD = celestial.time.julday([5 1 2025]);
-            %T = Args.DB.query(sprintf('SELECT * FROM visit_images WHERE midjd>%10.1f',JD));
-            if isempty(Args.T)
-                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
-            else
-                if istable(Args.T)
-                    T = Args.T;
-                else
-                    % T is in a file
-                    T = io.files.load2(Args.T);
-                end
-            end
-
-            if ~isempty(Args.Ind)
                 T = T(Args.Ind,:);
             end
 
@@ -338,12 +322,14 @@ classdef VisitVariability < Component
         function select1(T)
             %
 
-            Fsel = T.ndet>15 & abs(T.corrc_mag_best_dec)<0.5 & abs(T.corrc_mag_best_ra)<0.5 & T.nfound<5;
+            BD = BitDictionary;
+            Fbad = BD.findBit(T.flags, 'Saturated');
+            Fsel = T.ndet>15 & abs(T.corrc_mag_best_dec)<0.5 & abs(T.corrc_mag_best_ra)<0.5 & T.nfound<3 & ~Fbad;
             Tg   = T(Fsel,:);
             Color = Tg.gaia_bp-Tg.gaia_rp;
             AbsMag = Tg.gaia_bp - (5.*log10(1000./Tg.gaia_plx) - 5);
 
-            F = Tg.poly5_residstd./Tg.poly1_residstd<0.3;
+            F = Tg.poly5_residstd./Tg.poly1_residstd<0.5;
             R=pipeline.last.pipes.VisitVariability.getLC(Tg(F,:));
 
             
@@ -495,6 +481,7 @@ classdef VisitVariability < Component
 
                 Args.FieldMag          = {'MAG_BEST', 'MAG_PSF', 'MAG_APER_3'};
             end
+            RAD = 180./pi;
 
             MS = pipeline.last.pipes.VisitVariability.getProductFromDB(T, 'merged');
             TargetRA  = T.(Args.ColRA);
@@ -505,6 +492,10 @@ classdef VisitVariability < Component
                 [Found(I)] = coneSearch(MS(I), TargetRA(I), TargetDec(I), Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits, 'CooUnits',Args.CooUnits);
 
                 [Result(I).JD, Result(I).Mag] = MS(I).getLC_ind(Found(I).Ind, Args.FieldMag);
+                Result(I).TargetRA  = TargetRA(I);
+                Result(I).TargetDec = TargetDec(I);
+                [Result(I).URL] = VO.search.simbad_url(Result(I).TargetRA./RAD, Result(I).TargetDec./RAD);
+
             end
 
 
