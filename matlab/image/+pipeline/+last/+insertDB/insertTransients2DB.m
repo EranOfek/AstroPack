@@ -54,11 +54,14 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     CropID = unique(Cat.Table.CROPID);
     NCrop  = numel(CropID);
     CatByCrop  = struct([]);
-    HeadByCrop = repmat(AstroHeader,1,NCrop);
-    HeaderCrop = zeros(NCrop,1);
     
-    for Icrop = 1:NCrop
-        HeaderCrop(Icrop) = Headers(Icrop).getVal('CROPID');
+    NHeaders = numel(Headers);
+    HeadByCrop = repmat(AstroHeader,1,NCrop);
+    HeaderCrop = zeros(NHeaders,1);
+    
+    for IHeader = 1:NHeaders
+        IHeaderCrop = Headers(IHeader).getVal('CROPID');
+        HeaderCrop(IHeader) = IHeaderCrop;
     end
     
     for Icrop = 1:NCrop
