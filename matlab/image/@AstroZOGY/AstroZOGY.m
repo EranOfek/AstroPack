@@ -694,7 +694,7 @@ classdef AstroZOGY < AstroDiff
 
                     % write D_LimMag in LIMMAG
                     Std_D = tools.math.stat.rstd(Obj(Iobj).Image(:));
-                    Med_D = tools.math.stat.median(Obj(Iobj).Image(:));
+                    Med_D = median(Obj(Iobj).Image(:));
                     D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D);
                     Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
 
