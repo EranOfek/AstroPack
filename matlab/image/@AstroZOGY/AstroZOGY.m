@@ -539,6 +539,20 @@ classdef AstroZOGY < AstroDiff
             %                   is false.
             %            'OverwriteFrVal' - Value of custom Fr to be used
             %                   in case OverwriteFr is true. Default is NaN.
+            %            'UpdateHeader' - Update header with ZP/LimMag/Back info.
+            %                   Default is true.
+            %            'KeyLimMag' - Limiting mag header keyword.
+            %                   Default is 'LIMMAG'.
+            %            'NsigmaLimMag' - Number of sigma for lim. mag
+            %                   calculation. Default is 5.
+            %            'KeyZP' - Photometric ZP header keyword.
+            %                   Default is 'PH_ZP'.
+            %            'KeyBack' - Background header keyword.
+            %                   Default is 'MEDBCK'.
+            %            'KeyVar' - Variance header keyword.
+            %                   Default is 'MEDVAR'.
+            %            'KeyStd' - Std header keyword.
+            %                   Default is 'STDBCK'.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -577,6 +591,16 @@ classdef AstroZOGY < AstroDiff
 
                 Args.OverwriteFr logical = false;
                 Args.OverwriteFrVal = NaN;
+
+                % Update header with ZP/LimMag/Back info:
+                Args.UpdateHeader   = true;
+                Args.KeyLimMag      = 'LIMMAG';
+                Args.NsigmaLimMag   = 5;
+                Args.KeyZP          = 'PH_ZP';
+                Args.KeyBack        = 'MEDBCK';
+                Args.KeyVar         = 'MEDVAR';
+                Args.KeyStd         = 'STDBCK';
+                
                 
             end
             
@@ -616,6 +640,9 @@ classdef AstroZOGY < AstroDiff
                 D = ifft2(Obj(Iobj).D_hat);
 
                 Obj(Iobj).ZpD = 2.5*log10(Obj(Iobj).Fd) + Obj(Iobj).ZpN;
+
+                
+
                 
                 % create mask image propgated from New and Ref
                 if ~isempty(Args.CreateNewMask)
@@ -657,6 +684,25 @@ classdef AstroZOGY < AstroDiff
                     Obj(Iobj).ZpD = Obj(Iobj).ZpN;
                 end
                 Obj(Iobj).Image = D;
+
+                % Updated ZP and LIMMAG of D image in header
+                if Args.UpdateHeader
+                    if ~Args.NormDbyFd
+                        % write Obj(Iobj).ZpD in PH_ZP
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyZP, Obj(Iobj).ZpD);
+                    end
+
+                    % write D_LimMag in LIMMAG
+                    Std_D = tools.math.stat.rstd(Obj(Iobj).Image(:));
+                    Med_D = tools.math.stat.median(Obj(Iobj).Image(:));
+                    D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D);
+                    Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
+
+                    % write back/var
+                    Obj(Iobj).HeaderData.replaceVal(Args.KeyBack, Med_D);
+                    Obj(Iobj).HeaderData.replaceVal(Args.KeyVar,  Std_D.^2);
+                    Obj(Iobj).HeaderData.replaceVal(Args.KeyStd,  Std_D);
+                end
 
                 % calculate Pd
                 Pd = ifft2(Obj(Iobj).Pd_hat);
