@@ -802,8 +802,12 @@ classdef AstroDiff < AstroImage
                             [ImageSizeX,ImageSizeY] = Obj(Iobj).Ref.sizeImage;
                             
                             Obj(Iobj).Ref.Back = zeros(ImageSizeX, ImageSizeY);
-
-                            Obj(Iobj).Ref.Var = repmat(imUtil.background.rvar(Obj(Iobj).Ref.Image),...
+                            
+                            RefImage = Obj(Iobj).Ref.Image;
+                            NonNanRefImage = RefImage(~isnan(RefImage));
+                            
+                            Obj(Iobj).Ref.Var = repmat(...
+                                imUtil.background.rvar(NonNanRefImage),...
                                 ImageSizeX, ImageSizeY);
                     else
                         if (Args.useHeaderVal && Obj(Iobj).Ref.HeaderData.isKeyExist(Args.HeaderBackKey) ...
