@@ -1474,7 +1474,7 @@ classdef convert
                IsStr = true;
                
             end
-            if (ischar(Date) || iscell(Date))
+            if (ischar(Date) || iscell(Date) || isstring(Date))
                 Date=convert.str2date(Date);
                 IsStr = true;
                 

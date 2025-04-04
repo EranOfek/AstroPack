@@ -216,19 +216,43 @@ classdef VisitVariability < Component
             %          Ind = (1:1000)';
             %          VV.analayzeAllData('DB',DB, 'T',T, 'Ind',Ind);
             %          VV.analayzeAllData('DB',DB, 'T','VisitImages.mat', 'Ind',Ind);
-           
+            %          VV.analayzeAllData('DB',DB);
 
             arguments
                 Obj
                 Args.T                 = [];
                 Args.Ind               = [];
+                Args.Mount             = 1;
+                Args.IngestionTime     = [-Inf 2460710]; %66.5];
+
                 Args.INPOP             = celestial.INPOP.init;
                 Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');
                 Args.DB                = []; % must be supplied
-                Args.VarTableName      = 'last.mergedmat_var2';
-                Args.AstTableName      = 'last.fastmoving_asteroids2';
+                Args.VarTableName      = 'last.mergedmat_var1';
+                Args.AstTableName      = 'last.fastmoving_asteroids1';
             end
 
+            if isempty(Args.T)
+                if isempty(Args.DB)
+                    Args.DB = db.Db;
+                    Args.DB.User = 'socsrv/root';
+                    Args.DB.User
+                    Args.DB.connect;
+                    Args.DB.useDB('last');
+                end
+
+                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec, any(ingestion_time) as ingestion_time FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
+
+                if ~isempty(Args.Mount)
+                    Flag = T.mountnum==Args.Mount;
+                    T    = T(Flag,:);
+                end
+
+                JD_ingest = convert.time(T.ingestion_time, 'StrDate', 'JD');
+                Flag      = JD_ingest>=Args.IngestionTime(1) & JD_ingest<Args.IngestionTime(2);
+                T         = T(Flag,:);
+
+            else
                 T = T(Args.Ind,:);
             end
 
@@ -244,7 +268,7 @@ classdef VisitVariability < Component
             % K       = 0;
             % KA      = 0;
             ACAst   = [];
-
+           
             % delete(gcp('nocreate'))
             %if isempty(gcp('nocreate'))
             %    parpool(Npool)
@@ -253,64 +277,21 @@ classdef VisitVariability < Component
             %parfor Ipool=1:Npool
             for It=1:Nt
 
-                %sprintf('Connect DB %d',Ipool)
-                %DB = db.Db;
-                %DB.User = 'socsrv/root';
-                %DB.connect;
-                %DB.useDB('last');
-
-                %IndInPool = VecI(IndPool==Ipool);
-                %NinPool   = numel(IndInPool);
-
-                %for Iin=1:1:NinPool
-                    %It = IndInPool(Iin);
+                [It, Nt] %, Args.Ind(It)]
                 
-                    % 
-                    %[Ipool, It, NinPool]
-                    [It, Nt, Args.Ind(It)]
-                    
-                    FN=pipeline.last.queryDB.table2path(T(It,:));
-                    Path = FN.genPath('AddSubDir',true);
+                FN=pipeline.last.queryDB.table2path(T(It,:));
+                Path = FN.genPath('AddSubDir',true);
+            
+                tic;
+                try
+                    AstIndex = 0;
+                    pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB, 'VarTableName',Args.VarTableName, 'AstTableName',Args.AstTableName);
+                catch ME
+                    'a'
+                end
+                toc
+              
                 
-                    tic;
-                    try
-    
-                        pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB, 'VarTableName',Args.VarTableName, 'AstTableName',Args.AstTableName);
-                    catch ME
-                        'a'
-                    end
-                    toc
-                %toc
-
-                % if nargout>0
-                %     if K==1
-                %         ACVar = TV(:);
-                %     else
-                % 
-                %         if ~isempty(TV)
-                %             ACVar = [ACVar; TV(:)];
-                %         end
-                %     end
-                % 
-                %     if ~isempty(TA)
-                %         KA = KA + 1;
-                % 
-                % 
-                %         if isempty(ACAst)
-                %             ACAst = TA;
-                %         else
-                %             Nex = numel(ACAst);
-                %             Nad = numel(TA);
-                %             ACAst(Nex+1:Nex+Nad) = TA(:);
-                %         end
-                %     end
-                % end
-                % 
-                % Idone = strcmp(T.subdir,T.subdir{I}) & T.midjd==T.midjd(I) & T.mountnum==T.mountnum(I) & T.camnum==T.camnum(I);
-                % VecNotDone(Idone) = false;
-                % Counter = Counter + 1;
-                
-            %end
             end
 
             

@@ -68,10 +68,10 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         Args.Visit             = "";
 
     end 
-
+    RAD = 180./pi;
      
     
-    ColNames1 = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID'};
+    ColNames1 = {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'Nstars', 'NearestStarDist', 'NearestStarMag', 'CropID'};
     ColNames2 = {'ProjName', 'FieldID', 'Visit'};
     ColNames3 = {'ID', 'ObsNumber'};
     ColNames  = [ColNames1, ColNames2, ColNames3];
@@ -116,6 +116,27 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
             TmpAC = AstroCatalog({[MedRA, MedDec]}, 'ColNames',{'RA','Dec'});
             [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(TmpAC, 'JD',MedJD, 'GeoPos',[], 'OrbEl',Args.OrbEl, 'SearchRadius',10, 'INPOP',Args.INPOP, 'RA',MedRA, 'Dec',MedDec, 'FOV_Radius',0.1, 'InCooUnits','deg');
             DistMP(Itmp) = AC1.Catalog(1,3);
+
+            % search for GAIA stars
+            Ndet = numel(Tmp(Itmp).RA);
+            for Idet=1:1:Ndet
+                [CatG,~,~,DistStar] = catsHTM.cone_search('GAIADR3', Tmp(Itmp).RA(Idet)./RAD, Tmp(Itmp).Dec(Idet)./RAD, 10, 'OutType','AstroCatalog');
+                if CatG.sizeCatalog==0
+                    NearestStarDist = NaN;
+                    NearestStarMag  = NaN;
+                    Nstars          = 0;
+                else
+                    Nstars = CatG.sizeCatalog;
+                    [NearestStarDist, Inear] = min(DistStar.*RAD.*3600);
+                    NearestStarMag = CatG.Table.phot_bp_mean_mag(Inear);
+                end
+                Tmp(Itmp).Nstars(Idet) = Nstars;
+                Tmp(Itmp).NearestStarDist(Idet) = NearestStarDist;
+                Tmp(Itmp).NearestStarMag(Idet)  = NearestStarMag;
+
+            end
+
+
         end
 
         if Iobj==1
@@ -148,7 +169,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                             Table = AstroCatalog;
                         end
                         Nobs = Tmp(Itmp).Npt;
-                        % {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID'}
+                        % {'JD', 'RA', 'Dec', 'FitRA', 'FitDec', 'RMS', 'Mag', 'SN', 'Flags', 'AstIndex', 'ProperMotion', 'DistMP', 'CropID', Nstars, NearestStarDist, NearestStarMag}
                         Table(K).Catalog = table(Tmp(Itmp).JD,...
                                                  Tmp(Itmp).RA,...
                                                  Tmp(Itmp).Dec,...
@@ -161,6 +182,9 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                                                  Args.AstIndex.*ones(Nobs,1),...
                                                  Tmp(Itmp).ProperMotion.*ones(Nobs,1),...
                                                  DistMP(Itmp).*ones(Nobs,1),...
+                                                 Tmp(Itmp).Nstars(:),...
+                                                 Tmp(Itmp).NearestStarDist(:),...
+                                                 Tmp(Itmp).NearestStarMag(:),...
                                                  CropID.*ones(Nobs,1));
                         Table(K).Catalog.Properties.VariableNames = ColNames1;
                         Table(K).ColNames                         = ColNames1;

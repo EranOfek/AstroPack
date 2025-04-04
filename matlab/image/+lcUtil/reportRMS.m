@@ -34,8 +34,11 @@ function [Result, ColNames] = reportRMS(Obj, Args)
 
     ResRms = Obj.rmsMag('MagField',Args.FieldMag, Args.rmsMagArgs{:});
     
-    ColNames = {'Ndet', 'MeanMag', 'Std', 'RMS_NsigmaPred', 'RMS_NsigmaStd'};
-    Result = [ResRms.Ndet(:) ResRms.MeanMag(:), ResRms.StdPar(:), ResRms.NsigmaPred(:), ResRms.NsigmaStd(:)];
+    % vonNeumann Stat
+    [VN] = timeSeries.stat.vonNeumannStat(Obj.Data.(Args.FieldMag));
+
+    ColNames = {'Ndet', 'MeanMag', 'Std', 'RMS_NsigmaPred', 'RMS_NsigmaStd', 'VonNeumann'};
+    Result = [ResRms.Ndet(:) ResRms.MeanMag(:), ResRms.StdPar(:), ResRms.NsigmaPred(:), ResRms.NsigmaStd(:), VN(:)];
     
     if Args.ThresholdRMSpred>-Inf
         FlagSelected = Result(:,4)>Args.ThresholdRMSpred;

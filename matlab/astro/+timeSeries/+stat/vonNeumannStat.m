@@ -11,7 +11,7 @@ function [VN, Mu, Sigma] = vonNeumannStat(X, Dim, Norm)
     %          - Sigma by which the statistics is normalized.
     % Reference: https://search.r-project.org/CRAN/refmans/DescTools/html/VonNeumannTest.html
     % Author : Eran Ofek (Jan 2023)
-    % Example: X = rand(20,1000);
+    % Example: X = randn(20,1000);
     %          [VN, Mu, Sigma] = timeSeries.stat.vonNeumannStat(X);
     
     arguments
@@ -29,7 +29,8 @@ function [VN, Mu, Sigma] = vonNeumannStat(X, Dim, Norm)
     end
         
     % unbiased case
-    N  = size(X,1);
+    %N  = size(X,1);
+    N  = sum(~isnan(X), Dim);
     VN = sum(N.*(X(1:end-1,:) - X(2:end,:)).^2, 1, 'omitnan')./sum( (N-1).*(X - mean(X,1,'omitnan')).^2, 1, 'omitnan');
     
     Mu    = 2.*N./(N-1);
