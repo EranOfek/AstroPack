@@ -30,8 +30,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.CorrNsim                 = 100;
         %
         Args.PS_MaxFreq               = 86400./60;
-        Args.PS_ThresholdNp           = 12;
-        Args.PS_Threshold             = 12;
+        Args.PS_ThresholdNp           = 10;
+        Args.PS_Threshold             = 10;
         
         Args.RMS_NsigmaPred           = 10;
         Args.RMS_MinNdet              = 10;
@@ -45,6 +45,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         Args.FlareNaN_MinNdet         = 2;  % 1 produce a lot of bad detections, but may be useful for satellite glints?
         
         Args.SearchRadius             = 60;
+        Args.SearchRadiusGAIA         = 3;
 
         Args.CreateNewObj logical     = false;
 
@@ -88,6 +89,13 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     MinJD = min(Result(Iobj).JD);
     MaxJD = max(Result(Iobj).JD);
     
+    % get limiting mag.
+    MagStep = 0.5;
+    MagEdges = (10:MagStep:21);
+    Nhist = histcounts(Result.SrcData.(Args.FieldMag), MagEdges);
+    [~,MaxI] = max(Nhist);
+    MagHistPeak = MagEdges(MaxI)+MagStep.*0.5;
+
     %TableStat = [Nsrc, NsrcAll, Result(Iobj).Nepoch, MinJD, MaxJD, MaxJD-MinJD, 0.5.*(MinJD + MaxJD), ...
     %             Node, Mount, Camera, CropID, Visit, VisitDate, FullFileNames];
     
@@ -153,8 +161,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     
     Nsrc = size(Table,1);
     
-    TableNstat = array2table([Nsrc, NsrcGood, NsrcAll, MinJD, MaxJD].*ones(Nsrc,1));
-    TableNstat.Properties.VariableNames = {'Nfound', 'NsrcGood', 'NsrcAll', 'MinJD', 'MaxJD'};
+    TableNstat = array2table([Nsrc, NsrcGood, NsrcAll, MinJD, MaxJD, MagHistPeak].*ones(Nsrc,1));
+    TableNstat.Properties.VariableNames = {'Nfound', 'NsrcGood', 'NsrcAll', 'MinJD', 'MaxJD', 'MagHistPeak'};
     
     if ~iscell(Result.FileName)
         Result.FileName = {Result.FileName};
@@ -193,8 +201,12 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     AC.Name = Result.FileName;
 
 
+    GaiaInfoCol = {'GAIA_MinDist','GAIA_Nstar5','GAIA_Plx','GAIA_ErrPlx','GAIA_Bp','GAIA_Rp','GAIA_G','GAIA_Teff','GAIA_logg','GAIA_NonSingle','GAIA_ExcessNoise', 'WD_Flag','N_GAIA_Var'};
+
     MergedCatBitMask = uint32(zeros(Nsrc, 1));
-    InfoGAIA         = nan(Nsrc, 11);
+    InfoGAIA         = nan(Nsrc, numel(GaiaInfoCol));
+    WD_Flag          = nan(Nsrc, 1);
+    N_GAIA_Var       = nan(Nsrc, 1);
     for Isrc=1:1:Nsrc
         MergedCat = catsHTM.cone_search('MergedCat',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
         Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, MergedCat.Catalog(:,1), MergedCat.Catalog(:,2)).*RAD.*3600;
@@ -202,6 +214,16 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         if sum(Flag)>0
             MergedCatBitMask(Isrc) = tools.array.bitor_array(uint32(MergedCat.Catalog(Flag,3)),1,true);
         end
+
+        % WD
+        WDCat = catsHTM.cone_search('WDEDR3',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadiusGAIA, 'OutType','astrocatalog');
+        if WDCat.sizeCatalog>0
+            WD_Flag(Isrc) = max(WDCat.Table.Pwd);
+        end
+
+        % GAIA var
+        GaiaVar = catsHTM.cone_search('WDEDR3',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
+        N_GAIA_Var(Isrc) = GaiaVar.sizeCatalog;
 
 
         GAIA = catsHTM.cone_search('GAIADR3',AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, Args.SearchRadius, 'OutType','astrocatalog');
@@ -225,12 +247,14 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
                                      GAIA.Table.teff_gspphot(MinI),...
                                      GAIA.Table.logg_gspphot(MinI),...
                                      GAIA.Table.non_single_star(MinI),...
-                                     GAIA.Table.astrometric_excess_noise(MinI)];
+                                     GAIA.Table.astrometric_excess_noise(MinI),...
+                                     WD_Flag(Isrc),...
+                                     N_GAIA_Var(Isrc)];
 
 
     end
     AC.Catalog.MergedCat = MergedCatBitMask;
-    InfoGAIA = array2table(InfoGAIA, 'VariableNames',{'GAIA_MinDist','GAIA_Nstar5','GAIA_Plx','GAIA_ErrPlx','GAIA_Bp','GAIA_Rp','GAIA_G','GAIA_Teff','GAIA_logg','GAIA_NonSingle','GAIA_ExcessNoise'});
+    InfoGAIA = array2table(InfoGAIA, 'VariableNames',GaiaInfoCol);
     AC.Catalog = [AC.Catalog, InfoGAIA];
     AC.ColNames = AC.Catalog.Properties.VariableNames;
 end

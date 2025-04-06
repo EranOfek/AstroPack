@@ -162,7 +162,9 @@ classdef VisitVariability < Component
                             AstAC.Catalog.Flags = uint32(AstAC.Catalog.Flags);
 
                             
-                            Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
+                            if ~isempty(Args.AstTableName)
+                                Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
+                            end
                             
                         end
                            
@@ -182,8 +184,9 @@ classdef VisitVariability < Component
                                                   'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
                             VarAC.Catalog.FLAGS = uint32(VarAC.Catalog.FLAGS);
 
-                            
-                            Args.DB.insertCharDump(Args.VarTableName, VarAC.Catalog);
+                            if ~isempty(Args.VarTableName)
+                                Args.DB.insertCharDump(Args.VarTableName, VarAC.Catalog);
+                            end
                             
                         end
                     end
