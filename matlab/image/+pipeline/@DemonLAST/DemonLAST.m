@@ -3245,6 +3245,11 @@ classdef DemonLAST < Component
                             end
                             %
                             RunTime = etime(clock, Tstart); % toc;
+
+
+                            Msg{1} = sprintf('pipeline.DemonLAST summary line - Sucess - First image: %s', RawImageList{1});
+                            Obj.writeLog(Msg, LogLevel.Info);
+
                         catch ME                             
                             
                             RunTime = etime(clock, Tstart); % toc;
@@ -3261,7 +3266,11 @@ classdef DemonLAST < Component
                             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
                             % move images to failed/ dir
-                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));                            
+                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));           
+
+                            Msg{1} = sprintf('pipeline.DemonLAST summary line - Failed - First image: %s', RawImageList{1});
+                            Obj.writeLog(Msg, LogLevel.Info);
+
                         end
         
                         % write summary and run time to log
