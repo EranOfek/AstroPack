@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Observation Plan {{plan_id}}</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        h1 { color: #004080; }
+        h2 { margin-top: 2em; color: #003060; }
+        img { max-width: 100%; border: 1px solid #ccc; margin-bottom: 1em; }
+        ul.toc { background: #f0f8ff; padding: 1em; border: 1px solid #ccc; }
+        ul.toc li { margin: 0.5em 0; }
+        .section { margin-top: 3em; }
+    </style>
+</head>
+<body>
+
+<h1>Observation Plan {{plan_id}}</h1>
+
+<h2>Contents</h2>
+<ul class="toc">
+    <li><a href="#params">Plan Parameters</a></li>
+    <li><a href="#unique">Unique Targets</a></li>
+    <li><a href="#plan">Plan</a></li>
+    <li><a href="#approved">Approved Targets</a></li>
+    <li><a href="#skymap">Sky Map</a></li>
+    <li><a href="#graphs">Target Graphs</a></li>
+</ul>
+
+<div class="section" id="params">
+    <h2>Plan Parameters</h2>
+    <img src="{{img_plan_params}}">
+</div>
+
+<div class="section" id="unique">
+    <h2>Unique Targets</h2>
+    <img src="{{img_unique_targets}}">
+</div>
+
+<div class="section" id="plan">
+    <h2>Plan</h2>
+    <img src="{{img_plan}}">
+</div>
+
+<div class="section" id="approved">
+    <h2>Approved Targets</h2>
+    <img src="{{img_approved_targets}}">
+</div>
+
+<div class="section" id="skymap">
+    <h2>Sky Map</h2>
+    <img src="{{img_skymap}}">
+</div>
+
+<div class="section" id="graphs">
+    <h2>Target Graphs</h2>
+    <img src="{{img_graphs}}">
+</div>
+
+</body>
+</html>
