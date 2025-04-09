@@ -5,7 +5,7 @@ function [Result] = forcedPhot(Image, Coo, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2025 Apr) 
-    % Example: 
+    % Example: pipeline.last.phot.forcedPhot
 
     arguments
         Image
@@ -13,19 +13,19 @@ function [Result] = forcedPhot(Image, Coo, Args)
         Args.CooUnits          = 'deg';
 
         Args.MomentMaxIter           = 0;       % 0 - no iterations
-    Args.UseMomCoo logical       = false;
-    Args.AperRadius              = [2 4 6];
-    Args.Annulus                 = [10 12];
-
-    Args.HalfSizePSF             = 6;
-    Args.FitRadius               = 3;
-    Args.SmallStep               = 1e-3;
-    Args.MaxStep                 = 0.2;
-    Args.ConvThresh              = 1e-4;
-    Args.MaxIter                 = 10;      % use 1 for no itrations
-    Args.UseSourceNoise          = 'off';
-    Args.ZP                      = 25; 
-    Args.HeaderZP                = false;   
+        Args.UseMomCoo logical       = false;
+        Args.AperRadius              = [2 4 6];
+        Args.Annulus                 = [10 12];
+    
+        Args.HalfSizePSF             = 6;
+        Args.FitRadius               = 3;
+        Args.SmallStep               = 1e-3;
+        Args.MaxStep                 = 0.2;
+        Args.ConvThresh              = 1e-4;
+        Args.MaxIter                 = 10;      % use 1 for no itrations
+        Args.UseSourceNoise          = 'off';
+        Args.ZP                      = 25; 
+        Args.HeaderZP                = false;   
 
     end
     RAD = 180./pi;

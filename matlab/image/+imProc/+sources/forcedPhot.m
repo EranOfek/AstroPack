@@ -151,6 +151,9 @@ function [Result] = forcedPhot(Obj, Args)
     %            'ZP' - ZP for magnitude calculations. Default is 25.
     %            'HeaderZP' - Use ZP from image header (PH_ZP). If header
     %                         ZP is NaN will use Args.ZP. Default is false.
+    %            'OutType' - Output type: 'MatchedSources'|'table'
+    %                   Default is 'MatchedSources'.
+    %
     % Output : - A MatchedSources object with the forced photometry data
     %            for each epoch and source.
     %            The 'ColNames' input arguments controls which data will be
@@ -164,7 +167,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.Moving logical          = false;
-        Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
+        Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS','SN'};  % 'Chi2','Dof'
         Args.CooOutUnits             = 'deg';
         Args.MinEdgeDist             = 20;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
@@ -197,6 +200,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.ZP                      = 25; 
         Args.HeaderZP                = false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
         
+        Args.OutType                 = 'MatchedSources';
     end
 
     RAD  = 180./pi;
@@ -387,65 +391,91 @@ function [Result] = forcedPhot(Obj, Args)
             Xpos = X(:).' + ResultPSF.DX(:).';
             Ypos = Y(:).' + ResultPSF.DY(:).';
             [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
-            for Icol=1:1:Ncol
-                switch Args.ColNames{Icol}
-                    case 'RA'
-                        Result.Data.RA(Iobj,:)  = RA;
-                    case 'Dec'
-                        Result.Data.Dec(Iobj,:) = Dec;
-                    case 'X'
-                        % The position is relative to X and Y which are the stamps center:
-                        Result.Data.X(Iobj,:)            = Xpos;
-                    case 'Y'
-                        Result.Data.Y(Iobj,:)            = Ypos;
-                    case 'Xstart'
-                        Result.Data.Xstart(Iobj,:)       = X(:).';
-                    case 'Ystart'
-                        Result.Data.Ystart(Iobj,:)       = Y(:).';
-                    case 'X2'
-                        Result.Data.X2(Iobj,:)           = M2.X2(:).';
-                    case 'Y2'
-                        Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
-                    case 'XY'
-                        Result.Data.XY(Iobj,:)           = M2.XY(:).';
-                    case 'FLAG_POS'
-                        Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
-                    case 'FLAGS'
-                        if any(FlagIn)
-                            FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
-                            Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
-                        end
-                    case 'BACK_ANNULUS'
-                        Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
-                    case 'STD_ANNULUS'
-                        Result.Data.STD_ANNULUS(Iobj,:)  = Aper.AnnulusStd(:).';
-                    case 'FLUX_APER'
+
+            if any(FlagIn)
+                FlagsXY  = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+            else
+                FlagsXY  = nan(Nsrc, 1);
+            end
+
+            switch Args.OutType
+                case 'table'
+                    if Iobj==1
+                        Mat = [RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
                         
-                        ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
-                        for Iaper=1:1:Naper
-                            Result.Data.(ColStr{Iaper})(Iobj,:)   = Aper.AperPhot(:,Iaper).';
+                    else
+                        Mat = [Mat; [RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).']];
+                    end
+                case 'MatchedSources'
+
+                    for Icol=1:1:Ncol
+                        switch Args.ColNames{Icol}
+                            case 'RA'
+                                Result.Data.RA(Iobj,:)  = RA;
+                            case 'Dec'
+                                Result.Data.Dec(Iobj,:) = Dec;
+                            case 'X'
+                                % The position is relative to X and Y which are the stamps center:
+                                Result.Data.X(Iobj,:)            = Xpos;
+                            case 'Y'
+                                Result.Data.Y(Iobj,:)            = Ypos;
+                            case 'Xstart'
+                                Result.Data.Xstart(Iobj,:)       = X(:).';
+                            case 'Ystart'
+                                Result.Data.Ystart(Iobj,:)       = Y(:).';
+                            case 'X2'
+                                Result.Data.X2(Iobj,:)           = M2.X2(:).';
+                            case 'Y2'
+                                Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
+                            case 'XY'
+                                Result.Data.XY(Iobj,:)           = M2.XY(:).';
+                            case 'FLAG_POS'
+                                Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
+                            case 'FLAGS'
+                                %if any(FlagIn)
+                                %    FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+                                Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
+                                %end
+                            case 'BACK_ANNULUS'
+                                Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
+                            case 'STD_ANNULUS'
+                                Result.Data.STD_ANNULUS(Iobj,:)  = Aper.AnnulusStd(:).';
+                            case 'FLUX_APER'
+                                
+                                ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
+                                for Iaper=1:1:Naper
+                                    Result.Data.(ColStr{Iaper})(Iobj,:)   = Aper.AperPhot(:,Iaper).';
+                                end
+                            case 'SN'
+                                Result.Data.SN(Iobj,:)  = ResultPSF.SNm(:).';
+                            case 'FLUX_PSF'
+                                Result.Data.FLUX_PSF(Iobj,:)     = ResultPSF.Flux(:).';
+                            case 'FLUXERR_PSF'
+                                Result.Data.FLUXERR_PSF(Iobj,:)  = 1./ResultPSF.SNm(:).';
+                            case 'MAG_PSF'
+                                Result.Data.MAG_PSF(Iobj,:)      = convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP));
+                            case 'MAGERR_PSF'
+                                Result.Data.MAGERR_PSF(Iobj,:)  = 1.086./ResultPSF.SNm(:).';
+                            case 'Chi2'
+                                Result.Data.Chi2(Iobj,:)        = ResultPSF.Chi2(:).';
+                            case 'Dof'
+                                Result.Data.Dof(Iobj,:)         = ResultPSF.Dof(:).';
+                            case 'Chi2dof'
+                                Result.Data.Chi2dof(Iobj,:)     = (ResultPSF.Chi2(:)./ResultPSF.Dof(:)).';
+                            otherwise
+                                error('Unknown ColNames %s option',Args.ColNames{Icol})
                         end
-                    case 'FLUX_PSF'
-                        Result.Data.FLUX_PSF(Iobj,:)     = ResultPSF.Flux(:).';
-                    case 'FLUXERR_PSF'
-                        Result.Data.FLUXERR_PSF(Iobj,:)  = 1./ResultPSF.SNm(:).';
-                    case 'MAG_PSF'
-                        Result.Data.MAG_PSF(Iobj,:)      = convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP));
-                    case 'MAGERR_PSF'
-                        Result.Data.MAGERR_PSF(Iobj,:)  = 1.086./ResultPSF.SNm(:).';
-                    case 'Chi2'
-                        Result.Data.Chi2(Iobj,:)        = ResultPSF.Chi2(:).';
-                    case 'Dof'
-                        Result.Data.Dof(Iobj,:)         = ResultPSF.Dof(:).';
-                    case 'Chi2dof'
-                        Result.Data.Chi2dof(Iobj,:)     = (ResultPSF.Chi2(:)./ResultPSF.Dof(:)).';
-                    otherwise
-                        error('Unknown ColNames %s option',Args.ColNames{Icol})
-                end
+                    end
+                otherwise
+                    error('Unknown OutType option');
             end
         end
                   
     end
-    
+    switch Args.OutType
+        case 'table'
+            Result = array2table(Mat);
+            Result.Properties.VariableNames = {'RA','Dec','X', 'Y', 'Xinit', 'Yinit', 'X2', 'Y2', 'XY', 'FlagIn', 'FLAGS', 'AnnulusBack', 'AnnulusStd', 'SN', 'MAG_PSF', 'Chi2', 'Dof'};
+    end
 end
    
