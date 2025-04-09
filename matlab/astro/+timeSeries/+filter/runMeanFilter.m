@@ -27,9 +27,11 @@ function [Result] = runMeanFilter(M, Args)
     %                   Either a function handle, or the option: 'one','OutWin'.
     %                   E.g., @tools.math.stat.rstd.
     %                   'OutWin' - will calculate the std based on all the
-    %                   points outside the window.
+    %                   points outside the window. Will fail when there are
+    %                   NaNs in LC.
     %                   'one' will set the std to 1 (good if input is S/N).
-    %                   Default is 'OutWin'.
+    %                   'rstd' - calculate the rstd of each source.
+    %                   Default is 'rstd'.
     %            'OutWinExtra' - In case that the StdFun is 'OutWin', this
     %                   is the extra size of the inner gap above the window half
     %                   size. Default is 3.
@@ -69,7 +71,7 @@ function [Result] = runMeanFilter(M, Args)
         Args.WinSize           = 2;
         Args.EndPoint          = "fill";
 
-        Args.StdFun            = 'OutWin'; %@tools.math.stat.rstd;
+        Args.StdFun            = 'rstd'; %'OutWin'; %@tools.math.stat.rstd;
         Args.OutWinExtra       = 3;
 
         Args.Threshold         = 8;
@@ -94,7 +96,7 @@ function [Result] = runMeanFilter(M, Args)
     if ~isempty(Args.PolyFit)
         [Nep, Nsrc] = size(M);
         T           = (1:1:Nep).';
-        T           = (T - mean(T))./max(T);
+        T           = (T - mean(T,'all','omitnan'))./max(T);
     
         % fit a polynomial to each column of M
         H = T.^Args.PolyFit;
@@ -129,8 +131,13 @@ function [Result] = runMeanFilter(M, Args)
     if ischar(Args.StdFun)
         switch lower(Args.StdFun)
             case 'outwin'
+                % this will fail if there are NaN in data
                 [Nep, ~] = size(ResidM);
                 StdM     = timeSeries.filter.filterStd(ResidM,[Args.OutWinExtra+ceil(Args.WinSize.*0.5) Nep], 'Dim',1);
+                
+            case 'rstd'
+                StdM = tools.math.stat.rstd(ResidM, 1, 3);
+
             case 'one'
                 StdM     = 1;
             otherwise
