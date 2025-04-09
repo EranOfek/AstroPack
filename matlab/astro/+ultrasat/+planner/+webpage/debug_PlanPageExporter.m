@@ -1,5 +1,5 @@
 
-function debug_PlanWebPageExporter()
+function debug_PlanPageExporter()
     debug_PlanWebPageExporterWithImages();
     debug_PlanWebPageExporterWithImagesAndTables();
 end
@@ -7,7 +7,7 @@ end
 
 function debug_PlanWebPageExporterWithImages()
 
-    planId = 42;
+    planId = '42';
     
     % Get current file directory and create export folder under it
     currentDir = fileparts(mfilename('fullpath'));
@@ -58,14 +58,12 @@ function debug_PlanWebPageExporterWithImages()
 
     % Preview locally (optional)
     exporter.previewInBrowser();
-
-
 end
 
 
 
 function debug_PlanWebPageExporterWithImagesAndTables()
-    planId = 43;
+    planId = '43';
     
     % Get current file directory and create export folder under it
     currentDir = fileparts(mfilename('fullpath'));
@@ -119,5 +117,4 @@ function debug_PlanWebPageExporterWithImagesAndTables()
 
     % Preview locally (optional)
     exporter.previewInBrowser();
-
 end

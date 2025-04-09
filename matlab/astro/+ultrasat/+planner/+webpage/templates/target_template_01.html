@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULTRASAT Target Details - {{target_name}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            background-color: #87CEEB;
+            padding: 8px;
+            border-radius: 3px;
+        }
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .param-group {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: 150px auto;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .param-label {
+            font-weight: bold;
+            color: #444;
+        }
+        .param-value {
+            padding: 5px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .debug-info {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .debug-info pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .tiles-group {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .tile-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Target Details: {{target_name}}</h1>
+
+        <!-- Basic Parameters -->
+        <div class="section">
+            <h2>Target Properties</h2>
+            <div class="params-grid">
+                <!-- Editable Parameters -->
+                <div class="param-group">
+                    <h3>Editable Parameters</h3>
+                    <div class="param-row">
+                        <span class="param-label">Plan Target Index:</span>
+                        <span class="param-value">{{plan_target_index}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Exposure Time:</span>
+                        <span class="param-value">{{exposure_time}} seconds</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Epochs Per Visit:</span>
+                        <span class="param-value">{{epochs_per_visit}}</span>
+                    </div>
+                    <div class="tiles-group">
+                        <span class="param-label">Tiles:</span>
+                        <div class="tile-checkbox">
+                            <input type="checkbox" {{tile1_checked}} disabled> 1
+                        </div>
+                        <div class="tile-checkbox">
+                            <input type="checkbox" {{tile2_checked}} disabled> 2
+                        </div>
+                        <div class="tile-checkbox">
+                            <input type="checkbox" {{tile3_checked}} disabled> 3
+                        </div>
+                        <div class="tile-checkbox">
+                            <input type="checkbox" {{tile4_checked}} disabled> 4
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unique Target Parameters -->
+                <div class="param-group">
+                    <h3>Unique Target Parameters</h3>
+                    <div class="param-row">
+                        <span class="param-label">Name:</span>
+                        <span class="param-value">{{target_name}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">RA:</span>
+                        <span class="param-value">{{ra}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Dec:</span>
+                        <span class="param-value">{{dec}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Unique Target Index:</span>
+                        <span class="param-value">{{unique_target_index}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Group:</span>
+                        <span class="param-value">{{group}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Expected Roll:</span>
+                        <span class="param-value">{{expected_roll}}</span>
+                    </div>
+                </div>
+
+                <!-- Time Parameters -->
+                <div class="param-group">
+                    <h3>Time Parameters</h3>
+                    <div class="param-row">
+                        <span class="param-label">Start Time:</span>
+                        <span class="param-value">{{start_time}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">End Time:</span>
+                        <span class="param-value">{{end_time}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">MJD Start:</span>
+                        <span class="param-value">{{mjd_start}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">MJD End:</span>
+                        <span class="param-value">{{mjd_end}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Total Duration:</span>
+                        <span class="param-value">{{total_duration}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Slew Time Before:</span>
+                        <span class="param-value">{{slew_time_before}}</span>
+                    </div>
+                </div>
+
+                <!-- Distance Parameters -->
+                <div class="param-group">
+                    <h3>Distance Parameters</h3>
+                    <div class="param-row">
+                        <span class="param-label">Moon Distance:</span>
+                        <span class="param-value">{{moon_dist}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Sun Distance:</span>
+                        <span class="param-value">{{sun_dist}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Earth Distance:</span>
+                        <span class="param-value">{{earth_dist}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">No Communication:</span>
+                        <span class="param-value">{{no_comm}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Hard Observation:</span>
+                        <span class="param-value">{{hard_obs}}</span>
+                    </div>
+                </div>
+
+                <!-- Other Parameters -->
+                <div class="param-group">
+                    <h3>Other Parameters</h3>
+                    <div class="param-row">
+                        <span class="param-label">Zodiacal Light:</span>
+                        <span class="param-value">{{zody}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Limiting Magnitude:</span>
+                        <span class="param-value">{{lim_mag}}</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Overlapping Targets:</span>
+                        <span class="param-value">{{overlap_targets}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sky Map -->
+        <div class="section">
+            <h2>Sky Map</h2>
+            <div class="image-container">
+                <img src="{{img_skymap}}" alt="Sky Map">
+            </div>
+        </div>
+
+        <!-- Visibility Graph -->
+        <div class="section">
+            <h2>Visibility</h2>
+            <div class="image-container">
+                <img src="{{img_visibility}}" alt="Visibility Graph">
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="section debug-info">
+            <h2>Debug Information</h2>
+            <pre>
+Generated on: {{generation_time}}
+Target Name: {{target_name}}
+Template Version: 1.0
+Images Added: {{debug_image_count}}
+Output Folder: {{debug_output_folder}}
+            </pre>
+        </div>
+    </div>
+</body>
+</html> 
