@@ -642,8 +642,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
                 R_SN = Cat.getCol('R_SN');
                 NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
-                IsNotTranslient = IsNotTranslient | ...
-                    (NothingInRef & (AIC_Diff < 2));
+                IsNotTranslient = IsNotTranslient | NothingInRef;
             end
 
             if Cat.isColumn('GAL_DIST')
