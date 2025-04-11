@@ -119,9 +119,9 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 5.0, 7.0}, {'SrcNoiseDominated', 5.0, 7.0}, ...
-            {'FlatHighStd', 5.0, 7.0}, {'DarkHighVal', 5.0, 7.0},...
-            {'CoaddLessImages',5.0, 7.0}};
+        Args.BadPix_Soft       = {{'HighRN', 7.0, 1.0}, {'SrcNoiseDominated', 7.0, 0.0}, ...
+            {'FlatHighStd', 7.0, 1.2}, {'DarkHighVal', 7.0, 1.2},...
+            {'CoaddLessImages', 7.0, 0.0}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -162,8 +162,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NeighborNumThresholdSaturated = 2;
     
         Args.flagCR logical = true;
-        Args.CRDeltaSN = 0.5;
-        Args.CRDeltaSN_BP = 5.0;
 
         Args.flagVariable logical = true;
         Args.VarStarDist = 3;
@@ -284,18 +282,27 @@ function TranCat = flagNonTransients(Obj, Args)
             FlagBadSoft_New = false(CatSize,1);
             % Reference bit mask values.
             FlagBadSoft_Ref = false(CatSize,1);
+
+            if Args.flagCR
+                ModCRThresh = zeros(CatSize,1);
+            end
     
             for IBad=1:1:NBadSoft
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
 
-                AboveThreshold = (abs(Cat.getCol('SCORE')) >= IBadPix_Soft{2})...
-                    & (abs(Cat.getCol('SN')) >= IBadPix_Soft{3});
+                AboveThreshold = (abs(Cat.getCol('SN')) >= IBadPix_Soft{2});
 
-                FlagBadSoft_New = FlagBadSoft_New | (...
-                    BD.findBit(BM_new, IBadPix_Soft{1}) & ~AboveThreshold);
+                BPinN = BD.findBit(BM_new, IBadPix_Soft{1});
+                BPinR = BD.findBit(BM_ref, IBadPix_Soft{1});
 
-                FlagBadSoft_Ref = FlagBadSoft_Ref | (...
-                    BD.findBit(BM_ref, IBadPix_Soft{1}) & ~AboveThreshold);
+                FlagBadSoft_New = FlagBadSoft_New | (BPinN & ~AboveThreshold);
+
+                FlagBadSoft_Ref = FlagBadSoft_Ref | (BPinR & ~AboveThreshold);
+
+                if Args.flagCR 
+                    ModCRThresh(BPinN | BPinR) = ModCRThresh(BPinN | BPinR) ...
+                        + IBadPix_Soft{3};
+                end
             end
 
             BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
@@ -508,12 +515,14 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagCR
             SN_delta = Cat.getCol('SN_delta');
-            CR_BP_New = BD.findBit(BM_new,'CR_DeltaHT');
 
-            NoNCRs = (abs(Score) - abs(SN_delta) >  Args.CRDeltaSN);
+            CRThresh = zeros(CatSize,1);
 
-            NoNCRs(CR_BP_New) = (...
-                abs(Score(CR_BP_New)) - abs(SN_delta(CR_BP_New)) >  Args.CRDeltaSN_BP);
+            if exist('ModCRThresh','var')
+                CRThresh = CRThresh + ModCRThresh;
+            end
+
+            NoNCRs = ((abs(Score) - abs(SN_delta)) >  CRThresh);
 
             TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
         end
@@ -633,8 +642,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
                 R_SN = Cat.getCol('R_SN');
                 NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
-                IsNotTranslient = IsNotTranslient | ...
-                    (NothingInRef & (AIC_Diff < 2));
+                IsNotTranslient = IsNotTranslient | NothingInRef;
             end
 
             if Cat.isColumn('GAL_DIST')
