@@ -35,10 +35,15 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                        will be kept. Default is true.
                 'MinimumNCoadd' - The minimum number of single images used
                        for the coadded New image. Default is 18.
+                'MaximumCenterOffset' - The maximum offset between the New 
+                       and Ref center coordinates. Default is 2.0.
+                'MinumumOverlapFraction' - The minimum overlap between the 
+                       New and Ref images as a fraction. Default is 0.5.
                 'AsteroidSearchRad' - Radius around each transient 
-                       candidate in which to search for asteroids in New
+                       candidate with which to search for asteroids in New
                        and Ref images. Given in arcsec. Default is 20.
-                'AsteroidLimMag' - Limiting magnitude higher than which a
+                'AsteroidLimMag' - Limiting magnitude higher than which
+                       asteroids are ignored. Default is 21.
                 'CometSearchRad' - Radius around each transient 
                        candidate in which to search for comets in New
                        and Ref images. Given in arcsec. Default is 90.
@@ -65,14 +70,21 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
         Args.killDuplicates logical = true;
+
         Args.MinimumNCoadd = 18;
+        Args.MaximumCenterOffset = 2.0;
+        Args.MinumumOverlapFraction = 0.5;
 
         Args.AsteroidSearchRad = 20;
         Args.AsteroidLimMag = 21;
         Args.CometSearchRad = 90;
     end
 
-    % Set default status.
+    % 1: ----- Set default arguments -----
+
+    % Set default return status.
+    % The function should never be able to return the default status.     
+    % If it does, there is an uncontrolled return.
     Status = 'Uncontrolled exit.';
 
     % Initialize empty output arguments
@@ -80,6 +92,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     ADc = AstroZOGY();
     MergedTranCat = AstroCatalog();
 
+    % 2: ----- Set and verify paths -----
+    
     % If Args.SaveProducts is true, check if Args.SavePath is given.
     % If Args.SavePath is not given and VisitData is a char/string, set
     % Args.SavePath to VisitData. Return if Args.SavePath is not a directory.
@@ -88,40 +102,57 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             Args.SavePath = VisitData;
         else
             Status = 'SaveProducts is true but SavePath is not set, exiting.';
-            return;
+            return
         end
 
         if ~isfolder(Args.SavePath)
-            Status = 'SavePath not found, exiting.';
-            return;
+            Status = 'SavePath directory not found, exiting.';
+            return
         end
     end
 
-    % Find New image coadds and load
-    if isa(VisitData, 'char') || isa(VisitData, 'string')
-        Coadds = strcat(VisitData,'/LAST*coadd_Image_1.fits');
-        New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitData);
-    elseif isa(VisitData, 'AstroImage')
-        New = VisitData;
-    end
-    
-    % Only use non-empty images, return if all images are empty.
-    NonEmptyNew = ~New.isemptyImage;
-
-    if ~any(NonEmptyNew)
-      Status = 'All New images are empty.';
-      return
-    end
-    New = New(NonEmptyNew);
-    Nobj = numel(New);
-    
-    % Get path of reference images
+    % Get path of reference images and check if it exists, return if not.
     if isempty(Args.RefPath)
         Computer = tools.os.get_computer;
         RefPath = strcat('/',Computer,'/data/references');
     else
         RefPath = Args.RefPath;
     end
+
+    if ~isfolder(RefPath)
+        Status = 'RefPath directory not found, exiting.';
+        return
+    end
+   
+    % Find New image coadds and load
+    if isa(VisitData, 'char') || isa(VisitData, 'string')
+
+        if ~isfolder(VisitData)
+            Status = 'VisitData directory not found, exiting.';
+            return
+        end
+
+    % 3: ----- Load and verify New images -----
+
+        Coadds = strcat(VisitData,'/LAST*coadd_Image_1.fits');
+        New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitData);
+    elseif isa(VisitData, 'AstroImage')
+        New = VisitData;
+    end
+   
+    % Check for empty images, return if all images are empty.
+    NonEmptyNew = ~New.isemptyImage;
+
+    if ~any(NonEmptyNew)
+      Status = 'All New images are empty.';
+      return
+    end
+
+    % Only use non-empty images.
+    New = New(NonEmptyNew);
+    Nobj = numel(New);
+   
+    % 4: ----- Load and verify Ref images -----
     
     % Find reference image for each New image
 
@@ -208,7 +239,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             continue
         end
 
-        % Reference image found, remember.
+        % Reference image found, remember this.
         NRefsFound = NRefsFound + 1;
 
         % Create AstroDiff (AstroZOGY)
@@ -217,13 +248,15 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         AD(Iobj).RefIsBackgroundSubtracted = RefIsBackgroundSubtracted;
     end
 
+    % 5: ----- Verify subtraction requirements -----
+
     % If no Ref images found, return
     if NRefsFound < 1
         Status = 'No reference images found.';
         return;
     end
 
-    % If no New images passed the NCoadd criterium, return.
+    % If no New images pass the NCoadd criterium, return.
     if NBelowMinNCoadd == Nobj
         Status = 'All new images below required amount of NCOADD.';
         return;
@@ -237,23 +270,29 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         return;
     end
     
+    % Use only non-empty AstroDiff objects
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
 
-    % Check if New and Ref are taken on the same sky
+    % Verify if New and Ref are taken on the same sky by checking offset
+    % between New and Ref center coordinates.
     NoOverlap = 0;
     for Iobj = Nobj:-1:1
+        % Get New and Ref coordinates and distance between the two.
         RefRADec = AD(Iobj).Ref.WCS.CRVAL;
         NewRADec = AD(Iobj).New.WCS.CRVAL;
         CRValDist = rad2deg(celestial.coo.sphere_dist(...
             RefRADec(1), RefRADec(2), NewRADec(1), NewRADec(2), 'deg'));
-        if CRValDist > 2.0
+
+        % Check if coordinates distance above threshold. If yes, remember
+        % and remove AstroDiff object.
+        if CRValDist > Args.MaximumCenterOffset
             NoOverlap = NoOverlap +1;
             AD(Iobj) = [];
         end
     end
 
-    % If all no overlap, return.
+    % If all New and Ref images have no overlap, return.
     if NoOverlap == Nobj
         Status = 'All New and Ref images have no overlap.';
         return;
@@ -265,22 +304,28 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Register New and Ref
     AD.register;
 
-    % Check if at least half the field is overlapping after registration
-    LessThanHalfOverlap = 0;
+    % Check if the New and Ref images are overlapping up to the 
+    % requried amount after registration
+    % This is done assuming AD.register marks no overlap regions as NaN in
+    % the bit mask of Ref
+    NotEnoughOverlap = 0;
     for Iobj = Nobj:-1:1
-        % Get fraction of NaN pixels in Ref Image
+        % Get fraction of NaN pixels in Ref Image and compare to total
+        % number of pixels
         NaNs = sum(AD(Iobj).Ref.MaskData.findBit('NaN'), 'all');
-        ImageSize = AD(Iobj).Ref.ImageData.sizeImage;
-        FractionNaNs = NaNs / ImageSize^2;
-        % Remove AstroDiff if fraction if more than half
-        if FractionNaNs > 0.5
-            LessThanHalfOverlap = LessThanHalfOverlap +1;
+        [ImageSizeX, ImageSizeY] = AD(Iobj).Ref.ImageData.sizeImage;
+        TotalNumPixels = ImageSizeX*ImageSizeY;
+        FractionNotNaNs = (1-NaNs / TotalNumPixels);
+        % If fraction of not-NaNs is below minumum overlap fraction,
+        % remember and remove AstroDiff object.
+        if FractionNotNaNs < Args.MinumumOverlapFraction
+            NotEnoughOverlap = NotEnoughOverlap +1;
             AD(Iobj) = [];
         end
     end
 
     % If all overlaps are less than half, return.
-    if LessThanHalfOverlap == Nobj
+    if NotEnoughOverlap == Nobj
         Status = 'All New and Ref images overlap for less than half of the field.';
         return;
     end
@@ -288,10 +333,15 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Remember new number of AstroDiffs
     Nobj = numel(AD);
 
+    % 6: ----- Fill New and Ref estimates -----
+
     % Estimate backround and variance of New and Ref
     AD.estimateBackVar;
     % Estimate zero points
     AD.estimateFnFr;
+
+    % 7: ----- Produce subtraction images -----
+    
     % Create proper subtraction image D
     AD.subtractionD;
     % Derive Gabor stat image
@@ -302,6 +352,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.subtractionScorr;
     % Derive Z2 stat image
     AD.translient;
+
+    % 7: ----- Find and process transients -----
+    
     % Find transients
     AD.findTransients;
     % Catalog match
@@ -522,9 +575,10 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     
     % Measure transients
     AD.measureTransients;
+
     % Flag non transients
     AD.flagNonTransients;
-    
+
     % If AddMeta true, add meta information to catalog
     if Args.AddMeta
         for Iobj=1:1:Nobj
@@ -534,10 +588,12 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             % Number of candidates for array length
             NumTran = size(AD(Iobj).CatData.Catalog,1);
 
+            OnesArray = ones(NumTran,1);
+
             % Mount, Camera, CropID
-            Mount = Header.getVal('MOUNTNUM')*ones(NumTran,1);
-            Cam = Header.getVal('CAMNUM')*ones(NumTran,1);
-            CropID = Header.getVal('CROPID')*ones(NumTran,1);
+            Mount = Header.getVal('MOUNTNUM')*OnesArray;
+            Cam = Header.getVal('CAMNUM')*OnesArray;
+            CropID = Header.getVal('CROPID')*OnesArray;
 
             % Object (i.e. target)
             % This will usually be a LAST field ID but it can have a dot
@@ -551,20 +607,20 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                 Object = split(Header.getVal('OBJECT'),'.');
                 Object = str2double(Object{1});
             end
-            Object = Object*ones(NumTran,1);
+            Object = Object*OnesArray;
 
             % FWHM, LIMMAG, PH_COL1, EXPTIME, ZP_new, ZP_ref, ZP_d
-            FWHM_new = AD(Iobj).New.PSFData.fwhm*ones(NumTran,1);
-            FWHM_ref = AD(Iobj).Ref.PSFData.fwhm*ones(NumTran,1);
-            LIMMAG_new = AD(Iobj).New.HeaderData.getVal('LIMMAG')*ones(NumTran,1);
-            LIMMAG_ref = AD(Iobj).Ref.HeaderData.getVal('LIMMAG')*ones(NumTran,1);
-            PH_COL1_new = AD(Iobj).New.HeaderData.getVal('PH_COL1')*ones(NumTran,1);
-            PH_COL1_ref = AD(Iobj).Ref.HeaderData.getVal('PH_COL1')*ones(NumTran,1);            
-            Exposure_new = AD(Iobj).New.HeaderData.getVal('EXPTIME')*ones(NumTran,1);
-            Exposure_ref = AD(Iobj).Ref.HeaderData.getVal('EXPTIME')*ones(NumTran,1);
-            ZP_new = AD(Iobj).ZpN*ones(NumTran,1);
-            ZP_ref = AD(Iobj).ZpR*ones(NumTran,1);
-            ZP_D = AD(Iobj).ZpD*ones(NumTran,1);
+            FWHM_new = AD(Iobj).New.PSFData.fwhm*OnesArray;
+            FWHM_ref = AD(Iobj).Ref.PSFData.fwhm*OnesArray;
+            LIMMAG_new = AD(Iobj).New.HeaderData.getVal('LIMMAG')*OnesArray;
+            LIMMAG_ref = AD(Iobj).Ref.HeaderData.getVal('LIMMAG')*OnesArray;
+            PH_COL1_new = AD(Iobj).New.HeaderData.getVal('PH_COL1')*OnesArray;
+            PH_COL1_ref = AD(Iobj).Ref.HeaderData.getVal('PH_COL1')*OnesArray;            
+            Exposure_new = AD(Iobj).New.HeaderData.getVal('EXPTIME')*OnesArray;
+            Exposure_ref = AD(Iobj).Ref.HeaderData.getVal('EXPTIME')*OnesArray;
+            ZP_new = AD(Iobj).ZpN*OnesArray;
+            ZP_ref = AD(Iobj).ZpR*OnesArray;
+            ZP_D = AD(Iobj).ZpD*OnesArray;
     
             AD(Iobj).CatData.insertCol(...
                 cell2mat({cast(Mount,'double'), cast(Cam,'double'), cast(CropID,'double'), ...
@@ -580,7 +636,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                 {'','','','','','','mag','mag','','','','','','s','s'});
         end
     end
-
+    
+    % 8: ----- Create output products -----
 
     % Create a merged catalog, holding all candidates in the individual AD
     % catalogs. Generally this will be a visit catalog when used in the
@@ -591,7 +648,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     MergedTranCat = merge(TranCat);
     MergedTranCat.sortrows('Dec');
     
-    % Get transients only for cutouts
+    % Get cutouts only for transients
     ADn = removeNonTransients(AD);
     % Make cutouts
     ADc = ADn.cutoutTransients;
@@ -716,6 +773,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     end
    
+    % 9: ----- Save to-disk products -----
+
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
         % Save individual image products if any specified
@@ -750,9 +809,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
     end
 
-    % TODO: cutouts can be very large (~GB), don't save them yet, try again
-    % when we can make the smaller, likely need a new inherited slimmed down
-    % class
+    % TODO: cutouts can be very large (~GB), don't save them yet, we can 
+    % try again when we can make them smaller, 
+    % likely this will need a new inherited slimmed-down class
     %{
     if Args.SaveProducts
         FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
