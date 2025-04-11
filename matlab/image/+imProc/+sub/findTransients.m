@@ -172,13 +172,15 @@ function TranCat=findTransients(AD, Args)
             ExpectedAngleDeg = rad2deg(ExpectedAngle);
 
             for ITran=Nsrc:-1:1
-                MaskBack = (Cube(:,:,ITran) > ...
-                    (AD(Iobj).BackN + sqrt(AD(Iobj).VarN)));
+
+                ICube = Cube(:,:,ITran);
+                
+                MaskBack = (ICube > (AD(Iobj).BackN + sqrt(AD(Iobj).VarN)));
                 if sum(MaskBack(:)) < 1
-                    MaskBack = ones(size(Cube(:,:,ITran)));
+                    MaskBack = ones(size(ICube));
                 end
                 
-                [~, Gdir] = imgradient(Cube(:,:,ITran), 'sobel');
+                [~, Gdir] = imgradient(ICube, 'sobel');
                 Gdir_rad = deg2rad(Gdir(MaskBack));
                 GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all"));
 
