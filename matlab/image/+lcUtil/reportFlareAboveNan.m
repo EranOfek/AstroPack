@@ -17,48 +17,72 @@ function [Result] = reportFlareAboveNan(Obj, Args)
     %            .MaxSN - Maximal S/N in the runmean filter.
     %            If OutType is table then this is a two columns table.
     % Author : Eran Ofek (2025 Mar) 
-    % Example: R=lcUtil.searchFlareAboveNan(MS);
+    % Example: R=lcUtil.reportFlareAboveNan(M);
 
     arguments
-        Obj
+        Obj(1,1)
         Args.FieldSN           = 'SN_3';
         Args.MinSN             = 8;
         Args.MinNnondet        = 5;
         Args.OutType           = 'table';
+        Args.ReportType        = 0;
     end
 
     Iref = 1;
+    Iobj = 1;
+
     
-    Nobj = numel(Obj);
-    Tmp = struct('Flag',cell(Nobj,1), 'MaxSN',cell(Nobj,1));
-    for Iobj=1:1:Nobj
-        MatrixSN = Obj(Iobj).Data.(Args.FieldSN);
-        % renomalizr the SN
-        RatioSN  = median(MatrixSN./MatrixSN(Iref,:), 2, 'omitnan');
-        MatrixSN = MatrixSN./RatioSN;
-
-        MatrixSN(isnan(MatrixSN)) = Args.MinSN;
-
-        Res = timeSeries.filter.runMeanFilter(MatrixSN, 'StdFun','one', 'PolyFit',0, 'WinSize',2);
-
-        Tmp(Iobj).Flag = sum(Res.Z>Args.MinSN, 1)>1 & sum(MatrixSN<=Args.MinSN, 1)>=Args.MinNnondet;
-
-        Tmp(Iobj).MaxSN = max(Res.Z, [], 1);
-    end
-    
-    switch lower(Args.OutType)
-        case 'table'
-            if Nobj>1
-                error('table output is possible only for single element object');
-            end
-            Iobj = 1;
-            Result = table(Tmp(Iobj).Flag(:), Tmp(Iobj).MaxSN(:));
-            Result.Properties.VariableNames = {'FlareNanFlag', 'FlareNanSN'};
+    switch Args.ReportType
+        case 0
             
+            MatrixSN = Obj(Iobj).Data.(Args.FieldSN);
+
+            [Nnan, Nedges, FirstAndLastIsNaN] = timeSeries.filter.nanSequence(MatrixSN);
+            % mean S/N
+            MeanSN = mean(MatrixSN, 1, 'omitnan');
+            % integral S/N
+            IntegralSN  = sqrt(sum(MatrixSN.^2, 1, 'omitnan'));
+
+            % not NaN
+            N_Not_Nan = sum(~isnan(MatrixSN), 1);
+
+            Result = array2table([Nnan(:), N_Not_Nan(:), Nedges(:), FirstAndLastIsNaN(:), MeanSN(:), IntegralSN(:)]);
+            Result.Properties.VariableNames = {'N_Nan', 'N_Not_Nan', 'N_Nan_edges', 'FirstAndLastIsNaN', 'MeanSN', 'IntegralSN'};
+
+        case 1
+            % old report
+            Nobj = numel(Obj);
+            Tmp = struct('Flag',cell(Nobj,1), 'MaxSN',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                MatrixSN = Obj(Iobj).Data.(Args.FieldSN);
+                % renomalizr the SN
+                RatioSN  = median(MatrixSN./MatrixSN(Iref,:), 2, 'omitnan');
+                MatrixSN = MatrixSN./RatioSN;
+        
+                MatrixSN(isnan(MatrixSN)) = Args.MinSN;
+        
+                Res = timeSeries.filter.runMeanFilter(MatrixSN, 'StdFun','one', 'PolyFit',0, 'WinSize',2);
+        
+                Tmp(Iobj).Flag = sum(Res.Z>Args.MinSN, 1)>1 & sum(MatrixSN<=Args.MinSN, 1)>=Args.MinNnondet;
+        
+                Tmp(Iobj).MaxSN = max(Res.Z, [], 1);
+            end
+            
+            switch lower(Args.OutType)
+                case 'table'
+                    if Nobj>1
+                        error('table output is possible only for single element object');
+                    end
+                    Iobj = 1;
+                    Result = table(Tmp(Iobj).Flag(:), Tmp(Iobj).MaxSN(:));
+                    Result.Properties.VariableNames = {'FlareNanFlag', 'FlareNanSN'};
+                    
+                otherwise
+                    % do nothing
+                    Result = Tmp;
+            end
         otherwise
-            % do nothing
-            Result = Tmp;
+            error('Unknown ReportType option');
     end
-    
 
 end

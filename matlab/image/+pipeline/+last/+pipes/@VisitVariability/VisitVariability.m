@@ -138,6 +138,7 @@ classdef VisitVariability < Component
             %AstC  = [];
             %AC    = [];
             for If=1:1:Nf
+                
                 MS = MatchedSources.read({Files(If).name});
                 if MS.Nepoch>14 && MS.Nsrc>100
 
@@ -152,22 +153,28 @@ classdef VisitVariability < Component
                         %'motion'
                         %tic;
                         [~,AstAC, AstIndex] = lcUtil.fitFastMotion(MS, 'AstIndex',AstIndex, 'OutType','AstroCatalog', 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'Visit',Visit);
-                        %toc
-    
-                        if ~isempty(AstAC) && AstAC.sizeCatalog>0
-                            %AstCm=AstC.merge('IsTable',true);
-                            AstAC.Catalog=db.util.insertHealpixIndex2table(AstAC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
-                                              'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
-                                              'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
-                            AstAC.Catalog.Flags = uint32(AstAC.Catalog.Flags);
 
-                            
-                            if ~isempty(Args.AstTableName)
-                                Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
+                        %toc
+                        if ~isempty(AstAC)
+                            if numel(AstAC)>1
+                                % merge AstAC
+                                AstAC = AstAC.merge('IsTable',true);
+                            end
+                            if AstAC.sizeCatalog>0
+                                %AstCm=AstC.merge('IsTable',true);
+                                AstAC.Catalog=db.util.insertHealpixIndex2table(AstAC.Catalog, 'ColRA','RA', 'ColDec','Dec', 'CooUnits','deg',...
+                                                  'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
+                                                  'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
+                                AstAC.Catalog.Flags = uint32(AstAC.Catalog.Flags);
+    
+                                
+                                if ~isempty(Args.AstTableName)
+                                    Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
+                                end
                             end
                             
                         end
-                           
+                      
                     end
     
                     if Args.SearchVar
@@ -226,7 +233,7 @@ classdef VisitVariability < Component
                 Args.T                 = [];
                 Args.Ind               = [];
                 Args.Mount             = 1;
-                Args.IngestionTime     = [-Inf 2460710]; %66.5];
+                Args.IngestionTime     = [-Inf 2460708]; %66.5];
 
                 Args.INPOP             = celestial.INPOP.init;
                 Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');

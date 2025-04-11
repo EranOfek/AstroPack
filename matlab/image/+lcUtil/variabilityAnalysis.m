@@ -43,7 +43,8 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         
         Args.FlareNaN_MinSN           = 8;
         Args.FlareNaN_MinNdet         = 2;  % 1 produce a lot of bad detections, but may be useful for satellite glints?
-        
+        Args.FlareNaN_MinNnan         = 2;
+
         Args.SearchRadius             = 60;
         Args.SearchRadiusGAIA         = 3;
 
@@ -120,7 +121,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     TableRMF      = lcUtil.reportRunMean(Result, 'FieldMag',Args.FieldMag);
     
     % flare above NaN
-    TableFlareNan = lcUtil.reportFlareAboveNan(Result, 'MinSN',Args.FlareNaN_MinSN, 'FieldSN',Args.FieldSN);
+    TableFlareNan = lcUtil.reportFlareAboveNan(Result, 'FieldSN',Args.FieldSN);
     
     % correlations
     TableCorr     = lcUtil.reportCorr(Result, 'Nsim',Args.CorrNsim);
@@ -154,7 +155,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
            Table.RM_MaxSN_Win4>Args.RM_MinAbsSN | ...
            Table.RM_MinSN_Win5>Args.RM_MinAbsSN | ...
            Table.RM_MaxSN_Win5>Args.RM_MinAbsSN | ...
-           (Table.FlareNanFlag & Table.Ndet>=Args.FlareNaN_MinNdet);
+           (Table.N_Not_Nan>=Args.FlareNaN_MinNdet & Table.N_Nan>=Args.FlareNaN_MinNnan & Table.IntegralSN>Args.FlareNaN_MinSN & (Table.N_Nan_edges==1 | Table.N_Nan_edges==2));
        
     %
     Table = Table(Flag,:);
@@ -201,7 +202,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
     AC.Name = Result.FileName;
 
 
-    GaiaInfoCol = {'GAIA_MinDist','GAIA_Nstar5','GAIA_Plx','GAIA_ErrPlx','GAIA_Bp','GAIA_Rp','GAIA_G','GAIA_Teff','GAIA_logg','GAIA_NonSingle','GAIA_ExcessNoise', 'WD_Flag','N_GAIA_Var'};
+    GaiaInfoCol = {'GAIA_MinDist','GAIA_Nstar5','GAIA_Plx','GAIA_ErrPlx','GAIA_Bp','GAIA_Rp','GAIA_G','GAIA_Teff','GAIA_logg','GAIA_NonSingle','GAIA_ExcessNoise', 'WD_Pwd','N_GAIA_Var'};
 
     MergedCatBitMask = uint32(zeros(Nsrc, 1));
     InfoGAIA         = nan(Nsrc, numel(GaiaInfoCol));
@@ -235,11 +236,18 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
         end
 
         Dist = celestial.coo.sphere_dist_fast(AC.Catalog.RA(Isrc)./RAD, AC.Catalog.Dec(Isrc)./RAD, GAIA.Catalog(:,1), GAIA.Catalog(:,2)).*RAD.*3600;
-        
-        [MinDist, MinI] = min(Dist);
-        Nstar5          = numel(Dist<5);
-        
-        InfoGAIA(Isrc,:) = [MinDist, Nstar5, GAIA.Table.Plx(MinI),...
+        if isempty(Dist)
+            MinDist = NaN;
+            Nstar5  = 0;
+
+            InfoGAIA(Isrc,:) = [MinDist, Nstar5, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN,...
+                                WD_Flag(Isrc),...
+                                N_GAIA_Var(Isrc)];
+        else
+            [MinDist, MinI] = min(Dist);
+            Nstar5          = numel(Dist<5);
+
+            InfoGAIA(Isrc,:) = [MinDist, Nstar5, GAIA.Table.Plx(MinI),...
                                      GAIA.Table.ErrPlx(MinI),...
                                      GAIA.Table.phot_bp_mean_mag(MinI),...
                                      GAIA.Table.phot_rp_mean_mag(MinI),...
@@ -251,6 +259,7 @@ function [AC, Result] = variabilityAnalysis(Obj, Args)
                                      WD_Flag(Isrc),...
                                      N_GAIA_Var(Isrc)];
 
+        end
 
     end
     AC.Catalog.MergedCat = MergedCatBitMask;

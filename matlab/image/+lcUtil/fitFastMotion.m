@@ -90,9 +90,6 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
     for Iobj=1:1:Nobj
         % add SrcData
 
-
-
-
         [Tmp] = imUtil.asteroids.fitFastMotion(Obj(Iobj).JD, Obj(Iobj).Data.RA, Obj(Iobj).Data.Dec,...
                                                     'FlagGood',~FlagBad,...
                                                     'Tag',Iobj,...
@@ -161,6 +158,7 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
                     AddColData = [ProjName, FieldID, Visit];
 
                     Ntmp = numel(Tmp);
+                
                     for Itmp=1:1:Ntmp
                         
                         Args.AstIndex = Args.AstIndex + 1;
@@ -239,6 +237,11 @@ function [Result,Table,AstIndex] = fitFastMotion(Obj, Args)
         end
             
     end
+
+    if istable(Table)
+        Table = AstroCatalog;
+    end
+    
     AstIndex = Args.AstIndex;
 
 end
