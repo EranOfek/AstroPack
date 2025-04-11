@@ -88,6 +88,7 @@ function TranCat=findTransients(AD, Args)
 
         Args.includeAperturePhot logical = true;
         Args.include2ndMoment logical = true;
+        Args.AsymThresh             = 0.2;
 
         Args.includeGradientDir logical = true;
 
@@ -141,7 +142,7 @@ function TranCat=findTransients(AD, Args)
             [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
-            NewPSFSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2)+1;
+            NewPSFHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2)+1;
 
             % rotate the PSF so that ellipse axes agree with
             % x-y-coordinates
@@ -151,8 +152,47 @@ function TranCat=findTransients(AD, Args)
             PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
 
             [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
-                NewPSFSize, NewPSFSize,...
+                NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
+
+            % Check for assymetry and update with larger moments if
+            % assymetric.
+
+            [Rows, Cols] = size(PSFnew);
+            
+            % Coordinate grids
+            [X, Y] = meshgrid(1:Cols, 1:Rows);
+            Xc = X - NewPSFHalfSize;
+            Yc = Y - NewPSFHalfSize;
+            
+            % Masks for halves
+            LeftMask   = X <= NewPSFHalfSize;
+            RightMask  = X >= NewPSFHalfSize;
+            TopMask    = Y <= NewPSFHalfSize;
+            BottomMask = Y >= NewPSFHalfSize;
+            
+            % Second moments for X tails
+            M2NX2Left  = sum((Xc(LeftMask).^2)  .* PSFnew(LeftMask));
+            M2NX2Right = sum((Xc(RightMask).^2) .* PSFnew(RightMask));
+            
+            % Second moments for Y tails
+            M2NY2Top    = sum((Yc(TopMask).^2)    .* PSFnew(TopMask));
+            M2NY2Bottom = sum((Yc(BottomMask).^2) .* PSFnew(BottomMask));
+            
+            % Compute relative asymmetry
+            AsymmetryX = abs(M2NX2Left - M2NX2Right) / max(M2NX2Left, M2NX2Right);
+            AsymmetryY = abs(M2NY2Top - M2NY2Bottom) / max(M2NY2Top, M2NY2Bottom);
+            
+            % X direction
+            if AsymmetryX > Args.AsymThresh
+                M2N.X2 = max(M2NX2Left, M2NX2Right);
+            end
+            
+            % Y direction
+            if AsymmetryY > Args.AsymThresh
+                M2N.Y2 = max(M2NY2Top, M2NY2Bottom);
+            end
+          
         end
 
         if Args.includeGradientDir
