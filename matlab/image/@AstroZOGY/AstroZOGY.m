@@ -579,9 +579,10 @@ classdef AstroZOGY < AstroDiff
                 Args.NormPSF logical     = true;
                 Args.SuppressEdgesPSF logical  = true;
                 Args.SuppressEdgesArgs cell    = {};
-                
+                    
                 Args.PopBackVar logical        = true;
-                Args.BackArgs cell             = {'BackFun',@median, 'BackFunPar',{'all'}, 'VarFun',@imUtil.background.rvar, 'VarFunPar',{}, 'SubSizeXY',[]};
+                Args.BackArgs cell             = {'BackFun',@median, 'BackFunPar',{'all','omitnan'}, ...
+                    'VarFun',@tools.math.stat.rvar, 'VarFunPar',{}, 'SubSizeXY',[]};
                 
                 Args.CreateNewMask             = true;
                 Args.CreateNewWCS              = true;
@@ -641,9 +642,6 @@ classdef AstroZOGY < AstroDiff
 
                 Obj(Iobj).ZpD = 2.5*log10(Obj(Iobj).Fd) + Obj(Iobj).ZpN;
 
-                
-
-                
                 % create mask image propgated from New and Ref
                 if ~isempty(Args.CreateNewMask)
                     Obj(Iobj).MaskData = funBinary(Obj(Iobj).New.MaskData, Obj(Iobj).Ref.MaskData, @bitor, 'CreateNewObj',Args.CreateNewMask);
@@ -685,23 +683,40 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).Image = D;
 
-                % Updated ZP and LIMMAG of D image in header
-                if Args.UpdateHeader
-                    if ~Args.NormDbyFd
-                        % write Obj(Iobj).ZpD in PH_ZP
-                        Obj(Iobj).HeaderData.replaceVal(Args.KeyZP, Obj(Iobj).ZpD);
+                BD_IM = BitDictionary('BitMask.Image.Default');
+
+                % populate the Back and Var
+                if Args.PopBackVar || Args.UpdateHeader
+                    [ImageSizeX, ImageSizeY] = Obj(Iobj).sizeImage;
+
+                    NaNMask = BD_IM.findBit(Obj(Iobj).MaskData.Image,'NaN');
+                    DImage = Obj(Iobj).Image(~NaNMask);
+                    NonNanDImage = DImage(~isnan(DImage));
+
+                    Std_D = tools.math.stat.rstd(NonNanDImage(:), 1,1);
+                    Var_D = Std_D.^2;
+                    Med_D = median(NonNanDImage(:), 1);
+                    
+                    if Args.PopBackVar
+                        Obj(Iobj).Back = repmat(Med_D, ImageSizeX, ImageSizeY);
+                        Obj(Iobj).Var = repmat(Var_D, ImageSizeX, ImageSizeY);
                     end
 
-                    % write D_LimMag in LIMMAG
-                    Std_D = tools.math.stat.rstd(Obj(Iobj).Image(:));
-                    Med_D = median(Obj(Iobj).Image(:), 1, 'omitnan');
-                    D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D);
-                    Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
-
-                    % write back/var
-                    Obj(Iobj).HeaderData.replaceVal(Args.KeyBack, Med_D);
-                    Obj(Iobj).HeaderData.replaceVal(Args.KeyVar,  Std_D.^2);
-                    Obj(Iobj).HeaderData.replaceVal(Args.KeyStd,  Std_D);
+                    % Updated ZP and LIMMAG of D image in header
+                    if Args.UpdateHeader
+                        if ~Args.NormDbyFd
+                            % write Obj(Iobj).ZpD in PH_ZP
+                            Obj(Iobj).HeaderData.replaceVal(Args.KeyZP, Obj(Iobj).ZpD);
+                        end
+    
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyBack, Med_D);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyVar,  Std_D.^2);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyStd,  Std_D);
+                    
+                        % write D_LimMag in LIMMAG
+                        D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
+                    end
                 end
 
                 % calculate Pd
@@ -745,10 +760,6 @@ classdef AstroZOGY < AstroDiff
 
             end
             
-            % populate the Back and Var
-            if Args.PopBackVar
-                Obj = imProc.background.background(Obj, Args.BackArgs{:});
-            end
         end
 
         function Obj=subtractionS(Obj, Args)
@@ -795,7 +806,7 @@ classdef AstroZOGY < AstroDiff
                 Obj
                 Args.PopS_hat logical       = true;
                 
-                Args.NormMethod             = 'norm_robust_rstd3';
+                Args.NormMethod             = 'norm_robust_rstd1';
                         
                 Args.PopS2 logical           = true;
                 Args.PopSflux logical        = true;
@@ -1016,7 +1027,7 @@ classdef AstroZOGY < AstroDiff
                 Args.SigmaAstNew = 0.1;   % astrometric noise in pixels.
                 Args.SigmaAstRef = 0.1;   % astrometric noise in pixels.
 
-                Args.NormMethod             = 'norm_robust_rstd3';
+                Args.NormMethod             = 'norm_robust_rstd1';
 
                 Args.NormKnKr logical       = false;
 
