@@ -1,4 +1,4 @@
-function [IntegratedSpec, Wave, VecR, T, Ibb] = accretionDiskSpec(Args)
+function [IntegratedSpec, Wave, VecR, T, Ibb,Rs] = accretionDiskSpec(Args)
     % Calculate simplified optically thick accreation disk spectrum.
     % Input  : * ...,key,val,... 
     %            'M' - Mass of accreator.
@@ -34,6 +34,7 @@ function [IntegratedSpec, Wave, VecR, T, Ibb] = accretionDiskSpec(Args)
         Args.Wave      = (100:100:1e4).';  % Ang        
     end
 
+    Rs = [];
     G = constant.G;
     c = constant.c;
     Sig = constant.sigma;
