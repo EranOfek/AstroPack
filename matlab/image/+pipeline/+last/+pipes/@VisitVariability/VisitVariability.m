@@ -251,7 +251,7 @@ classdef VisitVariability < Component
                     Args.DB.useDB('last');
                 end
 
-                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec, any(ingestion_time) as ingestion_time FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
+                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec, min(ingestion_time) as ingestion_time FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
 
                 if ~isempty(Args.Mount)
                     Flag = T.mountnum==Args.Mount;
