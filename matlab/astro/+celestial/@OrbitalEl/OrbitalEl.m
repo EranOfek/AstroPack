@@ -242,7 +242,11 @@ classdef OrbitalEl < Base
                 %if numel(Flag)==Ndata
                 if Ndata>1 || Ne==1
                     %if iscell(Result.(Prop{Iprop}))
+                    if Ndata>0
                         Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                    else
+                        Result.(Prop{Iprop}) = Result.(Prop{Iprop});
+                    end
                     %else
                     %    Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
                     %end
@@ -1786,6 +1790,8 @@ classdef OrbitalEl < Base
             %            'IncludeDesignation' - A logical indicatig if to
             %                   include desigmation.
             %                   Default is true.
+            %            'AddAngSpeed' - Add angular speed ["/min].
+            %                   Default is false.
             % Output : - An AstroCatalog object with the ephemerides of the
             %            minor planets / comets found near the search
             %            position. The number of elements are equal to the
@@ -1796,7 +1802,12 @@ classdef OrbitalEl < Base
             %          OrbEl1.propagate2commonEpoch;
             %          IN = celestial.INPOP; IN.populateAll;
             %          [Result] = searchMinorPlanetsNearPosition(OrbEl1, 2461000, 0, 0, 1000, 'INPOP',IN)
-            
+            %          % Search many:
+            %          AngSpeed = nan(numel(Ast.JD),1);
+            %          for I=1:numel(Ast.JD), I,
+            %              [Result] = searchMinorPlanetsNearPosition(OrbEl, Ast.JD(I), Ast.RA(I), Ast.Dec(I), 5, 'INPOP',IN,'ConeSearch',true,'AddAngSpeed',1);
+            %              if Result.sizeCatalog==1, AngSpeed(I) = Result.Table.AngSpeed; end
+            %          end
 
             arguments
                 Obj
@@ -1833,6 +1844,7 @@ classdef OrbitalEl < Base
                 Args.IncludeMag logical    = true;
                 Args.IncludeAngles logical = true;
                 Args.IncludeDesignation logical = true;
+                Args.AddAngSpeed                = false;
                 
             end
             RAD = 180./pi;
@@ -1957,15 +1969,58 @@ classdef OrbitalEl < Base
                         %                               'CooUnits','rad',...
                         %                               'CreateNewObj',false,...
                         %                               Args.coneSearchArgs{:});
+                    else
+                        Flag = true(ObjNew(Iobj).numEl, 1);
                     end
-                    
-                    
+
+                    % add angular speed
+                    if Args.AddAngSpeed 
+                        
+                        ObjNew(Iobj) = selectFlag(ObjNew(Iobj), Flag, false);
+                        if ObjNew(Iobj).numEl>0
+                            DeltaTime = 1./1440;
+                            [Rt1] = celestial.ephem.ephemKepler(ObjNew(Iobj), JD, 'INPOP',Args.INPOP,...
+                                                                          'GeoPos',Args.GeoPos,...
+                                                                          'RefEllipsoid',Args.RefEllipsoid,...
+                                                                          'MaxIterLT',2,...
+                                                                          'TimeScale',Args.TimeScale,...
+                                                                          'ObserverEphem',Args.ObserverEphem,...
+                                                                          'Tol',Args.Tol,...
+                                                                          'OutType',Args.OutType,...
+                                                                          'Aberration',false,...
+                                                                          'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                                          'IncludeMag',false,...
+                                                                          'IncludeAngles',false,...
+                                                                          'IncludeDesignation',false);
+                            [Rt2] = celestial.ephem.ephemKepler(ObjNew(Iobj), JD+DeltaTime, 'INPOP',Args.INPOP,...
+                                                                          'GeoPos',Args.GeoPos,...
+                                                                          'RefEllipsoid',Args.RefEllipsoid,...
+                                                                          'MaxIterLT',2,...
+                                                                          'TimeScale',Args.TimeScale,...
+                                                                          'ObserverEphem',Args.ObserverEphem,...
+                                                                          'Tol',Args.Tol,...
+                                                                          'OutType',Args.OutType,...
+                                                                          'Aberration',false,...
+                                                                          'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                                          'IncludeMag',false,...
+                                                                          'IncludeAngles',false,...
+                                                                          'IncludeDesignation',false);
+                            AngSpeed = celestial.coo.sphere_dist_fast(Rt1.Table.RA./RAD,...
+                                                                   Rt1.Table.Dec./RAD,...
+                                                                   Rt2.Table.RA./RAD,...
+                                                                   Rt2.Table.Dec./RAD).*RAD.*3600;  % [arcse/min]
+    
+                           Result(Iobj).insertCol(AngSpeed, Inf, {'AngSpeed'}, {'arcsec/min'});
+                        end
+                    end
                 end
                
             end
                         
                         
         end
+    
+        
     end
     
     methods % conversion
