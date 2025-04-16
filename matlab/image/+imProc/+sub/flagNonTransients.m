@@ -132,8 +132,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagRinging logical = true;
 
         Args.flagNPsfShape logical = true;
-        Args.SecondMomSoftLim = 1.14;
-        Args.SecondMomHardLim = 1.84;
+        Args.SecondMomSoftLim = 1.4;
+        Args.SecondMomHardLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 0.8];
         Args.PeakDistThreshold = 3.0;
 
