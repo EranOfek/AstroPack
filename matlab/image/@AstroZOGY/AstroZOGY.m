@@ -683,41 +683,7 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).Image = D;
 
-                BD_IM = BitDictionary('BitMask.Image.Default');
-
-                % populate the Back and Var
-                if Args.PopBackVar || Args.UpdateHeader
-                    [ImageSizeX, ImageSizeY] = Obj(Iobj).sizeImage;
-
-                    NaNMask = BD_IM.findBit(Obj(Iobj).MaskData.Image,'NaN');
-                    DImage = Obj(Iobj).Image(~NaNMask);
-                    NonNanDImage = DImage(~isnan(DImage));
-
-                    Std_D = tools.math.stat.rstd(NonNanDImage(:), 1,1);
-                    Var_D = Std_D.^2;
-                    Med_D = median(NonNanDImage(:), 1);
-                    
-                    if Args.PopBackVar
-                        Obj(Iobj).Back = repmat(Med_D, ImageSizeX, ImageSizeY);
-                        Obj(Iobj).Var = repmat(Var_D, ImageSizeX, ImageSizeY);
-                    end
-
-                    % Updated ZP and LIMMAG of D image in header
-                    if Args.UpdateHeader
-                        if ~Args.NormDbyFd
-                            % write Obj(Iobj).ZpD in PH_ZP
-                            Obj(Iobj).HeaderData.replaceVal(Args.KeyZP, Obj(Iobj).ZpD);
-                        end
-    
-                        Obj(Iobj).HeaderData.replaceVal(Args.KeyBack, Med_D);
-                        Obj(Iobj).HeaderData.replaceVal(Args.KeyVar,  Std_D.^2);
-                        Obj(Iobj).HeaderData.replaceVal(Args.KeyStd,  Std_D);
-                    
-                        % write D_LimMag in LIMMAG
-                        D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D);
-                        Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
-                    end
-                end
+                
 
                 % calculate Pd
                 Pd = ifft2(Obj(Iobj).Pd_hat);
@@ -758,7 +724,46 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).PSFData.Data = Pd;
 
-            end
+
+                BD_IM = BitDictionary('BitMask.Image.Default');
+
+                % populate the Back and Var
+                if Args.PopBackVar || Args.UpdateHeader
+                    [ImageSizeX, ImageSizeY] = Obj(Iobj).sizeImage;
+
+                    NaNMask = BD_IM.findBit(Obj(Iobj).MaskData.Image,'NaN');
+                    DImage = Obj(Iobj).Image(~NaNMask);
+                    NonNanDImage = DImage(~isnan(DImage));
+
+                    Std_D = tools.math.stat.rstd(NonNanDImage(:), 1,1);
+                    Var_D = Std_D.^2;
+                    Med_D = median(NonNanDImage(:), 1);
+                    
+                    if Args.PopBackVar
+                        Obj(Iobj).Back = repmat(Med_D, ImageSizeX, ImageSizeY);
+                        Obj(Iobj).Var = repmat(Var_D, ImageSizeX, ImageSizeY);
+                    end
+
+                    % Updated ZP and LIMMAG of D image in header
+                    if Args.UpdateHeader
+                        if ~Args.NormDbyFd
+                            % write Obj(Iobj).ZpD in PH_ZP
+                            Obj(Iobj).HeaderData.replaceVal(Args.KeyZP, Obj(Iobj).ZpD);
+                        end
+    
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyBack, Med_D);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyVar,  Std_D.^2);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyStd,  Std_D);
+                    
+                        % write D_LimMag in LIMMAG
+                        MatchedFilterStdCorr = 1./sqrt(sum(Pd(:).^2)); % see issue #630
+                        D_LimMag = Obj(Iobj).ZpD - 2.5.*log10(Args.NsigmaLimMag.*Std_D.*MatchedFilterStdCorr);
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
+                    end
+                end
+
+
+            end 
             
         end
 

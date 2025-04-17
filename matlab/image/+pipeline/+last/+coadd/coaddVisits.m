@@ -41,7 +41,7 @@ function [CI, AI] = coaddVisits(In, Args)
     %       
     %          load LAST_Visits.mat
     %          F=strcmp(OT.FieldID,"1441") &OT.CropID==10 & OT.FWHM<2.8;
-    %          CI=pipeline.last.coaddVisits(OT(F,:),'CropID',10);
+    %          CI=pipeline.last.coadd.coaddVisits(OT(F,:),'CropID',10);
 
     arguments
         In

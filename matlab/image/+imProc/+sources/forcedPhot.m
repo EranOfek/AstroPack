@@ -198,7 +198,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.MaxIter                 = 10;      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
         Args.ZP                      = 25; 
-        Args.HeaderZP                = false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
+        Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
         
         Args.OutType                 = 'MatchedSources';
     end
@@ -401,10 +401,12 @@ function [Result] = forcedPhot(Obj, Args)
             switch Args.OutType
                 case 'table'
                     if Iobj==1
-                        Mat = [RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
+                        Mat = table(RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', ResultPSF.Flux, Args.ZP, convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).');
+
+                        %[RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
                         
                     else
-                        Mat = [Mat; [RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).']];
+                        Mat = [Mat; table(RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', ResultPSF.Flux, Args.ZP, convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).')];
                     end
                 case 'MatchedSources'
 
@@ -474,8 +476,8 @@ function [Result] = forcedPhot(Obj, Args)
     end
     switch Args.OutType
         case 'table'
-            Result = array2table(Mat);
-            Result.Properties.VariableNames = {'RA','Dec','X', 'Y', 'Xinit', 'Yinit', 'X2', 'Y2', 'XY', 'FlagIn', 'FLAGS', 'AnnulusBack', 'AnnulusStd', 'SN', 'MAG_PSF', 'Chi2', 'Dof'};
+            Result = Mat; %array2table(Mat);
+            Result.Properties.VariableNames = {'RA','Dec','X', 'Y', 'Xinit', 'Yinit', 'X2', 'Y2', 'XY', 'FlagIn', 'FLAGS', 'AnnulusBack', 'AnnulusStd', 'SN', 'FLUX_PSF', 'ZP', 'MAG_PSF', 'Chi2', 'Dof'};
     end
 end
    

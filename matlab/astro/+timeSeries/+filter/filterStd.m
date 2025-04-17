@@ -4,6 +4,7 @@ function [StdX] = filterStd(X, HalfSize, Args)
     %     a top-hat with central gap.
     % Input  : - A matrix in which the columns (for 'Dim'=1) are the
     %            equally spaced time series on which to apply the filter.
+    %            NaN are not treated.
     %          - Half size of the top-hat filter, or [gap, halfsize] of the
     %            filter. Default is [10 20].
     %          * ...,key,val,... 
