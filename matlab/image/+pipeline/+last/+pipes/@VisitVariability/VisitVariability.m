@@ -227,6 +227,7 @@ classdef VisitVariability < Component
             %          VV.analayzeAllData('DB',DB, 'T',T, 'Ind',Ind);
             %          VV.analayzeAllData('DB',DB, 'T','VisitImages.mat', 'Ind',Ind);
             %          VV.analayzeAllData('DB',DB);
+            %          VV.analayzeAllData('DB',DB,'Mount',2,'IngestionTime',[2460708 2460740])
 
             arguments
                 Obj
