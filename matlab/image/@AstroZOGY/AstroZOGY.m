@@ -724,7 +724,6 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).PSFData.Data = Pd;
 
-
                 BD_IM = BitDictionary('BitMask.Image.Default');
 
                 % populate the Back and Var
@@ -761,10 +760,7 @@ classdef AstroZOGY < AstroDiff
                         Obj(Iobj).HeaderData.replaceVal(Args.KeyLimMag, D_LimMag);
                     end
                 end
-
-
             end 
-            
         end
 
         function Obj=subtractionS(Obj, Args)

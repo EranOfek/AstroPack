@@ -477,12 +477,15 @@ function TranCat = flagNonTransients(Obj, Args)
 
             ExcludeNeighbor = false(Ntran,1);
             NExclude = numel(Args.NeighborExclude);
+            FlagSaturated_Ref = BD.findBit(BM_ref,'Saturated');
+            
             for IExclude = 1:NExclude
                 ExcludeNeighbor = ExcludeNeighbor | ...
                     BD_TF.findBit(TF_Flags, Args.NeighborExclude{IExclude});
             end
+            
+            ExcludeNeighbor = ExcludeNeighbor & ~FlagSaturated_Ref;
 
-            FlagSaturated_Ref = BD.findBit(BM_ref,'Saturated');
             NearSaturated = false(Ntran,1);
             % Iterate through each candidate
             for Itran = Ntran:-1:1
@@ -512,6 +515,7 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
             
         end
+
 
         if Args.flagCR
             SN_delta = Cat.getCol('SN_delta');
