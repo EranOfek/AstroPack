@@ -506,13 +506,12 @@ function TranCat = flagNonTransients(Obj, Args)
                                 (Y2N < Args.SecondMomHardLim);
                             
                 PassesLocal = (PassesPeak & PassesGDir & PassesHardLim);
-                            
-                if Args.flagDensity && exist('NearSaturated','var')
-                    PassesN(NearSaturated) = ...
-                        PassesN(NearSaturated) &  PassesLocal(NearSaturated);
-                end
-                
+
                 PassesN = PassesN | PassesLocal;
+
+                if Args.flagDensity && exist('NearSaturated','var')
+                    PassesN(NearSaturated) = PassesLocal(NearSaturated);
+                end
             end
 
             NShapeFlagged = ~PassesN;
