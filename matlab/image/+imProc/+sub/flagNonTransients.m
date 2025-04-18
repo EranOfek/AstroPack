@@ -134,7 +134,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
         Args.SecondMomHardLim = 2.3;
-        Args.OmniDirectionThreshold = [0.7 0.8];
+        Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
 
         Args.flagDPSFShape logical = true;
@@ -358,41 +358,6 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
-        if Args.flagNPsfShape && Cat.isColumn('N_X2') && Cat.isColumn('N_Y2')
-
-            X2N = Cat.getCol('N_X2');
-            Y2N = Cat.getCol('N_Y2');
-
-            PassesN = (X2N < Args.SecondMomSoftLim) & ...
-                      (Y2N < Args.SecondMomSoftLim);
-
-            if Args.flagTranslients
-                AdjustedTranslientDiff = (~PassesN).*2;
-            end
-
-            if Cat.isColumn('GDIRCVAR') && Cat.isColumn('GDIRERROR') && ...
-                    Cat.isColumn('PEAK_DIST')
-              
-                GDIRCVAR = Cat.getCol('GDIRCVAR');
-                GDIRERROR = Cat.getCol('GDIRERROR');
-                PassesGDir = (GDIRCVAR > Args.OmniDirectionThreshold(1)) & ...
-                             (GDIRERROR < 57.0);
-                %            (GDIRCVAR < Args.OmniDirectionThreshold(2)) & ...
-
-                PeakDist = Cat.getCol('PEAK_DIST');
-                PassesPeak = PeakDist < Args.PeakDistThreshold;
-
-                PassesHardLim = (X2N < Args.SecondMomHardLim) & ...
-                                (Y2N < Args.SecondMomHardLim);
-
-                PassesN = PassesN | (PassesPeak & PassesGDir & PassesHardLim);
-            end
-
-            NShapeFlagged = ~PassesN;
-
-            TF_Flags = TF_Flags + NShapeFlagged.*2.^BD_TF.name2bit('NPSFShape');
-        end
-
         if Args.flagLimitingMag
             N_Mag = Cat.getCol('N_MAG_PSF');
             R_Mag = Cat.getCol('R_MAG_PSF');
@@ -483,8 +448,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 ExcludeNeighbor = ExcludeNeighbor | ...
                     BD_TF.findBit(TF_Flags, Args.NeighborExclude{IExclude});
             end
-            
-            ExcludeNeighbor = ExcludeNeighbor & ~FlagSaturated_Ref;
 
             NearSaturated = false(Ntran,1);
             % Iterate through each candidate
@@ -516,7 +479,47 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
+        if Args.flagNPsfShape && Cat.isColumn('N_X2') && Cat.isColumn('N_Y2')
 
+            X2N = Cat.getCol('N_X2');
+            Y2N = Cat.getCol('N_Y2');
+
+            PassesN = (X2N < Args.SecondMomSoftLim) & ...
+                      (Y2N < Args.SecondMomSoftLim);
+
+            if Args.flagTranslients
+                AdjustedTranslientDiff = (~PassesN).*2;
+            end
+            
+            if Cat.isColumn('GDIRCVAR') && Cat.isColumn('GDIRERROR') && ...
+                    Cat.isColumn('PEAK_DIST')
+              
+                GDIRCVAR = Cat.getCol('GDIRCVAR');
+                GDIRERROR = Cat.getCol('GDIRERROR');
+                PassesGDir = (GDIRCVAR > Args.OmniDirectionThreshold(1)) & ...
+                             (GDIRERROR < Args.OmniDirectionThreshold(2));
+
+                PeakDist = Cat.getCol('PEAK_DIST');
+                PassesPeak = PeakDist < Args.PeakDistThreshold;
+
+                PassesHardLim = (X2N < Args.SecondMomHardLim) & ...
+                                (Y2N < Args.SecondMomHardLim);
+                            
+                PassesLocal = (PassesPeak & PassesGDir & PassesHardLim);
+                            
+                if Args.flagDensity && exist('NearSaturated','var')
+                    PassesN(NearSaturated) = ...
+                        PassesN(NearSaturated) &  PassesLocal(NearSaturated);
+                end
+                
+                PassesN = PassesN | PassesLocal;
+            end
+
+            NShapeFlagged = ~PassesN;
+
+            TF_Flags = TF_Flags + NShapeFlagged.*2.^BD_TF.name2bit('NPSFShape');
+        end
+        
         if Args.flagCR
             SN_delta = Cat.getCol('SN_delta');
 
