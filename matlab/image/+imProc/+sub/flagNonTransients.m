@@ -607,10 +607,12 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
             Scorr = Cat.getCol('S_CORR');
+            
+            SDiff = abs(Score) - abs(Scorr);
 
             ScorrGood = (abs(Score) >= abs(Scorr)) ...
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
-                (abs(Score) - abs(Scorr) < Args.ScorrCorrectionParam));
+                (SDiff < Args.ScorrCorrectionParam));
 
             %TODO: Galaxy centers have overestimated significance either
             %due to source noise, wrong estimation of the zero point, or
@@ -620,10 +622,11 @@ function TranCat = flagNonTransients(Obj, Args)
             if Cat.isColumn('GAL_DIST')
                 GalaxyDist = Cat.getCol('GAL_DIST');
                 NuclearCandidate = GalaxyDist <= 3;
-
+                
                 ScorrGood(NuclearCandidate) = ...
                     (abs(Score(NuclearCandidate)) >= abs(Scorr(NuclearCandidate))) ...
-                & (abs(Scorr(NuclearCandidate)) > Args.ScorrThreshold+3);
+                  & (abs(Scorr(NuclearCandidate)) > Args.ScorrThreshold+3) ...
+                  & (SDiff(NuclearCandidate) < abs(Scorr(NuclearCandidate)));
             end
 
             ScorrFlagged = ~ScorrGood;
