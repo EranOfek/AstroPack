@@ -485,7 +485,8 @@ function TranCat = flagNonTransients(Obj, Args)
             Y2N = Cat.getCol('N_Y2');
 
             PassesN = (X2N < Args.SecondMomSoftLim) & ...
-                      (Y2N < Args.SecondMomSoftLim);
+                      (Y2N < Args.SecondMomSoftLim) & ...
+                      (abs(X2N-Y2N) < 0.3);
 
             if Args.flagTranslients
                 AdjustedTranslientDiff = (~PassesN).*2;
