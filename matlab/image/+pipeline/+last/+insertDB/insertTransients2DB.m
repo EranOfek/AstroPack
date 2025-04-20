@@ -50,6 +50,16 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     if height(Cat.Table) < 1              % if the table is empty, skip to the next visit
         return; % continue
     end
+
+    %NumTran = size(Cat.Catalog,1);
+    %OnesArray = ones(NumTran,1);
+
+    %UTCNow = datetime('now', 'TimeZone', 'UTC');
+    %JDNow = juliandate(UTCNow)*OnesArray;
+
+    %Cat.insertCol(cell2mat({cast(JDNow,'double')}), inf, ...
+    %    {'ingestion_time_jd'}, {'jd'});
+
     % chop into objects with single CropID 
     CropID = unique(Cat.Table.CROPID);
     NCrop  = numel(CropID);
