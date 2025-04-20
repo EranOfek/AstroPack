@@ -3234,9 +3234,12 @@ classdef DemonLAST < Component
                             if Args.InsertTransients2DB && ~isempty(TCL2)
                                 if ~TCL2.isemptyCatalog
                                     try
-                                        pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
+                                        Err = pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
                                     catch ME
                                         Obj.writeLog(ME, LogLevel.Error);
+                                    end
+                                    if ~isempty(Err)
+                                        Obj.writeLog(Err, LogLevel.Error);
                                     end
                                     RunTime = etime(clock, Tstart);
                                     Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients to the DB for group %d / RunTime: %.1f', Igroup, RunTime);

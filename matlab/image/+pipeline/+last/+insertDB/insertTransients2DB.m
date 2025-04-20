@@ -72,8 +72,13 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     %    
     CsvFN = sprintf('/tmp/tempDBinsert%.20f.csv',rand); % temporary csv file name
     %
-    T=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+    [~, Error,~]=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
         'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DeleteFile',1);
+    if ~isempty(Error)
+        Result = Error;
+    else
+        Result = [];
+    end
     % disconnect the DB
     if isempty(Args.DB)
         DB.disconnectCH_Java;
