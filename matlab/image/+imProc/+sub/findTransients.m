@@ -197,30 +197,60 @@ function TranCat=findTransients(AD, Args)
 
         if Args.includeGradientDir
             PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
+            % Make a larger cut so we won't have to pad it later.
+            CutSize = PSFSize + 1;
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(...
-                AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), PSFSize);
+                AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutSize);
 
             FullSizeX = 2*PSFSize + 1;
             FullSizeY = 2*PSFSize + 1;
             CenterX = PSFSize + 1;
             CenterY = PSFSize + 1;
+            
+            StartX = 2;
+            EndX = StartX + FullSizeX - 1;
+            StartY = 2;
+            EndY = StartY + FullSizeY - 1;
 
             % Compute expected radial direction
             [Xmesh, Ymesh] = meshgrid(1:FullSizeX, 1:FullSizeY);
             % Flip the X-axis so the convetion agrees with imgradient
-            ExpectedAngle = atan2(Ymesh - CenterY, -(Xmesh - CenterX));
+            ExpectedAngle = atan2(-(Ymesh - CenterY), -(Xmesh - CenterX));
             ExpectedAngleDeg = rad2deg(ExpectedAngle);
 
-            for ITran=Nsrc:-1:1
+            GDIRCVAR = zeros(Nsrc,1);
+            GDIRERROR = zeros(Nsrc,1);
+            
+            BackThreshold = AD(Iobj).BackN + sqrt(AD(Iobj).VarN);
 
-                ICube = Cube(:,:,ITran);
+            CubeList = squeeze(mat2cell( ...
+                Cube, FullSizeX+2, FullSizeY+2, ones(1, Nsrc)));
+
+            for ITran=1:Nsrc
+
+                ICube = CubeList{ITran};
                 
-                MaskBack = (ICube > (AD(Iobj).BackN + sqrt(AD(Iobj).VarN)));
+                MaskBack = (ICube > BackThreshold);
                 if sum(MaskBack(:)) < 1
                     MaskBack = ones(size(ICube));
                 end
+                MaskBack = MaskBack(StartY:EndY, StartX:EndX);
                 
-                [~, Gdir] = imgradient(ICube, 'sobel');
+                % Assuming ICube is small and fixed-size
+                
+                % Convolution with Sobel kernels
+                Gx = ...
+                    -1 * ICube(1:end-2, 1:end-2) +  1 * ICube(1:end-2, 3:end) + ...
+                    -2 * ICube(2:end-1, 1:end-2) +  2 * ICube(2:end-1, 3:end) + ...
+                    -1 * ICube(3:end,   1:end-2) +  1 * ICube(3:end,   3:end);
+                
+                Gy = ...
+                    -1 * ICube(1:end-2, 1:end-2) + -2 * ICube(1:end-2, 2:end-1) + ...
+                    -1 * ICube(1:end-2, 3:end)   +  1 * ICube(3:end,   1:end-2) + ...
+                     2 * ICube(3:end,   2:end-1) +  1 * ICube(3:end,   3:end);
+                
+                Gdir = atan2d(Gy, Gx);
+
                 Gdir_rad = deg2rad(Gdir(MaskBack));
                 GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all"));
 
@@ -416,6 +446,8 @@ function TranCat=findTransients(AD, Args)
         if Args.includeSkyCoord
             TranCat(Iobj).sortrows('Dec');
         end
+
+
   
     end
 

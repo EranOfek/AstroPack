@@ -76,8 +76,10 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
         Args.SetToNaN         = [];
         Args.NormMethod = 'empirical';
-    end
 
+        Args.Kx = [];
+        Args.Ky = [];
+    end
 
     N = N.*Args.Fn;
     SigmaN = SigmaN/Args.Fn;
@@ -107,10 +109,9 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Prhat = fftshift(Prhat);
     end
 
-
-    [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, ...
-        SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
-    
+    [Z2Prefactors, Norm] = imUtil.properSub.translientAuxiliary_fast(Pnhat, Prhat, ...
+        SigmaN, SigmaR, 'IsPsfFFT', true, 'Eps', Args.Eps, 'Kx', Args.Kx, 'Ky', Args.Ky);
+        
     Zhat = Z2Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
 
     Z = imag(ifft2(Zhat));

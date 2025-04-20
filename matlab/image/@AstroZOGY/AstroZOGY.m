@@ -1142,8 +1142,6 @@ classdef AstroZOGY < AstroDiff
 
                     [Vsrc]      = abs(imUtil.properSub.sourceNoise(VN, VR, Kn, Kr));
                 else
-
-                    
                     Vsrc = 0;
                 end
 
@@ -1241,6 +1239,8 @@ classdef AstroZOGY < AstroDiff
 
                 Args.OverwriteFr logical = false;
                 Args.OverwriteFrVal = 1;
+
+                Args.PrecompKxKySize = [1726, 1726];
             end
 
             if Args.ReplaceNaN
@@ -1248,6 +1248,24 @@ classdef AstroZOGY < AstroDiff
             end
 
             Nobj = numel(Obj);
+
+            Kx = [];
+            Ky = [];
+
+            if numel(Args.PrecompKxKySize) == 2
+                % because the linearization of the translation phase (Delta*K), 
+                % it is not 2*Pi periodic, use negative frequancies.
+                FreqArrRows = fftshift(-ceil(Args.PrecompKxKySize(1)/2):...
+                    (floor(Args.PrecompKxKySize(1)/2)-1));
+                FreqArrCols = fftshift(-ceil(Args.PrecompKxKySize(2)/2):...
+                    (floor(Args.PrecompKxKySize(2)/2)-1));
+            
+                [Kx,Ky] = meshgrid(FreqArrCols,FreqArrRows);
+
+                Kx = Kx / Args.PrecompKxKySize(1);
+                Ky = Ky / Args.PrecompKxKySize(2);
+            end
+
             for Iobj=1:1:Nobj
 
                 if ~Obj(Iobj).IsRegistered
@@ -1272,12 +1290,13 @@ classdef AstroZOGY < AstroDiff
                                                          'ShiftPsf',false,...
                                                          'Eps',Args.Eps,...
                                                          'SetToNaN',[],...
-                                                         'NormMethod',Args.NormMethod);
+                                                         'NormMethod',Args.NormMethod,...
+                                                         'Kx',Kx,...
+                                                         'Ky',Ky);
                 if Args.NormZ2
                     % analytical normalization
                     Obj(Iobj).Z2 = Obj(Iobj).Z2./Norm; 
                 end
-
 
                 if ~isempty(Args.NormZsigma)
                     % Normalize to units of significance

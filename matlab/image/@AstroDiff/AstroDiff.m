@@ -317,7 +317,7 @@ classdef AstroDiff < AstroImage
                Args.Method      = 'fixed';
                Args.Fixed_u0    = 2;
                Args.Fixed_v0    = 2;
-               Args.NormMethod  = 'norm_robust_rstd3';
+               Args.NormMethod  = 'norm_robust_rstd1';
                
             end
 

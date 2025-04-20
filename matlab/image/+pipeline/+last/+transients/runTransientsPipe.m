@@ -92,6 +92,10 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     ADc = AstroZOGY();
     MergedTranCat = AstroCatalog();
 
+    % Some unit conversion parameters
+    Rad2Arcsec = 206265;
+    Arcsec2Rad = 4.84814e-6;
+
     % 2: ----- Set and verify paths -----
     
     % If Args.SaveProducts is true, check if Args.SavePath is given.
@@ -362,14 +366,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Merged cat
     % TODO: Make some decision on merged cat matching. Right now it is
     % commented out as it takes ~20s per visit.
+    
     %imProc.match.match_catsHTMmerged(AD);
     %imProc.match.match_catsHTM(AD,'MergedCat',...
     %    'ColDistName','MergedDist','ColNmatchName','MergedMatches');
-
-    % Some unit conversion parameters
-    Rad2Arcsec = 206265;
-    Arcsec2Rad = 4.84814e-6;
-    
+   
     % Galaxy match
     imProc.match.match2Galaxies(AD);
 
