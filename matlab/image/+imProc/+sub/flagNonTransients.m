@@ -133,6 +133,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
+        Args.SecondMomAsymLim = 0.3;
         Args.SecondMomHardLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
@@ -486,7 +487,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PassesN = (X2N < Args.SecondMomSoftLim) & ...
                       (Y2N < Args.SecondMomSoftLim) & ...
-                      (abs(X2N-Y2N) < 0.3);
+                      (abs(X2N-Y2N) < Args.SecondMomAsymLim);
 
             if Args.flagTranslients
                 AdjustedTranslientDiff = (~PassesN).*2;
