@@ -119,7 +119,7 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 7.0, 1.0}, {'SrcNoiseDominated', 7.0, 0.0}, ...
+        Args.BadPix_Soft       = {{'HighRN', 7.0, 1.2}, {'SrcNoiseDominated', 7.0, 0.0}, ...
             {'FlatHighStd', 7.0, 1.2}, {'DarkHighVal', 7.0, 1.2},...
             {'CoaddLessImages', 7.0, 0.0}};
 
@@ -133,6 +133,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
+        Args.SecondMomAsymLim = 0.3;
         Args.SecondMomHardLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
@@ -485,7 +486,8 @@ function TranCat = flagNonTransients(Obj, Args)
             Y2N = Cat.getCol('N_Y2');
 
             PassesN = (X2N < Args.SecondMomSoftLim) & ...
-                      (Y2N < Args.SecondMomSoftLim);
+                      (Y2N < Args.SecondMomSoftLim) & ...
+                      (abs(X2N-Y2N) < Args.SecondMomAsymLim);
 
             if Args.flagTranslients
                 AdjustedTranslientDiff = (~PassesN).*2;
