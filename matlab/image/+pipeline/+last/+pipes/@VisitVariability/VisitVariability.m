@@ -125,7 +125,7 @@ classdef VisitVariability < Component
 
             end
            
-
+            FunJD = @(jd) jd;
             AstIndex = Args.AstIndex;
 
             PWD = pwd;
@@ -166,7 +166,7 @@ classdef VisitVariability < Component
                                                   'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
                                                   'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
                                 AstAC.Catalog.Flags = uint32(AstAC.Catalog.Flags);
-    
+                                AstAC.Catalog = db.util.insertIntegerTime2table(AstAC.Catalog, 'ColJD', celestial.time.julday(), 'ColIntTime','insertion_time_jd', 'IntTimeFun',FunJD);
                                 
                                 if ~isempty(Args.AstTableName)
                                     Args.DB.insertCharDump(Args.AstTableName, AstAC.Catalog);
@@ -190,7 +190,8 @@ classdef VisitVariability < Component
                                                   'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
                                                   'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
                             VarAC.Catalog.FLAGS = uint32(VarAC.Catalog.FLAGS);
-
+                            VarAC.Catalog = db.util.insertIntegerTime2table(VarAC.Catalog, 'ColJD', celestial.time.julday(), 'ColIntTime','insertion_time_jd', 'IntTimeFun',FunJD);
+                                
                             if ~isempty(Args.VarTableName)
                                 Args.DB.insertCharDump(Args.VarTableName, VarAC.Catalog);
                             end
@@ -239,8 +240,10 @@ classdef VisitVariability < Component
                 Args.INPOP             = celestial.INPOP.init;
                 Args.OrbEl             = celestial.OrbitalEl.loadSolarSystem('merge');
                 Args.DB                = []; % must be supplied
-                Args.VarTableName      = 'last.mergedmat_var1';
-                Args.AstTableName      = 'last.fastmoving_asteroids1';
+                Args.VarTableName      = 'last.mergedmat_var';
+                Args.AstTableName      = 'last.fastmoving_asteroids';
+
+                Args.FailedFile        = '~varSearchFailed.txt';
             end
 
             if isempty(Args.T)
@@ -299,6 +302,9 @@ classdef VisitVariability < Component
                     pipeline.last.pipes.VisitVariability.searchVisitDir(Path,'WriteProduct',false,'AstIndex',AstIndex, 'INPOP',Args.INPOP, 'OrbEl',Args.OrbEl, 'DB',Args.DB, 'VarTableName',Args.VarTableName, 'AstTableName',Args.AstTableName);
                 catch ME
                     'a'
+                    FID = fopen(Args.FailedFile,'w');
+                    fprintf(FID,'%d %13.5f %13.5f %d\n', Args.Mount, Args.IngestionTime(1), Args.IngestionTime(2), It);
+                    fclose(FID);
                 end
                 toc
               
