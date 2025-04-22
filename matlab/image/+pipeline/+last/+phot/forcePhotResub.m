@@ -7,8 +7,8 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
     % Output : - 
     % Author : Eran Ofek (2025 Apr) 
     % Example: RA=40.5229121965; Dec=-16.9563601815;
-    %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec);
-    %          R=pipeline.last.phot.forcePhotResub(T, RA, Dec);
+    %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec,'QueryMethod','upix');
+    %          R=pipeline.last.phot.forcePhotResub(T{1}, RA, Dec);
 
     arguments
         T
@@ -34,8 +34,10 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
     % uniuqe: fielid, mount, camera, cropid:
     UnID   = unique([UnFInd, T.mountnum, T.camnum, T.cropid], 'rows');
     NunID  = size(UnID,1);
+    K = 0;
     for Iun=1:1:NunID
         Ind = find(UnFInd==UnID(Iun,1) & T.mountnum==UnID(Iun,2) & T.camnum==UnID(Iun,3) & T.cropid==UnID(Iun,4));
+        Tun = T(Ind,:);  % Table with unique entries...
         Nim = numel(Ind);
 
         FieldID = UnFieldID{UnID(Iun,1)};
@@ -53,15 +55,17 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
                 RefAI = [];
             else
                 if Nim>Args.MaxNumForRef
-                    [~,SI]=sort(T.fwhm);
+                    [~,SI]=sort(Tun.fwhm);
 
                     IndForRef = SI(1:Args.MaxNumForRef);
                 else
-                    IndForRef = (1:1:Args.MaxNumForRef).';
+                    IndForRef = (1:1:Nim).';
                 end
                 
+                NimRef = numel(IndForRef);
                 % make RefAI
-                [RefAI] = pipeline.last.coadd.coaddVisits(T(IndForRef,:), 'CropID',CropID);
+                [RefAI] = pipeline.last.coadd.coaddVisits(Tun(IndForRef,:), 'CropID',CropID);
+               
             end
 
         end
@@ -69,45 +73,63 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
         if ~isempty(RefAI)
             for Iim=1:1:Nim
                 % load image
-                NewAI = pipeline.last.queryDB.loadProducts(T(Iim,:),'coadd','Image+');
+                NewAI = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd','Image+');
 
-                % subtract image
-                AD = AstroZOGY;
-                AD.Ref = RefAI;
-                AD.New = NewAI;
-                AD.Ref.Back = [];
-                AD.Ref.Var  = [];
-                AD.RefIsBackgroundSubtracted = true;
+                % check that NewAI contains data
+                FlagEmpty = NewAI.isemptyImage;
+                if ~FlagEmpty
 
-                AD.register;
+                    % subtract image
+                    AD = AstroZOGY;
+                    AD.Ref = RefAI;
+                    AD.New = NewAI;
+                    AD.Ref.Back = [];
+                    AD.Ref.Var  = [];
+                    AD.RefIsBackgroundSubtracted = true;
     
-                AD.subtractionD;
-                AD.subtractionS;
-                AD.subtractionScorr;
+                    AD.register;
+        
+                    AD.subtractionD;
+                    AD.subtractionS;
+                    AD.subtractionScorr;
+    
+                    % EO: I added this in order to deal with the edges of the reference
+                    % images that are based on low number of coadded images and they are
+                    % biasing the statistics
+                    % In principle this should be done by the AstroZOGY class...
+                    FlagNearEdge = AD.MaskData.findBit('NearEdge');
+                    AD.S = AD.S./tools.math.stat.rstd(AD.S(~FlagNearEdge(:)));
+                  
+                    try
+                        [ResultD] = imProc.sources.forcedPhot(AD, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+                        [ResultR] = imProc.sources.forcedPhot(RefAI, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+                        [ResultN] = imProc.sources.forcedPhot(NewAI, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+    
+                        % add prefix to Ref and New table columns
+                        ResultR.Properties.VariableNames = "Ref_" + ResultR.Properties.VariableNames;
+                        ResultN.Properties.VariableNames = "New_" + ResultN.Properties.VariableNames;
+    
+                        % Read S at position:
+                        S_val     = imUtil.image.getValPos(AD.S, ResultD.X, ResultD.Y);
+                        Scorr_val = imUtil.image.getValPos(AD.Scorr, ResultD.X, ResultD.Y);
+                        
 
-                % EO: I added this in order to deal with the edges of the reference
-                % images that are based on low number of coadded images and they are
-                % biasing the statistics
-                % In principle this should be done by the AstroZOGY class...
-                FlagNearEdge = AD.MaskData.findBit('NearEdge');
-                AD.S = AD.S./tools.math.stat.rstd(AD.S(~FlagNearEdge(:)));
-              
-                try
-                    [ResultD] = imProc.sources.forcedPhot(AD, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
-                    [ResultR] = imProc.sources.forcedPhot(RefAI, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
-                    [ResultN] = imProc.sources.forcedPhot(NewAI, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
-
-                    % add prefix to Ref and New table columns
-
-                    % add meta data (JD, Mount, Camera, CropID,...)
-
-
-                catch ME
-            
+                        % add meta data (JD, Mount, Camera, CropID,...)
+                        Tmeta = table(AD.New.julday, string(FieldID), Mount, CamNum, CropID, NimRef, AD.HeaderData.getVal('LIMMAG'), AD.Ref.HeaderData.getVal('LIMMAG'), AD.New.HeaderData.getVal('LIMMAG'), S_val, Scorr_val);
+                        Tmeta.Properties.VariableNames = {'JD','FieldID', 'Mount', 'CamNum', 'CropID', 'NimRef', 'LimMag', 'Ref_LimMag', 'New_LimMag', 'S', 'Scorr'};
+                        K = K + 1;
+                        if K==1
+                            Result = [ResultD, ResultR, ResultN, Tmeta];
+                        else
+                            Result = [Result; [ResultD, ResultR, ResultN, Tmeta]];
+                        end
+                        [K, Nim, Iun, NunID]
+                    catch ME
+                        'a'
+                    end
+                    % collect data
                 end
-                % collect data
-
-    
+        
             end
         end
 
