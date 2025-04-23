@@ -243,7 +243,7 @@ classdef VisitVariability < Component
                 Args.VarTableName      = 'last.mergedmat_var';
                 Args.AstTableName      = 'last.fastmoving_asteroids';
 
-                Args.FailedFile        = '~varSearchFailed.txt';
+                Args.FailedFile        = '~/varSearchFailed.txt';
             end
 
             if isempty(Args.T)
