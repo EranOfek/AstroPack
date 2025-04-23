@@ -977,6 +977,33 @@ classdef Scheduler < Component
             
         end
         
+        function Obj=removeEntries(Obj, FN)
+            % Remove entries by index or exact field name from scheduler
+            % Input  : - self.
+            %          - A list of indices to reomve:
+            %            Either a string array (or cell array) of field
+            %            names, or a vector of logicals to remove, or a
+            %            vector of indices to remove.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Apr 2025)
+            % Example: S = telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          S.removeEntries(["1", "3"])
+
+            if iscell(FN) || isstring(FN)
+                [~,Igood] = setdiff(Obj.List.Catalog.FieldName, FN(:), 'rows','stable');
+                Obj.List.Catalog = Obj.List.Catalog(Igood,:);
+            else
+                % logical flag or index
+                if islogical(FN)
+                    Obj.List.Catalog = Obj.List.Catalog(~FN,:);
+                else
+                    IndKeep = tools.array.notIndexVector(size(Obj.List.Catalog,1), FN);
+                    Obj.List.Catalog = Obj.List.Catalog(IndKeep,:);
+                end
+            end
+        end
+        
         function Obj=populateMountAltConstraints(Obj, Data, Path)
             % populate MountAltConstraints
             % Input  : - self.
@@ -1086,6 +1113,7 @@ classdef Scheduler < Component
                 Args.ObsLogPath    = tools.os.get_userhome;   % directory in which to write log file
                 Args.ObsLogFile    = 'observations_log.txt'   % log file name
                 Args.ToO_File      = '~/Scheduler/ToO.csv';               % ToO file name
+                Args.ToO_RemoveFile= '~/Scheduler/ToO_Remove.csv';               % ToO file name
                 Args.SelectMethod  = 'minam';                 % Target selection method.
                 Args.OuttaTime = 1/48; % fraction of a day, to consider it a simulated time request
                 Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
@@ -1112,6 +1140,28 @@ classdef Scheduler < Component
                         sprintf('offending file %s removed',Args.ToO_File))
                 end
             end
+
+            if isfile(Args.ToO_RemoveFile)
+                try
+                    Opts = detectImportOptions(Args.ToO_RemoveFile, 'TextType', 'string');
+                    Opts.VariableTypes{1} = 'string';  % force first column to string
+                    FieldToRemove = readtable(Args.ToO_RemoveFile, Opts);
+                    FieldToRemove.Properties.VariableNames = {'FieldName'};
+                    S = S.removeEntries(FieldToRemove.FieldName);
+    
+                    delete(Args.ToO_RemoveFile);
+                catch
+                    % delete the file anyway, otherwise the error is
+                    %  repeated forever
+                    delete(Args.ToO_RemoveFile);
+                    S.Logger.msgLog(LogLevel.Error,...
+                      sprintf('remove file %s cannot be ingested, check format and permissions',...
+                      Args.ToO_RemoveFile))
+                    S.Logger.msgLog(LogLevel.Info,...
+                        sprintf('offending file %s removed',Args.ToO_RemoveFile))
+                end
+            end
+                
             
             % Check if scheduling is required and if so for which mount
             % Enrico's function #1

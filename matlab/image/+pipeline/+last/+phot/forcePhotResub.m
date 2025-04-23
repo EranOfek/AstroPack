@@ -92,6 +92,7 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
                     AD.subtractionD;
                     AD.subtractionS;
                     AD.subtractionScorr;
+                    AD.translient;
     
                     % EO: I added this in order to deal with the edges of the reference
                     % images that are based on low number of coadded images and they are
@@ -112,11 +113,11 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
                         % Read S at position:
                         S_val     = imUtil.image.getValPos(AD.S, ResultD.X, ResultD.Y);
                         Scorr_val = imUtil.image.getValPos(AD.Scorr, ResultD.X, ResultD.Y);
-                        
+                        Z2        = imUtil.image.getValPos(AD.Z2, ResultD.X, ResultD.Y);
 
                         % add meta data (JD, Mount, Camera, CropID,...)
-                        Tmeta = table(AD.New.julday, string(FieldID), Mount, CamNum, CropID, NimRef, AD.HeaderData.getVal('LIMMAG'), AD.Ref.HeaderData.getVal('LIMMAG'), AD.New.HeaderData.getVal('LIMMAG'), S_val, Scorr_val);
-                        Tmeta.Properties.VariableNames = {'JD','FieldID', 'Mount', 'CamNum', 'CropID', 'NimRef', 'LimMag', 'Ref_LimMag', 'New_LimMag', 'S', 'Scorr'};
+                        Tmeta = table(AD.New.julday, string(FieldID), Mount, CamNum, CropID, NimRef, AD.HeaderData.getVal('LIMMAG'), AD.Ref.HeaderData.getVal('LIMMAG'), AD.New.HeaderData.getVal('LIMMAG'), S_val, Scorr_val, Z2);
+                        Tmeta.Properties.VariableNames = {'JD','FieldID', 'Mount', 'CamNum', 'CropID', 'NimRef', 'LimMag', 'Ref_LimMag', 'New_LimMag', 'S', 'Scorr', 'Z2'};
                         K = K + 1;
                         if K==1
                             Result = [ResultD, ResultR, ResultN, Tmeta];
