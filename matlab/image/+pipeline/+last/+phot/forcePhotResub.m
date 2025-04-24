@@ -1,6 +1,5 @@
 function [Result] = forcePhotResub(T, RA, Dec, Args)
-    % One line description
-    %     Optional detailed description
+    % Forced photometry on LAST subtracted images, when the subtraction image doesn't exist.
     % Input  : - 
     %          - 
     %          * ...,key,val,... 

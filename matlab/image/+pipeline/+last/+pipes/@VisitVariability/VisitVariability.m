@@ -244,6 +244,7 @@ classdef VisitVariability < Component
                 Args.AstTableName      = 'last.fastmoving_asteroids';
 
                 Args.FailedFile        = '~/varSearchFailed.txt';
+                Args.StartInd          = 1;
             end
 
             if isempty(Args.T)
@@ -289,7 +290,7 @@ classdef VisitVariability < Component
             %end
 
             %parfor Ipool=1:Npool
-            for It=1:Nt
+            for It=Args.StartInd:1:Nt
 
                 [It, Nt] %, Args.Ind(It)]
                 

@@ -69,51 +69,98 @@ if nargin==0
     
 end
 
+UsePsi = false; % Psi/Beta coo system, otherwise Az,Alt
+if UsePsi
+    D_Beta  = [0.0:0.01:3]'./RAD;
+    D_Psi   = [-180:2:180]'./RAD;
+    Nbeta   = numel(D_Beta);
+    Npsi    = numel(D_Psi);
+    RMS     = zeros(Nbeta,Npsi);
     
-D_Beta  = [0.0:0.01:3]'./RAD;
-D_Psi   = [-180:2:180]'./RAD;
-Nbeta   = numel(D_Beta);
-Npsi    = numel(D_Psi);
-RMS     = zeros(Nbeta,Npsi);
-for Ibeta=1:1:Nbeta
-    for Ipsi=1:1:Npsi
-        [~,Pred_dDt_dt,Pred_dRt_dt]=celestial.coo.polar_alignment_drift(Meas_H,Meas_D,Phi,D_Psi(Ipsi),D_Beta(Ibeta));
-        
-        RMSd(Ibeta,Ipsi) = std(Measured_Dt_dt - Pred_dDt_dt);
-        RMSr(Ibeta,Ipsi) = nanstd(Measured_Rt_dt - Pred_dRt_dt);
+    
+    for Ibeta=1:1:Nbeta
+        for Ipsi=1:1:Npsi
+            [~,Pred_dDt_dt,Pred_dRt_dt]=celestial.coo.polar_alignment_drift(Meas_H,Meas_D,Phi,D_Psi(Ipsi),D_Beta(Ibeta));
+            
+            RMSd(Ibeta,Ipsi) = std(Measured_Dt_dt - Pred_dDt_dt);
+            RMSr(Ibeta,Ipsi) = nanstd(Measured_Rt_dt - Pred_dRt_dt);
+        end
+    end
+
+else
+
+    D_DAz   = (-3:0.005:3)'./RAD;
+    D_DAlt  = (-3:0.005:3)'./RAD;
+    N_DAz   = numel(D_DAz);
+    N_DAlt  = numel(D_DAlt);
+    RMS     = zeros(N_DAz, N_DAlt);
+    for Idaz=1:1:N_DAz
+        for Idalt=1:1:N_DAlt
+    
+            [N_HA,N_Dec] = celestial.coo.azalt2hadec(-D_DAz(Idaz), Phi-D_DAlt(Idalt), Phi, 'rad');
+            D_Psi  = N_HA;
+            D_Beta = pi./2 - N_Dec;
+          
+            [~,Pred_dDt_dt,Pred_dRt_dt] = celestial.coo.polar_alignment_drift(Meas_H,Meas_D,Phi,D_Psi,D_Beta);
+            
+            RMSd(Idaz,Idalt) = std(Measured_Dt_dt - Pred_dDt_dt, 1, 'omitnan');
+            RMSr(Idaz,Idalt) = std(Measured_Rt_dt - Pred_dRt_dt, 1, 'omitnan');
+        end
     end
 end
+
 if UseOnlyDec
     RMS = RMSd;
 else
     RMS = sqrt(RMSd.^2 + RMSr.^2);
 end
 
-Plot = true
+
+
+
+Plot = true;
 if Plot
-    surface(D_Psi.*RAD,D_Beta.*RAD,RMS);
+    if UsePsi
+        surface(D_Psi.*RAD,D_Beta.*RAD,RMS);
+        H=xlabel('$\psi$ [deg]');
+        H.FontSize = 18;
+        H.Interpreter = 'latex';
+        H=ylabel('$\beta$ [deg]');
+        H.FontSize = 18;
+        H.Interpreter = 'latex';
+    else
+        surface(D_DAz.*RAD,D_DAlt.*RAD,RMS);
+        H=xlabel('Shift Az [deg]');
+        H.FontSize = 18;
+        H.Interpreter = 'latex';
+        H=ylabel('Shift Alt [deg]');
+        H.FontSize = 18;
+        H.Interpreter = 'latex';
+    end
     colorbar
     shading interp;
     box on;
-    H=xlabel('$\psi$ [deg]');
-    H.FontSize = 18;
-    H.Interpreter = 'latex';
-    H=ylabel('$\beta$ [deg]');
-    H.FontSize = 18;
-    H.Interpreter = 'latex';
+    
 end
 
-[Min,MinI]=Util.stat.minnd(RMS);
-Res.BestBeta = D_Beta(MinI(1));
-Res.BestPsi  = D_Psi(MinI(2));
-Res.Phit     = asin( cos(Res.BestBeta).*sin(Phi) + sin(Res.BestBeta).*cos(Phi).*cos(Res.BestPsi) );
-Res.BestDAlt = -(Res.Phit - Phi);
-Res.BestDAz  = asin(sin(Res.BestBeta).*sin(Res.BestPsi)./cos(Res.Phit));
-
-Res.BestBeta = Res.BestBeta.*RAD;
-Res.BestPsi  = Res.BestPsi.*RAD;
-Res.BestDAlt = Res.BestDAlt.*RAD;
-Res.BestDAz  = Res.BestDAz.*RAD;
+[Min,MinI]=tools.math.stat.minnd(RMS);
+if UsePsi
+    Res.BestBeta = D_Beta(MinI(1));
+    Res.BestPsi  = D_Psi(MinI(2));
+    Res.Phit     = asin( cos(Res.BestBeta).*sin(Phi) + sin(Res.BestBeta).*cos(Phi).*cos(Res.BestPsi) );
+    Res.BestDAlt = -(Res.Phit - Phi);
+    Res.BestDAz  = asin(sin(Res.BestBeta).*sin(Res.BestPsi)./cos(Res.Phit));
+    
+    Res.BestBeta = Res.BestBeta.*RAD;
+    Res.BestPsi  = Res.BestPsi.*RAD;
+    Res.BestDAlt = Res.BestDAlt.*RAD;
+    Res.BestDAz  = Res.BestDAz.*RAD;
+    Res.BestRMS  = Min;
+else
+    Res.BestDAz  = D_DAz(MinI(1));
+    Res.BestDAlt = D_DAlt(MinI(2));
+    Res.BestRMS  = Min;
+end
 
 % 
 % %% old
