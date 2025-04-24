@@ -630,7 +630,52 @@ classdef Db < Component
             end
             ID = tools.bit.bitEncode(BitNum, BitVal);
         end
+    end
 
+    methods % construct queries / dynamic
+        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols)
+            % Generate a select group by query.
+            %   query of the form: INSERT INTO last.fastmoving_asteroids11 SELECT id, jd, any(col1), any(col2), ... FROM last.fastmoving_asteroids1 GROUP BY id, jd;
+            % Input  : - self.
+            %          - Table name.
+            %          - GroupByCols cell array. Default is {'id','jd'}
+            %          - AddCols. Columns to add. Default is '*'.
+            % Output : - Query string.
+            % Author : Eran Ofek (Apr 2025)
+            % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids1', {'id','jd'}, '*')
+
+            arguments
+                Obj
+                TableName   = 'fastmoving_asteroids1';
+                GroupByCols = {'id','jd'};
+                AddCols     = '*';
+            end
+
+            
+            if strcmp(AddCols, '*')
+                % get all columns       
+                [ColNames, ColTypes, Error] = getColumns(Obj, TableName, Obj.DbName);
+
+                % remove group columns
+                AddCols = setdiff(ColNames, GroupByCols);
+            end
+
+            % build template like:
+            %INSERT INTO last.fastmoving_asteroids11 SELECT id, jd, any(col1), any(col2), ... FROM last.fastmoving_asteroids1 GROUP BY id, jd;
+
+            GroupCols = tools.cell.sprintf_concatCell(", ", GroupByCols);
+            if isempty(AddCols)
+                AnyStr = '';
+                ExtraComa = '';
+            else
+                AnyCols = tools.cell.sprintf2cell('any(%s) AS %s',[AddCols(:), AddCols(:)]);
+                AnyStr  = tools.cell.sprintf_concatCell(", ",AnyCols);
+                ExtraComa = ',';
+            end
+
+            Result = sprintf("SELECT %s %s %s FROM %s GROUP BY %s", GroupCols, ExtraComa, AnyStr, TableName, GroupCols);
+
+        end
     end
     
     methods % utilities
@@ -781,8 +826,8 @@ classdef Db < Component
             %          D.createTable('test_db',["id"; "name"; "age"],["UInt32"; "String"; "UInt8"], 'Index', {'INDEX id_index id TYPE minmax GRANULARITY 1'})
             %          DB.createTable('fastmoving_asteroids1',AstC.Table);
             %
-            %          Error=DB.createTable('mergedmat_var1',VarAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
-            %          DB.createTable('fastmoving_asteroids1',AstAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
+            %          Error=DB.createTable('mergedmat_var',VarAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
+            %          DB.createTable('fastmoving_asteroids',AstAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
             % [~,Error] = DB.query('DROP TABLE IF EXISTS mergedmat_var1', 'IsExec',true)
             % [~,Error] = DB.query('TRUNCATE TABLE mergedmat_var2', 'IsExec',true)
 
@@ -838,6 +883,38 @@ classdef Db < Component
             
         end
 
+        % function removeDuplicates(Obj, Args)
+        %     % Remove duplicate entries (same ID) from a table
+        %     %
+        %     % Example: removeDuplicates(DB, 'SrcTable','last.fastmoving_asteroids1', 'DestTable','last.fastmoving_asteroids11', 'ColID','id'); 
+        % 
+        %     arguments
+        %         Obj
+        %         Args.SrcTable  = 'last.fastmoving_asteroids1';
+        %         Args.DestTable = 'last.fastmoving_asteroids11';
+        %         Args.ColID     = {'id','jd'};
+        %     end
+        % 
+        %     % show old table create statment
+        %     Cmd = sprintf('SHOW CREATE TABLE %s',Args.SrcTable);
+        %     CreateStatment = Obj.fetch(Cmd,'Parse',true);
+        %     CreateStatment = strrep(CreateStatment, Args.SrcTable, Args.DestTable);
+        % 
+        %     % drop new table if exist
+        %     DropCmd = sprintf('DROP TABLE IF EXISTS %s', Args.DestTable);
+        %     [~,Error] = Obj.query(DropCmd, 'IsExec',true);
+        % 
+        %     % create new table using old table parameters
+        %     [~,Error] = Obj.query(CreateStatment, 'IsExec',true);
+        % 
+        %     RemDupCmd = sprintf("INSERT INTO %s\n SELECT * \n FROM ( \n    SELECT *,\n           row_number() OVER (PARTITION BY %s ORDER BY jd ASC) AS rn\n    FROM %s\n)\n WHERE rn = 1;",Args.DestTable, Args.ColID, Args.SrcTable);
+        %     RemDupCmd = sprintf("SELECT * \n FROM ( \n    SELECT *,\n           row_number() OVER (PARTITION BY %s ORDER BY jd ASC) AS rn\n    FROM %s\n)\n WHERE rn = 1;", Args.ColID, Args.SrcTable);
+        %     [~,Error] = Obj.query(RemDupCmd, 'IsExec',true);
+        % 
+        %     % compare length of the two tables
+        % 
+        % end
+        
         function Error=insertCharDump(Obj, TableName, InputTable, Args)
             % Insert entries in table object into ClickHouse table using char dump (direct insert)
             %   Good for insertion of small tables.
@@ -936,6 +1013,40 @@ classdef Db < Component
     end
     
     methods % DB, Tables information
+        function Result=fetch(Obj, Command, Args)
+            % Fetch data from DB 
+            % Input  : - self.
+            %          - Command (e.g., 'SHOW CREATE TABLE fastmoving_asteroids')
+            %          * ...,key,val,...
+            %            'Parse' - If true will attempt to parse data from
+            %                   table. For example, if the output table
+            %                   contains a single column and a single line
+            %                   then will return this clean line.
+            %                   Default is false.
+            % Output : - Table with output, or the content of the entry (if
+            %            Parse=true).
+            % Author : Eran Ofek (Apr 2025)
+            % Example: DB.fetch('SHOW CREATE TABLE diff_src')
+            %          DB.fetch('SHOW CREATE TABLE diff_src','Parse',true)
+
+            arguments
+                Obj
+                Command,
+                Args.Parse    = false;
+            end
+
+            Result = fetch(Obj.Conn, Command);
+
+            if Args.Parse
+                if numel(Result.Properties.VariableNames)==1
+                    Result = Result.(Result.Properties.VariableNames{1}){1};
+                else
+                    error('Can not parse - table with multiple columns');
+                end
+            end
+
+        end
+
         function [Result, Error] = showDB(Obj, Args)
             % Show all databases
             %   Using the 'SHOW DATABSES;' query.

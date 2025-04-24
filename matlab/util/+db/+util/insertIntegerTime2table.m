@@ -12,7 +12,7 @@ function [T] = insertIntegerTime2table(T, Args)
     %                   Default is 'JD'.
     %            'IntTimeFun' - Function of the form F(JD) that returns the
     %                   integer time.
-    %                   Default is uint64((jd-2451545.5).*86400.*1000);
+    %                   Default is @(jd) uint64((jd-2451545.5).*86400.*1000);
     %            'ColIntTime' - Column name in the table in which to insert
     %                   the integer time.
     %                   If empty, then the output will be a vector.

@@ -103,6 +103,11 @@ function [CI, AI] = coaddVisits(In, Args)
         end
     end
 
+    % check that images were loaded
+    FlagEmpty = AI.isemptyImage;
+    % remove empty images
+    AI = AI(~FlagEmpty);
+
     % need background and variance due to a bug in coadd:
     AI = imProc.background.background(AI, 'SubSizeXY',[]);
     [~,Back,Var]=imProc.stat.mean(AI);
