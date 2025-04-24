@@ -68,6 +68,7 @@ classdef AstroDiff < AstroImage
         Nbs
         % Back subtracted Ref
         Rbs
+        Dbs
         
     end
     properties
@@ -145,6 +146,12 @@ classdef AstroDiff < AstroImage
             % getter for Mbs - Return background subtracted New image
     
             Val = Obj.New.Image - Obj.BackN;
+        end
+
+        function Val=get.Dbs(Obj)
+            % getter for Dbs - Return background subtracted Diff image
+    
+            Val = Obj.Image - Obj.Back;
         end
 
         function Val=get.GaborSN(Obj)

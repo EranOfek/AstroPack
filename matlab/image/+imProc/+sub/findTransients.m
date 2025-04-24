@@ -136,7 +136,7 @@ function TranCat=findTransients(AD, Args)
         end
 
         if Args.include2ndMoment || Args.includePsfFit
-            [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Image, ...
+            [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Dbs, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).PSFData.fwhm);
             [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
@@ -269,30 +269,38 @@ function TranCat=findTransients(AD, Args)
         end
 
         if Args.includePsfFit
+            
+            ZeroBack = zeros(Nsrc,1);
 
             % PSF fit all candidates in the D image
             PSFSize = floor(size(AD(Iobj).PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.RoundX, M1.RoundY, PSFSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Dbs, M1.RoundX, M1.RoundY, PSFSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
+            XYind = sub2ind(size(AD(Iobj).Dbs), M1.RoundY, M1.RoundX);
+            VarD = AD(Iobj).Var(XYind);
+            StdD = sqrt(VarD);
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
-                'PSF', AD(Iobj).PSFData.getPSF, 'ZP', AD(Iobj).ZpD);
+                'PSF', AD(Iobj).PSFData.getPSF, 'Back', ZeroBack, 'Std', StdD,...
+                'ZP', AD(Iobj).ZpD);
 
             % PSF fit all candidates in the New image
             CutHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, M1N.RoundX, M1N.RoundY, CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Nbs, M1N.RoundX, M1N.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
-                'PSF', AD(Iobj).New.PSFData.getPSF, 'ZP', AD(Iobj).ZpN);
+                'PSF', AD(Iobj).New.PSFData.getPSF, 'Back', 0, 'Std', AD(Iobj).SigmaN, ...
+                'ZP', AD(Iobj).ZpN);
             
             % PSF fit all candidates in the Ref image
             CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1N.RoundX, M1N.RoundY, CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Rbs, M1N.RoundX, M1N.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF',...
-                AD(Iobj).Ref.PSFData.getPSF, 'ZP', AD(Iobj).ZpR);
+            [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, ...
+                'PSF', AD(Iobj).Ref.PSFData.getPSF, 'Back', 0, 'Std', AD(Iobj).SigmaR,...
+                'ZP', AD(Iobj).ZpR);
 
             % Get chi2 per degrees of freedom of the PSF fit on the difference
             % image.
