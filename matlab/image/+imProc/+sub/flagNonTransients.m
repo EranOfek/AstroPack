@@ -33,9 +33,8 @@ function TranCat = flagNonTransients(Obj, Args)
                        their score threshold values. Transients candidates
                        that contain soft bad pixels are only flagged as 
                        non-transients if their score values are below the 
-                       respective thresholds. Default is Default is {{'HighRN', 6.0},
-                       {'SrcNoiseDominated', 7.0}, {'FlatHighStd',7.0}, 
-                       {'DarkHighVal', 13.0}}.
+                       respective thresholds. Default is Default is {{'HighRN', 1.2},
+                       {'FlatHighStd',1.2}, {'DarkHighVal', 1.2}}.
                 'flagSNR' - Bool on whether to flag transients candidates
                        based the signal-to-noise ratio in the subtraction
                        image. Default is true.
@@ -119,12 +118,8 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 7.0, 1.2}, {'SrcNoiseDominated', 7.0, 0.0}, ...
-            {'FlatHighStd', 7.0, 1.2}, {'DarkHighVal', 7.0, 1.2},...
-            {'CoaddLessImages', 7.0, 0.0}};
-
-        Args.flagSNR logical = true;
-        Args.SNRThreshold = 5.0;
+        Args.BadPix_Soft       = {{'HighRN', 1.2},  ...
+            {'FlatHighStd', 1.2}, {'DarkHighVal', 1.2}};
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
@@ -157,13 +152,11 @@ function TranCat = flagNonTransients(Obj, Args)
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
-        Args.NeighborNumThreshold = 30;
+        Args.NeighborDenThreshold = 3.2;
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
         Args.NeighborNumThresholdSaturated = 2;
     
-        Args.flagCR logical = true;
-
         Args.flagVariable logical = true;
         Args.VarStarDist = 3;
 
@@ -275,40 +268,26 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Apply soft bit mask criteria.
-        if Args.flagBadPix_Soft && exist('BD','var') && Cat.isColumn('SN')
+        if Args.flagBadPix_Soft && exist('BD','var') && Cat.isColumn('SN_delta')
+
+            SN_delta = Cat.getCol('SN_delta');
+            SdiffSd = Score - SN_delta;
+
+            BPSThresh = zeros(CatSize,1);
 
             NBadSoft = numel(Args.BadPix_Soft);
 
-            % New bit mask values.
-            FlagBadSoft_New = false(CatSize,1);
-            % Reference bit mask values.
-            FlagBadSoft_Ref = false(CatSize,1);
-
-            if Args.flagCR
-                ModCRThresh = zeros(CatSize,1);
-            end
-    
             for IBad=1:1:NBadSoft
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
-
-                AboveThreshold = (abs(Cat.getCol('SN')) >= IBadPix_Soft{2});
 
                 BPinN = BD.findBit(BM_new, IBadPix_Soft{1});
                 BPinR = BD.findBit(BM_ref, IBadPix_Soft{1});
 
-                FlagBadSoft_New = FlagBadSoft_New | (BPinN & ~AboveThreshold);
-
-                FlagBadSoft_Ref = FlagBadSoft_Ref | (BPinR & ~AboveThreshold);
-
-                if Args.flagCR 
-                    ModCRThresh(BPinN | BPinR) = ModCRThresh(BPinN | BPinR) ...
-                        + IBadPix_Soft{3};
-                end
+                BPSThresh(BPinN | BPinR) = BPSThresh(BPinN | BPinR) ...
+                    + IBadPix_Soft{2};
             end
 
-            BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
-
-            BadSoftFlagged = BadSoftIdx;
+            BadSoftFlagged = (SdiffSd < BPSThresh);
             TF_Flags = TF_Flags + BadSoftFlagged.*2.^BD_TF.name2bit('BadPixelSoft');
         end
 
@@ -347,16 +326,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             RingingFlagged = IsRinging;
             TF_Flags = TF_Flags + RingingFlagged.*2.^BD_TF.name2bit('Ringing');
-        end
-
-        % Apply signal to noise criterium
-        if Args.flagSNR && Cat.isColumn('SN')
-
-            SNR = Cat.getCol('SN');
-            SNRBelowThresh = (SNR < Args.SNRThreshold);
-
-            SNRFlagged = SNRBelowThresh;
-            TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
         if Args.flagLimitingMag
@@ -451,28 +420,37 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             NearSaturated = false(Ntran,1);
+            Nneighbors = zeros(Ntran,1);
+            LocalDensity = zeros(Ntran,1);
             % Iterate through each candidate
             for Itran = Ntran:-1:1
                 % Get distance to all other candidates
                 NeighborDist = sqrt((XY(Itran,2)-XY(:,2)).^2+(XY(Itran,1)-XY(:,1)).^2);
                 % Test distance against threshold
                 IsNeighbor = NeighborDist < Args.NeighborDistanceThreshold;
+                % Exclude itself
+                IsNeighbor = IsNeighbor & (NeighborDist > 0);
                 % Remove excluded neighbors
                 NearSaturated0 = any(IsNeighbor & FlagSaturated_Ref);
                 NearSaturated(Itran) = NearSaturated0;
                 IsNeighbor = IsNeighbor & ~ExcludeNeighbor;
                 % Count remaining neighbors
-                % and remove itself if it was not excluded
-                Nneighbors(Itran) = sum(IsNeighbor) - ~ExcludeNeighbor(Itran);
+                Nneighbors0 = sum(IsNeighbor);
+                Nneighbors(Itran) = Nneighbors0;
+                LocalDensity(Itran) = sum(1./NeighborDist(IsNeighbor));
             end
 
             % Add number of neighbors to catalog
-            Nneighbors = transpose(Nneighbors);
-            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(cast(Nneighbors,'double'), ...
-                'SCORE', {'N_NEIGH'}, {''});
+            Nneighbors = cast(Nneighbors,'double');
+            LocalDensity = cast(LocalDensity, 'double');
+            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
+                cell2mat({Nneighbors,LocalDensity}), ...
+                'SCORE', {'N_NEIGH','DENSITY'}, {'',''});
             % Test number of neighbors against threshold
-            Overdensity = (Nneighbors >= Args.NeighborNumThreshold) | ...
-                (NearSaturated & Nneighbors >= Args.NeighborNumThresholdSaturated);
+            Overdensity = (LocalDensity > 1.0) | ...
+                (Nneighbors.*LocalDensity >= Args.NeighborDenThreshold);
+            Overdensity = Overdensity | ...
+                (NearSaturated & (Nneighbors >= Args.NeighborNumThresholdSaturated));
             % Update flags
             OverdensityFlagged = Overdensity;
 
@@ -521,20 +499,6 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + NShapeFlagged.*2.^BD_TF.name2bit('NPSFShape');
         end
         
-        if Args.flagCR
-            SN_delta = Cat.getCol('SN_delta');
-
-            CRThresh = zeros(CatSize,1);
-
-            if exist('ModCRThresh','var')
-                CRThresh = CRThresh + ModCRThresh;
-            end
-
-            NoNCRs = ((abs(Score) - abs(SN_delta)) >  CRThresh);
-
-            TF_Flags = TF_Flags + ~NoNCRs.*2.^BD_TF.name2bit('CRDelta');
-        end
-
         if Args.flagVariable
             % TODO: Move the catalog matching elsewhere
             GalaxyDist = Cat.getCol('GAL_DIST');
