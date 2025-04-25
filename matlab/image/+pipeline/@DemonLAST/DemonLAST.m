@@ -3233,6 +3233,7 @@ classdef DemonLAST < Component
                             % Insert transients to the transients' DB (on the fly)
                             if Args.InsertTransients2DB && ~isempty(TCL2)
                                 if ~TCL2.isemptyCatalog
+                                    Err = [];
                                     try
                                         Err = pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
                                     catch ME
