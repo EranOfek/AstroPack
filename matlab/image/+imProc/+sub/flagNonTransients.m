@@ -128,8 +128,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
-        Args.SecondMomAsymLim = 0.3;
-        Args.SecondMomHardLim = 2.3;
+        Args.SecondMomAsymLim = 0.33;
+        Args.SecondMomHardLim = 2.0;
+        Args.SecondMomFinalLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
 
@@ -147,8 +148,9 @@ function TranCat = flagNonTransients(Obj, Args)
        
         Args.flagStreak logical = true;
         Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
-            'Ringing', 'Translient'};
+            'Ringing', 'Translient', 'Streak'};
         Args.StreakDistanceThreshold = 20;
+        Args.NumStreaks = 2;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -382,24 +384,30 @@ function TranCat = flagNonTransients(Obj, Args)
                 SubSel = SubSel & ~BitFound;
             end
 
-            Xt = X(SubSel);
-            Yt = Y(SubSel);
-            TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
+            for IStreak=1:Args.NumStreaks
 
-            MinNpts = [5 7 10 13 17 20 23 27 30];
-            NMinNpts = numel(MinNpts);
-            for IMinNpts = NMinNpts:-1:1
-                Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
-                    'MinRMS', 0.5,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
+                Xt = X(SubSel);
+                Yt = Y(SubSel);
+                TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
+    
+                MinNpts = [5 7 10 13 17 20 23 27 30];
+                NMinNpts = numel(MinNpts);
+                for IMinNpts = NMinNpts:-1:1
+                    Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
+                        'MinRMS', 0.5,'MinNpt',MinNpts(IMinNpts), 'ThresholdDist',TDist);
+                    if Res.Found
+                        break
+                    end
+                end
+    
                 if Res.Found
+                    ModY = Res.Par(1)+Xt.*Res.Par(2);
+                    Streaked = abs(ModY - Yt) < Args.StreakDistanceThreshold;
+                    TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('Streak');
+                    SubSel(SubSel) = ~Streaked;
+                else
                     break
                 end
-            end
-
-            if Res.Found
-                ModY = Res.Par(1)+Xt.*Res.Par(2);
-                Streaked = abs(ModY - Yt) < Args.StreakDistanceThreshold;
-                TF_Flags(SubSel) = TF_Flags(SubSel) + Streaked.*2.^BD_TF.name2bit('Streak');
             end
         end
 
@@ -482,10 +490,14 @@ function TranCat = flagNonTransients(Obj, Args)
                 PeakDist = Cat.getCol('PEAK_DIST');
                 PassesPeak = PeakDist < Args.PeakDistThreshold;
 
-                PassesHardLim = (X2N < Args.SecondMomHardLim) & ...
+                PassesHardLim = (X2N < Args.SecondMomHardLim) | ...
                                 (Y2N < Args.SecondMomHardLim);
+
+                PassesFinalLim = (X2N < Args.SecondMomFinalLim) & ...
+                                (Y2N < Args.SecondMomFinalLim);
                             
-                PassesLocal = (PassesPeak & PassesGDir & PassesHardLim);
+                PassesLocal = (PassesPeak & PassesGDir & ...
+                    PassesHardLim & PassesFinalLim);
 
                 PassesN = PassesN | PassesLocal;
 
