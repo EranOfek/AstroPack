@@ -43,7 +43,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                        candidate with which to search for asteroids in New
                        and Ref images. Given in arcsec. Default is 20.
                 'AsteroidLimMag' - Limiting magnitude higher than which
-                       asteroids are ignored. Default is 21.
+                       asteroids are ignored. Default is 21.5.
                 'CometSearchRad' - Radius around each transient 
                        candidate in which to search for comets in New
                        and Ref images. Given in arcsec. Default is 90.
@@ -76,7 +76,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.MinumumOverlapFraction = 0.5;
 
         Args.AsteroidSearchRad = 20;
-        Args.AsteroidLimMag = 21;
+        Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
     end
 
@@ -399,7 +399,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         C_RA, C_Dec, C_RA_med, C_Dec_med, 'rad'), [], 'all');
     MaxDistRad = MaxDistRad + SubImageWidth;
 
-    % Use the visit center coordinates and the distance to the furtherst
+    % Use the visit center coordinates and the distance to the furthest
     % sub-image to cone search the GAIA catalog and keep only the matched
     % sources
     StarCat = catsHTM.cone_search('GAIADR3', C_RA_med, C_Dec_med, ...
@@ -428,16 +428,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         'RefEllipsoid','WGS84',...
         'OutUnitsDeg',true,'Integration', true);
 
-    % Match MP in New
-    [~,~,AD] = imProc.match.match2solarSystem(AD, 'InCooUnits', 'deg', ...
-                    'SourcesColDistName', 'N_DistMP', 'AstCat', AstCatNew,...
-                    'JD', NewJulDay, 'AddMag2Obj', true, ...
-                    'ColMag', 'Mag', 'ObjColMag', 'N_MagMP',...
-                    'SearchRadius',Args.AsteroidSearchRad);
-
-    % Clear for memory
-    clear AstCatNew;
-
     % Propogate catalog to Ref image epoch
     RefJulDay = median(arrayfun(@(x) x.Ref.julday,AD));
 
@@ -448,14 +438,54 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         'RefEllipsoid','WGS84',...
         'OutUnitsDeg',true,'Integration', true);
     
-    % Match MP in Ref
-    [~,~,AD] = imProc.match.match2solarSystem(AD, 'InCooUnits', 'deg', ...
-                    'SourcesColDistName', 'R_DistMP', 'AstCat', AstCatRef,...
-                    'JD', RefJulDay, 'AddMag2Obj', true, ...
-                    'ColMag', 'Mag', 'ObjColMag', 'R_MagMP',...
-                    'SearchRadius', Args.AsteroidSearchRad);
+    % Split the catalogs in New and Ref sources (positive and 
+    % negative transients) so asteroids at New julday will not be
+    % assocaited to negative sources, and asteroids at Ref julday will not
+    % be associated to positive sources.    
+    for Iobj=Nobj:-1:1
 
-    %Clear for memory
+        Scores = AD(Iobj).CatData.getCol('SCORE');
+        NumRows = numel(Scores);
+        NewSrcsIndx = Scores>0;
+        RefSrcsIndx = Scores<0;
+        NewSrcs = AD(Iobj).CatData.selectRows(NewSrcsIndx);
+        RefSrcs = AD(Iobj).CatData.selectRows(RefSrcsIndx);
+
+        % Match MP in New
+        [~,~,NewSrcs] = imProc.match.match2solarSystem(NewSrcs, 'InCooUnits', 'deg', ...
+                        'SourcesColDistName', 'N_DistMP', 'AstCat', AstCatNew,...
+                        'JD', NewJulDay, 'AddMag2Obj', true, ...
+                        'ColMag', 'Mag', 'ObjColMag', 'N_MagMP',...
+                        'SearchRadius',Args.AsteroidSearchRad);
+
+        % Match MP in Ref
+        [~,~,RefSrcs] = imProc.match.match2solarSystem(RefSrcs, 'InCooUnits', 'deg', ...
+                        'SourcesColDistName', 'R_DistMP', 'AstCat', AstCatRef,...
+                        'JD', RefJulDay, 'AddMag2Obj', true, ...
+                        'ColMag', 'Mag', 'ObjColMag', 'R_MagMP',...
+                        'SearchRadius', Args.AsteroidSearchRad);
+
+        N_DistMP = nan(NumRows,1);
+        N_DistMP(NewSrcsIndx) = NewSrcs.getCol('N_DistMP');
+        N_MagMP = nan(NumRows,1);
+        N_MagMP(NewSrcsIndx) = NewSrcs.getCol('N_MagMP');
+        R_DistMP = nan(NumRows,1);
+        R_DistMP(RefSrcsIndx) = RefSrcs.getCol('R_DistMP');
+        R_MagMP = nan(NumRows,1);
+        R_MagMP(RefSrcsIndx) = RefSrcs.getCol('R_MagMP');
+
+        AD(Iobj).CatData.insertCol(...
+                cell2mat({cast(N_DistMP,'double'), cast(N_MagMP,'double'),...
+                cast(R_DistMP,'double'), cast(R_MagMP,'double')}),...
+                inf,...
+                {'N_DistMP','N_MagMP','R_DistMP','R_MagMP'}, ...
+                {'arcsec','mag','arcsec','mag'}...
+            );
+
+    end
+
+    % Clear for memory
+    clear AstCatNew;
     clear AstCatRef;
     clear INPOP;
     clear OrbElMerge;
@@ -479,8 +509,13 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
         % Loop over AstroDiffs
         for Iobj=1:1:Nobj
+
+            Scores = AD(Iobj).CatData.getCol('SCORE');
+            NewSrcsIndx = Scores>0;
+            NewSrcs = AD(Iobj).CatData.selectRows(NewSrcsIndx);
+            
             % Match all transients candidates to comets at New image epoch
-            [RA, Dec] = AD(Iobj).CatData.getLonLat('rad');
+            [RA, Dec] = NewSrcs.getLonLat('rad');
             ComMatches = VO.search.search_sortedlat_multi( ...
                 [CometLon, CometLat], RA, Dec, ...
                 -Args.CometSearchRad*Arcsec2Rad);
@@ -495,19 +530,26 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             % If matched, get distance and magnitude.
             MPDist_new = AD(Iobj).CatData.getCol('N_DistMP');
             MPMag_new = AD(Iobj).CatData.getCol('N_MagMP');
+
+            MPDist_newOnly = MPDist_new(NewSrcsIndx);
+            MPMag_newOnly = MPMag_new(NewSrcsIndx);
+
             % For each candidate, get closest matching asteroid/comet and
             % save distance and magnitude
             for IComMatches = 1:1:NComMatches
                 IComMatchInd = ComMatchsInd(IComMatches);
-                OldDist = MPDist_new(IComMatchInd);
+                OldDist = MPDist_newOnly(IComMatchInd);
                 NewDist = min(ComMatches(IComMatchInd).Dist);
                 if isnan(OldDist) || (NewDist < OldDist)
-                    MPDist_new(IComMatchInd) = NewDist*Rad2Arcsec;
+                    MPDist_newOnly(IComMatchInd) = NewDist*Rad2Arcsec;
                     Ind1 = ComMatches(IComMatchInd).Ind1;
                     ComMags = ComCatNew.getCol('Mag');
-                    MPMag_new(IComMatchInd) = ComMags(Ind1);
+                    MPMag_newOnly(IComMatchInd) = ComMags(Ind1);
                 end
             end
+
+            MPDist_new(NewSrcsIndx) = MPDist_newOnly;
+            MPMag_new(NewSrcsIndx) = MPMag_newOnly;
 
             % Update minor planet columns
             AD(Iobj).CatData.replaceCol(MPDist_new,'N_DistMP');
@@ -534,8 +576,13 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
         % Loop over AstroDiffs
         for Iobj=1:1:Nobj
+
+            Scores = AD(Iobj).CatData.getCol('SCORE');
+            RefSrcsIndx = Scores<0;
+            RefSrcs = AD(Iobj).CatData.selectRows(RefSrcsIndx);
+
             % Match all transients candidates to comets at Ref image epoch
-            [RA, Dec] = AD(Iobj).CatData.getLonLat('rad');
+            [RA, Dec] = RefSrcs.getLonLat('rad');
             ComMatches = VO.search.search_sortedlat_multi( ...
                 [CometLon, CometLat], RA, Dec, ...
                 -Args.CometSearchRad*Arcsec2Rad);
@@ -550,19 +597,25 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             % If matched, get distance and magnitude.
             MPDist_ref = AD(Iobj).CatData.getCol('R_DistMP');
             MPMag_ref = AD(Iobj).CatData.getCol('R_MagMP');
+
+            MPDist_refOnly = MPDist_ref(RefSrcsIndx);
+            MPMag_refOnly = MPMag_ref(RefSrcsIndx);
             % For each candidate, get closest matching asteroid/comet and
             % save distance and magnitude
             for IComMatches = 1:1:NComMatches
                 IComMatchInd = ComMatchsInd(IComMatches);
-                OldDist = MPDist_ref(IComMatchInd);
+                OldDist = MPDist_refOnly(IComMatchInd);
                 NewDist = min(ComMatches(IComMatchInd).Dist);
                 if isnan(OldDist) || (NewDist < OldDist)
-                    MPDist_ref(IComMatchInd) = NewDist*Rad2Arcsec;
+                    MPDist_refOnly(IComMatchInd) = NewDist*Rad2Arcsec;
                     Ind1 = ComMatches(IComMatchInd).Ind1;
                     ComMags = ComCatRef.getCol('Mag');
-                    MPMag_ref(IComMatchInd) = ComMags(Ind1);
+                    MPMag_refOnly(IComMatchInd) = ComMags(Ind1);
                 end
             end
+
+            MPDist_ref(RefSrcsIndx) = MPDist_refOnly;
+            MPMag_ref(RefSrcsIndx) = MPMag_refOnly;
 
             % Update minor planet columns
             AD(Iobj).CatData.replaceCol(MPDist_ref,'R_DistMP');
