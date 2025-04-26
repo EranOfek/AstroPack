@@ -154,6 +154,7 @@ function TranCat = flagNonTransients(Obj, Args)
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
+        Args.SaturatedNeighborDistanceThreshold = 50;
         Args.NeighborDenThreshold = 3.2;
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
@@ -438,8 +439,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 IsNeighbor = NeighborDist < Args.NeighborDistanceThreshold;
                 % Exclude itself
                 IsNeighbor = IsNeighbor & (NeighborDist > 0);
+                IsSaturatedNeighbor = IsNeighbor & FlagSaturated_Ref &...
+                    (NeighborDist < Args.SaturatedNeighborDistanceThreshold);
                 % Remove excluded neighbors
-                NearSaturated0 = any(IsNeighbor & FlagSaturated_Ref);
+                NearSaturated0 = any(IsSaturatedNeighbor);
                 NearSaturated(Itran) = NearSaturated0;
                 IsNeighbor = IsNeighbor & ~ExcludeNeighbor;
                 % Count remaining neighbors
