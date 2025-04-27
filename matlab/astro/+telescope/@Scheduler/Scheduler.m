@@ -2258,6 +2258,7 @@ classdef Scheduler < Component
                 Obj
                 JD      = [];
                 Args.ColLastJD  = 'LastJD';
+                Args.PriorityAfterMaxN = 0.001;
             end
            
             if isempty(JD)
@@ -2297,8 +2298,10 @@ classdef Scheduler < Component
             
             MaxNC = Obj.List.Catalog.MaxNightN;
             FlagNC = NightCounter>=MaxNC;
-            W(FlagNC) = Obj.List.Catalog.BasePriority(FlagNC);
-            
+            % This line is responsible for issue #638
+            %W(FlagNC) = Obj.List.Catalog.BasePriority(FlagNC);
+            % Fixed by setting the priority to a low number
+            W(FlagNC) = Args.PriorityAfterMaxN;
                         
             % Add extra priority to targets in HA range
             % only if this is the first observation during the night
