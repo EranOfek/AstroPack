@@ -33,6 +33,7 @@ DefV.Layer                = 'decals-dr5';
 DefV.Zoom                 = 13;
 DefV.NameServerFun        = @VO.name.server_ned;
 DefV.BaseURL              = 'http://legacysurvey.org/viewer?';
+DefV.OutType              = 'struct';  % 'cell'
 
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
@@ -68,3 +69,13 @@ for Ilink=1:1:Nlink
     Link{Ilink} = sprintf('%s%s',InPar.BaseURL,Pars);
 end
 %http://legacysurvey.org/viewer?ra=220.2876&dec=-0.3548&zoom=13&layer=decals-dr5
+
+
+switch lower(InPar.OutType)
+    case 'cell'
+        % do nothing
+    case 'struct'
+        Link = struct('URL',Link);
+    otherwise
+        error('Unknown OutType option');
+end
