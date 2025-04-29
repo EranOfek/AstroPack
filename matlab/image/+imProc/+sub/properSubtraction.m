@@ -21,11 +21,11 @@ function [AD] = properSubtraction(New, Ref, Args)
     %            'RenormS_StdFun' - Function to use for the std
     %                   renomalization of S.
     %                   Default is @tools.math.stat.rstd
-    % Output : - 
+    % Output : - An AstroZOGY object with all the subtraction images. 
     % Author : Eran Ofek (2025 Apr) 
-    % Example: An AstroZOGY object with all the subtraction images.
+    % Example: AD=imProc.sub.properSubtraction(New,Ref);
     % Author : Eran Ofek (Apr 2025)
-    
+
 
     arguments
         New
