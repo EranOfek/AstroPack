@@ -19,6 +19,15 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
         Args.MinNumForRef      = 5;
         Args.MaxNumForRef      = 50;
         Args.MaxIter           = 0;
+
+        Args.ReBack              = true;
+        Args.RefIsBackSub        = true;
+        Args.Register            = true;
+        Args.GenScorr            = true;
+        Args.GenTranslient       = true;
+        Args.RenormS_ExcludeBits = 'NearEdge';
+        Args.RenormS_StdFun      = @tools.math.stat.rstd;
+
     end
 
     % select JD in range:
@@ -70,6 +79,8 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
         end
 
         if ~isempty(RefAI)
+
+            
             for Iim=1:1:Nim
                 % load image
                 NewAI = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd','Image+');
@@ -78,28 +89,23 @@ function [Result] = forcePhotResub(T, RA, Dec, Args)
                 FlagEmpty = NewAI.isemptyImage;
                 if ~FlagEmpty
 
-                    % subtract image
-                    AD = AstroZOGY;
-                    AD.Ref = RefAI;
-                    AD.New = NewAI;
-                    AD.Ref.Back = [];
-                    AD.Ref.Var  = [];
-                    AD.RefIsBackgroundSubtracted = true;
-    
-                    AD.register;
-        
-                    AD.subtractionD;
-                    AD.subtractionS;
-                    AD.subtractionScorr;
-                    AD.translient;
-    
-                    % EO: I added this in order to deal with the edges of the reference
-                    % images that are based on low number of coadded images and they are
-                    % biasing the statistics
-                    % In principle this should be done by the AstroZOGY class...
-                    FlagNearEdge = AD.MaskData.findBit('NearEdge');
-                    AD.S = AD.S./tools.math.stat.rstd(AD.S(~FlagNearEdge(:)));
+
+                    AD = imProc.sub.properSubtraction(NewAI, RefAI, 'ReBack',Args.ReBack,...
+                                                            'RefIsBackSub',Args.RefIsBackSub,...
+                                                            'Register',Args.Register,...
+                                                            'GenScorr',Args.GenScorr,...
+                                                            'GenTranslient',Args.GenTranslient,...
+                                                            'RenormS_ExcludeBits',Args.RenormS_ExcludeBits,...
+                                                            'RenormS_StdFun',Args.RenormS_StdFun);
+
+
+
+
+
                   
+                    % perform forced photometry
+                    % AC=imProc.sub.forcedPhotSub(AD, [RA, Dec]);
+
                     try
                         [ResultD] = imProc.sources.forcedPhot(AD, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
                         [ResultR] = imProc.sources.forcedPhot(RefAI, 'Coo',[RA Dec], 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);

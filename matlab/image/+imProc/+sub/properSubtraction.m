@@ -56,13 +56,13 @@ function [AD] = properSubtraction(New, Ref, Args)
         AD(I).Ref = Ref(Iref);
         AD(I).New = New(Inew);
 
-        if Args.RefBack
+        if Args.ReBack
             AD(I).Ref.Back = [];
             AD(I).Ref.Var  = [];
         end
         AD(I).RefIsBackgroundSubtracted = Args.RefIsBackSub;
 
-        if Args.Regsiter
+        if Args.Register
             AD(I).register;
         end
 
