@@ -190,7 +190,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         Score = ADc(Ipos).CatData.getCol('SCORE');
         PassingMatches = sum(MatchDB.flags_transient == 0) + 1;
 
-        if (PassingMatches > 1) || (Score >= 8.0)
+        if (PassingMatches > 1) || (Score >= 7.7)
             UTCNow = datetime('now', 'TimeZone', 'UTC');
             JDNow = juliandate(UTCNow);
             ADc(Ipos).CatData.replaceCol(JDNow, 'Reported');

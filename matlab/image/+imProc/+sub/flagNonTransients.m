@@ -108,8 +108,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.DChi2dofLimits = [0.2 1.5];
-        Args.NRChi2dofLimits = [0.1 2.0];
+        Args.Chi2dofLimits = [0.1 2.0];
         
         Args.flagSaturated logical = true;
 
@@ -119,7 +118,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagBadPix_Soft logical  = true;
         Args.BadPix_Soft       = {{'HighRN', 1.2},  ...
-            {'FlatHighStd', 1.2}, {'DarkHighVal', 1.2}};
+            {'FlatHighStd', 1.2}, {'DarkHighVal', 1.2}, {'CR_DeltaHT',0.3}};
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
@@ -206,6 +205,13 @@ function TranCat = flagNonTransients(Obj, Args)
             TF_Flags = TF_Flags + NegativeFlagged.*2.^BD_TF.name2bit('Negative');
         end
 
+        if Args.flagChi2 || Args.flagTranslients
+            R_MAG = Cat.getCol('R_MAG_PSF');
+            R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
+            R_SN = Cat.getCol('R_SN');
+            NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
+        end        
+
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
 
@@ -218,8 +224,12 @@ function TranCat = flagNonTransients(Obj, Args)
             NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
 
             GoodChi2dofNR = ...
-                (NR_CHI2DOF > Args.NRChi2dofLimits(1)) & ...
-                (NR_CHI2DOF < Args.NRChi2dofLimits(2));
+                (NR_CHI2DOF > Args.Chi2dofLimits(1)) & ...
+                (NR_CHI2DOF < Args.Chi2dofLimits(2));
+
+            if exist('NothingInRef','var')
+                GoodChi2dofNR = GoodChi2dofNR | ~NothingInRef;
+            end
 
             Chi2dofFlagged = ~GoodChi2dofNR;
             TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
@@ -473,13 +483,14 @@ function TranCat = flagNonTransients(Obj, Args)
 
             X2N = Cat.getCol('N_X2');
             Y2N = Cat.getCol('N_Y2');
+            %XYN = Cat.getCol('N_XY');
 
             PassesN = (X2N < Args.SecondMomSoftLim) & ...
                       (Y2N < Args.SecondMomSoftLim) & ...
                       (abs(X2N-Y2N) < Args.SecondMomAsymLim);
 
             if Args.flagTranslients
-                AdjustedTranslientDiff = (~PassesN).*2;
+                DoNotExclude = ~PassesN;
             end
             
             if Cat.isColumn('GDIRCVAR') && Cat.isColumn('GDIRERROR') && ...
@@ -621,19 +632,19 @@ function TranCat = flagNonTransients(Obj, Args)
             
             AIC_Diff = S2_AIC - Z2_AIC;
 
-            if Args.flagNPsfShape
-                AIC_Diff = AIC_Diff + AdjustedTranslientDiff;
-            end
 
             IsNotTranslient = (AIC_Diff < 0);
 
-            if Cat.isColumn('R_MAG_PSF') && Cat.isColumn('R_SN')
-                R_MAG = Cat.getCol('R_MAG_PSF');
-                R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
-                R_SN = Cat.getCol('R_SN');
-                NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
-                IsNotTranslient = IsNotTranslient | NothingInRef;
+            ExcludeCand = false(Ntran,1);
+            if exist('NothingInRef','var')
+                ExcludeCand = NothingInRef;
             end
+
+            if exist('DoNotExclude','var')
+                ExcludeCand = ~DoNotExclude;
+            end
+            
+            IsNotTranslient = IsNotTranslient | ExcludeCand;
 
             if Cat.isColumn('GAL_DIST')
                 GalaxyDist = Cat.getCol('GAL_DIST');
