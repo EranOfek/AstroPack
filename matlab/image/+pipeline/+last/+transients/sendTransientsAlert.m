@@ -28,7 +28,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.TransferTranProducts = true;
         Args.SavePath = '';
 
-        Args.SingleEpochThresh = 8.0;
+        Args.SingleEpochThresh = 7.7;
         Args.thisIsATest = false;
 
     end
