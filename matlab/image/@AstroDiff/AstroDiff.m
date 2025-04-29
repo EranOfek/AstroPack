@@ -1524,7 +1524,34 @@ classdef AstroDiff < AstroImage
             % Tile ds9 based on number of images
             ds9.tile([3 ceil(Nimgs/3)]);
         end
-        
+
+        function displayAsteroids(Obj, Args)
+            %{
+            Display asteroids candidates in New image using ds9.
+            Input:  - An AstroImage object.
+                    * ...,key,val,...
+            Author: - Ruslan Konno (Apr 2025)
+            Example:- AD.displayAsteroids
+            %}
+
+            arguments
+                Obj
+
+                Args.Image = 'New';
+            end
+            
+            INPOP = celestial.INPOP;
+            INPOP.populateAll
+            OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
+            D9=DS9analysis;
+
+            switch Args.Image
+                case 'New'
+                D9.load(Obj.New);
+            end
+
+            D9.plotKnownAst('OrbEl',OrbElMerge, 'INPOP',INPOP);
+        end
     end    
 
     methods % injection simulations
