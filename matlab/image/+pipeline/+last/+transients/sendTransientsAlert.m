@@ -290,11 +290,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             RA0 = 360 + RA0;
         end
 
-        % Add a SDDS SkyServer link.
-        SDSSLink = imProc.vo.getLinkForSource(TC,[], @VO.SDSS.navigator_link);
-        SDSS_Msg = strcat('<',SDSSLink.Link,'|','SkyServer>');
-        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
-
         % Add a PS1 link.
         PlusSign = '';
         if Dec0 > 0

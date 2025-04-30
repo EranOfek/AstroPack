@@ -72,7 +72,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.killDuplicates logical = true;
 
         Args.MinimumNCoadd = 18;
-        Args.MaximumCenterOffset = 2.0;
+        Args.MaximumCenterOffset = 0.86;
         Args.MinumumOverlapFraction = 0.5;
 
         Args.AsteroidSearchRad = 20;

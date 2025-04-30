@@ -10,36 +10,28 @@ function TranCat = flagNonTransients(Obj, Args)
                        The goodness value is a Chi2 per degrees of freedom.
                        Default is true.
                 'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
-                       'filterChi2' is true, all transients candidates outside these
-                       limits are flagged. Default is [0.23 1.41].
-                'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
-                       for New and Ref images. Condition requires that in
-                       at least one of the images, the source is not
-                       overfitted. Only one image, New or Ref, has to pass.
-                       Default is 0.1.
-                'flagSaturated' - Bool on whether to flag transients 
-                       candidates that are saturated in both reference and 
-                       new images. Default is true.
+                       'flagChi2' is true, candidates outside these
+                       limits are flagged. Default is [0.1 2.0].
                 'flagBadPix_Hard' - Bool on whether to flag transients
                        candidates based on hard bit mask criteria. 
                        Default is true.
                 'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
-                       Default is {'Interpolated', 'NaN', 'NearEdge',
-                       'CoaddLessImages', 'Hole'}.
+                       Default is {'Interpolated', 'NaN', 'NearEdge', 
+                       'Hole', 'Negative'}.
                 'flagBadPix_Soft' - Bool on whether to flag transients
                        candidates based on soft bit mask criteria. 
                        Default is true.
                 'BadPix_Soft' - Soft bit mask criteria for bad pixels and 
-                       their score threshold values. Transients candidates
-                       that contain soft bad pixels are only flagged as 
-                       non-transients if their score values are below the 
-                       respective thresholds. Default is Default is {{'HighRN', 1.2},
-                       {'FlatHighStd',1.2}, {'DarkHighVal', 1.2}}.
-                'flagSNR' - Bool on whether to flag transients candidates
-                       based the signal-to-noise ratio in the subtraction
-                       image. Default is true.
-                'SNRThreshold' - Threshold for the signal-to-noise ratio
-                       filter. Default is 5.0.
+                       their threshold increment. Transients candidates are
+                       tested on whether they are more PSF- or Delta-like.
+                       Bad pixels identified in the bitmask must pass a
+                       higher threshold, incremented for each identified
+                       bad pixel type. The increment is additive.
+                       Default is {{'HighRN', 1.2}, {'FlatHighStd',1.2}, 
+                       {'DarkHighVal', 1.2}, {'CR_DeltaHT', 0.3}}.
+                'flagSaturated' - Bool on whether to flag transients 
+                       candidates that are saturated in both reference and 
+                       new images. Default is true.
                 'flagStarMatches' - Bool on whether to flag transients
                        candidates that have matching star positions.
                        Default is true.
@@ -49,22 +41,56 @@ function TranCat = flagNonTransients(Obj, Args)
                 'flagRinging' - Bool on whether to flag transients
                        candidates that may be caused by ringing artifacts.
                        Default is true.
-                'flagDensity' - Bool on whether to flag transients that are
-                       too close to each other, i.e., that have too many
-                       neighbors. Default is true.
-                'NeighborDistanceThreshold' - Distance threshold below
-                       which a close transient counts as a neighbor.
-                       Default is 100.
-                'NeighborNumThreshold' - Threshold for the number of
-                       neighbors at which to filter the transients
-                       candidate. Default is 2.
                 'flagNPsfShape' - Bool on whether to flag transients for
                        which the N-image PSF is misshapen. Default is
                        true.
-                'NPsfContainmentThreshold' 
-                'OmniDirectionThreshold' 
-                'PeakDistThreshold' - Threshold distance for the pixel to
-                       sub-pixel peak distance filter. Default is 1.33.
+                'SecondMomSoftLim' - Threshold on second moments of the
+                       New image PSF. If the x^2 or y^2 moments are higher
+                       than the threshold, the PSF is deemed to be too wide
+                       or too elongated. If a candidate fails this criterium, 
+                       it has additionally fail SecondMomHardLim, 
+                       SecondMomFinalLim, OmniDirectionThreshold, or 
+                       PeakDistThreshold to be flagged as false positive.
+                       Default is 1.4.
+                'SecondMomAsymLim' - Threshold on asymetry of the second
+                       moments of the New image PSF. If abs(x^2-y^2) is
+                       higher than the threshold, the PSF is deemed to be
+                       too elongated. If a candidate fails this criterium, 
+                       it has additionally fail SecondMomHardLim, 
+                       SecondMomFinalLim, OmniDirectionThreshold, or 
+                       PeakDistThreshold to be flagged as false positive.
+                       Default is 0.33.
+                'SecondMomHardLim' - Threshold on second moments of the New
+                       Image PSF. This threshold is applied if New image
+                       PSF fails SeconMomSoftLim or SecondMomAsymLim. If
+                       x^2 AND y^2 are higher than this limit, all
+                       candidates are flagged. Default is 2.0.
+                'SecondMomFinalLim' - Threshold on second moments of the New
+                       Image PSF. This threshold is applied if New image
+                       PSF fails SeconMomSoftLim or SecondMomAsymLim. If
+                       x^2 OR y^2 are higher than this limit, all
+                       candidates are flagged. Default is 2.3.
+                'OmniDirectionThreshold' - Thresholds for local directional
+                       gradient. These are applied localy in New image if
+                       the image fails the SecondMomSoftLim or SecondMomAsymLim
+                       thresholds. The first value is the minimum circular 
+                       variance of the direction gradient, and the second 
+                       value is the maximum deviation from an assumed 
+                       circular gradiant in degrees. If a candidate fails 
+                       these additional criteria, it is flagged as a false 
+                       positive. Default is [0.7 57.0].
+                'PeakDistThreshold' - Threshold for the distance between 
+                       D-image and S-image peaks. This threshold is applied 
+                       if New image PSF fails SeconMomSoftLim or SecondMomAsymLim.
+                       Default is 1.33.
+
+                % TODO: docs
+                'flagDPSFShape' - Default is true.
+                'PSFShapeXYMeanD' - Default is [1.06919192, 1.24191919].
+                'PSFShapeCovD' - Default is [0.06467546, 0.02720397;...
+                        0.02720397, 0.06933742].
+                'PSFShapeProbThresholdD' - Default is 0.05.
+
                 'flagLimitingMag' - Bool on whether to flag candidates that
                        are above the limiting magnitude. Candidate is
                        filteres if it is above limiting magnitude in New
@@ -82,16 +108,34 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is 10.
                 'flagStreak' - Bool on whether to flag candidates induced
                        by streaks (e.g. satellites). Default is true.
+                'ignoreSreakPoints' - Default {'BadPixelHard', 'StarMatch', ...
+                       'Ringing', 'Translient', 'Streak'}.
+                'StreakDistanceThreshold' - Default is 20.
+                'NumStreaks' - Default is 2.
+
+                'flagDensity' - Bool on whether to flag transients that are
+                       too close to each other, i.e., that have too many
+                       neighbors. Default is true.
+                'NeighborDistanceThreshold' - Distance threshold below
+                       which a close transient counts as a neighbor.
+                       Default is 100.
+                'NeighborExclude' - Default is {'BadPixelHard', 'StarMatch', ...
+                       'Ringing', 'Translient', 'Streak'}.
+                'NeighborDenThreshold' - Default is 3.2.
+                'SaturatedNeighborDistanceThreshold' - Default is 50.
+                'NeighborNumThresholdSaturated' - Threshold for the number 
+                       of neighbors at which to filter the transients
+                       candidate. Default is 2.
+                'flagVariable' - Default is true.
+                'VarStarDist' - Default is 3.
                 --- AstroZOGY ---
-                'flagTranslients' - Bool on whether to flag transients 
-                       candidates which score higher in Z2 than S2.
-                       Default is true.
-                'ignoreTranslient_NothingInRef' - Do not flag candidates
-                       for translient if source is not detected in the
-                       reference image. Default is true.
                 'flagScorr' - Bool on whether to flag candidates based on 
                        source noise corrected S statistic. Default is true.
                 'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
+                'ScorrCorrectionParam' - Default is 0.7.
+                'flagTranslients' - Bool on whether to flag transients 
+                       candidates which score higher in Z2 than S2.
+                       Default is true.
     Output  : - An AstroCatalog which is equal to the input catalog of AD 
                 but with additional columns.
     Author  : Ruslan Konno (Jan 2024)
@@ -127,7 +171,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
-        Args.SecondMomAsymLim = 0.33;
+        Args.SecondMomAsymLim = 0.25;
         Args.SecondMomHardLim = 2.0;
         Args.SecondMomFinalLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 57.0];
@@ -168,10 +212,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ScorrCorrectionParam = 0.7;
 
         Args.flagTranslients logical = true;
-        Args.TranslientSubTresholdAIC = 7.0;
-        Args.TranslientSubTresholdMag = 0.1;
-        Args.ignoreTranslient_NothingInRef = true;
-        Args.TranslientMagDiffException = 1.0;
     end
 
     Nobj = numel(Obj);
