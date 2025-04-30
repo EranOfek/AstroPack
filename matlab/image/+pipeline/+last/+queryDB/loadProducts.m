@@ -1,4 +1,4 @@
-function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
+function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
@@ -25,6 +25,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %            MatchedSources object, or MovingSources object.
     %          - A string array of all paths.
     %          - A string array of all verified files.
+    %          - AstroFileName with file names and paths.
     % Author : Eran Ofek (2024 Dec) 
     % Example: AI=pipeline.last.queryDB.loadProducts(T)
     %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Image');
