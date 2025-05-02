@@ -152,7 +152,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.1 2.0];
+        Args.Chi2dofLimitsLocal = [0.1 2.0 100.0];
+        Args.Chi2dofLimitsGlobal = 1.2;
         
         Args.flagSaturated logical = true;
 
@@ -171,7 +172,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
-        Args.SecondMomAsymLim = 0.25;
+        Args.SecondMomAsymLim = 0.33;
         Args.SecondMomHardLim = 2.0;
         Args.SecondMomFinalLim = 2.3;
         Args.OmniDirectionThreshold = [0.7 57.0];
@@ -263,17 +264,36 @@ function TranCat = flagNonTransients(Obj, Args)
             NR_CHI2DOF = N_CHI2DOF;
             NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
 
-            GoodChi2dofNR = ...
-                (NR_CHI2DOF > Args.Chi2dofLimits(1)) & ...
-                (NR_CHI2DOF < Args.Chi2dofLimits(2));
+            MedianAtMag_New = Cat.getCol('N_PSF_CHI2DOF_MED');
+            MedianAtMag_Ref = Cat.getCol('R_PSF_CHI2DOF_MED');
+            
+            GoodChi2dofNGlobal = (MedianAtMag_New < Args.Chi2dofLimitsGlobal);
+            GoodChi2dofRGlobal = (MedianAtMag_Ref < Args.Chi2dofLimitsGlobal)...
+                | isnan(MedianAtMag_Ref);
 
+            GoodChi2dofNRLocal = ...
+                (NR_CHI2DOF > Args.Chi2dofLimitsLocal(1)) & ...
+                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(2));
+
+            ExcludeCandChi2Local = false(CatSize,1);
+            ExcludeCandChi2Global = false(CatSize,1);
             if exist('NothingInRef','var')
-                GoodChi2dofNR = GoodChi2dofNR | ~NothingInRef;
+                ExcludeCandChi2Local = ~NothingInRef;
+                ExcludeCandChi2Global = NothingInRef;
             end
+
+            ExcludeCandChi2Local = ExcludeCandChi2Local & ...
+                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(3));
+
+            GoodChi2dofNRGlobal = (GoodChi2dofNGlobal & GoodChi2dofRGlobal)...
+                | ExcludeCandChi2Global;
+           
+            GoodChi2dofNRLocal = GoodChi2dofNRLocal | ExcludeCandChi2Local;
+            GoodChi2dofNR = (GoodChi2dofNRGlobal & GoodChi2dofNRLocal);
 
             Chi2dofFlagged = ~GoodChi2dofNR;
             TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
- 
+
         end
     
         % Apply bit mask critera.

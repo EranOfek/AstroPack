@@ -316,6 +316,61 @@ function TranCat=findTransients(AD, Args)
             R_FLUXERR_PSF = sqrt(abs(ResultR.Flux));
             R_MAGERR_PSF = 1.086./R_FLUXERR_PSF;
 
+
+            MAGPSF_New = AD(Iobj).New.CatData.getCol('MAG_PSF');
+            CHI2DOF_New = AD(Iobj).New.CatData.getCol('PSF_CHI2DOF');
+
+            MinMag_New = floor(min(MAGPSF_New));
+            MaxMag_New = ceil(AD(Iobj).New.HeaderData.getVal('LIMMAG'));
+            binEdges_New = MinMag_New:1.0:MaxMag_New;
+            binIndices_New = discretize(MAGPSF_New, binEdges_New);
+
+            ValidMag_New = ~isnan(binIndices_New);
+            BinIndicesValid_New = binIndices_New(ValidMag_New);
+            ValuesIndices_New = CHI2DOF_New(ValidMag_New);
+
+            MedianValues_New = accumarray(BinIndicesValid_New(:), ...
+                ValuesIndices_New(:), [], @median, NaN);
+
+            % Initialize result array
+            MedianAtMag_New = NaN(size(ResultN.Mag));
+
+            % Loop through each and assign corresponding median
+            for i = 1:numel(ResultN.Mag)
+                targetMag = ResultN.Mag(i);
+                binIndex = find(targetMag >= binEdges_New(1:end-1) & targetMag < binEdges_New(2:end));
+                if ~isempty(binIndex) && (binIndex <= numel(MedianValues_New))
+                    MedianAtMag_New(i) = MedianValues_New(binIndex);
+                end
+            end
+
+            MAGPSF_Ref = AD(Iobj).Ref.CatData.getCol('MAG_PSF');
+            CHI2DOF_Ref = AD(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
+          
+            MinMag_Ref = floor(min(MAGPSF_Ref));
+            MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
+            binEdges_Ref = MinMag_Ref:1.0:MaxMag_Ref;
+            binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
+            
+            ValidMag_Ref = ~isnan(binIndices_Ref);
+            BinIndicesValid_Ref = binIndices_Ref(ValidMag_Ref);
+            ValuesIndices_Ref = CHI2DOF_Ref(ValidMag_Ref);
+
+            MedianValues_Ref = accumarray(BinIndicesValid_Ref(:), ...
+                ValuesIndices_Ref(:), [], @median, NaN);
+
+            % Initialize result array
+            MedianAtMag_Ref = NaN(size(ResultR.Mag));
+
+            % Loop through each and assign corresponding median
+            for i = 1:numel(ResultR.Mag)
+                targetMag = ResultR.Mag(i);
+                binIndex = find(targetMag >= binEdges_Ref(1:end-1) & targetMag < binEdges_Ref(2:end));
+                if ~isempty(binIndex) && (binIndex <= numel(MedianValues_Ref))
+                    MedianAtMag_Ref(i) = MedianValues_Ref(binIndex);
+                end
+            end
+
             % Insert results into catalog.
             Data = cell2mat({ResultD.SNm, CHI2DOF, ...
                 ResultD.Flux, D_FLUXERR_PSF, ResultD.Mag, D_MAGERR_PSF,...
@@ -339,6 +394,13 @@ function TranCat=findTransients(AD, Args)
                 'e','e','mag','mag'}...
                 );
 
+
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(MedianAtMag_New, 'double'), 'N_PSF_CHI2DOF', ...
+                {'N_PSF_CHI2DOF_MED'}, {''});
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(MedianAtMag_Ref, 'double'), 'R_PSF_CHI2DOF', ...
+                {'R_PSF_CHI2DOF_MED'}, {''});
         end
 
         if Args.includeAperturePhot
