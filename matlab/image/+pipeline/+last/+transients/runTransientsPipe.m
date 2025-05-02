@@ -466,13 +466,24 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                         'SearchRadius', Args.AsteroidSearchRad);
 
         N_DistMP = nan(NumRows,1);
-        N_DistMP(NewSrcsIndx) = NewSrcs.getCol('N_DistMP');
+        if NewSrcs.isColumn('N_DistMP')
+            N_DistMP(NewSrcsIndx) = NewSrcs.getCol('N_DistMP');
+        end
+
         N_MagMP = nan(NumRows,1);
-        N_MagMP(NewSrcsIndx) = NewSrcs.getCol('N_MagMP');
+        if NewSrcs.isColumn('N_MagMP')
+            N_MagMP(NewSrcsIndx) = NewSrcs.getCol('N_MagMP');
+        end 
+
         R_DistMP = nan(NumRows,1);
-        R_DistMP(RefSrcsIndx) = RefSrcs.getCol('R_DistMP');
+        if RefSrcs.isColumn('R_DistMP')
+            R_DistMP(RefSrcsIndx) = RefSrcs.getCol('R_DistMP');
+        end
+        
         R_MagMP = nan(NumRows,1);
-        R_MagMP(RefSrcsIndx) = RefSrcs.getCol('R_MagMP');
+        if RefSrcs.isColumn('R_MagMP')
+            R_MagMP(RefSrcsIndx) = RefSrcs.getCol('R_MagMP');
+        end
 
         AD(Iobj).CatData.insertCol(...
                 cell2mat({cast(N_DistMP,'double'), cast(N_MagMP,'double'),...
