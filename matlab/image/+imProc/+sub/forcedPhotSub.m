@@ -95,27 +95,32 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
     AC = AstroCatalog([N,1]);  % output AstroCatalog
     for I=1:1:N
 
-        [ResultD] = imProc.sources.forcedPhot(AD, 'Coo',Coo,     'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
-        if AddRef
-            [ResultR] = imProc.sources.forcedPhot(AD.Ref, 'Coo',Coo, 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+        [ResultD] = imProc.sources.forcedPhot(AD(I), 'Coo',Coo,     'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+        if AddRef && ~isempty(AD(I).Ref)
+            [ResultR] = imProc.sources.forcedPhot(AD(I).Ref, 'Coo',Coo, 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+            % add prefix to Ref and New table columns
+            ResultR.Properties.VariableNames = Args.PrefixRef + ResultR.Properties.VariableNames;
+        else
+            ResultR = [];
         end
-        if AddNew
-            [ResultN] = imProc.sources.forcedPhot(AD.New, 'Coo',Coo, 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+        if AddNew && ~isempty(AD(I).New)
+            [ResultN] = imProc.sources.forcedPhot(AD(I).New, 'Coo',Coo, 'CooUnits', Args.CooUnits, 'AddRefStarsDist', 0, 'OutType','table', 'MaxIter',Args.MaxIter);
+            % add prefix to Ref and New table columns
+            ResultN.Properties.VariableNames = Args.PrefixNew + ResultN.Properties.VariableNames;
+        else
+            ResultN = [];
         end
-
-        % add prefix to Ref and New table columns
-        ResultR.Properties.VariableNames = Args.PrefixRef + ResultR.Properties.VariableNames;
-        ResultN.Properties.VariableNames = Args.PrefixNew + ResultN.Properties.VariableNames;
 
         if isempty(Args.ColJD)
             JD = [];
         else
-            JD    = AD.New.julday;
+            JD    = AD(I).julday;
         end
-        if isempty(Args.ColRefJD)
-            RefJD = [];
+        if isempty(Args.ColRefJD) || isempty(AD(I).Ref)
+            RefJD   = [];
+            ColVals = setdiff(ColVals, "RefJD");
         else
-            RefJD = AD.Ref.julday;
+            RefJD = AD(I).Ref.julday;
         end
         
            
@@ -145,10 +150,18 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
 
         
         Tdiff    = struct2table(AD(I).getStructKey(Args.HeaderKeys));
-        Tref     = struct2table(AD(I).Ref.getStructKey(Args.RefHeaderKeys));
-        Tref.Properties.VariableNames = Args.PrefixRef + Tref.Properties.VariableNames;
-        Tnew     = struct2table(AD(I).New.getStructKey(Args.NewHeaderKeys));
-        Tnew.Properties.VariableNames = Args.PrefixNew + Tnew.Properties.VariableNames;
+        if ~isempty(AD(I).Ref)
+            Tref     = struct2table(AD(I).Ref.getStructKey(Args.RefHeaderKeys));
+            Tref.Properties.VariableNames = Args.PrefixRef + Tref.Properties.VariableNames;
+        else
+            Tref = [];
+        end
+        if ~isempty(AD(I).New)
+            Tnew     = struct2table(AD(I).New.getStructKey(Args.NewHeaderKeys));
+            Tnew.Properties.VariableNames = Args.PrefixNew + Tnew.Properties.VariableNames;
+        else
+            Tnew = [];
+        end
         Thead    = repmat([Tdiff, Tref, Tnew], Ncoo,1);
 
         Icon = min(Ncon, I);

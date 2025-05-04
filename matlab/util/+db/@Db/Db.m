@@ -193,6 +193,7 @@ classdef Db < Component
                 Args.JarFile = []; %'/home/eran/jdbc/clickhouse-jdbc-0.7.0-all.jar';
                 Args.Driver  = 'com.clickhouse.jdbc.ClickHouseDriver';  % 'ru.yandex.clickhouse.ClickHouseDriver'
                 Args.BaseURL = "jdbc:clickhouse";
+                Args.Timeout = 3600.*1000;
             end
             
             if isempty(Args.JarFile)
@@ -218,6 +219,7 @@ classdef Db < Component
             end
 
             JdbcURL = sprintf("%s://%s:%s/%s",Args.BaseURL, Args.Host, Args.Port, Args.DbName);
+            %JdbcURL = sprintf("%s://%s:%s/%s?socket_timeout=%d&dataTransferTimeout=%d",Args.BaseURL, Args.Host, Args.Port, Args.DbName, Args.Timeout, Args.Timeout);
                 
          
             % Add JDBC driver to the MATLAB Java path if it's not already added
@@ -225,9 +227,13 @@ classdef Db < Component
             if ~ismember(JarFile, javaclasspath('-dynamic'))
                 javaaddpath(Args.JarFile);
             end
+            
+            %Props = javaObject('com.clickhouse.client.config.ClickHouseProperties');
+            %Props.setSocketTimeout(int64(Args.Timeout));       % 600 000 ms = 10 min
+            %Props.setDataTransferTimeout(int64(Args.Timeout));  % same
 
             % Set up the JDBC connection
-            Conn = database('', Args.User, Args.Password, Args.Driver, JdbcURL);
+            Conn = database('', Args.User, Args.Password, Args.Driver, JdbcURL); %, 'Properties', Props);
         end
 
 
@@ -633,22 +639,29 @@ classdef Db < Component
     end
 
     methods % construct queries / dynamic
-        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols)
+        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols, Fun)
             % Generate a select group by query.
             %   query of the form: INSERT INTO last.fastmoving_asteroids11 SELECT id, jd, any(col1), any(col2), ... FROM last.fastmoving_asteroids1 GROUP BY id, jd;
             % Input  : - self.
             %          - Table name.
             %          - GroupByCols cell array. Default is {'id','jd'}
             %          - AddCols. Columns to add. Default is '*'.
+            %          - Function for selection 'min'|'max'|'any'.
+            %            Default is 'min'.
             % Output : - Query string.
             % Author : Eran Ofek (Apr 2025)
-            % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids1', {'id','jd'}, '*')
+            % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids', {'id','jd'}, '*')
+            %          Result = genQueryGroupBy(DB, 'visit_asteroids', {'id_visit_im','desig'}, '*')
+            %          Result = genQueryGroupBy(DB, 'mergedmat_var', {'id','srcnumber'}, '*')
+            %          Result = genQueryGroupBy(DB, 'visit_images', {'id_visit','ingestion_time'}, '*')
+
 
             arguments
                 Obj
                 TableName   = 'fastmoving_asteroids1';
                 GroupByCols = {'id','jd'};
                 AddCols     = '*';
+                Fun         = 'min';  % 'min'|'max'|'any'
             end
 
             
@@ -668,13 +681,13 @@ classdef Db < Component
                 AnyStr = '';
                 ExtraComa = '';
             else
-                AnyCols = tools.cell.sprintf2cell('any(%s) AS %s',[AddCols(:), AddCols(:)]);
+                AnyCols = tools.cell.sprintf2cell('min(%s) AS %s',[AddCols(:), AddCols(:)]);
                 AnyStr  = tools.cell.sprintf_concatCell(", ",AnyCols);
                 ExtraComa = ',';
             end
 
             Result = sprintf("SELECT %s %s %s FROM %s GROUP BY %s", GroupCols, ExtraComa, AnyStr, TableName, GroupCols);
-
+           
         end
     end
     
@@ -1248,7 +1261,13 @@ classdef Db < Component
                 else
                     if isempty(Args.Opts)
 %                         Result = fetch(Obj.Conn, Query);
-                        Result = select(Obj.Conn, Query);
+                        Result = select(Obj.Conn, Query); %, 'QueryTimeOut',600);
+
+                        %Curs   = exec(Obj.Conn, Query);
+                        %Curs.Statement.setQueryTimeout(600);
+                        %Curs   = fetch(Curs);
+                        %Result = Curs.Data;
+                        %close(Curs);
                     else
 %                         Result = fetch(Obj.Conn, Query, Args.Opts);
                         Result = select(Obj.Conn, Query, Args.Opts);

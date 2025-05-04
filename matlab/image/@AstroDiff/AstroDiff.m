@@ -232,8 +232,33 @@ classdef AstroDiff < AstroImage
 
     end
 
+    methods (Static) % static utilities
+        function Obj=convertFromAstroImage(AI)
+            % convert AstroImage to AstroDiff
+            % Input  : - An AstroImage
+            % Output : - An AstroDiff
+            % Author : Eran Ofek (May 2025)
+            % Example: AD=AstroDiff.convertFromAstroImage(AI);
+
+            N = numel(AI);
+            for I=1:1:N
+                Obj(I) = AstroDiff;
+                Obj(I).ImageData  = AI(I).ImageData;
+                Obj(I).BackData   = AI(I).BackData;
+                Obj(I).VarData    = AI(I).VarData;
+                Obj(I).PSFData    = AI(I).PSFData;
+                Obj(I).WCS        = AI(I).WCS;
+                Obj(I).HeaderData = AI(I).HeaderData;
+                Obj(I).CatData    = AI(I).CatData;
+            end
+
+        end
+    end
+    
     methods % utilities
-       function Obj=replaceNaN(Obj, Args)
+
+
+        function Obj=replaceNaN(Obj, Args)
             % Replace NaN pixels in New and Ref with Back value or other value.
             % Input  : - An AstroDiff object.
             %          * ...,key,val,...
@@ -293,7 +318,7 @@ classdef AstroDiff < AstroImage
            
        end
     
-       function Obj=matchfilterGabor(Obj, Args)
+        function Obj=matchfilterGabor(Obj, Args)
            %{
            Create a Gabor filter and apply to the difference image.
              The Gabor filter is used to identify sinusoidal patterns

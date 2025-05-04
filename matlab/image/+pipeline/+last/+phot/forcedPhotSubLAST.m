@@ -1,6 +1,6 @@
 function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
     % Forced photometry on LAST subtracted images.
-    %   Optionally treats the cases in whic reference images amd/or subtraction
+    %   Optionally treats the cases in which reference images amd/or subtraction
     %   images does not exist.
     % Input  : - A table of LAST visit information.
     %          - RA for forced photometry position.
@@ -135,9 +135,9 @@ function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
                 else
                     % use existing subtraction
                     
-                    %AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd','ZOGYD+');
+                    AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image++');
                     error('Option not supported yet');
-                    
+
                 end
 
                 FlagEmpty = AD.isemptyImage;

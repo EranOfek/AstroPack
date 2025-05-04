@@ -276,6 +276,30 @@ classdef AstroZOGY < AstroDiff
 
     end
 
+    methods (Static) % static utilities
+        function Obj=convertFromAstroImage(AI)
+            % convert AstroImage to AstroZOGY
+            % Input  : - An AstroImage
+            % Output : - An AstroZOGY
+            % Author : Eran Ofek (May 2025)
+            % Example: AD=AstroZOGY.convertFromAstroImage(AI);
+
+            N = numel(AI);
+            for I=1:1:N
+                Obj(I) = AstroZOGY;
+                Obj(I).ImageData  = AI(I).ImageData;
+                Obj(I).BackData   = AI(I).BackData;
+                Obj(I).VarData    = AI(I).VarData;
+                Obj(I).PSFData    = AI(I).PSFData;
+                Obj(I).WCS        = AI(I).WCS;
+                Obj(I).HeaderData = AI(I).HeaderData;
+                Obj(I).CatData    = AI(I).CatData;
+            end
+
+        end
+    end
+
+
     methods % utilities
       
     end
