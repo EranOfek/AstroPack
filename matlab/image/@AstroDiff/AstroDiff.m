@@ -244,6 +244,7 @@ classdef AstroDiff < AstroImage
             for I=1:1:N
                 Obj(I) = AstroDiff;
                 Obj(I).ImageData  = AI(I).ImageData;
+                Obj(I).MaskData   = AI(I).MaskData;
                 Obj(I).BackData   = AI(I).BackData;
                 Obj(I).VarData    = AI(I).VarData;
                 Obj(I).PSFData    = AI(I).PSFData;

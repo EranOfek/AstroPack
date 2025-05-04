@@ -392,7 +392,7 @@ function [Result] = forcedPhot(Obj, Args)
             Ypos = Y(:).' + ResultPSF.DY(:).';
             [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
-            if any(FlagIn)
+            if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
                 FlagsXY  = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
             else
                 FlagsXY  = nan(Nsrc, 1);

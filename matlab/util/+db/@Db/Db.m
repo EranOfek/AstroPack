@@ -198,7 +198,7 @@ classdef Db < Component
             
             if isempty(Args.JarFile)
                 I = Installer;
-                JarDir = I.getDataDir(I.Items.ClickHouseJar);
+                JarDir = I.getDataDir(I.Items.ClickHouseJar);                
                 PWD = pwd;
                 cd(JarDir);
                 Fd = dir('*.jar');
@@ -653,7 +653,7 @@ classdef Db < Component
             % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids', {'id','jd'}, '*')
             %          Result = genQueryGroupBy(DB, 'visit_asteroids', {'id_visit_im','desig'}, '*')
             %          Result = genQueryGroupBy(DB, 'mergedmat_var', {'id','srcnumber'}, '*')
-            %          Result = genQueryGroupBy(DB, 'visit_images', {'id_visit','ingestion_time'}, '*')
+            %          Result = genQueryGroupBy(DB, 'visit_images', {'id_visit'}, '*')
 
 
             arguments

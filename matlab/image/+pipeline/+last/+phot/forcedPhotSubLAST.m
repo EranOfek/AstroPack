@@ -1,4 +1,4 @@
-function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
+function [Result,AD] = forcedPhotSubLAST(T, RA, Dec, Args)
     % Forced photometry on LAST subtracted images.
     %   Optionally treats the cases in which reference images amd/or subtraction
     %   images does not exist.
@@ -12,14 +12,22 @@ function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
     %            'UseExistingRef' - A logical indicating if tou use
     %                   existing reference images.
     %                   Default is true.
+    %            'ReSub' - Re subtract. If false will attempt to upload existing
+    %                   zogyD data products.
+    %                   Default is false.
     %            'MaxIter' - Max iter for forced photometry. Use 0 if no
     %                   position adjustment. Default is 0.
     %            See code for additional arguments.
     % Output : - An AstroCatalog (or table) output with entry per image.
+    %          - The last loaded AstroZOGY object. 
     % Author : Eran Ofek (2025 Apr) 
     % Example: RA=40.5229121965; Dec=-16.9563601815;
     %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec,'QueryMethod','upix');
     %          R=pipeline.last.phot.forcePhotSubLAST(T{1}, RA, Dec);
+    %
+    %          RA = 222.71; Dec=51.0
+    %          T=DB.query("SELECT * FROM visit_images WHERE jd_start>2460770 AND jd_start<2460780 AND fieldid LIKE '1572'");
+    %          R=pipeline.last.phot.forcedPhotSubLAST(T(1,:), RA, Dec, 'UseExistingRef',false);
 
     arguments
         T
@@ -28,6 +36,7 @@ function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
         Args.CooUnits          = 'deg';
         Args.RangeJD           = [-Inf Inf];
         Args.UseExistingRef    = false;
+        Args.ReSub             = false;
         Args.MaxIter           = 0;
 
         Args.MinNumForRef        = 5;
@@ -136,12 +145,10 @@ function [Result] = forcedPhotSubLAST(T, RA, Dec, Args)
                     % use existing subtraction
                     
                     AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image++');
-                    error('Option not supported yet');
-
                 end
 
                 FlagEmpty = AD.isemptyImage;
-                if ~FlagEmptypty
+                if ~FlagEmpty
                   
                     % perform forced photometry
                     switch Args.OutType
