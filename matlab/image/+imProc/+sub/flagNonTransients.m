@@ -172,9 +172,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.4;
-        Args.SecondMomAsymLim = 0.33;
-        Args.SecondMomHardLim = 2.0;
-        Args.SecondMomFinalLim = 2.3;
+        Args.SecondMomHardLim = 2.3;
+        Args.SecondMomAsymLim = 1.0;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
 
@@ -198,7 +197,7 @@ function TranCat = flagNonTransients(Obj, Args)
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
-        Args.SaturatedNeighborDistanceThreshold = 50;
+        Args.SaturatedNeighborDistanceThreshold = 100;
         Args.NeighborDenThreshold = 3.2;
         Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
             'Ringing', 'Translient', 'Streak'};
@@ -253,49 +252,6 @@ function TranCat = flagNonTransients(Obj, Args)
             NothingInRef = ((abs(R_SN) < 3) | (R_MAG > R_LIMMAG));
         end        
 
-        % Apply Chi2 per degrees of freedom criterium.
-        if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
-
-            %D_CHI2DOF = Cat.getCol('PSF_CHI2DOF');
-            N_CHI2DOF = Cat.getCol('N_PSF_CHI2DOF');
-            R_CHI2DOF = Cat.getCol('R_PSF_CHI2DOF');
-            Negatives = Score < 0;
-
-            NR_CHI2DOF = N_CHI2DOF;
-            NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
-
-            MedianAtMag_New = Cat.getCol('N_PSF_CHI2DOF_MED');
-            MedianAtMag_Ref = Cat.getCol('R_PSF_CHI2DOF_MED');
-            
-            GoodChi2dofNGlobal = (MedianAtMag_New < Args.Chi2dofLimitsGlobal);
-            GoodChi2dofRGlobal = (MedianAtMag_Ref < Args.Chi2dofLimitsGlobal)...
-                | isnan(MedianAtMag_Ref);
-
-            GoodChi2dofNRLocal = ...
-                (NR_CHI2DOF > Args.Chi2dofLimitsLocal(1)) & ...
-                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(2));
-
-            ExcludeCandChi2Local = false(CatSize,1);
-            ExcludeCandChi2Global = false(CatSize,1);
-            if exist('NothingInRef','var')
-                ExcludeCandChi2Local = ~NothingInRef;
-                ExcludeCandChi2Global = NothingInRef;
-            end
-
-            ExcludeCandChi2Local = ExcludeCandChi2Local & ...
-                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(3));
-
-            GoodChi2dofNRGlobal = (GoodChi2dofNGlobal & GoodChi2dofRGlobal)...
-                | ExcludeCandChi2Global;
-           
-            GoodChi2dofNRLocal = GoodChi2dofNRLocal | ExcludeCandChi2Local;
-            GoodChi2dofNR = (GoodChi2dofNRGlobal & GoodChi2dofNRLocal);
-
-            Chi2dofFlagged = ~GoodChi2dofNR;
-            TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
-
-        end
-    
         % Apply bit mask critera.
         if (Args.flagBadPix_Hard || Args.flagBadPix_Soft || Args.flagSaturated) && ...
                 (Cat.isColumn('N_FLAGS') && Cat.isColumn('R_FLAGS'))
@@ -543,16 +499,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
             X2N = Cat.getCol('N_X2');
             Y2N = Cat.getCol('N_Y2');
-            %XYN = Cat.getCol('N_XY');
 
             PassesN = (X2N < Args.SecondMomSoftLim) & ...
                       (Y2N < Args.SecondMomSoftLim) & ...
                       (abs(X2N-Y2N) < Args.SecondMomAsymLim);
 
-            if Args.flagTranslients
-                DoNotExclude = ~PassesN;
-            end
-            
+            FailsNPSFGlobal = ~PassesN;
+           
             if Cat.isColumn('GDIRCVAR') && Cat.isColumn('GDIRERROR') && ...
                     Cat.isColumn('PEAK_DIST')
               
@@ -564,14 +517,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 PeakDist = Cat.getCol('PEAK_DIST');
                 PassesPeak = PeakDist < Args.PeakDistThreshold;
 
-                PassesHardLim = (X2N < Args.SecondMomHardLim) | ...
+                PassesHardLim = (X2N < Args.SecondMomHardLim) & ...
                                 (Y2N < Args.SecondMomHardLim);
-
-                PassesFinalLim = (X2N < Args.SecondMomFinalLim) & ...
-                                (Y2N < Args.SecondMomFinalLim);
                             
-                PassesLocal = (PassesPeak & PassesGDir & ...
-                    PassesHardLim & PassesFinalLim);
+                PassesLocal = (PassesPeak & PassesGDir & PassesHardLim);
 
                 PassesN = PassesN | PassesLocal;
 
@@ -583,6 +532,59 @@ function TranCat = flagNonTransients(Obj, Args)
             NShapeFlagged = ~PassesN;
 
             TF_Flags = TF_Flags + NShapeFlagged.*2.^BD_TF.name2bit('NPSFShape');
+        end
+
+        % Apply Chi2 per degrees of freedom criterium.
+        if Args.flagChi2 && Cat.isColumn('PSF_CHI2DOF')
+
+            %D_CHI2DOF = Cat.getCol('PSF_CHI2DOF');
+            N_CHI2DOF = Cat.getCol('N_PSF_CHI2DOF');
+            R_CHI2DOF = Cat.getCol('R_PSF_CHI2DOF');
+            Negatives = Score < 0;
+
+            NR_CHI2DOF = N_CHI2DOF;
+            NR_CHI2DOF(Negatives) = R_CHI2DOF(Negatives);
+
+            MedianAtMag_New = Cat.getCol('N_PSF_CHI2DOF_MED');
+            MedianAtMag_Ref = Cat.getCol('R_PSF_CHI2DOF_MED');
+            
+            GoodChi2dofNGlobal = (MedianAtMag_New < Args.Chi2dofLimitsGlobal);
+            GoodChi2dofRGlobal = (MedianAtMag_Ref < Args.Chi2dofLimitsGlobal)...
+                | isnan(MedianAtMag_Ref);
+
+            GoodChi2dofNRLocal = ...
+                (NR_CHI2DOF > Args.Chi2dofLimitsLocal(1)) & ...
+                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(2));
+
+            ExcludeCandChi2Local = false(CatSize,1);
+            ExcludeCandChi2Global = false(CatSize,1);
+            if exist('NothingInRef','var')
+                ExcludeCandChi2Local = ~NothingInRef;
+                ExcludeCandChi2Global = NothingInRef;
+            end
+
+            ExcludeCandChi2Local = ExcludeCandChi2Local & ...
+                (NR_CHI2DOF < Args.Chi2dofLimitsLocal(3));
+
+            GoodChi2dofNRGlobal = (GoodChi2dofNGlobal & GoodChi2dofRGlobal)...
+                | ExcludeCandChi2Global;
+
+            if exist('FailsNPSFGlobal','var')
+                MAtG_New_FNPSF = (MedianAtMag_New(FailsNPSFGlobal));
+                MAtG_Ref_FNPSF = (MedianAtMag_Ref(FailsNPSFGlobal));
+                MAtG_Del_FNPSF = abs(MAtG_New_FNPSF-MAtG_Ref_FNPSF);
+
+                GoodChi2dofNRGlobal(FailsNPSFGlobal) = ...
+                    ((MAtG_New_FNPSF < 0.85) & (MAtG_Ref_FNPSF < 0.85) & ...
+                    (MAtG_Del_FNPSF < 0.2)) | isnan(MAtG_Ref_FNPSF);
+            end
+
+            GoodChi2dofNRLocal = GoodChi2dofNRLocal | ExcludeCandChi2Local;
+            GoodChi2dofNR = (GoodChi2dofNRGlobal & GoodChi2dofNRLocal);
+
+            Chi2dofFlagged = ~GoodChi2dofNR;
+            TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
+
         end
         
         if Args.flagVariable
@@ -700,8 +702,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 ExcludeCand = NothingInRef;
             end
 
-            if exist('DoNotExclude','var')
-                ExcludeCand = ~DoNotExclude;
+            if exist('FailsNPSFGlobal','var')
+                ExcludeCand = ~FailsNPSFGlobal;
             end
             
             IsNotTranslient = IsNotTranslient | ExcludeCand;
