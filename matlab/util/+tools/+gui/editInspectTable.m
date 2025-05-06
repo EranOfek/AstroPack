@@ -1,7 +1,6 @@
 function [T, Fig] = editInspectTable(T, Args)
     % Editable table inspector with custom positioning, auto-save, and context actions
     %
-    % [T, Fig] = editInspectTable(T, Args)
     % Input: - (T) A MATLAB table to display and edit
     %        * ...,key,val,...
     %         'InspectFun'    - Function handle or cell array of handles for callbacks
