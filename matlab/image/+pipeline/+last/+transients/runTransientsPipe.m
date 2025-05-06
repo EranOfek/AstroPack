@@ -78,6 +78,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.AsteroidSearchRad = 20;
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
+
+        Args.CropIDs = [];
     end
 
     % 1: ----- Set default arguments -----
@@ -175,6 +177,12 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         if NCOADD < Args.MinimumNCoadd
             NBelowMinNCoadd = NBelowMinNCoadd + 1;
             continue
+        end
+
+        if ~isempty(Args.CropIDs)
+            if ~ismember(New(Iobj).HeaderData.getVal('CROPID'), Args.CropIDs)
+                continue
+            end
         end
 
         % Get name of New image and search for Ref image via wildcards
