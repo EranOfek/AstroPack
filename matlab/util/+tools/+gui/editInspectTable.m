@@ -1,114 +1,180 @@
-function T = editInspectTable(T, Args)
-    % editable viewer and inspection tool for table T.
-    %   Allows modifying tables and executing pre-defined function on
-    %   table rows by menu selection.
-    % Input  : - Table.
-    %          * ...,key,val,...
-    %            'InspectFun' - A function handle or a cell array of
-    %                   function handles.
-    %                   These are the function that will becom exacutable
-    %                   from the right-click mouse menue.
-    %                   Functions are of the form Fun(T(Ind,:),Args.InspectFunArgs{:})
-    %                   Default is: {@(x,y) disp(x),...
-    %                             @(x,y) web(VO.search.simbad_url(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-    %                             @(x,y) web(VO.NED.ned_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-    %                             @(x,y) web(VO.SDSS.navigator_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-    %                             @(x,y) web(VO.DECaLS.decals_viewer_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-    %                             @(x,y) web(VO.PS1.navigator_link(x.ra./(180./pi), x.dec./(180./pi)).URL)}
-    %            'InspectFunArgs' - Cell array of cell arrays of additional
-    %                   parameters to pass to each function.
-    %                   Default is {{}}.
-    %            'FunName' - A cell array of function names that will
-    %                   appear in the right-click-mouse menue.
-    %                   Default is {'Inspect'}
-    %            'AddLineNumber' - If true, then will add a non-editable
-    %                   line number in the first column.
-    %                   Default is true.
-    % Output : - The modified table.
-    % Example: T = tools.gui.editInspectTable(array2table(rand(10,5)))
+function [T, Fig] = editInspectTable(T, Args)
+    % Editable table inspector with custom positioning, auto-save, and context actions
+    %
+    % [T, Fig] = editInspectTable(T, Args)
+    % Input: - (T) A MATLAB table to display and edit
+    %        * ...,key,val,...
+    %         'InspectFun'    - Function handle or cell array of handles for callbacks
+    %               See code for defaults.
+    %         'InspectFunArgs'- Cell array of args for each InspectFun
+    %         'FunName'       - Cell array of names for context menu entries
+    %         'AddLineNumber' - true|false to add row-number column (default true)
+    %         'SaveObj'       - string path to a variable in the matlab session base to auto-save edits.
+    %                   Default is "ObsS.List.Catalog".
+    %         'Units'         - units for the UITable (default 'normalized')
+    %         'Position'      - [x y width height] in specified Units. Default is [0.05 0.05 0.9 0.9]
+    %
+    % Output : 
+    % Author : ChatGPT and Eran Ofek (May 2025)
+    % Example: tools.gui.editInspectTable(array2table(rand(5,3))
 
     arguments
         T table
-        Args.InspectFun        = {@(x,y) disp(x),...
-                                  @(x,y) web(VO.search.simbad_url(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-                                  @(x,y) web(VO.NED.ned_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-                                  @(x,y) web(VO.SDSS.navigator_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-                                  @(x,y) web(VO.DECaLS.decals_viewer_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-                                  @(x,y) web(VO.PS1.navigator_link(x.ra./(180./pi), x.dec./(180./pi)).URL),...
-                                  @(x,y) pipeline.last.pipes.VisitVariability.plotLC(x(1,:))};
+        Args.InspectFun        =     {@(x,y) disp(x),...
+                                      @(x,y) web(VO.search.simbad_url(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.NED.ned_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.SDSS.navigator_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.DECaLS.decals_viewer_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.PS1.navigator_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) telescope.obs.daily_observability([35 30]./(180./pi), celestial.time.julday, x.RA./(180./pi), x.Dec./(180./pi)),...
+                                      @(x,y) telescope.obs.yearly_observability(floor(celestial.time.jd2year(celestial.time.julday)), [x.RA./(180./pi), x.Dec./(180./pi)], [35 30]./(180./pi),0,2,0),...
+                                      };
+    
+    
+        Args.InspectFunArgs    = {{},{},{},{}, {}, {}, {}, {}};
+        Args.FunName           = {"Display Line", "SIMBAD", "NED", "SDSS", "DECaLS", "PS1", "Daily Observability", "Yearly Observability"};
 
-        Args.InspectFunArgs    = {{},{},{},{}, {}, {}, {}};
-        Args.FunName           = {"Display Line", "SIMBAD", "NED", "SDSS", "DECaLS", "PS1", "Plot LC"};
-        Args.AddLineNumber     = true;
+        Args.AddLineNumber     = true
+        Args.SaveObj           = "ObsS.List.Catalog"
+        Args.Units             = "normalized"
+        Args.Position          = [0.05 0.05 0.9 0.9]
     end
 
+    % Normalize inputs
     if ~iscell(Args.InspectFun)
         Args.InspectFun = {Args.InspectFun};
     end
-
-    if isempty(Args.InspectFunArgs)
-        Args.InspectFunArgs = {Args.InspectFunArgs};
-    else
-        if ~iscell(Args.InspectFunArgs{1})
-            Args.InspectFunArgs = {Args.InspectFunArgs};
-        end
+    if isempty(Args.InspectFunArgs) || ~iscell(Args.InspectFunArgs{1})
+        Args.InspectFunArgs = repmat({{}}, size(Args.InspectFun));
     end
-
     if ischar(Args.FunName) || isstring(Args.FunName)
         Args.FunName = cellstr(Args.FunName);
     end
 
+    % Create UIFigure
     Fig = uifigure('Name', 'Editable Table Inspector');
 
-    % Add a line number column
+    % Prepare uitable layout arguments
+    tblArgs = {'Units', Args.Units};
+    if ~isempty(Args.Position)
+        tblArgs(end+1:end+2) = {'Position', Args.Position};
+    end
+
+    % Add row-number column if desired
     if Args.AddLineNumber
         LineNumber = (1:height(T))';
         T = addvars(T, LineNumber, 'Before', 1, 'NewVariableNames', 'N');
-        Tbl = uitable(Fig, ...
-            'Data', T, ...
-            'ColumnEditable', [false, true(1, width(T)-1)]);
+        editable = [false, true(1,width(T)-1)];
     else
-        Tbl = uitable(Fig, ...
-            'Data', T, ...
-            'ColumnEditable', true);
+        editable = true(1,width(T));
     end
 
-    % Attach CellEditCallback to update T when edited
-    Tbl.CellEditCallback = @(Src, Event) assignin('base', 'T', Src.Data);
+    % Create UITable
+    Tbl = uitable(Fig, tblArgs{:}, 'Data', T, 'ColumnEditable', editable);
+    Tbl.CellEditCallback = @(src,~) cellEditCallback(src, Args);
 
-    % Create right-click context menu
+    % Build context menu
     Cm = uicontextmenu(Fig);
-    for iFun = 1:numel(Args.InspectFun)
-        uimenu(Cm, 'Text', Args.FunName{iFun}, 'MenuSelectedFcn', @(Src, Event) runInspectFun(Tbl, Args, iFun));
+    % Inspect functions
+    for i = 1:numel(Args.InspectFun)
+        uimenu(Cm, 'Text', Args.FunName{i}, 'MenuSelectedFcn', @(~,~) runInspectFun(Tbl, Args, i));
     end
-
-    % Add sort submenu
-    SortMenu = uimenu(Cm, 'Text', 'Sort By');
-    for iCol = 1:width(T)
-        ColMenu = uimenu(SortMenu, 'Text', Tbl.ColumnName{iCol});
-        uimenu(ColMenu, 'Text', 'Sort Ascending', 'MenuSelectedFcn', @(src, event) sortByColumn(Tbl, iCol, 'ascend'));
-        uimenu(ColMenu, 'Text', 'Sort Descending', 'MenuSelectedFcn', @(src, event) sortByColumn(Tbl, iCol, 'descend'));
+    % Sort submenu
+    sm = uimenu(Cm, 'Text', 'Sort By');
+    for c = 1:width(T)
+        m = uimenu(sm, 'Text', Tbl.ColumnName{c});
+        uimenu(m, 'Text', 'Ascending',  'MenuSelectedFcn', @(~,~) sortBy(Tbl, c, 'ascend'));
+        uimenu(m, 'Text', 'Descending', 'MenuSelectedFcn', @(~,~) sortBy(Tbl, c, 'descend'));
     end
-
+    % Add and duplicate actions
+    uimenu(Cm, 'Text', 'Add new line',    'MenuSelectedFcn', @(~,~) addNewLine(Tbl, Args));
+    uimenu(Cm, 'Text', 'Duplicate line',  'MenuSelectedFcn', @(~,~) duplicateLine(Tbl, Args));
     Tbl.ContextMenu = Cm;
 
-    function runInspectFun(Tbl, Args, FunIndex)
-        Row = Tbl.Selection(1);
-        CurrentData = Tbl.Data;
-        if ~isempty(Row) && Row > 0 && Row <= height(CurrentData)
-            Args.InspectFun{FunIndex}(CurrentData(Row,:), Args.InspectFunArgs{FunIndex}{:});
+    % Update output
+    T = Tbl.Data;
+
+    % Nested helper functions
+    function cellEditCallback(src, Args)
+        data = src.Data;
+        if Args.SaveObj ~= ""
+            assignin('base', 'tmpTable', data);
+            evalin('base', sprintf('%s = tmpTable;', Args.SaveObj));
+            evalin('base', 'clear tmpTable');
         else
-            uialert(ancestor(Tbl,'figure'), 'No row selected.', 'Selection Error');
+            assignin('base', 'T', data);
         end
     end
 
-    function sortByColumn(Tbl, ColIndex, Direction)
-        Data = Tbl.Data;
-        if isnumeric(Data{:,ColIndex}) || isdatetime(Data{:,ColIndex})
-            [~,Idx] = sort(Data{:,ColIndex}, Direction);
-        else
-            [~,Idx] = sort(string(Data{:,ColIndex}), Direction);
+    function runInspectFun(Tbl, Args, idx)
+        sel = Tbl.Selection;
+        if isempty(sel)
+            uialert(Fig, 'No row selected.', 'Error');
+            return;
         end
-        Tbl.Data = Data(Idx,:);
+        row = sel(1);
+        rowData = Tbl.Data(row, :);
+        Args.InspectFun{idx}(rowData, Args.InspectFunArgs{idx}{:});
+    end
+
+    function sortBy(Tbl, colIdx, direction)
+        D = Tbl.Data;
+        col = D{:,colIdx};
+        if isnumeric(col) || isdatetime(col)
+            [~,I] = sort(col, direction);
+        else
+            [~,I] = sort(string(col), direction);
+        end
+        Tbl.Data = D(I,:);
+    end
+
+    function addNewLine(Tbl, Args)
+        D = Tbl.Data;
+        % Template to preserve types
+        template = D(1, :);
+        newRow = template;
+        for fn = D.Properties.VariableNames
+            v = D.(fn{1});
+            newRow.(fn{1}) = defaultMissing(v);
+        end
+        D = [D; newRow];
+        if Args.AddLineNumber
+            D.N = (1:height(D))';
+        end
+        Tbl.Data = D;
+    end
+
+    function duplicateLine(Tbl, Args)
+        sel = Tbl.Selection;
+        if isempty(sel), uialert(Fig,'No row selected.','Error'); return; end
+        row = sel(1);
+        D = Tbl.Data;
+        D = [D(1:row, :); D(row, :); D(row+1:end, :)];
+        if Args.AddLineNumber
+            D.N = (1:height(D))';
+        end
+        Tbl.Data = D;
+    end
+
+    function val = defaultMissing(v)
+        if isnumeric(v)
+            val = NaN;
+        elseif isdatetime(v)
+            val = datetime(NaT);
+        elseif isduration(v)
+            val = duration(NaN);
+        elseif isstring(v)
+            val = "";
+        elseif iscell(v)
+            val = {[]} ;
+        elseif iscategorical(v)
+            val = categorical(missing);
+        else
+            try
+                val = missing(v);
+            catch
+                val = [];
+            end
+        end
     end
 end

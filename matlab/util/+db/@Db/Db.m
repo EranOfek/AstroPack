@@ -202,31 +202,43 @@ classdef Db < Component
                 PWD = pwd;
                 cd(JarDir);
                 Fd = dir('*.jar');
-                JarFile = sprintf('%s%s%s',JarDir,filesep,Fd.name);
+                %JarFile = sprintf('%s%s%s',JarDir,filesep,Fd.name);
+                JarFile = tools.cell.sprintf_Cell2Cell("%s%s%s",JarDir,filesep,{Fd.name});
                 cd(PWD);
             else
                 JarFile = Args.JarFile;
             end
+            if ischar(JarFile)
+                JarFile = string(JarFile);
+            end
             if contains(JarFile,'~')
-                JarFile = tools.os.relPath2absPath(JarFile);
+                for I=1:1:numel(JarFile)
+                    JarFile(I) = tools.os.relPath2absPath(JarFile{I});
+                end
             end
 
+
             % Check if Jar file exist
-            if ~isfile(JarFile)
-                fprintf('Jar file: %s not found\n',JarFile);
-                fprintf('Use I=Installer; I.install(''ClickHouseJar'')\n');
-                error('Jar file not found');
+            for I=1:1:numel(JarFile)
+                if ~isfile(JarFile(I))
+                    fprintf('Jar file: %s not found\n',JarFile(I));
+                    fprintf('Use I=Installer; I.install(''ClickHouseJar'')\n');
+                    error('Jar file not found');
+                else
+                    % Add JDBC driver to the MATLAB Java path if it's not already added
+                    javaaddpath(JarFile(I));
+                    if ~ismember(JarFile(I), javaclasspath('-dynamic'))
+                        javaaddpath(Args.JarFile);
+                    end
+                end
+
             end
 
             JdbcURL = sprintf("%s://%s:%s/%s",Args.BaseURL, Args.Host, Args.Port, Args.DbName);
             %JdbcURL = sprintf("%s://%s:%s/%s?socket_timeout=%d&dataTransferTimeout=%d",Args.BaseURL, Args.Host, Args.Port, Args.DbName, Args.Timeout, Args.Timeout);
                 
          
-            % Add JDBC driver to the MATLAB Java path if it's not already added
-            javaaddpath(JarFile);
-            if ~ismember(JarFile, javaclasspath('-dynamic'))
-                javaaddpath(Args.JarFile);
-            end
+            
             
             %Props = javaObject('com.clickhouse.client.config.ClickHouseProperties');
             %Props.setSocketTimeout(int64(Args.Timeout));       % 600 000 ms = 10 min
@@ -1250,6 +1262,7 @@ classdef Db < Component
                 
                 Args.IsExec logical           = false;
                 Args.Opts                     = [];
+                Args.UseExec logical          = false;
             end
             
             Error = Obj.Conn.Message;
@@ -1259,18 +1272,38 @@ classdef Db < Component
                     exec(Obj.Conn, Query);
                     Result = [];
                 else
-                    if isempty(Args.Opts)
-%                         Result = fetch(Obj.Conn, Query);
-                        Result = select(Obj.Conn, Query); %, 'QueryTimeOut',600);
+                    if Args.UseExec
+                        % use exec instead of select
 
-                        %Curs   = exec(Obj.Conn, Query);
-                        %Curs.Statement.setQueryTimeout(600);
-                        %Curs   = fetch(Curs);
-                        %Result = Curs.Data;
-                        %close(Curs);
+JConn = Obj.Conn.Handle;    % should now be ClickHouseConnectionImpl without class conflicts
+Stmt = JConn.createStatement();
+Stmt.setQueryTimeout(600);   % seconds
+
+% 3) Execute your SQL string (not 'Result') and get a java.sql.ResultSet
+rs = stmt.executeQuery(Query);
+
+
+                        Curs = exec(Obj.Conn, Query);              % send the query
+                        Curs = set(Curs, 'QueryTimeout',600);
+                        Curs.QueryTimeout = 600;
+
+                        Curs = fetch(Curs, '-mode', 'cell');       % pull back results in cell mode
+                        Result = Curs.Data;
+                        close(Curs);
                     else
-%                         Result = fetch(Obj.Conn, Query, Args.Opts);
-                        Result = select(Obj.Conn, Query, Args.Opts);
+                        if isempty(Args.Opts)
+    %                         Result = fetch(Obj.Conn, Query);
+                            Result = select(Obj.Conn, Query); %, 'QueryTimeOut',600);
+    
+                            %Curs   = exec(Obj.Conn, Query);
+                            %Curs.Statement.setQueryTimeout(600);
+                            %Curs   = fetch(Curs);
+                            %Result = Curs.Data;
+                            %close(Curs);
+                        else
+    %                         Result = fetch(Obj.Conn, Query, Args.Opts);
+                            Result = select(Obj.Conn, Query, Args.Opts);
+                        end
                     end
                 end
         
