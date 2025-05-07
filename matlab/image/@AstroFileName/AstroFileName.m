@@ -635,6 +635,13 @@ classdef AstroFileName < Component
                 Seperator            = "_";
             end
         
+            if iscell(FileNameString)
+                FileNameString = string(FileNameString);
+            end
+            if isstring(FileNameString)
+                FileNameString = FileNameString(:);
+            end
+
             Result = AstroFileName;
             if isstruct(FileNameString)
                 if IsSinglePath
@@ -649,7 +656,7 @@ classdef AstroFileName < Component
                 FileNameString = {FileNameString.name};
             else
                 [P1,P2,P3] = fileparts(FileNameString);
-                FileNameString = join([P2, P3], 2);
+                FileNameString = join([P2, P3], '', 2);
 
                 Result.Path = P1;
             end
@@ -2258,6 +2265,8 @@ classdef AstroFileName < Component
             %                   Default is false (do not use NOT).
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the object. Default is false.
+            %            'SelectEntries' - If false then do not modify the
+            %                   object. Default is true.
             % Output : - An updated AstroFileName object, with the selected
             %            lines/file names.
             %          - For the last element in the AstroFileName, return
@@ -2276,6 +2285,7 @@ classdef AstroFileName < Component
                 Args.Str2Double logical     = false;
                 Args.SelectNot logical      = false;
                 Args.CreateNewObj logical   = false;
+                Args.SelectEntries logical  = true;
             end
             
             if Args.CreateNewObj
@@ -2295,7 +2305,9 @@ classdef AstroFileName < Component
                 if Args.SelectNot
                     Flag = ~Flag;
                 end
-                Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                if Args.SelectEntries
+                    Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                end
             end
             
         end
