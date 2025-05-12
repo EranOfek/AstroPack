@@ -2545,6 +2545,14 @@ classdef PipelineDemon < Component
             end          
         end
         
+
+        function Obj=reduceVisit(Obj, Args)
+            % Reduce a single visit
+
+
+        end
+
+
         
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
@@ -2643,7 +2651,6 @@ classdef PipelineDemon < Component
             Args = tools.args.updateParFromConfig(Args, Obj.Config, Args.ArgsConfigName);
             
 
-            % got here...
 
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
@@ -2700,7 +2707,7 @@ classdef PipelineDemon < Component
 
             end
 
-            ADB = [];  % AstroDB
+            ADB = [];  % AstroDB   %??????
             
             % change the paths if a non-standard new directory is given
             if ~isempty(Args.NonStandardNew)
@@ -3122,18 +3129,7 @@ classdef PipelineDemon < Component
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end
 
-                            
-                            % if CoaddTransienst.sizeCatalog>0
-                            %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
-                            %                            'Level','merged',...
-                            %                            'LevelPath','proc',...
-                            %                            'SubDir',FN_Proc.SubDir,...
-                            %                            'WriteMethodImages',Args.WriteMethodImages,...
-                            %                            'WriteMethodTables',Args.WriteMethodTables);
-                            %                             );
-                            %     Obj.writeLog(Status, LogLevel.Info);
-                            % end
-
+              
                             % Write images and catalogs to DB
     
     

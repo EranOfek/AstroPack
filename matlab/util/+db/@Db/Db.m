@@ -651,15 +651,16 @@ classdef Db < Component
     end
 
     methods % construct queries / dynamic
-        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols, Fun)
+        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols, Args)
             % Generate a select group by query.
             %   query of the form: INSERT INTO last.fastmoving_asteroids11 SELECT id, jd, any(col1), any(col2), ... FROM last.fastmoving_asteroids1 GROUP BY id, jd;
             % Input  : - self.
             %          - Table name.
             %          - GroupByCols cell array. Default is {'id','jd'}
             %          - AddCols. Columns to add. Default is '*'.
-            %          - Function for selection 'min'|'max'|'any'.
-            %            Default is 'min'.
+            %          * ...,key,val,...
+            %            'Fun' - Function for selection 'min'|'max'|'any'.
+            %                   Default is 'min'.
             % Output : - Query string.
             % Author : Eran Ofek (Apr 2025)
             % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids', {'id','jd'}, '*')
@@ -673,7 +674,9 @@ classdef Db < Component
                 TableName   = 'fastmoving_asteroids1';
                 GroupByCols = {'id','jd'};
                 AddCols     = '*';
-                Fun         = 'min';  % 'min'|'max'|'any'
+                Args.Fun         = 'min';  % 'min'|'max'|'any'
+                Args.Having      = '';
+                Args.PreWhere    = '';
             end
 
             
@@ -698,7 +701,15 @@ classdef Db < Component
                 ExtraComa = ',';
             end
 
-            Result = sprintf("SELECT %s %s %s FROM %s GROUP BY %s", GroupCols, ExtraComa, AnyStr, TableName, GroupCols);
+            if ~isempty(Args.Having)
+                Args.Having = sprintf('HAVING %s',Args.Having);
+            end
+            if ~isempty(Args.PreWhere)
+                Args.PreWhere = sprintf('PREWHERE %s',Args.PreWhere);
+            end
+
+
+            Result = sprintf("SELECT %s %s %s FROM %s %s GROUP BY %s %s", GroupCols, ExtraComa, AnyStr, TableName, Args.PreWhere, GroupCols, Args.Having);
            
         end
     end

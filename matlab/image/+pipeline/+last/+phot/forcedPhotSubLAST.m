@@ -1,4 +1,4 @@
-function [Result,AD] = forcedPhotSubLAST(T, RA, Dec, Args)
+function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     % Forced photometry on LAST subtracted images.
     %   Optionally treats the cases in which reference images amd/or subtraction
     %   images does not exist.
@@ -19,7 +19,8 @@ function [Result,AD] = forcedPhotSubLAST(T, RA, Dec, Args)
     %                   position adjustment. Default is 0.
     %            See code for additional arguments.
     % Output : - An AstroCatalog (or table) output with entry per image.
-    %          - The last loaded AstroZOGY object. 
+    %          - The last loaded AstroZOGY object.
+    %          - AstroZOGY object of forced phot cutouts. Object per line.
     % Author : Eran Ofek (2025 Apr) 
     % Example: RA=40.5229121965; Dec=-16.9563601815;
     %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec,'QueryMethod','upix');
@@ -149,7 +150,14 @@ function [Result,AD] = forcedPhotSubLAST(T, RA, Dec, Args)
 
                 FlagEmpty = AD.isemptyImage;
                 if ~FlagEmpty
-                  
+
+                    if nargout>2
+                        %XY = 
+                        error('Need to define XY based on astrometry... FFU')
+                        ADc(Iim) = AD.cutoutTransients('XY',XY, 'CreateNewObj',true);
+                    end
+
+
                     % perform forced photometry
                     switch Args.OutType
                         case 'AstroCatalog'
