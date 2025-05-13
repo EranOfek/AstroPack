@@ -6,11 +6,21 @@
 % WS.killWebServer  % kill the WebServer
 % Use: curl "http://localhost:8080/echo?Args1=123&Args2=hello%20world&Args3=-112.6661"
 
+
+% python3 WebServer.py --host socsrv --port 8123 --user default --password PassRoot --ingestTime ingestiontimejd --userNameColumn user --userPassword MyPassword
+% curl -u eran:MyPassword "http://localhost:8080/last.test1?ra=111.1&dec=23.3"
+
 classdef WebServer < Component
     %
     
     properties    
-        PID         = [];
+        PID            = [];
+        WebServerType  = "Insert2DB"; % "RunFun2html"|"Java"
+
+        DB             = [];
+
+
+
         OutputFile  = "/tmp/http_requests.log";
 
        
@@ -18,7 +28,8 @@ classdef WebServer < Component
     
     properties (Constant, Hidden)
         Port        = 8080;
-        JavaFunName = 'SimpleHttpLogger';
+        WebServer_Insert2DB = 'WebServer.py';
+        WebServer_Java      = 'SimpleHttpLogger';
     end
     
     
@@ -61,7 +72,7 @@ classdef WebServer < Component
             Path = fileparts(FullPath);
         end
 
-        function Status=compileWebServer()
+        function Status=compileJavaWebServer()
             % Compile the Java Http logger
             % Input  : null
             % Output : - Status, 0 for sucess.
@@ -72,8 +83,8 @@ classdef WebServer < Component
             PWD = pwd;
             Path = tools.WebServer.getWebServerPath;
             cd(Path);
-            if ~isfile(sprintf('%s.class', tools.WebServer.JavaFunName))
-                [Status, CmdOut] = system(sprintf('javac %s.java',tools.WebServer.JavaFunName));
+            if ~isfile(sprintf('%s.class', tools.WebServer.WebServer_Java))
+                [Status, CmdOut] = system(sprintf('javac %s.java',tools.WebServer.WebServer_Java));
                 fprintf('Copilation Status: %f\n', Status);
                 fprintf('Compilation output : %s\n',CmdOut);
             end
@@ -84,7 +95,7 @@ classdef WebServer < Component
     end
 
     methods % executing
-        function runWebServer(Obj, OutputFile)
+        function runWebServer(Obj, Args)
             % Run WebServer and store its PID
             % Input  : - self
             %          - OutptFile name.
@@ -97,23 +108,51 @@ classdef WebServer < Component
 
             arguments
                 Obj
-                OutputFile  = [];
+                Args.OutputFile  = [];
+
+                Args.IngestTimeCol = 'ingestiontimejd';
+                Args.UserCol       = 'user'
+                Args.UserPassword  = 'MyPassword';
             end
 
-            if isempty(OutputFile)
-                OutputFile = Obj.OutputFile;
-            end
-            if isempty(OutputFile)
-                error('OutputFile is not provided');
-            end
 
-            tools.WebServer.compileWebServer;
+            switch Obj.WebServerType
+                case 'Java'
+                    if isempty(Args.OutputFile)
+                        OutputFile = Obj.OutputFile;
+                    else
+                        OutputFile = Args.OutputFile;
+                    end
+                    if isempty(OutputFile)
+                        error('OutputFile is not provided');
+                    end
+        
+                    tools.WebServer.compileJavaWebServer;
+        
+                    Obj.killWebServer;
+                    FunAndArgs = sprintf('%s %s %d %s', tools.WebServer.getWebServerPath, Obj.WebServer_Java, Obj.Port, OutputFile);
+                    [Status, OutCmd] = system(sprintf('java -cp %s&', FunAndArgs));
+                    [Status, CmdOut] = system(sprintf('pgrep -f %s', Obj.WebServer_Java));
+                    Obj.PID          = strip(CmdOut);
+                case 'Insert2DB'
+                    Obj.killWebServer;
 
-            Obj.killWebServer;
-            FunAndArgs = sprintf('%s %s %d %s', tools.WebServer.getWebServerPath, Obj.JavaFunName, Obj.Port, OutputFile);
-            [Status, OutCmd] = system(sprintf('java -cp %s&', FunAndArgs));
-            [Status, CmdOut] = system(sprintf('pgrep -f %s', Obj.JavaFunName));
-            Obj.PID          = strip(CmdOut);
+                    %sprintf('python3 WebServer.py --host socsrv --port 8123 --user default --password PassRoot --ingestTime ingestiontimejd --userNameColumn user')
+                    WebServerFun = sprintf('%s%s%s', tools.WebServer.getWebServerPath, filesep, Obj.WebServer_Insert2DB);
+                    if isempty(Obj.DB)
+                        error('DB property must be provided - a db.Db object');
+                    end
+                    Cmd = sprintf('python3 %s --host %s --port %s --user %s --password %s --ingestTime %s --userNameColumn %s --userPassword %s', WebServerFun, Obj.DB.Host, Obj.DB.Port, Obj.DB.User, Obj.DB.Password, Args.IngestTimeCol, Args.UserCol, Args.UserPassword);
+                    [Status, OutCmd] = system(sprintf('%s &',Cmd));
+                    [Status, CmdOut] = system(sprintf('pgrep -f %s', Obj.WebServer_Insert2DB));
+                    Obj.PID          = strip(CmdOut);
+
+                case 'RunFun2html'
+
+
+                otherwise
+
+            end
 
         end
 
