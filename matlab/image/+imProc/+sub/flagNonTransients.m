@@ -473,8 +473,12 @@ function TranCat = flagNonTransients(Obj, Args)
                     -2.*log(0.01.*Obj(Iobj).BackN./(N_Aper3Flux)));
 
                 % Get sources that contaminate beyond the PSF stamp
-                PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
-                N_ContSrcs = (DistThresh > PSFSize-1);
+                % User the smaller PSF between N and R
+                N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
+                R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
+                PSFSize_Min = min(N_PSFSize,R_PSFSize);
+
+                N_ContSrcs = (DistThresh > PSFSize_Min-1);
           
                 % Match candidates to New image sources within wide range 
                 % equal to 1.5 times the PSF size. The candidate should 
@@ -482,7 +486,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % the candidate is contaminated by a source beyond this
                 % range.
                 [N_NativeRA, N_NativeDec] = Obj(Iobj).New.CatData.getLonLat('rad');
-                WideRadius = PSFSize*1.5*Args.PixelScale;
+                WideRadius = PSFSize_Min*1.5*Args.PixelScale;
                 N_CatMatchWide = VO.search.search_sortedlat_multi( ...
                     [N_NativeRA, N_NativeDec], RA, Dec, ...
                     WideRadius*Arcsec2Rad);
