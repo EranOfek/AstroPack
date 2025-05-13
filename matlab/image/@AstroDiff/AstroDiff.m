@@ -1282,6 +1282,8 @@ classdef AstroDiff < AstroImage
             %                    If empty, then use getXY on the AstroDiff.CatData
             %                    AstroCatalog object.
             %                    Default is [].
+            %            'CooUnits' - Units coordinates. 'pix'|'deg'|'rad'.
+            %                    Default is 'pix'.
             %            'HalfSize' - Half size of cutouts.
             %                    Default is 25.
             %            'CropNew' - Logical indicating if to populate the crop
@@ -1305,6 +1307,7 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
                 Args.XY                = [];
+                Args.CooUnits          = 'pix';
                 Args.HalfSize          = 25;
                 
                 Args.CropNew logical   = true;
@@ -1336,7 +1339,16 @@ classdef AstroDiff < AstroImage
                     % get coordinates from AstroCatalog object
                     XY = Obj(Iobj).CatData.getXY;
                 else
-                    XY = Args.XY;
+                 
+                    % treat RA/Dec input
+                    switch Args.CooUnits
+                        case 'pix'
+                            XY = Args.XY;
+                        otherwise
+                            [X, Y] = Obj(Iobj).WCS.sky2xy(Args.XY(:,1), Args.XY(:,2), 'InUnits',Args.CooUnits);
+                            XY = [X,Y];
+                    end
+
                 end
                 
                 Nxy = size(XY, 1);

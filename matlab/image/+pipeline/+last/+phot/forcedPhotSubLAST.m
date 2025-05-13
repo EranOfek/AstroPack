@@ -21,6 +21,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     % Output : - An AstroCatalog (or table) output with entry per image.
     %          - The last loaded AstroZOGY object.
     %          - AstroZOGY object of forced phot cutouts. Object per line.
+    %            
     % Author : Eran Ofek (2025 Apr) 
     % Example: RA=40.5229121965; Dec=-16.9563601815;
     %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec,'QueryMethod','upix');
@@ -68,6 +69,8 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     UnID   = unique([UnFInd, T.mountnum, T.camnum, T.cropid], 'rows');
     NunID  = size(UnID,1);
     K = 0;
+    Result = [];
+
     for Iun=1:1:NunID
         Ind = find(UnFInd==UnID(Iun,1) & T.mountnum==UnID(Iun,2) & T.camnum==UnID(Iun,3) & T.cropid==UnID(Iun,4));
         Tun = T(Ind,:);  % Table with unique entries...
@@ -152,9 +155,11 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                 if ~FlagEmpty
 
                     if nargout>2
-                        %XY = 
-                        error('Need to define XY based on astrometry... FFU')
-                        ADc(Iim) = AD.cutoutTransients('XY',XY, 'CreateNewObj',true);
+                        if Nim==1
+                            ADc = AD.cutoutTransients('XY',[RA, Dec], 'CooUNits',Args.CooUnits, 'CropProp',{}, 'CreateNewObj',true);
+                        else
+                            ADc(Iim) = AD.cutoutTransients('XY',[RA, Dec], 'CooUNits',Args.CooUnits, 'CropProp',{}, 'CreateNewObj',true);
+                        end
                     end
 
 
