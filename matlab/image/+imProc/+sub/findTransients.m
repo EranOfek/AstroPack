@@ -149,8 +149,10 @@ function TranCat=findTransients(AD, Args)
             NewPSF = AD(Iobj).New.PSF;
             PSFbw = imbinarize(NewPSF);
             stats = regionprops(PSFbw, 'Orientation');
+            if numel(stats) > 1
+                stats = stats([stats.Orientation] ~= 0);
+            end
             PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
-
             [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
                 NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
@@ -191,6 +193,57 @@ function TranCat=findTransients(AD, Args)
             % Y direction
             if AsymmetryY > Args.AsymThresh
                 M2N.Y2 = max(M2NY2Top, M2NY2Bottom);
+            end
+
+            RefPSFHalfSize =  floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2)+1;
+
+            % rotate the PSF so that ellipse axes agree with
+            % x-y-coordinates
+            RefPSF = AD(Iobj).Ref.PSF;
+            PSFbw = imbinarize(RefPSF);
+            stats = regionprops(PSFbw, 'Orientation');
+            PSFref = imrotate(RefPSF, -stats.Orientation, 'bilinear', 'crop');
+
+            [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
+                RefPSFHalfSize,RefPSFHalfSize,...
+                'MomRadius',1.7*AD(Iobj).Ref.PSFData.fwhm);
+
+            % Check for assymetry and update with larger moments if
+            % assymetric.
+
+            [Rows, Cols] = size(PSFref);
+            
+            % Coordinate grids
+            [X, Y] = meshgrid(1:Cols, 1:Rows);
+            Xc = X - RefPSFHalfSize;
+            Yc = Y - RefPSFHalfSize;
+            
+            % Masks for halves
+            LeftMask   = X <= RefPSFHalfSize;
+            RightMask  = X >= RefPSFHalfSize;
+            TopMask    = Y <= RefPSFHalfSize;
+            BottomMask = Y >= RefPSFHalfSize;
+            
+            % Second moments for X tails
+            M2RX2Left  = sum((Xc(LeftMask).^2)  .* PSFref(LeftMask));
+            M2RX2Right = sum((Xc(RightMask).^2) .* PSFref(RightMask));
+            
+            % Second moments for Y tails
+            M2RY2Top    = sum((Yc(TopMask).^2)    .* PSFref(TopMask));
+            M2RY2Bottom = sum((Yc(BottomMask).^2) .* PSFref(BottomMask));
+            
+            % Compute relative asymmetry
+            AsymmetryX = abs(M2RX2Left - M2RX2Right) / max(M2RX2Left, M2RX2Right);
+            AsymmetryY = abs(M2RY2Top - M2RY2Bottom) / max(M2RY2Top, M2RY2Bottom);
+            
+            % X direction
+            if AsymmetryX > Args.AsymThresh
+                M2R.X2 = max(M2RX2Left, M2RX2Right);
+            end
+            
+            % Y direction
+            if AsymmetryY > Args.AsymThresh
+                M2R.Y2 = max(M2RY2Top, M2RY2Bottom);
             end
           
         end
@@ -394,7 +447,6 @@ function TranCat=findTransients(AD, Args)
                 'e','e','mag','mag'}...
                 );
 
-
             TranCat(Iobj) = TranCat(Iobj).insertCol(...
                 cast(MedianAtMag_New, 'double'), 'N_PSF_CHI2DOF', ...
                 {'N_PSF_CHI2DOF_MED'}, {''});
@@ -425,13 +477,21 @@ function TranCat=findTransients(AD, Args)
             M2NY2 = M2N.Y2*ones(Nsrc,1);
             M2NXY = M2N.XY*ones(Nsrc,1);
 
+            M2RX2 = M2R.X2*ones(Nsrc,1);
+            M2RY2 = M2R.Y2*ones(Nsrc,1);
+            M2RXY = M2R.XY*ones(Nsrc,1);
+            
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
                 cast(M2.X2,'double'), cast(M2.Y2,'double'), cast(M2.XY,'double'),...
                 cast(M2NX2,'double'), cast(M2NY2,'double'), cast(M2NXY,'double'),...
+                cast(M2RX2,'double'), cast(M2RY2,'double'), cast(M2RXY,'double'),...
                 cast(PeakDist,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
-                {'X1', 'Y1', 'X2', 'Y2', 'XY','N_X2','N_Y2','N_XY','PEAK_DIST'}, ...
-                {'','','','','','','','',''});
+                {'X1', 'Y1', 'X2', 'Y2', 'XY',...
+                'N_X2','N_Y2','N_XY',...
+                'R_X2','R_Y2','R_XY',...
+                'PEAK_DIST'}, ...
+                {'','','','','','','','','','','',''});
         end
 
         if Args.includeBitMaskVal

@@ -1010,103 +1010,8 @@ classdef AstroDiff < AstroImage
             Flag transients candidates that are likely not real transients.
             Input  : - An AstroDiff object in which CatData is populated.
                      * ...,key,val,...
-                       'flagNegatives' - Bool on whether to flag negative
-                               candidates. Default is true.
-                       'flagChi2' - Bool on whether to flag transients candidates
-                              based on how well the PSF fits to a stamp on the transient.
-                              The goodness value is a Chi2 per degrees of freedom.
-                              Default is true.
-                       'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
-                              'filterChi2' is true, all transients candidates outside these
-                              limits are flagged. Default is [0.23 1.41].
-                       'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
-                              for New and Ref images. Condition requires that in
-                              at least one of the images, the source is not
-                              overfitted. Only one image, New or Ref, has to pass.
-                       'flagSaturated' - Bool on whether to flag transients 
-                              candidates that are saturated in both reference and 
-                              new images. Default is true.
-                       'flagBadPix_Hard' - Bool on whether to flag transients
-                              candidates based on hard bit mask criteria. 
-                              Default is true.
-                       'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
-                              Default is {'Interpolated', 'NaN', 'NearEdge',
-                              'CoaddLessImages', 'Hole'}.
-                       'flagBadPix_Soft' - Bool on whether to flag transients
-                              candidates based on soft bit mask criteria. 
-                              Default is true.
-                       'BadPix_Soft' - Soft bit mask criteria for bad pixels and 
-                              their score threshold values. Transients candidates
-                              that contain soft bad pixels are only flagged as 
-                              non-transients if their score values are below the 
-                              respective thresholds. Default is Default is {{'HighRN', 6.0},
-                              {'SrcNoiseDominated', 7.0}, {'FlatHighStd',7.0}, 
-                              {'DarkHighVal', 13.0}}.
-                       'flagSNR' - Bool on whether to flag transients candidates
-                              based the signal-to-noise ratio in the subtraction
-                              image. Default is true.
-                       'SNRThreshold' - Threshold for the signal-to-noise ratio
-                              filter. Default is 5.0.
-                       'flagStarMatches' - Bool on whether to flag transients
-                              candidates that have matching star positions.
-                              Default is true.
-                       'flagMP' - Bool on whether to flag transients candidates
-                              that have matching minor planet postions. Default is
-                              true.
-                       'flagRinging' - Bool on whether to flag transients
-                              candidates that may be caused by ringing artifacts.
-                              Default is true.
-                       'flagDensity' - Bool on whether to flag transients that are
-                              too close to each other, i.e., that have too many
-                              neighbors. Default is true.
-                       'NeighborDistanceThreshold' - Distance threshold below
-                              which a close transient counts as a neighbor.
-                              Default is 100.
-                       'NeighborNumThreshold' - Threshold for the number of
-                              neighbors at which to filter the transients
-                              candidate. Default is 2.
-                       'flagPeakDist' - Bool on whether to flag transients for
-                              which the peak pixel coordinates deviates too far
-                              from the peak sub-pixel coordinates. Default is
-                              true.
-                       'PeakDistThreshold' - Threshold distance for the pixel to
-                              sub-pixel peak distance filter. Default is 1.33.
-                       'PeakDistThresholdGal' - Threshold distance for the pixel to
-                              sub-pixel peak distance filter if cnadidate has a 
-                              galaxy match. Default is 2.0.
-                       'flagLimitingMag' - Bool on whether to flag candidates that
-                              are above the limiting magnitude. Candidate is
-                              filteres if it is above limiting magnitude in New
-                              and Ref. Default is true.
-                       'LimitingMagOverwriteVal' - Static magnitude value to use 
-                              as the limiting magnitude. If NaN, magnitude instead
-                              is read from the image header. Default is NaN.
-                       'flagPeakValley' - Bool on whether to flag candidates that
-                              are peaks (valleys) and are too close to valleys 
-                              (peaks). A peak is a candidate with a positive
-                              signal and a valley is a candidate with a negative
-                              signal. Default is true.
-                       'PVDistThresh' - Distance threshold in pixels between 
-                              peaks and valleys below which to flag candidates. 
-                              Default is 10.
-                       'flagStreak' - Bool on whether to flag candidates induced
-                              by streaks (e.g. satellites). Default is true.
-                       --- AstroZOGY ---
-                       'flagTranslients' - Bool on whether to flag transients 
-                              candidates which score higher in Z2 than S2.
-                              Default is true.
-                       'ignoreTranslient_NothingInRef' - Do not flag candidates
-                              for translient if source is not detected in the
-                              reference image. Default is true.
-                       'ignoreTranslient_GalaxyNuclear' - Do not flag candidates
-                              for translient if source is matched to a galaxy and 
-                              close to the nucleus. Default is true.
-                       'TranslientGalaxyDistThresh' - Threshold distance from galaxy
-                              below which not to apply transient flagging.
-                              Default is 3.0.
-                       'flagScorr' - Bool on whether to flag candidates based on 
-                              source noise corrected S statistic. Default is true.
-                       'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
+                       'FilterFunc' - Filter function to run on Obj.
+                              Default is @imProc.sub.flagNonTransients
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.flagNonTransients
             %}
@@ -1114,81 +1019,14 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
 
-                Args.flagNegatives logical = true;
-        
-                Args.flagChi2 logical = true;
-                Args.DChi2dofLimits = [0.2 1.5];
-                Args.NRChi2dofLimits = [0.1 2.00];
-                
-                Args.flagSaturated logical = true;
-        
-                Args.flagBadPix_Hard logical  = true;
-                Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-                    'Hole', 'Negative'};
-        
-                Args.flagBadPix_Soft logical  = true;
-                Args.BadPix_Soft       = {{'HighRN', 5.0, 7.0}, {'SrcNoiseDominated', 5.0, 7.0}, ...
-                    {'FlatHighStd', 5.0, 7.0}, {'DarkHighVal', 5.0, 7.0},...
-                    {'CoaddLessImages',5.0, 7.0}};
-        
-                Args.flagSNR logical = true;
-                Args.SNRThreshold = 5.0;
-        
-                Args.flagStarMatches logical = true;
-                Args.flagMP logical = true;
-        
-                Args.flagRinging logical = true;
-        
-                Args.flagPeakDist logical = false;
-                Args.PeakDistThreshold = 2.1;
-
-                Args.flagLimitingMag logical = true;
-                Args.LimitingMagOverwriteVal = NaN;
-
-                Args.flagPeakValley logical = true;
-                Args.PVDistThresh = 10;
-
-                Args.flagPSFShape logical = true;
-                Args.PSFShapeXYMeanN = [0.75694019, 0.82121291]
-                Args.PSFShapeCovN = [0.01267776, 0.005022;...
-                    0.005022,  0.01129344];
-                Args.PSFShapeProbThresholdN = 0.05;
-                Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
-                Args.PSFShapeCovD = [0.06467546, 0.02720397;...
-                    0.02720397, 0.06933742];
-                Args.PSFShapeProbThresholdD = 0.05;
-
-                Args.flagStreak logical = true;
-                Args.ignoreStreakPoints = {'BadPixelHard', 'StarMatch', ...
-                    'Ringing', 'Translient'};
-                
-                Args.flagDensity logical = true;
-                Args.NeighborDistanceThreshold = 100;
-                Args.NeighborNumThreshold = 30;
-                Args.NeighborExclude = {'BadPixelHard', 'StarMatch', ...
-                    'Ringing', 'Translient', 'Streak'};
-                Args.NeighborNumThresholdSaturated = 2;
-        
-                Args.flagCR logical = true;
-                Args.CRDeltaSN = 0.5;
-                Args.CRDeltaSN_BP = 5.0;
-        
-                Args.flagVariable logical = true;
-                Args.VarStarDist = 3;
-        
-                % --- AstroZOGY ---
-                Args.flagScorr logical = true;
-                Args.ScorrThreshold = 5.0;
-                Args.ScorrCorrectionParam = 0.7;
-                        
-                Args.flagTranslients logical = true;
+                Args.FilterFunc = @imProc.sub.flagNonTransients;
         
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj));
+                Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj));
             end
         end
         
@@ -1441,6 +1279,8 @@ classdef AstroDiff < AstroImage
                 Args.NonTranMarker = 'rs';
                 Args.OtherImages cell = {};
 
+                Args.PoI = [];
+
             end
 
             if Args.removeBadPixel_Hard && Obj.CatData.isColumn('FLAGS_TRANSIENT')
@@ -1463,17 +1303,26 @@ classdef AstroDiff < AstroImage
             % Display Ref
             ds9(Obj.Ref,1); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
+            if ~isempty(Args.PoI)
+                ds9.plot(Args.PoI, 'bx')
+            end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
             end
             % Display New
             ds9(Obj.New,2); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
+            if ~isempty(Args.PoI)
+                ds9.plot(Args.PoI, 'bx')
+            end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
             end
             % Display D
             ds9(Obj,3);
+            if ~isempty(Args.PoI)
+                ds9.plot(Args.PoI, 'bx')
+            end
             ds9.plot(TranCat.getXY, Args.TranMarker);
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
