@@ -754,9 +754,9 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Only check for nuclear noise if the PSF is not good
-        if Args.flagNuclear && any(NuclearCand) && any(~N_GoodPSF)
+        if Args.flagNuclear && any(NuclearCand)
 
-            NuclearCat = CandCat.selectRows(NuclearCand);
+            %NuclearCat = CandCat.selectRows(NuclearCand);
             % Get R magnitude and score of nuclear candidates
             NuclearRMag = R_MAG_PSF(NuclearCand);
             NuclearScore = Score(NuclearCand);
@@ -783,6 +783,14 @@ function TranCat = flagNonTransients(Obj, Args)
                 DynamicBinMin = TargetRMag - 0.5;
                 DynamicBinMax = TargetRMag;
                 BinnedMags = (R_MAG_PSF > DynamicBinMin) & (R_MAG_PSF < DynamicBinMax);
+                
+                % If bin is empty, assume that this magnitude range is well
+                % subtracted and don't flag the candidate.
+                % TODO: this could be done more elegantly by verifying
+                % againt the R catalog
+                if sum(BinnedMags) == 0
+                    continue
+                end
 
                 % Test if candidate score is above median score for its
                 % R mag bin. This should be true if the candidate is the
