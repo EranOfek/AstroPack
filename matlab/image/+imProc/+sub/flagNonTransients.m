@@ -761,22 +761,6 @@ function TranCat = flagNonTransients(Obj, Args)
             NuclearRMag = R_MAG_PSF(NuclearCand);
             NuclearScore = Score(NuclearCand);
 
-            % Bin R magnitude of candidates catalog
-            R_MinMag = floor(min(R_MAG_PSF));
-            R_MaxMag = ceil(max(R_MAG_PSF));
-            R_BinEdges = R_MinMag:1.0:R_MaxMag;
-            R_BinIndices = discretize(R_MAG_PSF, R_BinEdges);
-
-            R_ValidMag = ~isnan(R_BinIndices);
-            R_BinIndicesValid = R_BinIndices(R_ValidMag);
-
-            % Get median and std of the score for each R mag bin
-            ValuesIndices_S = Score(R_ValidMag);
-            MedianValues_S = accumarray(R_BinIndicesValid(:), ...
-                ValuesIndices_S(:), [], @mean, NaN);
-            StdValues_S = accumarray(R_BinIndicesValid(:), ...
-                ValuesIndices_S(:), [], @std, NaN);
-
             % Initialize result array
             NumNuclear = sum(NuclearCand);
             NuclearNoise = false(NumNuclear,1);
@@ -786,18 +770,25 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
-                % Get R mag bin
-                TargetRMag = NuclearRMag(INuclear);
-                BinIndex = find(TargetRMag >= R_BinEdges(1:end-1) & ...
-                    TargetRMag < R_BinEdges(2:end));
-
-                % Test if candidate score is above median+std score for its
-                % R magnitude.
-                if ~isempty(BinIndex) && (BinIndex <= numel(MedianValues_S))
-                    Threshold_S = MedianValues_S(BinIndex);
-                    NuclearNoise(INuclear) = BrightNuclear(INuclear) & ...
-                        (NuclearScore(INuclear) < Threshold_S);
+                if BrightNuclear(INuclear)
+                    continue
                 end
+                % Construct R mag bin
+                % Use the nuclear candidate R mag as the upper edge 
+                % (faint end) and -0.5 as the lower edge (bright end).
+                % This way the nuclear candidate as the lowest R
+                % magnitude in the sample and if the true image flux is the
+                % same at N epoch, it will have the lowest Score.
+                TargetRMag = NuclearRMag(INuclear);
+                DynamicBinMin = TargetRMag - 0.5;
+                DynamicBinMax = TargetRMag;
+                BinnedMags = (R_MAG_PSF > DynamicBinMin) & (R_MAG_PSF < DynamicBinMax);
+
+                % Test if candidate score is above median score for its
+                % R mag bin. This should be true if the candidate is the
+                % only varying source in its bin.
+                BinMedianS = median(Score(BinnedMags));
+                NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinMedianS);
             end
 
             FilterFlags(NuclearCand) = FilterFlags(NuclearCand) + ...
