@@ -770,13 +770,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
-                if BrightNuclear(INuclear)
+                if ~BrightNuclear(INuclear)
                     continue
                 end
                 % Construct R mag bin
                 % Use the nuclear candidate R mag as the upper edge 
                 % (faint end) and -0.5 as the lower edge (bright end).
-                % This way the nuclear candidate as the lowest R
+                % This way the nuclear candidate has the highest R
                 % magnitude in the sample and if the true image flux is the
                 % same at N epoch, it will have the lowest Score.
                 TargetRMag = NuclearRMag(INuclear);
@@ -786,7 +786,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 % Test if candidate score is above median score for its
                 % R mag bin. This should be true if the candidate is the
-                % only varying source in its bin.
+                % only transient source in its bin.
                 BinMedianS = median(Score(BinnedMags));
                 NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinMedianS);
             end
