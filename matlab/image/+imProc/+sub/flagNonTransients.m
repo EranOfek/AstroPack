@@ -204,6 +204,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.VarStarDist = 3;
 
         Args.flagNuclear logical = true;
+        Args.BrightGalMagThresh = 17.0;
+        Args.BrightGalPrcThresh = 80;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -753,7 +755,7 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
-        % Only check for nuclear noise if the PSF is not good
+        % Check for nuclear noise
         if Args.flagNuclear && any(NuclearCand)
 
             %NuclearCat = CandCat.selectRows(NuclearCand);
@@ -766,11 +768,14 @@ function TranCat = flagNonTransients(Obj, Args)
             NuclearNoise = false(NumNuclear,1);
 
             % Only test nuclear candidates if it's detectable in R image
-            BrightNuclear = (NuclearRMag < R_LIMMAG);
+            RDetNuclear = (NuclearRMag < R_LIMMAG);
+            BrightNuclear = (NuclearRMag < Args.BrightGalMagThresh);
+            TopPercentile = 50*ones(NumNuclear,1);
+            TopPercentile(BrightNuclear) = Args.BrightGalPrcThresh;
 
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
-                if ~BrightNuclear(INuclear)
+                if ~RDetNuclear(INuclear)
                     continue
                 end
                 % Construct R mag bin
@@ -795,8 +800,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Test if candidate score is above median score for its
                 % R mag bin. This should be true if the candidate is the
                 % only transient source in its bin.
-                BinMedianS = median(Score(BinnedMags));
-                NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinMedianS);
+                BinThresholdS = prctile(Score(BinnedMags), TopPercentile(INuclear));
+                NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
             FilterFlags(NuclearCand) = FilterFlags(NuclearCand) + ...
@@ -818,22 +823,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
                 (SDiff < Args.ScorrCorrectionParam));
 
-            % TODO: Bright galaxy centers have overestimated significance either
-            % due to source noise, wrong estimation of the zero point, 
-            % PSF misrconstruction or lack of color correction. 
-            % Before that's figured out, I'm just
-            % increasing the Scorr requirement for galaxy centers.
-            % TODO: Consider the new NuclearNoise filter 
-            
-            if CandCat.isColumn('GAL_DIST')
-                NuclearBrightCandidate = NuclearCand & (N_MAG_PSF < 17.0);  
-                
-                ScorrGood(NuclearBrightCandidate) = ...
-                        (abs(Score(NuclearBrightCandidate)) >= abs(Scorr(NuclearBrightCandidate))) ...
-                  & (abs(Scorr(NuclearBrightCandidate)) > Args.ScorrThreshold+3) ...
-                  & (SDiff(NuclearBrightCandidate) < abs(Scorr(NuclearBrightCandidate)));
-            end
-    
             ScorrFlagged = ~ScorrGood;
             FilterFlags = FilterFlags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
 
