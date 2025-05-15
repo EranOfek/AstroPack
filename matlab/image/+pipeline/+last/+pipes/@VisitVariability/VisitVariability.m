@@ -527,6 +527,8 @@ classdef VisitVariability < Component
                 Args.CooUnits          = 'deg';
 
                 Args.FieldMag          = {'MAG_BEST', 'MAG_PSF', 'MAG_APER_3'};
+
+                Args.AssignToBase      = [];  % Variable name - if given, then assign the MS into this variable in the base session
             end
 
 
@@ -549,6 +551,11 @@ classdef VisitVariability < Component
             H.FontSize = 16;
             H.Interpreter = 'latex';
 
+            if ~isempty(Args.AssignToBase)
+                % assign the Table into the base session
+                assignin('base', Args.AssignToBase, MS);
+                fprintf('Variable %s containing MatchedSources object is assigned to base\n',Args.AssignToBase);
+            end
         end
     end
     
