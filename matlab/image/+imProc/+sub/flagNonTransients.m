@@ -204,6 +204,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.VarStarDist = 3;
 
         Args.flagNuclear logical = true;
+        Args.BrightGalMagThresh = 17.0;
+        Args.BrightGalPrcThresh = 80;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -753,51 +755,53 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
-        % Only check for nuclear noise if the PSF is not good
-        if Args.flagNuclear && any(NuclearCand) && any(~N_GoodPSF)
+        % Check for nuclear noise
+        if Args.flagNuclear && any(NuclearCand)
 
-            NuclearCat = CandCat.selectRows(NuclearCand);
+            %NuclearCat = CandCat.selectRows(NuclearCand);
             % Get R magnitude and score of nuclear candidates
             NuclearRMag = R_MAG_PSF(NuclearCand);
             NuclearScore = Score(NuclearCand);
-
-            % Bin R magnitude of candidates catalog
-            R_MinMag = floor(min(R_MAG_PSF));
-            R_MaxMag = ceil(max(R_MAG_PSF));
-            R_BinEdges = R_MinMag:1.0:R_MaxMag;
-            R_BinIndices = discretize(R_MAG_PSF, R_BinEdges);
-
-            R_ValidMag = ~isnan(R_BinIndices);
-            R_BinIndicesValid = R_BinIndices(R_ValidMag);
-
-            % Get median and std of the score for each R mag bin
-            ValuesIndices_S = Score(R_ValidMag);
-            MedianValues_S = accumarray(R_BinIndicesValid(:), ...
-                ValuesIndices_S(:), [], @mean, NaN);
-            StdValues_S = accumarray(R_BinIndicesValid(:), ...
-                ValuesIndices_S(:), [], @std, NaN);
 
             % Initialize result array
             NumNuclear = sum(NuclearCand);
             NuclearNoise = false(NumNuclear,1);
 
             % Only test nuclear candidates if it's detectable in R image
-            BrightNuclear = (NuclearRMag < R_LIMMAG);
+            RDetNuclear = (NuclearRMag < R_LIMMAG);
+            BrightNuclear = (NuclearRMag < Args.BrightGalMagThresh);
+            TopPercentile = 50*ones(NumNuclear,1);
+            TopPercentile(BrightNuclear) = Args.BrightGalPrcThresh;
 
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
-                % Get R mag bin
-                TargetRMag = NuclearRMag(INuclear);
-                BinIndex = find(TargetRMag >= R_BinEdges(1:end-1) & ...
-                    TargetRMag < R_BinEdges(2:end));
-
-                % Test if candidate score is above median+std score for its
-                % R magnitude.
-                if ~isempty(BinIndex) && (BinIndex <= numel(MedianValues_S))
-                    Threshold_S = MedianValues_S(BinIndex);
-                    NuclearNoise(INuclear) = BrightNuclear(INuclear) & ...
-                        (NuclearScore(INuclear) < Threshold_S);
+                if ~RDetNuclear(INuclear)
+                    continue
                 end
+                % Construct R mag bin
+                % Use the nuclear candidate R mag as the upper edge 
+                % (faint end) and -0.5 as the lower edge (bright end).
+                % This way the nuclear candidate has the highest R
+                % magnitude in the sample and if the true image flux is the
+                % same at N epoch, it will have the lowest Score.
+                TargetRMag = NuclearRMag(INuclear);
+                DynamicBinMin = TargetRMag - 0.5;
+                DynamicBinMax = TargetRMag;
+                BinnedMags = (R_MAG_PSF > DynamicBinMin) & (R_MAG_PSF < DynamicBinMax);
+                
+                % If bin is empty, assume that this magnitude range is well
+                % subtracted and don't flag the candidate.
+                % TODO: this could be done more elegantly by verifying
+                % againt the R catalog
+                if sum(BinnedMags) == 0
+                    continue
+                end
+
+                % Test if candidate score is above median score for its
+                % R mag bin. This should be true if the candidate is the
+                % only transient source in its bin.
+                BinThresholdS = prctile(Score(BinnedMags), TopPercentile(INuclear));
+                NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
             FilterFlags(NuclearCand) = FilterFlags(NuclearCand) + ...
@@ -819,22 +823,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
                 (SDiff < Args.ScorrCorrectionParam));
 
-            % TODO: Bright galaxy centers have overestimated significance either
-            % due to source noise, wrong estimation of the zero point, 
-            % PSF misrconstruction or lack of color correction. 
-            % Before that's figured out, I'm just
-            % increasing the Scorr requirement for galaxy centers.
-            % TODO: Consider the new NuclearNoise filter 
-            
-            if CandCat.isColumn('GAL_DIST')
-                NuclearBrightCandidate = NuclearCand & (N_MAG_PSF < 17.0);  
-                
-                ScorrGood(NuclearBrightCandidate) = ...
-                        (abs(Score(NuclearBrightCandidate)) >= abs(Scorr(NuclearBrightCandidate))) ...
-                  & (abs(Scorr(NuclearBrightCandidate)) > Args.ScorrThreshold+3) ...
-                  & (SDiff(NuclearBrightCandidate) < abs(Scorr(NuclearBrightCandidate)));
-            end
-    
             ScorrFlagged = ~ScorrGood;
             FilterFlags = FilterFlags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
 
