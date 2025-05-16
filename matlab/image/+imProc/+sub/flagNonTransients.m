@@ -3,18 +3,39 @@ function TranCat = flagNonTransients(Obj, Args)
     Flag transients candidates that are likely not real transients.
     Input   : - An AstroDiff object in which CatData is populated.
               * ...,key,val,...
+                'PixelScale' - Pizel scale in arcsec per pixel. Default is
+                        1.25.
+                'SaturatedNeighborDistanceThreshold' - Maximum distance in 
+                        which to look for neighbor candidates on saturated
+                        pixels. Default is 100.
                 'flagNegatives' - Bool on whether to flag negative
                        candidates. Default is true.
                 'flagChi2' - Bool on whether to flag transients candidates
                        based on how well the PSF fits to a stamp on the transient.
                        The goodness value is a Chi2 per degrees of freedom.
                        Default is true.
-                'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
-                       'flagChi2' is true, candidates outside these
-                       limits are flagged. The first two values are the 
-                       lower and upper bound applied to isolated candidates,
-                       the value is an upper bound applied to blended 
-                       canditaes. Default is [0.1 2.0 100.0].
+                'Chi2dofLimitsLocal' - Local limits on Chi2 per degrees of 
+                       freedom. If 'flagChi2' is true, candidates outside 
+                       these limits are flagged. The tested Chi2 is of the 
+                       PSF fit on the candidate position in the N image. 
+                       The first two values are the lower and upper bound 
+                       applied to isolated candidates, the value is an 
+                       upper bound applied to blended canditaes.  
+                       Default is [0.1 2.0 100.0].
+                'Chi2dofLimitsGlobal' - Global limits on Chi2 per degrees
+                       of freedom. If 'flagChi2' is true, candidates outside
+                       of these limits are flagged. The tested Chi2 is the
+                       median Chi2 of all N- and R-image catalog sources 
+                       binned in magnitude. The N and R sources are binned 
+                       seprately. The N/R-image magnitude of a candidate 
+                       is used to find the corresponding median Chi2, 
+                       which is compared against the limits. These limits 
+                       are applied to blended candidates only. The first 
+                       value is the lower bound, and the second value is 
+                       the upper bound. Default is [0.0 1.2].
+                'flagSaturated' - Bool on whether to flag transients 
+                       candidates that are saturated in both reference and 
+                       new images. Default is true.
                 'flagBadPix_Hard' - Bool on whether to flag transients
                        candidates based on hard bit mask criteria. 
                        Default is true.
@@ -31,9 +52,6 @@ function TranCat = flagNonTransients(Obj, Args)
                        higher threshold, incremented for each identified
                        bad pixel type. The increment is additive.
                        Default is {{'DarkHighVal', 1.2}, {'CR_DeltaHT', 2.9}}.
-                'flagSaturated' - Bool on whether to flag transients 
-                       candidates that are saturated in both reference and 
-                       new images. Default is true.
                 'flagStarMatches' - Bool on whether to flag transients
                        candidates that have matching star positions.
                        Default is true.
@@ -50,17 +68,13 @@ function TranCat = flagNonTransients(Obj, Args)
                        New image PSF. If the x^2 or y^2 moments are higher
                        than the threshold, the PSF is deemed to be too wide
                        or too elongated. If a candidate fails this criterium, 
-                       it has additionally fail SecondMomHardLim, 
-                       SecondMomFinalLim, OmniDirectionThreshold, or 
-                       PeakDistThreshold to be flagged as false positive.
+                       it is subjected to further tests, otherwise is passes. 
                        Default is 1.2.
                 'SecondMomAsymLim' - Threshold on asymetry of the second
                        moments of the New image PSF. If abs(x^2-y^2) is
                        higher than the threshold, the PSF is deemed to be
                        too elongated. If a candidate fails this criterium, 
-                       it has additionally fail SecondMomHardLim, 
-                       SecondMomFinalLim, OmniDirectionThreshold, or 
-                       PeakDistThreshold to be flagged as false positive.
+                       it is subjected to further tests, otherwise it passes.
                        Default is 1.00.
                 'SecondMomHardLim' - Threshold on second moments of the New
                        Image PSF. This threshold is applied if New image
@@ -79,14 +93,35 @@ function TranCat = flagNonTransients(Obj, Args)
                 'PeakDistThreshold' - Threshold for the distance between 
                        D-image and S-image peaks. This threshold is applied 
                        if New image PSF fails SeconMomSoftLim or SecondMomAsymLim.
-                       Default is 1.33.
-                % TODO: docs
-                'flagDPSFShape' - Default is true.
-                'PSFShapeXYMeanD' - Default is [1.06919192, 1.24191919].
-                'PSFShapeCovD' - Default is [0.06467546, 0.02720397;...
-                        0.02720397, 0.06933742].
-                'PSFShapeProbThresholdD' - Default is 0.05.
-
+                       Default is 3.00.
+                'ContaminationFlux' - Contamination flux in units of the
+                       background. If the N image PSF fails the 
+                       SecondMomSoftLim or SecondMomAsymLim thresholds, 
+                       all N-image sources are retrieved which produce flux 
+                       above the ContaminationFlux beyond the PSF stamp.
+                       Default is 0.01;
+                'ContaminationRadius' - Contamination radius in units of
+                       the PSF half size in pixels. If the N image PSF fails 
+                       the SecondMomSoftLim or SecondMomAsymLim thresholds, 
+                       all candidates are tested wether they are within the
+                       ContaminationRadius of a contaminating N-image
+                       source. All candidates a that are, are flagged.
+                       Default is 1.5.
+                'flagDPSFShape' - Bool on whether to falg candidates that 
+                       are not PSF-like within the D image. This filter
+                       compares the second moments of the candidate's 
+                       D-image PSF against a 2D Gaussian fit derived from
+                       historical PSF shapes. Default is true.
+                'PSFShapeXYMeanD' - The mean values of the 2D Gaussian fit
+                       used when flagDPSFShape is true. 
+                       Default is [1.06919192, 1.24191919].
+                'PSFShapeCovD' - The covariance matrics of the 2D Gaussian 
+                       fit used when flagDPSFShape is true. 
+                       Default is [0.06467546, 0.02720397; 0.02720397, 0.06933742].
+                'PSFShapeConfThreshD' - The confidence level beyond which
+                       candidates are flagged after the 2D Gaussian fit 
+                       comparison when flagDPSFShape is true. 
+                       Default is 0.95.
                 'flagLimitingMag' - Bool on whether to flag candidates that
                        are above the limiting magnitude. Candidate is
                        filteres if it is above limiting magnitude in New
@@ -101,32 +136,51 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is 10.
                 'flagStreak' - Bool on whether to flag candidates induced
                        by streaks (e.g. satellites). Default is true.
-                'ignoreSreakPoints' - Default {'BadPixelHard', 'StarMatch', ...
-                       'Ringing', 'Translient', 'Streak'}.
-                'StreakDistanceThreshold' - Default is 20.
-                'NumStreaks' - Default is 1.
-
-                'flagDensity' - Bool on whether to flag transients that are
+                'ignoreSreakPoints' - Filters for which to ignore candidates
+                       that fail them when fitting a streak line. 
+                       Default {'BadPixelHard', 'StarMatch', 'Ringing', 
+                       'Translient', 'Streak'}.
+                'StreakDistanceThreshold' - Maximum distance from a fitted
+                       streak for which to flag candidates. Default is 20.
+                'NumStreaks' - Number of streaks to fit for. Default is 1.
+                'flagDensity' - Bool on whether to flag candidates that are
                        too close to each other, i.e., that have too many
                        neighbors. Default is true.
                 'NeighborDistanceThreshold' - Distance threshold below
-                       which a close transient counts as a neighbor.
+                       which a candidates count as neighbors.
                        Default is 100.
-                'NeighborExclude' - Default is {'BadPixelHard', 'StarMatch', ...
-                       'Ringing', 'Translient', 'Streak'}.
-                'NeighborDenThreshold' - Default is 1.0.
-                'SaturatedNeighborDistanceThreshold' - Default is 100.
+                'NeighborExclude' - Filters for which to ignore candidates 
+                       as neighbors if they fail them. Default is 
+                       {'BadPixelHard', 'StarMatch', 'Ringing', 
+                       'Translient', 'Streak'}.
+                'NeighborDenThreshold' - Density threshold above which 
+                       candidates are flagged for density. The density 
+                       is calculated as the number of neighbors times 
+                       the sum of reciprocal distances to all neighbors.
+                       Default is 1.0.
                 'NeighborNumThresholdSaturated' - Threshold for the number 
-                       of neighbors at which to filter the transients
-                       candidate. Default is 2.
-                'flagVariable' - Default is true.
-                'VarStarDist' - Default is 3.
-                'flagNuclear' - Default is true.
+                       of neighbors at which to filter candidates if they
+                       have saturated neighbors. Default is 2.
+                'flagVariable' - Bool on whether to flag candidate that 
+                       coincide with known variable sources. Default is true.
+                'flagNuclearNoise' - Flag for nuclear noise. Nuclear 
+                       candidates are flagged if their S score is not within
+                       the top 50 percentile of all R-image coincident
+                       candidates a that are brighter by 0.5 mag than the 
+                       nuclear candidate. Default is true.
+                'BrightGalMagThresh' - Threshold on magnitude for nuclear
+                       candidates above which to increase the threshold. 
+                       Default is 17.0.
+                'BrightGalPrcThresh' - Increased top percentile threshold 
+                       for nuclear candidates above magnitude threshold. 
+                       Default is 80.
                 --- AstroZOGY ---
                 'flagScorr' - Bool on whether to flag candidates based on 
                        source noise corrected S statistic. Default is true.
                 'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
-                'ScorrCorrectionParam' - Default is 0.7.
+                'ScorrCorrectionParam' - A parameter added to Scorr. This 
+                       helps faint candidates for which the source noise is
+                       overestimated. Default is 0.7.
                 'flagTranslients' - Bool on whether to flag transients 
                        candidates which score higher in Z2 than S2.
                        Default is true.
@@ -152,7 +206,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagChi2 logical = true;
         Args.Chi2dofLimitsLocal = [0.1 2.0 100.0];
-        Args.Chi2dofLimitsGlobal = 1.2;
+        Args.Chi2dofLimitsGlobal = [0.0 1.2];
         
         Args.flagSaturated logical = true;
 
@@ -175,12 +229,14 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.SecondMomAsymLim = 1.0;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
+        Args.ContaminationFlux = 0.01;
+        Args.ContaminationRadius = 1.5;
 
         Args.flagDPSFShape logical = true;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
         Args.PSFShapeCovD = [0.06467546, 0.02720397;...
             0.02720397, 0.06933742];
-        Args.PSFShapeProbThresholdD = 0.05;
+        Args.PSFShapeConfThreshD = 0.95;
         
         Args.flagLimitingMag logical = true;
 
@@ -201,9 +257,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NeighborNumThresholdSaturated = 2;
     
         Args.flagVariable logical = true;
-        Args.VarStarDist = 3;
 
-        Args.flagNuclear logical = true;
+        Args.flagNuclearNoise logical = true;
         Args.BrightGalMagThresh = 17.0;
         Args.BrightGalPrcThresh = 80;
 
@@ -441,7 +496,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             ProbD = mvnpdf(X2Y2, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
-            PassesD = ProbD > Args.PSFShapeProbThresholdD;
+            PassesD = ProbD > (1-Args.PSFShapeConfThreshD);
             PassesD = PassesD | (~PassesD & ...
                 (X2 < 1.85) & (Y2 < 1.85) & (CHI2DOF < 1.0));
             PSFShapeFlagged = ~PassesD;
@@ -472,7 +527,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Define the contamination radius as the distance at which
                 % the source is at least as bright as 1% of the background.
                 DistThresh = sqrt(N_NativeXY2_Max).*sqrt(...
-                    -2.*log(0.01.*Obj(Iobj).BackN./(N_Aper3Flux)));
+                    -2.*log(Args.ContaminationFlux.*...
+                    Obj(Iobj).BackN./(N_Aper3Flux)));
 
                 % Get sources that contaminate beyond the PSF stamp
                 % User the smaller PSF between N and R
@@ -488,7 +544,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % the candidate is contaminated by a source beyond this
                 % range.
                 [N_NativeRA, N_NativeDec] = Obj(Iobj).New.CatData.getLonLat('rad');
-                WideRadius = PSFSize_Min*1.5*Args.PixelScale;
+                WideRadius = Args.ContaminationRadius*PSFSize_Min*Args.PixelScale;
                 N_CatMatchWide = VO.search.search_sortedlat_multi( ...
                     [N_NativeRA, N_NativeDec], RA, Dec, ...
                     WideRadius*Arcsec2Rad);
@@ -570,10 +626,14 @@ function TranCat = flagNonTransients(Obj, Args)
             N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
 
             % Test global Chi2
-            N_Passes_CHI2DOF_Global = (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal) & ...
+            N_Passes_CHI2DOF_Global = ...
+                (N_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
+                (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2)) & ...
                 (N_CHI2DOF_Local < Args.Chi2dofLimitsLocal(3));
-            R_Passes_CHI2DOF_Global = (R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal)...
-                | isnan(R_CHI2DOF_Global);
+            R_Passes_CHI2DOF_Global = ... 
+                (R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
+                ((R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))...
+                | isnan(R_CHI2DOF_Global));
             Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global ...
                 & R_Passes_CHI2DOF_Global;
 
@@ -662,7 +722,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Get star distances and find stars matched on candidate
             % position.
             StarDist = CandCat.getCol('STAR_DIST');
-            NearStar = StarDist <= Args.VarStarDist;
+            NearStar = StarDist <= 3.0;
 
             % Use the maxium candidate distance + maximum star distance
             % among candidates as search radius for variable stars.
@@ -756,7 +816,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Check for nuclear noise
-        if Args.flagNuclear && any(NuclearCand)
+        if Args.flagNuclearNoise && any(NuclearCand)
 
             %NuclearCat = CandCat.selectRows(NuclearCand);
             % Get R magnitude and score of nuclear candidates
