@@ -285,7 +285,7 @@ classdef AstroZOGY < AstroDiff
             % Example: AD=AstroZOGY.convertFromAstroImage(AI);
 
             N = numel(AI);
-            for I=1:1:N
+            for I=N:-1:1
                 Obj(I) = AstroZOGY;
                 Obj(I).ImageData  = AI(I).ImageData;
                 Obj(I).MaskData   = AI(I).MaskData;

@@ -241,7 +241,7 @@ classdef AstroDiff < AstroImage
             % Example: AD=AstroDiff.convertFromAstroImage(AI);
 
             N = numel(AI);
-            for I=1:1:N
+            for I=N:-1:1
                 Obj(I) = AstroDiff;
                 Obj(I).ImageData  = AI(I).ImageData;
                 Obj(I).MaskData   = AI(I).MaskData;
