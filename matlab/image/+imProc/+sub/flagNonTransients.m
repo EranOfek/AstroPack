@@ -279,14 +279,21 @@ function TranCat = flagNonTransients(Obj, Args)
         raw = fread(fid, inf);
         str = char(raw');
         fclose(fid);
-        
+    
         config = jsondecode(str);
     
         configFields = fieldnames(config);
         for i = 1:numel(configFields)
             key = configFields{i};
             if isfield(Args, key)
-                Args.(key) = config.(key);
+                val = config.(key);
+    
+                % Convert 2-element column vector to row vector
+                if isnumeric(val) && isvector(val) && numel(val) == 2
+                    val = reshape(val, 1, []);  % Ensure 1x2 row vector
+                end
+    
+                Args.(key) = val;
             else
                 warning("Unknown config field: %s", key);
             end
