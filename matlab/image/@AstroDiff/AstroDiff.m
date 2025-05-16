@@ -1020,13 +1020,15 @@ classdef AstroDiff < AstroImage
                 Obj
 
                 Args.FilterFunc = @imProc.sub.flagNonTransients;
+                Args.ConfigFile = '';
         
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj));
+                Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj), ...
+                    'ConfigFile', Args.ConfigFile);
             end
         end
         

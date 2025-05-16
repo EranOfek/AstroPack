@@ -199,6 +199,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         %TODO: put all all of this in a config file
 
+        Args.ConfigFile = '';
+
         Args.PixelScale = 1.25;
         Args.SaturatedNeighborDistanceThreshold = 100;
     
@@ -271,6 +273,25 @@ function TranCat = flagNonTransients(Obj, Args)
     end
 
     % Don't question this madness.
+
+    if ~isempty(Args.ConfigFile)
+        fid = fopen(Args.ConfigFile);
+        raw = fread(fid, inf);
+        str = char(raw');
+        fclose(fid);
+        
+        config = jsondecode(str);
+    
+        configFields = fieldnames(config);
+        for i = 1:numel(configFields)
+            key = configFields{i};
+            if isfield(Args, key)
+                Args.(key) = config.(key);
+            else
+                warning("Unknown config field: %s", key);
+            end
+        end
+    end
 
     Nobj = numel(Obj);
 
