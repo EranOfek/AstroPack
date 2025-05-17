@@ -122,6 +122,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     RAInCat = RealTranCands.getCol('RA');
     DecInCat = RealTranCands.getCol('Dec');
 
+    DBQueryFails = 0;
+
     % Construct multi-epoch catalog for each passing candidate
     % loop over cutout candidates
     for Ipos = 1:1:Npos
@@ -220,6 +222,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         else
             MatchJDs = [];
             PassingMatches = 1;
+            DBQueryFails = DBQueryFails + 1;
         end
         % See if this candidate is worth reporting. If yes, set its report
         % jd to now.
@@ -302,5 +305,10 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     TranCatLevel2.replaceCol(Reported,'Reported');
     % Return with succesful status
     Status = 'Succesful exit, transients matched to multi-epochs.';
+
+    if DBQueryFails > 0
+        Status = sprintf('Exited, but DB query failed %i out of %i times',...
+            DBQueryFails, Npos);
+    end
     
 end
