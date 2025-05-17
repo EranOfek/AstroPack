@@ -270,6 +270,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ScorrCorrectionParam = 0.7;
 
         Args.flagTranslients logical = true;
+        Args.TranslientThresh = 0.48;
+
     end
 
     % Don't question this madness.
@@ -923,14 +925,10 @@ function TranCat = flagNonTransients(Obj, Args)
             AIC_Diff = S2_AIC - Z2_AIC;
 
             % Exclude isolated candidates unless PSF shape is bad.
-            ExcludeCand = (IsolatedCand | (Score > 8.0)) & N_Passes_PSF_Global;
-            IsNotTranslient = (AIC_Diff < 0) | ExcludeCand;
+            ExcludeCand = IsolatedCand & N_Passes_PSF_Global;
 
-            % Relax if candidate is near galaxy but is not nuclear
-            if CandCat.isColumn('GAL_DIST')
-                IsNotTranslient = IsNotTranslient | ...
-                    (~NuclearCand & (AIC_Diff < 1.0));
-            end
+            IsNotTranslient = (AIC_Diff < Args.TranslientThresh) ...
+                | ExcludeCand;
 
             TranslientFlagged = ~IsNotTranslient;
             FilterFlags = FilterFlags + TranslientFlagged.*2.^BD_TF.name2bit('Translient');

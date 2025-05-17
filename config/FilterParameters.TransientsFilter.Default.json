@@ -64,5 +64,6 @@
     "ScorrThreshold": 5.0,
     "ScorrCorrectionParam": 0.7,
 
-    "flagTranslients": true
+    "flagTranslients": true,
+    "TranslientThresh": 0.48
 }
