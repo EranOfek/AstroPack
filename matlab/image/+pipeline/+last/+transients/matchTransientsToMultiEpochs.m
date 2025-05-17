@@ -38,6 +38,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             'Overdensity', 'PVDist', 'Streak', 'NPSFShape'};
         Args.LookBackJD = 60;
         Args.SearchRad = 3;
+        Args.MinTimeDiffMinutes = 1;
 
         Args.Template = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
 
@@ -72,6 +73,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
    
     TranCatLevel2 = TranCatLevel1;
     Rad2Arcsec = 206265;
+    DaysToMins = 24*60;
 
     % Load filter flags
     BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
@@ -164,31 +166,66 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             " AND cropid=",CropIDStr," AND jd >",JDBackStr);
         TranDB = DB.query(SearchCMD);
 
-        % Get RADec of found candidates and match to current candidate via
-        % cone search
-        RA_DB = TranDB.ra;
-        Dec_DB = TranDB.dec;
-        Dists = celestial.coo.sphere_dist(RA_DB, Dec_DB,...
-            RATran, DecTran, 'deg');
-        Dists = Dists*Rad2Arcsec;
-        MatchDB = TranDB(Dists < Args.SearchRad,:);
+        if ~isempty(TranDB)
+            % Get RADec of found candidates and match to current candidate via
+            % cone search
+            RA_DB = TranDB.ra;
+            Dec_DB = TranDB.dec;
+            Dists = celestial.coo.sphere_dist(RA_DB, Dec_DB,...
+                RATran, DecTran, 'deg');
+            Dists = Dists*Rad2Arcsec;
+            MatchDB = TranDB(Dists < Args.SearchRad,:);
+    
+            % Make sure we don't have duped entries by comparing the JDs
+            TimeThr = Args.MinTimeDiffMinutes*DaysToMins;
+            JdDiff0 = abs(MatchDB.jd - JD);
+            MatchDB = MatchDB(JdDiff0 > TimeThr,:);
+    
+            if size(MatchDB,1)>1
+                MatchJDs = MatchDB.jd;
+                NumMatches = numel(MatchJDs);
+                KeepMask = false(size(MatchJDs));
+    
+                for IMatch = 1:NumMatches
+                    MatchJD = MatchJDs(IMatch);
+    
+                    % Check previous kept values
+                    PrevKept = MatchJDs(KeepMask);
+                    TooClose = abs(PrevKept - MatchJD) <= TimeThr;
+    
+                    if any(TooClose)
+                        % Don't keep too close ones.
+                        KeepMask(IMatch) = false;
+                    else
+                        KeepMask(IMatch) = true;
+                    end
+                end
+                
+                MatchDB = MatchDB(KeepMask,:);
+            end
 
-        % Get JD of report of DB matches.
-        ReportedMatch = MatchDB.report_jd;
-
-        % See if the candidate was already reported. If yes, set current
-        % candidate as already reported.
-        AlreadyReported = any((ReportedMatch>0) & ~isnan(ReportedMatch));
-        if AlreadyReported
-            ADc(Ipos).AlreadyReported = 1;
+            MatchJDs = MatchDB.jd;
+    
+            % Get JD of report of DB matches.
+            ReportedMatch = MatchDB.report_jd;
+    
+            % See if the candidate was already reported. If yes, set current
+            % candidate as already reported.
+            AlreadyReported = any((ReportedMatch>0) & ~isnan(ReportedMatch));
+            if AlreadyReported
+                ADc(Ipos).AlreadyReported = 1;
+            end
+    
+            PassingMatches = sum(MatchDB.flags_transient == 0) + 1;
+        else
+            MatchJDs = [];
+            PassingMatches = 1;
         end
-
         % See if this candidate is worth reporting. If yes, set its report
         % jd to now.
         % TODO: Currently it is the easiest way to do it here, but it
         % should probably move elsewhere in the future.
         Score = ADc(Ipos).CatData.getCol('SCORE');
-        PassingMatches = sum(MatchDB.flags_transient == 0) + 1;
 
         if (PassingMatches > 1) || (Score >= 7.7)
             UTCNow = datetime('now', 'TimeZone', 'UTC');
@@ -199,17 +236,15 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
 
         % Fill the candidates photometry catalog with all matched
         % multi-epoch candidates.
-        MatchJD = MatchDB.jd;
-
         PhotMAG = double(TC.Table.MAG_PSF);
         PhotJD = double(TC.Table.JD);
         PhotMAGERR = double(TC.Table.MAGERR_PSF);
         PhotFLAGS = double(TC.Table.FLAGS_TRANSIENT);
         PhotSCORE = double(TC.Table.SCORE);
 
-        if numel(MatchJD) > 0
+        if numel(MatchJDs) > 0
             PhotMAG = double([PhotMAG; MatchDB.mag_psf]);
-            PhotJD = double([PhotJD; MatchJD]);
+            PhotJD = double([PhotJD; MatchJDs]);
             PhotMAGERR = double([PhotMAGERR; MatchDB.magerr_psf]);
             PhotFLAGS = double([PhotFLAGS; MatchDB.flags_transient]);
             PhotSCORE = double([PhotSCORE; MatchDB.score]);
@@ -225,14 +260,18 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % from the table returned by the DB query. All remaining JDs are
         % times at which there was no multi-epoch match, we will get ULs
         % for these times.
-        RemoveRows = ismember(TranDB.jd, MatchJD);
-        ULDB = TranDB;
-        ULDB(RemoveRows,:) = [];
-        ULJD = ULDB.jd;
-
-        % For the list of JDs without a match, keep only the unique JDs.
-        UniqueJDsUL = unique(ULJD);
-        NuJD = numel(UniqueJDsUL);
+        if ~isempty(TranDB)
+            RemoveRows = ismember(TranDB.jd, MatchJDs);
+            ULDB = TranDB;
+            ULDB(RemoveRows,:) = [];
+            ULJD = ULDB.jd;
+    
+            % For the list of JDs without a match, keep only the unique JDs.
+            UniqueJDsUL = unique(ULJD);
+            NuJD = numel(UniqueJDsUL);
+        else
+            NuJD = 0;
+        end
 
         % If non-detections found, create an UL catalog of JDs and limiting
         % magnitudes, limiting magnitudes are taken as the new image
