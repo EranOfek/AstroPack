@@ -1,18 +1,39 @@
-from flask import Flask, request, Response, jsonify
+"""
+HTTP to ClickHouse Ingestion Server
+
+This Python script launches a lightweight HTTP server using Flask. It accepts GET requests of the form:
+    http://<host>:<port>/<database>.<table>?key1=value1&key2=value2...
+
+Functionality:
+- Parses the database and table name from the URL path.
+- Parses query parameters as column names and values.
+- Optionally adds a Julian Day timestamp to the row using --ingestTime argument.
+- Adds the authenticated HTTP username as a column (--userNameColumn, default is 'user').
+- Requires all HTTP requests to authenticate with a password (--userPassword, default is 'MyPassword').
+- Does not create tables; returns an error if the target table doesn't exist.
+- Inserts the data into ClickHouse using clickhouse-connect.
+
+Usage Example:
+    python3 WebServer.py --host socsrv --port 8123 --user default --password passRoot --listen_port 8090 --ingestTime ingestion_jd --userNameColumn user --userPassword MyPassword
+
+Dependencies:
+- Flask
+- clickhouse-connect
+
+Author: Eran Ofek
+"""
+
+from flask import Flask, request, Response
 import clickhouse_connect
 import argparse
 import logging
 from datetime import datetime, timezone
 import base64
-from concurrent.futures import ThreadPoolExecutor
-import threading
 
 # Initialize Flask app
 app = Flask(__name__)
 client = None
 cli_args = None  # holds parsed args
-executor = ThreadPoolExecutor(max_workers=10)
-lock = threading.Lock()
 
 def extract_db_and_table(path):
     """Extract database and table name from the URL path."""
@@ -38,86 +59,56 @@ def get_authenticated_user_and_password():
     username, password = decoded.split(':', 1)
     return username, password
 
-def insert_row(db, table, row_dict):
-    try:
-        with lock:
-            result = client.query(f"EXISTS TABLE {db}.{table}")
-        if result.result_rows[0][0] == 0:
-            return f"Table {db}.{table} doesn't exist", 404
-
-        columns = list(row_dict.keys())
-        values = [row_dict[k] for k in columns]
-        with lock:
-            client.insert(f'{db}.{table}', [values], column_names=columns)
-        logging.info(f"Inserted into {db}.{table}: {row_dict}")
-        return f"Inserted into {db}.{table}", 200
-    except Exception as e:
-        return f"Insert error: {e}", 500
-
-@app.route('/<path:req_path>', methods=['POST', 'GET'])
+@app.route('/<path:req_path>', methods=['GET'])
 def handle_request(req_path):
     """
-    Handle incoming POST or GET request:
+    Handle incoming GET request:
     - Parse DB/table
-    - Accept JSON body (POST) or query parameters (GET)
-    - Add ingestion time if configured
-    - Add authenticated username
-    - Validate and insert each row in parallel (for POST) or single row (for GET)
+    - Parse query args
+    - Optionally add ingestion time
+    - Add authenticated username to row
+    - Check that table exists (do not create)
+    - Insert row into ClickHouse
     """
     db, table = extract_db_and_table(req_path)
     if not db or not table:
         return "Invalid path format. Use /db.table\n", 400
 
+    args_dict = request.args.to_dict()
+    if not args_dict and not cli_args.ingestTime:
+        return "No query parameters provided\n", 400
+
+    # Add ingestion timestamp if requested
+    if cli_args.ingestTime:
+        jd = now_julian_day()
+        args_dict[cli_args.ingestTime] = f"{jd:.10f}"
+
+    # Authenticate user and validate password
     auth_user, auth_pass = get_authenticated_user_and_password()
     if not auth_user or not auth_pass:
         return Response("Unauthorized\n", status=401, headers={'WWW-Authenticate': 'Basic'})
+
     if auth_pass != cli_args.userPassword:
         return Response("Forbidden: invalid password\n", status=403)
 
-    if request.method == 'GET':
-        args_dict = request.args.to_dict()
-        if not args_dict and not cli_args.ingestTime:
-            return "No query parameters provided\n", 400
+    user_col = cli_args.userNameColumn if cli_args.userNameColumn else 'user'
+    args_dict[user_col] = auth_user
 
-        if cli_args.ingestTime:
-            jd = now_julian_day()
-            args_dict[cli_args.ingestTime] = f"{jd:.10f}"
-
-        user_col = cli_args.userNameColumn if cli_args.userNameColumn else 'user'
-        args_dict[user_col] = auth_user
-
-        msg, code = insert_row(db, table, args_dict)
-        return msg + "\n", code
-
-    # POST method
+    # Check if table exists
     try:
-        data = request.get_json()
-    except Exception:
-        return "Invalid JSON body\n", 400
+        result = client.query(f"EXISTS TABLE {db}.{table}")
+        if result.result_rows[0][0] == 0:
+            return f"Table {db}.{table} doesn't exist\n", 404
+    except Exception as e:
+        return f"Error checking table existence: {e}\n", 500
 
-    if not data:
-        return "Empty JSON body\n", 400
+    # Prepare and insert row
+    columns = list(args_dict.keys())
+    values = [args_dict[k] for k in columns]
+    client.insert(f'{db}.{table}', [values], column_names=columns)
 
-    if not isinstance(data, list):
-        data = [data]
-
-    futures = []
-    for row in data:
-        if not isinstance(row, dict):
-            return "Invalid row format; must be dict\n", 400
-
-        if cli_args.ingestTime:
-            jd = now_julian_day()
-            row[cli_args.ingestTime] = f"{jd:.10f}"
-
-        user_col = cli_args.userNameColumn if cli_args.userNameColumn else 'user'
-        row[user_col] = auth_user
-
-        futures.append(executor.submit(insert_row, db, table, row))
-
-    results = [f.result() for f in futures]
-    response = [{"status": msg, "code": code} for msg, code in results]
-    return jsonify(response), 207  # Multi-Status
+    logging.info(f"Inserted into {db}.{table}: {args_dict}")
+    return f"Inserted into {db}.{table}\n"
 
 def main():
     """Parse CLI arguments, connect to ClickHouse, and start Flask server."""
@@ -134,8 +125,6 @@ def main():
     parser.add_argument('--userPassword', default='MyPassword', help='Password required from HTTP clients')
 
     cli_args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO)
 
     # Establish connection to ClickHouse
     client = clickhouse_connect.get_client(

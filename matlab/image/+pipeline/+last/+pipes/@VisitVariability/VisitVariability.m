@@ -245,6 +245,7 @@ classdef VisitVariability < Component
 
                 Args.FailedFile        = '~/varSearchFailed.txt';
                 Args.StartInd          = 1;
+                Args.EndInd            = Inf;
             end
 
             if isempty(Args.T)
@@ -289,8 +290,15 @@ classdef VisitVariability < Component
             %    parpool(Npool)
             %end
 
+            if isinf(Args.EndInd)
+                EndInd = Nt;
+            else
+                EndInd = Args.EndInd;
+            end
+
+
             %parfor Ipool=1:Npool
-            for It=Args.StartInd:1:Nt
+            for It=Args.StartInd:1:EndInd
 
                 [It, Nt] %, Args.Ind(It)]
                 

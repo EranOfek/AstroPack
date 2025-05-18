@@ -54,42 +54,20 @@ def insert_row(db, table, row_dict):
     except Exception as e:
         return f"Insert error: {e}", 500
 
-@app.route('/<path:req_path>', methods=['POST', 'GET'])
-def handle_request(req_path):
+@app.route('/<path:req_path>', methods=['POST'])
+def handle_post_request(req_path):
     """
-    Handle incoming POST or GET request:
+    Handle incoming POST request with JSON body:
     - Parse DB/table
-    - Accept JSON body (POST) or query parameters (GET)
+    - Accept single object or list of objects
     - Add ingestion time if configured
     - Add authenticated username
-    - Validate and insert each row in parallel (for POST) or single row (for GET)
+    - Validate and insert each row in parallel
     """
     db, table = extract_db_and_table(req_path)
     if not db or not table:
         return "Invalid path format. Use /db.table\n", 400
 
-    auth_user, auth_pass = get_authenticated_user_and_password()
-    if not auth_user or not auth_pass:
-        return Response("Unauthorized\n", status=401, headers={'WWW-Authenticate': 'Basic'})
-    if auth_pass != cli_args.userPassword:
-        return Response("Forbidden: invalid password\n", status=403)
-
-    if request.method == 'GET':
-        args_dict = request.args.to_dict()
-        if not args_dict and not cli_args.ingestTime:
-            return "No query parameters provided\n", 400
-
-        if cli_args.ingestTime:
-            jd = now_julian_day()
-            args_dict[cli_args.ingestTime] = f"{jd:.10f}"
-
-        user_col = cli_args.userNameColumn if cli_args.userNameColumn else 'user'
-        args_dict[user_col] = auth_user
-
-        msg, code = insert_row(db, table, args_dict)
-        return msg + "\n", code
-
-    # POST method
     try:
         data = request.get_json()
     except Exception:
@@ -97,6 +75,12 @@ def handle_request(req_path):
 
     if not data:
         return "Empty JSON body\n", 400
+
+    auth_user, auth_pass = get_authenticated_user_and_password()
+    if not auth_user or not auth_pass:
+        return Response("Unauthorized\n", status=401, headers={'WWW-Authenticate': 'Basic'})
+    if auth_pass != cli_args.userPassword:
+        return Response("Forbidden: invalid password\n", status=403)
 
     if not isinstance(data, list):
         data = [data]

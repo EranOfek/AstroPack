@@ -167,6 +167,9 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     switch Args.OutType
                         case 'AstroCatalog'
 
+                            if isempty(Result)
+                                Result = AstroCatalog;
+                            end
                             Result(Iim) = imProc.sub.forcedPhotSub(AD, [RA, Dec], Args.forcedPhotSubArgs{:});
 
                         case 'tableold'

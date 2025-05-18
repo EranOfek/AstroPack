@@ -9,6 +9,7 @@
 
 % python3 WebServer.py --host socsrv --port 8123 --user default --password PassRoot --ingestTime ingestiontimejd --userNameColumn user --userPassword MyPassword
 % curl -u eran:MyPassword "http://localhost:8080/last.test1?ra=111.1&dec=23.3"
+% curl -X POST http://localhost:8080/last.test1 -H "Content-Type: application/json" -H "Authorization: Basic $(echo -n alice:PassRoot | base64)" -d '[{"ra": 21.5, "dec": 55}, {"ra": 22.3, "dec": -50}]'
 
 classdef WebServer < Component
     %
@@ -112,7 +113,7 @@ classdef WebServer < Component
 
                 Args.IngestTimeCol = 'ingestiontimejd';
                 Args.UserCol       = 'user'
-                Args.UserPassword  = 'MyPassword';
+                Args.UserPassword  = Obj.DB.Password;
             end
 
 
@@ -169,6 +170,7 @@ classdef WebServer < Component
             if ~isempty(Obj.PID)
                 if isunix
                     system(sprintf('kill -9 %d',Obj.PID));
+                    Obj.PID = [];
                 elseif ismax
                     error('KillWebServer is not defined for MAC');
                 else
