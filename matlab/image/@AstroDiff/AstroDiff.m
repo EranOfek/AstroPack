@@ -241,7 +241,7 @@ classdef AstroDiff < AstroImage
             % Example: AD=AstroDiff.convertFromAstroImage(AI);
 
             N = numel(AI);
-            for I=1:1:N
+            for I=N:-1:1
                 Obj(I) = AstroDiff;
                 Obj(I).ImageData  = AI(I).ImageData;
                 Obj(I).MaskData   = AI(I).MaskData;
@@ -1020,13 +1020,15 @@ classdef AstroDiff < AstroImage
                 Obj
 
                 Args.FilterFunc = @imProc.sub.flagNonTransients;
+                Args.ConfigFile = '';
         
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj));
+                Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj), ...
+                    'ConfigFile', Args.ConfigFile);
             end
         end
         

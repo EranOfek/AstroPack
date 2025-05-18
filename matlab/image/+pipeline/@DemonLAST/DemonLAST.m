@@ -3138,13 +3138,15 @@ classdef DemonLAST < Component
                                 %&& strcmp(tools.os.get_computer, 'last01e')
                                 Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / group %d', Igroup);
                                 Obj.writeLog(Msg, LogLevel.Info);
+                                FilterConfigPath = strcat(Obj.SciPath,'/FilterConfig.json');
     
                                 % Transients detection
                                 try
                                     [~,TransientCutouts, TCL1, TranPipeStatus] = ...
                                         pipeline.last.transients.runTransientsPipe(...
                                             Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true, ...
-                                            'Product',{'Image','Mask','Cat','PSF'},'WriteHeader',[true,false,true,false]);
+                                            'Product',{'Image','Mask','Cat','PSF'},'WriteHeader',[true,false,true,false],...
+                                            'FilterConfigFile', FilterConfigPath);
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');

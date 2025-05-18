@@ -80,6 +80,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.CometSearchRad = 90;
 
         Args.CropIDs = [];
+
+        Args.FilterConfigFile = '';
     end
 
     % 1: ----- Set default arguments -----
@@ -650,7 +652,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.measureTransients;
 
     % Flag non transients
-    AD.flagNonTransients;
+    AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
 
     % If AddMeta true, add meta information to catalog
     if Args.AddMeta
