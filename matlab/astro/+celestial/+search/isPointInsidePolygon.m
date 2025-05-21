@@ -15,6 +15,9 @@ function Result = isPointInsidePolygon(lon0, lat0, polygon)
     len  = length(polygon);
     NPoint = numel(lon0);
     Result = false(1,NPoint);
+    % convert the longitudes to [0, 360]:
+    lon0 = lon0 + ((lon0 < 0)-(lon0 > 2*pi)) * 2*pi;
+    pol(:,1) = pol(:,1) + ((pol(:,1) < 0) - (pol(:,1) > 2*pi))* 2*pi; 
     % Count intersections of 2 rays from the test point to the 2 poles 
     % with all the edges of the polygon
     for iPoint = 1:NPoint
