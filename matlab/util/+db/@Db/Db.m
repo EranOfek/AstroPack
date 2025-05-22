@@ -40,7 +40,7 @@ classdef Db < Component
         DbName   = []; %"test_db";
         User     = {"LASTDB_User","last_user"} %"default"; %""; If cell array then Project,User in PasswordsManager
         Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
-        Host     = "10.150.28.1"; % "socsrv" %"localhost"; %[];  % or '10.23.1.25' for last0
+        Host     = "10.150.28.18"; % "socsrv" %"localhost"; %[];  % or '10.23.1.25' for last0
         Port     = "8123"; %[];
         
         ConnType = 'java';  % 'java'|'http'
