@@ -3056,6 +3056,11 @@ classdef MatchedSources < Component
             % Add a MAG_BEST matrix containing the best from several magnitudes.
             % Input  : - A MatchedSources object.
             %          * ...,key,val,...
+            %            'Algo' - Algorithm:
+            %                   'std' - divide stars by their median std.
+            %                   'mag' - divide stars according to median
+            %                           mag at which typical error dominates.
+            %                   Default is 'mag'.
             %            'SelectFromMagCol' - A cell array of magnitude
             %                   fields in the Data property.
             %                   The code will select the magnitude with the
@@ -3076,6 +3081,7 @@ classdef MatchedSources < Component
 
             arguments
                 Obj
+                Args.Algo             = 'mag';
                 Args.SelectFromMagCol = {'MAG_PSF','MAG_APER_3'};
                 Args.MagBestColName   = 'MAG_BEST';
                 Args.StdFun           = @tools.math.stat.rstd;
@@ -3086,18 +3092,63 @@ classdef MatchedSources < Component
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
-                for Isel=1:1:Nsel
-                    StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
-                end
+                switch Args.Algo
+                    case 'std'
+                        StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
+                        for Isel=1:1:Nsel
+                            StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
+                        end
+        
+                        [~,Result(Iobj).Imin] = min(StdMat,[],1);
+        
+                        Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
+                        for Isrc=1:1:Obj(Iobj).Nsrc
+                            if Result(Iobj).Imin(Isrc)>1
+                                Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
+                            end
+                        end
+                    case 'mag'
+                        if numel(Args.SelectFromMagCol)==2
+                            B1 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(1));
+                            B2 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(2));
+                            Z  = tools.find.find_local_zeros(B1.InterpB(:,1), B1.InterpB(:,2) - B2.InterpB(:,2));
+                            if size(Z,1)>1
+                                % more than on zero-crossing - chose
+                                % faintest
+                                [~,Iline] = max(Z(:,1));
+                                Z = Z(Iline,:);
+                            end
+                            if size(Z,1)==0
+                                if max(B1.InterpB(:,2) - B2.InterpB(:,2))<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = B1.InterpB(1,1);
+                            else
+                                if Z(1,2)<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = Z(1,1);
+                            end
 
-                [~,Result(Iobj).Imin] = min(StdMat,[],1);
+                            
+                            MedianMag = median(Obj(Iobj).Data.(Args.SelectFromMagCol{1}), 1, 'omitnan');
+                            Flag      = MedianMag<MagCross;
+                            Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ifaint});
+                            Obj(Iobj).Data.(Args.MagBestColName)(:,Ibright) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ibright})(:,Ibright);
+                        else
+                            error('When using Algo=mag, number of MAG columns must be 2');
+                        end
 
-                Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
-                for Isrc=1:1:Obj(Iobj).Nsrc
-                    if Result(Iobj).Imin(Isrc)>1
-                        Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
-                    end
+                    otherwise
+                        error('Unknown Algo option');
                 end
 
             end
@@ -3918,6 +3969,10 @@ classdef MatchedSources < Component
             %            'MeanFun' - Default is @tools.math.stat.median.
             %            'StdFun' - Default is @tools.math.stat.nanstd.
             %            'MaxMag' - Max mag to use in calculating rms.
+            %            'MagInterpEdges' - Mag interpolation points.
+            %                   If is empty then do not provide
+            %                   iunterpolated mag std.
+            %                   Default is (8:0.5:21.5).';
             %            ** Additional parameters available for adding a
             %            noise curve.
             % Output : - A structure array with the following fields:
@@ -3932,6 +3987,7 @@ classdef MatchedSources < Component
             arguments
                 Obj
                 Args.FieldX                   = {'MAG_BEST','MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+               
                 Args.FieldY                   = {};
                 Args.UseFlag                  = [];
                 Args.RemoveFlags              = {};
@@ -3947,6 +4003,7 @@ classdef MatchedSources < Component
                 Args.StdFun function_handle   = @tools.math.stat.nanstd;
                 
                 Args.MaxMag                   = 18;
+                Args.MagInterpEdges           = (8:0.5:21.5).';
 
                 % add noise curve
                 Args.AperArea                 = pi.*6.^2;
@@ -4024,6 +4081,10 @@ classdef MatchedSources < Component
                 [Result(Iobj).MinRMS, Ib] = min(B(:,2));
                 Result(Iobj).MagMinRMS = B(Ib,1);
                 Result(Iobj).B = B;
+
+                if ~isempty(Args.MagInterpEdges)
+                    Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                end
             end
 
             
