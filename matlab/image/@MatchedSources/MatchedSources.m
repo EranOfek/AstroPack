@@ -3076,6 +3076,9 @@ classdef MatchedSources < Component
             %                   Default is {1}.
             % Output : - A MatchedSources object with the best mag field
             %            added to the Data property.
+            %          - A structure array:
+            %            For Algo='mat', this is the Mag crossing point,
+            %            and flag of faint sources.
             % Author : Eran Ofek (Feb 2024)
             % Example: MS.bestMag;
 
@@ -3137,15 +3140,19 @@ classdef MatchedSources < Component
                                 end
                                 MagCross = Z(1,1);
                             end
-
                             
                             MedianMag = median(Obj(Iobj).Data.(Args.SelectFromMagCol{1}), 1, 'omitnan');
                             Flag      = MedianMag<MagCross;
                             Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ifaint});
-                            Obj(Iobj).Data.(Args.MagBestColName)(:,Ibright) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ibright})(:,Ibright);
+                            Obj(Iobj).Data.(Args.MagBestColName)(:,Flag) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ibright})(:,Flag);
                         else
                             error('When using Algo=mag, number of MAG columns must be 2');
                         end
+                        %if Iobj==1
+                        %    Result = zeros(Nobj,1);
+                        %end
+                        Result(Iobj).MagCross  = MagCross;
+                        Result(Iobj).FlagFaint = Flag;
 
                     otherwise
                         error('Unknown Algo option');
@@ -4430,7 +4437,7 @@ classdef MatchedSources < Component
             %          * ...,key,val,...
             %            'SubPlot' - A logical indicating if to use
             %                   subplot (true), or regular plot (false).
-            %                   Default is true.
+            %                   Default is false.
             %            'MagField' - Magnitude field name to display.
             %                   Default is 'MAG_BEST'.
             %            'UnitsTime' - Time units in MatachedSources JD.
@@ -4460,7 +4467,7 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 IndSrc
 
-                Args.SubPlot logical       = true;
+                Args.SubPlot logical       = false;
                 Args.FigN                  = 1;
 
                 Args.MagField              = 'MAG_BEST';
@@ -4489,9 +4496,9 @@ classdef MatchedSources < Component
                 cla;
                 box on;
             else
-                Fig=figure(Args.FigN);
-                cla;
-                box on;
+                %Fig=figure(Args.FigN);
+                %cla;
+                %box on;
             end
 
             Nflag = size(Args.ListFlags,1);
