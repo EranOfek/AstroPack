@@ -40,7 +40,7 @@ classdef Db < Component
         DbName   = []; %"test_db";
         User     = {"LASTDB_User","last_user"} %"default"; %""; If cell array then Project,User in PasswordsManager
         Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
-        Host     = "s10.150.28.1"; % "socsrc" %"localhost"; %[];  % or '10.23.1.25' for last0
+        Host     = "s10.150.28.1"; % "socsrv" %"localhost"; %[];  % or '10.23.1.25' for last0
         Port     = "8123"; %[];
         
         ConnType = 'java';  % 'java'|'http'
@@ -137,12 +137,12 @@ classdef Db < Component
             else
                 if contains(Obj.User,'/')
                     switch Obj.User
-                        case 'socsrv/user'
+                        case 'euclid/user'
                             Obj.User = {'LASTDB_User','last_user'};
-                            Obj.Host = 'socsrv';
-                        case 'socsrv/root'
+                            Obj.Host = '10.150.28.18';
+                        case 'euclid/root'
                             Obj.User = {'LASTDB_Root','default'};
-                            Obj.Host = 'socsrv';
+                            Obj.Host = '10.150.28.18';
                         case 'last0/user'
                             Obj.User = {'LASTDB_User','last_user'};
                             Obj.Host = '10.23.1.25';
