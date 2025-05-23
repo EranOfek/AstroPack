@@ -33,7 +33,7 @@ function [Result] = genLC(X, Y, Args)
     %MS.bestMag;
 
     Rrms = MS.calcRMS('FieldX',{'MAG_APER_3'});
-    plot([Rrms.MagMinRMS],[Rrms.MinRMS], '.')
+    %plot([Rrms.MagMinRMS],[Rrms.MinRMS], '.')
     Igood = find([Rrms.MinRMS]<0.006);
     fprintf('Use %d MS out of %d MS\n', numel(Igood), numel(Rrms));
 
@@ -87,6 +87,9 @@ function [Result] = genLC(X, Y, Args)
         semilogy(MedMag, std(CalibMag{Imagf}), 'r.'); %MedMag(ii), std(Res(2).Resid),'.')
 
         MS1s.Data.(MagField{Imagf}) = CalibMag{Imagf};
+
+        %MS1s = lcUtil.zp_fit2D(MS1s, 'FieldMag',MagField{Imagf});
+
     end
     MS1s.bestMag;
     
