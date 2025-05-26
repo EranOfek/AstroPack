@@ -57,7 +57,7 @@ warning('This function may have a bug')
         % quick conversion
         SearchRadius = SearchRadius./(RAD.*ARCSEC_DEG);  % [rad]
     else
-        SearchRadius = convert.angular(Args.SearchradiusUnits, 'rad', SearchRadius);  % [rad]
+        SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);  % [rad]
     end
     
     % get Coo:
