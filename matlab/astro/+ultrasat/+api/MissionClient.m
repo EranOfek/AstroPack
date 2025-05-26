@@ -51,177 +51,126 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
         % -------------------------------------------------------------------
 
-        function response = login(obj, UserName, Password)
-            % Authenticates a user with the mission control API.
-            %
-            % Parameters:
-            %   UserName (string) - User name for authentication
-            %   Password (string) - Password for authentication
-            %
-            % Returns:
-            %   response - Structure containing authentication result
-            obj.msglog('login: user=%s, password=%s', UserName, Password);
-            params = struct('username', UserName, 'password', Password);
-            response = obj.Client.postRequest('/login/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end
-
-
-        function response = logout(obj, UserName)
-            % Logs out the current user from the mission control API.
-            %
-            % Parameters:
-            %   UserName (string) - Currently logged-in user name to verify
-            %
-            % Returns:
-            %   response - Structure containing logout result
-            obj.msglog('logout: user=%s', UserName);
-            params = struct('username', UserName);
-            response = obj.Client.postRequest('/logout/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end        
-
-        % -------------------------------------------------------------------
-
-        function response = getKeyValue(obj, Store, Key, Default)
-            % Retrieves a value from a key-value store on the server.
-            %
-            % Parameters:
-            %   Store (string) - Name of the store to access
-            %   Key (string) - Key to retrieve
-            %   Default - Default value to return if key not found
-            %
-            % Returns:
-            %   response - Structure containing result
-            obj.msglog('getKeyValue: store=%s, key=%s', Store, Key);
-            params = struct('store', Store, 'key', Key, 'default', Default);
-            response = obj.Client.postRequest('/get_key_value/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end
-
-
-        function response = setKeyValue(obj, Store, Key, Value)
-            % Stores a value in a key-value store on the server.
-            %
-            % Parameters:
-            %   Store (string) - Name of the store to access
-            %   Key (string) - Key to set
-            %   Value - Value to store
-            %
-            % Returns:
-            %   response - Structure containing result
-            obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Store, Key, Value);
-            params = struct('store', Store, 'key', Key, 'value', Value);
-            response = obj.Client.postRequest('/set_key_value/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end        
-
-        % -------------------------------------------------------------------
-
-        function response = getApprovedTargets(obj, start_time, end_time)
-            % Retrieves the list of approved observation targets within a time range.
-            %
-            % Parameters:
-            %   start_time (datetime) - Start time for filtering targets
-            %   end_time (datetime) - End time for filtering targets
-            %
-            % Returns:
-            %   response - Structure containing result
-            %
-            % Notes:
-            %   This method updates the ApprovedTargetsStartTime and 
-            %   ApprovedTargetsEndTime properties.
-            obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
-            
-            % Format dates for API
-            if isdatetime(start_time)
-                start_str = datestr(start_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
-            else
-                start_str = start_time;
+        function response = login(obj, Params)
+            % Login to the mission server
+            arguments
+                obj
+                Params api.ModelBase
             end
             
-            if isdatetime(end_time)
-                end_str = datestr(end_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
-            else
-                end_str = end_time;
-            end
+            % Create API call
+            call = obj.createApiCall('login', Params);
             
-            % Store the times
-            obj.ApprovedTargetsStartTime = start_time;
-            obj.ApprovedTargetsEndTime = end_time;
+            % Make the call
+            response = obj.makeApiCall(call);
             
-            % Send request
-            params = struct('start_time', start_str, 'end_time', end_str);
-            response = obj.Client.postRequest('/get_approved_targets/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end
-
-
-        function response = validatePlan(obj, Plan)
-            % Validates an observation plan against mission constraints.
-            %
-            % Parameters:
-            %   Plan - Array of structs containing observation data
-            %
-            % Returns:
-            %   response - Structure containing validation result
-            obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
-            
-            % Convert date/time fields to UTC
-            Plan = obj.convertPlanTimesToUtc(Plan);
-            
-            % Send request
-            params = struct('plan', Plan);
-            response = obj.Client.postRequest('/validate_plan/', params);
-            
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
-            % Ensure metadata.ValidationResponse exists as a cell array
-            if ~isfield(obj.PlanData.metadata, 'ValidationResponse') || isempty(obj.PlanData.metadata.ValidationResponse)
-                obj.PlanData.metadata.ValidationResponse = {}; % Initialize as empty cell array
-            elseif ~iscell(obj.PlanData.metadata.ValidationResponse)
-                obj.PlanData.metadata.ValidationResponse = {obj.PlanData.metadata.ValidationResponse}; % Convert to cell if needed
-            end
-        
-            % Insert the latest response at the beginning of the array (most recent first)
-            obj.PlanData.metadata.ValidationResponse = [{response}, obj.PlanData.metadata.ValidationResponse];
-            
-            obj.msglog('Validation status: %s', response.status);
-        end        
-
-
-        function response = submitPlan(obj, Plan)
-            % Submits an observation plan to the mission control system.
-            %
-            % Parameters:
-            %   Plan - Array of structs containing observation data
-            %
-            % Returns:
-            %   response - Structure containing submission result
-            obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
-            
-            % Convert date/time fields to UTC
-            Plan = obj.convertPlanTimesToUtc(Plan);
-            
-            % Send request
-            params = struct('plan', Plan);
-            response = obj.Client.postRequest('/submit_plan/', params);
-            
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+            % Update session info if login successful
             if response.ok
-                % Update status
-                obj.PlanData.status = 'submitted';
-                
-                % Add entry to history
-                obj.PlanData.addHistory(sprintf('plan submitted by %s', obj.PlanData.created_by));
-                
-                obj.msglog('Plan %d submitted successfully.', obj.PlanData.pk);
-            else
-                obj.msglog('Plan submission failed: %s', response.message);
+                obj.SessionInfo = response.user;
             end
+        end
+
+
+        function response = logout(obj, Params)
+            % Logout from the mission server
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('logout', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
+            
+            % Clear session info if logout successful
+            if response.ok
+                obj.SessionInfo = [];
+            end
+        end        
+
+        % -------------------------------------------------------------------
+
+        function response = getKeyValue(obj, Params)
+            % Get a value from the key-value store
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('getKeyValue', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
+        end
+
+
+        function response = setKeyValue(obj, Params)
+            % Set a value in the key-value store
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('setKeyValue', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
+        end        
+
+        % -------------------------------------------------------------------
+
+        function response = getApprovedTargets(obj, Params)
+            % Get approved observation targets
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('getApprovedTargets', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
+            
+            % Store time range if successful
+            if response.ok
+                obj.ApprovedTargetsStartTime = Params.startTime;
+                obj.ApprovedTargetsEndTime = Params.endTime;
+            end
+        end
+
+
+        function response = validatePlan(obj, Params)
+            % Validate a plan
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('validatePlan', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
+        end        
+
+
+        function response = submitPlan(obj, Params)
+            % Submit a plan
+            arguments
+                obj
+                Params api.ModelBase
+            end
+            
+            % Create API call
+            call = obj.createApiCall('submitPlan', Params);
+            
+            % Make the call
+            response = obj.makeApiCall(call);
         end        
 
 

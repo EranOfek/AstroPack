@@ -46,21 +46,6 @@ function debug_PlanWebPageExporterWithImages()
         close(f);
     end
 
-    % Add some example values
-    exporter = exporter.addValue('value_targets', '10');
-    exporter = exporter.addValue('value_parameters', '20');
-
-    % Add some example notes
-    exporter = exporter.addPersistentNote('This is a note');
-
-    % Add some example JSON blocks
-    jsonBlock = struct('name', 'John', 'age', 30, 'city', 'New York');
-    exporter = exporter.addJsonBlock('json_targets', jsonBlock);    
-
-    % Add some example persistent tags
-    exporter = exporter.addPersistentTag('persistent_targets', '10');
-    exporter = exporter.addPersistentTag('persistent_parameters', '20');
-
     % Generate HTML from template
     exporter = exporter.generateHtmlFromTemplate();
 
@@ -73,8 +58,6 @@ function debug_PlanWebPageExporterWithImages()
 
     % Preview locally (optional)
     exporter.previewInBrowser();
-
-    exporter.upload_to_s3('ultrasat-planner-webpages', 'test');
 end
 
 
