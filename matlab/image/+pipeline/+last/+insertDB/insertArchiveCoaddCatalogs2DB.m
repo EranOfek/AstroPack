@@ -31,7 +31,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
-        Args.DbHost = 'socsrv';
+        Args.DbHost = 'euclid';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
