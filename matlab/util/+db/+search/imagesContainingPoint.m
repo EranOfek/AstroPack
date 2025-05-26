@@ -8,8 +8,7 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
     %          * ...,key,val,... 
     % Output : - a table containing unique indexes of the images
     % Author : A.M. Krassilchtchikov (2025 May) 
-    % Example: 
-
+    % Example: T=db.search.imagesContainingPoint(100,10,'DB',D); % when D is a DB connected before  
     arguments
         RA                     = 83.63;
         Dec                    = 22.01;
@@ -18,13 +17,12 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
         Args.DBUser            = 'last_user';
         Args.DBPass            = 'physics';
         Args.Table             = 'vis_im_tst_dedup'; % 'visit_images';   
-        Args.SelectFields      = ["id_visit", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4", "exptime"];        
+        Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];        
         Args.HP_ColName        = 'upix_low';  
         Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName         
         Args.PrimarySearchRad  = 1;   % [deg] this radius should include all the neighboring pixels of PrimarySearchNside
         
-    end
-    
+    end    
     % get a connection
     if isempty(Args.DB)
         DB = db.Db;
@@ -56,6 +54,6 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
         end
         Result{Icoo} = T(F,:);
         N2      = height(Result{Icoo}); 
-        fprintf('second selection: %.2d\n',N2/N1); % diagnostic
+        fprintf('second selection: %.3f\n',N2/N1); % diagnostic
     end
 end
