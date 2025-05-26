@@ -3056,6 +3056,11 @@ classdef MatchedSources < Component
             % Add a MAG_BEST matrix containing the best from several magnitudes.
             % Input  : - A MatchedSources object.
             %          * ...,key,val,...
+            %            'Algo' - Algorithm:
+            %                   'std' - divide stars by their median std.
+            %                   'mag' - divide stars according to median
+            %                           mag at which typical error dominates.
+            %                   Default is 'mag'.
             %            'SelectFromMagCol' - A cell array of magnitude
             %                   fields in the Data property.
             %                   The code will select the magnitude with the
@@ -3071,11 +3076,15 @@ classdef MatchedSources < Component
             %                   Default is {1}.
             % Output : - A MatchedSources object with the best mag field
             %            added to the Data property.
+            %          - A structure array:
+            %            For Algo='mat', this is the Mag crossing point,
+            %            and flag of faint sources.
             % Author : Eran Ofek (Feb 2024)
             % Example: MS.bestMag;
 
             arguments
                 Obj
+                Args.Algo             = 'mag';
                 Args.SelectFromMagCol = {'MAG_PSF','MAG_APER_3'};
                 Args.MagBestColName   = 'MAG_BEST';
                 Args.StdFun           = @tools.math.stat.rstd;
@@ -3086,18 +3095,67 @@ classdef MatchedSources < Component
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
-                for Isel=1:1:Nsel
-                    StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
-                end
+                switch Args.Algo
+                    case 'std'
+                        StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
+                        for Isel=1:1:Nsel
+                            StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
+                        end
+        
+                        [~,Result(Iobj).Imin] = min(StdMat,[],1);
+        
+                        Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
+                        for Isrc=1:1:Obj(Iobj).Nsrc
+                            if Result(Iobj).Imin(Isrc)>1
+                                Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
+                            end
+                        end
+                    case 'mag'
+                        if numel(Args.SelectFromMagCol)==2
+                            B1 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(1));
+                            B2 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(2));
+                            Z  = tools.find.find_local_zeros(B1.InterpB(:,1), B1.InterpB(:,2) - B2.InterpB(:,2));
+                            if size(Z,1)>1
+                                % more than on zero-crossing - chose
+                                % faintest
+                                [~,Iline] = max(Z(:,1));
+                                Z = Z(Iline,:);
+                            end
+                            if size(Z,1)==0
+                                if max(B1.InterpB(:,2) - B2.InterpB(:,2))<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = B1.InterpB(1,1);
+                            else
+                                if Z(1,2)<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = Z(1,1);
+                            end
+                            
+                            MedianMag = median(Obj(Iobj).Data.(Args.SelectFromMagCol{1}), 1, 'omitnan');
+                            Flag      = MedianMag<MagCross;
+                            Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ifaint});
+                            Obj(Iobj).Data.(Args.MagBestColName)(:,Flag) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ibright})(:,Flag);
+                        else
+                            error('When using Algo=mag, number of MAG columns must be 2');
+                        end
+                        %if Iobj==1
+                        %    Result = zeros(Nobj,1);
+                        %end
+                        Result(Iobj).MagCross  = MagCross;
+                        Result(Iobj).FlagFaint = Flag;
 
-                [~,Result(Iobj).Imin] = min(StdMat,[],1);
-
-                Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
-                for Isrc=1:1:Obj(Iobj).Nsrc
-                    if Result(Iobj).Imin(Isrc)>1
-                        Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
-                    end
+                    otherwise
+                        error('Unknown Algo option');
                 end
 
             end
@@ -3897,6 +3955,148 @@ classdef MatchedSources < Component
 
     
     methods % plot
+        function Result=calcRMS(Obj, Args)
+            % calculate rms of a property (field) vs. its mean.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldX' - A cell array of field names. Will chose
+            %                   the first field name that appears in the
+            %                   Data structure, and its content will be plotted.
+            %                   Default is {'MAG_BEST','MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
+            %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
+            %                   If empty, will use rms of FieldX.
+            %                   Default is {}.
+            %            'UseFlag' - A vector of logicals of sources to
+            %                   plot. If empty, plot all. Default is [].
+            %            'RemoveFlags' - A cell array of flag names to remove
+            %                   from the plot. If empty, show all. Default is {}.
+            %            'FactorRMS' - Factor by which to multiply the
+            %                   Y-axis. E.g., for units conversion.
+            %                   Default is 1.
+            %            'MeanFun' - Default is @tools.math.stat.median.
+            %            'StdFun' - Default is @tools.math.stat.nanstd.
+            %            'MaxMag' - Max mag to use in calculating rms.
+            %            'MagInterpEdges' - Mag interpolation points.
+            %                   If is empty then do not provide
+            %                   iunterpolated mag std.
+            %                   Default is (8:0.5:21.5).';
+            %            ** Additional parameters available for adding a
+            %            noise curve.
+            % Output : - A structure array with the following fields:
+            %            .MinRMS - Min RMS as calculated in the binned
+            %                   plot.
+            %            .MagMinRMS - Mag corresponding to min rms.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'MAG_PSF');
+            %          R=MS.calcRMS
+
+            arguments
+                Obj
+                Args.FieldX                   = {'MAG_BEST','MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+               
+                Args.FieldY                   = {};
+                Args.UseFlag                  = [];
+                Args.RemoveFlags              = {};
+                Args.FieldFlags               = 'FLAGS';
+                Args.BitDict                  = BitDictionary;
+                Args.FactorRMS                = 1;
+                Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
+                Args.PlotColor                = 'k';
+                Args.BinSize                  = 1;
+                Args.DivideErrBySqrtN(1,1) logical = true;
+                
+                Args.MeanFun function_handle  = @tools.math.stat.nanmedian;
+                Args.StdFun function_handle   = @tools.math.stat.nanstd;
+                
+                Args.MaxMag                   = 18;
+                Args.MagInterpEdges           = (8:0.5:21.5).';
+
+                % add noise curve
+                Args.AperArea                 = pi.*6.^2;
+                Args.RN                       = 3.5;
+                Args.Gain                     = 1;
+                Args.FluxField                = 'FLUX_APER_3';
+                Args.StdField                 = 'VAR_IM'; %'STD_ANNULUS';
+                Args.IsStd logical            = false;
+            end
+        
+            if ischar(Args.FieldX)
+                Args.FieldX = {Args.FieldX};
+            end
+            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                FN = fieldnames(Obj(Iobj).Data);
+                % search for the first FieldX that appears in FN
+                Ind = find(ismember(Args.FieldX, FN),1);
+                FieldX = Args.FieldX{Ind};
+                
+                if isempty(Args.FieldY)
+                    FieldY = FieldX;
+                else
+                    if ischar(Args.FieldY)
+                        Args.FieldY = {Args.FieldY};
+                    end
+                    Ind = find(ismember(Args.FieldY, FN),1);
+                    FieldY = Args.FieldY{Ind};
+                end
+                
+                Mat   = Obj(Iobj).Data.(FieldX);
+                % axis x - e.g., mean mag
+                AxisX = Args.MeanFun(Mat, Obj(Iobj).DimEpoch);
+                
+                if isempty(Args.FieldY)
+                    AxisY = Args.StdFun(Mat, [], Obj(Iobj).DimEpoch);
+                else
+                    MatY = Obj.Data.(FieldY);
+                    AxisY = Args.StdFun(MatY, [], Obj(Iobj).DimEpoch);
+                end
+                AxisY = AxisY.*Args.FactorRMS;
+                
+                if ~isempty(Args.RemoveFlags)
+                    Obj(Iobj).addSrcData;
+                    IndNN          = find(~isnan(Obj(Iobj).SrcData.(Args.FieldFlags)(:)));
+                    BitFlag        = false(Obj(Iobj).Nsrc, 1);
+                    BitFlag(IndNN) = ~imProc.cat.findBit(Obj(Iobj).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                    
+                    if isempty(Args.UseFlag)
+                        Args.UseFlag = true(Obj(Iobj).Nsrc, 1);
+                    end
+                    Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
+                end
+                
+                if isempty(Args.UseFlag)
+                    CleanAxisX = AxisX;
+                    CleanAxisY = AxisY;
+                else
+                    CleanAxisX = AxisX(Args.UseFlag);
+                    CleanAxisY = AxisY(Args.UseFlag);
+                end
+            
+                if ~isempty(Args.BinSize)
+                    B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
+                    %if Args.DivideErrBySqrtN
+                    %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                    %else
+                    %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                    %end                
+                end
+
+                B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
+                [Result(Iobj).MinRMS, Ib] = min(B(:,2));
+                Result(Iobj).MagMinRMS = B(Ib,1);
+                Result(Iobj).B = B;
+
+                if ~isempty(Args.MagInterpEdges)
+                    Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                end
+            end
+
+            
+        end
+
         function [H, AxisX, AxisY] = plotRMS(Obj, Args)
             % plot rms of a propery (field) vs. its mean.
             % Input  : - A single element MatchedSources object.
@@ -3904,7 +4104,7 @@ classdef MatchedSources < Component
             %            'FieldX' - A cell array of field names. Will chose
             %                   the first field name that appears in the
             %                   Data structure, and its content will be plotted.
-            %                   Default is {'MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
+            %                   Default is {'MAG_BEST','MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
             %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
             %                   If empty, will use rms of FieldX.
             %                   Default is {}.
@@ -3950,7 +4150,7 @@ classdef MatchedSources < Component
            
             arguments
                 Obj(1,1)
-                Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+                Args.FieldX                   = {'MAG_BEST','MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
                 Args.FieldY                   = {};
                 Args.UseFlag                  = [];
                 Args.RemoveFlags              = {};
@@ -4237,7 +4437,7 @@ classdef MatchedSources < Component
             %          * ...,key,val,...
             %            'SubPlot' - A logical indicating if to use
             %                   subplot (true), or regular plot (false).
-            %                   Default is true.
+            %                   Default is false.
             %            'MagField' - Magnitude field name to display.
             %                   Default is 'MAG_BEST'.
             %            'UnitsTime' - Time units in MatachedSources JD.
@@ -4267,7 +4467,7 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 IndSrc
 
-                Args.SubPlot logical       = true;
+                Args.SubPlot logical       = false;
                 Args.FigN                  = 1;
 
                 Args.MagField              = 'MAG_BEST';
@@ -4296,9 +4496,9 @@ classdef MatchedSources < Component
                 cla;
                 box on;
             else
-                Fig=figure(Args.FigN);
-                cla;
-                box on;
+                %Fig=figure(Args.FigN);
+                %cla;
+                %box on;
             end
 
             Nflag = size(Args.ListFlags,1);

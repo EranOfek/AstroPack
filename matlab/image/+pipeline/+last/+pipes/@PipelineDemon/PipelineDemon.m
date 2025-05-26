@@ -8,7 +8,7 @@
 %          D.prepMasterDark
 %
 
-classdef DemonLAST < Component
+classdef PipelineDemon < Component
     % 
             
     properties       
@@ -802,74 +802,7 @@ classdef DemonLAST < Component
             cd(PWD);
         end
         
-        function moveToDestination(Obj, ListImages, Args)
-            % Move list of files in the NewPath dir to destination
-            % Input  : - A pipeline.DemonLAST object.
-            %          - A file name template char array, or a cell array
-            %            of file names, or an FileNames object.
-            %          * ...,key,val,...
-            %            'Type' - FileNames image Type to select by.
-            %                   If empty, then skip. Default is [].
-            %            'Level' - Like 'Type', but for 'Level'.
-            %            'Product' - Like 'Type', but for 'Product'.
-            %            'Destination - Destination to move files to.
-            %                   Must be supplied.
-            %            'SourcePath' - Source path from which to move files.
-            %                   Default is Obj.NewPath.
-            % Output : null
-            % Author : Eran Ofek (Apr 2023)
-            
-            arguments
-                Obj
-                ListImages
-                Args.Type          = [];
-                Args.Level         = [];
-                Args.Product       = [];
-                Args.Destination
-                Args.SourcePath    = Obj.NewPath;
-            end
-                
-             
-            if ~isempty(Args.Type) || ~isempty(Args.Level) || ~isempty(Args.Product)
-                % select by Type/Level/Product
-                if isa(ListImages, 'FileNames')
-                    FN = FileNames;
-                else
-                    if iscell(ListImages)
-                        FN = FileNames(ListImages);
-                    else
-                        FN = FileNames.generateFromFileName(ListImages);
-                    end
-                end   
-                
-                if ~isempty(Args.Type)
-                    FN.selectByProp('Type',Args.Type, 'CreateNewObj',false);
-                end
-                if ~isempty(Args.Level)
-                    FN.selectByProp('Type',Args.Level, 'CreateNewObj',false);
-                end
-                if ~isempty(Args.Product)
-                    FN.selectByProp('Type',Args.Product, 'CreateNewObj',false);
-                end
-            else
-                if ischar(ListImages)
-                    % parse file names
-                    ListImages = io.files.filelist(ListImages);
-                end
-                    
-                FN = ListImages; 
-            end
-                
-            if isa(FN, 'FileNames')
-                ListImages = FN.genFile;
-            else
-                ListImages = FN;
-            end            
-            
-            io.files.moveFiles(ListImages, [], Args.SourcePath, Args.Destination);
-            
-        end
-        
+       
         function Obj=setPath(Obj, BasePath, Args)
             % set the BasePath and other paths of pipeline.DemonLAST object
             % Input  : - A pipeline.DemonLAST object.
@@ -906,6 +839,10 @@ classdef DemonLAST < Component
             end
 
         end
+
+    end
+    
+    methods % status file, lock file, special files
 
         function writeStatus(Obj, Path, Args)
             % Write ready-to-transfer in status file
@@ -1371,7 +1308,7 @@ classdef DemonLAST < Component
         end
     end
 
-    methods % go over files
+    methods % go over files % obsolete
         function List=prepListOfProcVisits(Obj, Args)
             % Prepare a list of all processed visits
             % Input  : - A pipeline.DemonLAST object
@@ -2525,9 +2462,11 @@ classdef DemonLAST < Component
 
         end
         
+        % is this used?
         function insert2DB(Obj, ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, Args)
             % this function either makes DB insertion or just prepares CSV files for
             % bulk insertion outside the pipeline
+
             arguments
                 Obj
                 ADB
@@ -2606,6 +2545,14 @@ classdef DemonLAST < Component
             end          
         end
         
+
+        function Obj=reduceVisit(Obj, Args)
+            % Reduce a single visit
+
+
+        end
+
+
         
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
@@ -2624,6 +2571,9 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
+
+                Args.ArgsConfigName         = 'LAST.Pipeline.PipeDemon';
+
                 Args.DataDir       = 1;              % LAST data dir: 1|2
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
                 Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
@@ -2697,14 +2647,9 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
             
-%             Args = tools.code.updateParFromConfig(Args); % test of the future config file parametrization              
-
-            % if Obj.lockFile
-            %     % all good to go
-            % else
-            %     % lock fild found - abort
-            %     return;
-            % end
+            % Update argumenst from configuration file:
+            Args = tools.args.updateParFromConfig(Args, Obj.Config, Args.ArgsConfigName);
+            
 
 
             if isempty(Args.HostName)
@@ -2762,7 +2707,7 @@ classdef DemonLAST < Component
 
             end
 
-            ADB = [];  % AstroDB
+            ADB = [];  % AstroDB   %??????
             
             % change the paths if a non-standard new directory is given
             if ~isempty(Args.NonStandardNew)
@@ -3138,15 +3083,13 @@ classdef DemonLAST < Component
                                 %&& strcmp(tools.os.get_computer, 'last01e')
                                 Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / group %d', Igroup);
                                 Obj.writeLog(Msg, LogLevel.Info);
-                                FilterConfigPath = strcat(Obj.SciPath,'/FilterConfig.json');
     
                                 % Transients detection
                                 try
                                     [~,TransientCutouts, TCL1, TranPipeStatus] = ...
                                         pipeline.last.transients.runTransientsPipe(...
                                             Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true, ...
-                                            'Product',{'Image','Mask','Cat','PSF'},'WriteHeader',[true,false,true,false],...
-                                            'FilterConfigFile', FilterConfigPath);
+                                            'Product',{'Image','Mask','Cat','PSF'},'WriteHeader',[true,false,true,false]);
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
@@ -3186,18 +3129,7 @@ classdef DemonLAST < Component
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end
 
-                            
-                            % if CoaddTransienst.sizeCatalog>0
-                            %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
-                            %                            'Level','merged',...
-                            %                            'LevelPath','proc',...
-                            %                            'SubDir',FN_Proc.SubDir,...
-                            %                            'WriteMethodImages',Args.WriteMethodImages,...
-                            %                            'WriteMethodTables',Args.WriteMethodTables);
-                            %                             );
-                            %     Obj.writeLog(Status, LogLevel.Info);
-                            % end
-
+              
                             % Write images and catalogs to DB
     
     

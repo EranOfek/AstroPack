@@ -18,7 +18,7 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         Args.mergeBy = 1;
         Args.BadFlags = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'}; % Change to NaN all data points associated with these flags.
         Args.Det_frac    = 0.85% Allow for 15% no detections per source.
-        Args.Radius                  = 1;
+        Args.Radius      = 1;
     end
 
     if isempty(Args.AI)

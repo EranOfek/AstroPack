@@ -149,8 +149,10 @@ function TranCat=findTransients(AD, Args)
             NewPSF = AD(Iobj).New.PSF;
             PSFbw = imbinarize(NewPSF);
             stats = regionprops(PSFbw, 'Orientation');
+            if numel(stats) > 1
+                stats = stats([stats.Orientation] ~= 0);
+            end
             PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
-
             [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
                 NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
@@ -191,6 +193,57 @@ function TranCat=findTransients(AD, Args)
             % Y direction
             if AsymmetryY > Args.AsymThresh
                 M2N.Y2 = max(M2NY2Top, M2NY2Bottom);
+            end
+
+            RefPSFHalfSize =  floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2)+1;
+
+            % rotate the PSF so that ellipse axes agree with
+            % x-y-coordinates
+            RefPSF = AD(Iobj).Ref.PSF;
+            PSFbw = imbinarize(RefPSF);
+            stats = regionprops(PSFbw, 'Orientation');
+            PSFref = imrotate(RefPSF, -stats.Orientation, 'bilinear', 'crop');
+
+            [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
+                RefPSFHalfSize,RefPSFHalfSize,...
+                'MomRadius',1.7*AD(Iobj).Ref.PSFData.fwhm);
+
+            % Check for assymetry and update with larger moments if
+            % assymetric.
+
+            [Rows, Cols] = size(PSFref);
+            
+            % Coordinate grids
+            [X, Y] = meshgrid(1:Cols, 1:Rows);
+            Xc = X - RefPSFHalfSize;
+            Yc = Y - RefPSFHalfSize;
+            
+            % Masks for halves
+            LeftMask   = X <= RefPSFHalfSize;
+            RightMask  = X >= RefPSFHalfSize;
+            TopMask    = Y <= RefPSFHalfSize;
+            BottomMask = Y >= RefPSFHalfSize;
+            
+            % Second moments for X tails
+            M2RX2Left  = sum((Xc(LeftMask).^2)  .* PSFref(LeftMask));
+            M2RX2Right = sum((Xc(RightMask).^2) .* PSFref(RightMask));
+            
+            % Second moments for Y tails
+            M2RY2Top    = sum((Yc(TopMask).^2)    .* PSFref(TopMask));
+            M2RY2Bottom = sum((Yc(BottomMask).^2) .* PSFref(BottomMask));
+            
+            % Compute relative asymmetry
+            AsymmetryX = abs(M2RX2Left - M2RX2Right) / max(M2RX2Left, M2RX2Right);
+            AsymmetryY = abs(M2RY2Top - M2RY2Bottom) / max(M2RY2Top, M2RY2Bottom);
+            
+            % X direction
+            if AsymmetryX > Args.AsymThresh
+                M2R.X2 = max(M2RX2Left, M2RX2Right);
+            end
+            
+            % Y direction
+            if AsymmetryY > Args.AsymThresh
+                M2R.Y2 = max(M2RY2Top, M2RY2Bottom);
             end
           
         end
@@ -316,6 +369,61 @@ function TranCat=findTransients(AD, Args)
             R_FLUXERR_PSF = sqrt(abs(ResultR.Flux));
             R_MAGERR_PSF = 1.086./R_FLUXERR_PSF;
 
+
+            MAGPSF_New = AD(Iobj).New.CatData.getCol('MAG_PSF');
+            CHI2DOF_New = AD(Iobj).New.CatData.getCol('PSF_CHI2DOF');
+
+            MinMag_New = floor(min(MAGPSF_New));
+            MaxMag_New = ceil(AD(Iobj).New.HeaderData.getVal('LIMMAG'));
+            binEdges_New = MinMag_New:1.0:MaxMag_New;
+            binIndices_New = discretize(MAGPSF_New, binEdges_New);
+
+            ValidMag_New = ~isnan(binIndices_New);
+            BinIndicesValid_New = binIndices_New(ValidMag_New);
+            ValuesIndices_New = CHI2DOF_New(ValidMag_New);
+
+            MedianValues_New = accumarray(BinIndicesValid_New(:), ...
+                ValuesIndices_New(:), [], @median, NaN);
+
+            % Initialize result array
+            MedianAtMag_New = NaN(size(ResultN.Mag));
+
+            % Loop through each and assign corresponding median
+            for i = 1:numel(ResultN.Mag)
+                targetMag = ResultN.Mag(i);
+                binIndex = find(targetMag >= binEdges_New(1:end-1) & targetMag < binEdges_New(2:end));
+                if ~isempty(binIndex) && (binIndex <= numel(MedianValues_New))
+                    MedianAtMag_New(i) = MedianValues_New(binIndex);
+                end
+            end
+
+            MAGPSF_Ref = AD(Iobj).Ref.CatData.getCol('MAG_PSF');
+            CHI2DOF_Ref = AD(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
+          
+            MinMag_Ref = floor(min(MAGPSF_Ref));
+            MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
+            binEdges_Ref = MinMag_Ref:1.0:MaxMag_Ref;
+            binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
+            
+            ValidMag_Ref = ~isnan(binIndices_Ref);
+            BinIndicesValid_Ref = binIndices_Ref(ValidMag_Ref);
+            ValuesIndices_Ref = CHI2DOF_Ref(ValidMag_Ref);
+
+            MedianValues_Ref = accumarray(BinIndicesValid_Ref(:), ...
+                ValuesIndices_Ref(:), [], @median, NaN);
+
+            % Initialize result array
+            MedianAtMag_Ref = NaN(size(ResultR.Mag));
+
+            % Loop through each and assign corresponding median
+            for i = 1:numel(ResultR.Mag)
+                targetMag = ResultR.Mag(i);
+                binIndex = find(targetMag >= binEdges_Ref(1:end-1) & targetMag < binEdges_Ref(2:end));
+                if ~isempty(binIndex) && (binIndex <= numel(MedianValues_Ref))
+                    MedianAtMag_Ref(i) = MedianValues_Ref(binIndex);
+                end
+            end
+
             % Insert results into catalog.
             Data = cell2mat({ResultD.SNm, CHI2DOF, ...
                 ResultD.Flux, D_FLUXERR_PSF, ResultD.Mag, D_MAGERR_PSF,...
@@ -339,6 +447,12 @@ function TranCat=findTransients(AD, Args)
                 'e','e','mag','mag'}...
                 );
 
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(MedianAtMag_New, 'double'), 'N_PSF_CHI2DOF', ...
+                {'N_PSF_CHI2DOF_MED'}, {''});
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(MedianAtMag_Ref, 'double'), 'R_PSF_CHI2DOF', ...
+                {'R_PSF_CHI2DOF_MED'}, {''});
         end
 
         if Args.includeAperturePhot
@@ -363,13 +477,21 @@ function TranCat=findTransients(AD, Args)
             M2NY2 = M2N.Y2*ones(Nsrc,1);
             M2NXY = M2N.XY*ones(Nsrc,1);
 
+            M2RX2 = M2R.X2*ones(Nsrc,1);
+            M2RY2 = M2R.Y2*ones(Nsrc,1);
+            M2RXY = M2R.XY*ones(Nsrc,1);
+            
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
                 cast(M2.X2,'double'), cast(M2.Y2,'double'), cast(M2.XY,'double'),...
                 cast(M2NX2,'double'), cast(M2NY2,'double'), cast(M2NXY,'double'),...
+                cast(M2RX2,'double'), cast(M2RY2,'double'), cast(M2RXY,'double'),...
                 cast(PeakDist,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
-                {'X1', 'Y1', 'X2', 'Y2', 'XY','N_X2','N_Y2','N_XY','PEAK_DIST'}, ...
-                {'','','','','','','','',''});
+                {'X1', 'Y1', 'X2', 'Y2', 'XY',...
+                'N_X2','N_Y2','N_XY',...
+                'R_X2','R_Y2','R_XY',...
+                'PEAK_DIST'}, ...
+                {'','','','','','','','','','','',''});
         end
 
         if Args.includeBitMaskVal

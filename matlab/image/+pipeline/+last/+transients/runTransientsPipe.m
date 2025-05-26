@@ -72,12 +72,16 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.killDuplicates logical = true;
 
         Args.MinimumNCoadd = 18;
-        Args.MaximumCenterOffset = 2.0;
+        Args.MaximumCenterOffset = 0.86;
         Args.MinumumOverlapFraction = 0.5;
 
         Args.AsteroidSearchRad = 20;
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
+
+        Args.CropIDs = [];
+
+        Args.FilterConfigFile = '';
     end
 
     % 1: ----- Set default arguments -----
@@ -175,6 +179,12 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         if NCOADD < Args.MinimumNCoadd
             NBelowMinNCoadd = NBelowMinNCoadd + 1;
             continue
+        end
+
+        if ~isempty(Args.CropIDs)
+            if ~ismember(New(Iobj).HeaderData.getVal('CROPID'), Args.CropIDs)
+                continue
+            end
         end
 
         % Get name of New image and search for Ref image via wildcards
@@ -466,13 +476,24 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                         'SearchRadius', Args.AsteroidSearchRad);
 
         N_DistMP = nan(NumRows,1);
-        N_DistMP(NewSrcsIndx) = NewSrcs.getCol('N_DistMP');
+        if NewSrcs.isColumn('N_DistMP')
+            N_DistMP(NewSrcsIndx) = NewSrcs.getCol('N_DistMP');
+        end
+
         N_MagMP = nan(NumRows,1);
-        N_MagMP(NewSrcsIndx) = NewSrcs.getCol('N_MagMP');
+        if NewSrcs.isColumn('N_MagMP')
+            N_MagMP(NewSrcsIndx) = NewSrcs.getCol('N_MagMP');
+        end 
+
         R_DistMP = nan(NumRows,1);
-        R_DistMP(RefSrcsIndx) = RefSrcs.getCol('R_DistMP');
+        if RefSrcs.isColumn('R_DistMP')
+            R_DistMP(RefSrcsIndx) = RefSrcs.getCol('R_DistMP');
+        end
+        
         R_MagMP = nan(NumRows,1);
-        R_MagMP(RefSrcsIndx) = RefSrcs.getCol('R_MagMP');
+        if RefSrcs.isColumn('R_MagMP')
+            R_MagMP(RefSrcsIndx) = RefSrcs.getCol('R_MagMP');
+        end
 
         AD(Iobj).CatData.insertCol(...
                 cell2mat({cast(N_DistMP,'double'), cast(N_MagMP,'double'),...
@@ -631,7 +652,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.measureTransients;
 
     % Flag non transients
-    AD.flagNonTransients;
+    AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
 
     % If AddMeta true, add meta information to catalog
     if Args.AddMeta

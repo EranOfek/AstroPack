@@ -392,7 +392,7 @@ function [Result] = forcedPhot(Obj, Args)
             Ypos = Y(:).' + ResultPSF.DY(:).';
             [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
-            if any(FlagIn)
+            if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
                 FlagsXY  = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
             else
                 FlagsXY  = nan(Nsrc, 1);
@@ -400,13 +400,15 @@ function [Result] = forcedPhot(Obj, Args)
 
             switch Args.OutType
                 case 'table'
+                    Nsrc = numel(RA);
                     if Iobj==1
-                        Mat = table(RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', ResultPSF.Flux, Args.ZP, convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).');
+
+                        Mat = table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1));
 
                         %[RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
                         
                     else
-                        Mat = [Mat; table(RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', ResultPSF.Flux, Args.ZP, convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).')];
+                        Mat = [Mat; table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1))];
                     end
                 case 'MatchedSources'
 

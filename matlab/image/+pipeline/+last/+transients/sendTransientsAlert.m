@@ -28,7 +28,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.TransferTranProducts = true;
         Args.SavePath = '';
 
-        Args.SingleEpochThresh = 8.0;
+        Args.SingleEpochThresh = 7.7;
         Args.thisIsATest = false;
 
     end
@@ -290,11 +290,6 @@ function [Status] = sendTransientsAlert(ADc, Args)
             RA0 = 360 + RA0;
         end
 
-        % Add a SDDS SkyServer link.
-        SDSSLink = imProc.vo.getLinkForSource(TC,[], @VO.SDSS.navigator_link);
-        SDSS_Msg = strcat('<',SDSSLink.Link,'|','SkyServer>');
-        Msg{1} = strcat(Msg{1},'\n',SDSS_Msg{1});
-
         % Add a PS1 link.
         PlusSign = '';
         if Dec0 > 0
@@ -343,17 +338,23 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilename = Image_DirFilenameCell{1};
 
             % Prepare ref image cutout
-            RefImage = Transient.Ref.Image;
-            RefImagePlot = asinh(RefImage);
-            RefImageLowLim = prctile(RefImagePlot(:),1);
-            RefImageHighLim = prctile(RefImagePlot(:),99);
+            RefImage = Transient.Rbs;
+            RefImageLowLim = prctile(RefImage(:),100-99.5);
+            RefImageHighLim = prctile(RefImage(:),99.5);
+            RefImagePlot = (RefImage-RefImageLowLim)./...
+                           (RefImageHighLim-RefImageLowLim);
+            RefImagePlot = min(max(RefImagePlot,0),1);
+            RefImagePlot = asinh(10*RefImagePlot)/3;
             RefImagePlot = rot90(RefImagePlot,2);            
 
             % Prepare new image cutout
-            NewImage = Transient.New.Image;
-            NewImagePlot = asinh(NewImage);
-            NewImageLowLim = prctile(NewImagePlot(:),1);
-            NewImageHighLim = prctile(NewImagePlot(:),99);
+            NewImage = Transient.Nbs;
+            NewImageLowLim = prctile(NewImage(:),100-99.5);
+            NewImageHighLim = prctile(NewImage(:),99.5);
+            NewImagePlot = (NewImage - NewImageLowLim)./...
+                           (NewImageHighLim - NewImageLowLim);
+            NewImagePlot = min(max(NewImagePlot,0),1);
+            NewImagePlot = asinh(10*NewImagePlot)/3;
             NewImagePlot = rot90(NewImagePlot,2);
 
             % Prepare diff image cutout
@@ -390,7 +391,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameRef = replace(Image_DirFilename,'.png','_Ref.png');
             Image_FilenamePartsRef = split(Image_DirFilenameRef,'/');
             Image_FilenameRef = Image_FilenamePartsRef{end};
-            imshow(RefImagePlot, [RefImageLowLim RefImageHighLim],'Parent', axRef);
+            imshow(RefImagePlot, 'Parent', axRef);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -402,7 +403,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameNew = replace(Image_DirFilename,'.png','_New.png');
             Image_FilenamePartsNew = split(Image_DirFilenameNew,'/');
             Image_FilenameNew = Image_FilenamePartsNew{end};
-            imshow(NewImagePlot, [NewImageLowLim NewImageHighLim],'Parent', axNew);
+            imshow(NewImagePlot, 'Parent', axNew);
 
             % If Args.SaveProducts true, save images
             if Args.SaveProducts
@@ -428,11 +429,11 @@ function [Status] = sendTransientsAlert(ADc, Args)
             tiledlayout('flow', 'TileSpacing', 'none');%, 'Padding', 'none');
             % Reference image stamp
             nexttile;
-            imshow(RefImagePlot, [RefImageLowLim RefImageHighLim]);
+            imshow(RefImagePlot);
             text(2,47,'Ref','Color','white','FontSize',14);
             % New image stamp
             nexttile;
-            imshow(NewImagePlot, [NewImageLowLim NewImageHighLim]);
+            imshow(NewImagePlot);
             text(2,47,'New','Color','white','FontSize',14);
             % Difference image stamp
             nexttile;

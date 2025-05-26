@@ -1,4 +1,4 @@
-function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
+function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     % Given a table output from last_visits query, load all the data products belonging to some Level/Product.
     %    See also: pipeline.last.queryDB.table2path
     % Input  : - A table which is the output of a query of the
@@ -6,7 +6,11 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %            Alternatively, a cell array or string array of visit paths
     %            from which to extract the products.
     %          - Level name. Default is 'coadd'.
-    %          - Product name. Default is 'Image+'.
+    %          - Product name.
+    %            'Image+' will also populated the Cat, PSF and Mask.
+    %            'Image++' will read into an AstroZOGY object and also
+    %            populate the New proprty.
+    %            Default is 'Image+'.
     %          * ...,key,val,... 
     %            'Load' - Logical indicating if to load files.
     %                   Default is true.
@@ -25,11 +29,14 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
     %            MatchedSources object, or MovingSources object.
     %          - A string array of all paths.
     %          - A string array of all verified files.
+    %          - AstroFileName with file names and paths.
     % Author : Eran Ofek (2024 Dec) 
     % Example: AI=pipeline.last.queryDB.loadProducts(T)
     %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Image');
     %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Asteroids');
     %          AI=pipeline.last.queryDB.loadProducts(T,'coadd','Cat');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd.zogyD','Image+');
+    %          AI=pipeline.last.queryDB.loadProducts(T,'coadd.zogyD','Image++');
     %          AI=pipeline.last.queryDB.loadProducts(T,'proc','Cat');
     %          AI=pipeline.last.queryDB.loadProducts(T,'merged','MergedMat');
     %          AI=pipeline.last.queryDB.loadProducts(T,'merged','Cat');
@@ -74,7 +81,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
         cd(AllPaths(Ipath));
 
         switch Level
-            case 'coadd'
+            case {'coadd','coadd.zogyD'}
 
                 switch Product
                     case 'Image'
@@ -93,8 +100,7 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
 
                     case 'Image+'
 
-                            
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*');
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
             
                         AFND = AstroFileName.dir(FileTemp);
                         Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
@@ -112,6 +118,54 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                         if Args.Load
                             AI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
                         end
+
+                    case 'Image++'
+
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
+            
+                        AFND = AstroFileName.dir(FileTemp);
+                        Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                        AllFiles(Ipath) = Files{1};
+
+                        CellArgs = cell(1,2.*Nextra);
+                        I = 0;
+                        for Iextra=1:1:Nextra
+                            I = I + 1;
+                            CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                            I = I + 1;
+                            CellArgs{I} = Files{1+Iextra};
+                        end
+            
+                        if Args.Load
+                            AI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
+                        end
+
+                        % convert to AstroZOGY
+                        AI = AstroZOGY.convertFromAstroImage(AI);
+
+                        % read also the new image:
+                        SplitLevel = split(Level);
+                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',SplitLevel{1});
+            
+                        AFND = AstroFileName.dir(FileTemp);
+                        Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                        AllFiles(Ipath) = Files{1};
+
+                        CellArgs = cell(1,2.*Nextra);
+                        I = 0;
+                        for Iextra=1:1:Nextra
+                            I = I + 1;
+                            CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                            I = I + 1;
+                            CellArgs{I} = Files{1+Iextra};
+                        end
+            
+                        if Args.Load
+                            NewAI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
+                        end
+
+                        AI(Ipath).New = NewAI(Ipath);
+
 
                     case 'Cat'
                         
@@ -136,17 +190,18 @@ function [AI, AllPaths, AllFiles] = loadProducts(T, Level, Product, Args)
                     otherwise
                         error('Unsupported option Level=%s, Product=%s', Level, Product);
                 end
-            case 'coadd.zogyD'
-                FA = dir('*coadd.zogyD_Image.mat');
-                numel(FA)
-                if numel(FA)==1
-                    AllFiles{Ipath} = FA(1).name;
-                    if Args.Load
-                        AI(Ipath) = io.files.load2(AllFiles{Ipath});
-                    end
-                else
-                    warning('Found %d zogyD files in %s',numel(FA),pwd);
-                end
+            % case 'coadd.zogyD'
+            % 
+            %     FA = dir('*coadd.zogyD_Image_*.fits');
+            %     numel(FA)
+            %     if numel(FA)==1
+            %         AllFiles{Ipath} = FA(1).name;
+            %         if Args.Load
+            %             AI(Ipath) = io.files.load2(AllFiles{Ipath});
+            %         end
+            %     else
+            %         warning('Found %d zogyD files in %s',numel(FA),pwd);
+            %     end
 
 
             case 'proc'

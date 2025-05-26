@@ -40,7 +40,7 @@ classdef Db < Component
         DbName   = []; %"test_db";
         User     = {"LASTDB_User","last_user"} %"default"; %""; If cell array then Project,User in PasswordsManager
         Password = ""; %[];  % if empty, then use the PasswordsManager class to find and populate the password
-        Host     = "socsrv"; %"localhost"; %[];  % or '10.23.1.25' for last0
+        Host     = "10.150.28.18"; % "socsrv" %"localhost"; %[];  % or '10.23.1.25' for last0
         Port     = "8123"; %[];
         
         ConnType = 'java';  % 'java'|'http'
@@ -137,12 +137,12 @@ classdef Db < Component
             else
                 if contains(Obj.User,'/')
                     switch Obj.User
-                        case 'socsrv/user'
+                        case 'euclid/user'
                             Obj.User = {'LASTDB_User','last_user'};
-                            Obj.Host = 'socsrv';
-                        case 'socsrv/root'
+                            Obj.Host = '10.150.28.18';
+                        case 'euclid/root'
                             Obj.User = {'LASTDB_Root','default'};
-                            Obj.Host = 'socsrv';
+                            Obj.Host = '10.150.28.18';
                         case 'last0/user'
                             Obj.User = {'LASTDB_User','last_user'};
                             Obj.Host = '10.23.1.25';
@@ -193,41 +193,59 @@ classdef Db < Component
                 Args.JarFile = []; %'/home/eran/jdbc/clickhouse-jdbc-0.7.0-all.jar';
                 Args.Driver  = 'com.clickhouse.jdbc.ClickHouseDriver';  % 'ru.yandex.clickhouse.ClickHouseDriver'
                 Args.BaseURL = "jdbc:clickhouse";
+                Args.Timeout = 3600.*1000;
             end
             
             if isempty(Args.JarFile)
                 I = Installer;
-                JarDir = I.getDataDir(I.Items.ClickHouseJar);
+                JarDir = I.getDataDir(I.Items.ClickHouseJar);                
                 PWD = pwd;
                 cd(JarDir);
                 Fd = dir('*.jar');
-                JarFile = sprintf('%s%s%s',JarDir,filesep,Fd.name);
+                %JarFile = sprintf('%s%s%s',JarDir,filesep,Fd.name);
+                JarFile = tools.cell.sprintf_Cell2Cell("%s%s%s",JarDir,filesep,{Fd.name});
                 cd(PWD);
             else
                 JarFile = Args.JarFile;
             end
+            if ischar(JarFile)
+                JarFile = string(JarFile);
+            end
             if contains(JarFile,'~')
-                JarFile = tools.os.relPath2absPath(JarFile);
+                for I=1:1:numel(JarFile)
+                    JarFile(I) = tools.os.relPath2absPath(JarFile{I});
+                end
             end
 
+
             % Check if Jar file exist
-            if ~isfile(JarFile)
-                fprintf('Jar file: %s not found\n',JarFile);
-                fprintf('Use I=Installer; I.install(''ClickHouseJar'')\n');
-                error('Jar file not found');
+            for I=1:1:numel(JarFile)
+                if ~isfile(JarFile(I))
+                    fprintf('Jar file: %s not found\n',JarFile(I));
+                    fprintf('Use I=Installer; I.install(''ClickHouseJar'')\n');
+                    error('Jar file not found');
+                else
+                    % Add JDBC driver to the MATLAB Java path if it's not already added
+                    javaaddpath(JarFile(I));
+                    if ~ismember(JarFile(I), javaclasspath('-dynamic'))
+                        javaaddpath(Args.JarFile);
+                    end
+                end
+
             end
 
             JdbcURL = sprintf("%s://%s:%s/%s",Args.BaseURL, Args.Host, Args.Port, Args.DbName);
+            %JdbcURL = sprintf("%s://%s:%s/%s?socket_timeout=%d&dataTransferTimeout=%d",Args.BaseURL, Args.Host, Args.Port, Args.DbName, Args.Timeout, Args.Timeout);
                 
          
-            % Add JDBC driver to the MATLAB Java path if it's not already added
-            javaaddpath(JarFile);
-            if ~ismember(JarFile, javaclasspath('-dynamic'))
-                javaaddpath(Args.JarFile);
-            end
+            
+            
+            %Props = javaObject('com.clickhouse.client.config.ClickHouseProperties');
+            %Props.setSocketTimeout(int64(Args.Timeout));       % 600 000 ms = 10 min
+            %Props.setDataTransferTimeout(int64(Args.Timeout));  % same
 
             % Set up the JDBC connection
-            Conn = database('', Args.User, Args.Password, Args.Driver, JdbcURL);
+            Conn = database('', Args.User, Args.Password, Args.Driver, JdbcURL); %, 'Properties', Props);
         end
 
 
@@ -633,22 +651,32 @@ classdef Db < Component
     end
 
     methods % construct queries / dynamic
-        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols)
+        function Result = genQueryGroupBy(Obj, TableName, GroupByCols, AddCols, Args)
             % Generate a select group by query.
             %   query of the form: INSERT INTO last.fastmoving_asteroids11 SELECT id, jd, any(col1), any(col2), ... FROM last.fastmoving_asteroids1 GROUP BY id, jd;
             % Input  : - self.
             %          - Table name.
             %          - GroupByCols cell array. Default is {'id','jd'}
             %          - AddCols. Columns to add. Default is '*'.
+            %          * ...,key,val,...
+            %            'Fun' - Function for selection 'min'|'max'|'any'.
+            %                   Default is 'min'.
             % Output : - Query string.
             % Author : Eran Ofek (Apr 2025)
-            % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids1', {'id','jd'}, '*')
+            % Example: Result = genQueryGroupBy(DB, 'fastmoving_asteroids', {'id','jd'}, '*')
+            %          Result = genQueryGroupBy(DB, 'visit_asteroids', {'id_visit_im','desig'}, '*')
+            %          Result = genQueryGroupBy(DB, 'mergedmat_var', {'id','srcnumber'}, '*')
+            %          Result = genQueryGroupBy(DB, 'visit_images', {'id_visit'}, '*')
+
 
             arguments
                 Obj
                 TableName   = 'fastmoving_asteroids1';
                 GroupByCols = {'id','jd'};
                 AddCols     = '*';
+                Args.Fun         = 'min';  % 'min'|'max'|'any'
+                Args.Having      = '';
+                Args.PreWhere    = '';
             end
 
             
@@ -668,13 +696,21 @@ classdef Db < Component
                 AnyStr = '';
                 ExtraComa = '';
             else
-                AnyCols = tools.cell.sprintf2cell('any(%s) AS %s',[AddCols(:), AddCols(:)]);
+                AnyCols = tools.cell.sprintf2cell('min(%s) AS %s',[AddCols(:), AddCols(:)]);
                 AnyStr  = tools.cell.sprintf_concatCell(", ",AnyCols);
                 ExtraComa = ',';
             end
 
-            Result = sprintf("SELECT %s %s %s FROM %s GROUP BY %s", GroupCols, ExtraComa, AnyStr, TableName, GroupCols);
+            if ~isempty(Args.Having)
+                Args.Having = sprintf('HAVING %s',Args.Having);
+            end
+            if ~isempty(Args.PreWhere)
+                Args.PreWhere = sprintf('PREWHERE %s',Args.PreWhere);
+            end
 
+
+            Result = sprintf("SELECT %s %s %s FROM %s %s GROUP BY %s %s", GroupCols, ExtraComa, AnyStr, TableName, Args.PreWhere, GroupCols, Args.Having);
+           
         end
     end
     
@@ -1237,6 +1273,7 @@ classdef Db < Component
                 
                 Args.IsExec logical           = false;
                 Args.Opts                     = [];
+                Args.UseExec logical          = false;
             end
             
             Error = Obj.Conn.Message;
@@ -1246,12 +1283,38 @@ classdef Db < Component
                     exec(Obj.Conn, Query);
                     Result = [];
                 else
-                    if isempty(Args.Opts)
-%                         Result = fetch(Obj.Conn, Query);
-                        Result = select(Obj.Conn, Query);
+                    if Args.UseExec
+                        % use exec instead of select
+
+JConn = Obj.Conn.Handle;    % should now be ClickHouseConnectionImpl without class conflicts
+Stmt = JConn.createStatement();
+Stmt.setQueryTimeout(600);   % seconds
+
+% 3) Execute your SQL string (not 'Result') and get a java.sql.ResultSet
+rs = stmt.executeQuery(Query);
+
+
+                        Curs = exec(Obj.Conn, Query);              % send the query
+                        Curs = set(Curs, 'QueryTimeout',600);
+                        Curs.QueryTimeout = 600;
+
+                        Curs = fetch(Curs, '-mode', 'cell');       % pull back results in cell mode
+                        Result = Curs.Data;
+                        close(Curs);
                     else
-%                         Result = fetch(Obj.Conn, Query, Args.Opts);
-                        Result = select(Obj.Conn, Query, Args.Opts);
+                        if isempty(Args.Opts)
+    %                         Result = fetch(Obj.Conn, Query);
+                            Result = select(Obj.Conn, Query); %, 'QueryTimeOut',600);
+    
+                            %Curs   = exec(Obj.Conn, Query);
+                            %Curs.Statement.setQueryTimeout(600);
+                            %Curs   = fetch(Curs);
+                            %Result = Curs.Data;
+                            %close(Curs);
+                        else
+    %                         Result = fetch(Obj.Conn, Query, Args.Opts);
+                            Result = select(Obj.Conn, Query, Args.Opts);
+                        end
                     end
                 end
         

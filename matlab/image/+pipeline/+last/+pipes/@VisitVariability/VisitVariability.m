@@ -245,6 +245,7 @@ classdef VisitVariability < Component
 
                 Args.FailedFile        = '~/varSearchFailed.txt';
                 Args.StartInd          = 1;
+                Args.EndInd            = Inf;
             end
 
             if isempty(Args.T)
@@ -289,8 +290,15 @@ classdef VisitVariability < Component
             %    parpool(Npool)
             %end
 
+            if isinf(Args.EndInd)
+                EndInd = Nt;
+            else
+                EndInd = Args.EndInd;
+            end
+
+
             %parfor Ipool=1:Npool
-            for It=Args.StartInd:1:Nt
+            for It=Args.StartInd:1:EndInd
 
                 [It, Nt] %, Args.Ind(It)]
                 
@@ -500,7 +508,63 @@ classdef VisitVariability < Component
 
         end
         
-        
+        function [Result, Found, MS]=plotLC(T, Args)
+            % Given a table line, plot LC
+            % Input  : - A table which is the output of a DB query of the
+            %            fast moving or variables in visit.
+            %          * ...,key,val,...
+            %            See code for options.
+            % Output : - A structure array of LCs with fields:
+            %            .JD
+            %            .Mag
+            %          - A structure array of found objects in
+            %            MatchedSources objects (i.e., source index).
+            %          - A MatchedSources objects from which the LCs were
+            %            retrieved.
+            % Author : Eran Ofek (Mar 2025)
+            % Example: R=pipeline.last.pipes.VisitVariability.plotLC(T(1,:));
+
+            arguments
+                T
+                Args.SearchRadius      = 3;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.ColRA             = 'ra';
+                Args.ColDec            = 'dec';
+                Args.FieldRA           = 'RA';
+                Args.FieldDec          = 'Dec';
+                Args.CooUnits          = 'deg';
+
+                Args.FieldMag          = {'MAG_BEST', 'MAG_PSF', 'MAG_APER_3'};
+
+                Args.AssignToBase      = [];  % Variable name - if given, then assign the MS into this variable in the base session
+            end
+
+
+            [Result, Found, MS] = pipeline.last.pipes.VisitVariability.getLC(T, 'SearchRadius',Args.SearchRadius,...
+                                                                                'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                                                'ColRA',Args.ColRA,...
+                                                                                'ColDec',Args.ColDec,...
+                                                                                'FieldRA',Args.FieldRA,...
+                                                                                'FieldDec',Args.FieldDec,...
+                                                                                'CooUnits',Args.CooUnits,...
+                                                                                'FieldMag',Args.FieldMag);
+
+            I = 1;
+            plot((Result(I).JD-min(Result(I).JD)).*1440, Result(I).Mag, 'ko', 'MarkerFaceColor','k');
+            plot.invy;
+            H = xlabel('Time [min]');
+            H.FontSize = 16;
+            H.Interpreter = 'latex';
+            H = ylabel('Mag');
+            H.FontSize = 16;
+            H.Interpreter = 'latex';
+
+            if ~isempty(Args.AssignToBase)
+                % assign the Table into the base session
+                assignin('base', Args.AssignToBase, MS);
+                fprintf('Variable %s containing MatchedSources object is assigned to base\n',Args.AssignToBase);
+            end
+        end
     end
     
    

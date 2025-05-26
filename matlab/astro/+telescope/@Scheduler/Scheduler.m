@@ -2500,6 +2500,45 @@ classdef Scheduler < Component
         
     end
     
+    methods % edit table
+        function Obj=editInspectTable(Obj, Args)
+            % edit and inspect scheduler list
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'SaveAs' - The name of the variable containing the
+            %                   table, in the matlab base session.
+            %                   This object will be modified when the table
+            %                   is edited.
+            %                   Default is 'S.List.Catalog'.
+            %            See more options in code.
+            % Output : - self.
+            % Author : Eran Ofek (May 2025)
+            % Example. ObsS.editInspectTable
+
+            arguments
+                Obj
+                Args.SaveAs            = 'ObsS.List.Catalog';
+                Args.Position          = [];
+                Args.InspectFun        = {@(x,y) disp(x),...
+                                      @(x,y) web(VO.search.simbad_url(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.NED.ned_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.SDSS.navigator_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.DECaLS.decals_viewer_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) web(VO.PS1.navigator_link(x.RA./(180./pi), x.Dec./(180./pi)).URL),...
+                                      @(x,y) telescope.obs.daily_observability([35 30]./(180./pi), celestial.time.julday, x.RA./(180./pi), x.Dec./(180./pi)),...
+                                      @(x,y) telescope.obs.yearly_observability(floor(celestial.time.jd2year(celestial.time.julday)), [x.RA./(180./pi), x.Dec./(180./pi)], [35 30]./(180./pi),0,2,0),...
+                                      };
+    
+                Args.InspectFunArgs    = {{},{},{},{}, {}, {}, {}, {}};
+                Args.FunName           = {"Display Line", "SIMBAD", "NED", "SDSS", "DECaLS", "PS1", "Daily Observability", "Yearly Observability"};
+            end
+
+            tools.gui.editInspectTable(Obj.List.Catalog, 'InspectFun',Args.InspectFun, 'InspectFunArgs',Args.InspectFunArgs, 'FunName',Args.FunName, 'AddLineNumber',false, 'SaveObj',Args.SaveAs);
+
+            
+
+        end
+    end
     
     methods % plots
         function dailyObservability(Obj, Ind, JD)
