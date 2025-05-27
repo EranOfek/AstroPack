@@ -208,7 +208,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagChi2 logical = true;
         Args.Chi2dofLimitsLocal = [0.1 2.0 100.0];
-        Args.Chi2dofLimitsGlobal = [0.0 1.2];
+        Args.Chi2dofLimitsGlobal = [0.1 1.2];
         
         Args.flagSaturated logical = true;
 
@@ -472,7 +472,7 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagPeakValley && CandCat.isColumn('PV_DIST')
             PVDist = CandCat.getCol('PV_DIST');
 
-            PVFlagged = (PVDist < Args.PVDistThresh);
+            PVFlagged = (PVDist <= Args.PVDistThresh);
             FilterFlags = FilterFlags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
         end
         
