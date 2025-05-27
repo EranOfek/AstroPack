@@ -27,18 +27,5 @@ classdef PlanWebPageExporter < ultrasat.planner.webpage.WebPageExporter
                 obj.debugLog('Initialized PlanWebPageExporter for plan %d', planId);
             end
         end
-
-
-        function obj = generateHtmlFromTemplate(obj)
-            % Override parent method to handle target-specific template replacements
-            
-            % html = obj.TemplateText;            
-            % Replace information
-            % ... html = strrep(html, '{{target_name}}', obj.targetId);            
-            % obj.HtmlText = html;
-            
-            % Call parent method to handle common replacements like debug info
-            obj = generateHtmlFromTemplate@ultrasat.planner.webpage.WebPageExporter(obj);
-        end               
     end
 end

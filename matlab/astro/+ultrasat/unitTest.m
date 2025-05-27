@@ -47,7 +47,7 @@ end
 %--------------------------------------------------------------------------
 
 
-function Result = func_unitTest()
+function Result = func_unitTest_()
 	% Function Unit-Test
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
    

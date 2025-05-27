@@ -14,7 +14,7 @@ classdef ValidatorSim < handle
     %
     % This class handles the simulation of target validation, including random delays,
     % generating validation results, and storing validation history in a JSON database.
-    % It's designed for testing observation planning systems without connecting to 
+    % It is designed for testing observation planning systems without connecting to 
     % actual validation services.
 
     properties
@@ -75,7 +75,7 @@ classdef ValidatorSim < handle
 
 
         function response = newResponse(obj)
-            % Creates a new response struct with a status field
+            % Creates a new validation response struct with a status field
             response = struct(...
                 'validation_time', api.ModelBase.nowUtc(), ...
                 'status', 'pending', ... % Default status

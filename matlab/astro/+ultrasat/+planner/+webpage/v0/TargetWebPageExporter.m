@@ -90,10 +90,12 @@ classdef TargetWebPageExporter < ultrasat.planner.webpage.WebPageExporter
                 html = strrep(html, ['{{' tag '}}'], obj.Images(tag));
             end
             
-            obj.HtmlText = html;
+            % Replace debug information
+            html = strrep(html, '{{generation_time}}', datestr(now, 'yyyy-mm-dd HH:MM:SS'));
+            html = strrep(html, '{{debug_image_count}}', num2str(length(imageTags)));
+            html = strrep(html, '{{debug_output_folder}}', obj.OutputFolder);
             
-            % Call parent method to handle common replacements like debug info
-            obj = generateHtmlFromTemplate@ultrasat.planner.webpage.WebPageExporter(obj);
+            obj.HtmlText = html;
             
             if obj.DebugMode
                 obj.debugLog('Generated HTML for target %s with %d images', ...
