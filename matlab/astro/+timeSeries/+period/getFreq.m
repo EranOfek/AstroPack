@@ -12,6 +12,7 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
     %            'DiffFun' - Function handle to use for calculating the
     %                   mean diff. Default is @median.
     %            'MaxFreq' - Maximum Freuency. Default is [].
+    %            'MinFreq' - Minimum Frequency. Default is 0.
     % Output : - A vector of frequencies.
     %          - A structure with the following fields:
     %            .MinFreq
@@ -28,6 +29,7 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
         Args.StartWith0 logical = true;
         Args.DiffFun            = @median;
         Args.MaxFreq            = [];
+        Args.MinFreq            = 0;
     end
 
 
@@ -36,10 +38,14 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
     
         Result.DeltaFreq = 1./(Args.OverSampling.*TimeSpan);
     
-        if Args.StartWith0
-            Result.MinFreq = 0;
+        if Args.MinFreq==0
+            if Args.StartWith0
+                Result.MinFreq = 0;
+            else
+                Result.MinFreq = Result.DeltaFreq;
+            end
         else
-            Result.MinFreq = Result.DeltaFreq;
+            Result.MinFreq = Args.MinFreq;
         end
     
         TypicalDiff = Args.DiffFun(diff(sort(T)));

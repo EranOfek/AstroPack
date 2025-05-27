@@ -11,7 +11,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     %          * ...,key,val,...
     %            'DistAxis' - Dimension along to calculate distances to the
     %                   nearest point: 'X'|'Y'|'XY'|'scale'.
-    %                   Default is 'X'.
+    %                   Default is 'scale'.
     %            'DataInd' - Index of data in plot.
     %                   If 'end', then use last element, which is the first
     %                   data set that was plotted.
@@ -38,7 +38,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         Ha        = [];
         Type      = 'mouse';
         %WaitFor   = 'y';
-        Args.DistAxis   = 'X'; % 'XY' | 'X' | 'Y'
+        Args.DistAxis   = 'scale'; % 'XY' | 'X' | 'Y'
         Args.DataInd    = 1;
     end
 
