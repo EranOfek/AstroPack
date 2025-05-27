@@ -16,7 +16,6 @@ classdef MainModule < handle
     
     properties
         ApiClient               % MissionClient/MissionClientSim instance
-        ApiInterface            % MissionClientInterface instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     %
         UserName                % Current user
@@ -78,9 +77,6 @@ classdef MainModule < handle
                 obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
             end
 
-            % Create instance of MissionClientInterface, that is used by uplanner.
-            obj.ApiInterface = ultrasat.api.MissionClientInterface(obj.ApiClient);
-
             obj.msglog('MainModule created successfully');
         end
 
@@ -116,7 +112,7 @@ classdef MainModule < handle
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
-            Planner.Mclient = obj.ApiInterface;
+            Planner.Mclient = obj.ApiClient;
         end
 
         % =================================================================
@@ -507,7 +503,7 @@ classdef MainModule < handle
             obj.PlanData = Data;
 
             % Link current instance to ApiClient
-            obj.ApiInterface.PlanData = obj.PlanData;
+            obj.ApiClient.PlanData = obj.PlanData;
             if ~isempty(obj.PlanData.planner)
                 obj.setPlanner(obj.PlanData.planner);
             end
@@ -520,7 +516,7 @@ classdef MainModule < handle
             % Clear planner-related data
             obj.Planner = [];
             obj.PlanData = [];
-            obj.ApiInterface.PlanData = []; % Keep ApiInterface but clear its PlanData
+            obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
                        
             % Clear plan type and permissions
             obj.PlanType = [];

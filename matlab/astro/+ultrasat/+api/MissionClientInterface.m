@@ -77,8 +77,8 @@ classdef MissionClientInterface < handle
             %   ApprovedTargetsEndTime properties.
             arguments
                 obj
-                start_time (datetime)
-                end_time (datetime)
+                start_time % (datetime)
+                end_time % (datetime)
             end
             Params = struct('start_time', start_time, 'end_time', end_time);
             response = obj.ApiClient.getApprovedTargets(Params);

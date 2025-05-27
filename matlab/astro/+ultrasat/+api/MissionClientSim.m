@@ -4,7 +4,7 @@
 % File:   ultrasat.MissionClientSim.m
 % Author: Chen Tishler
 % Created: 01/12/2024
-% Updated: 08/04/2025
+% Updated: 16/03/2025
 %
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
@@ -32,6 +32,11 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             currentFile = mfilename('fullpath');
             currentFolder = fileparts(currentFile);
             obj.DbPath = fullfile(currentFolder, 'sim');
+
+            if ispc
+                obj.DbPath = fullfile(getenv('SOC_PATH'), 'planner', 'sim');
+            end
+          
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
@@ -43,22 +48,9 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -------------------------------------------------------------------
 
-        function response = login(obj, Params)
+        function response = login(obj, UserName, Password)
             % Simulate login by checking credentials from users.json and updating current_user.json
-            %
-            % Parameters:
-            %   obj - Instance of MissionClientSim
-            %   Params - Instance of MissionApiModels.LoginParams containing:
-            %     .userName (string) - Name of the user to login
-            %     .password (string) - Password of the user
-            %
-            % Returns:
-            arguments
-                obj
-                Params  
-            end
-            
-            obj.msglog('login: user=%s, password=%s', Params.userName, Params.password);
+            obj.msglog('login: user=%s, password=%s', UserName, Password);
           
             usersFile = fullfile(obj.DbPath, 'users.json');
             currentUserFile = fullfile(obj.DbPath, 'current_user.json');
@@ -73,49 +65,44 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Load users from JSON
-            users = obj.readJsonFile(usersFile);
+            fid = fopen(usersFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            users = jsondecode(char(raw'));
         
             % Find user and verify password
             user = [];
             for i = 1:numel(users)
-                if strcmp(users(i).UserName, Params.userName) && strcmp(users(i).Password, Params.password)
+                if strcmp(users(i).UserName, UserName) && strcmp(users(i).Password, Password)
                     user = users(i);
                     break;
                 end
             end
         
             if isempty(user)
-                obj.msglog('login: Invalid username or password for user=%s', Params.userName);
+                obj.msglog('login: Invalid username or password for user=%s', UserName);
                 response.status = 'error';
                 response.message = 'Invalid username or password.';
                 response.ok = false;
             else
-                obj.msglog('login: User %s logged in successfully.', Params.userName);
+                obj.msglog('login: User %s logged in successfully.', UserName);
                 response.status = 'ok';
                 response.user = user;
         
                 % Update current_user.json
-                currentUser = struct('UserName', Params.userName, 'Role', user.Role);
-                obj.writeJsonFile(currentUserFile, currentUser);
+                currentUser = struct('UserName', UserName, 'Role', user.Role);
+                fid = fopen(currentUserFile, 'w');
+                fwrite(fid, jsonencode(currentUser, 'PrettyPrint', true), 'char');
+                fclose(fid);
         
                 response.ok = true;
             end
+
         end
 
 
-        function response = logout(obj, Params)
+        function response = logout(obj, UserName)
             % Simulate logout by clearing current_user.json
-            %
-            % Parameters:
-            %   obj - Instance of MissionClientSim
-            %   Params - Instance of MissionApiModels.LogoutParams containing:
-            %     .userName (string) - Name of the user to logout
-            %
-            % Returns:
-            arguments
-                obj
-                Params
-            end
         
             currentUserFile = fullfile(obj.DbPath, 'current_user.json');
             response = struct();
@@ -129,10 +116,13 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Load current user and verify
-            currentUser = obj.readJsonFile(currentUserFile);
+            fid = fopen(currentUserFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            currentUser = jsondecode(char(raw'));
         
-            if ~strcmp(currentUser.UserName, Params.userName)
-                obj.msglog('logout: User %s is not currently logged in.', Params.userName);
+            if ~strcmp(currentUser.UserName, UserName)
+                obj.msglog('logout: User %s is not currently logged in.', UserName);
                 response.status = 'error';
                 response.message = 'User not logged in.';
                 response.ok = false;
@@ -140,89 +130,76 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Clear current user
-            obj.writeJsonFile(currentUserFile, struct('UserName', '', 'Role', ''));
+            fid = fopen(currentUserFile, 'w');
+            fwrite(fid, jsonencode(struct('UserName', '', 'Role', ''), 'PrettyPrint', true), 'char');
+            fclose(fid);
         
-            obj.msglog('logout: User %s logged out successfully.', Params.userName);
+            obj.msglog('logout: User %s logged out successfully.', UserName);
             response.status = 'ok';
             response.ok = true;
         end        
 
         % -------------------------------------------------------------------
 
-        function response = getKeyValue(obj, Params)
+        function response = getKeyValue(obj, Store, Key, Default)
             % Retrieves a value from the key-value database JSON file.
-            %
-            % Parameters:
-            %   obj - Instance of MissionClientSim
-            %   Params - Instance of MissionApiModels.GetKeyValueParams containing:
-            %     .store (string) - Name of the store to access
-            %     .key (string) - Key to retrieve
-            %     .default (string) - Default value to return if key not found
-            %
-            % Returns:
-            %   response - Structure containing result with fields:
-            %     .status - Status of the operation ('ok' or 'error')
-            %     .value - Retrieved value or default value if not found
-            %     .ok - Boolean indicating success (true) or failure (false)
-            arguments
-                obj
-                Params
-            end
             
-            obj.msglog('getKeyValue: store=%s, key=%s', Params.store, Params.key);
+            obj.msglog('getKeyValue: store=%s, key=%s', Store, Key);
             dbFile = fullfile(obj.DbPath, 'key_value_db.json');
             response = struct();
         
             if ~isfile(dbFile)
                 obj.msglog('Database file not found, returning default value.');
-                response.value = Params.defaultValue;
+                response.value = Default;
                 response.status = 'ok';
                 response.ok = true;
                 return;
             end
         
             % Read and parse the JSON file
-            db = obj.readJsonFile(dbFile);
+            fid = fopen(dbFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            db = jsondecode(char(raw'));
         
-            if isfield(db, Params.store) && isfield(db.(Params.store), Params.key)
-                response.value = db.(Params.store).(Params.key);
+            if isfield(db, Store) && isfield(db.(Store), Key)
+                response.value = db.(Store).(Key);
                 response.status = 'ok';
                 response.ok = true;
             else
                 obj.msglog('Key not found, returning default value.');
-                response.value = Params.default;
+                response.value = Default;
                 response.status = 'ok';
                 response.ok = true;
             end
         end
         
         
-        function response = setKeyValue(obj, Params)
+        function response = setKeyValue(obj, Store, Key, Value)
             % Sets a value in the key-value database JSON file.
-            %
-            % Parameters:
-            %   obj - Instance of MissionClientSim
-            %   Params - Instance of MissionApiModels.SetKeyValueParams containing:
-            %     .store (string) - Name of the store to access
-            %     .key (string) - Key to set
-           
-            obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Params.store, Params.key, Params.value);
+            
+            obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Store, Key, Value);
             dbFile = fullfile(obj.DbPath, 'key_value_db.json');
             response = struct();
         
             db = struct();
             if isfile(dbFile)
                 % Load existing data
-                db = obj.readJsonFile(dbFile);
+                fid = fopen(dbFile, 'r');
+                raw = fread(fid, inf, 'char');
+                fclose(fid);
+                db = jsondecode(char(raw'));
             end
         
-            if ~isfield(db, Params.store)   
-                db.(Params.store) = struct();
+            if ~isfield(db, Store)
+                db.(Store) = struct();
             end
-            db.(Params.store).(Params.key) = Params.value;
+            db.(Store).(Key) = Value;
         
             % Write updated data to the JSON file
-            obj.writeJsonFile(dbFile, db);
+            fid = fopen(dbFile, 'w');
+            fwrite(fid, jsonencode(db, 'PrettyPrint', true), 'char');
+            fclose(fid);
         
             response.status = 'ok';
             response.ok = true;
@@ -231,33 +208,21 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
     
         % -----------------------------------------------------------------
 
-        function response = getApprovedTargets(obj, Params)
+        function response = getApprovedTargets(obj, start_time, end_time)
             % Retrieves the list of approved targets within the given time range from a JSON file.
-            %
-            % Parameters:
-            %   obj - Instance of MissionClientSim
-            %   Params - Instance of MissionApiModels.GetApprovedTargetsParams containing:
-            %     .start_time (datetime) - Start time of the time range
-            %     .end_time (datetime) - End time of the time range
-            %
-            % Returns:
-            %   response - Structure containing result with fields:
-            %     .status - Status of the operation ('ok' or 'error')
-            %     .targets - Array of target structures (if successful)
-            %     .ok - Boolean indicating success (true) or failure (false)
-            arguments
-                obj
-                Params
+            
+            if ~isdatetime(start_time)
+                start_time = datetime(start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');                
             end
-
-            if ~isdatetime(Params.start_time)
-                start_time = datetime(Params.start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');                
-            end
-            if ~isdatetime(Params.end_time)
+            if ~isdatetime(end_time)
                 end_time = datetime(end_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');                
             end
             start_time.TimeZone = 'UTC';
             end_time.TimeZone = 'UTC';
+
+            % Store the times, will be displayed to the user in GUI
+            obj.ApprovedTargetsStartTime = start_time;
+            obj.ApprovedTargetsEndTime = end_time;
 
             obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
             targetsFile = fullfile(obj.DbPath, 'approved_targets.json');
@@ -273,7 +238,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Load approved targets from JSON
-            targets = obj.readJsonFile(targetsFile);
+            fid = fopen(targetsFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            targets = jsondecode(char(raw'));
         
             % Filter targets by start_time and end_time
             filteredTargets = [];
@@ -281,7 +249,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 tStart = datetime(targets(i).start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
                 tEnd = datetime(targets(i).end_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
                 
-                if tStart >= Params.start_time && tEnd <= Params.end_time
+                if tStart >= start_time && tEnd <= end_time
                     filteredTargets = [filteredTargets; targets(i)];
                 end
             end
@@ -301,14 +269,17 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -----------------------------------------------------------------        
 
-        function internal_updateApprovedTargetsFile(obj, targets, replace)
+        function updateApprovedTargets(obj, targets, replace)
             % Update the approved_targets.json file by either replacing or merging targets.
-            obj.msglog('internal_updateApprovedTargetsFile: targets: %d, replace=%d', numel(targets), replace);
+            obj.msglog('updateApprovedTargets: targets: %d, replace=%d', numel(targets), replace);
             approvedTargetsFile = fullfile(obj.DbPath, 'approved_targets.json');
             
             % Read existing file
             if isfile(approvedTargetsFile)
-                existingTargets = obj.readJsonFile(approvedTargetsFile);
+                fid = fopen(approvedTargetsFile, 'r');
+                raw = fread(fid, inf, 'char');
+                fclose(fid);
+                existingTargets = jsondecode(char(raw'));
             else
                 existingTargets = [];
             end
@@ -345,14 +316,16 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             % updatedTargets = updatedTargets(sortIdx);
         
             % Save back to JSON
-            obj.writeJsonFile(approvedTargetsFile, updatedTargets);
+            fid = fopen(approvedTargetsFile, 'w');
+            fwrite(fid, jsonencode(updatedTargets, 'PrettyPrint', true), 'char');
+            fclose(fid);
             
             obj.msglog('Updated successfully: %s', approvedTargetsFile);
         end
         
         % -----------------------------------------------------------------        
 
-        function response = validatePlan(obj, Params)
+        function response = validatePlan(obj, Plan)
             % Validates the observation plan using the ValidatorSim class.
             obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
                
@@ -426,7 +399,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             obj.msglog('Plan %d submitted successfully and updated in JSON file.', obj.PlanData.pk);
 
             % Simulator version: replace exsiting Approved Targets by the targets of this plan
-            obj.internal_updateApprovedTargetsFile(Plan, true);
+            obj.updateApprovedTargets(Plan, true);
         end
 
         % -------------------------------------------------------------------
@@ -437,19 +410,12 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
         % -------------------------------------------------------------------
 
-        function response = getExposure(obj, Params)
+        function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Retrieves exposure data from the specified JSON file (mapped from table_name).
-            arguments
-                obj
-                Params
-            end
-
             obj.msglog('getExposure: table=%s, healpix_indices=%s, start=%s, end=%s, select_all=%d', ...
-                       Params.table_name, mat2str(Params.healpix_indices), ...
-                       datestr(Params.start_timestamp), datestr(Params.end_timestamp), ...
-                       Params.select_all);
+                       table_name, mat2str(healpix_indices), datestr(start_timestamp), datestr(end_timestamp), select_all);
         
-            dbFile = fullfile(obj.DbPath, sprintf('%s.json', Params.table_name));
+            dbFile = fullfile(obj.DbPath, sprintf('%s.json', table_name));
             response = struct();
         
             if ~isfile(dbFile)
@@ -460,19 +426,21 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 return;
             end
         
-            data = obj.readJsonFile(dbFile);
-        
+            fid = fopen(dbFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            data = jsondecode(char(raw'));
         
             filteredData = [];
-            startNum = datenum(Params.start_timestamp);
-            endNum = datenum(Params.end_timestamp);
+            startNum = datenum(start_timestamp);
+            endNum = datenum(end_timestamp);
         
             for i = 1:numel(data)
                 row = data(i);
                 tNums = arrayfun(@(x) datenum(x{1}, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), row.timestamps);
         
-                if Params.select_all || ...
-                   ((isempty(Params.healpix_indices) || ismember(row.healpix_index, Params.healpix_indices)) && ...
+                if select_all || ...
+                   ((isempty(healpix_indices) || ismember(row.healpix_index, healpix_indices)) && ...
                     any(tNums >= startNum & tNums <= endNum))
                     filteredData = [filteredData; row];
                 end
@@ -493,25 +461,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -------------------------------------------------------------------
 
-        function response = getPlansList(obj, Params)
-            % Retrieves a list of all observation plans from the server.
-            %
-            % Parameters:
-            %   Params - Instance of MissionApiModels.GetPlansListParams containing:
-            %     .user_name (string) - Optional filter by user name
-            %     .title (string) - Optional filter by plan status
-            %
-            % Returns:
-            %   response - Structure containing result with fields:
-            %     .status - Status of the operation ('ok' or 'error')
-            %     .message - Description message (if error)
-            %     .plans - Array of plan summary structures (if successful)
-            %     .ok - Boolean indicating success (true) or failure (false)
-            arguments
-                obj
-                Params
-            end
-
+        function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
+            % Returns a list of existing plans from JSON files in the DbPath folder.
             obj.msglog('getPlansList: Scanning for plans in %s', obj.DbPath);
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
@@ -526,10 +477,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
 
             % Ensure timestamps are datetime objects
-            if ~isempty(Params.start_timestamp) && ~isdatetime(Params.start_timestamp)
-                Params.start_timestamp = datetime(Params.start_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
+            if ~isempty(start_timestamp) && ~isdatetime(start_timestamp)
+                start_timestamp = datetime(start_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
             end
-            if ~isempty(Params.end_timestamp) && ~isdatetime(Params.end_timestamp)
+            if ~isempty(end_timestamp) && ~isdatetime(end_timestamp)
                 end_timestamp = datetime(end_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
             end            
         
@@ -543,13 +494,13 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 planData = api.ModelBase.json2struct(char(raw'));  %ultrasat.api.PlanData.fromJson(char(raw'));
        
                 % Apply time filter if specified
-                if (~isempty(Params.start_timestamp) && planData.end_time < Params.start_timestamp) || ...
-                   (~isempty(Params.end_timestamp) && planData.start_time > Params.end_timestamp)
+                if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
+                   (~isempty(end_timestamp) && planData.start_time > end_timestamp)
                     continue;
                 end
         
                 % Apply title search if specified
-                if ~isempty(Params.title) && ~contains(lower(planData.title), lower(Params.title))
+                if ~isempty(title_subtext) && ~contains(lower(planData.title), lower(title_subtext))
                     continue;
                 end
 
@@ -580,7 +531,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Load JSON data
-            text = obj.readTextFile(jsonFile);
+            fid = fopen(jsonFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            text = char(raw');
         
             % Load MATLAB object (planner) from .mat file
             loadedMat = load(matFile, 'planner');
@@ -704,7 +658,10 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
         
             % Load the JSON plan file
-            planData = obj.readJsonFile(jsonFile);
+            fid = fopen(jsonFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            planData = jsondecode(char(raw'));
         
             % Extract relevant fields
             response.status = 'ok';
@@ -719,83 +676,6 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         end
 
         % -------------------------------------------------------------------
-
-        function text = readTextFile(obj, filename)
-            % Reads file as text
-            %
-            % Parameters:
-            %   filename - Full path to the JSON file to read
-            %
-            % Returns:
-            %   data - Parsed JSON data as MATLAB structure
-            %
-            % Notes:
-            %   - Returns empty struct if file does not exist
-            %   - Logs errors to console
-            if ~isfile(filename)
-                obj.msglog('readTextFile: File not found at %s', filename);
-                text = '';
-                return;
-            end
-
-            try
-                fid = fopen(filename, 'r');
-                raw = fread(fid, inf, 'char');
-                fclose(fid);
-                text = char(raw');  % ' added to avoid Cursor problem with comments after single quote
-            catch ME
-                obj.msglog('readTextFile: Error reading file %s: %s', filename, ME.message);
-                text = '';
-            end
-        end
-
-
-        function data = readJsonFile(obj, filename)
-            % Reads and parses a JSON file.
-            %
-            % Parameters:
-            %   filename - Full path to the JSON file to read
-            %
-            % Returns:
-            %   data - Parsed JSON data as MATLAB structure
-            %
-            % Notes:
-            %   - Returns empty struct if file does not exist
-            %   - Logs errors to console
-            if ~isfile(filename)
-                obj.msglog('readFile: File not found at %s', filename);
-                data = struct();
-                return;
-            end
-            
-            try
-                fid = fopen(filename, 'r');
-                raw = fread(fid, inf, 'char');
-                fclose(fid);
-                data = jsondecode(char(raw'));  % ' added to avoid Cursor problem with comments after single quote
-            catch ME
-                obj.msglog('readFile: Error reading file %s: %s', filename, ME.message);
-                data = struct();
-            end
-        end
-
-
-        function writeJsonFile(obj, filename, data)
-            % Writes struct to JSON file.
-            %
-            % Parameters:
-            %   filename - Full path to the JSON file to write
-            %   data - Data to write to the file
-            %
-            % Notes:
-            %   - Converts datetime objects to ISO format  @Todo 
-            %   - Writes the JSON data to the file
-            %   - Logs errors to console
-
-            fid = fopen(filename, 'w');
-            fwrite(fid, jsonencode(data, 'PrettyPrint', true), 'char');
-            fclose(fid);            
-        end
 
     end
 end
