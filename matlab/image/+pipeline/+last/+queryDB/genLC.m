@@ -1,9 +1,10 @@
 function [MS1s, Flags] = genLC(RA, Dec, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Generated relative photometric LCs for a field.
+    % Input  : - J2000 RA [deg], or Table of visit images, of a
+    %            MatchedSources object.
+    %          - J2000.0 Dec [deg].
     %          * ...,key,val,... 
+    %            
     % Output : - 
     % Author : Eran Ofek (2025 May) 
     % Example:
