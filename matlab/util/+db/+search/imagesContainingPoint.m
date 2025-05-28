@@ -5,6 +5,15 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
     % Input  : - RA (deg or sexagesimal string)
     %          - Dec (deg or signed sexagesimal string)
     %          * ...,key,val,... 
+    %         'DB' - input DB object (otherwise a default connection will be attempted)
+    %         'DBName' - name of the DB
+    %         'DBUser' - read-only user name
+    %         'DBPass' - read-only user pwd
+    %         'Table'  - image table name
+    %         'SelectFields' - columns to be drawn from the table: id_visit, ra1-4 and dec1-4 are mandatory
+    %         'HP_ColName'   - name of the Healpix column
+    %         'PrimarySearchNside' - nside of the primary search HPix, must match HP_ColName 
+    %         'PrimarySearchRad' - [deg] this radius should include all the neighboring pixels of PrimarySearchNside
     % Output : - a table containing unique indexes of the images, exptime, and jd_start 
     % Author : A.M. Krassilchtchikov (2025 May) 
     % Example: T=db.search.imagesContainingPoint("10:23:00","+40:20:00");
