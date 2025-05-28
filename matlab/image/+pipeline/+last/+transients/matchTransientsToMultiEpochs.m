@@ -73,7 +73,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
    
     TranCatLevel2 = TranCatLevel1;
     Rad2Arcsec = 206265;
-    DaysToMins = 24*60;
+    MinsToDays = 1/(24*60);
 
     % Load filter flags
     BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
@@ -179,7 +179,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             MatchDB = TranDB(Dists < Args.SearchRad,:);
     
             % Make sure we don't have duped entries by comparing the JDs
-            TimeThr = Args.MinTimeDiffMinutes*DaysToMins;
+            TimeThr = Args.MinTimeDiffMinutes*MinsToDays;
             JdDiff0 = abs(MatchDB.jd - JD);
             MatchDB = MatchDB(JdDiff0 > TimeThr,:);
     
@@ -264,13 +264,16 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % times at which there was no multi-epoch match, we will get ULs
         % for these times.
         if ~isempty(TranDB)
-            RemoveRows = ismember(TranDB.jd, MatchJDs);
+            RemoveRows = ismember(TranDB.jd, PhotJD);
             ULDB = TranDB;
             ULDB(RemoveRows,:) = [];
             ULJD = ULDB.jd;
     
             % For the list of JDs without a match, keep only the unique JDs.
             UniqueJDsUL = unique(ULJD);
+            TimeThr = Args.MinTimeDiffMinutes*MinsToDays;
+            MinULJDDist = min(abs(UniqueJDsUL(:)'-PhotJD(:)));
+            UniqueJDsUL = UniqueJDsUL(MinULJDDist > TimeThr);
             NuJD = numel(UniqueJDsUL);
         else
             NuJD = 0;
