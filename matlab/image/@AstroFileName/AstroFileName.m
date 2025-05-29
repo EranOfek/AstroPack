@@ -97,7 +97,7 @@ classdef AstroFileName < Component
         FileType            = ["fits"];
         %
         SubDir              = "";
-        BasePath            = "/marvin"; %{'2022', '/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
+        BasePath            = "/marvin"; %{'2022', '/marvin'; '2023','/marvin'; '2024','/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
         BasePathRef         = "/marvin/ref";
         
         %
@@ -1360,38 +1360,28 @@ classdef AstroFileName < Component
     
     methods % utilities
         
-        function Result = getPropBasePath(Obj, Ind, Args)
+        function Result = getPropBasePath(Obj, Ind)
             % Get the BasePath property value including Path cell treatment
             % Input  : - self.
             %          - Index of image.
             %          * ...,key,val,...
-            %            'RepMat' - If true, then if the output string
-            %                   contains one element and the numbre of files
-            %                   (lines) in the object is >1, then the output will
-            %                   be replicated using repmat to contains the
-            %                   number of requested lines.
             % Output : - Property value.
             % Author : Eran Ofek (Oct 2024)
-            % Example: A.getPropPath
+            % Example: A.getPropBasePath
 
             arguments
                 Obj
                 Ind                  = [];
-                Args.RepMat logical  = false;
             end
             ColPath = 2;
             Prop    = 'BasePath';
 
-            if iscell(Obj.Path)
-                % Path contains a directory per year format
-                YMD = Obj.getDateDir(Ind);
+            % Path contains a directory per year format
+            YMD = Obj.getDateDir(Ind);
                 
-                [~,YearInd] = ismember(YMD(:,1), Obj.(Prop)(:,1));
-                Result      = string(Obj.Path(YearInd, ColPath));
-            else
-                % Path contains a single directory - call getPath
-                Result = getProp(Obj, Prop, Ind, 'RepMat',Args.RepMat);
-            end
+            [~,YearInd] = ismember(YMD(:,1), Obj.(Prop)(:,1));
+            Result      = string(Obj.(Prop)(YearInd, ColPath));
+            
 
         end
 
@@ -1423,37 +1413,42 @@ classdef AstroFileName < Component
                 Args.RepMat logical  = false;
             end
             
-            if Args.RepMat
-                % make sure that the length of the property is exactly like
-                % Time
-                Nfile = Obj.nFiles;
-                if isempty(Ind)
-                    Ind = (1:1:Nfile).';
-                end
-                Nind = numel(Ind);
-                
-                Nprop = numel(Obj.(Prop));
-                if Nprop==1 && Nind>1
-                    % repmat
-                    Result = repmat(Obj.(Prop), Nind, 1);
-                else
-                    if Nprop==1
-                        Result = Obj.(Prop);
-                    else
-                        Result = Obj.(Prop)(Ind);
-                    end
-                end
-                
+            if strcmp(Prop, 'BasePath') && iscell(Obj.BasePath) && numel(Obj.BasePath)>1
+                Result = Obj.getPropBasePath(Ind);
             else
-                if isempty(Ind)
-                    Result = Obj.(Prop);
-                else
+
+                if Args.RepMat
+                    % make sure that the length of the property is exactly like
+                    % Time
+                    Nfile = Obj.nFiles;
+                    if isempty(Ind)
+                        Ind = (1:1:Nfile).';
+                    end
+                    Nind = numel(Ind);
+                    
                     Nprop = numel(Obj.(Prop));
-                    if Nprop<max(Ind)
-                        Nind = numel(Ind);
+                    if Nprop==1 && Nind>1
+                        % repmat
                         Result = repmat(Obj.(Prop), Nind, 1);
                     else
-                        Result = Obj.(Prop)(Ind);
+                        if Nprop==1
+                            Result = Obj.(Prop);
+                        else
+                            Result = Obj.(Prop)(Ind);
+                        end
+                    end
+                    
+                else
+                    if isempty(Ind)
+                        Result = Obj.(Prop);
+                    else
+                        Nprop = numel(Obj.(Prop));
+                        if Nprop<max(Ind)
+                            Nind = numel(Ind);
+                            Result = repmat(Obj.(Prop), Nind, 1);
+                        else
+                            Result = Obj.(Prop)(Ind);
+                        end
                     end
                 end
             end
