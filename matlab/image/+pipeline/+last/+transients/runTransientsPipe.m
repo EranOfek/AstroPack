@@ -848,9 +848,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
 
     end
-   
+    
     % 9: ----- Save to-disk products -----
-
+    
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
         % Save individual image products if any specified

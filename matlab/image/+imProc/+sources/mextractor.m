@@ -192,12 +192,12 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             end
             
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
-            if Iiter == 1
+            if Iiter == 1 
 %                 [M1,M2,Aper]=imUtil.image.moment2(AI.PSF,(size(AI.PSF,1)+1)/2,(size(AI.PSF,2)+1)/2);
-                OPTIONS = optimset('MaxFunEvals',10000);
-%                 [~,PSF_fit] = psf.fitPSFKernel(AI.PSF,'model','dgauss','FitRadius',3,'InerRadius',2,'ConvThresh',1e-4,'MinOpts',OPTIONS); % experimental: replace the empirical PSF with a model
-                [~,PSF_fit] = psf.fitPSFKernel(AI.PSF,'model','mtd','FitRadius',3,'InerRadius',1,'ConvThresh',1e-3,'MinOpts',OPTIONS); % experimental: replace the empirical PSF with a model
-                AI.PSF = PSF_fit;
+%                 OPTIONS = optimset('MaxFunEvals',10000);
+%                 [~,PSF_fit] = psf.fitPSFKernel(AI.PSF,'model','dgauss','FitRadius',3,'InerRadius',1,'ConvThresh',1e-4,'MinOpts',OPTIONS); % experimental: replace the empirical PSF with a model
+% %                 [~,PSF_fit] = psf.fitPSFKernel(AI.PSF,'model','mtd','FitRadius',3,'InerRadius',0.5,'ConvThresh',1e-3,'MinOpts',OPTIONS); % experimental: replace the empirical PSF with a model
+%                 AI.PSF = PSF_fit;
             end
             [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter));  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             

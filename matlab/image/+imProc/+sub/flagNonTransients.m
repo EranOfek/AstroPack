@@ -208,13 +208,15 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagChi2 logical = true;
         Args.Chi2dofLimitsLocal = [0.1 2.0 100.0];
-        Args.Chi2dofLimitsGlobal = [0.0 1.2];
+        Args.Chi2dofLimitsGlobal = [0.1 1.2];
         
         Args.flagSaturated logical = true;
 
         Args.flagBadPix_Hard logical  = true;
         Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
             'Hole', 'Negative'};
+        Args.BadPixSatRad = 10;
+        Args.BadPixSatFlux = 20000;
 
         Args.flagBadPix_Soft logical  = true;
         Args.BadPix_Soft       = {{'DarkHighVal', 1.2}, ...
@@ -420,6 +422,23 @@ function TranCat = flagNonTransients(Obj, Args)
 
             BadPixHard = N_BadPixHard | R_BadPixHard;
 
+            N_FLAGS = Obj(Iobj).New.MaskData.bitwise_cutouts([X, Y], ...
+                'or', 'HalfSize', Args.BadPixSatRad);
+            R_FLAGS = Obj(Iobj).Ref.MaskData.bitwise_cutouts([X, Y], ...
+                'or', 'HalfSize', Args.BadPixSatRad);
+
+            N_BadPixSat = BD_IM.findBit(N_FLAGS,'Saturated');
+            R_BadPixSat = BD_IM.findBit(R_FLAGS,'Saturated');
+
+            N_hasHighFlux = CandCat.getCol('N_FLUX_PSF') > Args.BadPixSatFlux;
+            R_hasHighFlux = CandCat.getCol('R_FLUX_PSF') > Args.BadPixSatFlux;
+
+            N_FalseSaturation = (N_BadPixSat & ~R_BadPixSat & ~N_hasHighFlux);
+            R_FalseSaturation = (~N_BadPixSat & R_BadPixSat & ~R_hasHighFlux);
+            FalseSaturation = N_FalseSaturation | R_FalseSaturation;
+
+            BadPixHard = BadPixHard | FalseSaturation;
+
             FilterFlags = FilterFlags + BadPixHard.*2.^BD_TF.name2bit('BadPixelHard');
         end
 
@@ -472,7 +491,7 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagPeakValley && CandCat.isColumn('PV_DIST')
             PVDist = CandCat.getCol('PV_DIST');
 
-            PVFlagged = (PVDist < Args.PVDistThresh);
+            PVFlagged = (PVDist <= Args.PVDistThresh);
             FilterFlags = FilterFlags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
         end
         
