@@ -15,16 +15,16 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
 
     arguments
         Args.ElementsIndex = 2;  % 1 for numbered asteroid; 2 for unnumbered
-        Args.DistRange = [9 Inf];
-        Args.HRange    = [-Inf 7];
+        Args.DistRange = [9 Inf];   % dist range [au]
+        Args.HRange    = [-Inf 7];  % abs. mag range
         Args.StartJD   = [20 3 2023];
         Args.EndJD     = [9 6 2023];
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
-        Args.PlanetsRadius = [25362, 24622];
+        Args.PlanetsRadius = [25362, 24622];  % radius of AddPlanets
 
         Args.ObsCoo    = [35.04073 30.05298 0.415];
         Args.MaxSunAlt = -11.0;
-        Args.MinAlt    = 25;
+        Args.MinAlt    = 20;
         
     end
     
@@ -78,7 +78,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     end
     
     if ~isempty(Result)
-        Flag = [Result.SunAlt]<Args.MaxSunAlt & [Result.Alt]<Args.MinAlt;
+        Flag = [Result.SunAlt]<Args.MaxSunAlt & [Result.Alt]>Args.MinAlt;
         Result = Result(Flag);
     end
     

@@ -97,7 +97,7 @@ classdef AstroFileName < Component
         FileType            = ["fits"];
         %
         SubDir              = "";
-        BasePath            = "/marvin";
+        BasePath            = "/marvin"; %{'2022', '/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
         BasePathRef         = "/marvin/ref";
         
         %
@@ -129,7 +129,7 @@ classdef AstroFileName < Component
     
     properties (Hidden, Constant)
         ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
-        ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD"];
+        ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
         FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
@@ -1360,6 +1360,41 @@ classdef AstroFileName < Component
     
     methods % utilities
         
+        function Result = getPropBasePath(Obj, Ind, Args)
+            % Get the BasePath property value including Path cell treatment
+            % Input  : - self.
+            %          - Index of image.
+            %          * ...,key,val,...
+            %            'RepMat' - If true, then if the output string
+            %                   contains one element and the numbre of files
+            %                   (lines) in the object is >1, then the output will
+            %                   be replicated using repmat to contains the
+            %                   number of requested lines.
+            % Output : - Property value.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A.getPropPath
+
+            arguments
+                Obj
+                Ind                  = [];
+                Args.RepMat logical  = false;
+            end
+            ColPath = 2;
+            Prop    = 'BasePath';
+
+            if iscell(Obj.Path)
+                % Path contains a directory per year format
+                YMD = Obj.getDateDir(Ind);
+                
+                [~,YearInd] = ismember(YMD(:,1), Obj.(Prop)(:,1));
+                Result      = string(Obj.Path(YearInd, ColPath));
+            else
+                % Path contains a single directory - call getPath
+                Result = getProp(Obj, Prop, Ind, 'RepMat',Args.RepMat);
+            end
+
+        end
+
         % DONE
         function Result = getProp(Obj, Prop, Ind, Args)
             % Get specific property value and entry (index)

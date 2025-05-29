@@ -9,6 +9,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     % Author : Eran Ofek (2025 May) 
     % Example:
     % MS1s = pipeline.last.queryDB.genLC(88.1157006,15.8858523,'FieldID','WD0549');
+    % MS2s = pipeline.last.queryDB.genLC(274.654678,+30.923869,'FieldID','Nagi1b','CamNum',1)
 
     arguments
         RA
@@ -27,6 +28,8 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         
         Args.MaxDAper          = -0.2;
         Args.MinNeighFlux      = 0.001;
+
+        Args.IsBadFlags        = {'Saturated', 'NearEdge'};
     end
 
     RAD = 180./pi;
@@ -68,7 +71,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     MS1 = MS.mergeByCoo(MS(1));
 
     % remove bad:
-    IsBad = imProc.cat.findBit(uint32(MS1.Data.FLAGS),{'Saturated', 'NearEdge'},[],'Image');
+    IsBad = imProc.cat.findBit(uint32(MS1.Data.FLAGS), Args.IsBadFlags, [], 'Image');
     Nmagf    = numel(MagField);
     for Imagf=1:1:Nmagf
         MS1.Data.(MagField{Imagf})(IsBad) = NaN;
@@ -111,16 +114,19 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         MedMag  = median(MS1s.Data.(MagField{Imagf}), 1, 'omitnan');
         RealErr = interp1(Rrms.B(:,1),Rrms.B(:,2), MedMag, 'linear','extrap');
         
-        Resid{Imagf} = MS1s.Data.(MagField{Imagf}) - MedMag;
-        [S2,Res{Imagf}]=timeSeries.detrend.sysrem(Resid{Imagf}, RealErr, 'Niter',Args.Nsysrem);
+        if Args.Nsysrem>0
 
-        CalibMag{Imagf} = Res{Imagf}(2).Resid + MedMag;
-
-        %semilogy(MedMag, std(MS1.Data.(MagField{Imagf})),'.');
-        %hold on
-        %semilogy(MedMag, std(CalibMag{Imagf}), 'r.'); %MedMag(ii), std(Res(2).Resid),'.')
-
-        MS1s.Data.(MagField{Imagf}) = CalibMag{Imagf};
+            Resid{Imagf} = MS1s.Data.(MagField{Imagf}) - MedMag;
+            [S2,Res{Imagf}]=timeSeries.detrend.sysrem(Resid{Imagf}, RealErr, 'Niter',Args.Nsysrem);
+    
+            CalibMag{Imagf} = Res{Imagf}(2).Resid + MedMag;
+    
+            %semilogy(MedMag, std(MS1.Data.(MagField{Imagf})),'.');
+            %hold on
+            %semilogy(MedMag, std(CalibMag{Imagf}), 'r.'); %MedMag(ii), std(Res(2).Resid),'.')
+    
+            MS1s.Data.(MagField{Imagf}) = CalibMag{Imagf};
+        end
 
         %MS1s = lcUtil.zp_fit2D(MS1s, 'FieldMag',MagField{Imagf});
 

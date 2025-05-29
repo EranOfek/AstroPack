@@ -21,9 +21,11 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
     %            'DimEpoch' - Dim of epoch. Default is 1.
     %            'UseRStd' - Use RStd for eclipse std calculation.
     %                   Default is false.
+    %            'Verbose' - Default is false.
     %            
     % Output : - A structure containing the following fields.
     %            Cubes has: Nsrc X Nfreq X Neclipse_length size:
+    %            .DeltaChi2 - Chi2_0 - BestChi2
     %            .BestChi2 - Matrix with Chi2 for each fit.
     %            .BestZ -
     %            .BestPh
@@ -37,16 +39,25 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
     %            .FreqVec - The input FreqVec.
     %            .EclipseTimeVec - The input EclipseTimeVec
     %            .Chi2_0 - Vector of null hypothesis \chi^2 for each src.
-    %            
+    %            .MaxDeltaChi2 - Max. delta chi^2 per source.
+    %
     %            Structure:
     %            .EclipsePhaseLength - struct array of eclipse phase length
     %                   for each seached frequency.
     %
+    %            Functions:
+    %            plot(Result, SrcInd)
+    %            plotFold(Time, Mag, SrcInd, Period)
+    %          - The input Time vector.
+    %          - The input magnitude matrix.
+    %
     % Author : Eran Ofek (2025 May) 
-    % Example: R = timeSeries.period.bls();
+    % Example: [R,Time,Mag] = timeSeries.period.bls();
     %          plot(R.FreqVec, max(R.Chi2_0(1)-squeeze(R.BestChi2(1,:,:)),[],2) )
+    %          plot(R.FreqVec, max(R.Chi2_0(1)-squeeze(R.BestChi2(1,:,:)),[],2)./sqrt(sum(squeeze(R.BestN(1,:,:)),2)) )
     %          or
     %          R.plot(R, 1); % where 1 is src index
+    %          R.plotFold(Time, Mag, 1, 3.1)
 
     arguments
         Time                   = [];
@@ -60,7 +71,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
         Args.DimEpoch          = 1;
         Args.UseRStd           = false;
         
-
+        Args.Verbose           = false;
     end
 
 
@@ -109,7 +120,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
     end
 
     Nfreq = numel(FreqVec);
-    Result.BestZ     = nan(Nsrc, Nfreq, Nec);
+    %Result.BestZ     = nan(Nsrc, Nfreq, Nec);
     Result.BestPh    = nan(Nsrc, Nfreq, Nec);
     Result.BestN     = nan(Nsrc, Nfreq, Nec);
     Result.BestChi2  = nan(Nsrc, Nfreq, Nec);
@@ -119,9 +130,13 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
     Result.EclipseTimeVec = Args.EclipseTimeVec;
     Result.Chi2_0    = Chi2_0;
     Result.plot      = @(R, Ind) plot(R.FreqVec, max(R.Chi2_0(Ind)-squeeze(R.BestChi2(Ind,:,:)),[],2),'k-');
-    
+    Result.plotFold  = @(Time, Mag, Ind, Period) plot( Time./Period - floor(Time./Period), Mag(:,Ind), '.');
+
     for Ifreq=1:1:Nfreq
-        %[Ifreq, Nfreq]
+        if Args.Verbose
+            [Ifreq, Nfreq]
+        end
+
         TimeF = Time.*FreqVec(Ifreq);
         Phase = TimeF - floor(TimeF); 
 
@@ -165,7 +180,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
                         EclipseStdMag = std(MagFlag, [], 1, 'omitnan');                  
                     end
 
-                    CurrZ = (EclipseMedMag - MedMag)./sqrt(StdMag.^2+EclipseStdMag.^2);
+                    %CurrZ = (EclipseMedMag - MedMag)./sqrt(StdMag.^2+EclipseStdMag.^2);
 
                     %Chi2  = sum(((Mag(~Flag,:) - MedMag)./StdMag).^2, 1, 'omitnan') + sum(((MagFlag - EclipseMedMag)./EclipseStdMag).^2, 1, 'omitnan'); 
                     EclipseStdMag = max(EclipseStdMag, StdMag);
@@ -175,7 +190,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
                     for Isrc=1:1:Nsrc
                         if Chi2(Isrc)<BestChi2(Isrc) && Nin(Isrc)>=Args.MinNinEc
                             BestChi2(Isrc) = Chi2(Isrc);
-                            BestZ(Isrc)    = CurrZ(Isrc);
+                            %BestZ(Isrc)    = CurrZ(Isrc);
                             BestPh(Isrc)   = MidPhaseVec(Iph);
                             NinEc(Isrc)    = Nin(Isrc);
                             Amp(Isrc)      = MedMag(Isrc) - EclipseMedMag(Isrc);
@@ -184,7 +199,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
 
                 end
 
-                Result.BestZ(:, Ifreq, Iec)     = BestZ;
+                %Result.BestZ(:, Ifreq, Iec)     = BestZ;
                 Result.BestPh(:, Ifreq, Iec)    = BestPh;
                 Result.BestN(:, Ifreq, Iec)     = NinEc;
                 Result.BestChi2(:, Ifreq, Iec)  = BestChi2;
@@ -196,5 +211,7 @@ function [Result,Time,Mag] = bls(Time, Mag, FreqVec, Args)
          
     end
 
+    Result.DeltaChi2 = reshape(Result.Chi2_0, [Nsrc 1 1]) - Result.BestChi2;
+    Result.MaxDeltChi2 = max(Result.DeltaChi2,[],[2 3]);  % max DeltaChi2 per source
 
 end
