@@ -51,21 +51,15 @@ end
 % Error estimation:
 % 
 %     For polygons up to 10° across:
-% 
 %         εr≲0.01∘εr​≲0.01∘
-% 
 %         εc≲0.005∘εc​≲0.005∘
 % 
 %     For polygons 30° across:
-% 
 %         εr∼0.05∘εr​∼0.05∘
-% 
 %         εc∼0.02∘εc​∼0.02∘
 % 
 %     For polygons 60° across:
-% 
 %         εr∼0.1–0.2∘εr​∼0.1–0.2∘
-% 
 %         εc∼0.1∘εc​∼0.1∘ or more
 % 
 %     For polygons >90° across, the approximation can be off by degrees.
