@@ -40,6 +40,8 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     Nside  = NsideRad(find(NsideRad(:,2) < Args.Resolution/3600, 1,'first'),1);            
     % search all the HEALpix at this resolution within the given radius from the center:
     [Ind,PixLon,PixLat] = celestial.healpix.coneSearch(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
+    % for Nside >  65536 = 2^16 need to employ a more accurate function: 
+%     [Ind] = celestial.healpix.coneSearchRecur(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
     % determine which of them are actually inside the polygon: 
     Inside = celestial.search.isPointInsidePolygon(PixLon*RAD, PixLat*RAD, P); 
     Result = Ind(Inside>0);
