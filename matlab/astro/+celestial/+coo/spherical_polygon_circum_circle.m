@@ -38,8 +38,8 @@ function [RA0, Dec0, R0] = spherical_polygon_circum_circle(P, Args)
     RA0  = rad2deg(atan2(v_mean(2), v_mean(1)));
     R0   = rad2deg(radius_rad);    
     
-    if Args.Plot
-        % plot the polygon and the circle 
+    % plot the polygon and the circle 
+    if Args.Plot        
         figure(1)
         axesm('aitoff', 'Frame', 'on', 'Grid', 'on');
         plotm(P(:,2),P(:,1),'+'); hold on;

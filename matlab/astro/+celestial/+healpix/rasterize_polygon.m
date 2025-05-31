@@ -4,6 +4,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     % Input  : - polygon: Nx2 array of [RA, Dec] in degrees 
     %          * ...,key,val,... 
     %          'Resolution' - desired raster resolution [arcsec]
+    %          'Plot'       - boolean (plot an illustration)
     % Output : - indices of the HEALpix pixels filling the polygon
     %          - Nside of the HEALpix in the raster
     % Author : A.M. Krassilchtchikov (2025 May) 
@@ -11,7 +12,8 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     %          [R, Nside] = celestial.healpix.rasterize_polygon(P);
     arguments        
         P
-        Args.Resolution = 5; % [arcsec]        
+        Args.Resolution = 5; % [arcsec]  
+        Args.Plot       = false;
     end
     RAD = 180/pi;
     NsideRad = [2, 27.585653017957394; ...     % radius of healpix in deg
@@ -45,4 +47,11 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     % determine which of them are actually inside the polygon: 
     Inside = celestial.search.isPointInsidePolygon(PixLon*RAD, PixLat*RAD, P); 
     Result = Ind(Inside>0);
+    % graphical check:
+    if Args.Plot
+        figure(1)
+        axesm('aitoff', 'Frame', 'on', 'Grid', 'on');
+        plotm(PixLat(Inside>0)*RAD,PixLon(Inside>0)*RAD,'*')
+        plotm(P(:,2),P(:,1),'+','Color','red'); hold on;        
+    end
 end
