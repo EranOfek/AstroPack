@@ -35,7 +35,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
                                                          % MPC. 8 char
         Args.ColProg                 = 'ProgramMPC';   % 2 chars assigned by MPC for observatory program
         Args.ColJD                   = 'JD';
-        Args.ColTimeRMS              = 0.01;
+        Args.ColTimeRMS              = 0.5;
         Args.ColRA                   = 'RA';
         Args.ColDec                  = 'Dec';
         Args.ColErrRA                = 'ErrRA';
