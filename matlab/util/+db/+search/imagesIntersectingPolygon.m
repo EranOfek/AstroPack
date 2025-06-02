@@ -18,7 +18,7 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     %          T0 = db.search.imagesIntersectingPolygon(P0); % just intersection
     %          P1 = [10, 70; 10, 70.2; 9.8, 70.2; 9.8, 70];
     %          T1 = db.search.imagesIntersectingPolygon(P1); % some of the images contain the polygon
-    %          P2 = [10, 70; 10, 71.5; 8.5, 71.5; 8.5, 70];
+    %          P2 = [9.5, 69.5; 9.5, 71.0; 7.0, 71.0; 7.0, 69.5];
     %          T2 = db.search.imagesIntersectingPolygon(P2); % the polygon contains some of the images 
     arguments
         P
