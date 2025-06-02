@@ -14,13 +14,15 @@ function Result = polygon_boolean_operations(P0, P1, Args)
     %          P2 = [11, 69.5; 11, 70.3; 9.6, 70.3; 9.6, 69.5];
     %          P3 = [9.9, 70.1; 9.9, 70.3; 9.6, 70.3; 9.6, 70.1];
     %          P4 = [8 70.55; 8 70.7; 11 70.7; 11 70.53];    
-    %          Res = celestial.coo.polygon_boolean_operations(P0, {P1,P2,P3,P4})
+    %          P5 = [9, 69; 11, 69; 11, 71; 9, 71];
+    %          Res = celestial.coo.polygon_boolean_operations(P0, {P1,P2,P3,P4,P5})
     arguments
         P0
         P1
         Args.Resolution = 10; % [arcsec] 
         % at <5 arcsec the scheme becomes unstable due to 
         % loss of accuracy of celestial.healpix.coneSearch for large Nside?
+        Args.TestPlot   = false;
     end
     % raster the first polygon:
     R0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.Resolution);
@@ -48,4 +50,20 @@ function Result = polygon_boolean_operations(P0, P1, Args)
             Result.R1containR0(Ip) = all(ismember(R0, R));        
         end
     end
+    % plot the results 
+    if Args.TestPlot
+        figure(1); clf; hold on; axis equal; grid on
+        plot_polygon(P0); 
+        plot_polygon(P1{1});
+        plot_polygon(P1{2});
+        plot_polygon(P1{3});
+        plot_polygon(P1{4});
+        plot_polygon(P1{5});
+    end
+end
+
+function plot_polygon(P)
+        RA = P(:,1); Dec = P(:,2);
+        RA(end+1) = RA(1); Dec(end+1) = Dec(1);
+        plot(RA, Dec, '-o');
 end
