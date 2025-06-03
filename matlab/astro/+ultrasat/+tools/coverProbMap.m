@@ -1,7 +1,7 @@
 function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     % optimal coverage of a probability sky map with (circular) exposures
     %     Optional detailed description
-    % Input  : - a normalized probability map: table of HEALPIX numbers and corresponding probabilities  
+    % Input  : - a normalized probability map: table of HEALPIX indices and corresponding probabilities  
     %          * ...,key,val,... 
     % Output : - a set of [RA, Dec] coordinates of FOV centers 
     % Author : A.M. Krassilchtchikov (2025 Feb) 
