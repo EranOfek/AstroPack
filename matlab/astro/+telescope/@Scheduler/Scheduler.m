@@ -61,13 +61,13 @@ classdef Scheduler < Component
                                 'Nexp',20, 'ExpTime',20,...
                                 'BasePriority', 0.1,...
                                 'Priority', 0.1,...
-                                'NightCounter',0, 'MaxNightCounter',NaN, 'GlobalCounter',0, 'MaxCounter',Inf,...
+                                'NightCounter',0, 'MaxNightN', 8, 'LastMaxNightReset', 0,...
+                                'GlobalCounter',0, 'MaxCounter',Inf,...
                                 'LastJD',0,...
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
                                 'Cadence',0.7, 'WeightHigh',1.1, 'WeightLow',1.0, 'CadenceRiseTime',0.2, 'WeightDecayTime',10,...
                                 'NightCadence',1./24, 'NightWeightHigh',1.5, 'NightWeightLow',1.4, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
-                                'MaxNightN',8,...
                                 'MinMoonDist',-1,...
                                 'MinVisibility',2./24,...
                                 'ExtraPriorityHA',0.1, 'MinHA1',-2./24, 'MaxHA1', -1./24);
@@ -173,7 +173,17 @@ classdef Scheduler < Component
                 % return empty object
                 
             else
-                Obj = io.files.load2(Obj.FileName);
+                Tmp = io.files.load2(Obj.FileName);
+                if isa(Tmp, 'telescope.Scheduler')
+                    Obj = Tmp;
+                elseif isa(Tmp, 'table')
+                    Obj.List = AstroCatalog;
+                    Obj.List.Catalog = Tmp;
+                elseif isa(Tmp, 'AstroCatalog')
+                    Obj.List = Tmp;
+                else
+                    error('Unknown file option');
+                end
             end
             
         end
@@ -2085,11 +2095,17 @@ classdef Scheduler < Component
                 JD = Obj.JD;
             end
             
+            LastReset = Obj.List.Catalog.LastMaxNightReset(1);
+            TimeSinceLastReset = JD - LastReset;
+
             TimeSinceLastSunSet = Obj.timeSinceSunSet(JD);
-            if TimeSinceLastSunSet>0.9
-                Result = true;
-            else
+            DeltaTime = TimeSinceLastReset-TimeSinceLastSunSet;
+            if DeltaTime<0.5
+                % no need to reset because already reseted 
                 Result = false;
+            else
+               % new night identified
+               Result = true;
             end
 
         end
@@ -2118,6 +2134,7 @@ classdef Scheduler < Component
             if InitC
                 Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
                 Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
+                Obj.List.Catalog.LastMaxNightReset = zeros(Nsrc,1) + celestial.time.julday;
             end
         end
     end
