@@ -1,6 +1,6 @@
 function [Result] = imagesIntersectingPolygon(P, Args)
     % Search for DB images intersecing with or containing the given sky polygon
-    %     Optional detailed description
+    %     Designed mostly for use with 'reference_images' tables 
     % Input  : - polygon: Nx2 array of [RA, Dec] in degrees 
     %          - 
     %          * ...,key,val,... 
@@ -11,15 +11,17 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     %         'Table'  - image table name
     %         'SelectFields' - columns to be drawn from the table: id_visit, ra1-4 and dec1-4 are mandatory
     %         'HP_ColName'   - name of the Healpix column
+    %         'Resolution'   - [arcsec] desired accuracy = raster resolution 
+    %         'MaxImageSize' - [deg] maximal size of the DB image
     % Output : - a table containing unique indexes of the images, exptime,
     %            jd_start, and a column indicating intersection and containment 
     % Author : A.M. Krassilchtchikov (2025 Jun)
     % Example: P0 = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     %          T0 = db.search.imagesIntersectingPolygon(P0); % just intersection
     %          P1 = [10, 70; 10, 70.2; 9.8, 70.2; 9.8, 70];
-    %          T1 = db.search.imagesIntersectingPolygon(P1); % some of the images contain the polygon
-    %          P2 = [9.5, 69.5; 9.5, 71.0; 7.0, 71.0; 7.0, 69.5];
-    %          T2 = db.search.imagesIntersectingPolygon(P2); % the polygon contains some of the images 
+    %          T1 = db.search.imagesIntersectingPolygon(P1); % some of the images contain the polygon   
+    %          P2 = [9.5, 19.5; 9.5, 20.5; 8.5, 20.5; 8.5, 19.5];
+    %          T2 = db.search.imagesIntersectingPolygon(P2,'Resolution',10); % the polygon contains some of the images 
     arguments
         P
         Args.DB                = [];
@@ -27,10 +29,11 @@ function [Result] = imagesIntersectingPolygon(P, Args)
         Args.DBUser            = 'last_user';
 %         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
         Args.DBPass            = 'physics';
-        Args.Table             = 'vis_im_tst_dedup'; % 'visit_images';   
+        Args.Table             = 'vis_im_tst_dedup'; % will be mostly used for 'reference_images'    
         Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];        
         Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName
         Args.HP_ColName        = 'upix_low'; 
+        Args.Resolution        = 10;  % [arcsec] raster resolution
         Args.MaxImageSize      = 0.7; % [deg] maximal size of the DB image
     end
     % get a connection
@@ -55,13 +58,14 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     T     = DB.query(Query);
     N1    = height(T); Empty = zeros(N1,1);
     T     = [T, table(Empty, Empty, Empty, ...
-        'VariableNames', {'Intersect', 'R0containR1','R1containR0'})];
+        'VariableNames', {'Intersect', 'P0containP1','P1containP0'})];
     % check the intersections:
+    R = celestial.healpix.rasterize_polygon(P,'Resolution',Args.Resolution); % raster the polygon once to save time in polygon_boolean_operations
     for Irow = 1:N1
        Image = [T.ra1(Irow),T.dec1(Irow);T.ra2(Irow),T.dec2(Irow);T.ra3(Irow),T.dec3(Irow);T.ra4(Irow),T.dec4(Irow)];
-       Res   = celestial.coo.polygon_boolean_operations(P, Image);       
-       T.Intersect(Irow)   = Res.Intersect; 
-       T.R0containR1(Irow) = Res.R0containR1; T.R1containR0(Irow) = Res.R1containR0;
+       Res   = celestial.coo.polygon_boolean_operations(P, Image,'R0',R,'Resolution',Args.Resolution);       
+       T.Intersect(Irow)   = Res.Intersect; % in fact, this column is needed for tests only 
+       T.P0containP1(Irow) = Res.P0containP1; T.P1containP0(Irow) = Res.P1containP0;
     end
     Result = sortrows(T(T.Intersect>0,:),'jd_start'); % select and sort by start time
     N2     = height(Result);
