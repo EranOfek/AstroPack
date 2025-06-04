@@ -4535,6 +4535,70 @@ classdef MatchedSources < Component
 
 
         % get LC by source index
+        function [JD, LC, Ind] = getLC_nearest(Obj, RA, Dec, SearchRadius, Args)
+            % Get LC and data of nearest source to some coordinates.
+            % Input  : - self.
+            %          - RA
+            %          - Dec
+            %          - Search Radius. Default is 3.
+            %          * ...,key,val,...
+            %            'Props' - Properties to put in output LC.
+            %                   Default is ["RA","Dec","MAG_PSF","MAGERR_PSF"]
+            %            'SearchRadiusUnits' - SearchRadius units.
+            %                   Default is 'arcsec'.
+            %            'InCooUnits' - Input RA/Dec units.
+            %                   Default is 'deg'.
+            %            'CooUnits' - Coordinates units in the Data matrix.
+            %                   Default is 'deg'.
+            %            'FieldRA' - Field name containing the R.A.
+            %                   Default is 'RA'.
+            %            'FieldDec' - Field name containing the Dec.
+            %                   Default is 'Dec'.
+            % Output : - Column vector of JD
+            %          - LC with columns as indicated in 'Props'.
+            %          - Ind stryucture (output of coneSearch).
+            % Author : Eran Ofek (Jun 2025)
+            % Example: MS.getLC_nearest(RA,Dec)
+
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                SearchRadius   = 3;
+                Args.Props                   = ["RA","Dec","MAG_PSF","MAGERR_PSF"];
+                Args.SearchRadiusUnits       = 'arcsec';
+                Args.InCooUnits              = 'deg';   % 'deg' | 'rad'
+                Args.CooUnits                = 'deg';   % 'deg' | 'rad'
+                Args.FieldRA                 = 'RA';
+                Args.FieldDec                = 'Dec';
+            end
+
+
+            Ind=Obj.coneSearch(RA, Dec, SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                  'InCooUnits',Args.InCooUnits,...
+                                                  'CooUnits',Args.CooUnits,...
+                                                  'FieldRA',Args.FieldRA,...
+                                                  'FieldDec',Args.FieldDec);
+
+
+            JD = Obj.JD;
+            if isempty(Ind.Ind)
+                LC = [];
+            else
+                [~,I] = min(Ind.Dist);
+                Isrc  = Ind.Ind(I);
+
+                Nprop = numel(Args.Props);
+                LC    = nan(numel(JD),Nprop);
+                for Iprop=1:1:Nprop
+                    LC(:,Iprop) = Obj.Data.(Args.Props{Iprop})(:,Isrc);
+                end
+
+            end
+
+
+        end
+
         function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
             % get the LC [JD, Mag] of a source by its index (column number)
             % Input  : - A single-element MatchedSources object
