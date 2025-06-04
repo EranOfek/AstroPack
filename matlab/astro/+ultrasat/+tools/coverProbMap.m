@@ -94,7 +94,7 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
             Coverage = 1;  % percent of filtered probability covered
             [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, WeightedProb,...
                 Args.MaxTarg, Args.FOVradius, 'Overlap',Overlap,'Plot',1,'TargetCoverage',Coverage);
-             [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, Map.PROBDENSITY,...
+%              [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, Map.PROBDENSITY,...
 %                 Nmax, Args.FOVradius, 'Overlap',Overlap,'Plot',1,'TargetCoverage',Coverage);
     end
     %%%%%%%%%%%%%%%
@@ -187,7 +187,7 @@ function Targets = coverSky(Map, Args)
             axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
             plotm(Map.DEC./RAD,Map.RA./RAD,'*')
         end           
-    % find all the 7-deg grid pixels intersecting with any of the alert pixels
+    % find all the 7-deg all-sky grid pixels intersecting with any of the alert pixels
     ITarg = 0;
     for Ip = 1:Np        
         Rd = celestial.coo.sphere_dist_fast(Grid0(Ip,1)/RAD,Grid0(Ip,2)/RAD,Map.RA./RAD,Map.DEC./RAD);        
