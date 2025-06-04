@@ -7,9 +7,11 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     % Author : A.M. Krassilchtchikov (2025 Feb) 
     % Example: Map = '~/ULTRASAT/SkyGrid/LVC/2024/04/01/lvc_2024_04_01_00_40_58_000000.csv';
     %         [RA, Dec, ~] = ultrasat.tools.coverProbMap(Map,'MaxTarg',4); 
+    %         ultrasat.tools.coverProbMap(Map,'Verbosity',0,'Experimental',1,'ProbThresh',0.01,'MaxTarg',10); % experimental
+
     arguments
         SkyMap      
-        Args.MaxTarg           = 4;    % maximal number of exposures (unqi targets) to use
+        Args.MaxTarg           = 4;    % maximal number of exposures (unique targets) to use
         Args.MinProb           = 0.5;  % minimal cumulative probability covered
         Args.MinAddedProb      = 0.05; % once adding one more target increases the sum covered probability 
                                        % by less than this value, we does not need it and stop               
@@ -87,13 +89,12 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
             Ind  = floor(log(Map.UNIQ/4)/(2*log(2)));
             SRAD = (180/pi)^2; % sq. deg. in srad
             ProbPerDeg = Map.PROBDENSITY ./ SRAD; % probability per deg^2          
-            WeightedProb = NsideAreaDeg(Ind(:,1),2).*ProbPerDeg;
-            Nmax     = 10;
+            WeightedProb = NsideAreaDeg(Ind(:,1),2).*ProbPerDeg;          
             Overlap  = 0.1;% 1 -- absolute overlap, 0 -- no overlap allowed
             Coverage = 1;  % percent of filtered probability covered
             [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, WeightedProb,...
-                Nmax, Args.FOVradius, 'Overlap',Overlap,'Plot',1,'TargetCoverage',Coverage);
-%             [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, Map.PROBDENSITY,...
+                Args.MaxTarg, Args.FOVradius, 'Overlap',Overlap,'Plot',1,'TargetCoverage',Coverage);
+             [RA_out, Dec_out, centers_idx, coverage_PD, disk_map, stop_k] = place_probability_disks(Map.RA, Map.DEC, Map.PROBDENSITY,...
 %                 Nmax, Args.FOVradius, 'Overlap',Overlap,'Plot',1,'TargetCoverage',Coverage);
     end
     %%%%%%%%%%%%%%%
