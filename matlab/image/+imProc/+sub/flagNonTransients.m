@@ -215,12 +215,14 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagBadPix_Hard logical  = true;
         Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
             'Hole', 'Negative'};
-        Args.BadPixSatRad = 10;
-        Args.BadPixSatFlux = 20000;
 
         Args.flagBadPix_Soft logical  = true;
         Args.BadPix_Soft       = {{'DarkHighVal', 1.2}, ...
             {'CR_DeltaHT',2.9}};
+
+        Args.flagSubVisit = true;
+        Args.BadPixSatRad = 10;
+        Args.BadPixSatFlux = 20000;
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
@@ -422,6 +424,11 @@ function TranCat = flagNonTransients(Obj, Args)
 
             BadPixHard = N_BadPixHard | R_BadPixHard;
 
+            FilterFlags = FilterFlags + BadPixHard.*2.^BD_TF.name2bit('BadPixelHard');
+        end
+
+        if Args.flagSubVisit
+
             N_FLAGS = Obj(Iobj).New.MaskData.bitwise_cutouts([X, Y], ...
                 'or', 'HalfSize', Args.BadPixSatRad);
             R_FLAGS = Obj(Iobj).Ref.MaskData.bitwise_cutouts([X, Y], ...
@@ -437,9 +444,7 @@ function TranCat = flagNonTransients(Obj, Args)
             R_FalseSaturation = (~N_BadPixSat & R_BadPixSat & ~R_hasHighFlux);
             FalseSaturation = N_FalseSaturation | R_FalseSaturation;
 
-            BadPixHard = BadPixHard | FalseSaturation;
-
-            FilterFlags = FilterFlags + BadPixHard.*2.^BD_TF.name2bit('BadPixelHard');
+            FilterFlags = FilterFlags + FalseSaturation.*2.^BD_TF.name2bit('SubVisit');
         end
 
         % Apply soft bit mask criteria.
