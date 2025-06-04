@@ -13,7 +13,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     arguments        
         P
         Args.Resolution = 5; % [arcsec]  
-        Args.Plot       = false;
+        Args.CheckPlot  = false;
     end
     RAD = 180/pi;
     NsideRad = [2, 27.585653017957394; ...     % radius of healpix in deg
@@ -48,7 +48,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     Inside = celestial.search.isPointInsidePolygon(PixLon*RAD, PixLat*RAD, P); 
     Result = Ind(Inside>0);
     % graphical check:
-    if Args.Plot
+    if Args.CheckPlot
         figure(1)
         axesm('aitoff', 'Frame', 'on', 'Grid', 'on');
         plotm(PixLat(Inside>0)*RAD,PixLon(Inside>0)*RAD,'*')
