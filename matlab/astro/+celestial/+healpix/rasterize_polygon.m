@@ -1,8 +1,9 @@
 function [Result, Nside] = rasterize_polygon(P, Args)
-    % Rasterize a spherical polygon into HEALpix at a given resolution
+    % Rasterize a spherical polygon into HEALpix at a given Nside or resolution
     %     Optional detailed description
     % Input  : - polygon: Nx2 array of [RA, Dec] in degrees 
     %          * ...,key,val,... 
+    %          'Nside'      - desired raster resolution
     %          'Resolution' - desired raster resolution [arcsec]
     %          'Plot'       - boolean (plot an illustration)
     % Output : - indices of the HEALpix pixels filling the polygon
@@ -12,7 +13,8 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     %          [R, Nside] = celestial.healpix.rasterize_polygon(P);
     arguments        
         P
-        Args.Resolution = 5; % [arcsec]  
+        Args.Nside      = 2^16; 
+        Args.Resolution = 5;       % [arcsec]  
         Args.CheckPlot  = false;
     end
     RAD = 180/pi;
@@ -39,7 +41,13 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     % determine the center and the size of the polygon: 
     [RA0, Dec0, R0] = celestial.coo.spherical_polygon_circum_circle(P);   
     % determine the Nside corresponding to the desired resolution:
-    Nside  = NsideRad(find(NsideRad(:,2) < Args.Resolution/3600, 1,'first'),1);            
+    if ~isempty(Args.Nside)
+        Nside = Args.Nside;
+    elseif ~isempty(Args.Resolution)
+        Nside  = NsideRad(find(NsideRad(:,2) < Args.Resolution/3600, 1,'first'),1);
+    else
+        error('Either Nside or Resolution must be defined');
+    end
     % search all the HEALpix at this resolution within the given radius from the center:
     [Ind,PixLon,PixLat] = celestial.healpix.coneSearch(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
     % for Nside >  65536 = 2^16 need to employ a more accurate function: 
