@@ -2,6 +2,10 @@
 %
 % Example:
 % WS = tools.WebServer;
+% DB = db.Db;
+% DB.User = 'euclid/root'
+% DB.useDB('last');
+% WS.DB = DB;
 % WS.runWebServer;  % run web server in background
 % WS.killWebServer  % kill the WebServer
 % Use: curl "http://localhost:8080/echo?Args1=123&Args2=hello%20world&Args3=-112.6661"
@@ -138,7 +142,6 @@ classdef WebServer < Component
                 case 'Insert2DB'
                     Obj.killWebServer;
 
-                    %sprintf('python3 WebServer.py --host socsrv --port 8123 --user default --password PassRoot --ingestTime ingestiontimejd --userNameColumn user')
                     WebServerFun = sprintf('%s%s%s', tools.WebServer.getWebServerPath, filesep, Obj.WebServer_Insert2DB);
                     if isempty(Obj.DB)
                         error('DB property must be provided - a db.Db object');

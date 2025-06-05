@@ -77,196 +77,200 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     Npath = numel(AllPaths);
     AllFiles = strings(Npath,1);
     %AI    = AstroImage([Npath,1]);
+    K = 0;
     for Ipath=1:1:Npath
-        cd(AllPaths(Ipath));
+        if isfolder(AllPaths{Ipath})
+            K = K + 1;
+            cd(AllPaths(Ipath));
 
-        switch Level
-            case {'coadd','coadd.zogyD'}
-
-                switch Product
-                    case 'Image'
-        
-                        AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*');
+            switch Level
+                case {'coadd','coadd.zogyD'}
+    
+                    switch Product
+                        case 'Image'
             
-                        AFND = AstroFileName.dir(AllFiles);
-                        if AFND.nFiles==0
-                            warning('File not found : %s%s%s',AFND.genPath,filesep,AFND.genFile);
-                        else
-                            AllFiles{Ipath} = AFND.genFile{1};
-                            if Args.Load
-                                AI(Ipath) = AstroImage(AllFiles{Ipath});
+                            AllFiles      = AFN.genFile(Ipath, 'Time','*','Counter','*');
+                
+                            AFND = AstroFileName.dir(AllFiles);
+                            if AFND.nFiles==0
+                                warning('File not found : %s%s%s',AFND.genPath,filesep,AFND.genFile);
+                            else
+                                AllFiles{Ipath} = AFND.genFile{1};
+                                if Args.Load
+                                    AI(K) = AstroImage(AllFiles{Ipath});
+                                end
                             end
-                        end
-
-                    case 'Image+'
-
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
-            
-                        AFND = AstroFileName.dir(FileTemp);
-                        Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                        AllFiles(Ipath) = Files{1};
-
-                        CellArgs = cell(1,2.*Nextra);
-                        I = 0;
-                        for Iextra=1:1:Nextra
-                            I = I + 1;
-                            CellArgs{I}   = Args.ExtraOutProduct{Iextra};
-                            I = I + 1;
-                            CellArgs{I} = Files{1+Iextra};
-                        end
-            
-                        if Args.Load
-                            AI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
-                        end
-
-                    case 'Image++'
-
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
-            
-                        AFND = AstroFileName.dir(FileTemp);
-                        Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                        AllFiles(Ipath) = Files{1};
-
-                        CellArgs = cell(1,2.*Nextra);
-                        I = 0;
-                        for Iextra=1:1:Nextra
-                            I = I + 1;
-                            CellArgs{I}   = Args.ExtraOutProduct{Iextra};
-                            I = I + 1;
-                            CellArgs{I} = Files{1+Iextra};
-                        end
-            
-                        if Args.Load
-                            AI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
-                        end
-
-                        % convert to AstroZOGY
-                        AI = AstroZOGY.convertFromAstroImage(AI);
-
-                        % read also the new image:
-                        SplitLevel = split(Level);
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',SplitLevel{1});
-            
-                        AFND = AstroFileName.dir(FileTemp);
-                        Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                        AllFiles(Ipath) = Files{1};
-
-                        CellArgs = cell(1,2.*Nextra);
-                        I = 0;
-                        for Iextra=1:1:Nextra
-                            I = I + 1;
-                            CellArgs{I}   = Args.ExtraOutProduct{Iextra};
-                            I = I + 1;
-                            CellArgs{I} = Files{1+Iextra};
-                        end
-            
-                        if Args.Load
-                            NewAI(Ipath) = AstroImage({Files{1}}, CellArgs{:});
-                        end
-
-                        AI(Ipath).New = NewAI(Ipath);
-
-
-                    case 'Cat'
-                        
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
-                        AFND = AstroFileName.dir(FileTemp);
-                        AllFiles(Ipath) = AFND.genFile;
-                        if Args.Load
-                            AI(Ipath) = AstroCatalog(AllFiles{Ipath});
-                        end
-
-
-                    case 'Asteroids'
-                        FA = dir('*coadd_Asteroids_*.mat');
-                        if numel(FA)==1
-                            AllFiles{Ipath} = FA(1).name;
-                            if Args.Load
-                                AI(Ipath) = io.files.load2(AllFiles{Ipath});
+    
+                        case 'Image+'
+    
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
+                
+                            AFND = AstroFileName.dir(FileTemp);
+                            Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                            AllFiles(Ipath) = Files{1};
+    
+                            CellArgs = cell(1,2.*Nextra);
+                            I = 0;
+                            for Iextra=1:1:Nextra
+                                I = I + 1;
+                                CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                                I = I + 1;
+                                CellArgs{I} = Files{1+Iextra};
                             end
-                        else
-                            error('Found %d Asteroids files in %s',numel(FA),pwd);
-                        end
-                    otherwise
-                        error('Unsupported option Level=%s, Product=%s', Level, Product);
-                end
-            % case 'coadd.zogyD'
-            % 
-            %     FA = dir('*coadd.zogyD_Image_*.fits');
-            %     numel(FA)
-            %     if numel(FA)==1
-            %         AllFiles{Ipath} = FA(1).name;
-            %         if Args.Load
-            %             AI(Ipath) = io.files.load2(AllFiles{Ipath});
-            %         end
-            %     else
-            %         warning('Found %d zogyD files in %s',numel(FA),pwd);
-            %     end
-
-
-            case 'proc'
-
-                switch Product
-                    case 'Cat'
-                        if Ipath==1
+                
                             if Args.Load
-                                AI = AstroCatalog([Args.Ncounter, Npath]);
+                                AI(K) = AstroImage({Files{1}}, CellArgs{:});
                             end
-                            AllFiles = strings(Args.Ncounter, Npath);
-                        end
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
-                        AFND = AstroFileName.dir(FileTemp);
-                        
-                        Icounter = str2double(AFND.Counter);
-
-                        AllFiles(Icounter, Ipath) = AFND.genFile;
-                        if Args.Load
-                            AI(Icounter, Ipath) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
-                        end
-
-
-                    otherwise
-                        error('Unsupported option Level=%s, Product=%s', Level, Product);
-                end
-
-            case 'merged'
-                switch Product
-                    case 'MergedMat'
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','hdf5');
-                        AFND = AstroFileName.dir(FileTemp);
-                        AllFiles(Ipath) = AFND.genFile;
-                        if Args.Load
-                            AI(Ipath) = MatchedSources.read(AllFiles{Ipath});
-                        end
-
-                    case 'Cat'
-                        FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits');
-                        AFND = AstroFileName.dir(FileTemp);
-                        AllFiles(Ipath) = AFND.genFile;
-                        if Args.Load
-                            AI(Ipath) = AstroCatalog(AllFiles{Ipath});
-                        end
-
-                    case 'Asteroids'
-                        FA = dir('*merged_Asteroids_*.mat');
-                        if numel(FA)==1
-                            AllFiles{Ipath} = FA(1).name;
+    
+                        case 'Image++'
+    
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
+                
+                            AFND = AstroFileName.dir(FileTemp);
+                            Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                            AllFiles(Ipath) = Files{1};
+    
+                            CellArgs = cell(1,2.*Nextra);
+                            I = 0;
+                            for Iextra=1:1:Nextra
+                                I = I + 1;
+                                CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                                I = I + 1;
+                                CellArgs{I} = Files{1+Iextra};
+                            end
+                
                             if Args.Load
-                                AI(Ipath) = io.files.load2(AllFiles{Ipath});
+                                AI(K) = AstroImage({Files{1}}, CellArgs{:});
                             end
-                        else
-                            error('Found %d Asteroids files in %s',numel(FA),pwd);
-                        end
-
-
-                    otherwise
-                        error('Unsupported option Level=%s, Product=%s', Level, Product);
-                end
-
-            otherwise
-                error('Unsupported option Level=%s, Product=%s', Level, Product);
+    
+                            % convert to AstroZOGY
+                            AI = AstroZOGY.convertFromAstroImage(AI);
+    
+                            % read also the new image:
+                            SplitLevel = split(Level);
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',SplitLevel{1});
+                
+                            AFND = AstroFileName.dir(FileTemp);
+                            Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                            AllFiles(Ipath) = Files{1};
+    
+                            CellArgs = cell(1,2.*Nextra);
+                            I = 0;
+                            for Iextra=1:1:Nextra
+                                I = I + 1;
+                                CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                                I = I + 1;
+                                CellArgs{I} = Files{1+Iextra};
+                            end
+                
+                            if Args.Load
+                                NewAI(K) = AstroImage({Files{1}}, CellArgs{:});
+                            end
+    
+                            AI(K).New = NewAI(K);
+    
+    
+                        case 'Cat'
+                            
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product);
+                            AFND = AstroFileName.dir(FileTemp);
+                            AllFiles(Ipath) = AFND.genFile;
+                            if Args.Load
+                                AI(K) = AstroCatalog(AllFiles{Ipath});
+                            end
+    
+    
+                        case 'Asteroids'
+                            FA = dir('*coadd_Asteroids_*.mat');
+                            if numel(FA)==1
+                                AllFiles{Ipath} = FA(1).name;
+                                if Args.Load
+                                    AI(K) = io.files.load2(AllFiles{Ipath});
+                                end
+                            else
+                                error('Found %d Asteroids files in %s',numel(FA),pwd);
+                            end
+                        otherwise
+                            error('Unsupported option Level=%s, Product=%s', Level, Product);
+                    end
+                % case 'coadd.zogyD'
+                % 
+                %     FA = dir('*coadd.zogyD_Image_*.fits');
+                %     numel(FA)
+                %     if numel(FA)==1
+                %         AllFiles{Ipath} = FA(1).name;
+                %         if Args.Load
+                %             AI(Ipath) = io.files.load2(AllFiles{Ipath});
+                %         end
+                %     else
+                %         warning('Found %d zogyD files in %s',numel(FA),pwd);
+                %     end
+    
+    
+                case 'proc'
+    
+                    switch Product
+                        case 'Cat'
+                            if Ipath==1
+                                if Args.Load
+                                    AI = AstroCatalog([Args.Ncounter, Npath]);
+                                end
+                                AllFiles = strings(Args.Ncounter, Npath);
+                            end
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits*');
+                            AFND = AstroFileName.dir(FileTemp);
+                            
+                            Icounter = str2double(AFND.Counter);
+    
+                            AllFiles(Icounter, Ipath) = AFND.genFile;
+                            if Args.Load
+                                AI(Icounter, K) = AstroCatalog({AllFiles{Icounter, Ipath}}).';
+                            end
+    
+    
+                        otherwise
+                            error('Unsupported option Level=%s, Product=%s', Level, Product);
+                    end
+    
+                case 'merged'
+                    switch Product
+                        case 'MergedMat'
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','hdf5');
+                            AFND = AstroFileName.dir(FileTemp);
+                            AllFiles(Ipath) = AFND.genFile;
+                            if Args.Load
+                                AI(K) = MatchedSources.read(AllFiles{Ipath});
+                            end
+    
+                        case 'Cat'
+                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level, 'Product',Product, 'FileTYpe','fits');
+                            AFND = AstroFileName.dir(FileTemp);
+                            AllFiles(Ipath) = AFND.genFile;
+                            if Args.Load
+                                AI(K) = AstroCatalog(AllFiles{Ipath});
+                            end
+    
+                        case 'Asteroids'
+                            FA = dir('*merged_Asteroids_*.mat');
+                            if numel(FA)==1
+                                AllFiles{Ipath} = FA(1).name;
+                                if Args.Load
+                                    AI(K) = io.files.load2(AllFiles{Ipath});
+                                end
+                            else
+                                error('Found %d Asteroids files in %s',numel(FA),pwd);
+                            end
+    
+    
+                        otherwise
+                            error('Unsupported option Level=%s, Product=%s', Level, Product);
+                    end
+    
+                otherwise
+                    error('Unsupported option Level=%s, Product=%s', Level, Product);
+            end
+    
         end
-
     end
 
     cd(PWD);
