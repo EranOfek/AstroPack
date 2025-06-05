@@ -70,9 +70,13 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         
     %%%%%%%%%%%%%%% experimental coverage function:
     if Args.Experimental           
-        [FOVcenters, IdxCenters, CoveredPD, FOVmap, Nstop] = ...
+        [FOVcenters, ~, CoveredPD, ~, Nstop] = ...
             telescope.obs.optimalCoverageProbMap([Map.RA Map.DEC], Map.PROBDENSITY, Args.FOVradius,...
                 'Uniq',Map.UNIQ,'Nmax', Args.MaxTarg, 'Plot',1);
+        RA = FOVcenters(:,1); Dec = FOVcenters(:,2); 
+        Stat.Ntarg = Nstop; 
+        Stat.CoveredProb = CoveredPD;
+        return
     end
     %%%%%%%%%%%%%%%
         
