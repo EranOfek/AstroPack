@@ -9,7 +9,10 @@ function Result = polygon_boolean_operations(P0, P1, Args)
     %            'Resolution' - desired accuracy = raster resolution [arcsec]
     %            'TestPlot'   - plot the results 
     % Output : - a struct containing boolean data on intersection 
-    %            and mutual containment of the input polygons 
+    %            and mutual containment of the input polygons:
+    %               Intersect: [1 1 1 0 1]
+    %             P0containP1: [1 0 0 0 0]
+    %             P1containP0: [1 0 0 0 1]
     % Author : A.M. Krassilchtchikov (2025 May) 
     % Example: P0 = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     %          P1 = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
