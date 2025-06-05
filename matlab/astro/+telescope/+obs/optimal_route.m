@@ -21,7 +21,7 @@ function [OptRoute, MinDist] = optimal_route(RA, Dec, Args)
         Args.ShowProgress = false;
         Args.ShowResult   = false;
     end
-    
+    %
     RAD = 180/pi;
     RA  = RA./RAD; Dec = Dec./RAD;
     Npoints  = numel(RA);
@@ -35,11 +35,11 @@ function [OptRoute, MinDist] = optimal_route(RA, Dec, Args)
         end
     end
     
-    % once provided the retargeting speed function (a non-linear function of distance?),
+    % a future enhancement: once provided the retargeting speed function (a non-linear function of distance?),
     % we can convert the matrix of distances into the matrix of retargeting time 
     Speed = 1;
     TimeMatrix = DistMatr .* Speed;
-    
+    %
     [OptRoute,MinDist] = tsp_ga([RA.*RAD Dec.*RAD], TimeMatrix, Args.NGen, Args.NIt, Args.ShowProgress, Args.ShowResult);
 end
 

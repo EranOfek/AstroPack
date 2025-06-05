@@ -384,12 +384,12 @@ function draw_aitoff_circle(RA_center, Dec_center, R)
 % in Aitoff projection.
     steps = 200;
     angles = linspace(0, 2*pi, steps);
-    RA_center = deg2rad(RA_center);
+    RA_center  = deg2rad(RA_center);
     Dec_center = deg2rad(Dec_center);
     R = deg2rad(R);
 
     % Compute circle on the sphere
-    circle_RA = zeros(steps, 1);
+    circle_RA  = zeros(steps, 1);
     circle_Dec = zeros(steps, 1);
 
     for j = 1:steps
