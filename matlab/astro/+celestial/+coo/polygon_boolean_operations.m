@@ -5,9 +5,9 @@ function Result = polygon_boolean_operations(P0, P1, Args)
     % Input  : - P0 - a polygon: Nx2 array of [RA, Dec] in degrees 
     %          - P1 - a polygon or a cell array of polygons
     %          * ...,key,val,... 
-    %          'R0'         - a raster of the first polygon
-    %          'Resolution' - desired accuracy = raster resolution [arcsec]
-    %          'TestPlot'   - plot the results 
+    %            'R0'         - a raster of the first polygon
+    %            'Resolution' - desired accuracy = raster resolution [arcsec]
+    %            'TestPlot'   - plot the results 
     % Output : - a struct containing boolean data on intersection 
     %            and mutual containment of the input polygons 
     % Author : A.M. Krassilchtchikov (2025 May) 
