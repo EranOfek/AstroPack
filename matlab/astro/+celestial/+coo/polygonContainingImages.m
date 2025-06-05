@@ -10,6 +10,9 @@ function [RA_poly, Dec_poly] = polygonContainingImages(Rectangles, varargin)
 %
 % Output:
 %   RA_poly, Dec_poly - vectors of coordinates of the convex polygon boundary (degrees)
+% Example: Corn = {[20, 10; 21, 10; 21, 11; 20, 12],[22, 9; 21, 9; 21, 8; 22, 8]};
+%   [RA, Dec] = celestial.coo.polygonContainingImages(Corn,'Plot',true)
+
 
 % Parse optional arguments
 p = inputParser;
