@@ -1287,6 +1287,8 @@ classdef Scheduler < Component
                 Args.FunSchedRequested function_handle % Function that returns [Mounts, JDs]=F() - check if there is a request from a mount
                 Args.FunTargetDispatch function_handle % [Success]=F(Mount, struct(Field, RA, Dec, Nexp, ExpTim)e) - write variable to mount
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
+
+                Args.CleanTargets  = false;
             end
 
             % initialize scheduler
@@ -1335,6 +1337,10 @@ classdef Scheduler < Component
             while Cont
                 pause(0.5) % don't run full throttle
                 
+                if Args.CleanTargets
+                    S = S.cleanTargets;
+                end
+
                 S.serviceTargetRequests('ToO_File',Args.ToO_File,...
                                 'SaveTargetList',Args.SaveTargetList,...
                                 'FunSchedRequested',Args.FunSchedRequested,...
@@ -2553,6 +2559,31 @@ classdef Scheduler < Component
             tools.gui.editInspectTable(Obj.List.Catalog, 'InspectFun',Args.InspectFun, 'InspectFunArgs',Args.InspectFunArgs, 'FunName',Args.FunName, 'AddLineNumber',false, 'SaveObj',Args.SaveAs);
 
             
+
+        end
+    
+        function Obj=cleanTargets(Obj, Args)
+            % Clean targets from list if StopJD exceeds current JD.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'ClaenOld' - Clean targets if their StopJD<current
+            %                   JD. Default is true.
+            % Output : - self updated.
+            % Author : Eran Ofek (Jun 2025)
+            % Example: S.cleanTargets
+
+            arguments
+                Obj
+                Args.CleanOld   = true;
+                %Args.CleanOwner = {};
+            end
+
+            JD = celestial.time.julday;
+            if Args.CleanOld
+                FlagGood = Obj.List.Catalog.StopJD>JD;
+                Obj.List.Catalog = Obj.List.Catalog(FlagGood,:);
+            end
+
 
         end
     end
