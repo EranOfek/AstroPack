@@ -1310,6 +1310,11 @@ classdef AstroHeader < Component
             %   Each keyword is associated with a conversion formulae.
             % Input  : - AstroHeader object (multi elements supported).
             %          * ...,key,val,...
+            %            'KeyJD' - JD or mid jd keyword. If given, then
+            %                   will be extracted directly without any
+            %                   calculations (e.g., 'MIDJD').
+            %                   If given, then output EXPTIME will be NaN.
+            %                   Default is [].
             %            'ExpTimeKey' - Exposure time header keyword.
             %                   Default is 'EXPTIME'.
             %            'FunTimeKeys' - A structure array (Dictionary) of
@@ -1350,6 +1355,7 @@ classdef AstroHeader < Component
             
             arguments
                 Obj
+                Args.KeyJD                             = [];  % if JD is known (for fast extraction)
                 Args.ExpTimeKey                        = 'EXPTIME';
                 Args.FunTimeKeys cell                  = {};
                 %Args.TreatBug2000(1,1) logical                                  = true;
@@ -1362,63 +1368,73 @@ classdef AstroHeader < Component
                 Args.KeyDict                                                    = [];
                 
             end
-            SEC_IN_DAY = 86400;
-            
-            if isempty(Args.FunTimeKeys)
-                % attempt loading from dictionary
-                if isempty(Obj(1).TimeDict.FieldNames)
-                    % set up to default values
-                    Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
-                    Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
-                    Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
 
-                else
-                    % use dictionary
-                    Args.FunTimeKeys = Obj(1).TimeDict;
+            if isempty(Args.KeyJD)
+                SEC_IN_DAY = 86400;
+                
+                if isempty(Args.FunTimeKeys)
+                    % attempt loading from dictionary
+                    if isempty(Obj(1).TimeDict.FieldNames)
+                        % set up to default values
+                        Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
+                        Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                        Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+    
+                    else
+                        % use dictionary
+                        Args.FunTimeKeys = Obj(1).TimeDict;
+                    end
                 end
-            end
-                                  
-            
-            TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
-            NtimeKeys = numel(TimeKeys);
-            
-            StTime    = getStructKey(Obj, TimeKeys);
-            StExp     = getStructKey(Obj, Args.ExpTimeKey);
-            
-            
-            MidJD   = nan(size(Obj));
-            ExpTime = nan(size(Obj));
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
-                Found = false;
-                Ikey = 0;
-                while ~Found && Ikey<NtimeKeys
-                    Ikey = Ikey + 1;
-                    T  = StTime(Iobj).(TimeKeys{Ikey});
-                    if ~isnan(T)
-                        if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
-                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
-                        else
-                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
-                        end
-                        if ~isnan(JD)
-%                             if Args.TreatBug2000
-%                                 if JD<celestial.time.julday([1 1 100])
-%                                     % assume that year is given with two
-%                                     % digits
-%                                     DD = celestial.time.jd2date(JD);
-%                                     JD = celestial.time.julday([DD(1) DD(2) DD(3)+1900]);
-%                                 end
-%                             end
-                            MidJD(Iobj) = JD;
-                            Found       = true;
+                                      
+                
+                TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
+                NtimeKeys = numel(TimeKeys);
+                
+                StTime    = getStructKey(Obj, TimeKeys);
+                StExp     = getStructKey(Obj, Args.ExpTimeKey);
+                
+                
+                MidJD   = nan(size(Obj));
+                ExpTime = nan(size(Obj));
+                Nobj = numel(Obj);
+                for Iobj=1:1:Nobj
+                    ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
+                    Found = false;
+                    Ikey = 0;
+                    while ~Found && Ikey<NtimeKeys
+                        Ikey = Ikey + 1;
+                        T  = StTime(Iobj).(TimeKeys{Ikey});
+                        if ~isnan(T)
+                            if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
+                                JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
+                            else
+                                JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                            end
+                            if ~isnan(JD)
+    %                             if Args.TreatBug2000
+    %                                 if JD<celestial.time.julday([1 1 100])
+    %                                     % assume that year is given with two
+    %                                     % digits
+    %                                     DD = celestial.time.jd2date(JD);
+    %                                     JD = celestial.time.julday([DD(1) DD(2) DD(3)+1900]);
+    %                                 end
+    %                             end
+                                MidJD(Iobj) = JD;
+                                Found       = true;
+                            end
                         end
                     end
+                end
+            else
+                Nobj    = numel(Obj);
+                MidJD   = nan(Nobj,1);
+                ExpTime = nan(Nobj,1);
+                for Iobj=1:1:Nobj
+                    MidJD(Iobj) = Obj(Iobj).getVal(Args.KeyJD);
                 end
             end
         end

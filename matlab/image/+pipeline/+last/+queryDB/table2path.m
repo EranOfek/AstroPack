@@ -21,7 +21,7 @@ function [AFN, AllPaths, AllFiles] = table2path(T, Args)
 
     arguments
         T
-        Args.BasePath          = '/marvin';
+        Args.BasePath          = '/lastdata';
 
         Args.DefCounter        = 0;
         Args.DefType           = 'sci';

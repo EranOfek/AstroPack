@@ -10,6 +10,8 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     %            'Image+' will also populated the Cat, PSF and Mask.
     %            'Image++' will read into an AstroZOGY object and also
     %            populate the New proprty.
+    %            'Image+-' will read into an AstroZOGY object and do not
+    %            populate the New proprty.
     %            Default is 'Image+'.
     %          * ...,key,val,... 
     %            'Load' - Logical indicating if to load files.
@@ -122,53 +124,59 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
                                 AI(K) = AstroImage({Files{1}}, CellArgs{:});
                             end
     
-                        case 'Image++'
+                        case {'Image++','Image+-'}
     
                             FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',Level);
                 
                             AFND = AstroFileName.dir(FileTemp);
-                            Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                            AllFiles(Ipath) = Files{1};
-    
-                            CellArgs = cell(1,2.*Nextra);
-                            I = 0;
-                            for Iextra=1:1:Nextra
-                                I = I + 1;
-                                CellArgs{I}   = Args.ExtraOutProduct{Iextra};
-                                I = I + 1;
-                                CellArgs{I} = Files{1+Iextra};
+                            if AFND.nFiles==0
+                                % no zogyD file found in dir
+                                AI(K) = AstroZOGY;
+                            else
+                                Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                                AllFiles(Ipath) = Files{1};
+        
+                                CellArgs = cell(1,2.*Nextra);
+                                I = 0;
+                                for Iextra=1:1:Nextra
+                                    I = I + 1;
+                                    CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                                    I = I + 1;
+                                    CellArgs{I} = Files{1+Iextra};
+                                end
+                    
+                                if Args.Load
+                                    AI(K) = AstroImage({Files{1}}, CellArgs{:});
+                                end
+        
+                                % convert to AstroZOGY
+                                AI = AstroZOGY.convertFromAstroImage(AI);
+        
+                                % read also the new image:
+                                SplitLevel = split(Level);
+                                FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',SplitLevel{1});
+                    
+                                AFND = AstroFileName.dir(FileTemp);
+                                Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
+                                AllFiles(Ipath) = Files{1};
+        
+                                CellArgs = cell(1,2.*Nextra);
+                                I = 0;
+                                for Iextra=1:1:Nextra
+                                    I = I + 1;
+                                    CellArgs{I}   = Args.ExtraOutProduct{Iextra};
+                                    I = I + 1;
+                                    CellArgs{I} = Files{1+Iextra};
+                                end
+                    
+                                if strcmp(Product, 'Image++')
+                                    if Args.Load
+                                        NewAI(K) = AstroImage({Files{1}}, CellArgs{:});
+                                    end
+            
+                                    AI(K).New = NewAI(K);
+                                end
                             end
-                
-                            if Args.Load
-                                AI(K) = AstroImage({Files{1}}, CellArgs{:});
-                            end
-    
-                            % convert to AstroZOGY
-                            AI = AstroZOGY.convertFromAstroImage(AI);
-    
-                            % read also the new image:
-                            SplitLevel = split(Level);
-                            FileTemp      = AFN.genFile(Ipath, 'Time','*','Counter','*', 'Level',SplitLevel{1});
-                
-                            AFND = AstroFileName.dir(FileTemp);
-                            Files = AFND.genProducts([], 'OutProduct',["Image", Args.ExtraOutProduct]);
-                            AllFiles(Ipath) = Files{1};
-    
-                            CellArgs = cell(1,2.*Nextra);
-                            I = 0;
-                            for Iextra=1:1:Nextra
-                                I = I + 1;
-                                CellArgs{I}   = Args.ExtraOutProduct{Iextra};
-                                I = I + 1;
-                                CellArgs{I} = Files{1+Iextra};
-                            end
-                
-                            if Args.Load
-                                NewAI(K) = AstroImage({Files{1}}, CellArgs{:});
-                            end
-    
-                            AI(K).New = NewAI(K);
-    
     
                         case 'Cat'
                             
@@ -274,5 +282,8 @@ function [AI, AllPaths, AllFiles, AFN] = loadProducts(T, Level, Product, Args)
     end
 
     cd(PWD);
+    if ~exist('AI','var')
+        AI = [];
+    end
 
 end

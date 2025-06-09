@@ -15,6 +15,8 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     %            'ReSub' - Re subtract. If false will attempt to upload existing
     %                   zogyD data products.
     %                   Default is false.
+    %            'LoadNew' - If ReSub==false, then this argument indicate
+    %                   if to load the New image. Default is false.
     %            'MaxIter' - Max iter for forced photometry. Use 0 if no
     %                   position adjustment. Default is 0.
     %            See code for additional arguments.
@@ -25,11 +27,15 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     % Author : Eran Ofek (2025 Apr) 
     % Example: RA=40.5229121965; Dec=-16.9563601815;
     %          T=pipeline.last.queryDB.searchVisitsByCoo(RA,Dec,'QueryMethod','upix');
-    %          R=pipeline.last.phot.forcePhotSubLAST(T{1}, RA, Dec);
+    %          R=pipeline.last.phot.forcedPhotSubLAST(T{1}, RA, Dec);
     %
     %          RA = 222.71; Dec=51.0
     %          T=DB.query("SELECT * FROM visit_images WHERE jd_start>2460770 AND jd_start<2460780 AND fieldid LIKE '1572'");
     %          R=pipeline.last.phot.forcedPhotSubLAST(T(1,:), RA, Dec, 'UseExistingRef',false);
+    %
+    %          RA=318.57475; Dec=2.15775;
+    %          T=DB.query("SELECT * FROM visit_images WHERE fieldid LIKE '970' AND mountnum=1 AND camnum=2 AND cropid=23");
+    %          R=pipeline.last.phot.forcedPhotSubLAST(T, RA, Dec, 'UseExistingRef',true, 'ReSub',false);
 
     arguments
         T
@@ -39,6 +45,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
         Args.RangeJD           = [-Inf Inf];
         Args.UseExistingRef    = false;
         Args.ReSub             = false;
+        Args.LoadNew           = false;
         Args.MaxIter           = 0;
 
         Args.MinNumForRef        = 5;
@@ -53,7 +60,9 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
         Args.forcedPhotSubArgs   = {};
 
         Args.OutType             = 'AstroCatalog';  % | 'tableold'
-        Args.BasePathRef         = '/marvin/references/v3';
+        Args.BasePathRef         = '/lastdata/references/v3';
+
+        Args.KeyJD               = 'MIDJD';
     end
 
     % select JD in range:
@@ -132,7 +141,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     NewAI = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd','Image+');
 
                     % check that NewAI contains data
-                    FlagEmpty = NewAI.isemptyImage;
+                    FlagEmpty = isempty(NewAI) || NewAI.isemptyImage;
                     if ~FlagEmpty
                         AD = imProc.sub.properSubtraction(NewAI, RefAI, 'ReBack',Args.ReBack,...
                                                                 'RefIsBackSub',Args.RefIsBackSub,...
@@ -147,11 +156,14 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     end
                 else
                     % use existing subtraction
-                    
-                    AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image++');
+                    if Args.LoadNew
+                        AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image++');
+                    else
+                        AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image+-');
+                    end
                 end
 
-                FlagEmpty = AD.isemptyImage;
+                FlagEmpty = isempty(AD) || AD.isemptyImage;
                 if ~FlagEmpty
 
                     if nargout>2
@@ -170,7 +182,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                             if isempty(Result)
                                 Result = AstroCatalog;
                             end
-                            Result(Iim) = imProc.sub.forcedPhotSub(AD, [RA, Dec], Args.forcedPhotSubArgs{:});
+                            Result(Iim) = imProc.sub.forcedPhotSub(AD, [RA, Dec], 'KeyJD',Args.KeyJD, Args.forcedPhotSubArgs{:});
 
                         case 'tableold'
                             % old table format (used for 2024wpp paper)
@@ -189,7 +201,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                             Z2        = imUtil.image.getValPos(AD.Z2, ResultD.X, ResultD.Y);
     
                             % add meta data (JD, Mount, Camera, CropID,...)
-                            Tmeta = table(AD.New.julday, string(FieldID), Mount, CamNum, CropID, NimRef, AD.HeaderData.getVal('LIMMAG'), AD.Ref.HeaderData.getVal('LIMMAG'), AD.New.HeaderData.getVal('LIMMAG'), S_val, Scorr_val, Z2);
+                            Tmeta = table(AD.New.julday('KeyJD',Args.KeyJD), string(FieldID), Mount, CamNum, CropID, NimRef, AD.HeaderData.getVal('LIMMAG'), AD.Ref.HeaderData.getVal('LIMMAG'), AD.New.HeaderData.getVal('LIMMAG'), S_val, Scorr_val, Z2);
                             Tmeta.Properties.VariableNames = {'JD','FieldID', 'Mount', 'CamNum', 'CropID', 'NimRef', 'LimMag', 'Ref_LimMag', 'New_LimMag', 'S', 'Scorr', 'Z2'};
                             K = K + 1;
                             if K==1

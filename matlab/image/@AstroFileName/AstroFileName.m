@@ -97,8 +97,8 @@ classdef AstroFileName < Component
         FileType            = ["fits"];
         %
         SubDir              = "";
-        BasePath            = "/marvin"; %{'2022', '/marvin'; '2023','/marvin'; '2024','/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
-        BasePathRef         = "/marvin/ref";
+        BasePath            = "/lastdata"; %"/marvin"; %{'2022', '/marvin'; '2023','/marvin'; '2024','/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
+        BasePathRef         = "/lastdata/ref"; % "/marvin/ref";
         
         %
         Path                = [];

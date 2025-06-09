@@ -40,6 +40,9 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
     %                   Default is {'LIMMAG'}
     %            'ConcatData' - Either a tatble or struct array of columns
     %                   to add to the table.
+    %            'KeyJD' - Optional JD header keyword (for expediting
+    %                   code).
+    %                   Default is [].
     %
     % Output : - An AstroCatalog object with element per subtraction
     %            object. The catalg contains a table with all the extracted
@@ -66,6 +69,8 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
         Args.HeaderKeys        = {'LIMMAG'};
         
         Args.ConcatData        = [];  % table or struct
+
+        Args.KeyJD             = [];
     end
 
     Ncoo = size(Coo,1);
@@ -114,13 +119,13 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
         if isempty(Args.ColJD)
             JD = [];
         else
-            JD    = AD(I).julday;
+            JD    = AD(I).julday('KeyJD',Args.KeyJD);
         end
         if isempty(Args.ColRefJD) || isempty(AD(I).Ref)
             RefJD   = [];
             ColVals = setdiff(ColVals, "RefJD");
         else
-            RefJD = AD(I).Ref.julday;
+            RefJD = AD(I).Ref.julday('KeyJD',Args.KeyJD);
         end
         
            
