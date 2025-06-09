@@ -834,7 +834,7 @@ classdef Db < Component
 
         end
 
-        function Error=createTable(Obj, TableName, ColNames, ColTypes, Args)
+        function Error=createTable(Obj, TableName, ColNames, ColTypes, ColDefaults, Args)
             % Create table
             % Input  : - self.
             %          - Table name.
@@ -845,6 +845,7 @@ classdef Db < Component
             %          - Cell array or string arry of column types (one
             %            type per column name).
             %            Default is empty.
+            %          - Cell array of column defaults. Default is {}.
             %          * ...,key,val,...
             %            'Engine' - Search engine.
             %                   Ask ChatGPT for more options.
@@ -864,6 +865,8 @@ classdef Db < Component
             %
             %          Error=DB.createTable('mergedmat_var',VarAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX pm_jd_index pm_jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1', 'INDEX upix_high_index upix_high TYPE minmax GRANULARITY 1', 'INDEX upix_low_index upix_low TYPE minmax GRANULARITY 1', 'INDEX upix_partition_index upix_partition TYPE minmax GRANULARITY 1'});
             %          DB.createTable('fastmoving_asteroids',AstAC.Table, [], 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
+            % % Example with defaults:         
+            % DB.createTable('fastmoving_asteroids',AstAC.Table, [], {[],'1'}, 'Index', {'INDEX ra_index ra TYPE minmax GRANULARITY 1', 'INDEX dec_index dec TYPE minmax GRANULARITY 1', 'INDEX jd_index jd TYPE minmax GRANULARITY 1', 'INDEX id_index id TYPE minmax GRANULARITY 1'});
             % [~,Error] = DB.query('DROP TABLE IF EXISTS mergedmat_var1', 'IsExec',true)
             % [~,Error] = DB.query('TRUNCATE TABLE mergedmat_var2', 'IsExec',true)
 
@@ -872,6 +875,7 @@ classdef Db < Component
                 TableName
                 ColNames
                 ColTypes       = [];
+                ColDefaults    = [];
                 Args.Engine    = 'MergeTree()';
                 Args.OrderBy   = 'id';
                 Args.LowerCase = true;
@@ -891,6 +895,18 @@ classdef Db < Component
             Ncol = numel(ColNames);
             Command = sprintf('CREATE TABLE %s \n(\n',TableName);
             for Icol=1:1:Ncol
+                if Icol>numel(ColDefaults)
+                    % ColTypes{Icol} = ColTypes{Icol};
+                else
+                    if ~isempty(ColDefaults{Icol})
+                        if isnumeric(ColDefaults{Icol})
+                            ColTypes{Icol} = sprintf('%s DEFAULT %d', ColTypes{Icol}, ColDefaults{Icol});
+                        else
+                            ColTypes{Icol} = sprintf('%s DEFAULT %s', ColTypes{Icol}, ColDefaults{Icol});
+                        end
+                    end
+                end
+
                 if Icol==Ncol
                     Nindex = numel(Args.Index);
                     if Nindex==0
@@ -906,7 +922,7 @@ classdef Db < Component
                         end
                         Command = sprintf('%s)',Command);
                     end
-                else
+                else                    
                     Command = sprintf('%s %s %s,\n', Command, ColNames{Icol}, ColTypes{Icol});
                 end
 
