@@ -37,7 +37,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         
         Args.ColNameID = 'id_visit';
         
-        Args.RemoteUser = 'samar';
+        Args.RemoteUser = 'euclid';
     end    
     % create a DB object and connect
     DB          = db.Db;
@@ -106,6 +106,14 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
                 end
+            end
+            % add the keywords to be used for filename construction            
+            for Crop = 1:Nobj
+                FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;
+                Coadd(Crop).HeaderData.replaceVal('DIRYEAR',FN(15:18));
+                Coadd(Crop).HeaderData.replaceVal('DIRMON' ,FN(19:20));
+                Coadd(Crop).HeaderData.replaceVal('DIRDAY' ,FN(21:22));
+                Coadd(Crop).HeaderData.replaceVal('FILETIME',FN(24:33));
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
