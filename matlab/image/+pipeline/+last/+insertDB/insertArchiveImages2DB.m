@@ -33,9 +33,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         Args.DbUser = 'default';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
         
-        Args.DbTable= 'visit_images'; 
-        
+        Args.DbTable= 'visit_ima'; % 'visit_images';         
         Args.ColNameID = 'id_visit';
+        Args.StatusStamp = "Injected into the visit image table";
         
         Args.RemoteUser = 'euclid';
     end    
@@ -68,7 +68,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the visit image DB");
+            Injected = contains(fileread('.status'), Args.StatusStamp);
         catch
             cd(Dir);
             fprintf(FID,'%s \n',DataDir);
@@ -140,8 +140,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             % copy the CSV file into the proc catalog and edit the .status file
             CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
             [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s injected into the visit image DB'' >> %s/.status"',...
-                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
+            UpdateStatus = sprintf('su - %s -c "echo ''%s %s'' >> %s/.status"',...
+                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,Args.StatusStamp,DataDir);
             [~, Err2] = system(UpdateStatus); 
             if isempty(Err1) && isempty(Err2)
                 RemLocalFile = sprintf('rm %s',CsvFN);
