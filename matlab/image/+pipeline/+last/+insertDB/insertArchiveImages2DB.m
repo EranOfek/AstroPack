@@ -112,7 +112,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;
                 Coadd(Crop).HeaderData.replaceVal('FILETIME',FN(24:33));                
                 DateTime0 = datetime(FN(15:25), 'InputFormat', 'yyyyMMdd.HH');
-                if DateTime.Hour < 12
+                if DateTime0.Hour < 12
                     DateTime = DateTime0-1;                    
                 else
                     DateTime = DateTime0;
