@@ -33,11 +33,11 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         Args.DbUser = 'default';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
         
-        Args.DbTable= 'visit_ima'; % 'visit_images';         
-        Args.ColNameID = 'id_visit';
-        Args.StatusStamp = "Injected into the visit image table";
+        Args.DbTable     = 'visit_images'; % 'visit_ima'; 
+        Args.ColNameID   = 'id_visit';
+        Args.StatusStamp = "injected into the visit image DB"; % "Injected into the visit image table";
         
-        Args.RemoteUser = 'euclid';
+        Args.RemoteUser  = 'euclid';
     end    
     % create a DB object and connect
     DB          = db.Db;
@@ -61,6 +61,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
+    Dirs = Dirs(contains({Dirs.name}, 'v0')); 
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
@@ -77,7 +78,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         if ~Injected
             Coadd=AstroImage(FileNameTemplate); % read the data
             Nobj = numel(Coadd);
-            if Nobj < 2 % likely no images have been read 
+            if Nobj < 1 % no images have been read 
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
                 continue
