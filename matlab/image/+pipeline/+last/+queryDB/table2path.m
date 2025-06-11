@@ -39,6 +39,8 @@ function [AFN, AllPaths, AllFiles] = table2path(T, Args)
         Args.ColCropID         = 'cropid';
         Args.ColSubDir         = 'subdir';
         
+        Args.DefaultFilter     = 'clear';
+        Args.DefaultCCDID      = 1;
     end
 
     AFN = AstroFileName;
@@ -46,10 +48,18 @@ function [AFN, AllPaths, AllFiles] = table2path(T, Args)
 
     AFN.JD       = T.(Args.ColJD);
     AFN.julday2time;
-    AFN.Filter   = T.(Args.ColFilter);
+    if tools.table.isColumn(T, Args.ColFilter)
+        AFN.Filter   = T.(Args.ColFilter);
+    else
+        AFN.Filter   = Args.DefaultFilter;
+    end
     AFN.Counter  = Args.DefCounter;
     AFN.FieldID  = T.(Args.ColFieldID);
-    AFN.CCDID    = T.(Args.ColCCDID);
+    if tools.table.isColumn(T, Args.ColCCDID)
+        AFN.CCDID    = T.(Args.ColCCDID);
+    else
+        AFN.CCDID    = Args.DefaultCCDID;
+    end
     AFN.CropID   = T.(Args.ColCropID);
     AFN.SubDir   = T.(Args.ColSubDir);
 
