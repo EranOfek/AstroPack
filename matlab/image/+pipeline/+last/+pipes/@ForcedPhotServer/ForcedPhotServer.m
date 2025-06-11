@@ -128,11 +128,11 @@ classdef ForcedPhotServer < Component
                 % To create this table:
                 %       VarNames = {'request_id', 'user_id', 'ra', 'dec', 'subtraction', 'status', 'nphot', 'jd_start', 'jd_end', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
                 %       VarUnits = ["UInt64","UInt16","Float64","Float64","UInt8","UInt8","UInt32","Float64","Float64", "String","UInt8", "UInt8","UInt8","UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "DateTime64(3,'UTC')"];
-                %       VarDefaults = {[],0,[],[],1,0,[],[],[],[],1,[],[],[],1,1,0,1,0,0,'now64(3)'};
+                %       VarDefaults = {[],0,[],[],1,0,[],[],[],[],1,[],[],[],1,1,0,0,0,0,'now64(3)'};
                 %       DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 1', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
                 %       [~,Error] = DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
-                % DB.insertCharDump('forcedphot_requests',table(1,1,318.57475,2.15775,2460000,2470000,"1572",1,1,2,23,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid'}))
+                % DB.insertCharDump('forcedphot_requests',table(1,1,318.57475,2.15775,2460000,2470000,"1572",1,1,2,23, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
 
                 Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d", Obj.TableRequest, STATUS_WAITING));
                 if ~isempty(Treq)
@@ -180,7 +180,8 @@ classdef ForcedPhotServer < Component
                             Nphot = ForcedPhot.sizeCatalog;
                             if Nphot>0
 
-                                %next comand failed...
+                                % calculate UPIX
+                                
 
                                 ForcedPhot.Catalog = addvars(ForcedPhot.Catalog, repmat(Treq.request_id(Ireq),Nphot,1),...
                                                                                  repmat(Treq.user_id(Ireq),Nphot,1),...
@@ -189,6 +190,11 @@ classdef ForcedPhotServer < Component
                                                                                  'NewVariableNames',{'request_id', 'user_id', 'request_ra', 'request_dec'});
     
                                 % write output to TableOutput
+                                % Create TableOutput: forcedphotsub_output
+                                % 
+                                %       Obj.DB.createTable('forcedphotsub_output',ForcedPhot.Catalog, [], [], 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 1', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
+                                %       [~,Error] = DB.query('DROP TABLE IF EXISTS forcedphotsub_output', 'IsExec',true)
+                              
                                 ErrorInsert = Obj.DB.insertCharDump(TableOutput, ForcedPhot.Catalog);
                             else
                                 ErrorInsert = [];
