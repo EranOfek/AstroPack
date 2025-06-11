@@ -72,12 +72,7 @@ classdef Db < Component
         function Obj=connect(Obj)
             % connect
 
-            if ~isempty(Obj.Conn)
-                fprintf('Already connected - disconnect before (re)connect\n');
-            else
-                Val = db.Db.connectCH_Java('DbName',Obj.DbName, 'Host',Obj.Host, 'Port',Obj.Port, 'User',Obj.User, 'Password',Obj.Password);
-                Obj.Conn = Val;
-            end
+            Obj.Conn;
         end
 
         function [IsConn,ReadOnly]=isConnected(Obj)
@@ -99,6 +94,8 @@ classdef Db < Component
                 end
             end
         end
+        
+
     end
     
     methods % setter/getters
@@ -138,15 +135,16 @@ classdef Db < Component
             end    
         end
        
-        % function Val=get.Conn(Obj)
-        %     % Getter for Conn (Java connection)
-        % 
-        %     Val = Obj.Conn;
-        %     if isempty(Val)
-        %         Val = db.Db.connectCH_Java('DbName',Obj.DbName, 'Host',Obj.Host, 'Port',Obj.Port, 'User',Obj.User, 'Password',Obj.Password);
-        %         Obj.Conn = Val;
-        %     end
-        % end
+        function Val=get.Conn(Obj)
+            % Getter for Conn (Java connection)
+           
+            Val = Obj.Conn;
+            if isempty(Val)
+                Obj.User;
+                Val = db.Db.connectCH_Java('DbName',Obj.DbName, 'Host',Obj.Host, 'Port',Obj.Port, 'User',Obj.User, 'Password',Obj.Password);
+                Obj.Conn = Val;
+            end
+        end
 
         
         function Val=get.User(Obj)
@@ -162,25 +160,20 @@ classdef Db < Component
                 if contains(Obj.User,'/')
                     switch Obj.User
                         case 'euclid/user'
-                            UserC = {'LASTDB_User','last_user'};
+                            Obj.User = {'LASTDB_User','last_user'};
                             Obj.Host = '10.150.28.18';
                         case 'euclid/root'
-                            UserC = {'LASTDB_Root','default'};
+                            Obj.User = {'LASTDB_Root','default'};
                             Obj.Host = '10.150.28.18';
                         case 'last0/user'
-                            UserC = {'LASTDB_User','last_user'};
+                            Obj.User = {'LASTDB_User','last_user'};
                             Obj.Host = '10.23.1.25';
                         case 'last0/root'
-                            UserC = {'LASTDB_Root','default'};
+                            Obj.User = {'LASTDB_Root','default'};
                             Obj.Host = '10.23.1.25';
                         otherwise
                             error('Unidentified user name pattern');
                     end
-                    PM = PasswordsManager;
-                    [User, Pass] = PM.getUserPassword(UserC{:});
-                    Obj.User     = User;
-                    Obj.Password = Pass;
-                    Val = User;
                 else
                     Val = Obj.User;
                 end
@@ -275,6 +268,10 @@ classdef Db < Component
 
             % Set up the JDBC connection
             Conn = database('', Args.User, Args.Password, Args.Driver, JdbcURL); %, 'Properties', Props);
+            if ~isempty(Conn.Message) && contains(Conn.Message, 'Error')
+                Conn.Message
+                Conn = [];
+            end
         end
 
 
@@ -958,7 +955,7 @@ classdef Db < Component
                 
                     
             end
-            Command = sprintf("%s\n ENGINE = %s\n  ORDER BY %s;", Command, Args.Engine, Args.OrderBy);
+            Command = sprintf('%s\n ENGINE = %s\n  ORDER BY %s;', Command, Args.Engine, Args.OrderBy);
             
             [~,Error] = Obj.query(Command, 'IsExec',true);
             
