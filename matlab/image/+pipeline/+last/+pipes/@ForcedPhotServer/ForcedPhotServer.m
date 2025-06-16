@@ -107,6 +107,7 @@ classdef ForcedPhotServer < Component
                 Args.LoadNew           = false;
                 Args.MaxIter           = 0;
 
+                Args.insertHealPixArgs = {'ColRA','request_ra','ColDec','request_dec'};
             end
             STATUS_WAITING = 0;
             STATUS_READY   = 1;
@@ -126,13 +127,14 @@ classdef ForcedPhotServer < Component
                 %   now)
 
                 % To create this table:
-                %       VarNames = {'request_id', 'user_id', 'ra', 'dec', 'subtraction', 'status', 'nphot', 'jd_start', 'jd_end', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
-                %       VarUnits = ["UInt64","UInt16","Float64","Float64","UInt8","UInt8","UInt32","Float64","Float64", "String","UInt8", "UInt8","UInt8","UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "DateTime64(3,'UTC')"];
-                %       VarDefaults = {[],0,[],[],1,0,[],[],[],[],1,[],[],[],1,1,0,0,0,0,'now64(3)'};
-                %       DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 1', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
+                %       VarNames = {'request_id', 'user_id', 'ra', 'dec', 'subtraction', 'status', 'checkexisting', 'nphot', 'jd_start', 'jd_end', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
+                %       VarUnits = ["UInt64","UInt16","Float64","Float64","UInt8","UInt8","UInt8", "UInt32","Float64","Float64", "String","UInt8", "UInt8","UInt8","UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "DateTime64(3,'UTC')"];
+                %       VarDefaults = {[],0,[],[],1,0,1,[],[],[],[],1,[],[],[],1,1,0,0,0,0,'now64(3)'};
+                %       DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
                 %       [~,Error] = DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
-                % DB.insertCharDump('forcedphot_requests',table(1,1,318.57475,2.15775,2460000,2470000,"1572",1,1,2,23, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % DB.insertCharDump('forcedphot_requests',table(1,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
 
                 Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d", Obj.TableRequest, STATUS_WAITING));
                 if ~isempty(Treq)
@@ -142,81 +144,99 @@ classdef ForcedPhotServer < Component
                         ID  = Treq.request_id(Ireq);
                         RA  = Treq.ra(Ireq);
                         Dec = Treq.dec(Ireq);
-                        if Treq.mountnum>0
-                            Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'MountNum',Treq.mountnum(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
-                        else
-                            Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
-                        end
-                        
-                        Nobs = size(Tvisit,1);
-                        if Nobs>0
-                            % execure forced phot
-                            if Treq.get_cutout(Ireq)
-                                [ForcedPhot, ~, ADc] = pipeline.last.phot.forcedPhotSubLAST(Treq(Ireq,:), RA, Dec, 'UseExistingRef',Treq.useexistingref(Ireq), 'ReSub',Treq.resub(Ireq), 'LoadNew',Treq.loadnew(Ireq), 'MaxIter',Treq.maxiter(Ireq));
-                                FlagNotEmpty = ~ForcedPhot.isemptyCatalog;
-                                ForcedPhot   = ForcedPhot(FlagNotEmpty);
-                                ADc          = ADc(FlagNotEmpty);
-    
-                                % write stamps to dir of stamps
-                                PWD = pwd;
-                                cd(Obj.CutoutPath);
-    
-                                DirName = sprintf('%d',ID);
-                                %mkdir(DirName);
-                                % FFU
-    
-                                cd(PWD);
-    
-                            else
-                                [ForcedPhot] = pipeline.last.phot.forcedPhotSubLAST(Tvisit, RA, Dec, 'UseExistingRef',Treq.useexistingref(Ireq), 'ReSub',Treq.resub(Ireq), 'LoadNew',Treq.loadnew(Ireq), 'MaxIter',Treq.maxiter(Ireq));
-                                FlagNotEmpty = ~ForcedPhot.isemptyCatalog;
-                                ForcedPhot   = ForcedPhot(FlagNotEmpty);
-                            end
-    
-                            % merge forced phot tables
-                            ForcedPhot  = ForcedPhot.merge('IsTable',true);
-    
-                            % add meta data to ForcedPhot table
-                            Nphot = ForcedPhot.sizeCatalog;
-                            if Nphot>0
 
-                                % calculate UPIX
-                                
+                        % if Treq.checkexisting(Ireq)
+                        %     % Check if forced photometry within 1'' was
+                        %     % already requested in the past
+                        % 
+                        %     % FFU (maybe update range of JD...)
+                        %     ReDo = true;
+                        % else
+                        %     % Re do without checking
+                        %     ReDo = true;
+                        % end
+                        ReDo = true;
 
-                                ForcedPhot.Catalog = addvars(ForcedPhot.Catalog, repmat(Treq.request_id(Ireq),Nphot,1),...
-                                                                                 repmat(Treq.user_id(Ireq),Nphot,1),...
-                                                                                 repmat(Treq.ra(Ireq),Nphot,1),...
-                                                                                 repmat(Treq.dec(Ireq),Nphot,1),...
-                                                                                 'NewVariableNames',{'request_id', 'user_id', 'request_ra', 'request_dec'});
-    
-                                % write output to TableOutput
-                                % Create TableOutput: forcedphotsub_output
-                                % 
-                                %       Obj.DB.createTable('forcedphotsub_output',ForcedPhot.Catalog, [], [], 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 1', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
-                                %       [~,Error] = DB.query('DROP TABLE IF EXISTS forcedphotsub_output', 'IsExec',true)
-                              
-                                ErrorInsert = Obj.DB.insertCharDump(TableOutput, ForcedPhot.Catalog);
+                        if ReDo
+                            if Treq.mountnum>0
+                                Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'MountNum',Treq.mountnum(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
                             else
-                                ErrorInsert = [];
+                                Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
                             end
-    
                             
+                            Nobs = size(Tvisit,1);
+                            if Nobs>0
+                                % execure forced phot
+                                if Treq.get_cutout(Ireq)
+                                    [ForcedPhot, ~, ADc] = pipeline.last.phot.forcedPhotSubLAST(Treq(Ireq,:), RA, Dec, 'UseExistingRef',Treq.useexistingref(Ireq), 'ReSub',Treq.resub(Ireq), 'LoadNew',Treq.loadnew(Ireq), 'MaxIter',Treq.maxiter(Ireq));
+                                    FlagNotEmpty = ~ForcedPhot.isemptyCatalog;
+                                    ForcedPhot   = ForcedPhot(FlagNotEmpty);
+                                    ADc          = ADc(FlagNotEmpty);
+        
+                                    % write stamps to dir of stamps
+                                    PWD = pwd;
+                                    cd(Obj.CutoutPath);
+        
+                                    DirName = sprintf('%d',ID);
+                                    %mkdir(DirName);
+                                    % FFU
+        
+                                    cd(PWD);
+        
+                                else
+                                    [ForcedPhot] = pipeline.last.phot.forcedPhotSubLAST(Tvisit, RA, Dec, 'UseExistingRef',Treq.useexistingref(Ireq), 'ReSub',Treq.resub(Ireq), 'LoadNew',Treq.loadnew(Ireq), 'MaxIter',Treq.maxiter(Ireq));
+                                    FlagNotEmpty = ~ForcedPhot.isemptyCatalog;
+                                    ForcedPhot   = ForcedPhot(FlagNotEmpty);
+                                end
+        
+                                % merge forced phot tables
+                                ForcedPhot  = ForcedPhot.merge('IsTable',true);
+        
+                                % add meta data to ForcedPhot table
+                                Nphot = ForcedPhot.sizeCatalog;
+                                if Nphot>0
     
-                            % update status
-                            % NOTE: TableRequest must be of type: ReplacingMergeTree
-                            % otherwise updates are not possible.
-                            if isempty(ErrorInsert)
-                                Treq.status(Ireq) = STATUS_READY;  % ready
-                                Treq.nphot(Ireq)  = Nphot;
-                                Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
-                            else
-                                % write to log - change status to -1
-                                Obj.DB.exec(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID));
-                                Treq.status(Ireq) = STATUS_FAILED;  % failed
-                                Treq.nphot(Ireq)  = 0;
-                                Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
-                            end
-                        end % if Nobs>0
+                                    % calculate UPIX
+    
+    
+                                    ForcedPhot.Catalog = addvars(ForcedPhot.Catalog, repmat(Treq.request_id(Ireq),Nphot,1),...
+                                                                                     repmat(Treq.user_id(Ireq),Nphot,1),...
+                                                                                     repmat(Treq.ra(Ireq),Nphot,1),...
+                                                                                     repmat(Treq.dec(Ireq),Nphot,1),...
+                                                                                     'NewVariableNames',{'request_id', 'user_id', 'request_ra', 'request_dec'});
+                                    % Insert Healpix indices
+                                    ForcedPhot.Catalog = db.util.insertHealpixIndex2table(ForcedPhot.Catalog, Args.insertHealPixArgs{:});
+
+                                    % write output to TableOutput
+                                    % Create TableOutput: forcedphotsub_output
+                                    %    
+                                    %       Index = {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1','INDEX nside_partition_index nside_partition TYPE minmax GRANULARITY 16','INDEX nside_low_index nside_low TYPE minmax GRANULARITY 16','INDEX nside_high_index nside_high TYPE minmax GRANULARITY 16'}
+                                    %       Obj.DB.createTable('forcedphotsub_output',ForcedPhot.Catalog, [], [], 'Index', Index,'OrderBy','request_id');
+                                    %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphotsub_output', 'IsExec',true)
+                                  
+                                    ErrorInsert = Obj.DB.insertCharDump(Obj.TableOutput, ForcedPhot.Catalog);
+                                else
+                                    ErrorInsert = [];
+                                end
+        
+                                
+        
+                                % update status
+                                % NOTE: TableRequest must be of type: ReplacingMergeTree
+                                % otherwise updates are not possible.
+                                if isempty(ErrorInsert)
+                                    Treq.status(Ireq) = STATUS_READY;  % ready
+                                    Treq.nphot(Ireq)  = Nphot;
+                                    Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
+                                else
+                                    % write to log - change status to -1
+                                    Obj.DB.exec(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID));
+                                    Treq.status(Ireq) = STATUS_FAILED;  % failed
+                                    Treq.nphot(Ireq)  = 0;
+                                    Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
+                                end
+                            end % if Nobs>0
+                        end % if ReDo
                     end % for Ireq=1:1:Nreq
     
                 end % if ~isempty(Treq)

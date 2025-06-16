@@ -66,7 +66,7 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
 
         Args.NewHeaderKeys     = {'LIMMAG', 'FIELDID', 'MOUNTNUM', 'CAMNUM', 'CROPID'};
         Args.RefHeaderKeys     = {'LIMMAG'};
-        Args.HeaderKeys        = {'LIMMAG'};
+        Args.HeaderKeys        = {'LIMMAG', 'AIRMASS', 'PH_COL1', 'PH_ZP', 'PH_RMS'};
         
         Args.ConcatData        = [];  % table or struct
 
