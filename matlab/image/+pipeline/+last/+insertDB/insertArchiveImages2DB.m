@@ -78,7 +78,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         if ~Injected
             Coadd=AstroImage(FileNameTemplate); % read the data
             Nobj = numel(Coadd);
-            if Nobj < 1 % no images have been read 
+            if Nobj < 1 || Coadd(1).isemptyImage % no images have been read 
                 cd(Dir);
                 fprintf(FID,'%s \n',DataDir);
                 continue
