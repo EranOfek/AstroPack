@@ -55,7 +55,7 @@ polygon_cart = V(ordered_indices, :);
 
 % Optional plotting
 if plot_flag
-    figure; hold on; grid on;
+    figure(1); hold on; grid on;
     for i = 1:length(Rectangles)
         RA_rect = Rectangles{i}(:,1);
         Dec_rect = Rectangles{i}(:,2);
