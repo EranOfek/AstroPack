@@ -7,12 +7,13 @@ function [Time,Ang]=sun_rise_set(Date,ObsCoo,TimeZone,DeltaT,Alt)
     %              for calculating the solar position. With the default
     %              sun-position function, the geometric accuracy is about
     %              a few seconds.
-    % Input  : - Date [D M Y] or julian day [JD], one date/jd per line.
+    % Input  : - Date [D M Y] or julian day [JD] of midnight(!), one date/jd per line.
     %          - Observer geodetic position [East Long, North Lat, Height (meters)],
     %            in radians.
     %            Default is the Wise obs. position [  34.763, 30.596]/RAD.
     %          - East Time Zone, default is 2 [hours].
     %          - Delta T (=UT-UTC) [fraction of day], default is 0.
+    %            To get DeltaT you can use: celestial.time.delta_t
     %          - Alt [deg] for twilights. Must have 3 values. Default is [-18 -12 -6].
     % Output : - [Morning Astronomical Twilight,
     %             Morning Nautical Twilight,
@@ -32,6 +33,7 @@ function [Time,Ang]=sun_rise_set(Date,ObsCoo,TimeZone,DeltaT,Alt)
     %     By : Eran O. Ofek                    Sep 2001
     %    URL : http://weizmann.ac.il/home/eofek/matlab/
     % Example: [Time,Ang]=celestial.SolarSys.sun_rise_set(2451545+(0:5:365)',[35 32 0].*pi./180,0,0)
+    % Bug fixed: Issue #656
     % Reliable: 2
     %--------------------------------------------------------------------------
     
@@ -65,9 +67,9 @@ function [Time,Ang]=sun_rise_set(Date,ObsCoo,TimeZone,DeltaT,Alt)
     
     
     RS_Alt  = (-0.8333 - 2.12./60.*sqrt(Height))./RAD;
-    T06_Alt = -Alt(3)./RAD;
-    T12_Alt = -Alt(2)./RAD;
-    T18_Alt = -Alt(1)./RAD;
+    T06_Alt = Alt(3)./RAD;
+    T12_Alt = Alt(2)./RAD;
+    T18_Alt = Alt(1)./RAD;
     
     % Sun's apparent coordinates
     [SunRA_p0, SunDec_p0] = celestial.SolarSys.suncoo(JD,'a');
