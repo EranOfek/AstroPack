@@ -119,7 +119,7 @@ function [T,Error,FileName] = insertImages(Obj, Args)
         Args.ColDec        = 'DEC';
         Args.CooUnits      = 'deg';
         Args.HealpixType   = 'nested';
-        Args.HealpixLevel  = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
+        Args.HealpixLevel  = 2.^[3, 8, 16];   % diameter ~ 13 deg, 0.4 deg, 5.7"
         Args.ColHealpix    = ["UPIX_PARTITION", "UPIX_LOW", "UPIX_HIGH"];
         Args.UniqueID logical = true;
 
@@ -171,8 +171,8 @@ function [T,Error,FileName] = insertImages(Obj, Args)
     end
 
     if Args.CreateCsv
-        db.Db.table2csv(T, 'FileName',Args.FileName, Args.table2csvArgs{:});
-        FileName = Args.FileName;
+        FileName = erase(Args.FileName,' ');
+        db.Db.table2csv(T, 'FileName',FileName, Args.table2csvArgs{:});        
     else
         FileName = [];
     end
