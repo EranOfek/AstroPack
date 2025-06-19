@@ -1177,7 +1177,7 @@ classdef DemonLAST < Component
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf; 
 
-                Args.DeleteFocus logical   = true;
+                Args.DeleteFocus logical   = false;
                 Args.DeleteProc logical    = true;
                 Args.DeleteRawDir logical  = true;
             end
