@@ -529,6 +529,22 @@ classdef AstroHeader < Component
 
         end
 
+        function [Val,Comment] = getValSimple(Obj, Key)
+            % Get header keyword value / simple version (no synonyms and conversions).
+            % Inpuut : - self.
+            %          - Key name.
+            % Output : - Value
+            %          - Comment
+            % Author : Eran Ofek (Jun 2025)
+            % Example: AH.getValSimple(AH,'EXPTIME')
+
+            Ind = find(strcmp(Obj.Data(:,1), Key));
+            Val  = Obj.Data{Ind,2};
+            if nargout>1
+                Comment = Obj.Data{Ind,3};
+            end
+        end
+
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
             % get a single keyword value where the keyword appears first in a dictionary.
             % Input  : - A single element AstroHeader object

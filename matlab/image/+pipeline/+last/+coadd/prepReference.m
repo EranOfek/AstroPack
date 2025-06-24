@@ -16,10 +16,10 @@ function [Nvisit] = prepReference(Args)
     arguments
         
         Args.MinJD   = celestial.time.julday([1 3 2024]);
-        Args.LimMag  = 20;
-        Args.MaxFWHM = 5;
+        Args.LimMag  = 19.8;
+        Args.MaxFWHM = 4.5;
         Args.StartPath = '/marvin'
-        Args.RefDir  = '/raid/eran/references/v3';
+        Args.RefDir  = '/raid/eran/references/v4';
         Args.Ncam    = 4;
         Args.Nsub    = 24;
 
