@@ -256,7 +256,7 @@ classdef Db < Component
 
             end
 
-            JdbcURL = sprintf("%s://%s:%s/%s",Args.BaseURL, Args.Host, Args.Port, Args.DbName);
+            JdbcURL = sprintf("%s://%s:%s/%s?protocol=native&use_object_types=true",Args.BaseURL, Args.Host, Args.Port, Args.DbName);
             %JdbcURL = sprintf("%s://%s:%s/%s?socket_timeout=%d&dataTransferTimeout=%d",Args.BaseURL, Args.Host, Args.Port, Args.DbName, Args.Timeout, Args.Timeout);
                 
          
@@ -1355,7 +1355,7 @@ rs = stmt.executeQuery(Query);
                             %close(Curs);
                         else
     %                         Result = fetch(Obj.Conn, Query, Args.Opts);
-                            Result = select(Obj.Conn, Query, Args.Opts);
+                            Result = select(Obj.Conn, Query);
                         end
                     end
                 end
