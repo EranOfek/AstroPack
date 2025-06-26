@@ -1354,8 +1354,7 @@ rs = stmt.executeQuery(Query);
                             %Result = Curs.Data;
                             %close(Curs);
                         else
-    %                         Result = fetch(Obj.Conn, Query, Args.Opts);
-                            Result = select(Obj.Conn, Query);
+                            Result = fetch(Obj.Conn, Query, Args.Opts);
                         end
                     end
                 end
