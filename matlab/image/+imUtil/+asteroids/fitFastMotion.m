@@ -90,7 +90,7 @@ function [Result, ResultRS] = fitFastMotion(VecJD, MatRA, MatDec, Args)
     ThresholdDist = Args.ThresholdDist./(RAD.*ARCSEC_DEG);
     
     VecJD    = VecJD(:);
-    RefEpoch = (VecJD(1)+VecJD(2)).*0.5;
+    RefEpoch = (VecJD(1)+VecJD(end)).*0.5;
     
     % make epoch along dim=1
     if Args.DimEpoch==2
