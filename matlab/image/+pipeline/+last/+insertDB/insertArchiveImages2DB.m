@@ -33,9 +33,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         Args.DbUser = 'default';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
         
-        Args.DbTable     = 'visit_images'; % 'visit_ima'; 
+        Args.DbTable     = 'visit_ima'; % 'visit_images'; % 'visit_ima'; 
         Args.ColNameID   = 'id_visit';
-        Args.StatusStamp = "injected into the visit image DB"; % "Injected into the visit image table";
+        Args.StatusStamp = "Injected into the visit image table"; % "injected into the visit image DB"; % "Injected into the visit image table";
         
         Args.RemoteUser  = 'euclid';
     end    
@@ -111,6 +111,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             % add the keywords to be used for filename construction            
             for Crop = 1:Nobj
                 FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;
+                Parts = strsplit(FN, '/');
+                FN = Parts{end};
                 Coadd(Crop).HeaderData.replaceVal('FILETIME',FN(24:33));                
                 DateTime0 = datetime(FN(15:25), 'InputFormat', 'yyyyMMdd.HH');
                 if DateTime0.Hour < 12
