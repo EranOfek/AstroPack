@@ -107,12 +107,26 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
                 end
-            end
+            end            
+            % prepare file name for the CSV dump 
+            A = AstroFileName;
+            A.ProjName = Pname;
+            A.SubDir   = Subdir;
+            A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
+            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
+            A.JD       = Coadd(1).getStructKey('JD').JD; 
+            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
+            A.FileType = "csv"; A.julday2time;
+            CsvFN = A.genFile;      
             % add the keywords to be used for filename construction            
             for Crop = 1:Nobj
                 FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;
-                Parts = strsplit(FN, '/');
-                FN = Parts{end};
+                if ~isnan(FN)
+                    Parts = strsplit(FN, '/');
+                    FN = Parts{end};
+                else
+                    FN = char(CsvFN);
+                end
                 Coadd(Crop).HeaderData.replaceVal('FILETIME',FN(24:33));                
                 DateTime0 = datetime(FN(15:25), 'InputFormat', 'yyyyMMdd.HH');
                 if DateTime0.Hour < 12
@@ -124,16 +138,6 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 Coadd(Crop).HeaderData.replaceVal('DIRMON' ,DateTime.Month);
                 Coadd(Crop).HeaderData.replaceVal('DIRDAY' ,DateTime.Day);                
             end
-            % prepare file name for the CSV dump 
-            A = AstroFileName;
-            A.ProjName = Pname;
-            A.SubDir   = Subdir;
-            A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
-            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = Coadd(1).getStructKey('JD').JD; 
-            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
-            A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;                              
 
             [~, Error]=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
