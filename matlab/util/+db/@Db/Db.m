@@ -1344,8 +1344,7 @@ rs = stmt.executeQuery(Query);
                         Result = Curs.Data;
                         close(Curs);
                     else
-                        if isempty(Args.Opts)
-    %                         Result = fetch(Obj.Conn, Query);
+                        if isempty(Args.Opts)   
                             Result = select(Obj.Conn, Query); %, 'QueryTimeOut',600);
     
                             %Curs   = exec(Obj.Conn, Query);
