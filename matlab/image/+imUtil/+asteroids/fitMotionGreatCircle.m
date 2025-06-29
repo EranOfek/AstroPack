@@ -8,14 +8,9 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
     %            'RefTime' - Refernce time. If empty use mid time.
     %                   Default is [].
     %            'InCooUnits' - Default is 'deg'.
+    %            'OutCooUnits' - Default is 'deg'.
     % Output : - 
-    %       .Lon0     - longitude at RefTime [rad]
-    %       .Lat0     - latitude at RefTime [rad]
-    %       .Omega    - angular speed [rad/unit time]
-    %       .PA       - position angle of motion [rad] E of N
-    %       .dLon     - projected motion in longitude [rad/unit time]
-    %       .dLat     - projected motion in latitude [rad/unit time]
-    %       .RMS      - root mean square angular deviation [rad]
+    
     % Author : Eran Ofek (2025 Jun) 
     % Example: R=imUtil.asteroids.fitMotionGreatCircle(JD,RA,Dec);
 
@@ -25,11 +20,16 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
         Lat
         Args.RefTime           = [];
         Args.InCooUnits        = 'deg';
+        Args.OutCooUnits       = 'deg';
     end
 
     if isempty(Args.RefTime)
         Args.RefTime = (Time(1)+Time(end)).*0.5;
     end
+
+    [Time, SI] = sort(Time);
+    Lon        = Lon(SI,:);
+    Lat        = Lat(SI,:);
 
     ConvFactor = convert.angular(Args.InCooUnits,'rad');
     Lon        = ConvFactor.*Lon;
@@ -39,63 +39,43 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
 
     Time = Time - Args.RefTime;
     
-    M = size(Lon,2);
     Result = struct('Lon0', [], 'Lat0', [], 'Omega', [], 'PA', [], ...
                     'dLon', [], 'dLat', [], 'RMS', []);
     
     % Convert to Cartesian unit vectors
-    [x, y, z] = sph2cart(Lon, Lat, 1);  % spherical to Cartesian
-    
-    for m = 1:M
+    [X, Y, Z] = sph2cart(Lon, Lat, 1);  % spherical to Cartesian
+    [X, Y, Z] = celestial.coo.coo2cosined(Lon, Lat);
 
-        %P = [x(:,m), y(:,m), z(:,m)];   % Nx3 trajectory
-        Vx = polyfit(Time, x(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
-        Vy = polyfit(Time, y(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
-        Vz = polyfit(Time, z(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
+    H  = [ones(N,1), Time];
+    Px = H\X;
+    Py = H\Y;
+    Pz = H\Z;
 
-        Vvec = [Vx(1); Vy(1); Vz(1)]; %(1,:);                 % velocity vector
-        
-        % Normalize motion vector
-        Vvec = Vvec / norm(Vvec);
+    ModelX = H*Px;
+    ModelY = H*Py;
+    ModelZ = H*Pz;
+
+    [ModelLon, ModelLat] = celestial.coo.cosined2coo(ModelX, ModelY, ModelZ);
+
+    ResidLon = mod(Lon - ModelLon, 2.*pi);
+    ResidLat = Lat - ModelLat;
+
+    LonRMS   = std(ResidLon);
+    LatRMS   = std(ResidLat);
+
+    ConvFactor = convert.angular('rad',Args.OutCooUnits);
+    Result.RefT = Args.RegTime;
+    Result.DeltaTime   = Time(end) - Time(1);
+    Result.MidLat      = (ModelLat(end,:) + ModelLat(1,:)).*0.5;
+    Result.RateLat     = (ModelLat(end,:) - ModelLat(1,:))./Result.DeltaTime;
+    Result.RateLon     = (ModelLon(end,:) - ModelLon(1,:))./Result.DeltaTime;
+    Result.RateLonCos  = Result.RateLon.*cos(MidLat)./Result.DeltaTime;
+
+    Result.MidLat      = ConvFactor .* Result.MidLat;
+    Result.RateLat     = ConvFactor .* Result.RateLat;
+    Result.RateLon     = ConvFactor .* Result.RateLon;
+    Result.RateLonCos  = ConvFactor .* Result.RateLonCos;
+
     
-        % Position at reference time
-        P0 = [polyval(Vx(1), 0); polyval(Vy(1), 0); polyval(Vz(1), 0)];
-        P0 = P0 / norm(P0);  % ensure on unit sphere
-    
-        % Project Vvec onto plane tangent to unit sphere at P0
-        Vtan = Vvec - dot(Vvec, P0)*P0;
-        Omega = norm(Vtan);
-    
-        % Convert P0 to spherical coords
-        [Lon0, Lat0, ~] = cart2sph(P0(1), P0(2), P0(3));
-    
-        % Tangent basis
-        e_lon = [-sin(Lon0), cos(Lon0), 0];
-        e_lat = [-cos(Lon0)*sin(Lat0), -sin(Lon0)*sin(Lat0), cos(Lat0)];
-    
-        dLon = dot(Vtan, e_lon);
-        dLat = dot(Vtan, e_lat);
-        PA = atan2(dLon, dLat);  % E of N
-    
-        % --- Compute global RMS ---
-        % Reconstruct predicted trajectory
-        Pred = polyval(V, Time);
-        Pred = Pred ./ vecnorm(Pred, 2, 2);  % normalize each row
-    
-        % Angular distance from actual to predicted
-        dotprod = sum(P .* Pred, 2);
-        dotprod = min(max(dotprod, -1), 1);  % clip for safety
-        AngErr = acos(dotprod);              % angular error per time
-        RMS = sqrt(mean(AngErr.^2));         % root mean square
-    
-        % Store results
-        Result(m).Lon0 = Lon0;
-        Result(m).Lat0 = Lat0;
-        Result(m).Omega = Omega;
-        Result(m).PA = PA;
-        Result(m).dLon = dLon;
-        Result(m).dLat = dLat;
-        Result(m).RMS = RMS;
-    end
 end
 
