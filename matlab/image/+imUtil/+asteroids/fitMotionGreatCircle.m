@@ -17,7 +17,7 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
     %       .dLat     - projected motion in latitude [rad/unit time]
     %       .RMS      - root mean square angular deviation [rad]
     % Author : Eran Ofek (2025 Jun) 
-    % Example: 
+    % Example: R=imUtil.asteroids.fitMotionGreatCircle(JD,RA,Dec);
 
     arguments
         Time
@@ -31,7 +31,7 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
         Args.RefTime = (Time(1)+Time(end)).*0.5;
     end
 
-    ConvFactor = convert.angular('Args.InCooUnits','rad');
+    ConvFactor = convert.angular(Args.InCooUnits,'rad');
     Lon        = ConvFactor.*Lon;
     Lat        = ConvFactor.*Lat;
 
@@ -47,15 +47,19 @@ function [Result] = fitMotionGreatCircle(Time, Lon, Lat, Args)
     [x, y, z] = sph2cart(Lon, Lat, 1);  % spherical to Cartesian
     
     for m = 1:M
-        P = [x(:,m), y(:,m), z(:,m)];   % Nx3 trajectory
-        V = polyfit(Time, P, 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
-        Vvec = V(1,:);                 % velocity vector
+
+        %P = [x(:,m), y(:,m), z(:,m)];   % Nx3 trajectory
+        Vx = polyfit(Time, x(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
+        Vy = polyfit(Time, y(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
+        Vz = polyfit(Time, z(:,m), 1);       % Linear fit in 3D: P = V(1)*Time + V(2)
+
+        Vvec = [Vx(1); Vy(1); Vz(1)]; %(1,:);                 % velocity vector
         
         % Normalize motion vector
         Vvec = Vvec / norm(Vvec);
     
         % Position at reference time
-        P0 = polyval(V, 0);
+        P0 = [polyval(Vx(1), 0); polyval(Vy(1), 0); polyval(Vz(1), 0)];
         P0 = P0 / norm(P0);  % ensure on unit sphere
     
         % Project Vvec onto plane tangent to unit sphere at P0

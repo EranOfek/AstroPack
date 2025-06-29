@@ -16,8 +16,9 @@ function [Nvisit] = prepReference(Args)
     arguments
         
         Args.MinJD   = celestial.time.julday([1 3 2024]);
-        Args.LimMag  = 19.8;
-        Args.MaxFWHM = 4.5;
+        Args.LimMag  = 19.6;
+        Args.MaxFWHM = 4.2;
+        Args.MaxElon = 1.3;  % A/B
         Args.StartPath = '/marvin'
         Args.RefDir  = '/raid/eran/references/v4';
         Args.Ncam    = 4;
@@ -108,6 +109,10 @@ function [Nvisit] = prepReference(Args)
                     % look for the field ID in the vists catalog
                     QueryStr = db.Db.genQuery('visit_images','*', {'fieldid',sprintf('%s%%',FieldID); 'camnum',Icam; 'cropid',Isub; 'fwhm',[1 Args.MaxFWHM]; 'jd_start',[Args.MinJD 2500000]; 'limmag',[Args.LimMag 22.5]});
                     T = D.query(QueryStr);
+                    if ~isempty(T)
+                        Flag = (T.med_a./T.med_b)<Args.MaxElon;
+                        T    = T(Flag,:);
+                    end
     
                     if ~isempty(T)
                         Dist   = celestial.coo.sphere_dist_fast(CenterRA./RAD, CenterDec./RAD, T.ra./RAD, T.dec./RAD).*RAD;

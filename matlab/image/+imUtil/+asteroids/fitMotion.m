@@ -88,5 +88,7 @@ function [Result] = fitMotion(JD, RA, Dec, Args)
     Result.FunRA  = @(Result, JD) Result.FitRA + Result.MuRA.*(JD - Result.RefJD);
     Result.FunDec = @(Result, JD) Result.FitDec + Result.MuDec.*(JD - Result.RefJD);
 
+    Result.StdRA  = std(RA - Result.FunRA(Result, JD));
+    Result.StdDec = std(Dec - Result.FunDec(Result, JD));
 
 end
