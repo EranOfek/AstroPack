@@ -18,11 +18,12 @@ function [Nvisit] = prepReference(Args)
         Args.MinJD   = celestial.time.julday([1 3 2024]);
         Args.LimMag  = 19.6;
         Args.MaxFWHM = 4.2;
-        Args.MaxElon = 1.3;  % A/B
+        Args.MaxElon = 1.35;  % A/B
         Args.StartPath = '/marvin'
         Args.RefDir  = '/raid/eran/references/v4';
         Args.Ncam    = 4;
         Args.Nsub    = 24;
+        Args.MinNimForCoadd = 5;
 
         Args.Mode    = 'RegenCoadd';  %'RegenCoadd'|'Missing'
         Args.Istart  = 1;
@@ -132,7 +133,7 @@ function [Nvisit] = prepReference(Args)
                     Nvisit(Itarget,Icam,Isub) = numel(Ifield);
             
                     if Nvisit(Itarget,Icam,Isub)>0
-                        if Nvisit(Itarget,Icam,Isub)>=5
+                        if Nvisit(Itarget,Icam,Isub)>=Args.MinNimForCoadd
                             %CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
                             try
                                 CI = pipeline.last.coadd.coadd(T, 'MinNim',3);
