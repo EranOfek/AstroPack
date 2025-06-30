@@ -836,11 +836,25 @@ classdef Db < Component
                 
                 Args.IsExec logical           = false;
                 Args.Convert2String logical   = true;
-                Args.Opts                     = [];                
+                Args.Opts                     = [];         
+                Args.ExactDataTypes           = false; % if true, will override Args.Opts
             end
             
             if iscell(Query)
                 Query = db.Db.genQuery(Query{:});
+            end
+            
+            if Args.ExactDataTypes % get types from the server table
+                TName = regexp(Query, 'from\s+([a-zA-Z0-9_]+)', 'tokens', 'once');
+                TName = TName{1};  % Extract the actual table name
+                T = Obj.describeTable(TName);
+                Types = lower(T.type);
+                Types = regexprep(Types, 'nullable\((.*?)\)', '$1');  
+                Types(contains(Types, "datetime")) = "unknown";
+                Types(Types == "float64") = "double";
+                Types(Types == "float32") = "single";                
+                Args.Opts = databaseImportOptions(Obj.Conn,TName);
+                Args.Opts.VariableTypes = cellstr(Types(:))';                
             end
 
             if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')    
