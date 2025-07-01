@@ -39,7 +39,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
            524288,  0.00011682011904060968; ...
           1048576,  5.841007009601502e-05];
     % determine the center and the size of the polygon: 
-    [RA0, Dec0, R0] = celestial.coo.spherical_polygon_circum_circle(P);   
+    [RA0, Dec0, R0] = celestial.polygon.spherical_polygon_circum_circle(P);   
     % determine the Nside corresponding to the desired resolution:
     if ~isempty(Args.Nside)
         Nside = Args.Nside;

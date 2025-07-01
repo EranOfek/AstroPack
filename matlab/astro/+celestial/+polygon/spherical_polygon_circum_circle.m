@@ -6,7 +6,7 @@ function [RA0, Dec0, R0] = spherical_polygon_circum_circle(P, Args)
     % Output : - the coordinates of the center of the circum circle and its radius [deg]
     % Author : A.M. Krassilchtchikov (2025 May) 
     % Example: P=[350, 70; 10, 80; 20, 80; 30, 75; 5, 60];
-    %          [RA0, Dec0, R0] = celestial.coo.spherical_polygon_circum_circle(P)
+    %          [RA0, Dec0, R0] = celestial.polygon.spherical_polygon_circum_circle(P)
     arguments
         P    
         Args.Plot = false;

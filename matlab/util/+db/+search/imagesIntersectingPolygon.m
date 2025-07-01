@@ -49,7 +49,7 @@ function [Result] = imagesIntersectingPolygon(P, Args)
         DB = Args.DB;
     end
     % determine the center and the size of the polygon: 
-    [RA0, Dec0, R0] = celestial.coo.spherical_polygon_circum_circle(P);     
+    [RA0, Dec0, R0] = celestial.polygon.spherical_polygon_circum_circle(P);     
     % first crudely select images within Rad from the polygon's center:
     Rad = R0 + Args.MaxImageSize;
     WhereClause = db.search.queryConeSearch_Healpix(RA0, Dec0, Rad,...
