@@ -20,7 +20,7 @@ function Result = polygon_boolean_operations(P0, P1, Args)
     %          P3 = [9.9, 70.1; 9.9, 70.3; 9.6, 70.3; 9.6, 70.1];
     %          P4 = [8 70.55; 8 70.7; 11 70.7; 11 70.53];    
     %          P5 = [9, 69; 11, 69; 11, 71; 9, 71];
-    %          Res = celestial.coo.polygon_boolean_operations(P0, {P1,P2,P3,P4,P5})
+    %          Res = celestial.polygon.polygon_boolean_operations(P0, {P1,P2,P3,P4,P5})
     arguments
         P0
         P1
