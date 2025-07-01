@@ -25,25 +25,42 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 Args.SubUrl         = '/mission';  % planner_backend  
                 Args.LogFileName
             end
+
+            % Call the base class constructor with the Args
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-
-            % Use sim/ subfolder under current folder, there should be a .gitignore file
-            currentFile = mfilename('fullpath');
-            currentFolder = fileparts(currentFile);
-            obj.DbPath = fullfile(currentFolder, 'sim');
-
-            if ispc
-                obj.DbPath = fullfile(getenv('SOC_PATH'), 'planner', 'sim');
+            obj.msglog('MissionClientSim constructor started');
+            
+            % SOC_PATH must be defined in env
+            soc_path = getenv('SOC_PATH');
+            if soc_path == ""
+                obj.msglog('SOC_PATH environment variable is not defined, on Linux set it to ~/soc, on Windows set it to c:\\soc');
+                error('SOC_PATH environment variable is not defined, on Linux set it to ~/soc, on Windows set it to c:\\soc');
             end
-          
+
+            % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
+            obj.DbPath = fullfile(soc_path, 'sim', 'backend', 'planner');
+            obj.msglog('DbPath: %s', obj.DbPath);
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
             end
 
+            % Master files path from the git repo: use sim/ subfolder under current folder, there should be a .gitignore file
+            currentFile = mfilename('fullpath');
+            currentFolder = fileparts(currentFile);
+            masterPath = fullfile(currentFolder, 'sim_master');
+
+            % Copy master files if first run
+            if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
+                obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
+                obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
+                copyfile(masterPath, obj.DbPath);
+            end
+
             % Create an instance of ValidatorSim
             obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
+            obj.msglog('MissionClientSim constructor done');
         end                
 
         % -------------------------------------------------------------------
