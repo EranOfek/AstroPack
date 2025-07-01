@@ -19,7 +19,7 @@ function testTriangleArea(testCase)
     PolyLat = [0; 0; pi/2];     % Latitude values in radians
     
     % Call area_sphere_polygon function
-    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
     
     % Verify the result is within a reasonable expected range
     expectedArea = pi / 2;  % Expected approximate area for the triangle
@@ -33,7 +33,7 @@ function testTriangleAreaPermutation(testCase)
     PolyLat = [pi/2; 0; 0];     % Latitude values in radians
     
     % Call area_sphere_polygon function
-    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
     
     % Verify the result is within a reasonable expected range
     expectedArea = pi / 2;  % Expected approximate area for the triangle
@@ -47,7 +47,7 @@ function testTriangleAreaPermutation2(testCase)
     PolyLat = [0; pi/2; 0];     % Latitude values in radians
     
     % Call area_sphere_polygon function
-    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
     
     % Verify the result is within a reasonable expected range
     expectedArea = pi / 2;  % Expected approximate area for the triangle
@@ -67,9 +67,9 @@ function testTriangleAreaPermutationComparison(testCase)
     PolyLat0 = [ 0;0; pi/2];     % Latitude values in radians
     
     % Call area_sphere_polygon function
-    Area  = celestial.coo.area_sphere_polygon(PolyLon, PolyLat); % Negative SumAngle results in wrong answer
+    Area  = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat); % Negative SumAngle results in wrong answer
 
-    Area0 = celestial.coo.area_sphere_polygon(PolyLon0, PolyLat0);
+    Area0 = celestial.polygon.area_sphere_polygon(PolyLon0, PolyLat0);
 
     
     % Verify the result is within a reasonable expected range
@@ -90,9 +90,9 @@ function testTriangleBaseEqualLatitudeComparison(testCase)
     PolyLat0 = [pi/2; pi/3; pi/3];     % Latitude values in radians
     
     % Call area_sphere_polygon function
-    Area  = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area  = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 
-    Area0 = celestial.coo.area_sphere_polygon(PolyLon0, PolyLat0);
+    Area0 = celestial.polygon.area_sphere_polygon(PolyLon0, PolyLat0);
 
     
     % Verify the result is within a reasonable expected range
@@ -107,7 +107,7 @@ function testClosedPolygon(testCase)
     PolyLat = [0; 0; pi/3; pi/3; 0];  % Latitude values in radians (closed polygon)
     
     % Call area_sphere_polygon function
-    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
     
     % Verify the result is within the expected range
     verifyGreaterThanOrEqual(testCase, Area, 0, 'Failed to calculate non-negative area for closed polygon.');
@@ -119,7 +119,7 @@ function testOpenPolygon(testCase)
     PolyLat = [0; 0; pi/3; pi/3];  % Latitude values in radians (not closed)
     
     % Call area_sphere_polygon function
-    Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+    Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
     
     % Verify the result is within the expected range
     verifyGreaterThanOrEqual(testCase, Area, 0, 'Failed to calculate non-negative area for open polygon.');
@@ -134,7 +134,7 @@ end
 %     PolyLat = [0; pi/6; 0; -pi/6; 0];  % Latitude values in radians (concave shape)
 % 
 %     % Call area_sphere_polygon function
-%     Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+%     Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 % 
 %     % Verify the result matches the expected area for the concave polygon
 %     expectedArea = 0.1 * 4 * pi;  % Example expected area for concave shape
@@ -147,7 +147,7 @@ end
 %     PolyLat = [0; pi/6; pi/6; 0; -pi/6];  % Latitude values in radians (convex shape)
 % 
 %     % Call area_sphere_polygon function
-%     Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+%     Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 % 
 %     % Verify the result matches the expected area for the convex polygon
 %     expectedArea = 0.25 * 4 * pi;  % Example expected area for convex shape
@@ -161,7 +161,7 @@ end
 %     PolyLat = [0; 1e-6; 0; -1e-6];  % Latitude values in radians (very small polygon)
 % 
 %     % Call area_sphere_polygon function
-%     Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+%     Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 % 
 %     % Verify the result is approximately zero
 %     expectedArea = 0;  % Area should be close to zero for very small polygons
@@ -188,7 +188,7 @@ end
 %         PolyLat = centerLat + radiusRad * sin(angles);
 % 
 %         % Call area_sphere_polygon function
-%         Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+%         Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 % 
 %         % Verify the calculated area is close to the expected area
 %         verifyEqual(testCase, Area, expectedArea, 'RelTol', 0.1, 'Failed to correctly calculate area for circular region on the sphere.');
@@ -201,7 +201,7 @@ end
 %     PolyLat = [ pi/2; 0;-pi/2;0];  % Latitude values in radians (not closed)
 % 
 %     % Call area_sphere_polygon function
-%     Area = celestial.coo.area_sphere_polygon(PolyLon, PolyLat);
+%     Area = celestial.polygon.area_sphere_polygon(PolyLon, PolyLat);
 %     expectedArea  = pi/2;
 % 
 %     % Verify the result is within the expected range
