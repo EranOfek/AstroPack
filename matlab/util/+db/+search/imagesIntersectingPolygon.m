@@ -63,7 +63,7 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     R = celestial.healpix.rasterize_polygon(P,'Resolution',Args.Resolution); % raster the polygon once to save time in polygon_boolean_operations
     for Irow = 1:N1
        Image = [T.ra1(Irow),T.dec1(Irow);T.ra2(Irow),T.dec2(Irow);T.ra3(Irow),T.dec3(Irow);T.ra4(Irow),T.dec4(Irow)];
-       Res   = celestial.coo.polygon_boolean_operations(P, Image,'R0',R,'Resolution',Args.Resolution);       
+       Res   = celestial.polygon.polygon_boolean_operations(P, Image,'R0',R,'Resolution',Args.Resolution);       
        T.Intersect(Irow)   = Res.Intersect; % in fact, this column is needed for tests only 
        T.P0containP1(Irow) = Res.P0containP1; T.P1containP0(Irow) = Res.P1containP0;
     end
