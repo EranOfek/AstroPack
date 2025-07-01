@@ -28,6 +28,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         
         Args.ColPermID               = 'Number';
         Args.ColProvID               = 'Designation';
+        Args.TrkSubPrefix            = 'L';   % prefix to add to trkSub if numeric
         Args.ColTrkSub               = 'AstIndex';                  % column for: Observer-assigned tracklet identifier,
                                                          % unique within a submission batch. Not
    
@@ -143,7 +144,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         
         if tools.table.isColumn(Table, Args.ColTrkSub)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
-                TrkSub = sprintf('%8d',Table.(Args.ColTrkSub)(Iobs));
+                TrkSub = sprintf('%s%8d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
             else
                 TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
