@@ -43,13 +43,12 @@ classdef Db < Component
         Host     = "10.150.28.18"; % "socsrv" %"localhost"; %[];  % or '10.23.1.25' for last0
         Port     = "8123"; %[];
         
-        ConnType = 'java';  % 'java'|'http'
-        
+        ConnType = 'java';  % 'java'|'http'                        
     end
     
     properties (Hidden)
-        Conn     = []; % connectivity information (for ConnType=java)
-
+        Conn      = [];        % connectivity information (for ConnType=java)
+        DataTypes = cell(2,0); % data types in the DB tables 
     end
     
     properties (Hidden, Constant)
@@ -837,7 +836,7 @@ classdef Db < Component
                 Args.IsExec logical           = false;
                 Args.Convert2String logical   = true;
                 Args.Opts                     = [];         
-                Args.ExactDataTypes           = false; % if true, will override Args.Opts
+                Args.ExactDataTypes           = true; % if true, will override Args.Opts
             end
             
             if iscell(Query)
@@ -846,15 +845,26 @@ classdef Db < Component
             
             if Args.ExactDataTypes % get types from the server table
                 TName = regexp(Query, 'from\s+([a-zA-Z0-9_]+)', 'tokens', 'once');
-                TName = TName{1};  % Extract the actual table name
-                T = Obj.describeTable(TName);
-                Types = lower(T.type);
-                Types = regexprep(Types, 'nullable\((.*?)\)', '$1');  
-                Types(contains(Types, "datetime")) = "unknown";
-                Types(Types == "float64") = "double";
-                Types(Types == "float32") = "single";                
-                Args.Opts = databaseImportOptions(Obj.Conn,TName);
-                Args.Opts.VariableTypes = cellstr(Types(:))';                
+                if ~isempty(TName) % if there is no table name in the query, we do not require any data type options 
+                    TName = TName{1};  % extract the actual table name
+                    Idx = find(strcmp(TName, Obj.DataTypes(1, :)));
+                    if isempty(Idx) % the table is queried first time
+                        T = Obj.describeTable(TName);
+                        Types = lower(T.type);
+                        Types = regexprep(Types, 'nullable\((.*?)\)', '$1');
+                        Types(Types == "datetime64(3, 'utc')") = "unknown";
+                        Types(contains(Types, "datetime")) = "string"; 
+                        Types(Types == "float64") = "double";
+                        Types(Types == "float32") = "single";
+                        Types(Types == "bool") = "logical";
+                        Args.Opts = databaseImportOptions(Obj.Conn,TName);
+                        Args.Opts.VariableTypes = cellstr(Types(:))';
+                        Obj.DataTypes{1, end+1} = TName;
+                        Obj.DataTypes{2, size(Obj.DataTypes,2)} = Args.Opts;
+                    else            % table data types are already in the object
+                        Args.Opts =  Obj.DataTypes{2,Idx};
+                    end
+                end
             end
 
             if strcmpi(Obj.DbType, 'clickhouse') && strcmpi(Obj.ConnType, 'java')    
