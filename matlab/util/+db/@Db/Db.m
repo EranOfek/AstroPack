@@ -836,7 +836,7 @@ classdef Db < Component
                 Args.IsExec logical           = false;
                 Args.Convert2String logical   = true;
                 Args.Opts                     = [];         
-                Args.ExactDataTypes           = true; % if true, will override Args.Opts
+                Args.ExactDataTypes           = false; % if true, will override Args.Opts
             end
             
             if iscell(Query)
