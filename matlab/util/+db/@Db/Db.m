@@ -211,7 +211,7 @@ classdef Db < Component
                 Args.Port    = '8123';
                 Args.User    = []; %'default';
                 Args.Password = []; 
-                Args.JarFile = []; %'/home/eran/jdbc/clickhouse-jdbc-0.7.0-all.jar';
+                Args.JarFile = []; % '/home/sasha/matlab/data/Java/Clickhouse/clickhouse-jdbc-0.3.2-patch11-all.jar'; % []; %'/home/eran/jdbc/clickhouse-jdbc-0.7.0-all.jar';
                 Args.Driver  = 'com.clickhouse.jdbc.ClickHouseDriver';  % 'ru.yandex.clickhouse.ClickHouseDriver'
                 Args.BaseURL = "jdbc:clickhouse";
                 Args.Timeout = 3600.*1000;
