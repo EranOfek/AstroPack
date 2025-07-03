@@ -8,34 +8,41 @@ using namespace clickhouse;
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1 || !mxIsChar(prhs[0])) {
-        mexErrMsgTxt("First input must be SQL query string.");
+        mexErrMsgTxt("The first input must be an SQL query string \n"
+        "The next optional inputs are: host, user name, password, DB name");
     }
 
-    char* query = mxArrayToString(prhs[0]);
+    char* query = mxArrayToString(prhs[0]);  
+
+    // Defaults
+    std::string host = "10.150.28.18";
+    int port = 9000;
+    std::string user = "last_user";
+    std::string password = "physics";
+    std::string database = "last";
+
+    // Optional: [host, user, password, database]
+    if (nrhs >= 2 && mxIsChar(prhs[1])) {
+        host = mxArrayToString(prhs[1]);
+    }
+    if (nrhs >= 3 && mxIsChar(prhs[2])) {
+        user = mxArrayToString(prhs[2]);
+    }
+    if (nrhs >= 4 && mxIsChar(prhs[3])) {
+        password = mxArrayToString(prhs[3]);
+    }
+    if (nrhs >= 5 && mxIsChar(prhs[4])) {
+        database = mxArrayToString(prhs[4]);
+    }
 
     try {
         Client client(ClientOptions()
-            .SetHost("10.150.28.18")
-            .SetPort(9000)
-            .SetUser("last_user")
-            .SetPassword("physics")
-            .SetDefaultDatabase("last"));
-
-        // Block result;
-        // std::promise<void> done;
-        // std::mutex mtx;
-        // 
-        // client.Select(query, [&](const Block& b) {
-        //     std::lock_guard<std::mutex> lock(mtx);
-        //     if (b.GetRowCount() > 0)
-        //         result = b;
-        // });
-        // 
-        // // wait to ensure all callbacks complete
-        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-        // plhs[0] = convert_block_to_struct_array(result);
-
+            .SetHost(host)
+            .SetPort(port)
+            .SetUser(user)
+            .SetPassword(password)
+            .SetDefaultDatabase(database));
+   
         std::vector<clickhouse::Block> allBlocks;
 
         client.Select(query, [&](const clickhouse::Block& block) {
