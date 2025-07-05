@@ -48,9 +48,7 @@ mxArray* convert_blocks_to_struct_array(const std::vector<Block>& blocks) {
         for (size_t c = 0; c < nCols; ++c) {
             auto col = block[c];
 
-            // For each column type handle conversion and fill struct fields
-            // For simplicity, I'll just handle a few types here,
-            // extend as needed based on your previous code
+            // For each column type handle conversion and fill struct fields            
 
             mxArray* arr = nullptr;
 
@@ -144,24 +142,7 @@ mxArray* convert_blocks_to_struct_array(const std::vector<Block>& blocks) {
                     // Increase ref count because mxSetField takes ownership
                     mxSetField(result, destRow + r, fieldNames[c].c_str(), val);
                     // Do NOT destroy val, it's now owned by result
-                } else {
-                    // Numeric: create scalar from arr's data
-                    // if (mxGetNumberOfElements(arr) == nRows) {
-                    //     // Create scalar mxArray with element r's value
-                    //     if (mxIsDouble(arr)) {
-                    //         val = mxCreateDoubleScalar(mxGetPr(arr)[r]);
-                    //     } else if (mxGetClassID(arr) == mxUINT64_CLASS) {
-                    //         val = mxCreateNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
-                    //         *static_cast<uint64_t*>(mxGetData(val)) = static_cast<uint64_t*>(mxGetData(arr))[r];
-                    //     } else if (mxGetClassID(arr) == mxINT32_CLASS) {
-                    //         val = mxCreateNumericMatrix(1, 1, mxINT32_CLASS, mxREAL);
-                    //         *static_cast<int32_t*>(mxGetData(val)) = static_cast<int32_t*>(mxGetData(arr))[r];
-                    //     } else {
-                    //         // Fallback to double scalar
-                    //         val = mxCreateDoubleScalar(mxGetPr(arr)[r]);
-                    //     }
-                    //     mxSetField(result, destRow + r, fieldNames[c].c_str(), val);
-                    // }
+                } else {                    
                     if (mxGetNumberOfElements(arr) == nRows) {
                         if (mxIsDouble(arr)) {
                             val = mxCreateDoubleScalar(mxGetPr(arr)[r]);
