@@ -24,6 +24,7 @@ function [Nvisit] = prepReference(Args)
         Args.Ncam    = 4;
         Args.Nsub    = 24;
         Args.MinNimForCoadd = 5;
+        Args.MaxNtoCoadd    = 100;
 
         Args.Mode    = 'RegenCoadd';  %'RegenCoadd'|'Missing'
         Args.Istart  = 1;
@@ -136,7 +137,12 @@ function [Nvisit] = prepReference(Args)
                         if Nvisit(Itarget,Icam,Isub)>=Args.MinNimForCoadd
                             %CI = pipeline.last.coadd.coaddVisits(OT(Ifield,:),'CropID',Isub);
                             try
-                                CI = pipeline.last.coadd.coadd(T, 'MinNim',3);
+                                
+                                fprintf('Preparing ref for: %s\n',FieldID);
+
+                                NimT = size(T,1);
+
+                                CI = pipeline.last.coadd.coadd(T, 'MinNim',3, 'MaxNim',Args.MaxNtoCoadd);
                                 CI.HeaderData.deleteComment;
         
                                 Destination = fullfile(Args.RefDir, FieldID);

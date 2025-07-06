@@ -172,6 +172,13 @@ function [CI, DB, AI, T] = coadd(RA, Dec, Args)
             warning('Not enough images (%d)',Nim);
             CI(Icrop) = AstroImage;
         else
+
+            Nim = size(T{Icrop},1);
+            if Nim>Args.MaxNim
+                T{Icrop} = sortrows(T{Icrop},Args.SortBy);
+                T{Icrop} = T{Icrop}(1:Args.MaxNim,:);
+            end
+
             [AI, AllPaths, AllFiles] = pipeline.last.queryDB.loadProducts(T{Icrop}, Args.CoaddLevel, Args.CoaddProduct);
             IsEmpty = AI.isemptyImage;
             AI = AI(~IsEmpty);
