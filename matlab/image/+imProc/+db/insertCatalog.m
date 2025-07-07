@@ -247,8 +247,8 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
 
 
     if Args.CreateCsv
-        db.Db.table2csv(T, 'FileName',Args.FileName, Args.table2csvArgs{:});
-        FileName = Args.FileName;
+        FileName = erase(Args.FileName,' ');
+        db.Db.table2csv(T, 'FileName',FileName, Args.table2csvArgs{:});        
     else
         FileName = [];
     end
