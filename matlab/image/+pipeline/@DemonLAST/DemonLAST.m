@@ -2694,6 +2694,8 @@ classdef DemonLAST < Component
                                 
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
+                
+                Args.Backup                           = false; % Backup data to WIS
             end
             RAD = 180./pi;
             
@@ -3247,6 +3249,14 @@ classdef DemonLAST < Component
                                 end
                             end
                             %
+                            
+                            if Args.Backup
+                                BackupPath = FN_Coadd.genPath('Level','proc');
+                                BackupPath = strrep(BackupPath,'//','/');
+                                BackupStr = sprintf('last-backup --source %s &', BackupPath);
+                                system(BackupStr);
+                            end
+                            
                             RunTime = etime(clock, Tstart); % toc;
 
 
