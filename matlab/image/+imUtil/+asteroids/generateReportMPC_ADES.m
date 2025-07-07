@@ -1,4 +1,4 @@
-function [Result] = generateReportMPC_ADES(Table, FileName, Args)
+function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     % Generte MPC report in new XML ADES format
     % Input  : - Table
     %          - File name in which to write report.
@@ -6,6 +6,7 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     %            See code for options.
     % Output : - A structure with:
     %            .docNode - XML doc node.
+    %          - A flag indicating if the report was sent.
     % Documentation: https://minorplanetcenter.net/mpcops/documentation/valid-ades-values/#astCat
     %           https://minorplanetcenter.net/iau/info/ADES.html
     %           https://github.com/IAU-ADES/ADES-Master/blob/master/ades_master.pdf
@@ -51,6 +52,10 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
         Args.ColSeeing               = 'FWHM';
         Args.PhotCat                 = 'Gaia3';
         Args.ColExpTime              = 'ExpTime';  % or a number
+
+        Args.SendReport              = false;
+        Args.EMail                   = '';
+        Args.AckMessage              = [];
     end
     
     
@@ -139,12 +144,14 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
             addTextElement(docNode, optical, 'permID', PermID);
         end
         if tools.table.isColumn(Table, Args.ColProvID)
-            addTextElement(docNode, optical, 'provID', Table.(Args.ColProvID){Iobs});
+            if ~isempty(Table.(Args.ColProvID)(Iobs))
+                addTextElement(docNode, optical, 'provID', Table.(Args.ColProvID)(Iobs));
+            end
         end
         
         if tools.table.isColumn(Table, Args.ColTrkSub)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
-                TrkSub = sprintf('%s%8d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
+                TrkSub = sprintf('%s%d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
             else
                 TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
@@ -244,6 +251,19 @@ function [Result] = generateReportMPC_ADES(Table, FileName, Args)
     %elem.appendChild(doc.createTextNode(text));
     %parent.appendChild(elem);
     %end
+
+    Sent = false;
+    if Args.SendReport
+        if isempty(Args.AckMessage)
+            Args.AckMessage = FileName;
+        end
+    
+        SendReportStr = sprintf('curl -L https://minorplanetcenter.net/submit_xml -F "ack=%s" -F "ac2=%s" -F "obj_type=Unclassified" -F "source=%s"',Args.AckMessage, Args.EMail, FileName);
+
+        [Report.Status, Report.CmdOut] = system(SendReportStr);
+        Sent = true;
+        
+    end
     
 end
 
