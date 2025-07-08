@@ -117,7 +117,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             A.JD       = Coadd(1).getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;      
+            CsvFN = erase(A.genFile,' ');        
             % add the keywords to be used for filename construction            
             for Crop = 1:Nobj
                 FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;

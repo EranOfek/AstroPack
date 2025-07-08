@@ -138,7 +138,7 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
             A.JD       = AH.getStructKey('JD').JD; 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;                                                      
+            CsvFN = erase(A.genFile,' ');                                                        
 
             [~, Error]=imProc.db.insertCatalog(ObjNew,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID);            

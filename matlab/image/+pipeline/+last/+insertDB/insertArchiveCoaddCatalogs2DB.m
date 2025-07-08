@@ -145,7 +145,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
             A.JD       = AH(1).getVal('JD'); 
             A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
             A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;                                                      
+            CsvFN = erase(A.genFile,' ');               
 
             [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID); 
