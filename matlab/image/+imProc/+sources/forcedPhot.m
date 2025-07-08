@@ -161,7 +161,8 @@ function [Result] = forcedPhot(Obj, Args)
     % Author: Eran Ofek (Jan 2023)
     % Example: Rc = AI.cooImage;
     %          R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
-    
+    %
+    %          
     arguments
         Obj
         Args.Coo                     = zeros(0,2);

@@ -22,6 +22,8 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     % Output : - A table of objects found near coordinates and time.
     %          - The URL for the request.
     % Author : Eran Ofek (2024 Nov) 
+    % History: 2025-07-07 bug fix
+    %          2025-07-07 change default obs code to 'M01'
     % Reference: https://ssd-api.jpl.nasa.gov/doc/sb_ident.html
     %            https://ssd.jpl.nasa.gov/tools/sb_ident.html#/
     % Example: T=celestial.SolarSys.getJPL_smallBodyByCoo(0,0)
@@ -32,7 +34,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         Dec(1,1)
         JD                     = [9 2 2021 0 0 0];
         Args.CooUnits          = 'deg';
-        Args.ObsCode           = '097';  % Wise observatory
+        Args.ObsCode           = 'M01';  % LAST   %'097';  % Wise observatory
         Args.LimMag            = 22;
         Args.SearchRadius      = 1000;
         Args.SearchRadiusUnits = 'arcsec';
@@ -49,7 +51,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
         RA     = convert.angular(Args.CooUnits, 'rad', RA);
         RA_HMS = celestial.coo.convertdms(RA, 'r', 'H');
     end
-    StrRA = sprintf('%02d-%02d-%02.2f',RA_HMS);
+    StrRA = sprintf('%02d-%02d-%05.2f',RA_HMS);
 
     if ischar(Dec) || isstring(Dec)
         Dec_DMS = celestial.coo.convertdms(Dec, 'SD', 'D');
@@ -62,7 +64,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     else
         DecSign = '';
     end
-    StrDec = sprintf('%s%02d-%02d-%02.2f',DecSign, Dec_DMS(2:end));
+    StrDec = sprintf('%s%02d-%02d-%05.2f',DecSign, Dec_DMS(2:end));
 
 
     SearchRadius     = convert.angular(Args.SearchRadiusUnits,'deg', Args.SearchRadius);
@@ -74,7 +76,7 @@ function [T,URL] = getJPL_smallBodyByCoo(RA, Dec, JD, Args)
     else
         Time = JD;
     end
-    TimeStr = sprintf('%04d-%02d-%02d_%02d:%02d:%02d', Time([3 2 1 4 5 6]));
+    TimeStr = sprintf('%04d-%02d-%02d_%02d:%02d:%02d', round(Time([3 2 1 4 5 6])));
 
     
 

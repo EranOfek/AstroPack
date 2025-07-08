@@ -57,6 +57,12 @@ function OutTable=reportFastInVisit(Args)
     CandFound  = false(Ncand,1);
     T          = sortrows(T, 'jd');
     
+    %% FFU : merge objects by orbit into a single designation...
+
+    
+
+
+
     UnVisit = unique([T.id, T.astindex],'rows');
     NunV    = size(UnVisit,1);
 
@@ -78,6 +84,19 @@ function OutTable=reportFastInVisit(Args)
         Njd       = numel(VecJD);
         Ones      = ones(1,Njd);
     
+        % search for assoication with nearby galaxy/star
+        %% FFU
+        Ncone = numel(FitGC.ModelTime);
+        ContaminationStar = false;
+        for Icone=1:1:Ncone
+            [GS,~,~,DistGS] = catsHTM.cone_search('GAIADR3',FitGC.ModelLon0(Icone)./RAD, FitGC.ModelLat0(Icone)./RAD, 60, 'OutType','AstroCatalog');
+            DistGS = DistGS.*RAD.*3600;
+            if GS.sizeCatalog>0
+                Mag = GS.getCol('phot_bp_mean_mag');
+            end
+                
+
+        end
       
         
         Ones = ones(1,Nt);

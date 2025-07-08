@@ -7,8 +7,11 @@ function MS=forcedPhotAll(Args)
     % Output : - A Matched sources object. Element per directory.
     % Author : Eran Ofek (Jan 2023)
     % Example:
-    % MS=pipeline.last.forcedPhotAll('Coo',[50.0452635724,+8.748787337]);
-   
+    % MS=pipeline.last.phot.forcedPhotAll('Coo',[50.0452635724,+8.748787337]);
+    %
+    % [T,~,U] = celestial.SolarSys.getJPL_ephem('90004916','EPHEM_TYPE','OBSERVER','TimeScale','UT','GeoCoo',[35 30 0.415],'StartTime',[1 7 2025],'StopTime',[10 7 2025],'StepUnits','h','StepSize',1);
+    % MS=pipeline.last.phot.forcedPhotAll('EphemTable',T,'BasePath',[],'FileTemp','LAST*_C2025N1_*_010_sci_proc_Image_1.fits')
+
     arguments
         Args.BasePath       = @pipeline.last.path.constructCamDir;  % if empty use pwd
         Args.DataDir        = 1;
@@ -17,7 +20,7 @@ function MS=forcedPhotAll(Args)
         
         Args.Coo                        % [RA, Dec], for moving use EphemTable
         Args.CooUnits       = 'deg';
-        Args.EphemTable     = [];  % if given then Moving=true
+        Args.EphemTable     = [];  % AstroCatalog / if given then Moving=true
         Args.EphemTableColJD = 'Date';
         
         Args.MaxIter        = 1;

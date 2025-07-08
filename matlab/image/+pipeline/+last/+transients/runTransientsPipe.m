@@ -190,6 +190,10 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         % Get name of New image and search for Ref image via wildcards
         FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
         FNref = FN.copy();
+        % if contains(FNref.FieldID, '.')
+        %     SpFID = split(FNref.FieldID, '.');
+        %     FNref.FieldID = SpFIF{1};
+        % end
 
         % Convert telescope designation to wildcard if Refs from other
         % telescopes are allowed.

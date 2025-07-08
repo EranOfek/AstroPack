@@ -479,6 +479,15 @@ classdef catsHTM
             Data(I).Ref  = 'Gaia collaboration et al. 2018';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract';
             
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/GAIA/DR2_19/';
+            % Data(I).Name = 'GAIADR2_19';
+            % Data(I).Desc = 'GAIA-DR2 catalog / with sources brighter than 19 / slim';
+            % Data(I).Ref  = 'Gaia collaboration et al. 2018';
+            % Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2018A%26A...616A...1G/abstract';
+
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
@@ -506,6 +515,33 @@ classdef catsHTM
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
             Data(I).RefLink = '';
             
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/GAIA/DR3slim/';
+            % Data(I).Name = 'GAIADR3slim';
+            % Data(I).Desc = 'GAIA-DR3 catalog / slim version';
+            % Data(I).Ref  = 'Gaia collaboration et al. 2022';
+            Data(I).RefLink = '';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GAIA/DR3spec/';
+            Data(I).Name = 'GAIADR3spec';
+            Data(I).Desc = 'GAIA-DR3 catalog / low resolution spectra / 30M';
+            Data(I).Ref  = 'Gaia collaboration et al. 2022';
+            Data(I).RefLink = '';
+
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GAIA/DR3var/';
+            Data(I).Name = 'GAIADR3var';
+            Data(I).Desc = 'GAIA-DR3 catalog / variable sources';
+            Data(I).Ref  = 'Gaia collaboration et al. 2022';
+            Data(I).RefLink = '';
+
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
@@ -518,20 +554,20 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/v1/';
-            Data(I).Name = 'GLADE';
+            Data(I).Dir  = '/GLADE/';
+            Data(I).Name = 'GLADEp';
             Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/plus/';
-            Data(I).Name = 'GLADEp';
-            Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
-            Data(I).Ref  = 'Dalya et al. 2021';
-            Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/GLADE/plus/';
+            % Data(I).Name = 'GLADEp';
+            % Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
+            % Data(I).Ref  = 'Dalya et al. 2021';
+            % Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -571,7 +607,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/MergedCat/V1/';
+            Data(I).Dir  = '/MergedCat/V2/';
             Data(I).Name = 'MergedCat';
             Data(I).Desc = 'Merged catalog';
             Data(I).Ref  = 'Ofek et al. 2021';
@@ -631,6 +667,15 @@ classdef catsHTM
             Data(I).Ref  = 'Ofek et al. 2012';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2012PASP..124..854O/abstract';
             
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/PTFprocim/';
+            % Data(I).Name = 'PTFprocim';
+            % Data(I).Desc = 'The PTF processed images catalog';
+            % Data(I).Ref  = 'Law et al. 2009';
+            % Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2009PASP..121.1395L/abstract';
+
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
@@ -745,7 +790,7 @@ classdef catsHTM
             Data(I).Dir  = '/UCACGAIADR2accel/';
             Data(I).Name = 'UCACGAIADR2accel';
             Data(I).Desc = 'The GAIA-DR2 UCAC-4 accelerations catalog';
-            Data(I).Ref  = 'Ofek and Hallakoun 2020';
+            Data(I).Ref  = 'Ofek and Hallakoun';
             Data(I).RefLink = '';
             
             I = I + 1;
@@ -811,14 +856,6 @@ classdef catsHTM
             Data(I).Ref  = 'de Jong et al. 2015';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2015A%26A...582A..62D/abstract';
             
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/unWISE/';
-            Data(I).Name = 'unWISE';
-            Data(I).Desc = 'The unWISE IR catalog';
-            Data(I).Ref  = 'Meisner et al. 2017';
-            Data(I).RefLink = 'https://catalog.unwise.me/';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -847,6 +884,16 @@ classdef catsHTM
             Data(I).Ref  = 'Traulsen et al. 2019';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2019A%26A...624A..77T/abstract';
             
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/XMMONUV/';
+            % Data(I).Name = 'XMMOMUV';
+            % Data(I).Desc = 'The XMM-Newton optical UV monotor observations';
+            % Data(I).Ref  = 'Page et al. 2022';
+            % Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2012MNRAS.426..903P/abstract';
+
+
             I = I + 1;
             Data(I).Status  = true;  % non catsHTM
             Data(I).iscatsHTM  = false;
@@ -856,14 +903,14 @@ classdef catsHTM
             Data(I).Ref  = 'Ofek et al. 2020';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5782O/abstract';
             
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/ZTF/SrcLCDR1/';
-            Data(I).Name = 'ztfSrcLCDR1';
-            Data(I).Desc = 'ZTF-DR1 stellar variability catalog';
-            Data(I).Ref  = 'Ofek et al. 2020';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5782O/abstract';
+            % I = I + 1;
+            % Data(I).Status  = true;
+            % Data(I).iscatsHTM  = true;
+            % Data(I).Dir  = '/ZTF/SrcLCDR1/';
+            % Data(I).Name = 'ztfSrcLCDR1';
+            % Data(I).Desc = 'ZTF-DR1 stellar variability catalog';
+            % Data(I).Ref  = 'Ofek et al. 2020';
+            % Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5782O/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -888,7 +935,7 @@ classdef catsHTM
             if (nargin<2)
                 WriteDir = '';
                 if nargin<1
-                    Dir = '/data/euler/catsHTM';
+                    BaseDir = '/raid/eran/catsHTM';
                 end
             end
             
@@ -898,8 +945,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=16:1:17,
-                %1:1:Nd
+            for Id=1:1:Nd
                 if Data(Id).Status
                     Data(Id)
                     Dir = sprintf('%s%s',BaseDir,Data(Id).Dir);

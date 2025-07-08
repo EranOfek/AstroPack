@@ -1,4 +1,4 @@
-function [UnVal,Count]=unique_count(Vec, CmpFun, Algo)
+function [UnVal,Count]=unique_count(Vec, CmpFun, Algo, IsRows)
     % Unique values and count the number of apperances of each value.
     % Description: Select unique values in numeric or char vector and count the
     %              number of apperances of each value.
@@ -9,6 +9,7 @@ function [UnVal,Count]=unique_count(Vec, CmpFun, Algo)
     %            'scan' - for each value in vector search unique value.
     %            'sort' - sort and search (usually the fastest).
     %            Default is 'sort'.
+    %          - Input is rows. Default is true.
     % Output : - Unique values
     %          - Count of appearances per unique value.
     % Tested : Matlab R2014a
@@ -20,12 +21,18 @@ function [UnVal,Count]=unique_count(Vec, CmpFun, Algo)
         Vec
         CmpFun   = @strcmpi;
         Algo     = 'sort';
+        IsRows   = true;
     end
 
+    if IsRows
+        Rows = {'rows'};
+    else
+        Rows = {};
+    end
     
     switch Algo
         case 'search'
-            UnVal = unique(Vec);
+            UnVal = unique(Vec, Rows{:});
             Nun   = numel(UnVal);
             Count = zeros(Nun,1);
 
@@ -59,7 +66,7 @@ function [UnVal,Count]=unique_count(Vec, CmpFun, Algo)
 
         case 'sort'
             Vec = sort(Vec);
-            UnVal = unique(Vec);
+            UnVal = unique(Vec, Rows{:});
             Nun   = numel(UnVal);
             Count = zeros(Nun,1);
             Nall = numel(Vec);
