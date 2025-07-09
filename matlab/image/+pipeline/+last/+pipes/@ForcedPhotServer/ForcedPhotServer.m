@@ -1,6 +1,6 @@
-% ForcedPhotServer - 
+% ForcedPhotServer - Forced photometry service for LAST images
 %
-% Example:
+% Example: FFS=pipeline.last.pipes.ForcedPhotServer.demon('DB',DB);
 %
 
 classdef ForcedPhotServer < Component
@@ -97,12 +97,20 @@ classdef ForcedPhotServer < Component
 
     methods (Static) % demon
         function Obj=demon(Args)
-            %
-            % Example: FPS=pipeline.last.pipes.ForcedPhotServer.demon
+            % Forced photometry service demon
+            %   The demon is running in the background and waiting for
+            %   requests in the DB (TableRequest). When a new request is found it is
+            %   executed and the output is written to the DB TableOutput).
+            % Input  : * ...,key,val,...  
+            %            'DB' - DB object. If empty, then will be created.
+            %                   Default is [].
+            %            See more options in code.
+            % Example: FPS=pipeline.last.pipes.ForcedPhotServer.demon('DB',DB)
 
             arguments
                 Args.DB                = [];
                 Args.PauseTime         = 1;
+                
                 Args.UseExistingRef    = false;
                 Args.ReSub             = false;
                 Args.LoadNew           = false;
