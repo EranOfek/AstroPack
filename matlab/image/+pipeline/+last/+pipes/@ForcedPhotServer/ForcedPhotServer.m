@@ -41,7 +41,7 @@ classdef ForcedPhotServer < Component
             else
                 Obj.DB = DB;
             end
-            
+            Obj.Logger.LogF.FileName = '~/ForcedPhotServer.log';
         end
         
     end
@@ -86,7 +86,7 @@ classdef ForcedPhotServer < Component
                     T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND mountnum=%d AND camnum=%d AND cropid=%d AND jd_start>%f AND jd_start<%f",Args.FieldID, Args.MountNum, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
                 end
             else
-                T = pipeline.last.queryDB.searchVisitsByCoo(RA,Des, 'DB', Obj.DB, Args.searchVisitsByCooArgs{:});
+                T = pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'DB', Obj.DB, Args.searchVisitsByCooArgs{:});
                 T = T{1};
             end
      
@@ -101,7 +101,8 @@ classdef ForcedPhotServer < Component
             % Example: FPS=pipeline.last.pipes.ForcedPhotServer.demon
 
             arguments
-                Args.PauseTime = 1;
+                Args.DB                = [];
+                Args.PauseTime         = 1;
                 Args.UseExistingRef    = false;
                 Args.ReSub             = false;
                 Args.LoadNew           = false;
@@ -112,11 +113,15 @@ classdef ForcedPhotServer < Component
             STATUS_WAITING = 0;
             STATUS_READY   = 1;
             STATUS_FAILED  = -1;
+            HostName       = tools.os.get_computer;
 
-            Obj = pipeline.last.pipes.ForcedPhotServer;
+            Obj = pipeline.last.pipes.ForcedPhotServer(Args.DB);
 
+            LoopInd = 0;
             while true
                 pause(Args.PauseTime);
+                LoopInd = LoopInd + 1;
+                LoopInd
 
                 % search for new request
                 % TableRequest contains columns:
@@ -127,23 +132,27 @@ classdef ForcedPhotServer < Component
                 %   now)
 
                 % To create this table:
-                %       VarNames = {'request_id', 'user_id', 'ra', 'dec', 'subtraction', 'status', 'checkexisting', 'nphot', 'jd_start', 'jd_end', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
-                %       VarUnits = ["UInt64","UInt16","Float64","Float64","UInt8","UInt8","UInt8", "UInt32","Float64","Float64", "String","UInt8", "UInt8","UInt8","UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "UInt8", "DateTime64(3,'UTC')"];
-                %       VarDefaults = {[],0,[],[],1,0,1,[],[],[],[],1,[],[],[],1,1,0,0,0,0,'now64(3)'};
-                %       DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time');
-                %       [~,Error] = DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
+                %       VarNames    = {'request_id', 'user_id', 'ra',     'dec',    'subtraction', 'status', 'checkexisting', 'nphot', 'jd_start', 'jd_end',  'n_epoch_max', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
+                %       VarUnits    = ["UInt64",     "UInt16",  "Float64","Float64","UInt8",       "UInt8",  "UInt8",         "UInt32","Float64",  "Float64", "UInt16",      "String",  "UInt8",    "UInt8",    "UInt8",  "UInt8",  "UInt8", "UInt8",          "UInt8", "UInt8",   "UInt8",   "UInt8",      "DateTime64(3,'UTC')"];
+                %       VarDefaults = {[],           0,         [],        [],      1,             0,        1,               [],      [],          [],       10,            [],        1,          [],         [],       [],       1,        1,               0,       0,         0,         0,            'now64(3)'};
+                %       Obj.DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time','Engine','ReplacingMergeTree()');
+                %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
-                % DB.insertCharDump('forcedphot_requests',table(1,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
                 % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
 
                 Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d", Obj.TableRequest, STATUS_WAITING));
                 if ~isempty(Treq)
+                    
+                    
                     % search target in visits
                     Nreq = size(Treq,1);
                     for Ireq=1:1:Nreq
-                        ID  = Treq.request_id(Ireq);
-                        RA  = Treq.ra(Ireq);
-                        Dec = Treq.dec(Ireq);
+                        ID     = Treq.request_id(Ireq);
+                        UserID = Treq.user_id(Ireq);
+                        RA     = Treq.ra(Ireq);
+                        Dec    = Treq.dec(Ireq);
 
                         % if Treq.checkexisting(Ireq)
                         %     % Check if forced photometry within 1'' was
@@ -157,6 +166,10 @@ classdef ForcedPhotServer < Component
                         % end
                         ReDo = true;
 
+                        Msg = sprintf('New request found in table: %s',Obj.TableRequest);                    
+                        Obj.writeLogMessage(Msg, 'Info', HostName);
+                        Tstart = datetime('now');
+
                         if ReDo
                             if Treq.mountnum>0
                                 Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'MountNum',Treq.mountnum(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
@@ -166,6 +179,16 @@ classdef ForcedPhotServer < Component
                             
                             Nobs = size(Tvisit,1);
                             if Nobs>0
+
+                                % FFU: chose max n_epoch_max latest lines
+                                % from table
+                                
+                                if Nobs>Treq.n_epoch_max(Ireq)
+                                    Tvisit = sortrows(Tvisit, 'jd_start', 'descend');
+                                    Tvisit = Tvisit(1:Treq.n_epoch_max(Ireq),:);
+                                    Nobs = size(Tvisit,1);
+                                end
+
                                 % execure forced phot
                                 if Treq.get_cutout(Ireq)
                                     [ForcedPhot, ~, ADc] = pipeline.last.phot.forcedPhotSubLAST(Treq(Ireq,:), RA, Dec, 'UseExistingRef',Treq.useexistingref(Ireq), 'ReSub',Treq.resub(Ireq), 'LoadNew',Treq.loadnew(Ireq), 'MaxIter',Treq.maxiter(Ireq));
@@ -227,18 +250,29 @@ classdef ForcedPhotServer < Component
                                 if isempty(ErrorInsert)
                                     Treq.status(Ireq) = STATUS_READY;  % ready
                                     Treq.nphot(Ireq)  = Nphot;
-                                    Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
+
+                                    Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                    %ALTER TABLE my_table
+                                    %UPDATE column1 = 'new_value'
+                                    %WHERE id = 123;
+
+                                    Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
                                 else
                                     % write to log - change status to -1
-                                    Obj.DB.exec(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID));
+                                    Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_FAILED, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                    %Obj.DB.query(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID), 'IsExec',true);
                                     Treq.status(Ireq) = STATUS_FAILED;  % failed
                                     Treq.nphot(Ireq)  = 0;
-                                    Obj.DB.insertCharDump(TableRequest, Treq(Ireq,:));
+                                    %Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
                                 end
                             end % if Nobs>0
                         end % if ReDo
+                        RunTime = datetime('now') - Tstart;
+                        Msg = sprintf('Finished - Run time: %6.2f [s] for %d data points', seconds(RunTime), Nphot);                    
+                        Obj.writeLogMessage(Msg, 'Info', HostName);
+                        
                     end % for Ireq=1:1:Nreq
-    
+                   
                 end % if ~isempty(Treq)
 
             end
