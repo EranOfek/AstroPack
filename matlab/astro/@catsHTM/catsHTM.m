@@ -939,7 +939,7 @@ classdef catsHTM
                 end
             end
             
-            URL  = 'https://astro.weizmann.ac.il/catsHTM';
+            URL  = 'https://wao-data.org/catsHTM';
             Pars = '-U Mozilla/5.0 --no-check-certificate';
             
             Data = catsHTM.catalogs;
