@@ -107,7 +107,12 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 for Crop=1:Nobj
                     Coadd(Crop).HeaderData.replaceVal('SUBDIR',Subdir);
                 end
-            end            
+            end         
+            % insert the ingestion time
+            JDnow = celestial.time.date2jd;
+            for Crop=1:Nobj
+                Coadd(Crop).HeaderData.replaceVal('INGESTION_TIME_JD',JDnow);
+            end
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;
