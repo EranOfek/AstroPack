@@ -1021,6 +1021,17 @@ classdef AstroFileName < Component
     end
     
     methods (Static) % static time utilities
+        function BaseFieldID=getBaseFieldID(FieldID)
+            % Extract the base fieldid from a full fieldid (i.e., the first dot-seperated literal).
+            % Input  : - A string vector of FieldID.
+            % Output : - A string vector of base FieldID.
+            % Author : Eran Ofek (Jul 2025)
+            % Example: AstroFileName.getBaseFieldID('1632.c')
+
+            TmpFieldID  = split(FieldID(:),'.',2); 
+            BaseFieldID = TmpFieldID(:,1);
+        end
+
         function [Date, DateDir] = jd2datedir(JD, TimeZone)
             % convert JD to date dir of the form: YYYY/MM/DD (changed at local noon)
             % Input  : - JD
@@ -1610,12 +1621,16 @@ classdef AstroFileName < Component
         end
 
         % DONE
-        function Result=genRefPath(Obj, Ind)
+        function Result=genRefPath(Obj, Ind, Args)
             % Generate RefPath (path for reference images)
             % Input  : - self.
             %          - Indices of lines (file names) for which to
             %            generate ref image path. If empty, then generate
             %            for all images. Default is 1.
+            %          * ...,key,val,...
+            %            'CleanFieldID' - A logical indicating if to clean
+            %                   the FieldID such it will contain only the first
+            %                   dot seperated literal. Default is true.
             % Output : - A string array of reference image path.
             %            Construted from BasePathRef/FieldID.
             % Author : Eran Ofek (Oct 2024)
@@ -1626,6 +1641,7 @@ classdef AstroFileName < Component
             arguments
                 Obj
                 Ind    = 1;
+                Args.CleanFieldID = true;
             end
             
             if isempty(Ind)
@@ -1639,6 +1655,9 @@ classdef AstroFileName < Component
                 TmpBasePathRef = Obj.BasePathRef;
             end
             TmpFieldID = Obj.FieldID(Ind);
+            if Args.CleanFieldID
+                TmpFieldID = AstroFileName.getBaseFieldID(TmpFieldID);
+            end
             
             Result = join([TmpBasePathRef, TmpFieldID], filesep);
             

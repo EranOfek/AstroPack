@@ -1237,56 +1237,59 @@ classdef AstroTable < Component
             end
             
             Nobj     = numel(Obj);
-            [~,Nc] = Obj.sizeCatalog;
-            [~,Imax] = max(Nc);
-            if isempty(Columns)
-                Columns = Obj(Imax).ColNames;
-            end
-            ColNames = colind2name(Obj(Imax), Columns);
-            ColIndC  = colname2ind(Obj(Imax), Columns);
-            
-            Ncol     = numel(ColNames);
-            if isa(Obj, 'AstroCatalog')
-                NewObj   = AstroCatalog;
+            if Nobj==0
+                NewObj = Obj;
             else
-                % assume AstroTable
-                NewObj   = AstroTable;
-            end
-            
-            NextraCol    = size(Args.AddEntryPerElement,2);
-
-            NewObj.ColNames = [ColNames, Args.AddColNames];
-            NewObj.Catalog = zeros(0,Ncol+NextraCol);
-            if Args.IsTable
-                NewObj.Catalog = array2table(NewObj.Catalog);
-                NewObj.Catalog.Properties.VariableNames = NewObj.ColNames;
-            end
-            for Iobj=1:1:Nobj
-                Nrow = size(Obj(Iobj).Catalog,1);
-                if Nrow>0
-                    ColInd   = colname2ind(Obj(Iobj), Columns);
-                    if isempty(Args.AddEntryPerElement)
-                        NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
-                    else
-                        ExtraCols = repmat(Args.AddEntryPerElement(Iobj,:),Nrow,1);
-                        if Args.IsTable
-                            NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
-                        else
-                            NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), repmat(ExtraCols, Nrow, 1)]];
-                        end
-                    end
-                    
+                [~,Nc] = Obj.sizeCatalog;
+                [~,Imax] = max(Nc);
+                if isempty(Columns)
+                    Columns = Obj(Imax).ColNames;
                 end
+                ColNames = colind2name(Obj(Imax), Columns);
+                ColIndC  = colname2ind(Obj(Imax), Columns);
+                
+                Ncol     = numel(ColNames);
+                if isa(Obj, 'AstroCatalog')
+                    NewObj   = AstroCatalog;
+                else
+                    % assume AstroTable
+                    NewObj   = AstroTable;
+                end
+                
+                NextraCol    = size(Args.AddEntryPerElement,2);
+    
+                NewObj.ColNames = [ColNames, Args.AddColNames];
+                NewObj.Catalog = zeros(0,Ncol+NextraCol);
+                if Args.IsTable
+                    NewObj.Catalog = array2table(NewObj.Catalog);
+                    NewObj.Catalog.Properties.VariableNames = NewObj.ColNames;
+                end
+                for Iobj=1:1:Nobj
+                    Nrow = size(Obj(Iobj).Catalog,1);
+                    if Nrow>0
+                        ColInd   = colname2ind(Obj(Iobj), Columns);
+                        if isempty(Args.AddEntryPerElement)
+                            NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
+                        else
+                            ExtraCols = repmat(Args.AddEntryPerElement(Iobj,:),Nrow,1);
+                            if Args.IsTable
+                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
+                            else
+                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), repmat(ExtraCols, Nrow, 1)]];
+                            end
+                        end
+                        
+                    end
+                end
+                % if isempty(NewObj.ColNames)
+                %     NewObj.ColNames = Obj(Imax).ColNames;
+                % else
+                %     NewObj.ColNames = ColNames;
+                % end
+                %if ~isempty(Obj(Imax).ColUnits)
+                %    NewObj.ColUnits = Obj(Imax).ColUnits(ColIndC);
+                %end
             end
-            % if isempty(NewObj.ColNames)
-            %     NewObj.ColNames = Obj(Imax).ColNames;
-            % else
-            %     NewObj.ColNames = ColNames;
-            % end
-            %if ~isempty(Obj(Imax).ColUnits)
-            %    NewObj.ColUnits = Obj(Imax).ColUnits(ColIndC);
-            %end
-              
         end
         
     end

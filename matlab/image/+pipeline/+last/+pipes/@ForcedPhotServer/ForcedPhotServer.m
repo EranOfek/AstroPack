@@ -79,7 +79,16 @@ classdef ForcedPhotServer < Component
                 Args.searchVisitsByCooArgs = {};
             end
 
-            if ~isempty(Args.FieldID)
+            if isempty(Args.FieldID)
+                IsEmptyFieldID = true;
+            else
+                if numel(Args.FieldID{1})==0
+                    IsEmptyFieldID = true;
+                else
+                    IsEmptyFieldID = false;
+                end
+            end
+            if ~IsEmptyFieldID
                 if isempty(Args.MountNum)
                     T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND camnum=%d AND cropid=%d AND jd_start>%f AND jd_start<%f",Args.FieldID, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
                 else
@@ -91,7 +100,38 @@ classdef ForcedPhotServer < Component
             end
      
         end
-    
+
+        function createRequestsTable(Obj)
+            % Re-create forced photometry requests table
+            % Input  : - self.
+            % Output : null
+            % Author : Eran Ofek (Jul 2025)
+
+
+            % search for new request
+            % TableRequest contains columns:
+            %   request_id, user_id, ra, dec, subtraction (default is true), status (created with default=0), nphot (number of data points added), jd_start, jd_end, fieldid,
+            %   nodenum, mountnum, camnum, cropid, useexistingref (default true), resub (default false),
+            %   loadnew (default false), maxiter (default is 0),
+            %   get_cutout (default is 0), insertion_time (default is
+            %   now)
+
+            % To create this table:
+            [~,Error] = Obj.DB.query(sprintf('DROP TABLE IF EXISTS %s', Obj.TableRequest), 'IsExec',true)
+            VarNames    = {'request_id', 'user_id', 'ra',     'dec',    'subtraction', 'status', 'checkexisting', 'nphot', 'jd_start', 'jd_end',  'n_epoch_max', 'fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'ccdid', 'useexistingref', 'resub', 'loadnew', 'maxiter', 'get_cutout', 'insertion_time'};
+            VarUnits    = ["UInt64",     "UInt16",  "Float64","Float64","UInt8",       "UInt8",  "UInt8",         "UInt32","Float64",  "Float64", "UInt16",      "String",  "UInt8",    "UInt8",    "UInt8",  "UInt8",  "UInt8", "UInt8",          "UInt8", "UInt8",   "UInt8",   "UInt8",      "DateTime64(3,'UTC')"];
+            VarDefaults = {[],           0,         [],        [],      1,             0,        1,               [],      [],          [],       10,            [],        1,          [],         [],       [],       1,        1,               0,       0,         0,         0,            'now64(3)'};
+            Obj.DB.createTable(Obj.TableRequest,VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time','Engine','ReplacingMergeTree()');
+            
+            % Insert example: 
+            % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+            % Obj.DB.insertCharDump('forcedphot_requests',table(3,0,260.5709627, 58.8638455, 2450000,2470000,"1632",1,3,1,10, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+            % 
+            % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
+            % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
+
+
+        end
         
     end
 
@@ -110,7 +150,7 @@ classdef ForcedPhotServer < Component
             arguments
                 Args.DB                = [];
                 Args.PauseTime         = 1;
-                
+
                 Args.UseExistingRef    = false;
                 Args.ReSub             = false;
                 Args.LoadNew           = false;
@@ -126,10 +166,13 @@ classdef ForcedPhotServer < Component
             Obj = pipeline.last.pipes.ForcedPhotServer(Args.DB);
 
             LoopInd = 0;
+            RequestCounter = 0;
             while true
                 pause(Args.PauseTime);
                 LoopInd = LoopInd + 1;
-                LoopInd
+                if mod(LoopInd,100)==0
+                    [LoopInd, RequestCounter]
+                end
 
                 % search for new request
                 % TableRequest contains columns:
@@ -147,6 +190,8 @@ classdef ForcedPhotServer < Component
                 %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
                 % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(3,0,260.5709627, 58.8638455, 2450000,2470000,"1632",1,3,1,10, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % 
                 % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
                 % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
 
@@ -156,7 +201,9 @@ classdef ForcedPhotServer < Component
                     
                     % search target in visits
                     Nreq = size(Treq,1);
+                    RequestCounter = 0;
                     for Ireq=1:1:Nreq
+                        RequestCounter = RequestCounter + 1;
                         ID     = Treq.request_id(Ireq);
                         UserID = Treq.user_id(Ireq);
                         RA     = Treq.ra(Ireq);
@@ -225,6 +272,9 @@ classdef ForcedPhotServer < Component
         
                                 % add meta data to ForcedPhot table
                                 Nphot = ForcedPhot.sizeCatalog;
+                                if isempty(Nphot)
+                                    Nphot = 0;
+                                end
                                 if Nphot>0
     
                                     % calculate UPIX
@@ -258,7 +308,7 @@ classdef ForcedPhotServer < Component
                                 if isempty(ErrorInsert)
                                     Treq.status(Ireq) = STATUS_READY;  % ready
                                     Treq.nphot(Ireq)  = Nphot;
-
+                                    % DEBUG: TT=Obj.DB.query('SELECT * FROM forcedphot_requests')
                                     Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
                                     %ALTER TABLE my_table
                                     %UPDATE column1 = 'new_value'
@@ -273,6 +323,8 @@ classdef ForcedPhotServer < Component
                                     Treq.nphot(Ireq)  = 0;
                                     %Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
                                 end
+                            else
+                                Nphot = 0;
                             end % if Nobs>0
                         end % if ReDo
                         RunTime = datetime('now') - Tstart;

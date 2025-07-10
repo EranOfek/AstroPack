@@ -70,7 +70,9 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     T      = T(FlagJD,:);
 
     % split the first part of the fieldid name:
-    FieldID = split(T.fieldid,'.');
+    FieldID = AstroFileName.getBaseFieldID(T.fieldid);
+    %FieldID = split(T.fieldid, '.', 2); %, 'split');
+    %FieldID = FieldID(:,1);
     % unique fielid id:
     [UnFieldID,~,UnFInd]   = unique(FieldID, 'rows', 'stable');
     
@@ -78,7 +80,7 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     UnID   = unique([UnFInd, T.mountnum, T.camnum, T.cropid], 'rows');
     NunID  = size(UnID,1);
     K = 0;
-    Result = [];
+    Result = AstroCatalog;
 
     for Iun=1:1:NunID
         Ind = find(UnFInd==UnID(Iun,1) & T.mountnum==UnID(Iun,2) & T.camnum==UnID(Iun,3) & T.cropid==UnID(Iun,4));
