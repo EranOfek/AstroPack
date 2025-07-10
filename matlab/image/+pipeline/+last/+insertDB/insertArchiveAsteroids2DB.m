@@ -105,7 +105,8 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                 continue
             end
             cd(Dir);
-            fprintf('Injecting from %s ..',DataDir);
+            fprintf('Injecting from %s ..',DataDir);                                   
+
             % check and add essential KEYWORDS if they are missing                  
             Pname = AH(1).getStructKey('PROJNAME').PROJNAME;
             if isnan(AH(1).getStructKey('NODENUMB').NODENUMB)
@@ -128,6 +129,12 @@ function [Result] = insertArchiveAsteroids2DB(RootDir, FileNameTemplate, Args)
                     AH(Icrop).replaceVal('SUBDIR',Subdir);
                 end               
             end
+            % insert the ingestion time
+            JDnow = celestial.time.date2jd;
+            for Icrop=1:NCrop
+                    AH(Icrop).replaceVal('INGESTION_TIME_JD',JDnow);
+            end
+            
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;

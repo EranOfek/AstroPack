@@ -135,6 +135,11 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                     end
                 end
             end
+            % insert the ingestion time
+            JDnow = celestial.time.date2jd;
+            for Crop=1:Nobj
+                    AH(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
+            end
             % prepare file name for the CSV dump 
             A = AstroFileName;
             A.ProjName = Pname;
