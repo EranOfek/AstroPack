@@ -21,6 +21,10 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST.01.02*/*/*/*/proc/*')
     %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/marvin/','ProcDirTemplate','LAST*/2024/*/*/proc/*')
     %
+    %          pipeline.last.insertDB.insertArchiveImages2DB('/mnt/euclid/last/data/references/','LAST*_Image_1.fits',...
+    %                  'ProcDirTemplate','/v4/*','DbTable','ref_images','ColNameID','id_ref',...
+    %                  'StatusStamp','Injected into the reference image table')
+    %
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*coadd_Image_1.fits';          
@@ -61,8 +65,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     D = dir(fullfile(RootDir, Args.ProcDirTemplate));
     Dirs = D([D.isdir]);
     Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
-    Dirs = Dirs(contains({Dirs.name}, 'v0')); 
-    Dirs = Dirs(~contains({Dirs.folder},'re'));
+    Dirs = Dirs(contains({Dirs.name}, 'v0')); % comment this out for making ref_images table 
+    Dirs = Dirs(~contains({Dirs.folder},'_re'));
     % 
     Ndir = numel(Dirs);
     for Idir = 1:Ndir

@@ -5,7 +5,7 @@ function [Result] = searchRef(New, RefTable, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: RefTable = DB.query('select fieldid, mountnum, camnum,cropid from last.ref_images;');
+    % Example: RefTable = db.mex.query('select fieldid, mountnum, camnum, cropid, ra1, dec1, ra2, dec2, ra3, dec3, ra4, dec4 from last.ref_images;');
     %          Res = pipeline.last.reference.searchRef(New, RefTable);
     arguments
         New                   % a new AI       
