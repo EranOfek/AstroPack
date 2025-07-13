@@ -33,7 +33,7 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         Args.DbUser = 'default';
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
         
-        Args.DbTable     = 'visit_ima'; % 'visit_images'; % 'visit_ima'; 
+        Args.DbTable     = 'visit_images'; % 'visit_images'
         Args.ColNameID   = 'id_visit';
         Args.StatusStamp = "Injected into the visit image table"; % "injected into the visit image DB"; % "Injected into the visit image table";
         

@@ -10,7 +10,7 @@ function Result = unitTest(Args)
         Args.Insert2DB  = false; % whether to perform the DB part
         Args.AstroDBArgs cell = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
         Args.InsertTransients2DB = true;
-        Args.DBHost              = 'socsrv';
+        Args.DBHost              = 'euclid';
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
