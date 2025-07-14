@@ -1,4 +1,4 @@
-function [Result] = searchRef(New, RefTable, Args)
+function [Result] = searchRef(New, RefTable)
     % for each image in the input AI, list the overlapping reference images
     %     Optional detailed description
     % Input  : - an AstroImage with the new image (or a stack)
@@ -12,8 +12,7 @@ function [Result] = searchRef(New, RefTable, Args)
     %          RefTable(Res{1},:)
     arguments
         New                   % a new AI       
-        RefTable              % the table of reference images        
-        Args.X          = []; % 
+        RefTable              % the table of reference images                
     end
     %
     Nobj   = numel(New);
@@ -25,7 +24,7 @@ function [Result] = searchRef(New, RefTable, Args)
         Corn    = New(Iobj).getStructKey({'RA1', 'DEC1', 'RA2', 'DEC2', 'RA3', 'DEC3', 'RA4', 'DEC4'});    
         P0      = [Corn.RA1, Corn.DEC1; Corn.RA2, Corn.DEC2; Corn.RA3, Corn.DEC3; Corn.RA4, Corn.DEC4];
 
-        Idx = find(strcmp(RefTable.fieldid,FieldID) & RefTable.camnum == CamNum);
+        Idx = find(strcmp(RefTable.fieldid, FieldID) & RefTable.camnum == CamNum);
         NCrops = numel(Idx);
         Crops  = cell(1,NCrops);
         for ICrop = 1:NCrops
