@@ -25,7 +25,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         Args.TelescopeDesign         = "Rowe-Ackerman Schmidt";
         Args.TelescopeAper           = "0.28";
         Args.Detector                = "CCD";
-        Args.Comment                 = ["LAST Node 01, Telescope 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
+        Args.Comment                 = ["LAST Node 01, Mount 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
         
         Args.ColPermID               = 'Number';
         Args.ColProvID               = 'Designation';
@@ -220,7 +220,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
             addTextElement(docNode, optical, 'logSNR', sprintf('%4.2f',log10(Table.(Args.ColSN)(Iobs))));
         end
         if tools.table.isColumn(Table, Args.ColSeeing)
-            addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',log10(Table.(Args.ColSeeing)(Iobs))));
+            addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',(Table.(Args.ColSeeing)(Iobs))));
         end
         
         if tools.table.isColumn(Table, Args.ColSeeing)

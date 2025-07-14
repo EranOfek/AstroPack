@@ -48,7 +48,7 @@ function [CI, AI] = coaddVisits(In, Args)
         Args.TableOrigin       = 'last_visits';
         Args.table2pathArgs    = {};
         Args.CropID            = [10];
-        Args.BasePath          = '/marvin'
+        Args.BasePath          = '/lastdata'
         Args.NodeNum           = 1;
         Args.ProjName          = 'LAST';
 
@@ -59,6 +59,8 @@ function [CI, AI] = coaddVisits(In, Args)
 
         Args.FindSrc logical   = true;
     end
+
+    PWD = pwd;
 
     % Construct paths for visits
     if istable(In)
@@ -143,4 +145,5 @@ function [CI, AI] = coaddVisits(In, Args)
         
     end
     
+    cd(PWD);
 end

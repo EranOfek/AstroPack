@@ -26,6 +26,8 @@ function [WhereClause,PixHP] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Ar
     %                   server that will be used: @VO.name.server_simbad|
     %                   @VO.name.server_ned.
     %                   Default is @VO.name.server_simbad
+    %            'AddWhere' - Additional where clause to add.
+    %                   Default is ''.
     %
     % Output : - A char array with healpix cone search SQL Where clause.
     %          - A vector of healpix pixels that covers the cone search.
@@ -47,6 +49,8 @@ function [WhereClause,PixHP] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Ar
         Args.InUnits           = 'deg';  % 'deg'|'rad'|'sex'|'ned'|'simbad'|
         Args.OutUnits          = 'deg';  % 'deg'|'rad'
         Args.Server            = @VO.name.server_simbad;
+
+        Args.AddWhere          = '';  % should in clude AND or OR
     end
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
@@ -72,9 +76,14 @@ warning('This function may have a bug')
      
     % construct WHERE clause:
     Npix = numel(PixHP);
-    WhereClause = sprintf('%s=%d',Args.HP_ColName, PixHP(1));
+    WhereClause = sprintf('(%s=%d',Args.HP_ColName, PixHP(1));
     for Ipix=2:1:Npix
         WhereClause = sprintf('%s OR %s=%d',WhereClause, Args.HP_ColName, PixHP(Ipix));
     end    
+    WhereClause = sprintf('%s)',WhereClause);
+
+    if ~isempty(Args.AddWhere)
+        WhereClause = sprintf('%s %s', WhereClause, Args.AddWhere);
+    end
     
 end

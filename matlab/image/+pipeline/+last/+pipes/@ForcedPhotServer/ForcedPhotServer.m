@@ -150,6 +150,7 @@ classdef ForcedPhotServer < Component
             arguments
                 Args.DB                = [];
                 Args.PauseTime         = 1;
+                Args.SummaryPrintout   = 3600;
 
                 Args.UseExistingRef    = false;
                 Args.ReSub             = false;
@@ -158,20 +159,25 @@ classdef ForcedPhotServer < Component
 
                 Args.insertHealPixArgs = {'ColRA','request_ra','ColDec','request_dec'};
             end
-            STATUS_WAITING = 0;
-            STATUS_READY   = 1;
-            STATUS_FAILED  = -1;
+            STATUS_WAITING  = 0;
+            STATUS_READY    = 1;
+            STATUS_FAILED   = 10;
+            STATUS_NOOBS    = 2;
             HostName       = tools.os.get_computer;
 
             Obj = pipeline.last.pipes.ForcedPhotServer(Args.DB);
 
             LoopInd = 0;
             RequestCounter = 0;
+            TotNphot   = 0;
+            TotNreq    = 0;
             while true
                 pause(Args.PauseTime);
                 LoopInd = LoopInd + 1;
-                if mod(LoopInd,100)==0
+                if mod(floor(LoopInd.*Args.PauseTime), floor(Args.SummaryPrintout))==0
                     [LoopInd, RequestCounter]
+                    Msg = sprintf('Summary - Total requests: %d, phot points: %d',TotNreq, TotNphot);                    
+                    Obj.writeLogMessage(Msg, 'Info', HostName);
                 end
 
                 % search for new request
@@ -299,7 +305,7 @@ classdef ForcedPhotServer < Component
                                 else
                                     ErrorInsert = [];
                                 end
-        
+                                
                                 
         
                                 % update status
@@ -325,12 +331,22 @@ classdef ForcedPhotServer < Component
                                 end
                             else
                                 Nphot = 0;
+
+                                % write to log - change status to 2
+                                Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_NOOBS, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                %Obj.DB.query(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID), 'IsExec',true);
+                                Treq.status(Ireq) = STATUS_NOOBS;  % not found
+                                Treq.nphot(Ireq)  = 0;
+                                %Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
+
                             end % if Nobs>0
+                            TotNphot = TotNphot + Nphot;
                         end % if ReDo
                         RunTime = datetime('now') - Tstart;
                         Msg = sprintf('Finished - Run time: %6.2f [s] for %d data points', seconds(RunTime), Nphot);                    
                         Obj.writeLogMessage(Msg, 'Info', HostName);
                         
+                        TotNreq = TotNreq + Nreq;
                     end % for Ireq=1:1:Nreq
                    
                 end % if ~isempty(Treq)
