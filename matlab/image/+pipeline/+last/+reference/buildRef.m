@@ -24,7 +24,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
         P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
         UpixCenter = celestial.healpix.ang2pix(Args.NsideLow, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
-        UpixNeighb = neighbors(Args.NsideLow, UpixCenter); % find all the neighbours 
+        UpixNeighb = celestial.healpix.neighbors(Args.NsideLow, UpixCenter); % find all the neighbours 
         
         % 1. find the overlapping single-epoch proc images 
         
@@ -50,21 +50,21 @@ function [Result] = buildRef(RefGrid, DB, Args)
     end    
 end
 
-function ipix8 = neighbors(nside, ipix)
-
-    [x, y, f] = celestial.healpix.pix2xyf(ipix, nside);
-    
-    ipix8(1) = celestial.healpix.xyf2pix(x+1, y+1, f, nside);
-    ipix8(2) = celestial.healpix.xyf2pix(x+1, y-1, f, nside);
-    ipix8(3) = celestial.healpix.xyf2pix(x-1, y+1, f, nside);
-    ipix8(4) = celestial.healpix.xyf2pix(x-1, y-1, f, nside);
-    ipix8(5) = celestial.healpix.xyf2pix(x, y-1, f, nside);
-    ipix8(6) = celestial.healpix.xyf2pix(x, y+1, f, nside);
-    ipix8(7) = celestial.healpix.xyf2pix(x+1, y, f, nside);
-    ipix8(8) = celestial.healpix.xyf2pix(x-1, y, f, nside);
-end
+% function ipix8 = neighbors(Nside, Ipix)
 % 
-% function [x, y, f] = pix2xyf(ipix, nside)
+%     [x, y, f] = celestial.healpix.ipix2xyf(Ipix, Nside);
+%     
+%     ipix8(1) = celestial.healpix.xyf2ipix(x+1, y+1, f, Nside);
+%     ipix8(2) = celestial.healpix.xyf2ipix(x+1, y-1, f, Nside);
+%     ipix8(3) = celestial.healpix.xyf2ipix(x-1, y+1, f, Nside);
+%     ipix8(4) = celestial.healpix.xyf2ipix(x-1, y-1, f, Nside);
+%     ipix8(5) = celestial.healpix.xyf2ipix(x, y-1, f, Nside);
+%     ipix8(6) = celestial.healpix.xyf2ipix(x, y+1, f, Nside);
+%     ipix8(7) = celestial.healpix.xyf2ipix(x+1, y, f, Nside);
+%     ipix8(8) = celestial.healpix.xyf2ipix(x-1, y, f, Nside);
+% end
+% % 
+% % function [x, y, f] = pix2xyf(ipix, nside)
 % % Convert nested HEALPix pixel index to (x, y, face number) for NESTED scheme
 % % Based on the official HEALPix algorithm
 % 
