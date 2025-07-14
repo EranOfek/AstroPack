@@ -2,40 +2,40 @@ function [Result] = searchRef(New, RefTable, Args)
     % for each image in the input AI, list the overlapping reference images
     %     Optional detailed description
     % Input  : - an AstroImage with the new image (or a stack)
+    %          - the reference images table
     %          * ...,key,val,... 
-    % Output : - 
+    % Output : - indexes of the overlapping crops in the reference images table
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: RefTable = db.mex.query('select fieldid, mountnum, camnum, cropid, ra1, dec1, ra2, dec2, ra3, dec3, ra4, dec4 from last.ref_images;');
+    % Example: RefTable = D.query('select id_ref, fieldid, mountnum, camnum, cropid, ra1, dec1, ra2, dec2, ra3, dec3, ra4, dec4 from last.ref_images;');
+    %          New = AstroImage('/home/sasha/LAST/LAST.01.06.04_20250418.190502.407_clear_663_000_001_024_sci_coadd_Image_1.fits');
     %          Res = pipeline.last.reference.searchRef(New, RefTable);
+    %          RefTable(Res{1},:)
     arguments
         New                   % a new AI       
         RefTable              % the table of reference images        
         Args.X          = []; % 
     end
     %
-    Nobj = numel(New);
-
+    Nobj   = numel(New);
+    Result = cell(1,Nobj);
+    
     for Iobj = 1:Nobj
-        FieldID = New(Iobj).getStructKey('FIELDID').FIELDID;
+        FieldID = string(New(Iobj).getStructKey('FIELDID').FIELDID);
         CamNum  = New(Iobj).getStructKey('CAMNUM').CAMNUM;
-        P0 = New(Iobj).getStructKey({'RA1', 'Dec1', 'RA2', 'Dec2', 'RA3', 'Dec3', 'RA4', 'Dec4'});        
+        Corn    = New(Iobj).getStructKey({'RA1', 'DEC1', 'RA2', 'DEC2', 'RA3', 'DEC3', 'RA4', 'DEC4'});    
+        P0      = [Corn.RA1, Corn.DEC1; Corn.RA2, Corn.DEC2; Corn.RA3, Corn.DEC3; Corn.RA4, Corn.DEC4];
 
-        Idx = find(RefTable.FIELDID == FieldID & RefTable.CAMNUM == CamNum);
+        Idx = find(strcmp(RefTable.fieldid,FieldID) & RefTable.camnum == CamNum);
         NCrops = numel(Idx);
-        Crops  = cell(NCrops);
+        Crops  = cell(1,NCrops);
         for ICrop = 1:NCrops
-            Crops{ICrop} = [RefTable.RA1(Idx(ICrop)), RefTable.Dec1(Idx(ICrop));...
-                            RefTable.RA2(Idx(ICrop)), RefTable.Dec2(Idx(ICrop));...
-                            RefTable.RA3(Idx(ICrop)), RefTable.Dec3(Idx(ICrop));...
-                            RefTable.RA4(Idx(ICrop)), RefTable.Dec4(Idx(ICrop))];
+            Crops{ICrop} = [RefTable.ra1(Idx(ICrop)), RefTable.dec1(Idx(ICrop));...
+                            RefTable.ra2(Idx(ICrop)), RefTable.dec2(Idx(ICrop));...
+                            RefTable.ra3(Idx(ICrop)), RefTable.dec3(Idx(ICrop));...
+                            RefTable.ra4(Idx(ICrop)), RefTable.dec4(Idx(ICrop))];
         end
         
-        Intersect = celestial.polygon.polygon_boolean_operations(P0, {P1,P2,P3,P4,P5});
-
+        Cr = celestial.polygon.polygon_boolean_operations(P0, Crops);
+        Result{Iobj} = Idx(Cr.Intersect>0);
     end
-
-% The function will search by fieldid using: tools.find.binarySearch
-% Search for camnum
-% next will check for overlaps with all crops in field/camnum.
-% Each output will be called a "cut" - we expect up to four cuts in this scheme.
 end
