@@ -12,7 +12,9 @@ classdef TransientClassify < Component
         
         DbName       = 'last';
 
-        TableLevel1  = [];
+        TableDiffCand        = 'diff_src';
+        TableDiffUnique      = 'diff_src_unique';
+        TableDiffSolarSystem = 'diff_src_ss';
         TableLevel2  = [];
 
         CutoutPath   = '/lastdata/forcedphotsub'
@@ -20,8 +22,17 @@ classdef TransientClassify < Component
 
     end
     
+    properties (Hidden)
+        CurrentJD = 2460837; %0;
+    end
+
     properties (Constant, Hidden)
-        User         = 'euclid/root';
+        User         = 'last0/root';
+        Host         = "10.23.1.25";
+
+        ColIngestionTime = 'ingestion_time_jd';
+        ColStarN         = 'star_n';
+        ColNneigh        = 'n_neigh';
     end
 
     methods % Constructor
@@ -36,6 +47,7 @@ classdef TransientClassify < Component
             if isempty(DB)
                 Obj.DB = db.Db;
                 Obj.DB.User = Obj.User;
+                Obj.DB.Host = Obj.Host;
                 Obj.DB.connect;
                 Obj.DB.useDB(Obj.DbName);
             else
@@ -48,6 +60,47 @@ classdef TransientClassify < Component
     
     methods % setter/getters
        
+    end
+
+    methods % utilities
+        function NewCandTable=loadNewCand(Obj, Args)
+            % Load table of new candidates ingested after CurrentJD
+            %
+            % Exampple: Obj=pipeline.last.transients.TransientClassify;
+            %           NewCandTable=Obj.loadNewCand;
+
+            arguments
+                Obj
+                Args.SelectColumns = '*';
+                Args.MaxStarN      = 0
+                Args.MaxNneigh     = 0;
+            end
+
+            QueryStr = sprintf('SELECT %s FROM %s WHERE %s>%16.7f AND %s<=%d AND %s<=%d',...
+                               Args.SelectColumns, Obj.TableDiffCand, ...
+                               Obj.ColIngestionTime, Obj.CurrentJD, ...
+                               Obj.ColStarN, Args.MaxStarN, ...
+                               Obj.ColNneigh, Args.MaxNneigh);
+            NewCandTable = Obj.DB.query(QueryStr);
+            
+        end
+
+        function Result=searchUniuqeByCoo(Obj, RA, Dec, SearchRadius, Args)
+            %
+
+            arguments
+                Obj
+                RA
+                Dec
+                SearchRadius
+                Args
+            end
+
+            
+
+        end
+
+        
     end
       
     methods
@@ -131,7 +184,7 @@ classdef TransientClassify < Component
 
 
 
-
+                end
 
 
 

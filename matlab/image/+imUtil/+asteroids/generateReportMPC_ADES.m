@@ -7,6 +7,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     % Output : - A structure with:
     %            .docNode - XML doc node.
     %          - A flag indicating if the report was sent.
+    % Bug fix: 2025-Jul-14 logSNR twice 
     % Documentation: https://minorplanetcenter.net/mpcops/documentation/valid-ades-values/#astCat
     %           https://minorplanetcenter.net/iau/info/ADES.html
     %           https://github.com/IAU-ADES/ADES-Master/blob/master/ades_master.pdf
@@ -223,9 +224,9 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
             addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',(Table.(Args.ColSeeing)(Iobs))));
         end
         
-        if tools.table.isColumn(Table, Args.ColSeeing)
-            addTextElement(docNode, optical, 'logSNR', log10(Table.(Args.ColSN)(Iobs)));
-        end
+        %if tools.table.isColumn(Table, Args.ColSeeing)
+        %    addTextElement(docNode, optical, 'logSNR', log10(Table.(Args.ColSN)(Iobs)));
+        %end
         
         if ~isempty(Args.ColExpTime)
             if isnumeric(Args.ColExpTime)

@@ -106,6 +106,7 @@ classdef ForcedPhotServer < Component
             % Input  : - self.
             % Output : null
             % Author : Eran Ofek (Jul 2025)
+            % Example: FFS.createRequestsTable
 
 
             % search for new request
@@ -315,7 +316,7 @@ classdef ForcedPhotServer < Component
                                     Treq.status(Ireq) = STATUS_READY;  % ready
                                     Treq.nphot(Ireq)  = Nphot;
                                     % DEBUG: TT=Obj.DB.query('SELECT * FROM forcedphot_requests')
-                                    Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                    Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = %d, %s = %d WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
                                     %ALTER TABLE my_table
                                     %UPDATE column1 = 'new_value'
                                     %WHERE id = 123;
