@@ -323,6 +323,37 @@ classdef VisitVariability < Component
             
         end
         
+        function demon(Obj, Args)
+            %
+            % Example: VV=pipeline.last.pipes.VisitVariability;
+            %          VV.demon;
+
+            arguments
+                Obj
+                
+                Args.StateKey   = 'IngestionTime';
+                Args.StateVal  = "[0]";
+                Args.SubDir     = 'local';
+                Args.ConfigFile = 'VisitVariability.State';
+            end
+
+            ConfigStructName = strrep(Args.ConfigFile, '.yml', '');
+
+            % read latest ingestion time
+            if ~isfile(Args.ConfigFile)
+                % config file doesn't exist - create it
+                Configuration.rewriteSimple(Args.StateKey, Args.StateVal, Args.ConfigFile, 'SubDir',Args.SubDir);
+            end
+
+            % read config file
+            Con = Configuration;
+            Con.reloadFile(Args.ConfigFile);
+
+            [Data,KeyVal] = Configuration.argsFromConfig(Con, ConfigStructName);
+
+            'a'
+
+        end
     end
 
     methods (Static)% select interesting candidates

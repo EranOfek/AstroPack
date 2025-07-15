@@ -675,6 +675,48 @@ classdef Configuration < handle
         
     end
 
+    methods (Static)  % wriite config
+        function rewriteSimple(Key, Val, FileName, Args)
+            % rewrite config file with a single key, val
+            % Input  : - Key name.
+            %          - Val string. E.g., '3.14', or "['hello']"
+            %          - Config file name.
+            %          * ...,key,val,...
+            %            'SubDir' - Subdir in the config dir.
+            %                   Default is 'local' (i.e., ignored by git).
+            % Output : null
+            % Author : Eran Ofek (Jul 2025)
+            % Example: Configuration.rewriteSimple('IngestionTime','2460000','VisitVariability.State.yml')
+
+            arguments
+                Key         
+                Val
+                FileName    
+                Args.SubDir = 'local';
+            end
+
+            if ~contains(FileName, '.yml')
+                FileName = sprintf('%s.yml',FileName);
+            end
+            
+            if ~(ischar(Val) || isstring(Val))
+                error('Val must be a string or char array');
+            end
+
+            ConfigPath = Configuration.getSysConfigPath;
+            if ~isempty(Args.SubDir)
+                ConfigPath = fullfile(ConfigPath, Args.SubDir);
+            end
+            PWD = pwd;
+            cd(ConfigPath);
+            FID = fopen(FileName,'w');
+            fprintf(FID, '%s : %s\n', Key, Val);
+            fclose(FID);
+
+            cd(PWD);
+        end
+    end
+
     %----------------------------------------------------------------------
     methods(Static) % Helper functions
 
