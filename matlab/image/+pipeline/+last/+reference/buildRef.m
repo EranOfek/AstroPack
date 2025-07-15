@@ -24,7 +24,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
         P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
         UpixCenter = celestial.healpix.ang2pix(Args.NsideLow, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
-        UpixNeighb = neighbors(Args.NsideLow, UpixCenter); % find all the neighbours 
+        UpixNeighb = celestial.healpix.neighbors(Args.NsideLow, UpixCenter); % find all the neighbours 
         
         % 1. find the overlapping single-epoch proc images 
         
@@ -50,51 +50,51 @@ function [Result] = buildRef(RefGrid, DB, Args)
     end    
 end
 
-function ipix8 = neighbors(nside, ipix)
-
-    [x, y, f] = pix2xyf(ipix, nside);
-    
-    ipix8(1) = xyf2pix(x+1, y+1, f, nside);
-    ipix8(2) = xyf2pix(x+1, y-1, f, nside);
-    ipix8(3) = xyf2pix(x-1, y+1, f, nside);
-    ipix8(4) = xyf2pix(x-1, y-1, f, nside);
-    ipix8(5) = xyf2pix(x, y-1, f, nside);
-    ipix8(6) = xyf2pix(x, y+1, f, nside);
-    ipix8(7) = xyf2pix(x+1, y, f, nside);
-    ipix8(8) = xyf2pix(x-1, y, f, nside);
-end
-
-function [x, y, f] = pix2xyf(ipix, nside)
-% Convert nested HEALPix pixel index to (x, y, face number) for NESTED scheme
-% Based on the official HEALPix algorithm
-
-% Constants
-npface = nside * nside;
-pix = ipix;
-f = floor(pix / npface);
-p = mod(pix, npface);
-
-% Decode p into (ix, iy) using bit interleaving (Morton order)
-x = 0;
-y = 0;
-for i = 0:log2(nside)-1
-    x = bitor(x, bitshift(bitget(p, 2*i+1), i));
-    y = bitor(y, bitshift(bitget(p, 2*i+2), i));
-end
-end
-
-function ipix = xyf2pix(x, y, f, nside)
-% Convert (x, y, face number) back to HEALPix pixel index in NESTED scheme
-% Reverses the pix2xyf logic
-
-% Interleave bits of x and y to form the position within the face
-p = 0;
-for i = 0:log2(nside)-1
-    p = bitor(p, bitshift(bitget(x, i+1), 2*i));
-    p = bitor(p, bitshift(bitget(y, i+1), 2*i + 1));
-end
-
-ipix = f * nside^2 + p;
-end
-
-
+% function ipix8 = neighbors(Nside, Ipix)
+% 
+%     [x, y, f] = celestial.healpix.ipix2xyf(Ipix, Nside);
+%     
+%     ipix8(1) = celestial.healpix.xyf2ipix(x+1, y+1, f, Nside);
+%     ipix8(2) = celestial.healpix.xyf2ipix(x+1, y-1, f, Nside);
+%     ipix8(3) = celestial.healpix.xyf2ipix(x-1, y+1, f, Nside);
+%     ipix8(4) = celestial.healpix.xyf2ipix(x-1, y-1, f, Nside);
+%     ipix8(5) = celestial.healpix.xyf2ipix(x, y-1, f, Nside);
+%     ipix8(6) = celestial.healpix.xyf2ipix(x, y+1, f, Nside);
+%     ipix8(7) = celestial.healpix.xyf2ipix(x+1, y, f, Nside);
+%     ipix8(8) = celestial.healpix.xyf2ipix(x-1, y, f, Nside);
+% end
+% % 
+% % function [x, y, f] = pix2xyf(ipix, nside)
+% % Convert nested HEALPix pixel index to (x, y, face number) for NESTED scheme
+% % Based on the official HEALPix algorithm
+% 
+% % Constants
+% npface = nside * nside;
+% pix = ipix;
+% f = floor(pix / npface);
+% p = mod(pix, npface);
+% 
+% % Decode p into (ix, iy) using bit interleaving (Morton order)
+% x = 0;
+% y = 0;
+% for i = 0:log2(nside)-1
+%     x = bitor(x, bitshift(bitget(p, 2*i+1), i));
+%     y = bitor(y, bitshift(bitget(p, 2*i+2), i));
+% end
+% end
+% 
+% function ipix = xyf2pix(x, y, f, nside)
+% % Convert (x, y, face number) back to HEALPix pixel index in NESTED scheme
+% % Reverses the pix2xyf logic
+% 
+% % Interleave bits of x and y to form the position within the face
+% p = 0;
+% for i = 0:log2(nside)-1
+%     p = bitor(p, bitshift(bitget(x, i+1), 2*i));
+%     p = bitor(p, bitshift(bitget(y, i+1), 2*i + 1));
+% end
+% 
+% ipix = f * nside^2 + p;
+% end
+% 
+% 
