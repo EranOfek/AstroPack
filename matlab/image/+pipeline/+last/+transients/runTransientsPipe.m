@@ -68,7 +68,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.WriteHeader = '';
         Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
-        Args.SameTelOnly logical = true;
+        Args.SameTelOnly logical = false;
         Args.killDuplicates logical = true;
 
         Args.MinimumNCoadd = 18;
