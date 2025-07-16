@@ -10,9 +10,11 @@ function [Result] = buildRef(RefGrid, DB, Args)
     %          pipeline.last.reference.buildRef(LAST_RefIm_Grid,D);
     arguments
         RefGrid
-        DB                                       
-        Args.NsideLow = 2^8; 
-        Args.RefTable = 'ref_images_v4';     
+        DB                
+        Args.NsideSearch = 2^7; 
+        Args.NsideLow    = 2^8; 
+        Args.SearchTable = 'visit_images'; % 'raw_images';
+        Args.RefTable    = 'ref_images_v4';     
     end
     % 
     RAD = 180/pi;
@@ -24,18 +26,23 @@ function [Result] = buildRef(RefGrid, DB, Args)
         
         P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-        UpixCenter = celestial.healpix.ang2pix(Args.NsideLow, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
+        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideLow); % find all the neighbours 
+        UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); % translate the neighbors into NsideLow (as in the DB)
+        UpixNeighbLow = celestial.healpix.pixelSons_nested(Args.NsideSearch,UpixNeighb);
         
         % 1. find the overlapping single-epoch proc images 
         
-        S = "select * from raw_images where ";
-        W = sprintf("upix_low = %d",UpixCenter);
+        S = sprintf("select * from %s where ",Args.SearchTable);
+%         W = sprintf("tostring(upix_low) = %d",UpixCenter);
+        W = sprintf("toString(upix_low) = toString(%s)",string(UpixCenter));
         for Inei=1:numel(UpixNeighb)
-            Wn = sprintf(" or upix_low = %d",UpixNeighb(Inei));
+%             Wn = sprintf(" or upix_low = %d",UpixNeighb(Inei));
+            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighb(Inei)));
             W = strcat(W,Wn);
         end      
         T = DB.query(strcat(S,W));
+        % T = db.mex.query(strcat(S,W));
         
         % 2. qualify the overlapping proc images
         
@@ -53,6 +60,20 @@ function [Result] = buildRef(RefGrid, DB, Args)
         
         % 6. save the new reference on disk and fill the DB table line 
     end    
+end
+
+function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
+    % Check that Nside1 is a multiple of Nside0
+    assert(mod(Nside1, Nside0) == 0, 'Nside1 must be a multiple of Nside0');
+    
+    ratio = Nside1 / Nside0;
+    npix_per_coarse = ratio^2;
+
+    % First fine pixel in the block
+    first = ipix0 * npix_per_coarse;
+    last = (ipix0 + 1) * npix_per_coarse - 1;
+
+    ipix_list = first : last;
 end
 
 % function ipix8 = neighbors(Nside, Ipix)
