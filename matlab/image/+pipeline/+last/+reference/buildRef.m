@@ -25,12 +25,16 @@ function [Result] = buildRef(RefGrid, DB, Args)
         P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
         UpixCenter = celestial.healpix.ang2pix(Args.NsideLow, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
-        UpixNeighb = celestial.healpix.neighbors(Args.NsideLow, UpixCenter); % find all the neighbours 
+        UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideLow); % find all the neighbours 
         
         % 1. find the overlapping single-epoch proc images 
         
-        S = "select * from raw_images where";
-        W = sprintf("upix_low = %s or upix_low = UpixNeighb",UpixCenter);
+        S = "select * from raw_images where ";
+        W = sprintf("upix_low = %d",UpixCenter);
+        for Inei=1:numel(UpixNeighb)
+            Wn = sprintf(" or upix_low = %d",UpixNeighb(Inei));
+            W = strcat(W,Wn);
+        end      
         T = DB.query(strcat(S,W));
         
         % 2. qualify the overlapping proc images
