@@ -21,6 +21,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
     for Iref = 1:Nref
         
         % 0. build the ref polygon to be covered and find the healpix coverage
+        
         P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
         UpixCenter = celestial.healpix.ang2pix(Args.NsideLow, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
