@@ -33,6 +33,8 @@ function [Result] = buildRef(RefGrid, DB, Args)
         % translate the center and the neighbors to Args.NsideLow (as in the DB)        
         UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = upscale_nested_pixel(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
+        % convert to UNIQ:    
+        
         
         % 1. find the overlapping single-epoch proc images 
         
