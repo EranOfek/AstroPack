@@ -20,7 +20,8 @@ function [Result] = buildRef(RefGrid, DB, Args)
     RAD = 180/pi;
     % loop over the ref. image grid
     Nref = height(RefGrid);
-    for Iref = 1:Nref
+    for Iref = 1000:Nref  % 1:Nref         % DEB
+        fprintf('%.2f',RefGrid.Dec(Iref)); % DEB
         
         % 0. build the ref polygon to be covered and find the healpix coverage
         
@@ -45,7 +46,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
             W = strcat(W,Wn);
         end      
-        T = DB.query(strcat(S,W));
+        T = DB.query(strcat(S,W)); % DEB height(T)
         % T = db.mex.query(strcat(S,W));
         
         % 2. qualify the overlapping proc images
