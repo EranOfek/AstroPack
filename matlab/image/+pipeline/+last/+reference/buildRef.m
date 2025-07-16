@@ -24,21 +24,25 @@ function [Result] = buildRef(RefGrid, DB, Args)
         
         % 0. build the ref polygon to be covered and find the healpix coverage
         
-        P0 = [RefGrid.RA1(Iref), RefGrid.RA1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
+        P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
-        UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideLow); % find all the neighbours 
-        UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); % translate the neighbors into NsideLow (as in the DB)
-        UpixNeighbLow = celestial.healpix.pixelSons_nested(Args.NsideSearch,UpixNeighb);
+        % find the center and neighbors at the search resolution Args.NsideSearch
+        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
+        UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch);  
+        % translate the center and the neighbors to Args.NsideLow (as in the DB)        
+        UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); 
+        UpixNeighbLow = upscale_nested_pixel(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
         
         % 1. find the overlapping single-epoch proc images 
         
-        S = sprintf("select * from %s where ",Args.SearchTable);
-%         W = sprintf("tostring(upix_low) = %d",UpixCenter);
-        W = sprintf("toString(upix_low) = toString(%s)",string(UpixCenter));
-        for Inei=1:numel(UpixNeighb)
-%             Wn = sprintf(" or upix_low = %d",UpixNeighb(Inei));
-            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighb(Inei)));
+        S = sprintf("select * from %s",Args.SearchTable);
+        W = " where 1<0";
+        for Icen=1:numel(UpixCenterLow)
+            Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
+            W  = strcat(W,Wc);
+        end
+        for Inei=1:numel(UpixNeighbLow)
+            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
             W = strcat(W,Wn);
         end      
         T = DB.query(strcat(S,W));
@@ -69,11 +73,13 @@ function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
     ratio = Nside1 / Nside0;
     npix_per_coarse = ratio^2;
 
+    ipix_list = [];
     % First fine pixel in the block
-    first = ipix0 * npix_per_coarse;
-    last = (ipix0 + 1) * npix_per_coarse - 1;
-
-    ipix_list = first : last;
+    for i=1:numel(ipix0)
+        first = ipix0 * npix_per_coarse;
+        last = (ipix0 + 1) * npix_per_coarse - 1; 
+        ipix_list = [ipix_list; (first : last)']; 
+    end    
 end
 
 % function ipix8 = neighbors(Nside, Ipix)
