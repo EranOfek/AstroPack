@@ -17,11 +17,17 @@ function [Result] = buildRef(RefGrid, DB, Args)
         Args.RefTable    = 'ref_images_v4';     
     end
     % 
-    RAD = 180/pi;
-    % loop over the ref. image grid
+    RAD = 180/pi;  
     Nref = height(RefGrid);
-    for Iref = 1000:Nref  % 1:Nref         % DEB
-        fprintf('%.2f',RefGrid.Dec(Iref)); % DEB
+    % convert the RA to [0, 360]:
+    RefGrid.RA = RefGrid.RA + 180;
+    RefGrid.RA1 = RefGrid.RA1 + 180;
+    RefGrid.RA2 = RefGrid.RA2 + 180;
+    RefGrid.RA3 = RefGrid.RA3 + 180;
+    RefGrid.RA4 = RefGrid.RA4 + 180;
+    % loop over the ref. image grid
+    for Iref = 120000:Nref  % 1:Nref         % DEB
+        fprintf('%.2f\n',RefGrid.Dec(Iref)); % DEB
         
         % 0. build the ref polygon to be covered and find the healpix coverage
         
@@ -34,7 +40,8 @@ function [Result] = buildRef(RefGrid, DB, Args)
         UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = upscale_nested_pixel(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
         % convert to UNIQ:    
-        
+        UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
+        UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
         % 1. find the overlapping single-epoch proc images 
         
@@ -79,8 +86,8 @@ function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
     ipix_list = [];
     % First fine pixel in the block
     for i=1:numel(ipix0)
-        first = ipix0 * npix_per_coarse;
-        last = (ipix0 + 1) * npix_per_coarse - 1; 
+        first = ipix0(i) * npix_per_coarse;
+        last = (ipix0(i) + 1) * npix_per_coarse - 1; 
         ipix_list = [ipix_list; (first : last)']; 
     end    
 end
