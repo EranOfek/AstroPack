@@ -112,7 +112,95 @@ classdef TransientClassify < Component
 
         end
 
-        
+
+        function updateUniqueTarget()
+            %
+
+            % check if target exist in unique targets DB
+
+            % If exist: (1) add ID of unique to target entry; (2) update stat in unique table
+
+            % If doesn't exist: do nothing
+
+            % including saturated
+            
+
+        end
+
+        function searchSolarSystem
+            % Search Solar System objects
+
+            % look for targets with no unique IDs which are more than 10 hr
+            % old, and up to 5 days old
+
+            % for each target search for additional same night detections
+            % and nearby
+
+            % Fit RANSAC
+
+            % If object found:
+            % check if possible comet
+            % add to SolarSystem table
+            % update ID of unique solar system object in table
+
+            
+        end
+
+        function searchSlowSolarSystem
+            % 
+
+            % look for unique objects that were found only in one night
+            % try to merge them with RANSAC over up to 10 nights
+
+        end
+
+
+
+        function searchStellarEvents
+
+            % if saturated 
+            % check for planets
+            % require pre detection mag >15
+
+            % else
+            % require high SN and >=2 detections
+            % query LC and look for rise
+            
+
+        end
+
+        function searchSingleDetectionEvents
+
+            % flare stars
+
+            % flare from SNe
+            % knwon SN at position
+            
+            % very early detection of SN
+
+
+
+        end
+
+        function searchTargetsToPublish
+            %
+
+            % search for unique objects with:
+            % 2 detections in less than 2 days
+            % 3 detections in less than 4 days
+            % 4 detections in less than 6 days
+
+            % saturated transients that increased mag by >3 mag
+
+            % Search in non-uniuqe
+            % objects that are less than 1 day old
+            % near galaxy
+            % SN>10
+
+
+        end
+
+
     end
       
     methods

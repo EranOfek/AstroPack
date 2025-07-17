@@ -3255,6 +3255,8 @@ classdef DemonLAST < Component
                                 BackupPath = strrep(BackupPath,'//','/');
                                 BackupStr = sprintf('last-backup --source %s &', BackupPath);
                                 system(BackupStr);
+                                Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                                Obj.writeLog(Msg, LogLevel.Info);
                             end
                             
                             RunTime = etime(clock, Tstart); % toc;
