@@ -196,13 +196,14 @@ classdef ForcedPhotServer < Component
                 %       Obj.DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time','Engine','ReplacingMergeTree()');
                 %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
-                % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1, 300, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew','n_epoch_max'}))
                 % Obj.DB.insertCharDump('forcedphot_requests',table(3,0,260.5709627, 58.8638455, 2450000,2470000,"1632",1,3,1,10, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
                 % 
                 % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
                 % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
 
                 Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d", Obj.TableRequest, STATUS_WAITING));
+                
                 if ~isempty(Treq)
                     
                     
