@@ -60,7 +60,17 @@ function [Result] = buildRef(RefGrid, DB, Args)
         end      
         T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
         
+        % Assume T is your input table
+%         [G, ~] = findgroups(T.mountnum, T.camnum, T.jd_start); % same camera or just same mount?
+        [G, ~] = findgroups(T.mountnum, T.jd_start); % same camera or just same mount?
         
+        % Preallocate cell array of tables
+        subtables = cell(max(G), 1);
+        
+        % Loop over each group
+        for i = 1:max(G)
+            subtables{i} = T(G == i, :);
+        end
         
         % 2. qualify the overlapping proc images
         
