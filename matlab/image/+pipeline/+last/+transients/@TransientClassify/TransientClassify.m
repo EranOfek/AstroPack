@@ -65,20 +65,32 @@ classdef TransientClassify < Component
     methods % utilities
         function NewCandTable=loadNewCand(Obj, Args)
             % Load table of new candidates ingested after CurrentJD
-            %
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - Table of new transient candidates with selection
+            %            criteria.
+            % Author : Eran Ofek (Jul 2025)
             % Exampple: Obj=pipeline.last.transients.TransientClassify;
             %           NewCandTable=Obj.loadNewCand;
 
             arguments
                 Obj
+                Args.LastIngestionTime = []; % if empty use Obj.CurrentJD
                 Args.SelectColumns = '*';
-                Args.MaxStarN      = 0
+                Args.MaxStarN      = 0;
                 Args.MaxNneigh     = 0;
+            end
+
+            if isempty(Args.LastIngestionTime)
+                LastIngestionTime = Obj.CurrentJD;
+            else
+                LastIngestionTime = Args.LastIngestionTime;
             end
 
             QueryStr = sprintf('SELECT %s FROM %s WHERE %s>%16.7f AND %s<=%d AND %s<=%d',...
                                Args.SelectColumns, Obj.TableDiffCand, ...
-                               Obj.ColIngestionTime, Obj.CurrentJD, ...
+                               Obj.ColIngestionTime, LastIngestionTime, ...
                                Obj.ColStarN, Args.MaxStarN, ...
                                Obj.ColNneigh, Args.MaxNneigh);
             NewCandTable = Obj.DB.query(QueryStr);
@@ -96,7 +108,7 @@ classdef TransientClassify < Component
                 Args
             end
 
-            
+
 
         end
 
