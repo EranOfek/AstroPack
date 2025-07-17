@@ -510,8 +510,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
             if Args.TransferTranProducts
                 % TODO: replace this with a last-tool script call later
     
-                CutoutsRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/cutouts';
-                JsonRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/json';
+                CutoutsRemote = 'euclid@euclid:/home/euclid/lastdata/transients/cutouts';
+                JsonRemote = 'euclid@euclid:/home/euclid/lastdata/transients/json';
     
                 MoveRefCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameRef,{' '},CutoutsRemote);
                 MoveNewCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameNew,{' '},CutoutsRemote);
