@@ -46,7 +46,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
         UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
-        % 1. find the overlapping single-epoch proc images 
+        % 1. find the overlapping coadd proc or single-epoch proc images: 
         
         S = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
@@ -60,14 +60,12 @@ function [Result] = buildRef(RefGrid, DB, Args)
         end      
         T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
         
-        % Assume T is your input table
-%         [G, ~] = findgroups(T.mountnum, T.camnum, T.jd_start); % same camera or just same mount?
-        [G, ~] = findgroups(T.mountnum, T.jd_start); % same camera or just same mount?
+        % split into same time, mount, and camera:
         
-        % Preallocate cell array of tables
+        % how to extract bits from id_visit?
+        
+        [G, ~] = findgroups(T.mountnum, T.camnum, T.jd_start);        
         subtables = cell(max(G), 1);
-        
-        % Loop over each group
         for i = 1:max(G)
             subtables{i} = T(G == i, :);
         end
