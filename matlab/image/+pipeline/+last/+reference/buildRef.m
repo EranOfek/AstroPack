@@ -11,24 +11,27 @@ function [Result] = buildRef(RefGrid, DB, Args)
     arguments
         RefGrid
         DB                
-        Args.NsideSearch = 2^7; 
+        Args.NsideSearch = 2^8; % we could start the search at a larger region, e.g, 2^7 
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'raw_images';
+        % the list of table columns needed to check the overlaps + filtering + control 
+        Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
+                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4"; 
         Args.RefTable    = 'ref_images_v4';     
     end
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid);
-    % convert the RA to [0, 360]:
-    RefGrid.RA = RefGrid.RA + 180;
+    
+    % convert the RA to [0, 360]:    % later change the grid itself
+    RefGrid.RA  = RefGrid.RA + 180;
     RefGrid.RA1 = RefGrid.RA1 + 180;
     RefGrid.RA2 = RefGrid.RA2 + 180;
     RefGrid.RA3 = RefGrid.RA3 + 180;
     RefGrid.RA4 = RefGrid.RA4 + 180;
+    
     % loop over the ref. image grid
-    for Iref = 120000:Nref  % 1:Nref         % DEB
-        fprintf('%.2f\n',RefGrid.Dec(Iref)); % DEB
-        
+    for Iref = 120000:Nref  % 1:Nref (no LAST obs in the South, so for the tests starting from around the equator)                      
         % 0. build the ref polygon to be covered and find the healpix coverage
         
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
@@ -36,16 +39,16 @@ function [Result] = buildRef(RefGrid, DB, Args)
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch);  
-        % translate the center and the neighbors to Args.NsideLow (as in the DB)        
-        UpixCenterLow = upscale_nested_pixel(UpixCenter, Args.NsideSearch, Args.NsideLow); 
-        UpixNeighbLow = upscale_nested_pixel(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
+        % translate the center and the neighbors to Args.NsideLow (as in the DB)                
+        UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
+        UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
         % convert to UNIQ:    
         UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
         % 1. find the overlapping single-epoch proc images 
         
-        S = sprintf("select * from %s",Args.SearchTable);
+        S = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
@@ -55,8 +58,9 @@ function [Result] = buildRef(RefGrid, DB, Args)
             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
             W = strcat(W,Wn);
         end      
-        T = DB.query(strcat(S,W)); % DEB height(T)
-        % T = db.mex.query(strcat(S,W));
+        T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
+        
+        
         
         % 2. qualify the overlapping proc images
         
@@ -76,21 +80,21 @@ function [Result] = buildRef(RefGrid, DB, Args)
     end    
 end
 
-function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
-    % Check that Nside1 is a multiple of Nside0
-    assert(mod(Nside1, Nside0) == 0, 'Nside1 must be a multiple of Nside0');
-    
-    ratio = Nside1 / Nside0;
-    npix_per_coarse = ratio^2;
-
-    ipix_list = [];
-    % First fine pixel in the block
-    for i=1:numel(ipix0)
-        first = ipix0(i) * npix_per_coarse;
-        last = (ipix0(i) + 1) * npix_per_coarse - 1; 
-        ipix_list = [ipix_list; (first : last)']; 
-    end    
-end
+% function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
+%     % Check that Nside1 is a multiple of Nside0
+%     assert(mod(Nside1, Nside0) == 0, 'Nside1 must be a multiple of Nside0');
+%     
+%     ratio = Nside1 / Nside0;
+%     npix_per_coarse = ratio^2;
+% 
+%     ipix_list = [];
+%     % First fine pixel in the block
+%     for i=1:numel(ipix0)
+%         first = ipix0(i) * npix_per_coarse;
+%         last = (ipix0(i) + 1) * npix_per_coarse - 1; 
+%         ipix_list = [ipix_list; (first : last)']; 
+%     end    
+% end
 
 % function ipix8 = neighbors(Nside, Ipix)
 % 
