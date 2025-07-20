@@ -103,6 +103,8 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
             JDnow = celestial.time.date2jd;
             for Crop=1:Nobj
                 Raw(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
+                Raw(Crop).replaceVal('LEVEL','raw');
+                Raw(Crop).replaceVal('CROPID',0);
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
