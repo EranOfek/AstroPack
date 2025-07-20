@@ -8,7 +8,10 @@ function [NumCCDSEC] = ccdsecStr2num(StrCCDSEC)
     % Example: [NumCCDSEC] = imUtil.ccdsec.ccdsecStr2num('[1 100 2 101]')
     %          [NumCCDSEC] = imUtil.ccdsec.ccdsecStr2num(["[1 100 2 101]","[2 10 3 20]"])
     %          [NumCCDSEC] = imUtil.ccdsec.ccdsecStr2num({'[1 100 2 101]','[2 10 3 20]'})
-
+    if isnan(StrCCDSEC)
+       NumCCDSEC = [NaN NaN NaN NaN];
+       return
+    end
     if ischar(StrCCDSEC)
         NumCCDSEC = ccdsecChar2num(StrCCDSEC);
     else
