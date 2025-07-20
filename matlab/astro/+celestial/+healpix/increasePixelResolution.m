@@ -7,7 +7,7 @@ function [Result] = increasePixelResolution(Ipix0, Nside0, Nside1)
     % Output : - pixel indices at resolution Nside1
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: Ipix0 = 36136; Nside0 = 2^7; Nside1 = 2^8;
-    %          Ipix1 = celestial.healpix.increasePixelResolution(Pix0, Nside0, Nside1)
+    %          Ipix1 = celestial.healpix.increasePixelResolution(Ipix0, Nside0, Nside1)
     arguments
         Ipix0
         Nside0
