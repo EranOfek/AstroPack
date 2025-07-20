@@ -21,7 +21,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
     end
     % 
     RAD = 180/pi;  
-    Nref = height(RefGrid);
+    Nref = height(RefGrid); 
     
     % convert the RA to [0, 360]:    % later change the grid itself
     RefGrid.RA  = RefGrid.RA + 180;
