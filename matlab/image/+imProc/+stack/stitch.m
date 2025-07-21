@@ -2,7 +2,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     % Make a mosaic sky image from a set of input image files or AstroImages
     % Package: imProc.stack 
     % Input:   - A mask FITS file names to stitch into a single large image.
-    %            Alternatively, this can be asn AstroImage object
+    %            Alternatively, this can be an AstroImage object
     %            containing the images.
     %          * ...,key,val,...
     %          'DataDir' - The directory containing the input images

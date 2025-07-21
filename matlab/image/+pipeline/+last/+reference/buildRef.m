@@ -11,19 +11,19 @@ function [Result] = buildRef(RefGrid, DB, Args)
     arguments
         RefGrid
         DB                
-        Args.NsideSearch = 2^8; % we could start the search at a larger region, e.g, 2^7 
+        Args.NsideSearch = 2^7; % we should start the search at a larger region 
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'raw_images';
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
-                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4"; 
+                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.RefTable    = 'ref_images_v4';     
     end
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid); 
     
-    % convert the RA to [0, 360]:    % later change the grid itself
+    % convert the RA to [0, 360]:    % later change Yossi's grid itself to avoid this 
     RefGrid.RA  = RefGrid.RA + 180;
     RefGrid.RA1 = RefGrid.RA1 + 180;
     RefGrid.RA2 = RefGrid.RA2 + 180;
@@ -46,8 +46,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
         UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
-        % 1. find the overlapping coadd proc or single-epoch proc images: 
-        
+        % 1. find the overlapping coadd proc or single-epoch proc images        
         S = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
@@ -59,34 +58,53 @@ function [Result] = buildRef(RefGrid, DB, Args)
             W = strcat(W,Wn);
         end      
         T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
-        
-        % split into same time, mount, and camera:
-        
-        % how to extract bits from id_visit?
-        
-        [G, ~] = findgroups(T.mountnum, T.camnum, T.jd_start);        
-        subtables = cell(max(G), 1);
-        for i = 1:max(G)
-            subtables{i} = T(G == i, :);
-        end
-        
-        % 2. qualify the overlapping proc images
-        
-        % 3. select exposures by specific obs. time, time span, etc. 
-        
-        % 4. for each epoch:
-        Nexp = size();
-        for Iexp = 1:Nexp
-            % 4.1 merge the set of covering crops 
-            
-            % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
-        end
-        
-        % 5. proper coadd the the aligned and merged crops
-        
-        % 6. save the new reference on disk and fill the DB table line 
-    end    
+
+        for Im = 1:10
+            for Ic = 1:4
+                T1 = T(T.mountnum==Im & T.camnum==Ic,:);
+                if height(T1) > 0
+                    fprintf('M%dC%d:\n',Im,Ic);
+                    [Grp, ~] = findgroups(T1.jd_start); 
+                    Nepoch   = max(Grp);                 
+                    for i = 1:Nepoch
+                        T2  = T1(Grp == i, :);
+                        Nim = height(T2);
+                        fprintf('epoch %d: %d images retrieved\n',i,Nim);
+                        % 2. qualify the overlapping proc images
+                        
+                        % 3. select exposures by specific obs. time, time span, etc.
+                        
+                        % check the coverage
+                        
+                        % 4.1 retrieve the crop images and merge the set of covering crops
+                        fprintf('epoch %d: %d images filtered\n',i,Nim);
+                        Nim = height(T2);
+                        AI  = repmat(AstroImage,Nim);
+                        FN  = repmat(AstroFileName,Nim);
+                        for Icrop = 1:Nim
+%                             FN = strcat('/mnt/euclid/last/data/LAST.01.',...
+%                                 T2.mountnum,T2.camnum,T2.diryear,T2.dirmon,T2.dirday,T2.subdir,T2.filetime); % should use AstroFileName
+%                             FN(Icrop) =
+                            AI(Icrop).AstroImage.readProducts(FN);
+                        end
+                        
+                        % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
+                        
+                    end                                  
+                    % 5. proper coadd the the aligned and merged crops
+                    
+                    % 6. save the new reference on disk and fill the DB table line
+                end
+            end % camera
+        end % mount                 
+    end % reference image grid      
 end
+
+
+
+
+
+
 
 % function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
 %     % Check that Nside1 is a multiple of Nside0
