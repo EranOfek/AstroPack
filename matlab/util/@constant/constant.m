@@ -35,6 +35,7 @@
 %          mp: 1.6726e-27
 %         mu0: 1.2566e-06
 %          NA: 6.0221e+23
+%          P0: 101325 (SI)
 %   Loschmidt: 2.68678011e+19
 %          pc: 3.0857e+16
 %           R: 8.3146
@@ -671,7 +672,40 @@ classdef constant
             Error = 4.5e-10;
             Form  = '';
               
-        end % constant.NA function                
+        end % constant.NA function        
+        
+         function [Const,Units,Error,Form]=P0(System)
+            % The standard atmosphere
+            % Package: @constant
+            % Description: Return the value of P0
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative Error
+            %          - Formula
+            
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 1013250;
+                Units = 'dyn cm^-2';
+            else
+                % SI
+                Const = 101325;
+                Units = 'Pa';
+            end
+            Error = NaN;
+            Form  = '';
+              
+        end % constant.P0 function         
         
         function [Const,Units,Error,Form]=Loschmidt(System)
             % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa  
@@ -703,7 +737,7 @@ classdef constant
             Error = NaN;
             Form  = 'p0/(kB*T0)';
               
-        end % constant.kB function
+        end % constant.Loschmidt function
         
         function [Const,Units,Error,Form]=R(System)
             % The Molar gas constant

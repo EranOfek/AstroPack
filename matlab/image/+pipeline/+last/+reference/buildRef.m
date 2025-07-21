@@ -31,7 +31,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
     RefGrid.RA4 = RefGrid.RA4 + 180;
     
     % loop over the ref. image grid
-    for Iref = 120000:Nref  % 1:Nref (no LAST obs in the South, so for the tests starting from around the equator)                      
+    for Iref = 150000:Nref  % 1:Nref (no LAST obs in the South, so for the tests starting from around the equator)                      
         % 0. build the ref polygon to be covered and find the healpix coverage
         
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
