@@ -671,41 +671,7 @@ classdef constant
             Error = 4.5e-10;
             Form  = '';
               
-        end % constant.NA function
-        
-        function [Const,Units,Error,Form]=NA(System)
-            % Avogadro constant
-            % Package: @constant
-            % Description: Return the value of the NA
-            %              Avogadro constant/Avogadro number
-            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
-            % Output : - The value of the constant
-            %          - Units
-            %          - Relative Error
-            %          - Formula
-            
-            if (nargin==0)
-                System = true;
-            else
-                if strcmp(System,'SI')
-                    System = false;
-                else
-                    System = true;
-                end
-            end
-            if (System)
-                % cgs
-                Const = 6.0221412927e23;
-                Units = 'mol^-1';
-            else
-                % SI
-                Const = 6.0221412927e23;
-                Units = 'mol^-1';
-            end
-            Error = 4.5e-10;
-            Form  = '';
-              
-        end % constant.NA function
+        end % constant.NA function                
         
         function [Const,Units,Error,Form]=Loschmidt(System)
             % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa  
