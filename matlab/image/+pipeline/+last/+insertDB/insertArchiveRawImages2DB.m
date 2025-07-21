@@ -19,9 +19,9 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
     %
     arguments
         RootDir                = '/mnt/euclid/last/data/LAST.01.*/';
-        FileNameTemplate       = 'LAST*raw_Image_1.fits';          
+        FileNameTemplate       = 'LAST*raw_Image_1.fits.fz';          
         Args.ProcDirTemplate   = 'raw';  
-        Args.Decompress        = true;
+        Args.Decompress        = false;
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
@@ -75,7 +75,8 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
                 Decompress = sprintf('su %s -c "funpack %s.fz"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
             end     
-            Raw=AstroHeader(FileNameTemplate); % read the data
+%             Raw=AstroHeader(FileNameTemplate); % read the data
+            Raw=AstroHeader(FileNameTemplate, 2); % read the data from fits.fz
             Nobj = numel(Raw);
             if Nobj < 1                        % no headers have been read 
                 cd(Dir);
@@ -99,12 +100,14 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
                     Raw(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
                 end
             end            
-            % insert the ingestion time
+            % insert the ingestion time and some missing keyworks
             JDnow = celestial.time.date2jd;
             for Crop=1:Nobj
                 Raw(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
                 Raw(Crop).replaceVal('LEVEL','raw');
                 Raw(Crop).replaceVal('CROPID',0);
+                Raw(Crop).replaceVal('NAXIS1',1726);
+                Raw(Crop).replaceVal('NAXIS2',1726);
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
