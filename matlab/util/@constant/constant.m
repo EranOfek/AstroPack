@@ -35,6 +35,7 @@
 %          mp: 1.6726e-27
 %         mu0: 1.2566e-06
 %          NA: 6.0221e+23
+%   Loschmidt: 2.68678011e+19
 %          pc: 3.0857e+16
 %           R: 8.3146
 %         RAD: 57.296
@@ -672,11 +673,11 @@ classdef constant
               
         end % constant.NA function
         
-        function [Const,Units,Error,Form]=kB(System)
-            % The Boltzman constant
+        function [Const,Units,Error,Form]=NA(System)
+            % Avogadro constant
             % Package: @constant
-            % Description: Return the value of the KB
-            %              Boltzmann constant.
+            % Description: Return the value of the NA
+            %              Avogadro constant/Avogadro number
             % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
             % Output : - The value of the constant
             %          - Units
@@ -694,15 +695,47 @@ classdef constant
             end
             if (System)
                 % cgs
-                Const = 1.380648813e-16;
-                Units = 'cm^2 * gr * s^-2 * K^-1';
+                Const = 6.0221412927e23;
+                Units = 'mol^-1';
             else
                 % SI
-                Const = 1.380648813e-23;
-                Units = 'm^2 * kg * s^-2 * K^-1';
+                Const = 6.0221412927e23;
+                Units = 'mol^-1';
             end
-            Error = 9.4e-9;
-            Form  = 'R/NA';
+            Error = 4.5e-10;
+            Form  = '';
+              
+        end % constant.NA function
+        
+        function [Const,Units,Error,Form]=Loschmidt(System)
+            % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa  
+            % Package: @constant
+            % Description: Return the value of the Loschmidt constant
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative Error
+            %          - Formula            
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 2.68678011e19;
+                Units = 'cm^-3';
+            else
+                % SI
+                Const = 2.68678011e25;
+                Units = 'm^-3';
+            end
+            Error = NaN;
+            Form  = 'p0/(kB*T0)';
               
         end % constant.kB function
         
