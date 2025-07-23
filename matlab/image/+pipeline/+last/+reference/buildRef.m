@@ -89,6 +89,8 @@ function [Result] = buildRef(RefGrid, DB, Args)
                                  '_sci_coadd_Image_1.fits');                              
                              AI(Icrop)= AstroImage.readProducts(FN);
                         end
+                        % merge
+                        
                         
                         % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
                         
