@@ -79,13 +79,15 @@ function [Result] = buildRef(RefGrid, DB, Args)
                         % 4.1 retrieve the crop images and merge the set of covering crops
                         fprintf('epoch %d: %d images filtered\n',i,Nim);
                         Nim = height(T2);
-                        AI  = repmat(AstroImage,Nim);
-                        FN  = repmat(AstroFileName,Nim);
+                        AI  = repmat(AstroImage,Nim,1);
+                        Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
+                        YY  = compose('%04d',T2.diryear(1)); MM = compose('%02d',T2.dirmon(1)); DD = compose('%02d',T2.dirday(1));
                         for Icrop = 1:Nim
-%                             FN = strcat('/mnt/euclid/last/data/LAST.01.',...
-%                                 T2.mountnum,T2.camnum,T2.diryear,T2.dirmon,T2.dirday,T2.subdir,T2.filetime); % should use AstroFileName
-%                             FN(Icrop) =
-                            AI(Icrop).AstroImage.readProducts(FN);
+                             FN = strcat('/mnt/euclid/last/data/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
+                                 '/proc/',T2.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',T2.filetime(Icrop),...
+                                 '_clear_',string(T2.fieldid(Icrop)),'_000_001_',compose('%03d',T2.cropid(Icrop)),...
+                                 '_sci_coadd_Image_1.fits');                              
+                             AI(Icrop)= AstroImage.readProducts(FN);
                         end
                         
                         % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
