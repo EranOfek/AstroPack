@@ -1028,6 +1028,15 @@ classdef AstroFileName < Component
             % Author : Eran Ofek (Jul 2025)
             % Example: AstroFileName.getBaseFieldID('1632.c')
 
+            
+            if numel(FieldID)>1
+                % Find entries without a dot
+                NoDot = cellfun(@isempty, regexp(FieldID, '\.'));
+
+                % Add dot to those entries
+                FieldID(NoDot) = FieldID(NoDot) + ".";
+            end
+            
             TmpFieldID  = split(FieldID(:),'.',2); 
             BaseFieldID = TmpFieldID(:,1);
         end
