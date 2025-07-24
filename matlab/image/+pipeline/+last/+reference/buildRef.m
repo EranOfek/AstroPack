@@ -90,7 +90,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
                              AI(Icrop)= AstroImage.readProducts(FN);
                         end
                         % merge
-                        
+%                         S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask, PSF ... 
                         
                         % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
                         
