@@ -89,9 +89,25 @@ function [Result] = buildRef(RefGrid, DB, Args)
                                  '_sci_coadd_Image_1.fits');                              
                              AI(Icrop)= AstroImage.readProducts(FN);
                         end
-                        % merge
-%                         S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask, PSF ... 
                         
+                        % merge
+                        
+                        % var1
+%                         S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask, PSF ... 
+                        % var2
+%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); 
+%
+%                         gives an image full on NaNs? not tested? 
+%                         in procMergeCoadd we use only the two column [X Y] shift matrix option of imProc.transIm.imwarp
+                        % var3 
+%                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
+%                           1. estimate the size of the merged image and
+%                              enlarge the matrix, fill with 0s
+%                           2. take the WCS0 form the 1st image
+%                           3. use xy2sky with WCS1, then sky2xy with WCS0
+%                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
+%                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
+%                         
                         % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
                         
                     end                                  
