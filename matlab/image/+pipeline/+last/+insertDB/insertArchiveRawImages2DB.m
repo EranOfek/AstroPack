@@ -19,7 +19,7 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
     %
     arguments
         RootDir                = '/mnt/euclid/last/data/LAST.01.*/';
-        FileNameTemplate       = 'LAST*raw_Image_1.fits.fz';          
+        FileNameTemplate       = 'LAST*sci_raw_Image_1.fits.fz';          
         Args.ProcDirTemplate   = 'raw';  
         Args.Decompress        = false;
         
