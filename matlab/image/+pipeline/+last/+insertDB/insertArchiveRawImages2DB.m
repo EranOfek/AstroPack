@@ -92,6 +92,8 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
             if isnan(FN)
                 FN = FNs(1).name;
             end
+            Parts = split(FN, '/');
+            FN = Parts{end};
             if isnan(Raw(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(FN(6:7));
                 for Crop=1:Nobj
