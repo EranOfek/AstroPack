@@ -24,6 +24,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         RootDir                = '/mnt/marvin/LAST.01*/';
         FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
         Args.ProcDirTemplate   = '/proc/*';  
+        Args.ProcDirList       = [];
         Args.Decompress        = true;
         Args.CompressProcessed = true;
         
@@ -60,16 +61,24 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     FIDnodata       = fopen('cat_no_data_dir.txt', 'a'); 
     FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
     tic
-    % find all the directories according to the template
-    D = dir(fullfile(RootDir, Args.ProcDirTemplate));
-    Dirs = D([D.isdir]);
-    Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'})); 
-    Dirs = Dirs(contains({Dirs.name}, 'v0'));
-    Dirs = Dirs(~contains({Dirs.folder},'re'));
+    % find all the directories according to the template or read from Args
+    if isempty(Args.ProcDirList)
+        D = dir(fullfile(RootDir, Args.ProcDirTemplate));
+        Dirs = D([D.isdir]);
+        Dirs = Dirs(~ismember({Dirs.name}, {'.', '..'}));
+        Dirs = Dirs(contains({Dirs.name}, 'v0'));
+        Dirs = Dirs(~contains({Dirs.folder},'re'));
+    else
+        Dirs = Args.ProcDirList;
+    end
     % 
     Ndir = numel(Dirs);
     for Idir = 1:Ndir
-        DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);         
+        if isempty(Args.ProcDirList)
+            DataDir = strcat(Dirs(Idir).folder,'/',Dirs(Idir).name);
+        else
+            DataDir = Dirs(Idir);
+        end
         cd(DataDir);    
         try
             Injected = contains(fileread('.status'), "injected into the proc catalog DB");

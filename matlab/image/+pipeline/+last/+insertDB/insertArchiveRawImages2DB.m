@@ -19,7 +19,7 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
     %
     arguments
         RootDir                = '/mnt/euclid/last/data/LAST.01.*/';
-        FileNameTemplate       = 'LAST*raw_Image_1.fits.fz';          
+        FileNameTemplate       = 'LAST*sci_raw_Image_1.fits.fz';          
         Args.ProcDirTemplate   = 'raw';  
         Args.Decompress        = false;
         
@@ -75,8 +75,9 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
                 Decompress = sprintf('su %s -c "funpack %s.fz"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
             end     
-%             Raw=AstroHeader(FileNameTemplate); % read the data
+%             Raw=AstroHeader(FileNameTemplate);  % read the data
             Raw=AstroHeader(FileNameTemplate, 2); % read the data from fits.fz
+            FNs = dir(FileNameTemplate);          % for the case FILENAME does not exist in the header 
             Nobj = numel(Raw);
             if Nobj < 1                        % no headers have been read 
                 cd(Dir);
@@ -88,6 +89,11 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
             
             % check and add essential KEYWORDS if they are missing             
             FN = Raw(1).getStructKey('FILENAME').FILENAME;
+            if isnan(FN)
+                FN = FNs(1).name;
+            end
+            Parts = split(FN, '/');
+            FN = Parts{end};
             if isnan(Raw(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(FN(6:7));
                 for Crop=1:Nobj
@@ -106,8 +112,8 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
                 Raw(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
                 Raw(Crop).replaceVal('LEVEL','raw');
                 Raw(Crop).replaceVal('CROPID',0);
-                Raw(Crop).replaceVal('NAXIS1',1726);
-                Raw(Crop).replaceVal('NAXIS2',1726);
+                Raw(Crop).replaceVal('NAXIS1',6422);
+                Raw(Crop).replaceVal('NAXIS2',9600);
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
