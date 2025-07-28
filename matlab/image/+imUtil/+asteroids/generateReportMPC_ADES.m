@@ -137,10 +137,10 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     
         % Add optical observation details
         if tools.table.isColumn(Table, Args.ColPermID)
-            if isnumeric(Table.(Args.ColPermID)(Iobs))
+            if ~isnumeric(Table.(Args.ColPermID)(Iobs))
                 PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
             else
-                PermID = Table.(Args.ColPermID){Iobs};
+                PermID = sprintf('%d',Table.(Args.ColPermID)(Iobs));
             end
             addTextElement(docNode, optical, 'permID', PermID);
         end
