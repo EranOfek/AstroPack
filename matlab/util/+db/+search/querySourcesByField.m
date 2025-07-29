@@ -1,9 +1,17 @@
 function [Result] = querySourcesByField(Fields, Args)
     % One line description
     %     Optional detailed description
-    % Input  : - a list of field names (string array) 
-    %          - 
+    % Input  : - a list of field names (an array of strings) 
     %          * ...,key,val,... 
+    %        'JDstart' - the star JD of the search
+    %        'JDstop'  - the end JD of the search
+    %        'Mount'   - the mount number
+    %        'Camera'  - the camera number
+    %        'Crop'    - the crop number
+    %        'ImageTable' - the name of the image table used to fiter the original images 
+    %        'ImageID'    - the image ID column in the image table
+    %        'SourceTable'- the source table 
+    %        'ImageIDSrcTab' - the matching image ID column in the source table
     % Output : - a query string 
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: Start = celestial.time.date2jd([2025, 04, 18]);
