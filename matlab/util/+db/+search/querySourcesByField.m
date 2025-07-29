@@ -1,6 +1,6 @@
 function [Result] = querySourcesByField(Fields, Args)
-    % One line description
-    %     Optional detailed description
+    % Given the Field name(s), construct a query to search a source DB table on the fields 
+    %     with optional constraints on time (JD), mount, camera, subimage 
     % Input  : - a list of field names (an array of strings) 
     %          * ...,key,val,... 
     %        'JDstart' - the star JD of the search
