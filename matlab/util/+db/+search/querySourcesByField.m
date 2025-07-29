@@ -29,7 +29,7 @@ function [Result] = querySourcesByField(Fields, Args)
         F   = strcat(F,Add);
     end
     F   = strcat(F,") ");
-    
+    %
     Jd   = "";
     Mt   = "";
     Cam  = "";
@@ -46,16 +46,10 @@ function [Result] = querySourcesByField(Fields, Args)
     if ~isempty(Args.Crop)
         Crop = sprintf(" and ( cropid = %d ) ",Args.Crop);
     end
-    
+    %
     W = strcat(F,Jd,Mt,Cam,Crop);
-    
+    %
     Result = sprintf("SELECT s.* FROM %s AS s INNER JOIN %s AS i " +...
         "ON s.%s = i.%s where %s",Args.SourceTable,Args.ImageTable,...
         Args.ImageIDSrcTab,Args.ImageID,W);
-
 end
-    
-
-%     Q = sprintf('SELECT s.* FROM visit_src AS s INNER JOIN visit_images AS i ON s.id_visit_im = i.id_visit where %s',W);
-%     
-%  
