@@ -1,4 +1,4 @@
-function [Result] = buildRef(RefGrid, DB, Args)
+function [Result] = buildRefImages(RefGrid, DB, Args)
     % given a grid of reference images, build them from proc images
     %     employs proc/coadd image DB 
     % Input  : - a grid of reference images (number, RA1-RA4, Dec1-Dec4) 
