@@ -3,6 +3,10 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     % Input  : - Table
     %          - File name in which to write report.
     %          * ...,key,val,... 
+    %            'ColPermID' - Column name of perment ID.
+    %                   The column itself can contain numeric or string.
+    %                   If NaN or empty string then will not add PermID
+    %                   keuword. Default is 'Number'.
     %            See code for options.
     % Output : - A structure with:
     %            .docNode - XML doc node.
@@ -138,11 +142,21 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         % Add optical observation details
         if tools.table.isColumn(Table, Args.ColPermID)
             if ~isnumeric(Table.(Args.ColPermID)(Iobs))
-                PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
+                if isempty(Table.(Args.ColPermID)(Iobs))y
+                    PermID = NaN;
+                else
+                    PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
+                end
             else
-                PermID = sprintf('%d',Table.(Args.ColPermID)(Iobs));
+                if isnan(Table.(Args.ColPermID)(Iobs))
+                    PermID = NaN;
+                else
+                    PermID = sprintf('%d',Table.(Args.ColPermID)(Iobs));
+                end
             end
-            addTextElement(docNode, optical, 'permID', PermID);
+            if ~isnan(PermID)
+                addTextElement(docNode, optical, 'permID', PermID);
+            end
         end
         if tools.table.isColumn(Table, Args.ColProvID)
             if ~isempty(Table.(Args.ColProvID)(Iobs))
