@@ -87,13 +87,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                  '/proc/',T2.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',T2.filetime(Icrop),...
                                  '_clear_',string(T2.fieldid(Icrop)),'_000_001_',compose('%03d',T2.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
-                             AI(Icrop)= AstroImage.readProducts(FN);
+                             AI(Icrop)= AstroImage.readProducts(FN); % no bkg nor variance is present!  
                         end
                         
                         % merge
                         
                         % var1
-%                         S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask, PSF ... 
+                        S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask
                         % var2
 %                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); 
 %
