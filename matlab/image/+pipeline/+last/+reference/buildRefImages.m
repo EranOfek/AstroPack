@@ -66,6 +66,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     fprintf('M%dC%d:\n',Im,Ic);
                     [Grp, ~] = findgroups(T1.jd_start); 
                     Nepoch   = max(Grp);                 
+                    S = repmat(AstroImage,Nepoch,1);
                     for i = 1:Nepoch
                         T2  = T1(Grp == i, :);
                         Nim = height(T2);
@@ -87,19 +88,19 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                  '/proc/',T2.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',T2.filetime(Icrop),...
                                  '_clear_',string(T2.fieldid(Icrop)),'_000_001_',compose('%03d',T2.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
-                             AI(Icrop)= AstroImage.readProducts(FN); % no bkg nor variance is present!  
+                             AI(Icrop)= AstroImage.readProducts(FN); % no data on Back or Var is saved @ euclid!  
                         end
                         
                         % merge
                         
                         % var1
-                        S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask
+                        [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
+                        
                         % var2
-%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); 
+%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
+%                         'BoundsStyle','SameAsInput' does not work
 %
-%                         gives an image full on NaNs? not tested? 
-%                         in procMergeCoadd we use only the two column [X Y] shift matrix option of imProc.transIm.imwarp
-                        % var3 
+%                       % var3 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
 %                           1. estimate the size of the merged image and
 %                              enlarge the matrix, fill with 0s

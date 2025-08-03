@@ -24,7 +24,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %            coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
+    % Author : A.M. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
     % Example: [Mosaic, AH, RemappedXY] = imProc.stack.stitch('LAST*coadd_Image*.fits','DataDir','/home/sasha/Obs1/','PixScale',1.25);
     arguments        
         InputImages         =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
@@ -37,8 +37,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
         Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
                                                                  % (needed due to the insufficient accurancy of the mosaic size determination)
-        Args.OutDir         =   '.';                             % output directory
-        Args.PlotBorders logical   =   false;                    % whether to plot the sky region with original image stamps
+        Args.PlotBorders logical   = false;                      % whether to plot the sky region with original image stamps
+        Args.WriteFile   logical   = true;                       % whether to write the output fits file
+        Args.OutDir         =   '.';                             % output directory       
     end    
     % set some constants and image parameters     
     RAD  = 180./pi;                     % the radian
@@ -160,7 +161,6 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
 
     % plot the sky regions of the input images and the reference points 
-
     if Args.PlotBorders        
             figure(1); hold on
             for Img = 1:1:NImage    
@@ -238,7 +238,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         [Ximg, Yimg]    = meshgrid( YL:YR, XL:XR );                % a grid of subimage pixels !NOTE: Ximg is of Ysize!
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
         [X, Y]          = AIm.WCS.sky2xy(RAimg, DECimg);           % mosaic pixel coordinates corresponding to the subimage pixels
-        
+                
         RemappedXY(Img,XL:XR,YL:YR,1) = X; RemappedXY(Img,XL:XR,XL:YR,2) = Y; % save the remapped grid as one of the function's outputs
         
         Xred = XR - XL + 1;    % the reduced number of pixels
@@ -251,13 +251,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         ImageM = imProc.stack.addImageRedistributePixels(ImageM, SubImage, X, Y, 'Nx', Xred, 'Ny', Yred, ...
                                                          'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
         ExposM = imProc.stack.addImageRedistributePixels(ExposM, Exptime(Img), X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
-
-        
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);        
     end
     
-    % flux conservation check
-    
+    % flux conservation check    
     FluxM   = sum(ImageM,'all'); FluxAI = zeros(NImage,1);
     for Img = 1:1:NImage 
         FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1)+1:Xsize(Img)-Args.Crop(2),Args.Crop(3)+1:Ysize(Img)-Args.Crop(4)),'all'); 
@@ -280,10 +277,11 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     StitchedImage = AstroImage({CPS'});
     StitchedImage.WCS = AIm.WCS;
     StitchedImage.PSFData = PSF;
+    StitchedImage.Exp = ExposM';
     
     AH = StitchedImage.WCS.wcs2header;       % make a header from the WCS
     StitchedImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
-    
+        
     % add some keywords to the header
     if Args.Exposure ~= 0  % use the user-provided exposure time 
         StitchedImage.setKeyVal('EXPTIME',Args.Exposure);
@@ -300,22 +298,22 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     AH = StitchedImage.Header;               % save the header back from the AstroImage
     
     % make a FITS file:
-
-%     if isa(InputImages,'AstroImage')
-    if ~exist('FN','var')
-        CPSOutputName = strcat('!./','stitched_image.fits');
-    else
-        CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+    if Args.WriteFile
+        % if isa(InputImages,'AstroImage')
+        if ~exist('FN','var')
+            CPSOutputName = strcat('!./','stitched_image.fits');
+        else
+            CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+        end
+        
+        cd(Args.OutDir)
+        % StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
+        FITS.write(StitchedImage.Image, CPSOutputName, 'Header',StitchedImage.HeaderData.Data,...
+            'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+                
+        cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');
+        fprintf('%s\n',CPSOutputName(2:end));
     end
-
-    cd(Args.OutDir)
-%     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
-    FITS.write(StitchedImage.Image, CPSOutputName, 'Header',StitchedImage.HeaderData.Data,...
-                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
-
-    
-    cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
-    fprintf('%s\n',CPSOutputName(2:end));
     toc
     
 end
