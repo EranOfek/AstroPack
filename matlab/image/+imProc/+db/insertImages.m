@@ -132,7 +132,7 @@ function [T,Error,FileName] = insertImages(Obj, Args)
     end
 
     % convert headers to table
-    T  = imProc.header.headers2table(Obj, 'OutType','table', 'ColNameDic',Args.ColNameDic);
+    T  = imProc.header.headers2table(Obj, 'OutType','table', 'ColNameDic',Args.ColNameDic);        
     T  = tools.table.table_cell2string(T);
     Nt = size(T,1);
 
@@ -161,7 +161,9 @@ function [T,Error,FileName] = insertImages(Obj, Args)
         T.(Args.ColNameID) = ID;
     end
 
-
+    % clean bad lines were RA or Dec = NaN:
+    Ind = find(isnan(T.RA) | isnan(T.DEC));
+    T(Ind,:) = [];
 
     % add healpix ID
     if ~isempty(Args.HealpixType)
