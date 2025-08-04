@@ -56,7 +56,12 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         AI = populateWCS(AI); % TBC: do we really need it in all the cases?         
         PSF = AstroPSF; PSF.DimName{1} = 'Polygon'; PSF.DimVals{1} = 1:numel(AI);
         for i=1:numel(AI)
-            PSF.DataPSF(:,:,i)=AI(i).PSF;
+            if i>1 && size(AI(i).PSF,1) == Spsf + 2                 
+                PSF.DataPSF(:,:,i)= AI(i).PSF(2:Spsf-1,2:Spsf-1); % should be improved!
+            else
+                PSF.DataPSF(:,:,i)=AI(i).PSF;
+                Spsf = size(AI(i).PSF,1);
+            end
         end        
     else
         cd(Args.DataDir)        
