@@ -107,13 +107,16 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     for Img = 1:1:NImage
         
         % read the exposures and photometric zero points:        
-        Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
-        Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
-        
-        Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
-        if max(Position,[],'all') > 0
-            PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
-        end        
+%         Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
+%         Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
+%         
+%         Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
+%         if max(Position,[],'all') > 0
+%             PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
+%         end      
+%         
+        Exptime(Img) = AI(Img).getStructKey('EXPTIME').EXPTIME;
+        PH_ZP(Img)   = AI(Img).getStructKey('PH_ZP').PH_ZP;
         % determine the image sizes and find their corners:
                 
         Xsize(Img) = size(AI(Img).Image,1);

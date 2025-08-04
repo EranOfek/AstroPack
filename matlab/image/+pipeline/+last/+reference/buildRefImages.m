@@ -70,7 +70,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     for i = 1:Nepoch
                         T2  = T1(Grp == i, :);
                         Nim = height(T2);
-                        fprintf('epoch %d: %d images retrieved\n',i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,i,Nim);
                         % 2. qualify the overlapping proc images
                         
                         % 3. select exposures by specific obs. time, time span, etc.
@@ -78,8 +78,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % check the coverage
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
-                        fprintf('epoch %d: %d images filtered\n',i,Nim);
-                        Nim = height(T2);
+                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,i,Nim);
+                        Nim = height(T2);                       
                         AI  = repmat(AstroImage,Nim,1);
                         Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
                         YY  = compose('%04d',T2.diryear(1)); MM = compose('%02d',T2.dirmon(1)); DD = compose('%02d',T2.dirday(1));
@@ -91,11 +91,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                              AI(Icrop)= AstroImage.readProducts(FN); % no data on Back or Var is saved @ euclid!  
                         end
                         
+                        % check WCS
+                        if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                            fprintf('WCS not correct in one or several crops, skipping the epoch..\n');
+                            continue
+                        end
                         % merge
                         
                         % var1
                         [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
-                        
+                        clear AI;
+                         
                         % var2
 %                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
 %                         'BoundsStyle','SameAsInput' does not work
