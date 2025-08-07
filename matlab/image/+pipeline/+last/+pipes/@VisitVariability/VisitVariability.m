@@ -251,22 +251,23 @@ classdef VisitVariability < Component
             if isempty(Args.T)
                 if isempty(Args.DB)
                     Args.DB = db.Db;
-                    Args.DB.User = 'socsrv/root';
+                    Args.DB.User = 'euclid/root';
                     Args.DB.User
                     Args.DB.connect;
                     Args.DB.useDB('last');
                 end
 
-                T = Args.DB.query("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec, min(ingestion_time) as ingestion_time FROM visit_images GROUP BY jd_start, mountnum, camnum, subdir");
+                T = Args.DB.query(sprintf("SELECT jd_start, mountnum, camnum, subdir, any(ccdid) AS ccdid, any(fieldid) AS fieldid, any(filter) AS filter, any(nodenumb) AS nodenumb, any(id_visit) AS id_visit, any(cropid) AS cropid, any(ra) AS ra, any(dec) as dec, min(ingestion_time) as ingestion_time FROM visit_images WHERE %s>=%16.6f AND %s<%16.6f GROUP BY jd_start, mountnum, camnum, subdir",...
+                                    'ingestion_time_jd',Args.IngestionTime(1), 'ingestion_time_jd',Args.IngestionTime(2))); 
 
                 if ~isempty(Args.Mount)
                     Flag = T.mountnum==Args.Mount;
                     T    = T(Flag,:);
                 end
 
-                JD_ingest = convert.time(T.ingestion_time, 'StrDate', 'JD');
-                Flag      = JD_ingest>=Args.IngestionTime(1) & JD_ingest<Args.IngestionTime(2);
-                T         = T(Flag,:);
+                %%JD_ingest = convert.time(T.ingestion_time_jd, 'StrDate', 'JD');
+                %Flag      = T.ingestion_time_jd>=Args.IngestionTime(1) & T.ingestion_time_jd<Args.IngestionTime(2);
+                %T         = T(Flag,:);
 
             else
                 T = T(Args.Ind,:);
@@ -323,6 +324,62 @@ classdef VisitVariability < Component
             
         end
         
+        function demon(Obj, Args)
+            %
+            % Example: VV=pipeline.last.pipes.VisitVariability;
+            %          VV.demon;
+
+            arguments
+                Obj
+                
+                Args.MaxLoop    = 1;
+                Args.StateKey   = 'IngestionTime';
+                Args.StateVal   = "2460810";
+                Args.SubDir     = 'local';
+                Args.ConfigFile = 'VisitVariability.State.yml';
+            end
+
+            ConfigStructName = strrep(Args.ConfigFile, '.yml', '');
+          
+            %if ~isfile(Args.ConfigFile)
+            %    % config file doesn't exist - create it
+            %    Configuration.rewriteSimple(Args.StateKey, Args.StateVal, ConfigStructName, 'SubDir',Args.SubDir);
+            %end
+
+            % read config file
+            Con = Configuration.reloadSysConfig();
+
+            [Data,KeyVal] = Configuration.argsFromConfig(Con, ConfigStructName);
+            LastIngestionTime = KeyVal{1,2};
+            
+            Cont = true;
+            Counter = 0;
+            while Cont
+                Counter = Counter + 1;
+                % query DB
+                QueryJD = celestial.time.julday();
+                if (QueryJD-LastIngestionTime)>3
+                    QueryJD = LastIngestionTime + 1;
+                end
+
+                QueryJD = floor(QueryJD.*10)./10;
+                if QueryJD>LastIngestionTime
+                    tic;
+                    Obj.analayzeAllData('DB',Obj.DB,'Mount',[],'IngestionTime',[LastIngestionTime QueryJD]);
+                    toc
+                    StateVal = sprintf("%10.1f",QueryJD);
+                    Configuration.rewriteSimple(Args.StateKey, StateVal, Args.ConfigFile, 'SubDir',Args.SubDir);
+                    LastIngestionTime = QueryJD;
+                end
+                fprintf('LastIngestionTime: %10.1f\n',LastIngestionTime)
+
+                if (Counter-1)>Args.MaxLoop
+                    Cont = false;
+                end
+
+            end
+
+        end
     end
 
     methods (Static)% select interesting candidates

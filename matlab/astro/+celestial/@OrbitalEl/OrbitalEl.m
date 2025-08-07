@@ -2037,6 +2037,11 @@ classdef OrbitalEl < Base
             % Example: OrbEl.desig2number('1998 ST50')
             %          OrbEl.desig2number({'1998 ST50','Ceres'})
 
+            arguments
+                Obj(1,1)
+                Desig
+            end
+
             if ischar(Desig)
                 Desig = {Desig};
             end

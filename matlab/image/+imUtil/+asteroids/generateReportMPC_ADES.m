@@ -3,10 +3,15 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     % Input  : - Table
     %          - File name in which to write report.
     %          * ...,key,val,... 
+    %            'ColPermID' - Column name of perment ID.
+    %                   The column itself can contain numeric or string.
+    %                   If NaN or empty string then will not add PermID
+    %                   keuword. Default is 'Number'.
     %            See code for options.
     % Output : - A structure with:
     %            .docNode - XML doc node.
     %          - A flag indicating if the report was sent.
+    % Bug fix: 2025-Jul-14 logSNR twice 
     % Documentation: https://minorplanetcenter.net/mpcops/documentation/valid-ades-values/#astCat
     %           https://minorplanetcenter.net/iau/info/ADES.html
     %           https://github.com/IAU-ADES/ADES-Master/blob/master/ades_master.pdf
@@ -25,7 +30,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         Args.TelescopeDesign         = "Rowe-Ackerman Schmidt";
         Args.TelescopeAper           = "0.28";
         Args.Detector                = "CCD";
-        Args.Comment                 = ["LAST Node 01, Telescope 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
+        Args.Comment                 = ["LAST Node 01, Mount 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
         
         Args.ColPermID               = 'Number';
         Args.ColProvID               = 'Designation';
@@ -136,12 +141,22 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
     
         % Add optical observation details
         if tools.table.isColumn(Table, Args.ColPermID)
-            if isnumeric(Table.(Args.ColPermID)(Iobs))
-                PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
+            if ~isnumeric(Table.(Args.ColPermID)(Iobs))
+                if isempty(Table.(Args.ColPermID)(Iobs))y
+                    PermID = NaN;
+                else
+                    PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
+                end
             else
-                PermID = Table.(Args.ColPermID){Iobs};
+                if isnan(Table.(Args.ColPermID)(Iobs))
+                    PermID = NaN;
+                else
+                    PermID = sprintf('%d',Table.(Args.ColPermID)(Iobs));
+                end
             end
-            addTextElement(docNode, optical, 'permID', PermID);
+            if ~isnan(PermID)
+                addTextElement(docNode, optical, 'permID', PermID);
+            end
         end
         if tools.table.isColumn(Table, Args.ColProvID)
             if ~isempty(Table.(Args.ColProvID)(Iobs))
@@ -151,7 +166,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         
         if tools.table.isColumn(Table, Args.ColTrkSub)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
-                TrkSub = sprintf('%s%d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
+                TrkSub = sprintf('%s%06d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
             else
                 TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
@@ -220,12 +235,12 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
             addTextElement(docNode, optical, 'logSNR', sprintf('%4.2f',log10(Table.(Args.ColSN)(Iobs))));
         end
         if tools.table.isColumn(Table, Args.ColSeeing)
-            addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',log10(Table.(Args.ColSeeing)(Iobs))));
+            addTextElement(docNode, optical, 'seeing', sprintf('%3.1f',(Table.(Args.ColSeeing)(Iobs))));
         end
         
-        if tools.table.isColumn(Table, Args.ColSeeing)
-            addTextElement(docNode, optical, 'logSNR', log10(Table.(Args.ColSN)(Iobs)));
-        end
+        %if tools.table.isColumn(Table, Args.ColSeeing)
+        %    addTextElement(docNode, optical, 'logSNR', log10(Table.(Args.ColSN)(Iobs)));
+        %end
         
         if ~isempty(Args.ColExpTime)
             if isnumeric(Args.ColExpTime)

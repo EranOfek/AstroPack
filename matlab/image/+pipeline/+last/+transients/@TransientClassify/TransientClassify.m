@@ -12,7 +12,9 @@ classdef TransientClassify < Component
         
         DbName       = 'last';
 
-        TableLevel1  = [];
+        TableDiffCand        = 'diff_src';
+        TableDiffUnique      = 'diff_src_unique';
+        TableDiffSolarSystem = 'diff_src_ss';
         TableLevel2  = [];
 
         CutoutPath   = '/lastdata/forcedphotsub'
@@ -20,8 +22,17 @@ classdef TransientClassify < Component
 
     end
     
+    properties (Hidden)
+        CurrentJD = 2460837; %0;
+    end
+
     properties (Constant, Hidden)
-        User         = 'euclid/root';
+        User         = 'last0/root';
+        Host         = "10.23.1.25";
+
+        ColIngestionTime = 'ingestion_time_jd';
+        ColStarN         = 'star_n';
+        ColNneigh        = 'n_neigh';
     end
 
     methods % Constructor
@@ -36,6 +47,7 @@ classdef TransientClassify < Component
             if isempty(DB)
                 Obj.DB = db.Db;
                 Obj.DB.User = Obj.User;
+                Obj.DB.Host = Obj.Host;
                 Obj.DB.connect;
                 Obj.DB.useDB(Obj.DbName);
             else
@@ -48,6 +60,147 @@ classdef TransientClassify < Component
     
     methods % setter/getters
        
+    end
+
+    methods % utilities
+        function NewCandTable=loadNewCand(Obj, Args)
+            % Load table of new candidates ingested after CurrentJD
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - Table of new transient candidates with selection
+            %            criteria.
+            % Author : Eran Ofek (Jul 2025)
+            % Exampple: Obj=pipeline.last.transients.TransientClassify;
+            %           NewCandTable=Obj.loadNewCand;
+
+            arguments
+                Obj
+                Args.LastIngestionTime = []; % if empty use Obj.CurrentJD
+                Args.SelectColumns = '*';
+                Args.MaxStarN      = 0;
+                Args.MaxNneigh     = 0;
+            end
+
+            if isempty(Args.LastIngestionTime)
+                LastIngestionTime = Obj.CurrentJD;
+            else
+                LastIngestionTime = Args.LastIngestionTime;
+            end
+
+            QueryStr = sprintf('SELECT %s FROM %s WHERE %s>%16.7f AND %s<=%d AND %s<=%d',...
+                               Args.SelectColumns, Obj.TableDiffCand, ...
+                               Obj.ColIngestionTime, LastIngestionTime, ...
+                               Obj.ColStarN, Args.MaxStarN, ...
+                               Obj.ColNneigh, Args.MaxNneigh);
+            NewCandTable = Obj.DB.query(QueryStr);
+            
+        end
+
+        function Result=searchUniuqeByCoo(Obj, RA, Dec, SearchRadius, Args)
+            %
+
+            arguments
+                Obj
+                RA
+                Dec
+                SearchRadius
+                Args
+            end
+
+
+
+        end
+
+
+        function updateUniqueTarget()
+            %
+
+            % check if target exist in unique targets DB
+
+            % If exist: (1) add ID of unique to target entry; (2) update stat in unique table
+
+            % If doesn't exist: do nothing
+
+            % including saturated
+            
+
+        end
+
+        function searchSolarSystem
+            % Search Solar System objects
+
+            % look for targets with no unique IDs which are more than 10 hr
+            % old, and up to 5 days old
+
+            % for each target search for additional same night detections
+            % and nearby
+
+            % Fit RANSAC
+
+            % If object found:
+            % check if possible comet
+            % add to SolarSystem table
+            % update ID of unique solar system object in table
+
+            
+        end
+
+        function searchSlowSolarSystem
+            % 
+
+            % look for unique objects that were found only in one night
+            % try to merge them with RANSAC over up to 10 nights
+
+        end
+
+
+
+        function searchStellarEvents
+
+            % if saturated 
+            % check for planets
+            % require pre detection mag >15
+
+            % else
+            % require high SN and >=2 detections
+            % query LC and look for rise
+            
+
+        end
+
+        function searchSingleDetectionEvents
+
+            % flare stars
+
+            % flare from SNe
+            % knwon SN at position
+            
+            % very early detection of SN
+
+
+
+        end
+
+        function searchTargetsToPublish
+            %
+
+            % search for unique objects with:
+            % 2 detections in less than 2 days
+            % 3 detections in less than 4 days
+            % 4 detections in less than 6 days
+
+            % saturated transients that increased mag by >3 mag
+
+            % Search in non-uniuqe
+            % objects that are less than 1 day old
+            % near galaxy
+            % SN>10
+
+
+        end
+
+
     end
       
     methods
@@ -131,7 +284,7 @@ classdef TransientClassify < Component
 
 
 
-
+                end
 
 
 

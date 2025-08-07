@@ -53,7 +53,7 @@ classdef AstroPSF < Component
         FunPSF            = {};    % a list of PSF-generating functions (additive components)
         FunPars           = {};    % PSF functions parameters
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
-                            % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
+                            % NB: if the names here are changed, the dimension names and user provides to getPSF need to be changed accordingly 
         DimVals cell      = repmat({0}, 1, 5); % ADD x/y values with oversampling...  axes according to DimName
         InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions        
         StampSize         = [];     % PSF stamp size in X and Y (do we need it as a property?)

@@ -106,6 +106,7 @@ classdef ForcedPhotServer < Component
             % Input  : - self.
             % Output : null
             % Author : Eran Ofek (Jul 2025)
+            % Example: FFS.createRequestsTable
 
 
             % search for new request
@@ -133,6 +134,69 @@ classdef ForcedPhotServer < Component
 
         end
         
+        function Par=addRequest(Obj, RA, Dec, Args)
+            % Add forced photometry request to requests table
+            % Input  : - J2000.0 RA [deg]
+            %          - J2000.0 Dec [deg]
+            %          * ...,key,val,...
+            %            See code for options (columns in the table)
+            % Output : - A structure with populated arguments (e.g., request_id)
+            % Author : Eran Ofek (Jul 2025)
+            % Example: FFS.addRequest(1,1)
+
+            arguments
+                Obj
+                RA
+                Dec
+                Args.request_id  = [];
+                Args.user_id     = 1;
+                Args.jd_start    = [];
+                Args.jd_end      = [];
+                Args.fieldid     = [];
+                Args.nodenumb    = [];
+                Args.mountnum    = [];
+                Args.camnum      = [];
+                Args.cropid      = [];
+                Args.loadnew     = 1;
+                Args.n_epoch_max = 100;
+            end
+
+            if ~isempty(Args.fieldid)
+                Args.fielid = string(Args.fieldid);
+            end
+
+
+            if isempty(Args.request_id)
+                % generate request id
+                JD = celestial.time.julday();
+                JD0 = celestial.time.julday([1 1 2020]);
+
+                Args.request_id = uint32(floor((JD - JD0).*86400.*1000));
+            end
+
+            Par = Args;
+            Par.ra   = RA;
+            Par.dec  = Dec;
+            ArgNames = fieldnames(Par);
+            Narg     = numel(ArgNames);
+
+            K = 0;
+            for Iarg=1:1:Narg
+                if ~isempty(Par.(ArgNames{Iarg}))
+                    K  = K + 1;
+                    Val{K} = Par.(ArgNames{Iarg});
+                    Key{K} = ArgNames{Iarg};
+                end
+            end
+            Treq = table(Val{:}, 'VariableNames',Key);
+
+            Obj.DB.insertCharDump(Obj.TableRequest, Treq);
+            
+            % Obj.DB.insertCharDump('forcedphot_requests',table(11, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'}))
+            % Obj.DB.insertCharDump('forcedphot_requests',table(12, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, "1578", 1, 1, 2, 14, 1, 100, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'}))
+            
+
+        end
     end
 
     methods (Static) % demon
@@ -150,6 +214,7 @@ classdef ForcedPhotServer < Component
             arguments
                 Args.DB                = [];
                 Args.PauseTime         = 1;
+                Args.SummaryPrintout   = 3600;
 
                 Args.UseExistingRef    = false;
                 Args.ReSub             = false;
@@ -158,20 +223,25 @@ classdef ForcedPhotServer < Component
 
                 Args.insertHealPixArgs = {'ColRA','request_ra','ColDec','request_dec'};
             end
-            STATUS_WAITING = 0;
-            STATUS_READY   = 1;
-            STATUS_FAILED  = -1;
+            STATUS_WAITING  = 0;
+            STATUS_READY    = 1;
+            STATUS_FAILED   = 10;
+            STATUS_NOOBS    = 2;
             HostName       = tools.os.get_computer;
 
             Obj = pipeline.last.pipes.ForcedPhotServer(Args.DB);
 
             LoopInd = 0;
             RequestCounter = 0;
+            TotNphot   = 0;
+            TotNreq    = 0;
             while true
                 pause(Args.PauseTime);
                 LoopInd = LoopInd + 1;
-                if mod(LoopInd,100)==0
+                if mod(floor(LoopInd.*Args.PauseTime), floor(Args.SummaryPrintout))==0
                     [LoopInd, RequestCounter]
+                    Msg = sprintf('Summary - Total requests: %d, phot points: %d',TotNreq, TotNphot);                    
+                    Obj.writeLogMessage(Msg, 'Info', HostName);
                 end
 
                 % search for new request
@@ -189,13 +259,21 @@ classdef ForcedPhotServer < Component
                 %       Obj.DB.createTable('forcedphot_requests',VarNames, VarUnits, VarDefaults, 'Index', {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1'},'OrderBy','insertion_time','Engine','ReplacingMergeTree()');
                 %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
-                % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1, 300, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew','n_epoch_max'}))
                 % Obj.DB.insertCharDump('forcedphot_requests',table(3,0,260.5709627, 58.8638455, 2450000,2470000,"1632",1,3,1,10, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(4,0,260.57096, 58.86383, 2450000,2470000,"1632",1,3,1,10, 1, 1000,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025qfh
+                % Obj.DB.insertCharDump('forcedphot_requests',table(5,0,261.31232, 60.56540, 2450000,2470000,"1679",1,2,2,8, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025oiw
+                % Obj.DB.insertCharDump('forcedphot_requests',table(6,0,262.72824, 66.68995, 2450000,2470000,"1718",1,1,3,14, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025mkd
+                %
+                % Obj.DB.insertCharDump('forcedphot_requests',table(11, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'}))
+                % Obj.DB.insertCharDump('forcedphot_requests',table(12, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, "1578", 1, 1, 2, 14, 1, 100, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'}))
                 % 
                 % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
                 % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess
 
-                Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d", Obj.TableRequest, STATUS_WAITING));
+                % Tall = Obj.DB.query(sprintf("SELECT * FROM %s", Obj.TableRequest));
+                Treq = Obj.DB.query(sprintf("SELECT * FROM %s WHERE status=%d AND request_id<1e15", Obj.TableRequest, STATUS_WAITING));
+
                 if ~isempty(Treq)
                     
                     
@@ -295,24 +373,33 @@ classdef ForcedPhotServer < Component
                                     %       Obj.DB.createTable('forcedphotsub_output',ForcedPhot.Catalog, [], [], 'Index', Index,'OrderBy','request_id');
                                     %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphotsub_output', 'IsExec',true)
                                   
+                                    % Tout=Obj.DB.query('SELECT * FROM forcedphotsub_output')
+
                                     ErrorInsert = Obj.DB.insertCharDump(Obj.TableOutput, ForcedPhot.Catalog);
                                 else
                                     ErrorInsert = [];
                                 end
-        
+                                
                                 
         
                                 % update status
                                 % NOTE: TableRequest must be of type: ReplacingMergeTree
                                 % otherwise updates are not possible.
                                 if isempty(ErrorInsert)
-                                    Treq.status(Ireq) = STATUS_READY;  % ready
-                                    Treq.nphot(Ireq)  = Nphot;
-                                    % DEBUG: TT=Obj.DB.query('SELECT * FROM forcedphot_requests')
-                                    Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
-                                    %ALTER TABLE my_table
-                                    %UPDATE column1 = 'new_value'
-                                    %WHERE id = 123;
+                                    if Nphot==0
+                                        Treq.status(Ireq) = STATUS_NOOBS;  % ready
+                                        Treq.nphot(Ireq)  = Nphot;
+                                        % DEBUG: TT=Obj.DB.query('SELECT * FROM forcedphot_requests')
+                                        Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = %d, %s = %d WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_NOOBS, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                        %ALTER TABLE my_table
+                                        %UPDATE column1 = 'new_value'
+                                        %WHERE id = 123;
+                                    else
+                                        Treq.status(Ireq) = STATUS_READY;  % ready
+                                        Treq.nphot(Ireq)  = Nphot;
+                                        % DEBUG: TT=Obj.DB.query('SELECT * FROM forcedphot_requests')
+                                        Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = %d, %s = %d WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_READY, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                    end
 
                                     Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
                                 else
@@ -325,12 +412,22 @@ classdef ForcedPhotServer < Component
                                 end
                             else
                                 Nphot = 0;
+
+                                % write to log - change status to 2
+                                Obj.DB.query(sprintf("ALTER TABLE %s UPDATE %s = '%d', %s = '%d' WHERE request_id = %d AND user_id = %d", Obj.TableRequest, 'status', STATUS_NOOBS, 'nphot', Nphot, ID, UserID), 'IsExec',true);
+                                %Obj.DB.query(sprintf("ALTER TABLE %s DELETE WHERE id = %d", Obj.TableRequest, ID), 'IsExec',true);
+                                Treq.status(Ireq) = STATUS_NOOBS;  % not found
+                                Treq.nphot(Ireq)  = 0;
+                                %Obj.DB.insertCharDump(Obj.TableRequest, Treq(Ireq,:));
+
                             end % if Nobs>0
+                            TotNphot = TotNphot + Nphot;
                         end % if ReDo
                         RunTime = datetime('now') - Tstart;
                         Msg = sprintf('Finished - Run time: %6.2f [s] for %d data points', seconds(RunTime), Nphot);                    
                         Obj.writeLogMessage(Msg, 'Info', HostName);
                         
+                        TotNreq = TotNreq + Nreq;
                     end % for Ireq=1:1:Nreq
                    
                 end % if ~isempty(Treq)

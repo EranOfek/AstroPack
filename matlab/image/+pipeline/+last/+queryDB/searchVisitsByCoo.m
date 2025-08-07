@@ -68,7 +68,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
         
         Args.TableName         = "last.visit_images";
 
-        Args.SelectFields      = ["ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "jd_start", "midjd", "filter", "fieldid", "counter",...
+        Args.SelectFields      = ["id_visit", "ra", "dec", "m_ra", "m_dec", "airmass", "exptime", "jd_start", "midjd", "filter", "fieldid", "counter",...
                                   "nodenumb", "mountnum", "camnum", "ccdid", "cropid", "subdir", "server",...
                                   "cloud", "transper_z", "fwhm_dimm_z", "ast_nsrc", "ast_arms", "ast_errm",...
                                   "meanbck", "medbck", "stdbck", "meanvar", "medvar", "fwhm", "med_a", "med_b", "med_th", "nsrc",...
@@ -141,6 +141,8 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
     
                     %tic;
                     [WhereClause,HP] = db.search.queryConeSearch_Healpix(RA(Icoo), Dec(Icoo), Args.InitSearchRadius,'NSide',Args.NSide_Low, 'HP_ColName','upix_low');
+                    AddWhere    = db.Db.genWhereClause(Args.Constraints,'AddWhere',false);
+                    WhereClause = sprintf('%s AND %s', WhereClause, AddWhere);
                     QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, WhereClause);
                     %toc
             

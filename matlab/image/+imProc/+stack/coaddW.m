@@ -157,13 +157,11 @@ function [Result] = coaddW(Obj, Args)
 
         case 'sigmaclip'
             [Coadd, CoaddVar, ~, CoaddN] = imUtil.image.mean_sigclip(ImageCube, IndexDim, Args.StackArgs{:});
-            % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
-            % 5],'MaxIter',3}
+            % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5 5],'MaxIter',3}
 
         case 'wsigmaclip'
-            [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(ImageCube,Args.VarCube, IndexDim, Args.StackArgs{:});
-             % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
-             % 5],'MaxIter',3}
+            [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(ImageCube,VarCube, IndexDim, Args.StackArgs{:});
+             % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5 5],'MaxIter',3}
 
             InvVarCube    = Args.FluxMatch./VarCube;
             SumInvVarCube = sum(InvVarCube, IndexDim, 'omitnan');

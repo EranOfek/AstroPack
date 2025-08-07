@@ -280,7 +280,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
     % Don't question this madness.
 
-    if ~isempty(Args.ConfigFile)
+    if ~isempty(Args.ConfigFile) && exist(Args.ConfigFile,'file')
         fid = fopen(Args.ConfigFile);
         raw = fread(fid, inf);
         str = char(raw');

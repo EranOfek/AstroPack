@@ -35,6 +35,8 @@
 %          mp: 1.6726e-27
 %         mu0: 1.2566e-06
 %          NA: 6.0221e+23
+%          P0: 101325 (SI)
+%   Loschmidt: 2.68678011e+19
 %          pc: 3.0857e+16
 %           R: 8.3146
 %         RAD: 57.296
@@ -45,6 +47,7 @@
 %        SunL: 3.839e+26
 %        SunM: 1.9889e+30
 %        SunR: 696342000
+%         FNu: 3.631e-23
 %
 %--------------------------------------------------------------------------
 %
@@ -670,13 +673,12 @@ classdef constant
             Error = 4.5e-10;
             Form  = '';
               
-        end % constant.NA function
+        end % constant.NA function        
         
-        function [Const,Units,Error,Form]=kB(System)
-            % The Boltzman constant
+         function [Const,Units,Error,Form]=P0(System)
+            % The standard atmosphere
             % Package: @constant
-            % Description: Return the value of the KB
-            %              Boltzmann constant.
+            % Description: Return the value of P0
             % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
             % Output : - The value of the constant
             %          - Units
@@ -694,17 +696,49 @@ classdef constant
             end
             if (System)
                 % cgs
-                Const = 1.380648813e-16;
-                Units = 'cm^2 * gr * s^-2 * K^-1';
+                Const = 1013250;
+                Units = 'dyn cm^-2';
             else
                 % SI
-                Const = 1.380648813e-23;
-                Units = 'm^2 * kg * s^-2 * K^-1';
+                Const = 101325;
+                Units = 'Pa';
             end
-            Error = 9.4e-9;
-            Form  = 'R/NA';
+            Error = NaN;
+            Form  = '';
               
-        end % constant.kB function
+        end % constant.P0 function         
+        
+        function [Const,Units,Error,Form]=Loschmidt(System)
+            % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa  
+            % Package: @constant
+            % Description: Return the value of the Loschmidt constant
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative Error
+            %          - Formula            
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 2.68678011e19;
+                Units = 'cm^-3';
+            else
+                % SI
+                Const = 2.68678011e25;
+                Units = 'm^-3';
+            end
+            Error = NaN;
+            Form  = 'p0/(kB*T0)';
+              
+        end % constant.Loschmidt function
         
         function [Const,Units,Error,Form]=R(System)
             % The Molar gas constant
@@ -1583,6 +1617,56 @@ classdef constant
             
             Const = 81.30056;
             Units = '';
+            if (nargout>2)
+                Error = 0;
+                Form  = '';
+            end
+        end
+        
+        function [Const,Units,Error,Form]=Fnu(System)
+            % Return the value of the AB system zero point
+            % Package: @constant
+            % Description: Return the value of the AB system zero point
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative error
+            %          - Formula
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 3.631e-20;
+                Units = 'erg*s^{-1}*cm^(-2)*Hz^(-1)';
+            else
+                % SI
+                Const = 3.631e-23;
+                Units = 'W*m^(-2)*Hz^(-1)';
+            end
+            if (nargout>2)
+                Error = 0;
+                Form  = '';
+            end
+        end
+        
+        function [Const,Units,Error,Form]=FnuJy(System)
+            % Return the value of the AB system zero point in Jy
+            % Package: @constant
+            % Description: Return the value of the AB system zero point in Jy
+            % Input  : - System (not required)
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative error
+            %          - Formula                  
+            Const = 3631;
+            Units = 'Jy';        
             if (nargout>2)
                 Error = 0;
                 Form  = '';

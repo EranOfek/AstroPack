@@ -2,7 +2,6 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     % Search for DB images intersecing with or containing the given sky polygon
     %     Designed mostly for use with 'reference_images' tables 
     % Input  : - polygon: Nx2 array of [RA, Dec] in degrees 
-    %          - 
     %          * ...,key,val,... 
     %         'DB' - input DB object (otherwise a default connection will be attempted)
     %         'DBName' - name of the DB

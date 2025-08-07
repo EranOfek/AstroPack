@@ -79,7 +79,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         DT = celestial.time.jd2date(JD0,'H','YMD');
         DateString = strcat(num2str(DT(1)),'-',sprintf('%02.0f',DT(2)), ...
             '-',sprintf('%02.0f',DT(3)),{' '},sprintf('%02.0f',DT(4)), ...
-            ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',DT(6)),' UTC');
+            ':',sprintf('%02.0f',DT(5)),':',sprintf('%02.0f',fix(DT(6))),' UTC');
 
         RA0 = TC.Table.RA;
         Dec0 = TC.Table.Dec;
@@ -194,7 +194,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         LastUL_DT = celestial.time.jd2date(LastUL_JD,'H','YMD');
         LastUL_DateString = strcat(num2str(LastUL_DT(1)),'-',sprintf('%02.0f',LastUL_DT(2)), ...
             '-',sprintf('%02.0f',LastUL_DT(3)),{' '},sprintf('%02.0f',LastUL_DT(4)), ...
-            ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',LastUL_DT(6)),' UTC');
+            ':',sprintf('%02.0f',LastUL_DT(5)),':',sprintf('%02.0f',fix(LastUL_DT(6))),' UTC');
         LastUL_Msg = strcat('Last non-detection from observations was on',{' '}, ...
             LastUL_DateString{1},{' '},'(T0-T=',num2str(T0mT),{' '},'d) with limiting mag of', ...
             {' '},sprintf('%.2f',LastUL_Mag),'.');
@@ -203,7 +203,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Ref_DT = celestial.time.jd2date(Ref_JD,'H','YMD');
         Ref_DateString = strcat(num2str(Ref_DT(1)),'-',sprintf('%02.0f',Ref_DT(2)), ...
             '-',sprintf('%02.0f',Ref_DT(3)),{' '},sprintf('%02.0f',Ref_DT(4)), ...
-            ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',Ref_DT(6)),' UTC');
+            ':',sprintf('%02.0f',Ref_DT(5)),':',sprintf('%02.0f',fix(Ref_DT(6))),' UTC');
         RefUL_Msg = strcat('Reference was on',{' '}, ...
             Ref_DateString{1},{' '},'(T0-T=',num2str(T0mTRef),{' '},'d) with limiting mag of', ...
             {' '},sprintf('%.2f',Ref_LimMag),'.');
@@ -510,8 +510,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
             if Args.TransferTranProducts
                 % TODO: replace this with a last-tool script call later
     
-                CutoutsRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/cutouts';
-                JsonRemote = 'last@marvin:/BIGDATA/last/data/temp/transients/json';
+                CutoutsRemote = 'euclid@euclid:/home/euclid/lastdata/transients/cutouts';
+                JsonRemote = 'euclid@euclid:/home/euclid/lastdata/transients/json';
     
                 MoveRefCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameRef,{' '},CutoutsRemote);
                 MoveNewCutoutCMD = strcat('rsync -a ',{' '},Image_DirFilenameNew,{' '},CutoutsRemote);

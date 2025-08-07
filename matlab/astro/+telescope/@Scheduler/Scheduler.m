@@ -1794,16 +1794,16 @@ classdef Scheduler < Component
                     [HA1] = Obj.halst(JD1);
                     
                     Flag = abs(HA)<ColVal & abs(HA1)<ColVal;
-                case 'MaxCounter'
-                    %ColVal = FunColVal(ColName);
-
-                    %GlobalCounter = Obj.List.getCol('GlobalCounter');
-                    GlobalCounter = Obj.List.Catalog.GlobalCounter;
-
-                    if isnan(GlobalCounter)
-                        error('GlobalCounter is missing');
-                    end
-                    Flag = ColVal>GlobalCounter;
+                % case 'MaxCounter'
+                %     %ColVal = FunColVal(ColName);
+                % 
+                %     %GlobalCounter = Obj.List.getCol('GlobalCounter');
+                %     GlobalCounter = Obj.List.Catalog.GlobalCounter;
+                % 
+                %     if isnan(GlobalCounter)
+                %         error('GlobalCounter is missing');
+                %     end
+                %     Flag = ColVal>GlobalCounter;
                 case 'MinMoonDist'
                     %ColVal = FunColVal(ColName);
 
@@ -2325,6 +2325,10 @@ classdef Scheduler < Component
             %W(FlagNC) = Obj.List.Catalog.BasePriority(FlagNC);
             % Fixed by setting the priority to a low number
             W(FlagNC) = Args.PriorityAfterMaxN;
+
+            % treat MaxCounter
+            FlagGC = Obj.List.Catalog.GlobalCounter>=Obj.List.Catalog.MaxCounter;
+            W(FlagGC) = Args.PriorityAfterMaxN;
                         
             % Add extra priority to targets in HA range
             % only if this is the first observation during the night

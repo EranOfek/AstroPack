@@ -162,7 +162,9 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
             Tmp.('NODENUMB') = repmat(Args.Header(Iobj).getVal('NODENUMB'), Nrow,1);
             Tmp.('MOUNTNUM') = repmat(Args.Header(Iobj).getVal('MOUNTNUM'), Nrow,1);
             Tmp.('CAMNUM')   = repmat(Args.Header(Iobj).getVal('CAMNUM'),   Nrow,1);
-            Tmp.('INGESTION_TIME_JD') = repmat(Args.Header(Iobj).getVal('INGESTION_TIME_JD'), Nrow,1);
+            if ~ismember('ingestion_time_jd', lower(Tmp.Properties.VariableNames)) 
+                Tmp.('INGESTION_TIME_JD') = repmat(Args.Header(Iobj).getVal('INGESTION_TIME_JD'), Nrow,1);
+            end
             
             if Args.InsertID
                 % get Image ID from header

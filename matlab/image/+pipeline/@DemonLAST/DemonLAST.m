@@ -3253,8 +3253,10 @@ classdef DemonLAST < Component
                             if Args.Backup
                                 BackupPath = FN_Coadd.genPath('Level','proc');
                                 BackupPath = strrep(BackupPath,'//','/');
-                                BackupStr = sprintf('last-backup --source %s &', BackupPath);
+                                BackupStr = sprintf("last-backup --exclude '*/raw' --exclude '*_sci_proc_Image_*' --exclude '*_sci_proc_Mask_*' --exclude '*_sci_proc_PSF_* --source %s &", BackupPath);
                                 system(BackupStr);
+                                Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                                Obj.writeLog(Msg, LogLevel.Info);
                             end
                             
                             RunTime = etime(clock, Tstart); % toc;
