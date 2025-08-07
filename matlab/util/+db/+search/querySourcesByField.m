@@ -60,4 +60,10 @@ function [Result] = querySourcesByField(Fields, Args)
     Result = sprintf("SELECT s.* FROM %s AS s INNER JOIN %s AS i " +...
         "ON s.%s = i.%s where %s",Args.SourceTable,Args.ImageTable,...
         Args.ImageIDSrcTab,Args.ImageID,W);
+    
+    % alternative version:
+    % 1. find upix_low corresponding to the field from the image table
+    % 2. convert to upix_high
+    % 3. search the source table by upix_high
+    % 4. give it as the second result of the function 
 end
