@@ -152,7 +152,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         
         if tools.table.isColumn(Table, Args.ColTrkSub)
             if isnumeric(Table.(Args.ColTrkSub)(Iobs))
-                TrkSub = sprintf('%s%d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
+                TrkSub = sprintf('%s%05d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
             else
                 TrkSub = Table.(Args.ColTrkSub){Iobs};
             end
