@@ -47,6 +47,7 @@
 %        SunL: 3.839e+26
 %        SunM: 1.9889e+30
 %        SunR: 696342000
+%         FNu: 3.631e-23
 %
 %--------------------------------------------------------------------------
 %
@@ -1616,6 +1617,56 @@ classdef constant
             
             Const = 81.30056;
             Units = '';
+            if (nargout>2)
+                Error = 0;
+                Form  = '';
+            end
+        end
+        
+        function [Const,Units,Error,Form]=Fnu(System)
+            % Return the value of the AB system zero point
+            % Package: @constant
+            % Description: Return the value of the AB system zero point
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative error
+            %          - Formula
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 3.631e-20;
+                Units = 'erg*s^{-1}*cm^(-2)*Hz^(-1)';
+            else
+                % SI
+                Const = 3.631e-23;
+                Units = 'W*m^(-2)*Hz^(-1)';
+            end
+            if (nargout>2)
+                Error = 0;
+                Form  = '';
+            end
+        end
+        
+        function [Const,Units,Error,Form]=FnuJy(System)
+            % Return the value of the AB system zero point in Jy
+            % Package: @constant
+            % Description: Return the value of the AB system zero point in Jy
+            % Input  : - System (not required)
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative error
+            %          - Formula                  
+            Const = 3631;
+            Units = 'Jy';        
             if (nargout>2)
                 Error = 0;
                 Form  = '';

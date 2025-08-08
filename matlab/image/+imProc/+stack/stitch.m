@@ -24,11 +24,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %            coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
     %            
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
+    % Author : A.M. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
     % Example: [Mosaic, AH, RemappedXY] = imProc.stack.stitch('LAST*coadd_Image*.fits','DataDir','/home/sasha/Obs1/','PixScale',1.25);
-
-    arguments
-        
+    arguments        
         InputImages         =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.DataDir        =    '/home/sasha/Obs1/';            % The directory containing the input images
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
@@ -39,43 +37,42 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
         Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
                                                                  % (needed due to the insufficient accurancy of the mosaic size determination)
-        Args.OutDir         =   '.';                             % output directory
-        Args.PlotBorders logical   =   false;                    % whether to plot the sky region with original image stamps
-
-    end
-    
-    % set some constants and image parameters 
-    
+        Args.PlotBorders logical   = false;                      % whether to plot the sky region with original image stamps
+        Args.WriteFile   logical   = true;                       % whether to write the output fits file
+        Args.OutDir         =   '.';                             % output directory       
+    end    
+    % set some constants and image parameters     
     RAD  = 180./pi;                     % the radian
     Tiny = 1e-14;                       % a small, but nonzero constant
     
     PixScale = Args.PixScale / 3600;    % [deg] pixel scale
     
-    % read the input images
-    
+    % read the input images    
             cprintf('hyper','%s\n','Mosaicking started'); tic
             fprintf('Reading input images.. ');
             
-    if isa(InputImages,'AstroImage')
-        
+    if isa(InputImages,'AstroImage')        
         AI = InputImages;
-        AI = populateWCS(AI); % TBC: do we really need it in all the cases? 
-        
+        AI = populateWCS(AI); % TBC: do we really need it in all the cases?         
+        PSF = AstroPSF; PSF.DimName{1} = 'Polygon'; PSF.DimVals{1} = 1:numel(AI);
+        for i=1:numel(AI)
+            if i>1 && size(AI(i).PSF,1) == Spsf + 2                 
+                PSF.DataPSF(:,:,i)= AI(i).PSF(2:Spsf-1,2:Spsf-1); % should be improved!
+            else
+                PSF.DataPSF(:,:,i)=AI(i).PSF;
+                Spsf = size(AI(i).PSF,1);
+            end
+        end        
     else
-
-        cd(Args.DataDir)
-        
-        if Args.LASTnaming
-            
+        cd(Args.DataDir)        
+        if Args.LASTnaming            
             FN = FileNames.generateFromFileName( InputImages );
             if numel(FN) < 1
                 fprintf('No images found. Please, check the path and the template\n');
                 return
             end
-            AI = AstroImage.readFileNamesObj( FN ) ;  
-            
-        else 
-            
+            AI = AstroImage.readFileNamesObj( FN ) ;              
+        else             
             ImageFiles  = dir ( InputImages ) ;
             ImNum = numel(ImageFiles);
             if ImNum < 1
@@ -89,10 +86,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
 %             AI = AstroImage.readFileNamesObj( Imfiles ); % produces an error, probably, due to some changes in AstroImage.readFileNamesObj
             AI = AstroImage( Imfiles );
         end
-
     end
     
-    NImage = size(AI,2);                % determine the number of images to be stitched    
+    NImage = numel(AI);                % determine the number of images to be stitched    
     
             fprintf('%d%s\n',NImage,' images loaded');
     
@@ -111,28 +107,28 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
 %             AI(1).write1('!./testoutput0.fits'); % this works fine
             
     % determine the borders of the input images and read their exposure times, 
-    % crop the input images so that border effects are eliminated
-        
+    % crop the input images so that border effects are eliminated       
+    
     for Img = 1:1:NImage
         
-        % read the exposures and photometric zero points:
-        
-        Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
-        Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
-        
-        Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
-        if max(Position,[],'all') > 0
-            PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
-        end
-        
+        % read the exposures and photometric zero points:        
+%         Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
+%         Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
+%         
+%         Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
+%         if max(Position,[],'all') > 0
+%             PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
+%         end      
+%         
+        Exptime(Img) = AI(Img).getStructKey('EXPTIME').EXPTIME;
+        PH_ZP(Img)   = AI(Img).getStructKey('PH_ZP').PH_ZP;
         % determine the image sizes and find their corners:
                 
         Xsize(Img) = size(AI(Img).Image,1);
         Ysize(Img) = size(AI(Img).Image,2);
         
         Corn(Img,:,:) = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Corners;
-        Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;
-        
+        Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;        
         % crop the images and determine new subimage sizes:
         
 %         CCDSEC = [Args.Crop(1) Xsize(Img)-Args.Crop(2) Args.Crop(3) Ysize(Img)-Args.Crop(4)];
@@ -173,27 +169,21 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
 
     % plot the sky regions of the input images and the reference points 
-
-    if Args.PlotBorders
-        
+    if Args.PlotBorders        
             figure(1); hold on
-
             for Img = 1:1:NImage    
                 plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
                      [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
                 text(Cent(Img,1),Cent(Img,2), num2str(Img) );
             end
-
             plot(RAcenter,DECcenter,'rd','MarkerSize',10);
             plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
                  [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
             xlabel RA; ylabel DEC;
-            hold off    
-            
+            hold off                
     end
 
-    % determine the sky and pixel size of the mosaic
-    
+    % determine the sky and pixel size of the mosaic    
     SizeRA  = RAD * celestial.coo.sphere_dist(RA1m    , DECcenter, RA2m,     DECcenter,'deg');
     SizeDEC = RAD * celestial.coo.sphere_dist(RAcenter, DEC1m,     RAcenter, DEC2m,    'deg');
     
@@ -204,8 +194,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
             fprintf('%s%4.0f%4.0f%4.0f%4.0f\n','Number of pixels cropped out from each of the input images (XL, XR, YL, YR): '...
                     ,Args.Crop);
     
-    % make arrays for the mosaic count map and exposure map 
-    
+    % make arrays for the mosaic count map and exposure map     
     ImageM = zeros(NPix1, NPix2);        % the counts map
     ExposM = Tiny * ones(NPix1, NPix2);  % the exposure map (will appear in the denominator, thus use Tiny values)
     
@@ -213,8 +202,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     AIm = AstroImage({ImageM});
     
-    % make a simple TAN WCS of the mosaic image from scratch 
-    
+    % make a simple TAN WCS of the mosaic image from scratch     
     AIm.WCS = AstroWCS();
     AIm.WCS.ProjType  = 'TAN';
     AIm.WCS.ProjClass = 'ZENITHAL';
@@ -245,22 +233,20 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     % and pleid grid)
 
     % remap each of the pixels from the input images into the mosaic image 
-
     for Img = 1:1:NImage
         
                 fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
         
         SubImage = AI(Img).ImageData.Image;
         
-        % get a grid of RA, DEC of a subimage and convert them to X, Y of the merged image
-        
+        % get a grid of RA, DEC of a subimage and convert them to X, Y of the merged image        
         XL = Args.Crop(1)+1; XR = Xsize(Img)-Args.Crop(2);
         YL = Args.Crop(3)+1; YR = Ysize(Img)-Args.Crop(4);
         
         [Ximg, Yimg]    = meshgrid( YL:YR, XL:XR );                % a grid of subimage pixels !NOTE: Ximg is of Ysize!
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
         [X, Y]          = AIm.WCS.sky2xy(RAimg, DECimg);           % mosaic pixel coordinates corresponding to the subimage pixels
-        
+                
         RemappedXY(Img,XL:XR,YL:YR,1) = X; RemappedXY(Img,XL:XR,XL:YR,2) = Y; % save the remapped grid as one of the function's outputs
         
         Xred = XR - XL + 1;    % the reduced number of pixels
@@ -273,13 +259,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         ImageM = imProc.stack.addImageRedistributePixels(ImageM, SubImage, X, Y, 'Nx', Xred, 'Ny', Yred, ...
                                                          'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
         ExposM = imProc.stack.addImageRedistributePixels(ExposM, Exptime(Img), X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
-
-        
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);        
     end
     
-    % flux conservation check
-    
+    % flux conservation check    
     FluxM   = sum(ImageM,'all'); FluxAI = zeros(NImage,1);
     for Img = 1:1:NImage 
         FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1)+1:Xsize(Img)-Args.Crop(2),Args.Crop(3)+1:Ysize(Img)-Args.Crop(4)),'all'); 
@@ -301,10 +284,12 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     StitchedImage = AstroImage({CPS'});
     StitchedImage.WCS = AIm.WCS;
+    StitchedImage.PSFData = PSF;
+    StitchedImage.Exp = ExposM';
     
     AH = StitchedImage.WCS.wcs2header;       % make a header from the WCS
     StitchedImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
-    
+        
     % add some keywords to the header
     if Args.Exposure ~= 0  % use the user-provided exposure time 
         StitchedImage.setKeyVal('EXPTIME',Args.Exposure);
@@ -321,22 +306,22 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     AH = StitchedImage.Header;               % save the header back from the AstroImage
     
     % make a FITS file:
-
-%     if isa(InputImages,'AstroImage')
-    if ~exist('FN','var')
-        CPSOutputName = strcat('!./','stitched_image.fits');
-    else
-        CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+    if Args.WriteFile
+        % if isa(InputImages,'AstroImage')
+        if ~exist('FN','var')
+            CPSOutputName = strcat('!./','stitched_image.fits');
+        else
+            CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+        end
+        
+        cd(Args.OutDir)
+        % StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
+        FITS.write(StitchedImage.Image, CPSOutputName, 'Header',StitchedImage.HeaderData.Data,...
+            'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+                
+        cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');
+        fprintf('%s\n',CPSOutputName(2:end));
     end
-
-    cd(Args.OutDir)
-%     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
-    FITS.write(StitchedImage.Image, CPSOutputName, 'Header',StitchedImage.HeaderData.Data,...
-                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
-
-    
-    cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
-    fprintf('%s\n',CPSOutputName(2:end));
     toc
     
 end

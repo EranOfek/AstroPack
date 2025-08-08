@@ -1,4 +1,4 @@
-function [Result] = buildRef(RefGrid, DB, Args)
+function [Result] = buildRefImages(RefGrid, DB, Args)
     % given a grid of reference images, build them from proc images
     %     employs proc/coadd image DB 
     % Input  : - a grid of reference images (number, RA1-RA4, Dec1-Dec4) 
@@ -7,7 +7,7 @@ function [Result] = buildRef(RefGrid, DB, Args)
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db; ...
-    %          pipeline.last.reference.buildRef(LAST_RefIm_Grid,D);
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     arguments
         RefGrid
         DB                
@@ -66,10 +66,11 @@ function [Result] = buildRef(RefGrid, DB, Args)
                     fprintf('M%dC%d:\n',Im,Ic);
                     [Grp, ~] = findgroups(T1.jd_start); 
                     Nepoch   = max(Grp);                 
+                    S = repmat(AstroImage,Nepoch,1);
                     for i = 1:Nepoch
                         T2  = T1(Grp == i, :);
                         Nim = height(T2);
-                        fprintf('epoch %d: %d images retrieved\n',i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,i,Nim);
                         % 2. qualify the overlapping proc images
                         
                         % 3. select exposures by specific obs. time, time span, etc.
@@ -77,8 +78,8 @@ function [Result] = buildRef(RefGrid, DB, Args)
                         % check the coverage
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
-                        fprintf('epoch %d: %d images filtered\n',i,Nim);
-                        Nim = height(T2);
+                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,i,Nim);
+                        Nim = height(T2);                       
                         AI  = repmat(AstroImage,Nim,1);
                         Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
                         YY  = compose('%04d',T2.diryear(1)); MM = compose('%02d',T2.dirmon(1)); DD = compose('%02d',T2.dirday(1));
@@ -87,19 +88,25 @@ function [Result] = buildRef(RefGrid, DB, Args)
                                  '/proc/',T2.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',T2.filetime(Icrop),...
                                  '_clear_',string(T2.fieldid(Icrop)),'_000_001_',compose('%03d',T2.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
-                             AI(Icrop)= AstroImage.readProducts(FN);
+                             AI(Icrop)= AstroImage.readProducts(FN); % no data on Back or Var is saved @ euclid!  
                         end
                         
+                        % check WCS
+                        if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                            fprintf('WCS not correct in one or several crops, skipping the epoch..\n');
+                            continue
+                        end
                         % merge
                         
                         % var1
-%                         S = imProc.stack.stitch(AI); % does not provide Back, Var, Mask, PSF ... 
+                        [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
+                        clear AI;
+                         
                         % var2
-%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); 
+%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
+%                         'BoundsStyle','SameAsInput' does not work
 %
-%                         gives an image full on NaNs? not tested? 
-%                         in procMergeCoadd we use only the two column [X Y] shift matrix option of imProc.transIm.imwarp
-                        % var3 
+%                       % var3 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
 %                           1. estimate the size of the merged image and
 %                              enlarge the matrix, fill with 0s

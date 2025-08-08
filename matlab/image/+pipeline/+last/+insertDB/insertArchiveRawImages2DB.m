@@ -19,7 +19,7 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
     %
     arguments
         RootDir                = '/mnt/euclid/last/data/LAST.01.*/';
-        FileNameTemplate       = 'LAST*raw_Image_1.fits.fz';          
+        FileNameTemplate       = 'LAST*sci_raw_Image_1.fits.fz';          
         Args.ProcDirTemplate   = 'raw';  
         Args.Decompress        = false;
         
@@ -75,8 +75,9 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
                 Decompress = sprintf('su %s -c "funpack %s.fz"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
             end     
-%             Raw=AstroHeader(FileNameTemplate); % read the data
+%             Raw=AstroHeader(FileNameTemplate);  % read the data
             Raw=AstroHeader(FileNameTemplate, 2); % read the data from fits.fz
+            FNs = dir(FileNameTemplate);          % for the case FILENAME does not exist in the header 
             Nobj = numel(Raw);
             if Nobj < 1                        % no headers have been read 
                 cd(Dir);
@@ -88,26 +89,31 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
             
             % check and add essential KEYWORDS if they are missing             
             FN = Raw(1).getStructKey('FILENAME').FILENAME;
+            if isnan(FN)
+                FN = FNs(1).name;
+            end
+            Parts = split(FN, '/');
+            FN = Parts{end};
             if isnan(Raw(1).getStructKey('NODENUMB').NODENUMB)
                 NODENUMB = str2num(FN(6:7));
-                for Crop=1:Nobj
-                    Raw(Crop).replaceVal('NODENUMB',NODENUMB);
+                for Epoch=1:Nobj
+                    Raw(Epoch).replaceVal('NODENUMB',NODENUMB);
                 end
             end
             if isnan(Raw(1).getStructKey('MOUNTNUM').MOUNTNUM)
                 MOUNTNUM = str2num(FN(9:10));
-                for Crop=1:Nobj
-                    Raw(Crop).replaceVal('MOUNTNUM',MOUNTNUM);
+                for Epoch=1:Nobj
+                    Raw(Epoch).replaceVal('MOUNTNUM',MOUNTNUM);
                 end
             end            
             % insert the ingestion time and some missing keyworks
             JDnow = celestial.time.date2jd;
-            for Crop=1:Nobj
-                Raw(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
-                Raw(Crop).replaceVal('LEVEL','raw');
-                Raw(Crop).replaceVal('CROPID',0);
-                Raw(Crop).replaceVal('NAXIS1',1726);
-                Raw(Crop).replaceVal('NAXIS2',1726);
+            for Epoch=1:Nobj
+                Raw(Epoch).replaceVal('INGESTION_TIME_JD',JDnow);
+                Raw(Epoch).replaceVal('LEVEL','raw');
+                Raw(Epoch).replaceVal('CROPID',0);
+                Raw(Epoch).replaceVal('NAXIS1',6422);
+                Raw(Epoch).replaceVal('NAXIS2',9600);
             end
             % prepare file name for the CSV dump 
             A = AstroFileName;
@@ -119,24 +125,24 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
             A.FileType = "csv"; A.julday2time;
             CsvFN = erase(A.genFile,' ');        
             % add the keywords to be used for filename construction            
-            for Crop = 1:Nobj                
+            for Epoch = 1:Nobj                
                 if ~isnan(FN)
                     Parts = strsplit(FN, '/');
                     FN = Parts{end};
                 else
                     FN = char(CsvFN);
                 end
-                Raw(Crop).replaceVal('FILETIME',FN(24:33));                
+                Raw(Epoch).replaceVal('FILETIME',FN(24:33));                
                 DateTime0 = datetime(FN(15:25), 'InputFormat', 'yyyyMMdd.HH');
                 if DateTime0.Hour < 12
                     DateTime = DateTime0-1;                    
                 else
                     DateTime = DateTime0;
                 end                
-                Raw(Crop).replaceVal('DIRYEAR',DateTime.Year);
-                Raw(Crop).replaceVal('DIRMON' ,DateTime.Month);
-                Raw(Crop).replaceVal('DIRDAY' ,DateTime.Day);                
-            end
+                Raw(Epoch).replaceVal('DIRYEAR',DateTime.Year);
+                Raw(Epoch).replaceVal('DIRMON' ,DateTime.Month);
+                Raw(Epoch).replaceVal('DIRDAY' ,DateTime.Day);                
+            end           
 
             [~, Error]=imProc.db.insertImages(Raw,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
