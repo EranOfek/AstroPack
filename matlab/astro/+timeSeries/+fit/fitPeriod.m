@@ -19,7 +19,7 @@ function [Result,RefT0]=fitPeriod(LC, Freq, Args)
     %            .Freq - Frequency
     %            .Par  - Fitted parameters [sin(1...), cos(1...), sin(2...),... const] 
     %            .ParErr - Fitted error parameters.
-    %            .A      - Amplitudes.
+    %            .A      - Amplitudes (for each harmonic).
     %            .Phase  - Phases.
     %          - RefT0.
     % Author : Eran Ofek (Mar 2023)
