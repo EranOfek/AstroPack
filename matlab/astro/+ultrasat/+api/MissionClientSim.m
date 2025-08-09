@@ -389,7 +389,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%03d.json', obj.PlanData.pk));
+            jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
             if ~isfile(jsonFile)
                 obj.msglog('Plan file not found for pk=%d', obj.PlanData.pk);
                 response.status = 'error';
@@ -536,8 +536,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
-            matFile = fullfile(plansFolder, sprintf('%03d.mat', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
+            matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
         
             if ~isfile(jsonFile) || ~isfile(matFile)
                 obj.msglog('Plan files not found for pk=%d', plan_pk);
@@ -593,7 +593,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
             % Write JSON file without 'PlanData.planner' field, it will be
             % stored separetly in .mat file (see below)
-            jsonFile = fullfile(plansFolder, sprintf('%03d.json', obj.PlanData.pk));
+            jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
             planStruct = obj.PlanData.toStruct();
             planStruct = rmfield(planStruct, 'planner');  % Remove planner for JSON
 
@@ -605,7 +605,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             fclose(fid);
         
             % Write MATLAB object (planner) to .mat file
-            matFile = fullfile(plansFolder, sprintf('%03d.mat', obj.PlanData.pk));
+            matFile = fullfile(plansFolder, sprintf('%05d.mat', obj.PlanData.pk));
             planner = obj.PlanData.planner;  % Instance of ultrasat.uplanner
             save(matFile, 'planner');
         
@@ -641,8 +641,8 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
-            matFile = fullfile(plansFolder, sprintf('%03d.mat', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
+            matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
         
             if isfile(jsonFile)
                 delete(jsonFile);
@@ -665,7 +665,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             plansFolder = fullfile(obj.DbPath, 'plans');
             response = struct();
         
-            jsonFile = fullfile(plansFolder, sprintf('%03d.json', plan_pk));
+            jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
             if ~isfile(jsonFile)
                 obj.msglog('Plan file not found for pk=%d', plan_pk);
                 response.status = 'error';

@@ -200,6 +200,10 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     
     Args.COMMAND = Object;
     
+    Args.COMMAND = strrep(Args.COMMAND, ' ','%20');
+    Args.COMMAND = sprintf('''%s''',Args.COMMAND);
+        
+
     if Args.AddDes
         % add 'DES=' before the object name
         Args.COMMAND = sprintf('DES= %s',Args.COMMAND);

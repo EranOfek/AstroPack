@@ -1919,7 +1919,13 @@ classdef catsHTM
                     Cat = AstC;
                 case 'table'
                     Cat = array2table(Cat);
-                    Cat.Properties.VariableNames = ColCell;
+                    if isempty(ColUnits)
+                        ColUnits = {};
+                    end
+                    if isempty(ColCell)
+                        ColCell = {};
+                    end
+                    Cat.Properties.VariableNames = ColCell;                    
                     Cat.Properties.VariableUnits = ColUnits;
                 case 'catcl'
                     AstC = catCl;
