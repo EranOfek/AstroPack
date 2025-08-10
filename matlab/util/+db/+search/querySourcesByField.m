@@ -48,6 +48,7 @@ function [Result] = querySourcesByField(Fields, Args)
     Mt   = "";
     Cam  = "";
     Crop = "";
+    Mag  = "";
     if ~isempty(Args.Mount)
         Mt = sprintf(" and ( mountnum = %d )",Args.Mount);
     end   
@@ -58,9 +59,9 @@ function [Result] = querySourcesByField(Fields, Args)
         Crop = sprintf(" and ( cropid = %d ) ",Args.Crop);
     end
     if Args.MinMag > 0 || Args.MaxMag < 50
-        Mag = sprintf("and ( %s > %e and %s < %e) ",Args.MagColumnName,Args.MinMag,Args.MagColumnName,Args.MaxMag);
+        Mag = sprintf("and ( %s > %.3f and %s < %.3f) ",Args.MagColumnName,Args.MinMag,Args.MagColumnName,Args.MaxMag);
     end
-    %
+    % method 1
     if strcmpi(Args.Method,'image')
         if Args.JDstart > 0 || Args.JDstop < 3e6
             Jd = sprintf("and (jd_start > %e and jd_start < %e) ",Args.JDstart,Args.JDstop);
@@ -78,7 +79,7 @@ function [Result] = querySourcesByField(Fields, Args)
         Result = sprintf("SELECT s.* FROM %s AS s INNER JOIN %s AS i " +...
             "ON s.%s = i.%s where %s",Args.SourceTable,Args.ImageTable,...
             Args.ImageIDSrcTab,Args.ImageID,W);
-    % 
+    % method 2
     elseif strcmpi(Args.Method,'hpix')        
         if Args.JDstart > 0 || Args.JDstop < 3e6
             Jd = sprintf("and (jd > %e and jd < %e) ",Args.JDstart,Args.JDstop);
@@ -86,18 +87,22 @@ function [Result] = querySourcesByField(Fields, Args)
         %       
         F = "(1<0";
         for Ifield = 1:numel(Fields)
-            Q = sprintf("select top 1 upix_low from %s where fieldid = '%s'", Args.ImageTable, Fields(Ifield)); % is it correct to take only 1 line?
+            Fid = sprintf("fieldid = '%s'",Fields(Ifield));
+            W = strcat(Fid,Mt,Cam,Crop);
+            Q = sprintf("select upix_low from %s where %s", Args.ImageTable, W); 
             Res  = Args.DB.query(Q);
-            [~,Ipix] = celestial.healpix.uniqueId2pix(Args.NsideLow,Res.upix_low); % convert Uniq to Ipix
-            Neighb = celestial.healpix.neighbors(Ipix,Args.NsideLow,'IncludeSelf',true);            
-            for In = 1:numel(Neighb)
-                UpixHigh = celestial.healpix.increasePixelResolution(Neighb(In),Args.NsideLow,Args.NsideHigh); 
-                UniqHigh = celestial.healpix.pix2uniqueId(Args.NsideHigh,UpixHigh); % convert Ipix to Uniq 
-                F = strcat(F, sprintf(" or ( upix_high < %d and upix_high > %d ) ",UniqHigh(end),UniqHigh(1)) );
+            [~,Ipix] = celestial.healpix.uniqueId2pix(Args.NsideLow,unique(Res.upix_low)); % convert Uniq to Ipix
+            for Ip = 1:numel(Ipix)
+                Neighb = celestial.healpix.neighbors(Ipix(Ip),Args.NsideLow,'IncludeSelf',true); % find 8 neighbors 
+                for In = 1:numel(Neighb)
+                    UpixHigh = celestial.healpix.increasePixelResolution(Neighb(In),Args.NsideLow,Args.NsideHigh); % convert to NsideHigh
+                    UniqHigh = celestial.healpix.pix2uniqueId(Args.NsideHigh,UpixHigh);                            % convert Ipix back to Uniq
+                    F = strcat(F, sprintf(" or ( upix_high < %d and upix_high > %d ) ",UniqHigh(end),UniqHigh(1)) );
+                end
             end
         end
         F = strcat(F,") ");
-        W = strcat(F,Jd,Mt,Cam,Crop,Mag);
+        W = strcat(F,Jd,Mag);
         %
         Result = sprintf("SELECT * FROM %s where %s",Args.SourceTable, W);
     end 
