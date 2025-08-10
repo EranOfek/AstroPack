@@ -12,7 +12,7 @@ function IpixNeighbors = neighbors(Ipix, Nside, Args)
     arguments
         Ipix
         Nside
-        Args.IncludeSelf = false;
+        Args.IncludeSelf = false; % include the central pixel into the output array
     end
     %
     IpixNeighbors = zeros(8,1);
