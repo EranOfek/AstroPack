@@ -422,6 +422,64 @@ classdef MatchedSources < Component
             end
 
         end
+        
+        
+        function Result = readDBqueryResult(T, Args)
+            % read the output of a DB query into an MS object, sorting into epochs
+            % Input  : - a source table (usually, the output of a DB query)
+            %          * ...,key,val,... 
+            %        'IDcolumn'    - the name of the image ID column
+            %        'SearchRadius'- the search radius
+            %        'RadUnits'    - the search radius units
+            % Output : - a M (num. of lines in T) x N (number of non-zero MergedCat masks) cell array of catalog strings
+            % Author : A.M. Krassilchtchikov (2025 Aug) 
+            % Example: T = DB.query('select top 5 * from visit_src');
+            %          MS = MatchedSources.readDBqueryResult(T,'MatchRadius',5);            
+            %          MS.plotLC(1,'MagField','mag_aper_3','FlagsField','flags'); 
+            arguments
+                T
+                Args.IDcolumn     = 'ID_VISIT_IM';
+                Args.SearchRadius = 3;
+                Args.RadiusUnits  = 'arcsec';                
+                Args.MatchedColumns = {'JD','BJD','RA','Dec','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF',...
+                                        'X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4',...
+                                        'PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','FLUX_APER_3','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','ITER',...
+                                       'MOUNTNUM','CAMNUM','CROPID'};
+            end
+            %
+            Result = MatchedSources;
+            % clean the ingestion_time column:
+            if ismember('ingestion_time', T.Properties.VariableNames)
+                T.ingestion_time = [];
+            end                       
+            % convert the column names to uppercase, except for Dec:
+            T.Properties.VariableNames = upper(T.Properties.VariableNames);
+            T.Properties.VariableNames{'DEC'} = 'Dec';            
+            % convert all the values to double:            NB: this will likely spoil the IDs!
+            for k = 1:width(T)
+                T.(T.Properties.VariableNames{k}) = double(T.(T.Properties.VariableNames{k}));
+            end
+            %
+            uniqueID = unique(T.(Args.IDcolumn));
+            AC = repmat(AstroCatalog,1,numel(uniqueID));
+           
+            for k = 1:numel(uniqueID)               
+                AC(k) = AstroCatalog(T(T.(Args.IDcolumn) == uniqueID(k), :));
+                AC(k).JD = AC(k).Table.JD(1); % need to be improved! 
+            end         
+            
+            [~,Result] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'MatchedColums',Args.MatchedColumns); %,...
+%                 'RelPhot',false);
+
+%             ms = mergeByCoo(MS, MS(mergeBy));
+%             mms = ms.setBadPhotToNan('BadFlags', BadFlags, 'MagField', 'MAG_PSF', 'CreateNewObj', true);
+%             NdetGood = sum(~isnan(mms.Data.MAG_PSF), 1);
+%             Fndet = NdetGood > Det_frac*mms.Nepoch; % Allow for 15% no detections per source.
+%             mms = mms.selectBySrcIndex(Fndet, 'CreateNewObj', false);
+            
+%             Result.unifiedCatalogsIntoMatched(AC,'Radius',Args.SearchRadius,'RadiusUnits',Args.RadiusUnits,...
+%                 'MatchedColums',Args.MatchedColumns);           
+        end
     end
     
     methods % write
