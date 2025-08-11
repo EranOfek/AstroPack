@@ -3,7 +3,7 @@ function [Result] = querySourcesByField(Fields, Args)
     %     with optional constraints on time (JD), mount, camera, subimage 
     % Input  : - a list of field names (an array of strings) 
     %          * ...,key,val,... 
-    %        'JDstart' - the star JD of the search
+    %        'JDstart' - the start JD of the search
     %        'JDstop'  - the end JD of the search
     %        'Mount'   - the mount number
     %        'Camera'  - the camera number
@@ -94,6 +94,7 @@ function [Result] = querySourcesByField(Fields, Args)
             [~,Ipix] = celestial.healpix.uniqueId2pix(Args.NsideLow,unique(Res.upix_low)); % convert Uniq to Ipix
             for Ip = 1:numel(Ipix)
                 Neighb = celestial.healpix.neighbors(Ipix(Ip),Args.NsideLow,'IncludeSelf',true); % find 8 neighbors 
+%                 Neighb = Ipix(Ip); % test
                 for In = 1:numel(Neighb)
                     UpixHigh = celestial.healpix.increasePixelResolution(Neighb(In),Args.NsideLow,Args.NsideHigh); % convert to NsideHigh
                     UniqHigh = celestial.healpix.pix2uniqueId(Args.NsideHigh,UpixHigh);                            % convert Ipix back to Uniq
@@ -105,5 +106,27 @@ function [Result] = querySourcesByField(Fields, Args)
         W = strcat(F,Jd,Mag);
         %
         Result = sprintf("SELECT * FROM %s where %s",Args.SourceTable, W);
+    else 
+        error('Unknown method');
     end 
+end
+%
+function test 
+    Start = celestial.time.date2jd([2025, 04, 18]); 
+    
+    Q1 = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'MaxMag',19,'DB',D,...
+        'ImageTable','N3_visit_images','SourceTable','N3_visit_src');
+    Q2 = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'MaxMag',19,'Method','image',...
+        'ImageTable','N3_visit_images','SourceTable','N3_visit_src');
+    Q2m = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'MaxMag',30,'Method','image',...
+        'ImageTable','N3_visit_images','SourceTable','N3_visit_src');
+    Q3 = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'MaxMag',19,'DB',D,...
+        'ImageTable','N3_visit_images','SourceTable','proc_src');
+    Q3a = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'MaxMag',19,'DB',D,...
+        'ImageTable','visit_images','SourceTable','proc_src');  
+    tic;R1 = D.query(Q1); toc; size(R1)
+    tic;R2 = D.query(Q2); toc; size(R2)
+    tic;R2m = D.query(Q2m); toc; size(R2m)     
+    tic;R3 = D.query(Q3); toc; size(R3)     
+    tic;R3a = D.query(Q3a); toc; size(R3a)         
 end
