@@ -2839,5 +2839,45 @@ classdef catsHTM
 
         end
     end
+    
+    % retrieve catalog data
+    methods (Static)
+        
+        function ExtCat = getExtCatData(T, Args)
+            % retrieve source data from external catalogs according to the MergedCat mask
+            % Input  : - a source table (usually, the output of a DB query)
+            %          * ...,key,val,... 
+            %        'MaskColumn' - the name of the mask column
+            %        'SearchRad'  - the search radius
+            %        'RadUnits'   - the search radius units
+            % Output : - a M (num. of lines in T) x N (number of non-zero MergedCat masks) cell array of catalog strings
+            % Author : A.M. Krassilchtchikov (2025 Aug) 
+            % Example: T = DB.query('select top 5 * from visit_src');
+            %          ExtCat = catsHTM.getExtCatData(T,' SearchRad',3);           
+            arguments
+                T
+                Args.MaskColumn = 'mergedcat';
+                Args.SearchRad  = 5;
+                Args.RadUnits   = 'arcsec';
+            end
+            %
+            RAD = 180/pi;
+            BD=BitDictionary('BitMask.MergedCat.Default');
+            %
+            Mask = T.(Args.MaskColumn);            
+            ExtCat = {};
+            for Ln = 1:height(T)
+                if Mask(Ln) > 0
+                    RA = T.ra(Ln)/RAD; Dec = T.dec(Ln)/RAD;
+                    CatNames = BD.bitdec2name(Mask(Ln));
+                    for Icat = 1:numel(CatNames{1})
+                        [Cat,~]= catsHTM.cone_search(CatNames{1}{Icat},RA,Dec,Args.SearchRad,'RadiusUnits',Args.RadUnits,'OutType','table');
+                        ExtCat{Ln,Icat} = Cat;
+                    end
+                end
+            end
+        end
+        
+    end
 end % end class
             
