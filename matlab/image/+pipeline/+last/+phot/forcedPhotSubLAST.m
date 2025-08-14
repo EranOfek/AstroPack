@@ -100,16 +100,23 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
             TempRefFileName = AFN.insertWildCards(1,'List',["Time", "Counter", "Level"]);
 
             PWD = pwd;
-            cd(AFN.genRefPath)
-            Files = dir(TempRefFileName);
-            if numel(Files)==0
-                warning('Reference image not found');
-                RefAI = [];
+            
+            RefPath = AFN.genRefPath;
+            if isfolder(RefPath)
+                cd(RefPath);
+            
+                Files = dir(TempRefFileName);
+                if numel(Files)==0
+                    warning('Reference image not found');
+                    RefAI = [];
+                else
+                    RefAI = AstroImage.readFileNamesObj(Files(1).name);
+                end
+    
+                cd(PWD);
             else
-                RefAI = AstroImage.readFileNamesObj(Files(1).name);
+                RefAI = [];
             end
-
-            cd(PWD);
 
         else
             % select images for reference image
