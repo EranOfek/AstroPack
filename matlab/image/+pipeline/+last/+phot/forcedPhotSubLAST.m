@@ -172,18 +172,22 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     end
 
                     % Add S
-                    AD.subtractionS;
-
-                    if Args.GenScorr
-                        % Add Scorr
-                        % This requires loading also the REf Image: FFU!!
-
+                    if ~AD.isemptyImage
+                        % Image exist
+                        
+                        AD.subtractionS;
+    
+                        if Args.GenScorr
+                            % Add Scorr
+                            % This requires loading also the REf Image: FFU!!
+    
+                        end
+                        if Args.GenTranslient
+                            % Add Z2
+                            % This requires loading also the REf Image: FFU!!
+                        end
+                      
                     end
-                    if Args.GenTranslient
-                        % Add Z2
-                        % This requires loading also the REf Image: FFU!!
-                    end
-
 
                 end
 
