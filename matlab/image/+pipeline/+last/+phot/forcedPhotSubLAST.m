@@ -170,6 +170,21 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     else
                         AD = pipeline.last.queryDB.loadProducts(Tun(Iim,:),'coadd.zogyD','Image+-');
                     end
+
+                    % Add S
+                    AD.subtractionS;
+
+                    if Args.GenScorr
+                        % Add Scorr
+                        % This requires loading also the REf Image: FFU!!
+
+                    end
+                    if Args.GenTranslient
+                        % Add Z2
+                        % This requires loading also the REf Image: FFU!!
+                    end
+
+
                 end
 
                 FlagEmpty = isempty(AD) || AD.isemptyImage;
