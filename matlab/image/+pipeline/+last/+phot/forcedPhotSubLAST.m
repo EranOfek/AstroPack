@@ -172,9 +172,9 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
                     end
 
                     % Add S
-                    if ~AD.isemptyImage
+                    if ~isempty(AD) && ~AD.isemptyImage
                         % Image exist
-                        
+
                         AD.subtractionS;
     
                         if Args.GenScorr
