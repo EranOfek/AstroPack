@@ -266,9 +266,10 @@ classdef ForcedPhotServer < Component
                 % Obj.DB.insertCharDump('forcedphot_requests',table(6,0,262.72824, 66.68995, 2450000,2470000,"1718",1,1,3,14, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025mkd
                 % Obj.DB.insertCharDump('forcedphot_requests',table(7,0, 278.59838, 52.98174, 2450000,2470000,"1581",1,3,1,10, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) %2025sqo
                 %
-                % Obj.DB.insertCharDump('forcedphot_requests',table(7,0, 278.59838, 52.98174, 2460000,2460200,"1581",1,3,1,10, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) %2025sqo
                 % Obj.DB.insertCharDump('forcedphot_requests',table(8,0, 164.55324416617, 28.176660156811906, 2460685.5480378103, 2460725.5480378103, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'})) % test dates
-                %
+                % Obj.DB.insertCharDump('forcedphot_requests',table(9,0, 239.916918804, 27.1113477238, 2460705.9886484947, 2460905.9886484947, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'})) % test dates
+                % Obj.DB.insertCharDump('forcedphot_requests',table(21,0, 239.916918804, 27.1113477238, 2460705.9886484947, 2460905.9886484947, 1000, 0, 1, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','n_epoch_max','useexistingref','resub'})) % test dates
+                % 
                 % Obj.DB.insertCharDump('forcedphot_requests',table(11, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'}))
                 % Obj.DB.insertCharDump('forcedphot_requests',table(12, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, "1578", 1, 1, 2, 14, 1, 100, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'}))
                 % 

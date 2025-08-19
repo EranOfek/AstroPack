@@ -70,7 +70,8 @@ function [Result,AD,ADc] = forcedPhotSubLAST(T, RA, Dec, Args)
     T      = T(FlagJD,:);
 
     % split the first part of the fieldid name:
-    FieldID = AstroFileName.getBaseFieldID(T.fieldid);
+    %FieldID = AstroFileName.getBaseFieldID(T.fieldid);
+    FieldID = regexprep(T.fieldid,'\..{0,100}','');
     %FieldID = split(T.fieldid, '.', 2); %, 'split');
     %FieldID = FieldID(:,1);
     % unique fielid id:
