@@ -90,12 +90,12 @@ classdef ForcedPhotServer < Component
             end
             if ~IsEmptyFieldID
                 if isempty(Args.MountNum)
-                    T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND camnum=%d AND cropid=%d AND jd_start>%f AND jd_start<%f",Args.FieldID, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
+                    T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND camnum=%d AND cropid=%d AND jd_start>%14.5f AND jd_start<%14.5f",Args.FieldID, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
                 else
-                    T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND mountnum=%d AND camnum=%d AND cropid=%d AND jd_start>%f AND jd_start<%f",Args.FieldID, Args.MountNum, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
+                    T = Obj.DB.query(sprintf("SELECT * FROM visit_images WHERE fieldid LIKE '%s' AND mountnum=%d AND camnum=%d AND cropid=%d AND jd_start>%14.5f AND jd_start<%14.5f",Args.FieldID, Args.MountNum, Args.CamNum, Args.CropID, Args.StartJD, Args.EndJD));
                 end
             else
-                T = pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'DB', Obj.DB, Args.searchVisitsByCooArgs{:});
+                T = pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'DB', Obj.DB, Args.searchVisitsByCooArgs{:}, 'Constraints',{'jd_start',[Args.StartJD, Args.EndJD]});
                 T = T{1};
             end
      
@@ -266,6 +266,9 @@ classdef ForcedPhotServer < Component
                 % Obj.DB.insertCharDump('forcedphot_requests',table(6,0,262.72824, 66.68995, 2450000,2470000,"1718",1,1,3,14, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025mkd
                 % Obj.DB.insertCharDump('forcedphot_requests',table(7,0, 278.59838, 52.98174, 2450000,2470000,"1581",1,3,1,10, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) %2025sqo
                 %
+                % Obj.DB.insertCharDump('forcedphot_requests',table(7,0, 278.59838, 52.98174, 2460000,2460200,"1581",1,3,1,10, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) %2025sqo
+                % Obj.DB.insertCharDump('forcedphot_requests',table(8,0, 164.55324416617, 28.176660156811906, 2460685.5480378103, 2460725.5480378103, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'})) % test dates
+                %
                 % Obj.DB.insertCharDump('forcedphot_requests',table(11, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'}))
                 % Obj.DB.insertCharDump('forcedphot_requests',table(12, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, "1578", 1, 1, 2, 14, 1, 100, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'}))
                 % 
@@ -306,10 +309,10 @@ classdef ForcedPhotServer < Component
                         Tstart = datetime('now');
 
                         if ReDo
-                            if Treq.mountnum>0
-                                Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'MountNum',Treq.mountnum(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
-                            else
+                            if Treq.mountnum==0
                                 Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));
+                            else
+                                Tvisit = searchTarget(Obj, RA, Dec, 'FieldID',Treq.fieldid(Ireq), 'MountNum',Treq.mountnum(Ireq), 'CamNum',Treq.camnum(Ireq), 'CropID',Treq.cropid(Ireq), 'StartJD',Treq.jd_start(Ireq), 'EndJD',Treq.jd_end(Ireq));                                
                             end
                             
                             Nobs = size(Tvisit,1);
