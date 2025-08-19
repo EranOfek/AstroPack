@@ -1,18 +1,25 @@
 function [Coeffs, Basis] = zernikeMoments(Image, MaxOrder, R, Xc, Yc, Basis)
-% Fast Zernike moments up to radial order MaxOrder (default 8).
-% Works on HxW or HxWxN image cube. Fully vectorized across pixels/images.
-% SPEED: Precomputes & caches the Zernike basis (geometry + modes). Reuse by
-% passing the returned Basis back into subsequent calls with the same
-% geometry/order, or let the function auto-cache via a persistent.
-%
-% Output Coeffs: [NumModes x N] (columns per image) in Noll order.
-%
-%   [C,B] = imUtil.psf.zernikeMoments(Im, 4);       % build & cache basis
-%   C2    = imUtil.psf.zernikeMoments(Cube, 4, [], [], [], B);  % reuse
+    % Fast Zernike moments up to radial order MaxOrder.
+    %   Works on HxW or HxWxN image cube. Fully vectorized across pixels/images.
+    %   SPEED: Precomputes & caches the Zernike basis (geometry + modes). Reuse by
+    %   passing the returned Basis back into subsequent calls with the same
+    %   geometry/order, or let the function auto-cache via a persistent.
+    % Input  : - Image or cube (image index is in 3rd dim).
+    %          - Max Order. Default is 3.
+    %          - Radius. Default is empty (use half image size).
+    %          - X center. Default is empty (use center).
+    %          - Y center. Default is empty (use center).
+    %          - Basis. Optional pre-cimputed basis (see output).
+    % Output : - Columns of coeff.
+    %          - Computed basis (can be used as an input).
+    % Author : Eran Ofek (Aug 2025)
+    % Example: 
+    %   [C,B] = imUtil.psf.zernikeMoments(Im, 4);       % build & cache basis
+    %   C2    = imUtil.psf.zernikeMoments(Cube, 4, [], [], [], B);  % reuse
 
     arguments
         Image
-        MaxOrder (1,1) double {mustBeNonnegative, mustBeInteger} = 8
+        MaxOrder = 3;
         R   = []
         Xc  = []
         Yc  = []

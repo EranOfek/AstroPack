@@ -352,6 +352,14 @@ classdef ForcedPhotServer < Component
                                 end
         
                                 % merge forced phot tables
+                                % Fixing a problem with New_FIELDID -
+                                % making into string...
+                                Nfp = numel(ForcedPhot);
+                                if Nfp>0 && tools.table.isColumn(ForcedPhot(1).Catalog, 'New_FIELDID')
+                                    for Ifp=1:1:Nfp
+                                        ForcedPhot(Ifp).Catalog.New_FIELDID = string(ForcedPhot(Ifp).Catalog.New_FIELDID);
+                                    end
+                                end
                                 ForcedPhot  = ForcedPhot.merge('IsTable',true);
         
                                 % add meta data to ForcedPhot table
