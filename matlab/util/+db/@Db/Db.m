@@ -985,6 +985,70 @@ classdef Db < Component
             
         end
 
+        
+        function [Error,StrEx,TestNew, ColAdded]=addNewColumnsToExistingTable(Obj, Table, NewColumns, NewClass, NewDefault, Nullable)
+            % Add new columns to existing table
+            % Input  : - self.
+            %          - Table name.
+            %          - A string array of new column names.
+            %          - A string array of new column's class.
+            %          - A string array of new column's default. Can be a
+            %            scalar (one value for all columns).
+            %          - A logical indicating if all the columns are nullable.
+            %            Default is true.
+            % Output : - Error string.
+            %          - ALTER command string executed.
+            %          - Updated table description.
+            %          - A vector of logical indicating for each column, if
+            %            it was added.
+            % Author : Eran Ofek (Aug 2025)
+            % Example: NewColumns = ["Ref_RA","Ref_Dec","Ref_X","Ref_Y","Ref_Xinit","Ref_Yinit","Ref_X2","Ref_Y2","Ref_XY","Ref_FlagIn","Ref_FLAGS","Ref_AnnulusBack","Ref_AnnulusStd","Ref_SN","Ref_FLUX_PSF","Ref_ZP","Ref_MAG_PSF","Ref_Chi2","Ref_Dof","RefJD","Ref_LIMMAG"];
+            %          NewClass = ["Float64","Float64","Float32","Float32","Float32","Float32","Float32","Float32","Float32","UInt32","UInt32","Float32","Float32","Float32","Float32","Float32","Float32","Float32","Float32","Float64","Float32"];
+            %          NewDefault = ["NULL"]
+            % [Error,StrEx]=DB.addNewColumnsToExistingTable('last.forcedphotsub_output', NewColumns, NewClass, NewDefault)
+
+            arguments
+                Obj
+                Table
+                NewColumns
+                NewClass 
+                NewDefault
+                Nullable     = true;
+            end
+
+            %ALTER TABLE db.tbl
+            %ADD COLUMN IF NOT EXISTS new_str  Nullable(String)  DEFAULT NULL AFTER some_col,
+            %ADD COLUMN IF NOT EXISTS new_num  Nullable(UInt32)  DEFAULT NULL;
+            %ADD COLUMN IF NOT EXISTS new_num  UInt32  DEFAULT 0;
+
+
+            %StrEx = sprintf("ALTER TABLE %s",Table);
+
+            NewColumns = lower(NewColumns);
+            Ncol  = numel(NewColumns);
+            Ndef  = numel(NewDefault);
+            for Icol=1:1:Ncol
+                Idef = min(Ndef,Icol);
+                StrEx = sprintf("ALTER TABLE %s",Table);
+                if Nullable
+                    StrEx = sprintf("%s\n ADD COLUMN IF NOT EXISTS %s Nullable(%s) DEFAULT %s;", StrEx, (NewColumns{Icol}), NewClass{Icol}, NewDefault{Idef});
+                else
+                    StrEx = sprintf("%s\n ADD COLUMN IF NOT EXISTS %s %s DEFAULT %s;", StrEx, (NewColumns{Icol}), NewClass{Icol}, NewDefault{Idef});
+                end
+
+                [~,Error] = Obj.query(StrEx, 'IsExec',true);
+
+            end
+            
+            if nargout>2
+                TestNew = Obj.describeTable(Table);
+
+                % Check that all columns were added
+                ColAdded = ismember(NewColumns, TestNew.name);
+            end
+
+        end
+        
         % function removeDuplicates(Obj, Args)
         %     % Remove duplicate entries (same ID) from a table
         %     %
