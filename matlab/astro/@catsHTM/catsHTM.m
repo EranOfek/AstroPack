@@ -2843,7 +2843,7 @@ classdef catsHTM
     % retrieve catalog data
     methods (Static)
         
-        function ExtCat = getExtCatData(T, Args)
+        function [ExtCat, ExtCatNames] = getExtCatData(T, Args)
             % retrieve source data from external catalogs according to the MergedCat mask
             % Input  : - a source table (usually, the output of a DB query)
             %          * ...,key,val,... 
@@ -2851,9 +2851,10 @@ classdef catsHTM
             %        'SearchRad'  - the search radius
             %        'RadUnits'   - the search radius units
             % Output : - a M (num. of lines in T) x N (number of non-zero MergedCat masks) cell array of catalog strings
+            %          - a M (num. of lines in T) x N (number of non-zero MergedCat masks) cell array of catalog names
             % Author : A.M. Krassilchtchikov (2025 Aug) 
             % Example: T = DB.query('select top 5 * from visit_src');
-            %          ExtCat = catsHTM.getExtCatData(T,' SearchRad',3);           
+            %          [ExtCat, ExtCatNames] = catsHTM.getExtCatData(T,'SearchRad',3);           
             arguments
                 T
                 Args.MaskColumn = 'mergedcat';
@@ -2862,10 +2863,11 @@ classdef catsHTM
             end
             %
             RAD = 180/pi;
-            BD=BitDictionary('BitMask.MergedCat.Default');
+            BD  = BitDictionary('BitMask.MergedCat.Default');
             %
             Mask = T.(Args.MaskColumn);            
-            ExtCat = {};
+            ExtCat = {}; 
+            ExtCatNames = {};
             for Ln = 1:height(T)
                 if Mask(Ln) > 0
                     RA = T.ra(Ln)/RAD; Dec = T.dec(Ln)/RAD;
@@ -2873,6 +2875,7 @@ classdef catsHTM
                     for Icat = 1:numel(CatNames{1})
                         [Cat,~]= catsHTM.cone_search(CatNames{1}{Icat},RA,Dec,Args.SearchRad,'RadiusUnits',Args.RadUnits,'OutType','table');
                         ExtCat{Ln,Icat} = Cat;
+                        ExtCatNames{Ln,Icat} = CatNames{1}{Icat};
                     end
                 end
             end

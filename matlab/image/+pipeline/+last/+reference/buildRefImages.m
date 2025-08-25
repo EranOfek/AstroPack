@@ -6,7 +6,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db; ...
+    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db; D.User = ...
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     arguments
         RefGrid
@@ -96,17 +96,18 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             fprintf('WCS not correct in one or several crops, skipping the epoch..\n');
                             continue
                         end
+                        
                         % merge
                         
-                        % var1
+                            % var1
                         [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
                         clear AI;
                          
-                        % var2
+                            % var2
 %                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
 %                         'BoundsStyle','SameAsInput' does not work
 %
-%                       % var3 
+%                           % var3 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
 %                           1. estimate the size of the merged image and
 %                              enlarge the matrix, fill with 0s

@@ -57,7 +57,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         PSF = AstroPSF; PSF.DimName{1} = 'Polygon'; PSF.DimVals{1} = 1:numel(AI);
         for i=1:numel(AI)
             if i>1 && size(AI(i).PSF,1) == Spsf + 2                 
-                PSF.DataPSF(:,:,i)= AI(i).PSF(2:Spsf-1,2:Spsf-1); % should be improved!
+                PSF.DataPSF(:,:,i)= AI(i).PSF(2:Spsf+1,2:Spsf+1); % should be improved!
+            elseif i>1 && size(AI(i).PSF,1) == Spsf - 2 
+                PSF.DataPSF(2:Spsf-1,2:Spsf-1,i)= AI(i).PSF;
             else
                 PSF.DataPSF(:,:,i)=AI(i).PSF;
                 Spsf = size(AI(i).PSF,1);
