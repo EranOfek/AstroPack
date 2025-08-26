@@ -473,7 +473,8 @@ classdef MatchedSources < Component
            
             for k = 1:numel(uniqueID)               
                 AC(k) = AstroCatalog(T(T.(Args.IDcolumn) == uniqueID(k), :));                
-                AC(k).JD = AC(k).Table.JD(1); % need to be improved! 
+                AC(k).sortrows('Dec');
+                AC(k).JD = AC(k).Table.JD(1); % need to be improved!                 
             end         
             
             [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'RelPhot',Args.RelPhot,...
