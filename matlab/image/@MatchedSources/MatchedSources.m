@@ -462,19 +462,21 @@ classdef MatchedSources < Component
             end                       
             % convert the column names to uppercase, except for Dec:
             T.Properties.VariableNames = upper(T.Properties.VariableNames);
-            T.Properties.VariableNames{'DEC'} = 'Dec';            
-            % convert all the values to double:            NB: this will likely spoil the IDs!
-            for k = 1:width(T)
-                T.(T.Properties.VariableNames{k}) = double(T.(T.Properties.VariableNames{k}));
-            end
-            %
+            T.Properties.VariableNames{'DEC'} = 'Dec';                        
+            % find the unique image ids
             uniqueID = unique(T.(Args.IDcolumn));
             AC = repmat(AstroCatalog,numel(uniqueID),1);
-           
-            for k = 1:numel(uniqueID)               
-                AC(k) = AstroCatalog(T(T.(Args.IDcolumn) == uniqueID(k), :));                
-                AC(k).sortrows('Dec');
-                AC(k).JD = AC(k).Table.JD(1); % need to be improved!                 
+            Ncol = width(T);
+            % convert each epoch into an AstroCatalog 
+            for Epoch = 1:numel(uniqueID)    
+                T1 = T(T.(Args.IDcolumn) == uniqueID(Epoch), :);
+                % convert all the values to double in order to make a catalog (this will spoil the IDs, but we do not need them any more) 
+                for Icol = 1:Ncol
+                    T1.(T1.Properties.VariableNames{Icol}) = double(T1.(T1.Properties.VariableNames{Icol}));
+                end
+                AC(Epoch) = AstroCatalog(T1);                
+                AC(Epoch).sortrows('Dec');
+                AC(Epoch).JD = AC(Epoch).Table.JD(1); % need to be improved?                 
             end         
             
             [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'RelPhot',Args.RelPhot,...
