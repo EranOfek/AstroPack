@@ -424,7 +424,7 @@ classdef MatchedSources < Component
         end
                 
         function [MergedCat, MatchedS] = readDBqueryResult(T, Args)
-            % read the output of a DB query into an MS object, sorting into epochs
+            % sort the output table of a DB query by epochs and read it into a MatchedSources object 
             % Input  : - a source table (usually, the output of a DB query)
             %          * ...,key,val,... 
             %        'IDcolumn'    - the name of the image ID column
