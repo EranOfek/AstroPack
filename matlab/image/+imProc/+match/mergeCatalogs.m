@@ -162,6 +162,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     if isempty(Args.JD)
         if isa(Obj, 'AstroImage')
             JD  = julday(Obj(:,1));     
+        elseif isa(Obj,'AstroCatalog')
+            JD = [Obj(:,1).JD]';
         else
             JD  = (1:1:Nepochs).';
         end
