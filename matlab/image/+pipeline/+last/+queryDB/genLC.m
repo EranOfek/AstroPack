@@ -10,6 +10,14 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     % Example:
     % MS1s = pipeline.last.queryDB.genLC(88.1157006,15.8858523,'FieldID','WD0549');
     % MS2s = pipeline.last.queryDB.genLC(274.654678,+30.923869,'FieldID','Nagi1b','CamNum',1)
+    % MS3s = pipeline.last.queryDB.genLC(117.248162870746,31.4201026297819,'FieldID','1346','CamNum',3)
+    % MS3s = pipeline.last.queryDB.genLC(64.2218833203206,    26.4047462995035,'FieldID','1254','CamNum',3)
+    % MS3s = pipeline.last.queryDB.genLC(119.720893587354 ,   16.2792466747635,'FieldID','1097','CamNum',1)
+    % MS3s = pipeline.last.queryDB.genLC(107.857988831646  ,  44.0678803271926,'FieldID','1489','CamNum',2)
+    % MS3s = pipeline.last.queryDB.genLC(60.2176197876583  ,  34.0772710251479 ,'FieldID','MasterOT','CamNum',4)
+    % MS3s = pipeline.last.queryDB.genLC(60.2176197876583  ,  34.0772710251479 ,'FieldID','MasterOT','CamNum',4)
+    % MS3s = pipeline.last.queryDB.genLC(236.236624284269 ,   45.2560870113117  ,'FieldID','1513','CamNum',4)
+
 
     arguments
         RA
@@ -43,7 +51,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         if istable(RA)
             TmpT = RA;
         else
-            TmpT =pipeline.last.queryDB.searchVisitsByCoo(RA, Dec);
+            TmpT =pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'QueryMethod','radec');
         end
 
         if isempty(Args.FieldID)
@@ -58,6 +66,8 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
             TT   = TT(Flag,:);
         end
 
+        
+
         MS=pipeline.last.queryDB.loadProducts(TT,'merged','MergedMat'); 
     end
 
@@ -68,6 +78,16 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
 
     MS = MS(Igood);
 
+    
+    if Args.CleanMissingX2
+        Nms = numel(MS);
+        IsF=false(Nms,1);
+        
+        for I=1:1:numel(MS)
+            IsF(I)=isfield(MS(I).Data,'X2');
+        end
+        MS = MS(IsF);
+    end
     MS1 = MS.mergeByCoo(MS(1));
 
     % remove bad:

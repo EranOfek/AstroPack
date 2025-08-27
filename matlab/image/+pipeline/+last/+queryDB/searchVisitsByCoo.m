@@ -77,7 +77,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                                   "upix_partition", "upix_low", "upix_high"];
         
         Args.ColCornerRA       = ["ra1","ra2","ra3","ra4"];
-        Args.ColCornerDec      = ["dec1","dec","dec3","dec4"];
+        Args.ColCornerDec      = ["dec1","dec2","dec3","dec4"];
 
     end
     RAD = 180./pi;
@@ -164,7 +164,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                                T{Icoo}.(Args.ColCornerRA{3})(Icand), T{Icoo}.(Args.ColCornerDec{3})(Icand);...
                                T{Icoo}.(Args.ColCornerRA{4})(Icand), T{Icoo}.(Args.ColCornerDec{4})(Icand)];
                     Flag(Icand) = celestial.htm.in_polysphere([RA(Icoo), Dec(Icoo)]./RAD, Corners./RAD);
-                    %Flag(Icand) = celestial.coo.findInBox(RA(Icoo), Dec(Icoo), Corners(:,1).', Corners(:,2).', 'InUnits','deg');
+                    %Flag1(Icand) = celestial.coo.findInBox(RA(Icoo), Dec(Icoo), Corners(:,1).', Corners(:,2).', 'InUnits','deg');
 
                 end
                 

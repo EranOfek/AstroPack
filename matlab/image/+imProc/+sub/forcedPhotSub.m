@@ -64,7 +64,7 @@ function [AC] = forcedPhotSub(AD, Coo, Args)
         Args.ColScorr          = 'Scorr';
         Args.ColZ2             = 'Z2';
 
-        Args.NewHeaderKeys     = {'LIMMAG', 'FIELDID', 'MOUNTNUM', 'CAMNUM', 'CROPID'};
+        Args.NewHeaderKeys     = {'LIMMAG', 'FIELDID', 'MOUNTNUM', 'CAMNUM', 'CROPID'}; % 'LIMMAG', 'AIRMASS', 'PH_COL1', 'PH_ZP', 'PH_RMS'};
         Args.RefHeaderKeys     = {'LIMMAG'};
         Args.HeaderKeys        = {'LIMMAG', 'AIRMASS', 'PH_COL1', 'PH_ZP', 'PH_RMS'};
         
