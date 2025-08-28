@@ -656,15 +656,16 @@ function TranCat = flagNonTransients(Obj, Args)
                     N_Passes_Local(ICand) = (MagContamination > 0.5);
                 end
 
-                TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
-                       cell2mat({ContaminationFlux}), ...
-                       'SCORE', {'FLUX_CONTAM'}, {''});
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
                 N_Passes_PSFShape = N_Passes_PSFShape | N_Passes_Local;
                 N_Passes_PSF_Global = N_Passes_PSF_Global | N_Passes_Local;
             end
+            
+            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
+                   cell2mat({ContaminationFlux}), ...
+                   'SCORE', {'FLUX_CONTAM'}, {''});
 
             % Test local shape. Only use local shape if global fails or
             % candidate is near saturated pixels.
