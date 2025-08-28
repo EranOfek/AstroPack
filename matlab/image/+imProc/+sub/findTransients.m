@@ -374,7 +374,11 @@ function TranCat=findTransients(AD, Args)
             CHI2DOF_New = AD(Iobj).New.CatData.getCol('PSF_CHI2DOF');
 
             MinMag_New = floor(min(MAGPSF_New));
-            MaxMag_New = ceil(AD(Iobj).New.HeaderData.getVal('LIMMAG'));
+            if AD(Iobj).New.HeaderData.isKeyExist('LIMMAG')
+                MaxMag_New = ceil(AD(Iobj).New.HeaderData.getVal('LIMMAG'));
+            else
+                MaxMag_New = ceil(max(MAGPSF_New));
+            end
             binEdges_New = MinMag_New:1.0:MaxMag_New;
             binIndices_New = discretize(MAGPSF_New, binEdges_New);
 
@@ -401,7 +405,12 @@ function TranCat=findTransients(AD, Args)
             CHI2DOF_Ref = AD(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
           
             MinMag_Ref = floor(min(MAGPSF_Ref));
-            MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
+
+            if AD(Iobj).Ref.HeaderData.isKeyExist('LIMMAG')
+                MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
+            else
+                MaxMag_Ref = ceil(max(MAGPSF_Ref));
+            end
             binEdges_Ref = MinMag_Ref:1.0:MaxMag_Ref;
             binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
             
