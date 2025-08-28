@@ -618,6 +618,7 @@ classdef VisitVariability < Component
 
             if ~isempty(Args.AssignToBase)
                 % assign the Table into the base session
+                MS.UserData.SrcInd = Found.Ind;
                 assignin('base', Args.AssignToBase, MS);
                 fprintf('Variable %s containing MatchedSources object is assigned to base\n',Args.AssignToBase);
             end
