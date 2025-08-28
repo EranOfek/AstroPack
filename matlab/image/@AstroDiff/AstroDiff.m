@@ -1251,6 +1251,55 @@ classdef AstroDiff < AstroImage
     end
 
     methods % display
+        % print 
+        function printTranByCoord(Obj, RA, Dec, Args)
+
+            arguments
+                Obj
+                RA
+                Dec
+                Args.SearchRad = 3;
+            end
+
+            Rad2Arcsec = 206265;
+
+            Match = Obj.CatData.coneSearch(RA, Dec, Args.SearchRad);
+            
+            if Match.Nsrc < 1
+                fprintf('No match found.\n');
+                return
+            else
+                Dist = Match.Dist*Rad2Arcsec;
+                fprintf('Found match at distance %f"\n', Dist);
+            end
+
+            MatchRow = Obj.CatData.selectRows(Match.Ind);
+
+            NCols = numel(MatchRow.ColNames);
+            
+            for ICol = 1:NCols
+                Col = MatchRow.ColNames{ICol};
+                Val  = MatchRow.getCol(Col);
+                fprintf('%s: %f\n', Col, Val);
+            end
+
+             BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
+
+            if MatchRow.isColumn('FLAGS_TRANSIENT')
+                Flags = MatchRow.getCol('FLAGS_TRANSIENT');
+                if Flags == 0
+                    fprintf('All filters passed.\n');
+                else
+                    Filters = BD_TF.bitdec2name(Flags);
+                    NFilters = numel(Filters{1});
+                    fprintf('Candidate fails the following filters:\n')
+                    for IFilter = 1:NFilters
+                        fprintf('%s\n',Filters{1}{IFilter});
+                    end
+                end
+            end
+        end
+
         % ds9
 
         function displayTransients(Obj, Args)
@@ -1282,6 +1331,7 @@ classdef AstroDiff < AstroImage
                 Args.OtherImages cell = {};
 
                 Args.PoI = [];
+                Args.PoIUnits = "deg";
 
             end
 
@@ -1305,8 +1355,13 @@ classdef AstroDiff < AstroImage
             % Display Ref
             ds9(Obj.Ref,1); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
+    
+            if ~isempty(Args.PoI) && Args.PoIUnits == "deg"
+                [Args.PoI(1), Args.PoI(2)] = Obj.WCS.sky2xy(Args.PoI);
+            end
+
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'bx')
+                ds9.plot(Args.PoI, 'cx')
             end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
@@ -1315,7 +1370,7 @@ classdef AstroDiff < AstroImage
             ds9(Obj.New,2); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'bx')
+                ds9.plot(Args.PoI, 'cx')
             end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
@@ -1323,7 +1378,7 @@ classdef AstroDiff < AstroImage
             % Display D
             ds9(Obj,3);
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'bx')
+                ds9.plot(Args.PoI, 'cx')
             end
             ds9.plot(TranCat.getXY, Args.TranMarker);
             if exist('NonTranCat','var')
