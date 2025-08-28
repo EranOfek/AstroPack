@@ -197,8 +197,6 @@ function TranCat = flagNonTransients(Obj, Args)
     arguments
         Obj AstroDiff
 
-        %TODO: put all all of this in a config file
-
         Args.ConfigFile = '';
 
         Args.PixelScale = 1.25;
@@ -314,6 +312,7 @@ function TranCat = flagNonTransients(Obj, Args)
     BD_IM = BitDictionary('BitMask.Image.Default');
 
     Arcsec2Rad = 4.84814e-6;
+    Rad2Arcsec = 206265;
 
     for Iobj=Nobj:-1:1
         CandCat = Obj(Iobj).CatData;
@@ -386,14 +385,26 @@ function TranCat = flagNonTransients(Obj, Args)
                   (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
 
         % Get star matched candidates
-        StarCand = (CandCat.getCol('STAR_N') > 0.0);
+        if CandCat.isColumn('STAR_N')
+            StarCand = (CandCat.getCol('STAR_N') > 0.0);
+        else
+            StarCand = false(NumCand,1);
+        end
 
-        % Get Galaxy matched candidates
-        %GalCand = (CandCat.getCol('GAL_N') > 0.0);
-
+        % Get galaxy matched candidates
+        if CandCat.isColumn('STAR_N')
+            GalCand = (CandCat.getCol('GAL_N') > 0.0);
+        else
+            GalCand = false(NumCand,1);
+        end
+        
         % Get Nuclear candidates
-        GalDist = CandCat.getCol('GAL_DIST');
-        NuclearCand = GalDist < 3.0;
+        if CandCat.isColumn('GAL_DIST')
+            GalDist = CandCat.getCol('GAL_DIST');
+            NuclearCand = GalDist < 3.0;
+        else
+            NuclearCand = false(NumCand,1);
+        end
 
 
         % ====== Apply flags =====
@@ -570,19 +581,20 @@ function TranCat = flagNonTransients(Obj, Args)
             N_Passes_HardLim =  (N_X2 < Args.SecondMomHardLim) & ...
                                 (N_Y2 < Args.SecondMomHardLim);
 
+            ContaminationFlux = zeros(NumCand,1);
+
             % If the global PSF is wide, check for local contaminating
             % sources
             if any(~N_GoodPSF) && any(N_Passes_HardLim)
-                N_Aper3Flux = Obj(Iobj).New.CatData.getCol('FLUX_APER_3');
-                N_NativeX2 = Obj(Iobj).New.CatData.getCol('X2');
-                N_NativeY2 = Obj(Iobj).New.CatData.getCol('Y2');
-                N_NativeXY2_Max = max(N_NativeX2,N_NativeY2);
-        
-                % Define the contamination radius as the distance at which
-                % the source is at least as bright as 1% of the background.
-                DistThresh = sqrt(N_NativeXY2_Max).*sqrt(...
-                    -2.*log(Args.ContaminationFlux.*...
-                    Obj(Iobj).BackN./(N_Aper3Flux)));
+
+                % N flux may be centered on a center-of-mass between e.g.
+                % galaxy nucleus and a SN
+                % So we will use the N image PSF stamp and moments, but
+                % with photometry from the R image, that way a transient
+                % will not affect the astrometry.
+                R_IntFlux = Obj(Iobj).Ref.CatData.getCol('FLUX_APER_3');
+
+                N_IntFlux = R_IntFlux*10^(0.4*(Obj.ZpN-Obj.ZpR));
 
                 % Get sources that contaminate beyond the PSF stamp
                 % User the smaller PSF between N and R
@@ -590,42 +602,63 @@ function TranCat = flagNonTransients(Obj, Args)
                 R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
                 PSFSize_Min = min(N_PSFSize,R_PSFSize);
 
-                N_ContSrcs = (DistThresh > PSFSize_Min-1);
-          
-                % Match candidates to New image sources within wide range 
-                % equal to 1.5 times the PSF size. The candidate should 
-                % match at least itself. If there is no match, then likely 
-                % the candidate is contaminated by a source beyond this
-                % range.
-                [N_NativeRA, N_NativeDec] = Obj(Iobj).New.CatData.getLonLat('rad');
+                % To be on the conservative side, take the x1.1 of the
+                % second moments. 
+
+                % The ^4 is due to Issue #701, this should change once the
+                % issue is figured out. TODO
+                Med_NX2 = median(N_X2)^4;
+                Med_NY2 = median(N_Y2)^4;
+
+                % Get the flux fraction that is expected in the tails
+                % beyond the PSF stamp.
+                FractionTailFlux = 1 - erf(PSFSize_Min./sqrt(2*Med_NX2))*erf(PSFSize_Min./sqrt(2*Med_NY2));
+                N_TailFlux = N_IntFlux*FractionTailFlux;
+
+                % Count all sources with more than 1% flux outside the PSF
+                % stamp as contaminating sources.
+                N_ContSrcs = (N_TailFlux > 0.1*Obj.BackN);
+
+                % Match candidates to contaminating sources within
+                % contamination radius.
+                [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
                 WideRadius = Args.ContaminationRadius*PSFSize_Min*Args.PixelScale;
-                N_CatMatchWide = VO.search.search_sortedlat_multi( ...
-                    [N_NativeRA, N_NativeDec], RA, Dec, ...
-                    WideRadius*Arcsec2Rad);
-                NumMatchesWideAll = vertcat(N_CatMatchWide.Nmatch);
-
                 % Select coordinates of contaminating sources.
-                N_NativeContRa = N_NativeRA(N_ContSrcs);
-                N_NativeContDec = N_NativeDec(N_ContSrcs);
-
+                R_NativeContRa = R_NativeRA(N_ContSrcs);
+                R_NativeContDec = R_NativeDec(N_ContSrcs);
+                N_ContTailFlux = N_TailFlux(N_ContSrcs);
                 % Match candidates to contaminating sources in wide range.
                 N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
-                    [N_NativeContRa, N_NativeContDec], RA, Dec, ...
+                    [R_NativeContRa, R_NativeContDec], RA, Dec, ...
                     -WideRadius*Arcsec2Rad);
+
+                % Match candidates to contaminating sources in narrow range
+                % to ignore self-contamination.
+
                 NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
 
-                % Match candidates to contaminating sources on the
-                % candidate position. 
-                NumMatchesSame = arrayfun(...
-                    @(x) sum(x.Dist < 3.0*Arcsec2Rad), N_ContCatMatchWide);
+                N_Passes_Local = (NumMatchesWideCont < 1);
+                CandFluxes = CandCat.getCol('FLUX_PSF');
+               
+                for ICand = 1:NumCand
+                    if N_Passes_Local(ICand)
+                        continue
+                    end
+                
+                    IdxRef = N_ContCatMatchWide(ICand).Ind(:);
+                    % DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
-                % If the number of contaminating sources in wide range 
-                % and on candidate position is the same (1), then the 
-                % candidate is not contaminated. If the wide range number 
-                % is higher, then the candidate may be contaminated.
+                    ContaminationFlux(ICand) = sum(N_ContTailFlux(IdxRef));
+                    CandFlux = CandFluxes(ICand);
 
-                N_Passes_Local = (NumMatchesWideAll > 0) & ...
-                    (NumMatchesWideCont - NumMatchesSame < 1);
+                    MagContamination = log10(CandFlux/ContaminationFlux(ICand));
+                
+                    N_Passes_Local(ICand) = (MagContamination > 0.5);
+                end
+
+                TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
+                       cell2mat({ContaminationFlux}), ...
+                       'SCORE', {'FLUX_CONTAM'}, {''});
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
@@ -949,7 +982,10 @@ function TranCat = flagNonTransients(Obj, Args)
             AIC_Diff = S2_AIC - Z2_AIC;
 
             % Exclude isolated candidates unless PSF shape is bad.
-            ExcludeCand = IsolatedCand & N_Passes_PSF_Global;
+            ExcludeCand = IsolatedCand;
+            if exist('N_Passes_PSF_Global','var')
+                ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
+            end
 
             IsNotTranslient = (AIC_Diff < Args.TranslientThresh) ...
                 | ExcludeCand;
