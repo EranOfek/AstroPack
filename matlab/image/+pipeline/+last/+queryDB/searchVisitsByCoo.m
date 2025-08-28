@@ -25,7 +25,8 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
     %            'Constraints' - A two column cell array of constraints to
     %                   apply to the image search (by coordinates or
     %                   fieldid).
-    %                   Default is: {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
+    %                   Example: {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
+    %                   Default is {}.
     %            'DB' - A db.Db object. If empty, will be created and
     %                   opened, and returned. Default is [].
     %
@@ -59,7 +60,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
         Args.MaxNim            = []; %1e7;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
 
-        Args.Constraints       = {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
+        Args.Constraints       = {}; %{'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
         Args.RangeJD           = [];
         Args.InUnits           = 'deg';
         Args.DB                = [];
@@ -77,7 +78,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                                   "upix_partition", "upix_low", "upix_high"];
         
         Args.ColCornerRA       = ["ra1","ra2","ra3","ra4"];
-        Args.ColCornerDec      = ["dec1","dec","dec3","dec4"];
+        Args.ColCornerDec      = ["dec1","dec2","dec3","dec4"];
 
     end
     RAD = 180./pi;
@@ -164,7 +165,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                                T{Icoo}.(Args.ColCornerRA{3})(Icand), T{Icoo}.(Args.ColCornerDec{3})(Icand);...
                                T{Icoo}.(Args.ColCornerRA{4})(Icand), T{Icoo}.(Args.ColCornerDec{4})(Icand)];
                     Flag(Icand) = celestial.htm.in_polysphere([RA(Icoo), Dec(Icoo)]./RAD, Corners./RAD);
-                    %Flag(Icand) = celestial.coo.findInBox(RA(Icoo), Dec(Icoo), Corners(:,1).', Corners(:,2).', 'InUnits','deg');
+                    %Flag1(Icand) = celestial.coo.findInBox(RA(Icoo), Dec(Icoo), Corners(:,1).', Corners(:,2).', 'InUnits','deg');
 
                 end
                 

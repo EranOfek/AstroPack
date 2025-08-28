@@ -1,8 +1,8 @@
 function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     % Convert JD (TDB) to Barycentric JD (TDB)
     % Input  : - Vector of JD (in some time scale).
-    %          - Vector of J2000.0 RA (default units radinas).
-    %          - Vector of J2000.0 Dec (default units radinas).
+    %          - Vector or scalar of J2000.0 RA (default units radinas).
+    %          - Vector or scalar of J2000.0 Dec (default units radinas).
     %          * ...,key,val,...
     %            'InTimeScale' - Time scale of input JD: 'TT'|'TDB'|'UTC'.
     %                   Default is 'TDB'.
@@ -40,6 +40,15 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.INPOP          = [];
     end
     
+    N = numel(JD);
+    if numel(RA)==1
+        RA = RA.*ones(N,1);
+    end
+    if numel(Dec)==1
+        Dec = Dec.*ones(N,1);
+    end
+
+
     % sanity check:
     if sum(isnan(JD)) > 0 || sum(isnan(RA)) > 0 || sum(isnan(Dec)) > 0
         error('Some of the input times or coordinates is NaN');

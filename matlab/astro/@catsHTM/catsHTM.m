@@ -2844,7 +2844,7 @@ classdef catsHTM
     methods (Static)
         
         function [ExtCat, ExtCatNames] = getExtCatData(T, Args)
-            % retrieve source data from external catalogs according to the MergedCat mask
+            % for each catalog source retrieve relevant data from external catalogs according to the source's MergedCat mask
             % Input  : - a source table (usually, the output of a DB query)
             %          * ...,key,val,... 
             %        'MaskColumn' - the name of the mask column
@@ -2873,7 +2873,8 @@ classdef catsHTM
                     RA = T.ra(Ln)/RAD; Dec = T.dec(Ln)/RAD;
                     CatNames = BD.bitdec2name(Mask(Ln));
                     for Icat = 1:numel(CatNames{1})
-                        [Cat,~]= catsHTM.cone_search(CatNames{1}{Icat},RA,Dec,Args.SearchRad,'RadiusUnits',Args.RadUnits,'OutType','table');
+                        [Cat,~]= catsHTM.cone_search(CatNames{1}{Icat},RA,Dec,Args.SearchRad,...
+                            'RadiusUnits',Args.RadUnits,'OutType','table');
                         ExtCat{Ln,Icat} = Cat;
                         ExtCatNames{Ln,Icat} = CatNames{1}{Icat};
                     end

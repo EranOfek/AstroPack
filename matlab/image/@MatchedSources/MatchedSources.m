@@ -422,20 +422,24 @@ classdef MatchedSources < Component
             end
 
         end
-        
-        
-        function Result = readDBqueryResult(T, Args)
-            % read the output of a DB query into an MS object, sorting into epochs
+                
+        function [MergedCat, MatchedS] = readDBqueryResult(T, Args)
+            % sort the output table of a DB query by epochs and read it into a MatchedSources object 
             % Input  : - a source table (usually, the output of a DB query)
             %          * ...,key,val,... 
             %        'IDcolumn'    - the name of the image ID column
             %        'SearchRadius'- the search radius
             %        'RadUnits'    - the search radius units
-            % Output : - a M (num. of lines in T) x N (number of non-zero MergedCat masks) cell array of catalog strings
+            % Output - an array of AstroCatalog (one per field/column in the input Astrocatalog). 
+            %          Each AstroCatalog contains the merged catalog with all the sources and their properties
+            %        - a MatchedSources object 
             % Author : A.M. Krassilchtchikov (2025 Aug) 
-            % Example: T = DB.query('select top 5 * from visit_src');
-            %          MS = MatchedSources.readDBqueryResult(T,'MatchRadius',5);            
-            %          MS.plotLC(1,'MagField','mag_aper_3','FlagsField','flags'); 
+            % Example: Start = celestial.time.date2jd([2025, 04, 18]);
+            %          Stop  = celestial.time.date2jd([2025, 05, 01]);
+            %          Q = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'JDstop',Stop,'MaxMag',19,'DB',D);
+            %          T = D.query(Q);
+            %          [MCat, MS] = MatchedSources.readDBqueryResult(T,'SearchRadius',3); 
+            %          plot(MS.Data.JD(:,200),MS.Data.MAG_APER_3(:,200),"*")            
             arguments
                 T
                 Args.IDcolumn     = 'ID_VISIT_IM';
@@ -443,8 +447,12 @@ classdef MatchedSources < Component
                 Args.RadiusUnits  = 'arcsec';                
                 Args.MatchedColumns = {'JD','BJD','RA','Dec','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF',...
                                         'X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4',...
-                                        'PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','FLUX_APER_3','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','ITER',...
-                                       'MOUNTNUM','CAMNUM','CROPID'};
+                                        'PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','FLUX_APER_3','BACK_IM','VAR_IM','BACK_ANNULUS',...
+                                        'STD_ANNULUS','ITER','MOUNTNUM','CAMNUM','CROPID'};
+                Args.ColNamesStat  = {'RA',  'Dec', 'X1',  'Y1',  'MAG_PSF','MAGERR_PSF','MAG_APER_2', 'MAG_APER_3',...
+                                        'SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', 'PSF_CHI2DOF'};  % must be a subset of MatchedColums
+                Args.ColNamesAll   = {'MAG_PSF','MAG_APER_3'}; 
+                Args.RelPhot       = false;
             end
             %
             Result = MatchedSources;
@@ -454,31 +462,27 @@ classdef MatchedSources < Component
             end                       
             % convert the column names to uppercase, except for Dec:
             T.Properties.VariableNames = upper(T.Properties.VariableNames);
-            T.Properties.VariableNames{'DEC'} = 'Dec';            
-            % convert all the values to double:            NB: this will likely spoil the IDs!
-            for k = 1:width(T)
-                T.(T.Properties.VariableNames{k}) = double(T.(T.Properties.VariableNames{k}));
-            end
-            %
+            T.Properties.VariableNames{'DEC'} = 'Dec';                        
+            % find the unique image ids
             uniqueID = unique(T.(Args.IDcolumn));
-            AC = repmat(AstroCatalog,1,numel(uniqueID));
-           
-            for k = 1:numel(uniqueID)               
-                AC(k) = AstroCatalog(T(T.(Args.IDcolumn) == uniqueID(k), :));
-                AC(k).JD = AC(k).Table.JD(1); % need to be improved! 
+            AC = repmat(AstroCatalog,numel(uniqueID),1);
+            Ncol = width(T);
+            % convert each epoch into an AstroCatalog 
+            for Epoch = 1:numel(uniqueID)    
+                T1 = T(T.(Args.IDcolumn) == uniqueID(Epoch), :);
+                % convert all the values to double in order to make a catalog (this will spoil the IDs, but we do not need them any more) 
+                for Icol = 1:Ncol
+                    T1.(T1.Properties.VariableNames{Icol}) = double(T1.(T1.Properties.VariableNames{Icol}));
+                end
+                AC(Epoch) = AstroCatalog(T1);                
+                AC(Epoch).sortrows('Dec');
+                AC(Epoch).JD = AC(Epoch).Table.JD(1); % need to be improved?                 
             end         
             
-            [~,Result] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'MatchedColums',Args.MatchedColumns); %,...
-%                 'RelPhot',false);
-
-%             ms = mergeByCoo(MS, MS(mergeBy));
-%             mms = ms.setBadPhotToNan('BadFlags', BadFlags, 'MagField', 'MAG_PSF', 'CreateNewObj', true);
-%             NdetGood = sum(~isnan(mms.Data.MAG_PSF), 1);
-%             Fndet = NdetGood > Det_frac*mms.Nepoch; % Allow for 15% no detections per source.
-%             mms = mms.selectBySrcIndex(Fndet, 'CreateNewObj', false);
-            
-%             Result.unifiedCatalogsIntoMatched(AC,'Radius',Args.SearchRadius,'RadiusUnits',Args.RadiusUnits,...
-%                 'MatchedColums',Args.MatchedColumns);           
+            [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'RelPhot',Args.RelPhot,...
+                                                           'MatchedColums',Args.MatchedColumns,...
+                                                           'ColNamesStat', Args.ColNamesStat,...
+                                                           'ColNamesAll',  Args.ColNamesAll);     
         end
     end
     

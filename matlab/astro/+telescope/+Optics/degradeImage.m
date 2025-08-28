@@ -12,13 +12,14 @@ function [NewImage] = degradeImage(Image, PixScale, PSF, PSFScale, Args)
     %       
     % Output : - Degraded image.
     % Author : Eran Ofek (2025 Aug) 
-    % Example: NIm = telescope.Optics.degradeImage(Image, 0.3, 2n);
+    % Example: NIm = telescope.Optics.degradeImage(Image, 0.3, 2);
 
     arguments
         Image
         PixScale      = 1;   % [e.g., arcsec/pix]
         PSF           = 2;
         PSFScale      = 1;   % [e.g., arcsec/pix]
+        Args.NphotPerRes = 500;
         Args.InterpMethod = 'lanczos2';
         Args.NormPSF  = true;
         Args.D        = 100;
@@ -54,5 +55,8 @@ function [NewImage] = degradeImage(Image, PixScale, PSF, PSFScale, Args)
 
     NewImage = conv2(Image, NewPSF, 'same');
 
+    if ~isempty(Args.NphotPerRes)
+        NewImage = poissrnd(Args.NphotPerRes .* NewImage./max(NewImage,[],'all'));
+    end
 
 end

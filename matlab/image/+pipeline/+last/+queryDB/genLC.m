@@ -10,14 +10,43 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     % Example:
     % MS1s = pipeline.last.queryDB.genLC(88.1157006,15.8858523,'FieldID','WD0549');
     % MS2s = pipeline.last.queryDB.genLC(274.654678,+30.923869,'FieldID','Nagi1b','CamNum',1)
+    % MS3s = pipeline.last.queryDB.genLC(117.248162870746,31.4201026297819,'FieldID','1346','CamNum',3)
+    % MS3s = pipeline.last.queryDB.genLC(64.2218833203206,    26.4047462995035,'FieldID','1254','CamNum',3)
+    % MS3s = pipeline.last.queryDB.genLC(119.720893587354 ,   16.2792466747635,'FieldID','1097','CamNum',1)
+    % MS3s = pipeline.last.queryDB.genLC(107.857988831646  ,  44.0678803271926,'FieldID','1489','CamNum',2)
+    % MS3s = pipeline.last.queryDB.genLC(60.2176197876583  ,  34.0772710251479 ,'FieldID','MasterOT','CamNum',4)
+    % MS3s = pipeline.last.queryDB.genLC(60.2176197876583  ,  34.0772710251479 ,'FieldID','MasterOT','CamNum',4)
+    % MS3s = pipeline.last.queryDB.genLC(236.236624284269 ,   45.2560870113117  ,'FieldID','1513','CamNum',4)
+    %
+    % RA=233.970883040643; Dec=-14.22005886708; FieldID='686'; CamNum=1; CropID=2;  % HP Lib
+    % RA=212.952668267765; Dec=-18.584465563234; FieldID='213-18'; CamNum=2; CropID=5;  %
+    % RA=67.4798599922836; Dec=34.7928892561292; FieldID='1335'; CamNum=4; CropID=22;   % cand - one eclipse
+    % RA=64.2218415434159; Dec=26.404713118121; FieldID='1254'; CamNum=2; CropID=5; % new var % new -brighning /many / interesting
+    % RA=182.925919255858; Dec=38.3066889437051; FieldID='1338.WDM4'; CamNum=2; CropID=14; % new / possible 22.545888 min period, but phase...
+    % MS = pipeline.last.queryDB.genLC(RA,Dec,'FieldID',FieldID,'CamNum',CamNum,'CropID',CropID); 
+    % R=MS.coneSearch(RA,Dec);
+    % JD = MS.JD;
+    % LC=MS.Data.MAG_BEST(:,R.Ind);
+    % IN = celestial.INPOP.init;
+    % BJD = celestial.time.barycentricJD(JD,RA./RAD,Dec./RAD,'GeoPos',[35./RAD, 30./RAD, 415], 'INPOP',IN);
+    % Freq = timeSeries.period.getFreq(BJD, 'MaxFreq',1440);
+    % [PS]=timeSeries.period.period([BJD, LC], Freq);
+    % MS.plotLC(R.Ind);
+    % plot(PS(:,1), PS(:,2))
+    % [MaxPS,MaxI] = max(PS(:,2));
+    % F = timeSeries.fold.folding([JD,LC],1./Freq(MaxI));
+    % plot(F(:,1), F(:,2),'o')
+    % B=timeSeries.bin.binning(F,0.05,[0 1]);
+    % hold on; plot(B(:,1),B(:,3),'o')
 
     arguments
         RA
         Dec
         Args.FieldID           = "WD0549";
         Args.CamNum            = 1;
+        Args.CropID            = [];
 
-        Args.MinNotNanFrac     = 0.95;
+        Args.MinNotNanFrac     = 0.1; %0.95;
         Args.UseMagMinRMS      = false;
         Args.Nsysrem           = 2;
 
@@ -30,6 +59,8 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         Args.MinNeighFlux      = 0.001;
 
         Args.IsBadFlags        = {'Saturated', 'NearEdge'};
+
+        Args.DB                = [];
     end
 
     RAD = 180./pi;
@@ -43,7 +74,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         if istable(RA)
             TmpT = RA;
         else
-            TmpT =pipeline.last.queryDB.searchVisitsByCoo(RA, Dec);
+            TmpT =pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'QueryMethod','radec','DB',Args.DB);
         end
 
         if isempty(Args.FieldID)
@@ -58,6 +89,13 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
             TT   = TT(Flag,:);
         end
 
+        if ~isempty(Args.CropID)
+            Flag = TT.cropid == Args.CropID;
+            TT   = TT(Flag,:);
+        end
+
+        
+
         MS=pipeline.last.queryDB.loadProducts(TT,'merged','MergedMat'); 
     end
 
@@ -68,6 +106,16 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
 
     MS = MS(Igood);
 
+    Args.CleanMissingX2 = true;
+    if Args.CleanMissingX2
+        Nms = numel(MS);
+        IsF=false(Nms,1);
+        
+        for I=1:1:numel(MS)
+            IsF(I)=isfield(MS(I).Data,'X2');
+        end
+        MS = MS(IsF);
+    end
     MS1 = MS.mergeByCoo(MS(1));
 
     % remove bad:
