@@ -1,0 +1,374 @@
+% TopCat - Query online the TopCat catalogs
+%
+%
+
+
+classdef TopCat < Base
+    % OrbitalEl class for storing and manipulating orbital elements
+
+    % Properties
+    properties
+        Ofmt       = 'csv';                                     % Output format
+        TimeoutSec = 600;                                       % For HTTP fallback
+    end
+    
+    
+    properties (Constant)
+        %TapUrl     = 'https://gea.esac.esa.int/tap-server/tap';  % Default TAP endpoint (Gaia)
+        TapUrl     = 'https://tapvizier.cds.unistra.fr/TAPVizieR/tap';
+
+    end
+    
+    properties (Hidden)
+    
+        
+    end
+    
+    
+    methods % constructor
+        
+    end
+    
+    methods  % getters/setters
+        
+    end
+    
+
+    methods (Static)
+        function Query=constructQueryAllTables()
+            % Construct a query to get all table names
+            % Input  : null
+            % Output : Query string.
+            % Author : Eran Ofek (Aug 2025)
+            % Example: Query = VO.TopCat.constructQueryAllTables;
+
+            Query = 'SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables';
+        end
+
+        function Query = constructColumnNamesQuery(TableSchema, TableName)
+
+            %VOCOLUMNSQUERYFROMTABLES Map TAP_SCHEMA.tables identifiers to a columns query.
+            % Inputs (exactly as returned by TAP_SCHEMA.tables):
+            %   SchemaNameFromTables : e.g. 'J_AA'  (VizieR) or 'gaiadr3' (Gaia)
+            %   TableNameFromTables  : e.g. 'J/A+A/635/A13/table1' (VizieR) or 'gaia_source' (Gaia)
+            %
+            % Outputs:
+            %   TableSchema : value to use in TAP_SCHEMA.columns.table_schema
+            %   TableName   : value to use in TAP_SCHEMA.columns.table_name
+            %   Query       : ADQL string to fetch the column metadata
+
+            % Example: Query = VO.TopCat.constructQueryAllTables;
+            %          Tbl=VO.TopCat.queryHttp(Query);
+            %          Query=VO.TopCat.constructColumnNamesQuery(Tbl.schema_name{1}, Tbl.table_name{1})
+            %          T=VO.TopCat.queryHttp(Query);
+        
+            TS = strrep(string(TableSchema), "'", "''");   % escape inner quotes
+            TN = strrep(string(TableName),   "'", "''");
+            Query  = "SELECT column_name, datatype, ucd, unit, description " + ...
+                 "FROM TAP_SCHEMA.columns " + ...
+                 "WHERE table_schema = '" + TS + "' AND table_name = '" + TN + "'";
+
+            %SELECT c.column_name, c.datatype, c.ucd, c.unit, c.description
+            %FROM TAP_SCHEMA.columns AS c
+            %WHERE (c.schema_name = 'III_spectro' OR c.table_schema = 'III_spectro')
+            %AND c.table_name = 'III/198/hyades'
+
+            Query = sprintf("SELECT c.column_name, c.datatype, c.ucd, c.unit, c.description FROM TAP_SCHEMA.columns AS c WHERE (c.schema_name = '%s' OR c.table_schema = '%s') AND c.table_name = '%s'",...
+                    TableSchema, TableSchema, TableName);
+
+
+        end
+
+
+                 
+        function S = protectForUrlEncoded(Sin)
+            % Protect '+' and '%' inside an x-www-form-urlencoded value
+            % so servers don't turn '+' into spaces or double-interpret '%'.
+            
+            S = char(string(Sin));
+            S = strrep(S, '%', '%25');   % encode '%' first
+            S = strrep(S, '+', '%2B');   % then encode '+'
+        end
+
+
+        function SafeName = convertTableName(TableName, SchemaName)
+            %CONVERTTABLENAME Quote a TAP/VizieR table (and optional schema) for ADQL.
+            % Usage:
+            %   Safe = convertTableName('J/A+A/635/A13/table1');
+            %   Safe = convertTableName('gaiadr3');                       % simple
+            %   Safe = convertTableName('J/A+A/635/A13/table1','J_AA');   % -> "J_AA"."J/A+A/635/A13/table1"
+            %
+            % Notes:
+            % - ADQL identifiers with special chars (/ + etc.) MUST be double-quoted.
+            % - We escape any embedded double quotes by doubling them per SQL rules.
+            % - Returns a char vector (works on older MATLAB releases, too).
+            
+            if nargin < 2
+                SchemaName = '';
+            end
+        
+            % Coerce to char
+            TN = char(TableName);
+            SN = char(SchemaName);
+        
+            % Strip surrounding double quotes if already quoted
+            if ~isempty(TN) && TN(1) == '"' && TN(end) == '"'
+                TN = TN(2:end-1);
+            end
+            if ~isempty(SN) && SN(1) == '"' && SN(end) == '"'
+                SN = SN(2:end-1);
+            end
+        
+            % Escape embedded double quotes by doubling them
+            TN = strrep(TN, '"', '""');
+            SN = strrep(SN, '"', '""');
+        
+            if isempty(SN)
+                SafeName = ['"' TN '"'];
+            else
+                SafeName = ['"' SN '"."' TN '"'];
+            end
+        end
+
+        function Qfixed = normalizeVizierIdentifiers(Qin)
+            % Rewrite common VizieR shorthand identifiers to their canonical form.
+            % Current rule: "J/AA/..."  -> "J/A+A/..."
+            Qfixed = char(string(Qin));
+            % Only touch inside double-quoted identifiers (not SQL keywords)
+            % "J/AA/..."  -> "J/A+A/..."
+            Qfixed = regexprep(Qfixed, '"J/AA/', '"J/A+A/');
+            % Also fix plain string literals if used in WHERE table_name comparisons
+            Qfixed = regexprep(Qfixed, '''J/AA/', '''J/A+A/');
+        end
+                
+
+    end
+
+    methods (Static)
+
+        function T = queryHttp(Query, Args) 
+            % Execute TopCat query via http
+            % Input  : - A query string.
+            %          * ...,key,val,...
+            %            'TapUrl' - Default is VO.TopCat.TapUrl
+            %            'Ofmt' - Format. Default is 'csv'.
+            %            'TimeoutSec' - Timeout in sec. Default is 600.
+            % Output : - A table with results.
+            % Author : Eran Ofek (Aug 2025)
+            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
+            %          T = VO.TopCat.queryHttp(Q)
+            
+            
+        
+            arguments
+                Query
+                Args.TapUrl     = VO.TopCat.TapUrl;
+                Args.Ofmt       = 'csv';
+                Args.TimeoutSec = 600;
+            end
+
+            TapUrl     = Args.TapUrl;
+            Ofmt       = Args.Ofmt;
+            TimeoutSec = Args.TimeoutSec;
+
+
+            % Normalize TapUrl (strip trailing slash)
+            if endsWith(TapUrl,"/"), TapUrl = extractBefore(TapUrl, strlength(TapUrl)); end
+        
+
+            IsVizier = contains(lower(TapUrl), 'tapvizier');
+            if IsVizier
+                Query = VO.TopCat.normalizeVizierIdentifiers(Query);
+            end
+
+            % =========================
+            % 1) /sync (simple & fast)
+            % =========================
+            try
+                Params = struct('REQUEST','doQuery','LANG','ADQL','FORMAT',upper(Ofmt),'QUERY',VO.TopCat.protectForUrlEncoded(Query));
+                Opts   = weboptions('Timeout', TimeoutSec, 'CharacterEncoding','auto');  % struct => form-encoded
+                Data   = webwrite([TapUrl '/sync'], Params, Opts);
+                T      = localreadcsvtotable(Data);
+                return
+            catch ME1
+                SyncMsg = ME1.message;  %#ok<NASGU>
+            end
+        
+            % =========================
+            % 2) /async (robust UWS)
+            % =========================
+            import matlab.net.*
+            import matlab.net.http.*
+            import matlab.net.http.field.*
+            import matlab.net.http.io.*
+        
+            try
+                UriAsync = URI(char([TapUrl '/async']));  % scalar
+                HttpOpts = HTTPOptions('ConnectTimeout',TimeoutSec,'ResponseTimeout',TimeoutSec,'MaxRedirects',0);
+                HdrForm  = [ContentTypeField('application/x-www-form-urlencoded')];
+        
+                % --- Try single-shot create (parameters in create) ---
+                Form1 = FormProvider('REQUEST','doQuery','LANG','ADQL','FORMAT',upper(Ofmt),'QUERY',VO.TopCat.protectForUrlEncoded(Query));
+                Req1  = RequestMessage('post', HdrForm, Form1);
+                Resp1 = Req1.send(UriAsync, HttpOpts);
+        
+                JobUrl = localgetjoburl(Resp1, TapUrl);  % scalar "" if not found
+        
+                % --- If no JobUrl, do two-step UWS: create -> parameters -> run ---
+                if strlength(JobUrl) == 0
+                    % Step A: create empty job (no body)
+                    ReqA  = RequestMessage('post');
+                    RespA = ReqA.send(UriAsync, HttpOpts);
+                    JobUrl = localgetjoburl(RespA, TapUrl);
+                    if strlength(JobUrl) == 0
+                        error('runwithhttp:NoJobURL', 'Failed to obtain async job URL after two-step create.');
+                    end
+        
+                    % Step B: set parameters
+                    FormB = FormProvider('REQUEST','doQuery','LANG','ADQL','FORMAT',upper(Ofmt),'QUERY',VO.TopCat.protectForUrlEncoded(Query));
+                    ReqB  = RequestMessage('post', HdrForm, FormB);
+                    ReqB.send(URI(char(JobUrl) + "/parameters"), HttpOpts);
+                end
+        
+                % Try to start the job (some services auto-run)
+                try
+                    RunReq = RequestMessage('post', HdrForm, FormProvider('PHASE','RUN'));
+                    RunReq.send(URI(char(JobUrl) + "/phase"), HttpOpts);
+                catch
+                end
+        
+                % Poll until COMPLETED
+                T0 = tic;
+                while true
+                    PhaseResp = RequestMessage('get').send(URI(char(JobUrl) + "/phase"), HttpOpts);
+                    PhaseTxt  = strtrim(char(PhaseResp.Body.string));
+                    if strcmpi(PhaseTxt,'COMPLETED')
+                        break
+                    elseif any(strcmpi(PhaseTxt, {'ERROR','ABORTED'}))
+                        ErrMsg = '';
+                        try
+                            ErrResp = RequestMessage('get').send(URI(char(JobUrl) + "/error"), HttpOpts);
+                            ErrMsg  = strtrim(char(ErrResp.Body.string));
+                        catch
+                        end
+                        error('runwithhttp:AsyncError', 'TAP async job failed: %s', ErrMsg);
+                    end
+                    if toc(T0) > TimeoutSec
+                        error('runwithhttp:Timeout', 'TAP async job timed out.');
+                    end
+                    pause(0.6);
+                end
+        
+                % Discover result id (not always 'result')
+                IdxResp = RequestMessage('get').send(URI(char(JobUrl) + "/results"), HttpOpts);
+                IdxTxt  = char(IdxResp.Body.string);
+                TokRes  = regexp(IdxTxt, '/results/([^"''>/\s]+)', 'tokens', 'once');
+                if ~isempty(TokRes)
+                    ResultId = string(TokRes{1});
+                else
+                    ResultId = "result"; % fallback
+                end
+        
+                % Download the result
+                ResResp = RequestMessage('get').send(URI(char(JobUrl) + "/results/" + char(ResultId)), HttpOpts);
+                CsvText = ResResp.Body.string;
+                T       = localreadcsvtotable(CsvText);
+                return
+        
+            catch ME2
+                if exist('SyncMsg','var')
+                    error('VO:TopCat:HTTP', 'TAP HTTP query failed.\n/sync error: %s\n/async error: %s', ...
+                          SyncMsg, ME2.message);
+                else
+                    error('VO:TopCat:HTTP', 'TAP HTTP query failed (async): %s', ME2.message);
+                end
+            end
+        
+            % ===== Nested helpers (always in scope) =====
+            function JobUrl = localgetjoburl(Resp, TapUrl0)
+                % Normalize base
+                if endsWith(TapUrl0,"/"), TapUrl0 = extractBefore(TapUrl0, strlength(TapUrl0)); end
+                JobUrl = "";
+        
+                % 1) Location header
+                L = Resp.getFields('Location');
+                if ~isempty(L), JobUrl = string(L(1).Value); end
+        
+                % 2) Content-Location header
+                if strlength(JobUrl)==0
+                    CL = Resp.getFields('Content-Location');
+                    if ~isempty(CL), JobUrl = string(CL(1).Value); end
+                end
+        
+                % 3) Body scraping (URL, HTML href, UWS XML)
+                if strlength(JobUrl)==0
+                    try
+                        Txt = char(Resp.Body.string);
+        
+                        Tok = regexp(Txt,'https?://[^\s"''<>]+/async/[^\s"''<>]+','match','once');
+                        if ~isempty(Tok), JobUrl = string(Tok); end
+        
+                        if strlength(JobUrl)==0
+                            Tok = regexp(Txt,'href="([^"]*/async/[^"]+)"','tokens','once');
+                            if ~isempty(Tok), JobUrl = string(Tok{1}); end
+                        end
+        
+                        if strlength(JobUrl)==0
+                            Tok = regexp(Txt,'<\s*jobId\s*>\s*([^<\s]+)\s*<\s*/\s*jobId\s*>','tokens','once');
+                            if ~isempty(Tok), JobUrl = string(TapUrl0 + "/async/" + string(Tok{1})); end
+                        end
+        
+                        if strlength(JobUrl)==0
+                            Tok = regexp(Txt,'<\s*(?:uws:)?job[^>]*\sid="([^"]+)"','tokens','once');
+                            if ~isempty(Tok), JobUrl = string(TapUrl0 + "/async/" + string(Tok{1})); end
+                        end
+                    catch
+                    end
+                end
+        
+                % If relative, make absolute
+                if strlength(JobUrl) > 0 && startsWith(JobUrl,"/")
+                    JobUrl = string(TapUrl0 + string(JobUrl));
+                end
+        
+                % Force scalar string
+                if strlength(JobUrl) > 0, JobUrl = string(JobUrl(1)); end
+            end
+        
+            function Ttab = localreadcsvtotable(Data)
+                if isa(Data,'string') || ischar(Data)
+                    Buf = char(Data);
+                    Outfile = [tempname,'.csv'];
+                    Fid = fopen(Outfile,'w');  assert(Fid>0, 'Failed to create temp CSV.');
+                    fwrite(Fid, Buf);          fclose(Fid);
+                    Ttab = readtable(Outfile, 'FileType','text');
+                    try, delete(Outfile); end
+                elseif isa(Data,'uint8') || isa(Data,'int8')
+                    Outfile = [tempname,'.csv'];
+                    Fid = fopen(Outfile,'w');  assert(Fid>0, 'Failed to create temp CSV.');
+                    fwrite(Fid, Data, 'uint8'); fclose(Fid);
+                    Ttab = readtable(Outfile, 'FileType','text');
+                    try, delete(Outfile); end
+                else
+                    Tmp = [tempname,'.csv'];
+                    writematrix(Data, Tmp);
+                    Ttab = readtable(Tmp, 'FileType','text');
+                    try, delete(Tmp); end
+                end
+            end
+        end
+
+       
+
+    end
+
+
+
+
+    methods(Static) % Unit test
+
+        Result = unitTest()
+            % unitTest for OrbitalEl class
+    end
+
+end
