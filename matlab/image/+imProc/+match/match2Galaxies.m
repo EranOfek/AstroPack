@@ -39,6 +39,7 @@ function match2Galaxies(Obj, Args)
         Args.PGCCatName = 'PGC';
         Args.RadiusPGC = 300;
         Args.RadiusPGCUnits = 'arcsec';
+        Args.DefaultGalRadiusPGC = 10;
 
         Args.ColNmatchName = 'GAL_N';
         Args.ColDistName = 'GAL_DIST';
@@ -74,7 +75,7 @@ function match2Galaxies(Obj, Args)
         GladeNCol = strcat(Args.ColNmatchName,'GLADE');
 
         PGCDistCol = strcat(Args.ColDistName,'PGC');
-        PGCNCol = strcat(Args.ColNmatchName,'PGC');   
+        PGCNCol = strcat(Args.ColNmatchName,'PGC');
 
         RADec = ACObj(Iobj).getLonLat('rad');
 
@@ -96,7 +97,7 @@ function match2Galaxies(Obj, Args)
         GladeCat = catsHTM.cone_search(Args.GladeCatName, ...
                 MidRA, MidDec, SearchRadiusGlade, ...
                 'RadiusUnits',Args.RadiusGladeUnits, 'OutType','AstroCatalog');
-
+    
         MatchesGlade = zeros(CatSize,1);
         DistancesGlade = NaN(CatSize,1);
 
@@ -155,6 +156,7 @@ function match2Galaxies(Obj, Args)
         end
 
         GalRadius = 3.*10.^(PGCCat.Table.LogD25);
+        GalRadius(isnan(GalRadius)) = Args.DefaultGalRadiusPGC;
         
         for Isrc = 1:1:CatSize
 
