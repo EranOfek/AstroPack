@@ -280,6 +280,18 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
+                
+                NaNMaskN = isnan(Obj(Iobj).New.Image);
+                NaNMaskR = isnan(Obj(Iobj).Ref.Image);
+                
+                if sum(~NaNMaskN,'all') < 1
+                    continue
+                end
+                
+                if sum(~NaNMaskR,'all') < 1
+                    continue
+                end
+                
                 % New image
                 if ischar(Args.ReplaceVal)
                     switch lower(Args.ReplaceVal)
@@ -1252,8 +1264,21 @@ classdef AstroDiff < AstroImage
 
     methods % display
         % print 
-        function printTranByCoord(Obj, RA, Dec, Args)
-
+        function Props = printTranByCoord(Obj, RA, Dec, Args)
+        %{
+        Query transient catalog around given coordinates and print properties.
+        Input:  - An AstroDiff object in which CatData is populated.
+                - RA, Dec : Sky coordinates of interest [deg].
+                * ...,key,val,...
+                  'SearchRad' - Search radius in arcseconds around (RA,Dec).
+                                Default is 3.
+        Output: - Props : containers.Map object mapping each column name
+                           (string) to its numeric value for the matched
+                           catalog row.
+        Author: - Ruslan Konno (Aug 2025)
+        Example:- Props = AD.printTranByCoord(RA, Dec);
+                  val = P('MAG_PSF');   % get PSF magnitude for matched source
+        %}
             arguments
                 Obj
                 RA
@@ -1265,6 +1290,8 @@ classdef AstroDiff < AstroImage
 
             Match = Obj.CatData.coneSearch(RA, Dec, Args.SearchRad);
             
+            Props = containers.Map('KeyType','char','ValueType','double');
+
             if Match.Nsrc < 1
                 fprintf('No match found.\n');
                 return
@@ -1276,10 +1303,14 @@ classdef AstroDiff < AstroImage
             MatchRow = Obj.CatData.selectRows(Match.Ind);
 
             NCols = numel(MatchRow.ColNames);
+
             
             for ICol = 1:NCols
                 Col = MatchRow.ColNames{ICol};
                 Val  = MatchRow.getCol(Col);
+
+                Props(Col) = Val;
+                
                 fprintf('%s: %f\n', Col, Val);
             end
 
