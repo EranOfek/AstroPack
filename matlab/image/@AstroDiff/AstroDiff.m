@@ -280,6 +280,18 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
+                
+                NaNMaskN = isnan(Obj(Iobj).New.Image);
+                NaNMaskR = isnan(Obj(Iobj).Ref.Image);
+                
+                if sum(~NaNMaskN,'all') < 1
+                    continue
+                end
+                
+                if sum(~NaNMaskR,'all') < 1
+                    continue
+                end
+                
                 % New image
                 if ischar(Args.ReplaceVal)
                     switch lower(Args.ReplaceVal)
