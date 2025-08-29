@@ -223,7 +223,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.BadPixSatFlux = 20000;
 
         Args.flagStarMatches logical = true;
+
         Args.flagMP logical = true;
+        Args.MPDistThresh = 10;
 
         Args.flagRinging logical = true;
 
@@ -233,7 +235,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.SecondMomAsymLim = 1.0;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
-        Args.ContaminationFlux = 0.01;
+        Args.ContaminationBackRatio = 0.1;
+        Args.ContaminationMag = 0.45;
         Args.ContaminationRadius = 1.5;
 
         Args.flagDPSFShape logical = true;
@@ -312,7 +315,7 @@ function TranCat = flagNonTransients(Obj, Args)
     BD_IM = BitDictionary('BitMask.Image.Default');
 
     Arcsec2Rad = 4.84814e-6;
-    Rad2Arcsec = 206265;
+    %Rad2Arcsec = 206265;
 
     for Iobj=Nobj:-1:1
         CandCat = Obj(Iobj).CatData;
@@ -392,11 +395,13 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Get galaxy matched candidates
+        %{
         if CandCat.isColumn('STAR_N')
             GalCand = (CandCat.getCol('GAL_N') > 0.0);
         else
             GalCand = false(NumCand,1);
         end
+        %}
         
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
@@ -532,7 +537,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 NumMinNumPts = numel(MinNumPts);
                 for IMinNumPts = NumMinNumPts:-1:1
                     Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
-                        'MinRMS', 0.5,'MinNpt',MinNumPts(IMinNumPts), ...
+                        'MinRMS', 1.0,'MinNpt',MinNumPts(IMinNumPts), ...
                         'ThresholdDist',TDist);
                     if Res.Found
                         break
@@ -615,25 +620,24 @@ function TranCat = flagNonTransients(Obj, Args)
                 FractionTailFlux = 1 - erf(PSFSize_Min./sqrt(2*Med_NX2))*erf(PSFSize_Min./sqrt(2*Med_NY2));
                 N_TailFlux = N_IntFlux*FractionTailFlux;
 
-                % Count all sources with more than 1% flux outside the PSF
-                % stamp as contaminating sources.
-                N_ContSrcs = (N_TailFlux > 0.1*Obj.BackN);
+                % Count all sources with a tail flux of more than 10% of 
+                % the background as contaminating sources.
+                N_ContSrcs = (N_TailFlux > Args.ContaminationBackRatio*Obj.BackN);
 
                 % Match candidates to contaminating sources within
                 % contamination radius.
                 [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
                 WideRadius = Args.ContaminationRadius*PSFSize_Min*Args.PixelScale;
-                % Select coordinates of contaminating sources.
+
+                % Select positions and tail fluxes of contaminating sources.
                 R_NativeContRa = R_NativeRA(N_ContSrcs);
                 R_NativeContDec = R_NativeDec(N_ContSrcs);
                 N_ContTailFlux = N_TailFlux(N_ContSrcs);
+
                 % Match candidates to contaminating sources in wide range.
                 N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
                     [R_NativeContRa, R_NativeContDec], RA, Dec, ...
                     -WideRadius*Arcsec2Rad);
-
-                % Match candidates to contaminating sources in narrow range
-                % to ignore self-contamination.
 
                 NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
 
@@ -646,14 +650,22 @@ function TranCat = flagNonTransients(Obj, Args)
                     end
                 
                     IdxRef = N_ContCatMatchWide(ICand).Ind(:);
-                    % DistRad   = N_ContCatMatchWide(ICand).Dist(:);
+                    DistRad   = N_ContCatMatchWide(ICand).Dist(:);
+
+                    % Ignore self-contamination.
+                    IdxRef = IdxRef(DistRad > 3.0*Arcsec2Rad);
+
+                    if isempty(IdxRef)
+                        N_Passes_Local(ICand) = true;
+                        continue
+                    end
 
                     ContaminationFlux(ICand) = sum(N_ContTailFlux(IdxRef));
                     CandFlux = CandFluxes(ICand);
 
                     MagContamination = log10(CandFlux/ContaminationFlux(ICand));
                 
-                    N_Passes_Local(ICand) = (MagContamination > 0.5);
+                    N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag);
                 end
 
 
@@ -759,8 +771,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Flag minor planets as non-transients
         if Args.flagMP
-            MinorPlanet = ~isnan(CandCat.getCol('N_DistMP')) | ...
-                          ~isnan(CandCat.getCol('R_DistMP'));
+            MinorPlanet = (CandCat.getCol('N_DistMP') < Args.MPDistThresh) | ...
+                          (CandCat.getCol('R_DistMP') < Args.MPDistThresh);
 
             FilterFlags = FilterFlags + MinorPlanet.*2.^BD_TF.name2bit('MPMatch');
         end
