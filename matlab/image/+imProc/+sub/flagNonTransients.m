@@ -236,7 +236,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
         Args.ContaminationBackRatio = 0.1;
-        Args.ContaminationMag = 0.45;
+        Args.ContaminationMag = 0.48;
         Args.ContaminationRadius = 1.5;
 
         Args.flagDPSFShape logical = true;
@@ -395,13 +395,12 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Get galaxy matched candidates
-        %{
-        if CandCat.isColumn('STAR_N')
+        if CandCat.isColumn('GAL_N')
             GalCand = (CandCat.getCol('GAL_N') > 0.0);
         else
             GalCand = false(NumCand,1);
         end
-        %}
+        
         
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
@@ -533,7 +532,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 Yt = Y(SubSel);
                 TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
     
-                MinNumPts = [5 7 10 13 17 20 23 27 30];
+                MinNumPts = [7 10 13 17 20 23 27 30];
                 NumMinNumPts = numel(MinNumPts);
                 for IMinNumPts = NumMinNumPts:-1:1
                     Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
@@ -578,7 +577,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Test global shape. For isolated candidates only N shape.
             N_Passes_PSF_Global = N_GoodPSF;
             R_Passes_PSF_Global = (R_GoodPSF | IsolatedCand);
-
+    
             N_Passes_PSFShape = N_Passes_PSF_Global;
             R_Passes_PSFShape = R_Passes_PSF_Global;
 
@@ -648,7 +647,7 @@ function TranCat = flagNonTransients(Obj, Args)
                     if N_Passes_Local(ICand)
                         continue
                     end
-                
+                    
                     IdxRef = N_ContCatMatchWide(ICand).Ind(:);
                     DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
@@ -994,8 +993,11 @@ function TranCat = flagNonTransients(Obj, Args)
             Z2_AIC = CandCat.getCol('Z2_AIC');
             AIC_Diff = S2_AIC - Z2_AIC;
 
-            % Exclude isolated candidates unless PSF shape is bad.
-            ExcludeCand = IsolatedCand;
+            % Exclude isolated candidates unless PSF shape is poor.
+            % Exclude also galaxy matched candidates that are not nuclear
+            % and do not match to stars.
+            ExcludeCand = IsolatedCand | (GalCand & ~NuclearCand & ~StarCand);
+
             if exist('N_Passes_PSF_Global','var')
                 ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
             end
