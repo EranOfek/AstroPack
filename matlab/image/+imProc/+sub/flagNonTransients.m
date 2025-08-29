@@ -611,8 +611,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 % The ^4 is due to Issue #701, this should change once the
                 % issue is figured out. TODO
-                Med_NX2 = median(N_X2)^4;
-                Med_NY2 = median(N_Y2)^4;
+                Med_NX2 = max(median(N_X2)^4, median(N_X2));
+                Med_NY2 = max(median(N_Y2)^4, median(N_X2));
 
                 % Get the flux fraction that is expected in the tails
                 % beyond the PSF stamp.
@@ -621,7 +621,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 % Count all sources with a tail flux of more than 10% of 
                 % the background as contaminating sources.
-                N_ContSrcs = (N_TailFlux > Args.ContaminationBackRatio*Obj.BackN);
+                Contaminators = (N_TailFlux > Args.ContaminationBackRatio*Obj.BackN);
 
                 % Match candidates to contaminating sources within
                 % contamination radius.
@@ -629,16 +629,20 @@ function TranCat = flagNonTransients(Obj, Args)
                 WideRadius = Args.ContaminationRadius*PSFSize_Min*Args.PixelScale;
 
                 % Select positions and tail fluxes of contaminating sources.
-                R_NativeContRa = R_NativeRA(N_ContSrcs);
-                R_NativeContDec = R_NativeDec(N_ContSrcs);
-                N_ContTailFlux = N_TailFlux(N_ContSrcs);
+                R_NativeContRa = R_NativeRA(Contaminators);
+                R_NativeContDec = R_NativeDec(Contaminators);
+                N_ContTailFlux = N_TailFlux(Contaminators);
 
                 % Match candidates to contaminating sources in wide range.
-                N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
-                    [R_NativeContRa, R_NativeContDec], RA, Dec, ...
-                    -WideRadius*Arcsec2Rad);
+                if sum(Contaminators) > 0
+                    N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
+                        [R_NativeContRa, R_NativeContDec], RA, Dec, ...
+                        -WideRadius*Arcsec2Rad);
 
-                NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
+                    NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
+                else
+                    NumMatchesWideCont = zeros(NumCand,1);
+                end
 
                 N_Passes_Local = (NumMatchesWideCont < 1);
                 CandFluxes = CandCat.getCol('FLUX_PSF');
