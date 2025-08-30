@@ -2695,7 +2695,7 @@ classdef DemonLAST < Component
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
                 
-                Args.Backup                           = false; % Backup data to WIS
+                Args.Backup                           = true; % Backup data to WIS
             end
             RAD = 180./pi;
             
