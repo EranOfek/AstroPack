@@ -54,9 +54,79 @@ classdef TopCat < Base
     end
     
     methods  % getters/setters
-        
+        function Obj=get.TapUrl(Obj)
+            % getter for TapUrl
+
+            if isempty(Obj.TapUrl)
+                % call GUI selector
+                Obj.selectTapServer;
+            end
+            
+        end
     end
     
+    methods
+        function T=query(Obj, Query, Args)
+            % Execute TAP query using Java or Http
+            % Input  : - self.
+            %          - Query.
+            %          * ...,key,val,...
+            %            'TapUrl' - If empty, then use object TapUrl.
+            %                   If 'select', then call GUI selector.
+            %                   Default is [].
+            %            'Ofmt' - Format. Default is 'csv'.
+            %            'TimeoutSec' - Timeout in sec. Default is 600.
+            % Output : - A table with results.
+            % Author : Eran Ofek (Aug 2025)
+            % Example: 
+
+            arguments
+                Obj
+                Query
+                Args.Method     = 'java';  %'http'|'java'
+                Args.TapUrl     = [];   % []|'select' | or http
+                Args.Ofmt       = 'csv';
+                Args.TimeoutSec = 600;
+            end
+
+            if isempty(Args.TapUrl)
+                Obj.selectTapServer;
+                Args.TapUrl = Obj.TapUrl;
+            end
+
+            if strcmpi(Args.TapUrl, 'select')
+                Obj.selectTapServer;
+                Args.TapUrl = Obj.TapUrl;
+            end
+                
+
+            switch lower(Args.Method)
+                case 'java'
+                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Obj.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                case 'http'
+                    T = VO.TopCat.queryHttp(Query, 'TapUrl',Obj.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                otherwise
+                    error('Unknown Method option');
+            end
+
+        end
+
+        function Obj=selectTapServer(Obj)
+            % Select Tap Server using GUI
+            % Input  : - self.
+            % Output : - Updated object with TapUrl
+            % Author : Eran Ofek (Aug 2025)
+            % Example: Tap=VO.TopCat; Tap.selectTapServer;
+
+            Idx = tools.gui.selectStringGUI(Obj.TapList(:,1));
+            Obj.TapUrl = Obj.TapList(Idx, 2);
+
+
+        end
+
+
+    end
+
 
     methods (Static)
         function Query=constructQueryAllTables()
@@ -102,8 +172,6 @@ classdef TopCat < Base
 
 
         end
-
-
                  
         function S = protectForUrlEncoded(Sin)
             % Protect '+' and '%' inside an x-www-form-urlencoded value
@@ -391,140 +459,22 @@ classdef TopCat < Base
             end
         end
 
-       
-        function T = queryStilts1(Query, Args)
-            % Execute a TAP/ADQL query using Java STILTS (tapquery).
-            % Inputs:
-            %   Query  - ADQL string
-            %   Args.TapUrl     (string) TAP endpoint. Default: VO.TopCat.TapUrl
-            %   Args.Ofmt       (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
-            %   Args.StiltsCmd  (string) e.g. "stilts" (uses PATH). If empty and StiltsJar empty -> "stilts"
-            %   Args.StiltsJar  (string) full path to stilts.jar (uses: java -Xmx1g -jar "<jar>")
-            %           https://www.star.bris.ac.uk/~mbt/stilts/stilts.jar
-            %   Args.TimeoutSec (double) best-effort timeout (sec). Default: 600
-            %   Args.WorkDir    (string) directory for temp files. Default: tempdir
-            %
-            % Output:
-            %   T - table with query results (for csv/tsv).
-            %
-            % Example:
-            %   Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
-            %   T = VO.TopCat.queryStilts(Q);
-            %
-            arguments
-                Query
-                Args.TapUrl     string = VO.TopCat.TapUrl
-                Args.Ofmt       string = "csv"
-                Args.StiltsCmd  string = ""
-                Args.StiltsJar  string = "~/Downloads/stilts.jar";
-                Args.TimeoutSec double = 600
-                Args.WorkDir    string = string(tempdir)
-            end
-        
-            TapUrl  = char(Args.TapUrl);
-            Ofmt    = char(lower(Args.Ofmt));
-            WorkDir = char(Args.WorkDir);
-        
-            % Normalize trailing slash
-            if endsWith(TapUrl,"/"), TapUrl = extractBefore(TapUrl, strlength(TapUrl)); end
-        
-            % For VizieR endpoints, normalize "J/AA/..." -> "J/A+A/..." within quoted identifiers
-            if contains(lower(TapUrl), 'tapvizier')
-                Query = VO.TopCat.normalizeVizierIdentifiers(Query);
-            end
-        
-            % ---- Temp files
-            if ~exist(WorkDir,'dir'), mkdir(WorkDir); end
-            qfile   = [tempname(WorkDir) '_q.adql'];
-            outfile = [tempname(WorkDir) '_res.' Ofmt];
-
-        
-            fid = fopen(qfile,'w');
-            assert(fid>0, 'VO:TopCat:Stilts','Failed to create temp ADQL file.');
-            fprintf(fid, '%s', char(Query));
-            fclose(fid);
-        
-            % ---- Build STILTS launcher
-            if strlength(Args.StiltsJar) > 0
-                base = sprintf('java -Xmx1g -jar "%s"', char(Args.StiltsJar));
-            elseif strlength(Args.StiltsCmd) > 0
-                base = char(Args.StiltsCmd);
-            else
-                base = 'stilts';   % rely on PATH
-            end
-        
-            % ---- tapquery command
-            cmd = sprintf('%s tapquery tapurl="%s" language=ADQL adql=@%s omode=out ofmt=%s out="%s"', ...
-                                base, TapUrl, qfile, Ofmt, outfile);
-
-        
-            % ---- Run with best-effort timeout
-            if ispc
-                % Try PowerShell timeout; fallback to plain system
-                ps = sprintf(['powershell -NoProfile -Command "$p=Start-Process -PassThru -FilePath ''%s'' ' ...
-                              '-ArgumentList ''tapquery'',''tapurl=%s'',''lang=adql'',''adql=@%s'',''omode=out'',''ofmt=%s'',''out=%s''; ' ...
-                              'try{Wait-Process -Id $p.Id -Timeout %d}catch{$p|Stop-Process -Force;exit 258}"'], ...
-                              strrep(base,'"','""'), strrep(TapUrl,'"','""'), strrep(qfile,'"','""'), Ofmt, strrep(outfile,'"','""'), round(Args.TimeoutSec));
-                [status, ~] = system(ps);
-                if status==9009 || status==1 || status==258
-                    [status, ~] = system(cmd);
-                end
-            else
-                % Unix: use GNU timeout if available
-                [hasTimeout,~] = system('command -v timeout >/dev/null 2>&1');
-                if hasTimeout==0
-                    [status, ~] = system(sprintf('timeout %ds %s', round(Args.TimeoutSec), cmd));
-                else
-                    [status, ~] = system(cmd);
-                end
-            end
-        
-            % ---- Verify result
-            if status~=0 || ~exist(outfile,'file')
-                try, delete(qfile); end %#ok<TRYNC>
-                if exist(outfile,'file')==2, try, delete(outfile); end, end %#ok<TRYNC>
-                if status==124 || status==137
-                    error('VO:TopCat:Stilts','STILTS execution timed out.\nCommand:\n%s', cmd);
-                else
-                    error('VO:TopCat:Stilts','STILTS execution failed. Check stilts path/jar and Java.\nCommand:\n%s', cmd);
-                end
-            end
-        
-            % ---- Load to table
-            switch Ofmt
-                case 'csv'
-                    T = readtable(outfile, 'FileType','text', 'Delimiter','comma');
-                case 'tsv'
-                    T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
-                otherwise
-                    % Simple fallback; for FITS prefer fitsread or external parse.
-                    try
-                        T = readtable(outfile, 'FileType','text');
-                    catch
-                        try, delete(qfile); end %#ok<TRYNC>
-                        try, delete(outfile); end %#ok<TRYNC>
-                        error('VO:TopCat:Stilts','Unsupported Ofmt for automatic parsing: %s', Ofmt);
-                    end
-            end
-        
-            % ---- Cleanup
-            try, delete(qfile); end %#ok<TRYNC>
-            try, delete(outfile); end %#ok<TRYNC>
-        end
+              
 
         function T = queryStilts(Query, Args)
             % Execute a TAP/ADQL query using Java STILTS (tapquery).
-            % Inputs:
-            %   Query  - ADQL string
-            %   Args.TapUrl     (string) TAP endpoint. Default: VO.TopCat.TapUrl
-            %   Args.Ofmt       (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
-            %   Args.StiltsCmd  (string) e.g. "stilts" (uses PATH) if StiltsJar not given
-            %   Args.StiltsJar  (string) full path to stilts.jar (java -Xmx1g -jar "<jar>")
-            %   Args.TimeoutSec (double) best-effort timeout (sec). Default: 600
-            %   Args.WorkDir    (string) directory for temp files. Default: tempdir
-            %
-            % Output: T - table with query results (csv/tsv parsed via readtable)
-            %
+            % Input  : - Query.
+            %          * ...,key,val,...
+            %            'TapUrl' - TAP URL. Default: VO.TopCat.TapUrl
+            %            'Ofmt' - (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
+            %            'StiltsCmd' -  (string) e.g. "stilts" (uses PATH) if StiltsJar not given
+            %            'StiltsJar' -  (string) full path to stilts.jar (java -Xmx1g -jar "<jar>")
+            %            'TimeoutSec' - best-effort timeout (sec). Default: 600
+            %            'WorkDir' - (string) directory for temp files. Default: tempdir
+            % Output : T - table with query results (csv/tsv parsed via readtable)
+            % Author : ChatGPT + Eran Ofek (Aug 2025)
+            % Example: 
+
             arguments
                 Query
                 Args.TapUrl     string = VO.TopCat.TapUrl
