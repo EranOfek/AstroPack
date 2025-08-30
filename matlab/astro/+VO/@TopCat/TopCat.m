@@ -1,6 +1,9 @@
 % TopCat - Query online the TopCat catalogs
 %
-%
+%jar = fullfile(getenv("HOME"), "Downloads", "stilts.jar");
+%Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+%T = VO.TopCat.queryStilts(Q, "StiltsJar", jar, "TapUrl", "https://gea.esac.esa.int/tap-server/tap");
+
 
 
 classdef TopCat < Base
@@ -10,13 +13,34 @@ classdef TopCat < Base
     properties
         Ofmt       = 'csv';                                     % Output format
         TimeoutSec = 600;                                       % For HTTP fallback
+        %TapUrl     = 'https://tapvizier.cds.unistra.fr/TAPVizieR/tap';
+        TapUrl     = 'https://gea.esac.esa.int/tap-server/tap';  % Default TAP endpoint (Gaia)
     end
     
     
     properties (Constant)
-        %TapUrl     = 'https://gea.esac.esa.int/tap-server/tap';  % Default TAP endpoint (Gaia)
-        TapUrl     = 'https://tapvizier.cds.unistra.fr/TAPVizieR/tap';
+        
+        TapList = ["ESA Gaia Archive", "https://gea.esac.esa.int/tap-server/tap";...
+                   "ARI Gaia mirror (Heidelberg)", "https://gaia.ari.uni-heidelberg.de/tap";...
+                   "VizieR TAP (all VizieR catalogs)", "https://tapvizier.cds.unistra.fr/TAPVizieR/tap";...
+                   "SIMBAD TAP", "http://simbad.u-strasbg.fr/simbad/sim-tap";...
+                   "CDS X-Match service", "http://cdsxmatch.u-strasbg.fr/xmatch/api/v1/tap";...
+                   "ESO Science Archive TAP", "http://archive.eso.org/tap_obs";...
+                   "ESO Public Survey Catalogue TAP", "http://archive.eso.org/tap_cat";...
+                   "MAST (Mikulski Archive for Space Telescopes)", "https://mast.stsci.edu/tap";...
+                   "HEASARC TAP (X-ray, gamma-ray, high-energy missions)", "https://heasarc.gsfc.nasa.gov/xamin/tap";...
+                   "SkyMapper (Australia)", "https://skymapper.anu.edu.au/tap";...
+                   "UKIDSS / WFAU (Edinburgh)", "http://wfaudata.roe.ac.uk/tap";...
+                   "Pan-STARRS (Hawaii)", "https://vao.stsci.edu/PS1DR2/tapservice.aspx";...
+                   "SDSS (Sloan Digital Sky Survey)", "http://skyserver.sdss.org/tap";...
+                   "LAMOST (China)", "http://dr7.lamost.org/tap";...
+                   "EPN-TAP (Europlanet / planetary data)", "http://vespa.obspm.fr/tap"];
 
+                   %How to Discover More TAP Services
+                   %IVOA Registry (search for TAP services):
+                   %https://registry.ivoa.net
+                   %TOPCAT / STILTS:
+                   %In TOPCAT: VO → Table Access Protocol (TAP) Query, then “Find Service”.
     end
     
     properties (Hidden)
@@ -140,7 +164,16 @@ classdef TopCat < Base
             % Also fix plain string literals if used in WHERE table_name comparisons
             Qfixed = regexprep(Qfixed, '''J/AA/', '''J/A+A/');
         end
-                
+              
+        function s = escapeForShellDoubleQuotes(adql)
+            % Convert to char
+            s = char(string(adql));
+            % Collapse newlines/tabs to spaces (TAP doesn’t need formatting)
+            s = regexprep(s, '[\r\n\t]+', ' ');
+            % Escape backslashes and double-quotes for a double-quoted shell argument
+            s = regexprep(s, '(\\|")', '\\$1');
+        end
+
 
     end
 
@@ -154,7 +187,7 @@ classdef TopCat < Base
             %            'Ofmt' - Format. Default is 'csv'.
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             % Output : - A table with results.
-            % Author : Eran Ofek (Aug 2025)
+            % Author : ChatGPT, Eran Ofek (Aug 2025)
             % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
             %          T = VO.TopCat.queryHttp(Q)
             
@@ -359,6 +392,244 @@ classdef TopCat < Base
         end
 
        
+        function T = queryStilts1(Query, Args)
+            % Execute a TAP/ADQL query using Java STILTS (tapquery).
+            % Inputs:
+            %   Query  - ADQL string
+            %   Args.TapUrl     (string) TAP endpoint. Default: VO.TopCat.TapUrl
+            %   Args.Ofmt       (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
+            %   Args.StiltsCmd  (string) e.g. "stilts" (uses PATH). If empty and StiltsJar empty -> "stilts"
+            %   Args.StiltsJar  (string) full path to stilts.jar (uses: java -Xmx1g -jar "<jar>")
+            %           https://www.star.bris.ac.uk/~mbt/stilts/stilts.jar
+            %   Args.TimeoutSec (double) best-effort timeout (sec). Default: 600
+            %   Args.WorkDir    (string) directory for temp files. Default: tempdir
+            %
+            % Output:
+            %   T - table with query results (for csv/tsv).
+            %
+            % Example:
+            %   Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+            %   T = VO.TopCat.queryStilts(Q);
+            %
+            arguments
+                Query
+                Args.TapUrl     string = VO.TopCat.TapUrl
+                Args.Ofmt       string = "csv"
+                Args.StiltsCmd  string = ""
+                Args.StiltsJar  string = "~/Downloads/stilts.jar";
+                Args.TimeoutSec double = 600
+                Args.WorkDir    string = string(tempdir)
+            end
+        
+            TapUrl  = char(Args.TapUrl);
+            Ofmt    = char(lower(Args.Ofmt));
+            WorkDir = char(Args.WorkDir);
+        
+            % Normalize trailing slash
+            if endsWith(TapUrl,"/"), TapUrl = extractBefore(TapUrl, strlength(TapUrl)); end
+        
+            % For VizieR endpoints, normalize "J/AA/..." -> "J/A+A/..." within quoted identifiers
+            if contains(lower(TapUrl), 'tapvizier')
+                Query = VO.TopCat.normalizeVizierIdentifiers(Query);
+            end
+        
+            % ---- Temp files
+            if ~exist(WorkDir,'dir'), mkdir(WorkDir); end
+            qfile   = [tempname(WorkDir) '_q.adql'];
+            outfile = [tempname(WorkDir) '_res.' Ofmt];
+
+        
+            fid = fopen(qfile,'w');
+            assert(fid>0, 'VO:TopCat:Stilts','Failed to create temp ADQL file.');
+            fprintf(fid, '%s', char(Query));
+            fclose(fid);
+        
+            % ---- Build STILTS launcher
+            if strlength(Args.StiltsJar) > 0
+                base = sprintf('java -Xmx1g -jar "%s"', char(Args.StiltsJar));
+            elseif strlength(Args.StiltsCmd) > 0
+                base = char(Args.StiltsCmd);
+            else
+                base = 'stilts';   % rely on PATH
+            end
+        
+            % ---- tapquery command
+            cmd = sprintf('%s tapquery tapurl="%s" language=ADQL adql=@%s omode=out ofmt=%s out="%s"', ...
+                                base, TapUrl, qfile, Ofmt, outfile);
+
+        
+            % ---- Run with best-effort timeout
+            if ispc
+                % Try PowerShell timeout; fallback to plain system
+                ps = sprintf(['powershell -NoProfile -Command "$p=Start-Process -PassThru -FilePath ''%s'' ' ...
+                              '-ArgumentList ''tapquery'',''tapurl=%s'',''lang=adql'',''adql=@%s'',''omode=out'',''ofmt=%s'',''out=%s''; ' ...
+                              'try{Wait-Process -Id $p.Id -Timeout %d}catch{$p|Stop-Process -Force;exit 258}"'], ...
+                              strrep(base,'"','""'), strrep(TapUrl,'"','""'), strrep(qfile,'"','""'), Ofmt, strrep(outfile,'"','""'), round(Args.TimeoutSec));
+                [status, ~] = system(ps);
+                if status==9009 || status==1 || status==258
+                    [status, ~] = system(cmd);
+                end
+            else
+                % Unix: use GNU timeout if available
+                [hasTimeout,~] = system('command -v timeout >/dev/null 2>&1');
+                if hasTimeout==0
+                    [status, ~] = system(sprintf('timeout %ds %s', round(Args.TimeoutSec), cmd));
+                else
+                    [status, ~] = system(cmd);
+                end
+            end
+        
+            % ---- Verify result
+            if status~=0 || ~exist(outfile,'file')
+                try, delete(qfile); end %#ok<TRYNC>
+                if exist(outfile,'file')==2, try, delete(outfile); end, end %#ok<TRYNC>
+                if status==124 || status==137
+                    error('VO:TopCat:Stilts','STILTS execution timed out.\nCommand:\n%s', cmd);
+                else
+                    error('VO:TopCat:Stilts','STILTS execution failed. Check stilts path/jar and Java.\nCommand:\n%s', cmd);
+                end
+            end
+        
+            % ---- Load to table
+            switch Ofmt
+                case 'csv'
+                    T = readtable(outfile, 'FileType','text', 'Delimiter','comma');
+                case 'tsv'
+                    T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
+                otherwise
+                    % Simple fallback; for FITS prefer fitsread or external parse.
+                    try
+                        T = readtable(outfile, 'FileType','text');
+                    catch
+                        try, delete(qfile); end %#ok<TRYNC>
+                        try, delete(outfile); end %#ok<TRYNC>
+                        error('VO:TopCat:Stilts','Unsupported Ofmt for automatic parsing: %s', Ofmt);
+                    end
+            end
+        
+            % ---- Cleanup
+            try, delete(qfile); end %#ok<TRYNC>
+            try, delete(outfile); end %#ok<TRYNC>
+        end
+
+        function T = queryStilts(Query, Args)
+            % Execute a TAP/ADQL query using Java STILTS (tapquery).
+            % Inputs:
+            %   Query  - ADQL string
+            %   Args.TapUrl     (string) TAP endpoint. Default: VO.TopCat.TapUrl
+            %   Args.Ofmt       (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
+            %   Args.StiltsCmd  (string) e.g. "stilts" (uses PATH) if StiltsJar not given
+            %   Args.StiltsJar  (string) full path to stilts.jar (java -Xmx1g -jar "<jar>")
+            %   Args.TimeoutSec (double) best-effort timeout (sec). Default: 600
+            %   Args.WorkDir    (string) directory for temp files. Default: tempdir
+            %
+            % Output: T - table with query results (csv/tsv parsed via readtable)
+            %
+            arguments
+                Query
+                Args.TapUrl     string = VO.TopCat.TapUrl
+                Args.Ofmt       string = "csv"
+                Args.StiltsCmd  string = ""
+                Args.StiltsJar  string = ""
+                Args.TimeoutSec double = 600
+                Args.WorkDir    string = string(tempdir)
+            end
+        
+            TapUrl  = char(Args.TapUrl);
+            Ofmt    = char(lower(Args.Ofmt));
+            WorkDir = char(Args.WorkDir);
+        
+            % Normalize trailing slash
+            if endsWith(TapUrl,"/"), TapUrl = extractBefore(TapUrl, strlength(TapUrl)); end
+        
+            % For VizieR endpoints, normalize "J/AA/..." -> "J/A+A/..." within quoted identifiers
+            if contains(lower(TapUrl), 'tapvizier')
+                Query = VO.TopCat.normalizeVizierIdentifiers(Query);
+            end
+        
+            % Ensure work dir exists; prepare output temp file
+            if ~exist(WorkDir,'dir'), mkdir(WorkDir); end
+            outfile = [tempname(WorkDir) '_res.' Ofmt];
+        
+            % Build STILTS launcher (expand ~ in StiltsJar)
+            base = "";
+            if strlength(Args.StiltsJar) > 0
+                jar = char(Args.StiltsJar);
+                if ~isempty(jar) && jar(1)=='~'
+                    home = getenv('HOME');
+                    if isempty(home), home = char(java.lang.System.getProperty('user.home')); end
+                    if strlength(jar) >= 2 && (jar(2)=='/' || jar(2)=='\')
+                        jar = fullfile(home, jar(3:end));
+                    end
+                end
+                base = sprintf('java -Xmx1g -jar "%s"', jar);
+            elseif strlength(Args.StiltsCmd) > 0
+                base = char(Args.StiltsCmd);
+            else
+                base = 'stilts';   % rely on PATH
+            end
+        
+            % Escape ADQL for safe double-quoted shell argument
+            AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(Query);
+        
+            % Assemble tapquery command (inline ADQL; force sync; capture stderr)
+            cmdParts = {
+                base, 'tapquery', ...
+                ['tapurl="' TapUrl '"'], ...
+                'language=ADQL', ...
+                ['adql="' AdqlEsc '"'], ...
+                'omode=out', ...
+                ['ofmt=' Ofmt], ...
+                ['out="' outfile '"'], ...
+                'sync=true'
+            };
+            cmd = strjoin(cmdParts, ' ');
+
+
+        
+            % Run with best-effort timeout on Unix if available; always capture stderr
+            if ispc
+                [status, outTxt] = system(cmd + " 2>&1");
+            else
+                [hasTimeout,~] = system('command -v timeout >/dev/null 2>&1');
+                if hasTimeout==0
+                    [status, outTxt] = system(sprintf('timeout %ds %s 2>&1', round(Args.TimeoutSec), cmd));
+                else
+                    [status, outTxt] = system(cmd + " 2>&1");
+                end
+            end
+        
+            % Verify result / bubble up detailed error
+            if status~=0 || ~exist(outfile,'file')
+                if exist(outfile,'file')==2, try, delete(outfile); end, end %#ok<TRYNC>
+                if status==124 || status==137
+                    error('VO:TopCat:Stilts','STILTS timed out.\nCommand:\n%s\nOutput:\n%s', cmd, outTxt);
+                else
+                    error('VO:TopCat:Stilts','STILTS failed.\nCommand:\n%s\nOutput:\n%s', cmd, outTxt);
+                end
+            end
+        
+            % Load to table
+            switch Ofmt
+                case 'csv'
+                    T = readtable(outfile, 'FileType','text', 'Delimiter','comma');
+                case 'tsv'
+                    T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
+                otherwise
+                    try
+                        T = readtable(outfile, 'FileType','text');
+                    catch
+                        try, delete(outfile); end %#ok<TRYNC>
+                        error('VO:TopCat:Stilts','Unsupported Ofmt for automatic parsing: %s', Ofmt);
+                    end
+            end
+        
+            % Cleanup
+            try, delete(outfile); end %#ok<TRYNC>
+        end
+        
+
+
 
     end
 
