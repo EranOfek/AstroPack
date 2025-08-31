@@ -2712,7 +2712,7 @@ classdef DemonLAST < Component
             % update catalogs
             if Args.RunInstaller
                 In = Installer;
-                In.install('MinorPLanets');
+                In.install('MinorPlanets');
                 In.install('MinorPlanetsCT');
                 In.install('Time');
             end
