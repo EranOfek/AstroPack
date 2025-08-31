@@ -82,6 +82,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         Args.AsteroidSearchRadius             = 10;
     
         Args.HostName                         = [];
+
+        Args.prepAstCrop                      = false; %true;   % execute imProc.asteroids.searchAsteroids_pmCat that generate AstCrop (Asteroids crops)
     end
     SEC_DAY = 86400;
     
@@ -112,12 +114,15 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
     
     % search for asteroids - proper motion channel
     % Used to be: ResultAsteroids.AstCrop
-    [MergedCat, ResultAsteroids] = imProc.asteroids.searchAsteroids_pmCat(MergedCat,...
+    if Args.prepAstCrop
+        [MergedCat, ResultAsteroids] = imProc.asteroids.searchAsteroids_pmCat(MergedCat,...
                                                                                   'BitDict',AllSI(1).MaskData.Dict,...
                                                                                   'JD',JD,...
                                                                                   'PM_Radius',Args.Asteroids_PM_MatchRadius,...
                                                                                   'Images',AllSI);
-    
+    else
+        ResultAsteroids = [];
+    end
     % search for asteroids - orphan channel
     % imProc.asteroids.searchAsteroids_orphans
     

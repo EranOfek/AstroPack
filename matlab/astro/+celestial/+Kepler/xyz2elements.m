@@ -150,7 +150,7 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     % hyperbolic orbit
     B(FlagHyp) = -A(FlagHyp).*sqrt(Eccen(FlagHyp).^2 - 1);
     SinH = Ybar(FlagHyp)./B(FlagHyp);
-    H = asin(H);
+    H = asin(SinH);
     if any(FlagHyp)
         M(FlagHyp) = Eccen(FlagHyp).*SinH - H;
         MeanMotion(FlagHyp) = Args.K.*sqrt(Args.Mu./(-1.*(A(FlagHyp).^3)));

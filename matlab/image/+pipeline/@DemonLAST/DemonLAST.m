@@ -2696,6 +2696,7 @@ classdef DemonLAST < Component
                 %Args.RunAsService logical  = false;
                 
                 Args.Backup                           = true; % Backup data to WIS
+                Args.RunInstaller                     = true;
             end
             RAD = 180./pi;
             
@@ -2707,6 +2708,16 @@ classdef DemonLAST < Component
             %     % lock fild found - abort
             %     return;
             % end
+
+            % update catalogs
+            if Args.RunInstaller
+                In = Installer;
+                In.install('MinorPLanets');
+                In.install('MinorPlanetsCT');
+                In.install('Time');
+            end
+
+
 
 
             if isempty(Args.HostName)

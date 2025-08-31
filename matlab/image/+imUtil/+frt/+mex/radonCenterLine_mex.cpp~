@@ -1,0 +1,152 @@
+// radon_centerline_fast_mex.cpp
+#include "mex.h"
+#include <cmath>
+#include <algorithm>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+template<typename T>
+static inline T Clamp(T V, T Lo, T Hi){ return (V<Lo)?Lo:((V>Hi)?Hi:V); }
+
+template<typename Tin, typename Tout>
+void Compute(const Tin* Image, mwSize M, mwSize N,
+             const double* Theta, mwSize L,
+             bool UseDegrees, bool UseBilinear,
+             Tout* P)
+{
+    const double Xc = (static_cast<double>(N) + 1.0) * 0.5; // columns
+    const double Yc = (static_cast<double>(M) + 1.0) * 0.5; // rows
+
+    auto BilinearSample = [&](double X, double Y)->double {
+        // 1-based coords
+        double X0d = std::floor(X), Y0d = std::floor(Y);
+        mwIndex X0 = (mwIndex)Clamp<mwIndex>((mwIndex)X0d, 1, (mwIndex)N);
+        mwIndex Y0 = (mwIndex)Clamp<mwIndex>((mwIndex)Y0d, 1, (mwIndex)M);
+        mwIndex X1 = (mwIndex)Clamp<mwIndex>(X0+1, 1, (mwIndex)N);
+        mwIndex Y1 = (mwIndex)Clamp<mwIndex>(Y0+1, 1, (mwIndex)M);
+
+        double Dx = X - X0d;
+        double Dy = Y - Y0d;
+
+        const Tin I00 = Image[(mwIndex)(Y0-1) + (mwIndex)(X0-1)*M];
+        const Tin I10 = Image[(mwIndex)(Y0-1) + (mwIndex)(X1-1)*M];
+        const Tin I01 = Image[(mwIndex)(Y1-1) + (mwIndex)(X0-1)*M];
+        const Tin I11 = Image[(mwIndex)(Y1-1) + (mwIndex)(X1-1)*M];
+
+        const double V00 = static_cast<double>(I00);
+        const double V10 = static_cast<double>(I10);
+        const double V01 = static_cast<double>(I01);
+        const double V11 = static_cast<double>(I11);
+
+        const double V0 = (1.0 - Dx)*V00 + Dx*V10;
+        const double V1 = (1.0 - Dx)*V01 + Dx*V11;
+        return (1.0 - Dy)*V0 + Dy*V1;
+    };
+
+    auto NearestSample = [&](double X, double Y)->double {
+        mwIndex Xi = (mwIndex)Clamp<mwIndex>((mwIndex)std::llround(X), 1, (mwIndex)N);
+        mwIndex Yi = (mwIndex)Clamp<mwIndex>((mwIndex)std::llround(Y), 1, (mwIndex)M);
+        return static_cast<double>( Image[(mwIndex)(Yi-1) + (mwIndex)(Xi-1)*M] );
+    };
+
+    #pragma omp parallel for schedule(static)
+    for (mwIndex K = 0; K < L; ++K)
+    {
+        const double Th = UseDegrees ? (Theta[K] * M_PI / 180.0) : Theta[K];
+        const double Ca = std::cos(Th);
+        const double Sa = std::sin(Th);
+
+        // Intersect with box x in [0.5,N+0.5], y in [0.5,M+0.5]
+        double TL = -INFINITY, TU = INFINITY;
+        if (std::abs(Ca) > 0.0) {
+            const double Tx1 = (0.5    - Xc)/Ca;
+            const double Tx2 = (N + 0.5 - Xc)/Ca;
+            TL = std::max(TL, std::min(Tx1,Tx2));
+            TU = std::min(TU, std::max(Tx1,Tx2));
+        }
+        if (std::abs(Sa) > 0.0) {
+            const double Ty1 = (0.5    - Yc)/Sa;
+            const double Ty2 = (M + 0.5 - Yc)/Sa;
+            TL = std::max(TL, std::min(Ty1,Ty2));
+            TU = std::min(TU, std::max(Ty1,Ty2));
+        }
+        if (!(std::isfinite(TL) && std::isfinite(TU)) || TL > TU) {
+            P[K] = static_cast<Tout>(0);
+            continue;
+        }
+
+        // ~1 pixel step along dominant axis
+        const double Dom = std::max(std::abs(Ca), std::abs(Sa));
+        const double S = 1.0 / (Dom > 0.0 ? Dom : std::numeric_limits<double>::min());
+
+        double T = TL;
+        double Sum = 0.0;
+
+        // Tight inner loop
+        const bool DoBilinear = UseBilinear;
+        for (; T <= TU; T += S)
+        {
+            const double X = Xc + T*Ca;
+            const double Y = Yc + T*Sa;
+            Sum += DoBilinear ? BilinearSample(X,Y) : NearestSample(X,Y);
+        }
+        // ensure endpoint inclusion
+        if (T - S < TU) {
+            const double X = Xc + TU*Ca;
+            const double Y = Yc + TU*Sa;
+            Sum += DoBilinear ? BilinearSample(X,Y) : NearestSample(X,Y);
+        }
+
+        P[K] = static_cast<Tout>(Sum);
+    }
+}
+
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
+    if (nrhs < 2) mexErrMsgIdAndTxt("radon_centerline_fast_mex:args","Need Image, Theta.");
+    const mxArray* ImageMx = prhs[0];
+    const mxArray* ThetaMx = prhs[1];
+
+    if (mxGetNumberOfDimensions(ImageMx) != 2)
+        mexErrMsgIdAndTxt("radon_centerline_fast_mex:image","Image must be 2-D.");
+
+    const mwSize* Dims = mxGetDimensions(ImageMx);
+    mwSize M = Dims[0], N = Dims[1];
+
+    if (!mxIsSingle(ImageMx) && !mxIsDouble(ImageMx))
+        mexErrMsgIdAndTxt("radon_centerline_fast_mex:image","Image must be single or double.");
+
+    if (!mxIsSingle(ThetaMx) && !mxIsDouble(ThetaMx) || mxIsComplex(ThetaMx))
+        mexErrMsgIdAndTxt("radon_centerline_fast_mex:theta","Theta must be real single/double.");
+
+    bool UseDegrees  = true;
+    bool UseBilinear = true;
+    if (nrhs >= 3) UseDegrees  = mxIsLogicalScalarTrue(prhs[2]);
+    if (nrhs >= 4) UseBilinear = mxIsLogicalScalarTrue(prhs[3]);
+
+    const mwSize L = (mwSize)mxGetNumberOfElements(ThetaMx);
+
+    // Output: same class as Image, column vector
+    plhs[0] = mxCreateNumericMatrix(L, 1, mxGetClassID(ImageMx), mxREAL);
+
+    if (mxIsDouble(ImageMx)) {
+        const double* Image = (const double*)mxGetData(ImageMx);
+        const double* Theta = (const double*)mxGetData(ThetaMx);
+        double* P = (double*)mxGetData(plhs[0]);
+        Compute<double,double>(Image,M,N,Theta,L,UseDegrees,UseBilinear,P);
+    } else {
+        const float* Image = (const float*)mxGetData(ImageMx);
+        // Theta might be double or single → copy to double buffer for trig
+        std::vector<double> ThetaBuf(L);
+        if (mxIsDouble(ThetaMx)) {
+            const double* T = (const double*)mxGetData(ThetaMx);
+            std::copy(T, T+L, ThetaBuf.begin());
+        } else {
+            const float* T = (const float*)mxGetData(ThetaMx);
+            for (mwIndex i=0;i<L;++i) ThetaBuf[i] = (double)T[i];
+        }
+        float* P = (float*)mxGetData(plhs[0]);
+        Compute<float,float>(Image,M,N,ThetaBuf.data(),L,UseDegrees,UseBilinear,P);
+    }
+}

@@ -2158,7 +2158,7 @@ classdef OrbitalEl < Base
             arguments
                 Type     = [];   % [] - read all | 'num' | 'unnum' | 'comet'
                 Desig    = [];   % [] - read all
-                Args.MergedFile = {'MergedEpoch_2460400.mat','MergedEpoch_2460200.mat'};
+                Args.MergedFile = {'MergedEpoch.mat', 'MergedEpoch_2460800.mat', 'MergedEpoch_2460400.mat', 'MergedEpoch_2460200.mat'};
             end
             MJD0 = 2400000.5;
             
