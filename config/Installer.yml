@@ -267,3 +267,11 @@ Items:
         Size                 : 9337234
         SearchFile           : ''
         Description          : 'Clickhouse 0.8.5 JAVA Jar file (fat)'
+
+    TopCatJar:
+        DataName             : 'TopCatJar'
+        SubDir               : 'Java/TopCat'
+        URL                  : ['https://www.star.bris.ac.uk/~mbt/stilts/stilts.jar']
+        Size                 : 17219944
+        SearchFile           : ''
+        Description          : 'TopCat Stilts https://www.star.bris.ac.uk/~mbt/stilts/?utm_source=chatgpt.com'

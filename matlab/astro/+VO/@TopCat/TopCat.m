@@ -4,6 +4,11 @@
 %Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
 %T = VO.TopCat.queryStilts(Q, "StiltsJar", jar, "TapUrl", "https://gea.esac.esa.int/tap-server/tap");
 
+% Download TopCat Stilts jar file:
+% https://www.star.bris.ac.uk/~mbt/stilts/?utm_source=chatgpt.com
+% best to download using installer:
+% In=Installer;
+% In.install('TopCatJar');
 
 
 classdef TopCat < Base
@@ -469,6 +474,8 @@ classdef TopCat < Base
             %            'Ofmt' - (string) 'csv'|'tsv'|'fits'...  Default: 'csv'
             %            'StiltsCmd' -  (string) e.g. "stilts" (uses PATH) if StiltsJar not given
             %            'StiltsJar' -  (string) full path to stilts.jar (java -Xmx1g -jar "<jar>")
+            %                   To download file use installer.
+            %                   In = installer; In.install('TopCatJar');
             %            'TimeoutSec' - best-effort timeout (sec). Default: 600
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
@@ -480,7 +487,7 @@ classdef TopCat < Base
                 Args.TapUrl     string = VO.TopCat.TapUrl
                 Args.Ofmt       string = "csv"
                 Args.StiltsCmd  string = ""
-                Args.StiltsJar  string = ""
+                Args.StiltsJar  string = fullfile(In.getDataDir('TopCatJar'), 'stilts.jar');
                 Args.TimeoutSec double = 600
                 Args.WorkDir    string = string(tempdir)
             end
