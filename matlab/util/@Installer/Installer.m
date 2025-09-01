@@ -71,7 +71,7 @@ classdef Installer < Component
             %            'DataName' - A DataName to install (e.g., 'GAIA_SpecTemplate'),
             %                   or a cell array of data names. If empty, install
             %                   all data names in ConfigStruct.
-            %                   if NaN then install
+            %                   If NaN then install
             %                   {'Time','MinorPlanets','MinorPlanetsCT'}.
             %                   Default is empty.
             %            'Delete' - A logical indicating if to delete
