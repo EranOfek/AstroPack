@@ -9,6 +9,7 @@
 % best to download using installer:
 % In=Installer;
 % In.install('TopCatJar');
+% 
 
 
 classdef TopCat < Base
@@ -59,12 +60,14 @@ classdef TopCat < Base
     end
     
     methods  % getters/setters
-        function Obj=get.TapUrl(Obj)
+        function Val=get.TapUrl(Obj)
             % getter for TapUrl
 
             if isempty(Obj.TapUrl)
                 % call GUI selector
-                Obj.selectTapServer;
+                Val = Obj.selectTapServer;
+            else
+                Val = Obj.TapUrl;
             end
             
         end
@@ -83,7 +86,9 @@ classdef TopCat < Base
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             % Output : - A table with results.
             % Author : Eran Ofek (Aug 2025)
-            % Example: 
+            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12';
+            %          Top = VO.TopCat;
+            %          T = Top.query(Q);
 
             arguments
                 Obj
@@ -92,6 +97,7 @@ classdef TopCat < Base
                 Args.TapUrl     = [];   % []|'select' | or http
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
+                Args.JarFile    = fullfile(Installer.dataDir, 'TopCat', 'stilts.jar');
             end
 
             if isempty(Args.TapUrl)
@@ -103,7 +109,12 @@ classdef TopCat < Base
                 Obj.selectTapServer;
                 Args.TapUrl = Obj.TapUrl;
             end
-                
+
+            if strcmpi(Args.Method, 'java') && ~isfile(Args.JarFile)
+                Args.Method = 'http';
+                fprintf('Jar File %s not found - switching to http method\n', Args.JarFile);
+            end
+            
 
             switch lower(Args.Method)
                 case 'java'
@@ -116,15 +127,16 @@ classdef TopCat < Base
 
         end
 
-        function Obj=selectTapServer(Obj)
+        function Val=selectTapServer(Obj)
             % Select Tap Server using GUI
             % Input  : - self.
-            % Output : - Updated object with TapUrl
+            % Output : - URL of Tap server AND Updated object with TapUrl
             % Author : Eran Ofek (Aug 2025)
             % Example: Tap=VO.TopCat; Tap.selectTapServer;
 
             Idx = tools.gui.selectStringGUI(Obj.TapList(:,1));
-            Obj.TapUrl = Obj.TapList(Idx, 2);
+            Val = Obj.TapList(Idx, 2);
+            Obj.TapUrl = Val;
 
 
         end
@@ -263,20 +275,17 @@ classdef TopCat < Base
             % Author : ChatGPT, Eran Ofek (Aug 2025)
             % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
             %          T = VO.TopCat.queryHttp(Q)
-            
-            
-        
+                    
             arguments
                 Query
-                Args.TapUrl     = VO.TopCat.TapUrl;
+                Args.TapUrl     = VO.TopCat.TapList{1,2};
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
             end
 
-            TapUrl     = Args.TapUrl;
+            TapUrl     = char(Args.TapUrl);
             Ofmt       = Args.Ofmt;
             TimeoutSec = Args.TimeoutSec;
-
 
             % Normalize TapUrl (strip trailing slash)
             if endsWith(TapUrl,"/"), TapUrl = extractBefore(TapUrl, strlength(TapUrl)); end

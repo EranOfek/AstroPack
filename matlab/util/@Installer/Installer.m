@@ -545,6 +545,21 @@ classdef Installer < Component
             cd(PWD);
 
         end
+    
+        function Result = dataDir()
+            % get data dir (static method)
+            %   See also Installer/getDataDir
+            % Input  : null
+            % Output : - data dir
+            % Author : Eran Ofek (Aug 2025)
+            % Example: Installer.dataDir()
+
+            Result = fileparts(mfilename('fullpath'));
+            Result = sprintf('%s%s..%s..%s..%s..%sdata',Result, filesep, filesep, filesep, filesep, filesep);
+            
+        end    
+
+    
     end
   	
     methods (Static)  % compile mex files
