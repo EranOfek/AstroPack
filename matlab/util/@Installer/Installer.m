@@ -71,6 +71,8 @@ classdef Installer < Component
             %            'DataName' - A DataName to install (e.g., 'GAIA_SpecTemplate'),
             %                   or a cell array of data names. If empty, install
             %                   all data names in ConfigStruct.
+            %                   if NaN then install
+            %                   {'Time','MinorPlanets','MinorPlanetsCT'}.
             %                   Default is empty.
             %            'Delete' - A logical indicating if to delete
             %                   data before installation.
@@ -95,9 +97,14 @@ classdef Installer < Component
 
             % Allow index to Items, single char value, or cell with list of items
             if isnumeric(DataName)
-                List = fieldnames(Obj.Items);
-                DataName = List(DataName);           
+                if isnan(DataName)
+                    DataName = {'Time','MinorPlanets','MinorPlanetsCT'};
+                else
+                    List = fieldnames(Obj.Items);
+                    DataName = List(DataName);           
+                end
             elseif ischar(DataName)
+                
                 DataName = {DataName};
             elseif isempty(DataName)
                 DataName = fieldnames(Obj.Items);
