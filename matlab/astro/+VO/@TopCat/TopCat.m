@@ -1,15 +1,16 @@
 % TopCat - Query online the TopCat catalogs
 %
-%jar = fullfile(getenv("HOME"), "Downloads", "stilts.jar");
-%Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
-%T = VO.TopCat.queryStilts(Q, "StiltsJar", jar, "TapUrl", "https://gea.esac.esa.int/tap-server/tap");
-
 % Download TopCat Stilts jar file:
 % https://www.star.bris.ac.uk/~mbt/stilts/?utm_source=chatgpt.com
 % best to download using installer:
 % In=Installer;
 % In.install('TopCatJar');
 % 
+
+% Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
+%          T = VO.TopCat.queryHttp(Q)
+
+
 
 
 classdef TopCat < Base
@@ -97,7 +98,7 @@ classdef TopCat < Base
                 Args.TapUrl     = [];   % []|'select' | or http
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
-                Args.JarFile    = fullfile(Installer.dataDir, 'TopCat', 'stilts.jar');
+                Args.JarFile    = VO.TopCat.getStiltsJarPath();
             end
 
             if isempty(Args.TapUrl)
@@ -473,7 +474,15 @@ classdef TopCat < Base
             end
         end
 
-              
+        function Result = getStiltsJarPath()
+            % Get Stilt7s Jar file path
+            % Input  : null
+            % Output : Stilts Jar path
+            % Author : Eran Ofek (Aug 2025)
+            % Example: VO.TopCat.getStiltsJarPath()
+
+            Result = fullfile(Installer.dataDir, 'TopCat', 'stilts.jar');
+        end
 
         function T = queryStilts(Query, Args)
             % Execute a TAP/ADQL query using Java STILTS (tapquery).
@@ -489,14 +498,17 @@ classdef TopCat < Base
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
             % Author : ChatGPT + Eran Ofek (Aug 2025)
-            % Example: 
+            % Example: jar = fullfile(getenv("HOME"), "Downloads", "stilts.jar");
+%Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+%T = VO.TopCat.queryStilts(Q, "StiltsJar", jar, "TapUrl", "https://gea.esac.esa.int/tap-server/tap");
+
 
             arguments
                 Query
-                Args.TapUrl     string = VO.TopCat.TapUrl
+                Args.TapUrl     string = VO.TopCat.TapList{1,2};
                 Args.Ofmt       string = "csv"
                 Args.StiltsCmd  string = ""
-                Args.StiltsJar  string = fullfile(In.getDataDir('TopCatJar'), 'stilts.jar');
+                Args.StiltsJar  string = VO.TopCat.getStiltsJarPath();
                 Args.TimeoutSec double = 600
                 Args.WorkDir    string = string(tempdir)
             end
