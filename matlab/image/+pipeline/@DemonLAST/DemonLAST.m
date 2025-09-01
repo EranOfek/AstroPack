@@ -2696,7 +2696,7 @@ classdef DemonLAST < Component
                 %Args.RunAsService logical  = false;
                 
                 Args.Backup                           = true; % Backup data to WIS
-                Args.RunInstaller                     = true;
+                Args.RunInstaller                     = false;
             end
             RAD = 180./pi;
             
@@ -3264,7 +3264,8 @@ classdef DemonLAST < Component
                             if Args.Backup
                                 BackupPath = FN_Coadd.genPath('Level','proc');
                                 BackupPath = strrep(BackupPath,'//','/');
-                                BackupStr = sprintf("last-backup --source %s -x --exclude '*/raw' --exclude '*_sci_proc_Image_*' --exclude '*_sci_proc_Mask_*' --exclude '*_sci_proc_PSF_*' &", BackupPath);
+%                                 BackupStr = sprintf("last-backup --source %s -x --exclude '*/raw' --exclude '*_sci_proc_Image_*' --exclude '*_sci_proc_Mask_*' --exclude '*_sci_proc_PSF_*' &", BackupPath);
+                                BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
                                 system(BackupStr);
                                 Msg{1} = sprintf('pipeline.DemonLAST backup started');
                                 Obj.writeLog(Msg, LogLevel.Info);
