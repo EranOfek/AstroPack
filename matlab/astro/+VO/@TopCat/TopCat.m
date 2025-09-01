@@ -6,9 +6,15 @@
 % In=Installer;
 % In.install('TopCatJar');
 % 
-
-% Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
-%          T = VO.TopCat.queryHttp(Q)
+% Examples:
+%
+%   Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
+%   T = VO.TopCat.queryHttp(Q)
+%   Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+%   T = VO.TopCat.queryStilts(Q);
+%
+%   Tap = VO.TopCat;
+%   T = Tap.query(Q, 'TapUrl',Tap.TapList{1,2})
 
 
 
@@ -80,11 +86,17 @@ classdef TopCat < Base
             % Input  : - self.
             %          - Query.
             %          * ...,key,val,...
+            %            'Method' - 'java'|'http'. ('java' is faster).
+            %                   Java requires installing jar file:
+            %                   In=Installer; In.install('TopCatJar');
+            %                   Default is 'java'.
             %            'TapUrl' - If empty, then use object TapUrl.
             %                   If 'select', then call GUI selector.
             %                   Default is [].
             %            'Ofmt' - Format. Default is 'csv'.
             %            'TimeoutSec' - Timeout in sec. Default is 600.
+            %            'JarFile' - Jar file full path.
+            %                   Default is VO.TopCat.getStiltsJarPath()
             % Output : - A table with results.
             % Author : Eran Ofek (Aug 2025)
             % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12';
@@ -95,7 +107,7 @@ classdef TopCat < Base
                 Obj
                 Query
                 Args.Method     = 'java';  %'http'|'java'
-                Args.TapUrl     = [];   % []|'select' | or http
+                Args.TapUrl     = [];   % []|'select' | or url
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
@@ -481,7 +493,7 @@ classdef TopCat < Base
             % Author : Eran Ofek (Aug 2025)
             % Example: VO.TopCat.getStiltsJarPath()
 
-            Result = fullfile(Installer.dataDir, 'TopCat', 'stilts.jar');
+            Result = fullfile(Installer.dataDir, 'Java', 'TopCat', 'stilts.jar');
         end
 
         function T = queryStilts(Query, Args)
@@ -498,9 +510,8 @@ classdef TopCat < Base
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
             % Author : ChatGPT + Eran Ofek (Aug 2025)
-            % Example: jar = fullfile(getenv("HOME"), "Downloads", "stilts.jar");
-%Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
-%T = VO.TopCat.queryStilts(Q, "StiltsJar", jar, "TapUrl", "https://gea.esac.esa.int/tap-server/tap");
+            % Example: Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+            %          T = VO.TopCat.queryStilts(Q);
 
 
             arguments
