@@ -75,7 +75,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.MaximumCenterOffset = 0.86;
         Args.MinumumOverlapFraction = 0.5;
 
-        Args.AsteroidSearchRad = 20;
+        Args.AsteroidSearchRad = 5;
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
 
