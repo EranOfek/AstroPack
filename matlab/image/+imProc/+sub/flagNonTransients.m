@@ -225,7 +225,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagStarMatches logical = true;
 
         Args.flagMP logical = true;
-        Args.MPDistThresh = 5;
+        Args.MPDistThresh = 10;
 
         Args.flagRinging logical = true;
 
