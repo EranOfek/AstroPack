@@ -1,14 +1,12 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientSim.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/03/2025
-%
+% Project     : ULTRASAT Observation Planner
+% File        : ultrasat.MissionClientSim.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 16/03/2025
+% Description : 
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
-%
 
 classdef MissionClientSim < ultrasat.api.MissionClientBase
     % 
@@ -39,7 +37,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             end
 
             % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
-            obj.DbPath = fullfile(soc_path, 'sim', 'backend', 'planner');
+            obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
             obj.msglog('DbPath: %s', obj.DbPath);
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
@@ -51,7 +49,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             currentFolder = fileparts(currentFile);
             masterPath = fullfile(currentFolder, 'sim_master');
 
-            % Copy master files if first run
+            % Copy master files if first run % @TODO
             if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
                 obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
                 obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
@@ -64,8 +62,51 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         end                
 
         % -------------------------------------------------------------------
+        
+        function Result = getPlannerBasePath(obj)
+            % Returns the base path for a given namespace's planner directory
+            if nargin < 2 || isempty(obj.NamespaceId)
+                error('NamespaceId must be set in the object to get the base path.');
+            end
+            Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
+            obj.msglog('getPlannerBasePath: %s', Result);
+        end
 
-        function response = login(obj, UserName, Password)
+        % -------------------------------------------------------------------
+        
+        function response = getNamespaceList(obj)
+            % Returns the list of namespaces from the key_value_db.json file
+            obj.msglog('getNamespaceList: Getting list of namespaces');
+
+            response.status = 'ok';
+            response.namespaces = {'sim01', 'sim02'};
+            response.ok = true;
+            return;
+
+            dbFile = fullfile(obj.DbPath, 'namespaces.json');
+            response = struct();
+            
+            if ~isfile(dbFile)
+                obj.msglog('Namespaces file not found at %s', dbFile);
+                response.status = 'error';
+                response.message = 'Namespaces database not found.';
+                response.ok = false;
+                return;
+            end
+
+            % Load namespaces from JSON
+            fid = fopen(dbFile, 'r');
+            raw = fread(fid, inf, 'char');
+            fclose(fid);
+            namespaces = jsondecode(char(raw'));
+
+            response.status = 'ok';
+            response.namespaces = namespaces;
+            response.ok = true;
+        end
+        % -------------------------------------------------------------------
+
+        function response = login(obj, UserName, Password, Namespace)
             % Simulate login by checking credentials from users.json and updating current_user.json
             obj.msglog('login: user=%s, password=%s', UserName, Password);
           
@@ -242,7 +283,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             obj.ApprovedTargetsEndTime = end_time;
 
             obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
-            targetsFile = fullfile(obj.DbPath, 'approved_targets.json');
+            targetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             response = struct();
         
             if ~isfile(targetsFile)
@@ -289,7 +330,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function updateApprovedTargets(obj, targets, replace)
             % Update the approved_targets.json file by either replacing or merging targets.
             obj.msglog('updateApprovedTargets: targets: %d, replace=%d', numel(targets), replace);
-            approvedTargetsFile = fullfile(obj.DbPath, 'approved_targets.json');
+            approvedTargetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             
             % Read existing file
             if isfile(approvedTargetsFile)
@@ -386,7 +427,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             % Plan: array of struct, created by uplanner.planTable2struct()
 
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
@@ -432,7 +473,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             obj.msglog('getExposure: table=%s, healpix_indices=%s, start=%s, end=%s, select_all=%d', ...
                        table_name, mat2str(healpix_indices), datestr(start_timestamp), datestr(end_timestamp), select_all);
         
-            dbFile = fullfile(obj.DbPath, sprintf('%s.json', table_name));
+            dbFile = fullfile(obj.getPlannerBasePath(), sprintf('%s.json', table_name));
             response = struct();
         
             if ~isfile(dbFile)
@@ -481,7 +522,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
             % Returns a list of existing plans from JSON files in the DbPath folder.
             obj.msglog('getPlansList: Scanning for plans in %s', obj.DbPath);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
             plansList = [];
         
@@ -504,6 +545,18 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             % Find all JSON files in the plans folder
             jsonFiles = dir(fullfile(plansFolder, '*.json'));
             for i = 1:numel(jsonFiles)
+                % Decode the number from the file name (e.g., 00001.json)
+                [~, name, ext] = fileparts(jsonFiles(i).name);
+                if length(name) == 5 && all(isstrprop(name, 'digit'))
+                    planNum = str2double(name);
+                    if planNum > 9999
+                        break; % Stop if plan number exceeds 9999
+                    end
+                else
+                    continue; % Skip files that do not match the pattern
+                end
+
+                % Load the JSON file
                 filePath = fullfile(plansFolder, jsonFiles(i).name);
                 fid = fopen(filePath, 'r');
                 raw = fread(fid, inf, 'char');
@@ -533,7 +586,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = loadPlan(obj, plan_pk)
             % Loads a specific plan by its primary key (pk) into obj.PlanData.
             obj.msglog('loadPlan: Loading plan with pk=%d', plan_pk);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
@@ -571,7 +624,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = savePlan(obj)
             % Saves the current PlanData instance to the DbPath folder as JSON and MAT files.
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
 
             obj.updateFromPlanner();
@@ -579,14 +632,18 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 mkdir(plansFolder);
             end
         
-            % Generate pk if not provided, as next file number (i.e '003')
+            % Generate pk if not provided, as next file number (i.e '00003')
             if isempty(obj.PlanData.pk)
                 existingFiles = dir(fullfile(plansFolder, '*.json'));
                 pks = [];
                 for i = 1:numel(existingFiles)
                     [~, pk, ~] = fileparts(existingFiles(i).name);
-                    pks(end+1) = str2double(pk);
+                    num = str2double(pk);
+                    if ~isnan(num) && num >= 1 && num <= 9999
+                        pks(end+1) = num;
+                    end
                 end
+
                 obj.PlanData.pk = max([pks, 0]) + 1;
                 obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
             end
@@ -638,7 +695,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = deletePlan(obj, plan_pk)
             % Deletes a specific plan by its primary key (pk).
             obj.msglog('deletePlan: Deleting plan with pk=%d', plan_pk);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
@@ -662,7 +719,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         function response = getPlanStatus(obj, plan_pk)
             % Retrieves the status, update_time, metadata, and history of a plan from its JSON file.
             obj.msglog('getPlanStatus: Fetching status for plan with pk=%d', plan_pk);
-            plansFolder = fullfile(obj.DbPath, 'plans');
+            plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));

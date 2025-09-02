@@ -18,6 +18,9 @@ classdef MainModule < handle
         ApiClient               % MissionClient/MissionClientSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     %
+        NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
+        NamespaceTitle          % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
+        NamespaceList           % List of available namespaces other than OPER
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
@@ -38,6 +41,7 @@ classdef MainModule < handle
         DebugPath               % Folder of debug files, such as saved .mat files
         BaseDataDir             % uplanner constructor param
         LogFileName             %
+        AppUtils                %
     end
     
 
@@ -46,6 +50,12 @@ classdef MainModule < handle
             % Constructor
             disp('app.MainModule');
                        
+            % Get namespace from O/S env
+            obj.NamespaceId = getenv('SOC_NAMESPACE_ID');
+            if isempty(obj.NamespaceId)
+                obj.NamespaceId = 'OPER';
+            end
+
             % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
             obj.PlannerPath = '~/matlab/data/ULTRASAT/Planner/';
@@ -77,17 +87,31 @@ classdef MainModule < handle
                 obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
             end
 
+            % Operational - When starting Planner from OPER, this is the
+            % only option for the user, otherwise get the namespace list
+            % from the server
+            if ~strcmp(obj.NamespaceId, 'OPER')
+                response = obj.ApiClient.getNamespaceList();
+                if response.ok
+                    obj.NamespaceList = response.namespaces;
+                end
+            end
+          
+            % Create instance of AppUtils
+            obj.AppUtils = ultrasat.planner.gui.AppUtils(obj);
             obj.msglog('MainModule created successfully');
         end
 
 
-        function Result = login(obj, UserName, Password)
+        function Result = login(obj, UserName, Password, Namespace)
             % Connect & login to server
             obj.UserName = [];
+            obj.NamespaceId = [];
             Result = false;
-            response = obj.ApiClient.login(UserName, Password);
+            response = obj.ApiClient.login(UserName, Password, Namespace);
             if response.ok
                 obj.UserName = UserName;
+                obj.NamespaceId = Namespace;
                 Result = true;
             end
         end
@@ -95,15 +119,18 @@ classdef MainModule < handle
 
         function Result = logout(obj)
             % Logout from server
-            if ~isempty(obj.UserName)
+            if isempty(obj.UserName)
                 Result = true;
+                return;
             end
             Result = false;
             response = obj.ApiClient.logout(obj.UserName);
-            if response.ok
-                obj.UserName = [];
-                Result = true;
-            end
+
+            % Currently we do not check response.ok, so even if logout
+            % failed (why?) we clear UserName, leave NamespaceId without change
+            obj.UserName = [];
+            %obj.NamespaceId = [];
+            Result = true;
         end        
 
 

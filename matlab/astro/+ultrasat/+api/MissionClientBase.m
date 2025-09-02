@@ -73,7 +73,7 @@ classdef MissionClientBase < handle
 
         % -------------------------------------------------------------------
 
-        function response = login(obj, UserName, Password)
+        function response = login(obj, UserName, Password, Namespace)
             % Authenticates a user with the mission control API.
             %
             % Parameters:

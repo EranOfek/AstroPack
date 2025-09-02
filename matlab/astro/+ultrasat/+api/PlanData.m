@@ -13,6 +13,7 @@ classdef PlanData < handle
         % The properties here are mapped to Postgres table columns
         pk = []                % Primary key
         id = ''                % Unique plan ID
+        plan_kind = 'imaging'  % Always 'imaging' for Observation Planner
         plan_type = ''         % Plan type (LCS, etc.)
         ast_planner = ''       %
         title = ''             % Title of the plan        
