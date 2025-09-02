@@ -333,6 +333,7 @@ classdef VisitVariability < Component
                 Obj
                 
                 Args.MaxLoop    = 1;
+                Args.ProcessNday= 1;
                 Args.StateKey   = 'IngestionTime';
                 Args.StateVal   = "2460810";
                 Args.SubDir     = 'local';
@@ -356,24 +357,26 @@ classdef VisitVariability < Component
             Counter = 0;
             while Cont
                 Counter = Counter + 1;
-                % query DB
-                QueryJD = celestial.time.julday();
-                if (QueryJD-LastIngestionTime)>3
-                    QueryJD = LastIngestionTime + 1;
-                end
 
-                QueryJD = floor(QueryJD.*10)./10;
-                if QueryJD>LastIngestionTime
+                CurrentTime = celestial.time.julday();
+                DeltaTime   = CurrentTime - LastIngestionTime;
+                if DeltaTime<Args.ProcessNday
+                    fprintf('No processing is done since DeltaTime<1\n');
+                
+                else
+                    QueryJD = LastIngestionTime + Args.ProcessNday;
+
                     tic;
                     Obj.analayzeAllData('DB',Obj.DB,'Mount',[],'IngestionTime',[LastIngestionTime QueryJD]);
                     toc
                     StateVal = sprintf("%10.1f",QueryJD);
                     Configuration.rewriteSimple(Args.StateKey, StateVal, Args.ConfigFile, 'SubDir',Args.SubDir);
                     LastIngestionTime = QueryJD;
-                end
-                fprintf('LastIngestionTime: %10.1f\n',LastIngestionTime)
 
-                if (Counter-1)>Args.MaxLoop
+                    fprintf('LastIngestionTime: %10.1f\n',LastIngestionTime)
+                end
+
+                if Counter>=Args.MaxLoop
                     Cont = false;
                 end
 
