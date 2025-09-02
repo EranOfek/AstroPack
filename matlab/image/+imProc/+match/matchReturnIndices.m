@@ -45,7 +45,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
     %            'Obj1_FlagAll' - A vector, for each source in Obj1,
     %                   of logicals indicating if this source is a
     %                   match (within search radius) to a source is Obj2.
-    %            'Obj1_Fist' - A vector, for each source in Obj1, of the
+    %            'Obj1_Dist' - A vector, for each source in Obj1, of the
     %                   angular distance ['rad' if 'sphere'] between the
     %                   matched sources.
     % Author : Eran Ofek (Sep 2021)
@@ -156,6 +156,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
                                                     Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, 'DistFunArgs',DistFunArgs);
 
+        
         % Columns of IndTable:
         % For each source in Obj2:
         % 1. Index of nearest source, within search radius, in Obj1

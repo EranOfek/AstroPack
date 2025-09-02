@@ -1071,10 +1071,11 @@ classdef Scheduler < Component
     end
 
     methods % write lists and tables
-        function save(Obj, FileName)
+        function save(Obj, FileName, OnlyTbl)
             % save the Targets object as a MAT file.
             % Input  : - A Targets object.
             %          - File name.
+            %          - Save only table. Default is false (sacing object).
             % Author : Eran Ofek (Jan 2022)
             % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
@@ -1083,6 +1084,7 @@ classdef Scheduler < Component
             arguments
                 Obj
                 FileName       = [];
+                OnlyTbl        = false;
             end
             
             if isempty(FileName)
@@ -1092,7 +1094,12 @@ classdef Scheduler < Component
                end
             end
             
-            save('-v7.3', FileName, 'Obj');
+            if OnlyTbl
+                Tbl = Obj.List.Table;
+                save('-v7.3', FileName, 'Tbl');
+            else
+                save('-v7.3', FileName, 'Obj');
+            end
         end
         
     end

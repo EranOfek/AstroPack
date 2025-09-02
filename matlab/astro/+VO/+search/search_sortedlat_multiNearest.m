@@ -75,6 +75,7 @@ if isempty(Inear)
 else
 
     Ilowhigh = double(Inear(Ilat));
+    %Ilowhigh = reshape(double(Inear), Nlat, 2); 
     Ilow     = Ilowhigh(:,1);
     Ihigh    = min(Ncat,Ilowhigh(:,2)+1); % add 1 because of the way mfind_bin works
     
@@ -102,11 +103,17 @@ else
         DistI = Dist(IndDist);
         if ~isempty(DistI)
             [MinDist, MinInd] = min(DistI);
+            %
+            %[MinDist, k] = min(Dist(IndDist)); MinInd = IndDist(k);
+
             %IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
             %IndTable(I,2) = MinDist;
             %IndTable(I,3) = numel(IndI);
-            IndTable(I,:) = [IndI(MinInd), MinDist, numel(IndI)];
             
+            IndTable(I,:) = [IndI(MinInd), MinDist, numel(IndI)];
+            %
+            %IndTable(I,:) = [Ilow(I)-1 + MinInd, MinDist, numel(IndDist)];
+
             CatFlagNearest(IndTable(I,1)) = true;
             CatFlagAll(IndI)              = true;
             

@@ -2053,7 +2053,7 @@ classdef OrbitalEl < Base
             Number = zeros(Ndesig,1);
             for Idesig=1:1:Ndesig
                 
-                Ind = find(strcmp(Obj.Designation, Desig{Idesig}));
+                Ind = find(strcmp(Obj.Designation, Desig{Idesig}), 1);
                 if isempty(Ind)
                     Number(Idesig) = 0;
                 else
