@@ -65,7 +65,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         
         function Result = getPlannerBasePath(obj)
             % Returns the base path for a given namespace's planner directory
-            if nargin < 2 || isempty(obj.NamespaceId)
+            if isempty(obj.NamespaceId)
                 error('NamespaceId must be set in the object to get the base path.');
             end
             Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
@@ -75,35 +75,49 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
         % -------------------------------------------------------------------
         
         function response = getNamespaceList(obj)
-            % Returns the list of namespaces from the key_value_db.json file
+            % Returns the list of namespace_id values from namespaces.json
             obj.msglog('getNamespaceList: Getting list of namespaces');
-
-            response.status = 'ok';
-            response.namespaces = {'sim01', 'sim02'};
-            response.ok = true;
-            return;
-
+        
+            response = struct();        
             dbFile = fullfile(obj.DbPath, 'namespaces.json');
-            response = struct();
-            
+        
             if ~isfile(dbFile)
                 obj.msglog('Namespaces file not found at %s', dbFile);
                 response.status = 'error';
                 response.message = 'Namespaces database not found.';
                 response.ok = false;
+                response.namespaces = {};
                 return;
             end
-
-            % Load namespaces from JSON
-            fid = fopen(dbFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            namespaces = jsondecode(char(raw'));
-
-            response.status = 'ok';
-            response.namespaces = namespaces;
-            response.ok = true;
+        
+            try
+                % Read and decode JSON
+                fid = fopen(dbFile, 'r');
+                cleaner = onCleanup(@() fclose(fid));  % Ensure file is closed on exit
+                raw = fread(fid, inf, 'char');
+                data = jsondecode(char(raw'));
+        
+                % Extract namespace_id values
+                if isfield(data, 'namespaces') && isstruct(data.namespaces)
+                    list = {data.namespaces.namespace_id};
+                else
+                    list = {};
+                end
+        
+                response.status = 'ok';
+                response.ok = true;
+                response.namespaces = list;        
+            catch ME
+                obj.msglog('Error reading namespaces: %s', ME.message);
+                response.status = 'error';
+                response.message = 'Failed to read or parse namespaces.';
+                response.ok = false;
+                response.namespaces = {};
+            end
         end
+        
+       
+
         % -------------------------------------------------------------------
 
         function response = login(obj, UserName, Password, Namespace)

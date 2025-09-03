@@ -36,7 +36,8 @@ classdef MissionClientBase < handle
         ApiUrl          % Base URL of the mission control API
         PlanData        % Instance of ultrasat.api.PlanData containing current plan information
         LogFileName     % Path to the log file for storing client operations
-
+        NamespaceId     %
+        
         % Updated by getApprovedTargets() in derived class
         ApprovedTargetsStartTime        % Updated by getApprovedTargets()
         ApprovedTargetsEndTime          % Updated by getApprovedTargets()

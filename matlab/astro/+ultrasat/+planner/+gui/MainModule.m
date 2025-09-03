@@ -51,6 +51,8 @@ classdef MainModule < handle
             disp('app.MainModule');
                        
             % Get namespace from O/S env
+            % setenv('SOC_NAMESPACE_ID', 'OPER')
+            % setenv('SOC_NAMESPACE_ID', 'SIM')
             obj.NamespaceId = getenv('SOC_NAMESPACE_ID');
             if isempty(obj.NamespaceId)
                 obj.NamespaceId = 'OPER';
@@ -98,7 +100,6 @@ classdef MainModule < handle
             end
           
             % Create instance of AppUtils
-            obj.AppUtils = ultrasat.planner.gui.AppUtils(obj);
             obj.msglog('MainModule created successfully');
         end
 
@@ -112,6 +113,7 @@ classdef MainModule < handle
             if response.ok
                 obj.UserName = UserName;
                 obj.NamespaceId = Namespace;
+                obj.ApiClient.NamespaceId = obj.NamespaceId;
                 Result = true;
             end
         end
