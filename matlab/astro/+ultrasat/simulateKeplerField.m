@@ -6,17 +6,19 @@ function simImage = simulateKeplerField(Args)
         Args.RA0     = 291;    % the aimpoint (Kepler field -- 291, NEP -- 270, SEP -- 90)
         Args.Dec0    =  44.5;  % the aimpoint (Kepler field -- 44.5, NEP -- +66.560708, SEP -- -66.560708)
         Args.ExpNum  =   1;    % the number of exposures
-        Args.PlaneRotation = 0;
+        Args.PlaneRotation = 5;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
         Args.Ebv     =   0; % the updated table contains per-source Ebv, so we need this only for tests
-        Args.Catalog = 'Kepler_ULTRASAT_all.tbl'; % Kepler field: 'Kepler_ULTRASAT_all.tbl'
-        Args.Dir     = '/home/sasha/KeplerField';
+        Args.Catalog = 'Kepler_ULTRASAT_augm.tbl';  % Kepler field: 'Kepler_ULTRASAT_all.tbl'
+        Args.Dir     = '/home/sasha/UnderSampled'; % '/home/sasha/ULTRASAT/SimImages/KeplerField';
         Args.SpecType = 'Pickles'; % 'BB' or 'Pickels'
     end
     
+    Dir = pwd;
     cd(Args.Dir);
     SrcTab  = readtable(Args.Catalog,'FileType','text');
+    cd(Dir);
     
     switch Args.Tile 
         case 'A'
