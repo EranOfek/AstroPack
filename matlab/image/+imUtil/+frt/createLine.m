@@ -11,7 +11,7 @@ function Image=createLine(Image, Args)
     %                   Default is [].
     %            'Fun' - Line profile function:
     %                   'flat' - A top hat function with width given by
-    %                       2.*Sigma.git s
+    %                       2.*Sigma
     %                   'gauss' - A Gaussian profile width sigma-width
     %                       given by Sigma.
     %                   Default is 'gauss'.
@@ -43,6 +43,8 @@ function Image=createLine(Image, Args)
     if numel(Image)==2
         % create a blank image
         Image  = zeros(Image, Args.PixClass);
+        SizeIJ = size(Image);
+    else
         SizeIJ = size(Image);
     end
     
