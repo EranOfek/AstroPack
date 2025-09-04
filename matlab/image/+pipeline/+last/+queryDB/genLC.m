@@ -23,6 +23,9 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     % RA=67.4798599922836; Dec=34.7928892561292; FieldID='1335'; CamNum=4; CropID=22;   % cand - one eclipse
     % RA=64.2218415434159; Dec=26.404713118121; FieldID='1254'; CamNum=2; CropID=5; % new var % new -brighning /many / interesting
     % RA=182.925919255858; Dec=38.3066889437051; FieldID='1338.WDM4'; CamNum=2; CropID=14; % new / possible 22.545888 min period, but phase...
+    % RA=178.083291666667; Dec=2.80400; 
+    % RA=151.49625;        Dec=22.8256388888889; FieldID='151+23'; CamNum=1;  CropID=10;
+    % RA=125.66475;        Dec=30.8158861111111; FieldID='1347';  CamNum=2; CropID=20;
     % MS = pipeline.last.queryDB.genLC(RA,Dec,'FieldID',FieldID,'CamNum',CamNum,'CropID',CropID); 
     % R=MS.coneSearch(RA,Dec);
     % JD = MS.JD;
@@ -41,8 +44,8 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
 
     arguments
         RA
-        Dec
-        Args.FieldID           = "WD0549";
+        Dec                    = [];
+        Args.FieldID           = []; %"WD0549";
         Args.CamNum            = 1;
         Args.CropID            = [];
 
@@ -61,7 +64,12 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         Args.IsBadFlags        = {'Saturated', 'NearEdge'};
 
         Args.DB                = [];
+        Args.SelectBestField   = false;
     end
+
+
+    
+
 
     RAD = 180./pi;
 
@@ -71,11 +79,35 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         MS = RA;
 
     else
+
+        
+
+
         if istable(RA)
             TmpT = RA;
         else
             TmpT =pipeline.last.queryDB.searchVisitsByCoo(RA, Dec, 'QueryMethod','radec','DB',Args.DB);
+
+            [RA, Dec]=celestial.convert.cooResolve(RA, Dec);
+
+            if Args.SelectBestField && isempty(Args.FieldID)
+
+                TT = TmpT{1};
+
+                AllFields = string(1:1:1784).';
+
+                Ind = find(ismember(TT.fieldid, AllFields, 'rows'));
+                FieldID = TT.fieldid(Ind(1));
+                Flag = startsWith(TT.fieldid, FieldID);
+                TT   = TT(Flag,:);
+                unique([TT.camnum, TT.cropid])
+
+                'hi'
+
+            end
+
         end
+
 
         if isempty(Args.FieldID)
             TT = TmpT{1};
@@ -93,7 +125,6 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
             Flag = TT.cropid == Args.CropID;
             TT   = TT(Flag,:);
         end
-
         
 
         MS=pipeline.last.queryDB.loadProducts(TT,'merged','MergedMat'); 
