@@ -423,7 +423,7 @@ classdef MatchedSources < Component
 
         end
                 
-        function [MergedCat, MatchedS] = readDBqueryResult(T, Args)
+        function [MergedCat, MatchedS] = createFromDBqueryTable(T, Args)
             % sort the output table of a DB query by epochs and read it into a MatchedSources object 
             % Input  : - a source table (usually, the output of a DB query)
             %          * ...,key,val,... 
@@ -438,7 +438,7 @@ classdef MatchedSources < Component
             %          Stop  = celestial.time.date2jd([2025, 05, 01]);
             %          Q = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'JDstop',Stop,'MaxMag',19,'DB',D);
             %          T = D.query(Q);
-            %          [MCat, MS] = MatchedSources.readDBqueryResult(T,'SearchRadius',3); 
+            %          [MCat, MS] = MatchedSources.createFromDBqueryTable(T,'SearchRadius',3); 
             %          plot(MS.Data.JD(:,200),MS.Data.MAG_APER_3(:,200),"*")            
             arguments
                 T
