@@ -15,6 +15,15 @@
 %
 %   Tap = VO.TopCat;
 %   T = Tap.query(Q, 'TapUrl',Tap.TapList{1,2})
+%
+% Search for VizieR catalogs
+%   Tap = VO.TopCat;
+%   Q = "SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE description LIKE '%Ritter%' OR description LIKE '%Cataclysmic%' OR table_name LIKE '%cb%';"
+%   Q = "SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE description LIKE '%Ritter%' AND description LIKE '%Cataclysmic%';"
+%   T = Tap.query(Q);
+%   Q = 'SELECT * FROM "V/82/catalog"'
+%   Tcv = Tap.query(Q);
+%   Tcv= tools.table.table_cell2string(Tcv);
 
 
 
