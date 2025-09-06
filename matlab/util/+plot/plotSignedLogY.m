@@ -10,12 +10,12 @@ function [H, Hup, Hlow] = plotSignedLogY(varargin)
     %            E.g., ylabel(H, 'RMS [arcsec]');
     %          - Handle of upper subplot.
     %          - Handle of lower subplot.
-    % Author : Eran Ofek (2025 Sep) 
+    % Author : ChatGPT, Eran Ofek (2025 Sep) 
     % Example: [H,Hl,Hu]=plot.plotSignedLogY(rand(1000,1),randn(1000,1),'.')
     %          xlabel(H, 'Mag'); ylabel(H, 'RMS');
     %          Hl.MarkerSize=3; Hu.MarkerSize=3;
 
-    
+
     % -------- Parse inputs like PLOT --------
     isNum  = cellfun(@isnumeric, varargin);
     numIdx = find(isNum);
