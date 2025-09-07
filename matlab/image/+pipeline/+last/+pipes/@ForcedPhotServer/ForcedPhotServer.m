@@ -457,6 +457,102 @@ classdef ForcedPhotServer < Component
         end
     end
 
+    methods % access tools to DB
+        function Treq=selectRequest(Obj, Args)
+            % Select entries from request_table using optional constraints
+            %   Accept constrainst on user_id, request_id, and ra and dec.
+            %   If no constraints, then return all entries.
+            % Input  : - self
+            %          * ...,key,val,...
+            %            'UserID' - user_id constraints. Default is [].
+            %            'RequestID' - request_id constraints.
+            %                   Default is [].
+            %            'RA', 'Dec' - Constraints on 'ra','dec' [deg].
+            %                   or 'RA' contains object name.
+            %                   Default is [].
+            %            'CooShift' - Box search radius.
+            %                   Default is 0.001 deg.
+            %                   Current version will fail near RA=0,
+            %                   Dec=poles.
+            %
+            % Output : - Table of selected entries from DB.
+            % Author : Eran Ofek (Sep 2025)
+            % Example: FFS=pipeline.last.pipes.ForcedPhotServer(DB);
+            %          Treq=FFS.selectRequest; % get all requests
+            %          Treq=FFS.selectRequest('UserID',0)
+            %          Treq=FFS.selectRequest('UserID',0, 'RA',260.57096, 'Dec',58.86383) 
+
+            arguments
+                Obj
+                Args.UserID     = [];
+                Args.RequestID  = [];
+                Args.RA         = [];
+                Args.Dec        = [];
+                Args.CooShift   = 0.001;
+            end
+
+            Counter = 0;
+
+            if isempty(Args.UserID)
+                %
+                UserID = '';
+            else
+                if Counter==0
+                    UserID = sprintf('user_id=%d', Args.UserID);
+                else
+                    UserID = sprintf('AND user_id=%d', Args.UserID);
+                end
+                Counter = Counter + 1;
+            end
+            if isempty(Args.RequestID)
+                %
+                RequestID = '';
+            else
+                if Counter==0
+                    RequestID = sprintf('request_id=%d', Args.RequestID);
+                else
+                    RequestID = sprintf('AND request_id=%d', Args.RequestID);
+                end
+                Counter = Counter + 1;
+            end
+            if ~isempty(Args.RA)
+                [RA, Dec] = celestial.convert.cooResolve(Args.RA, Args.Dec);
+                WhereCoo = sprintf('(ra BETWEEN %10.6f AND %10.6f) AND (dec BETWEEN %10.6f AND %10.6f)', RA-Args.CooShift, RA+Args.CooShift, Dec-Args.CooShift, Dec+Args.CooShift);
+                if Counter>0
+                    WhereCoo = sprintf('AND %s', WhereCoo);
+                end
+                Counter = Counter + 1;
+
+            else
+                WhereCoo = '';
+            end
+            
+
+            if Counter==0
+                Query = sprintf('SELECT * FROM %s', Obj.TableRequest);
+            else
+                Query = sprintf('SELECT * FROM %s WHERE %s %s %s', Obj.TableRequest, UserID, RequestID, WhereCoo);
+            end
+
+            Treq = Obj.DB.query(Query);
+
+
+        end
+    
+        function Tobs=selectObservations(Obj, Args)
+            %
+
+            arguments
+                Obj
+                Args
+            end
+
+            
+
+
+        end
+    end
+
 
     %----------------------------------------------------------------------
     % Unit test
