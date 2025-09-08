@@ -33,7 +33,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         Args.Comment                 = ["LAST Node 01, Mount 05, Camera 01", "Each measurement is based on a linear fit to 20x20s exposures"];
         
         Args.ColPermID               = 'Number';
-        Args.ColProvID               = 'Designation';
+        Args.ColProvID               = 'Designation';    % Add ProvID only if PermID doesn't exist.
         Args.TrkSubPrefix            = 'L';   % prefix to add to trkSub if numeric
         Args.ColTrkSub               = 'AstIndex';                  % column for: Observer-assigned tracklet identifier,
                                                          % unique within a submission batch. Not
@@ -63,6 +63,7 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         Args.AckMessage              = [];
     end
     
+
     
     % Create an XML Document
     docNode = com.mathworks.xml.XMLUtils.createDocument('ades');
@@ -139,38 +140,46 @@ function [Result, Sent] = generateReportMPC_ADES(Table, FileName, Args)
         optical = docNode.createElement('optical');
         obsData.appendChild(optical);
     
+        PermIDexist = false;
         % Add optical observation details
         if tools.table.isColumn(Table, Args.ColPermID)
             if ~isnumeric(Table.(Args.ColPermID)(Iobs))
-                if isempty(Table.(Args.ColPermID)(Iobs))y
+                if isempty(Table.(Args.ColPermID)(Iobs))
                     PermID = NaN;
                 else
+                    
                     PermID = sprintf('%s',Table.(Args.ColPermID)(Iobs));
                 end
             else
                 if isnan(Table.(Args.ColPermID)(Iobs))
                     PermID = NaN;
                 else
+                    
                     PermID = sprintf('%d',Table.(Args.ColPermID)(Iobs));
                 end
             end
             if ~isnan(PermID)
+                PermIDexist = true;
                 addTextElement(docNode, optical, 'permID', PermID);
             end
         end
-        if tools.table.isColumn(Table, Args.ColProvID)
-            if ~isempty(Table.(Args.ColProvID)(Iobs))
-                addTextElement(docNode, optical, 'provID', Table.(Args.ColProvID)(Iobs));
+
+        if ~PermIDexist
+            % Add ProvID only if PermID doesn't exist.
+            if tools.table.isColumn(Table, Args.ColProvID)
+                if ~isempty(Table.(Args.ColProvID)(Iobs))
+                    addTextElement(docNode, optical, 'provID', Table.(Args.ColProvID)(Iobs));
+                end
             end
-        end
-        
-        if tools.table.isColumn(Table, Args.ColTrkSub)
-            if isnumeric(Table.(Args.ColTrkSub)(Iobs))
-                TrkSub = sprintf('%s%05d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
-            else
-                TrkSub = Table.(Args.ColTrkSub){Iobs};
+            
+            if tools.table.isColumn(Table, Args.ColTrkSub)
+                if isnumeric(Table.(Args.ColTrkSub)(Iobs))
+                    TrkSub = sprintf('%s%05d',Args.TrkSubPrefix, Table.(Args.ColTrkSub)(Iobs));
+                else
+                    TrkSub = Table.(Args.ColTrkSub){Iobs};
+                end
+                addTextElement(docNode, optical, 'trkSub', TrkSub);
             end
-            addTextElement(docNode, optical, 'trkSub', TrkSub);
         end
         
         
