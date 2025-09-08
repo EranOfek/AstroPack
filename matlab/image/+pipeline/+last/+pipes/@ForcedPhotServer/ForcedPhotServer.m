@@ -260,8 +260,13 @@ classdef ForcedPhotServer < Component
                 %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphot_requests', 'IsExec',true)
                 % Insert example: 
                 % Obj.DB.insertCharDump('forcedphot_requests',table(2,0,262.72824, 66.68995, 2460000,2470000,"1718",1,1,3,14, 1, 300, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew','n_epoch_max'}))
+                %
                 % Obj.DB.insertCharDump('forcedphot_requests',table(3,0,260.5709627, 58.8638455, 2450000,2470000,"1632",1,3,1,10, 1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid', 'nodenumb', 'mountnum', 'camnum', 'cropid', 'loadnew'}))
-                % Obj.DB.insertCharDump('forcedphot_requests',table(4,0,260.57096, 58.86383, 2450000,2470000,"1632",1,3,1,10, 1, 1000,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025qfh
+                %
+                % Obj.DB.insertCharDump('forcedphot_requests',table(21,0,260.57096, 58.86383, 2450000,2470000,"1632",1,3,1,10, 1, 1000,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025qfh
+                % Obj.DB.insertCharDump('forcedphot_requests',table(22,0,6.93442, 28.73525, 2450000,2470000,"1241",1,2,1,4, 1, 1000,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025vll
+                % Obj.DB.insertCharDump('forcedphot_requests',table(23,0,248.20490, 59.25189, 2450000,2470000,"1630",1,7,1,17, 1, 1000,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025thj
+                %
                 % Obj.DB.insertCharDump('forcedphot_requests',table(5,0,261.31232, 60.56540, 2450000,2470000,"1679",1,2,2,8, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025oiw
                 % Obj.DB.insertCharDump('forcedphot_requests',table(6,0,262.72824, 66.68995, 2450000,2470000,"1718",1,1,3,14, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) % 2025mkd
                 % Obj.DB.insertCharDump('forcedphot_requests',table(7,0, 278.59838, 52.98174, 2450000,2470000,"1581",1,3,1,10, 1, 1000, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb','mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'})) %2025sqo
@@ -475,7 +480,7 @@ classdef ForcedPhotServer < Component
             %                   Current version will fail near RA=0,
             %                   Dec=poles.
             %
-            % Output : - Table of selected entries from DB.
+            % Output : - Table of selected forced phot request entries from DB.
             % Author : Eran Ofek (Sep 2025)
             % Example: FFS=pipeline.last.pipes.ForcedPhotServer(DB);
             %          Treq=FFS.selectRequest; % get all requests
@@ -540,15 +545,52 @@ classdef ForcedPhotServer < Component
         end
     
         function Tobs=selectObservations(Obj, Args)
+            % Select entries from forcedphotsub_output using optional constraints
+            %   First search using selectRequest and then select from
+            %   putput table.
+            %   Accept constrainst on user_id, request_id, and ra and dec.
+            %   If no constraints, then return all entries.
+            % Input  : - self
+            %          * ...,key,val,...
+            %            'UserID' - user_id constraints. Default is [].
+            %            'RequestID' - request_id constraints.
+            %                   Default is [].
+            %            'RA', 'Dec' - Constraints on 'ra','dec' [deg].
+            %                   or 'RA' contains object name.
+            %                   Default is [].
+            %            'CooShift' - Box search radius.
+            %                   Default is 0.001 deg.
+            %                   Current version will fail near RA=0,
+            %                   Dec=poles.
             %
+            % Output : - Table of selected forced phot observations entries from DB.
+            % Author : Eran Ofek (Sep 2025)
+            % Example: FFS=pipeline.last.pipes.ForcedPhotServer(DB);
+            %          Tobs=FFS.selectObservations('UserID',0, 'RequestID',5)
+            %          Tobs=FFS.selectObservations('UserID',0, 'RA',260.57096, 'Dec',58.86383) 
 
             arguments
                 Obj
-                Args
+                Args.UserID     = [];
+                Args.RequestID  = [];
+                Args.RA         = [];
+                Args.Dec        = [];
+                Args.CooShift   = 0.001;
             end
 
-            
+            Treq = selectRequest(Obj, 'UserID',Args.UserID, 'RequestID',Args.RequestID, 'RA',Args.RA, 'Dec',Args.Dec, 'CooShift',Args.CooShift);
 
+            Nline = size(Treq,1);
+            switch Nline
+                case 1
+                    Query = sprintf('SELECT * FROM %s WHERE user_id=%d AND request_id=%d', Obj.TableOutput, Treq.user_id, Treq.request_id);
+                    Tobs = Obj.DB.query(Query);
+                case 0
+                    Tobs = [];
+                otherwise
+                    Treq
+                    error('Multiple entries were found');
+            end
 
         end
     end

@@ -199,10 +199,13 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     end
     
     Args.COMMAND = Object;
-    
+    if contains(Args.COMMAND, "'")
+        Args.COMMAND = strrep(string(Args.COMMAND), "'", "''");
+    end
     Args.COMMAND = strrep(Args.COMMAND, ' ','%20');
+    Args.COMMAND = strrep(string(Args.COMMAND), "'",'%27');
     Args.COMMAND = sprintf('''%s''',Args.COMMAND);
-        
+    
 
     if Args.AddDes
         % add 'DES=' before the object name

@@ -1,4 +1,4 @@
-function [Result] = downloadAll(X, Y, Args)
+function [Result] = downloadAll(Args)
     % One line description
     %     Optional detailed description
     % Input  : - 
@@ -9,8 +9,7 @@ function [Result] = downloadAll(X, Y, Args)
     % Example: VO.TNS.downloadAll
 
     arguments
-        X
-        Y
+       
         Args.A                 = [];
         Args.B                 = [];
     end
@@ -27,7 +26,7 @@ function [Result] = downloadAll(X, Y, Args)
     [Stat1, OutStr] = system(CommandStr);
     
     unzip(LocalFile);
-    Tbl = readtable(LocalFile(1:end-4));
+    Result = readtable(LocalFile(1:end-4));
 
     TNS_File = 'https://www.wis-tns.org/system/files/tns_public_objects/tns_public_objects_20240718.csv.zip'
     LocalFile = 'tns_public_objects_20240718.csv.zip'
