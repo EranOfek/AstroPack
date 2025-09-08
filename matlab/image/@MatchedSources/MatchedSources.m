@@ -2372,6 +2372,10 @@ classdef MatchedSources < Component
                Args.UseSrcData logical = false;
             end
 
+            if ~isfield(MS.SrcData, Args.PropFlags)
+                MS.addSrcData;
+            end
+
             BitClass = Args.BitDic.Class;
             if Args.UseSrcData
                 Flags = BitClass(MS.SrcData.(Args.PropFlags));
