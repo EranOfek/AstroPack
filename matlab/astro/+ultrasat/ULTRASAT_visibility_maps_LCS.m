@@ -73,7 +73,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     ConstShift = -4/360-1.44/24; % accounting for the 4W slot and centering the 2.88 hours' period
     
-    JD = celestial.time.julday(Args.StartDate) + l - ConstShift;
+    JD = celestial.time.julday(Args.StartDate) + l + ConstShift;
     
     Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinDistOffset',0.);
     Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits; 
