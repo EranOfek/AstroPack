@@ -258,6 +258,13 @@ elseif Args.Algo==3
 %     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
     KernelY = fftshift(exp(1i.*DY.*unwrap(angle(OperY))),2);
 
+    % somewhat faster
+    %KernelY = fftshift(exp(1i.*DY.*tools.math.fft.mex.unwrap_mex(angle(OperY))),2);
+
+    % somewhat slower
+    %KernelY = fftshift(tools.math.fft.mex.exp_i_dy_unwrap_mex(DY,OperY),2);
+
+    
     KernelY = KernelY./KernelY(:,1);
     KernelY(:,floor(NY.*0.5+1)) = 1;
     %KernelY = ifft(KernelY);
