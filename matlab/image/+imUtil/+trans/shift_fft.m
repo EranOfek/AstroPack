@@ -48,7 +48,64 @@ arguments
                                     % Gaussian filtering is for Args.Algo = 6 only!
 end
 
-if Args.Algo==0
+
+if Args.Algo==3
+    % new / without the padding / for cube
+  
+    [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
+   
+    DX = DX(:);
+    DY = DY(:);
+    
+    % Kernel for X dimension
+    OperX = fft([0 1 zeros(1,NX-2)]);
+%     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+    KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
+
+    KernelX = KernelX./KernelX(:,1);
+    KernelX(:,floor(NX.*0.5+1)) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+%     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+    
+    KernelY = fftshift(exp(1i.*DY.*unwrap(angle(OperY))),2);
+
+    % somewhat faster
+    %KernelY = fftshift(exp(1i.*DY.*tools.math.fft.mex.unwrap_mex(angle(OperY))),2);
+
+    % somewhat slower - can be used only for scalar DX, DY
+    %KernelY = fftshift(tools.math.fft.mex.exp_i_dy_unwrap_mex(DY,OperY),2);
+
+    
+    KernelY = KernelY./KernelY(:,1);
+    KernelY(:,floor(NY.*0.5+1)) = 1;
+    %KernelY = ifft(KernelY);
+    KernelY = KernelY.';
+    
+    KernelX = permute(KernelX,[3 2 1]);  % e.g., size is 1x15x2
+    KernelY = permute(KernelY,[1 3 2]);  %e.g., size is 15x1x2
+    
+    % ChatGPT suggest to use this:
+    % This is faster, and return the same KernelX/Y, but from
+    % some reason the final output is not the same???
+    %KernelX = reshape(KernelX, [1, NX, Nim]); % Align dimensions
+    %KernelY = reshape(KernelY, [NY, 1, Nim]); % Align dimensions
+
+    
+    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
+    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
+    
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
+    
+    Nr = [];
+    Nc = [];
+    
+elseif Args.Algo==0
     % new for cubes
     error('not working');
     
@@ -236,61 +293,7 @@ elseif Args.Algo==30
     Nc = [];
     
     
-elseif Args.Algo==3
-    % new / without the padding / for cube
-  
-    [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
-   
-    DX = DX(:);
-    DY = DY(:);
-    
-    % Kernel for X dimension
-    OperX = fft([0 1 zeros(1,NX-2)]);
-%     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
-    KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
 
-    KernelX = KernelX./KernelX(:,1);
-    KernelX(:,floor(NX.*0.5+1)) = 1;
-    %KernelX = ifft(KernelX);
-
-    % Kernel for Y dimension
-    OperY = fft([0 1 zeros(1,NY-2)]);
-%     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
-    KernelY = fftshift(exp(1i.*DY.*unwrap(angle(OperY))),2);
-
-    % somewhat faster
-    %KernelY = fftshift(exp(1i.*DY.*tools.math.fft.mex.unwrap_mex(angle(OperY))),2);
-
-    % somewhat slower
-    %KernelY = fftshift(tools.math.fft.mex.exp_i_dy_unwrap_mex(DY,OperY),2);
-
-    
-    KernelY = KernelY./KernelY(:,1);
-    KernelY(:,floor(NY.*0.5+1)) = 1;
-    %KernelY = ifft(KernelY);
-    KernelY = KernelY.';
-    
-    KernelX = permute(KernelX,[3 2 1]);  % e.g., size is 1x15x2
-    KernelY = permute(KernelY,[1 3 2]);  %e.g., size is 15x1x2
-    
-    % ChatGPT suggest to use this:
-    % This is faster, and return the same KernelX/Y, but from
-    % some reason the final output is not the same???
-    %KernelX = reshape(KernelX, [1, NX, Nim]); % Align dimensions
-    %KernelY = reshape(KernelY, [NY, 1, Nim]); % Align dimensions
-
-    
-    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
-    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
-    
-    % need to take the real part as there is some residual imaginary
-    % part due to computer precision errors
-    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
-    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
-    
-    Nr = [];
-    Nc = [];
-    
 elseif Args.Algo==5
     % new / without the padding / for cube
   
