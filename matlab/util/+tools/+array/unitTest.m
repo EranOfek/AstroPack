@@ -9,8 +9,17 @@ function Result = unitTest
     if tools.array.mex.countNaN(A)~=100
         error('tools.array.mex.countNaN inconsistent');
     end
-    tic; for I=1:1:1000, VV=sum(isnan(A)); end, toc
-    tic; for I=1:1:1000, VV=tools.array.mex.countNaN(A); end, toc
+
+
+    tic;
+    for I=1:1:1000, VV=sum(isnan(A),'all'); end
+    T=toc;
+    fprintf('sum(isnan) on 1700x1700 matrxi: %f\n',T);
+
+    tic;
+    for I=1:1:1000, VV=tools.array.mex.countNaN(A); end
+    T = toc;
+    fprintf('mex.countNaN on 1700x1700 matrxi: %f\n',T);
     
     
     
@@ -18,8 +27,16 @@ function Result = unitTest
     A=rand(25,25,1000);
     B=rand(25,25,1000);
     Norm=rand(1000,1); 
-    tic;for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end, toc
-    tic;for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end, toc                
+    tic;
+    for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end
+    T=toc;
+    fprintf('mex.squeezeSumAmultB_Dim12 on cube : %f\n',T);
+
+    tic;
+    for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end
+    T=toc;                
+    fprintf('squeeze(sum(A.*B,[1 2])).*Norm on cube : %f\n',T);
+
     if max(abs(C-C1))>1000.*eps
         error('tools.array.mex.squeezeSumAmultB_Dim12 is inconsistent');
     end
@@ -29,11 +46,19 @@ function Result = unitTest
     MatXcen=rand(15,15);       
     Norm=ones(1000,1);
     WInt=imUtil.kernel2.gauss(ones(1000,1)+randn(1000,1));
-    tic;for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end, toc
+    tic;
+    for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end
+    T=toc;
+    fprintf('mex.squeezeSumCubeMatNorm on PSFs cube : %f\n',T);
+
     % Elapsed time is 0.689787 seconds.
-    tic;for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end, toc        
+    tic;
+    for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end
+    T=toc;
+    fprintf("squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm on PSFs cube : %f\n",T);
+
     % Elapsed time is 1.020883 seconds.
-    if max(abs(a2-b))>(10.*eps)
+    if max(abs(a-b))>(10.*eps)
         error('squeezeSumCubeMatNorm inconsistent');
     end
     
@@ -42,14 +67,17 @@ function Result = unitTest
     tic;for I=1:1:100
         [S,N]=tools.array.sumInRange(A,0.25,0.75);
     end
-    toc
+    T=toc;
+    fprintf('mex/sumInRange on 1700x1700 matrix : %f\n',T);
+
     tic;
     for I=1:1:100
         F=~isnan(A) & A>0.25 & A<0.75;
         S1=sum(A(F),'all');
         N1=sum(F,'all');
     end
-    toc
+    T=toc;
+    fprintf('matlab sum in range on 1700x1700 matrix : %f\n',T);
     
     if abs([N1-N])>0
         error('sumInRange is inconsistent (N)');
@@ -76,7 +104,9 @@ function Result = unitTest
     for I=1:1:100
         [S2,S,N]=tools.array.sum2InRange(A,0.25,0.75);
     end
-    toc
+    T=toc;
+    fprintf('mex.sum2InRange in range on 1700x1700 matrix : %f\n',T);
+
     tic;
     for I=1:1:100
         F=~isnan(A) & A>0.25 & A<0.75;
@@ -84,8 +114,10 @@ function Result = unitTest
         S2=sum(A(F).^2,'all');
         N1=sum(F,'all');
     end
-    toc
+    T=toc;
+    fprintf('matlab sum2 in range on 1700x1700 matrix : %f\n',T);
      
+
     Array = uint32([1 2 3; 2 3 4; 3 4 5]);
     Val = tools.array.bitor_array(Array,1,true);
     if ~all(Val==[3 7 7])
@@ -103,6 +135,7 @@ function Result = unitTest
             SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
         end
         T2=toc;
+
         tic;
         for I=1:1:Nsim
             SA1 = tools.array.cropMat(Array, CCDSEC);

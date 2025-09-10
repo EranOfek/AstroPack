@@ -7,11 +7,13 @@ function Result = unitTest()
     X = rand(1e4,1);
     X = sort(X);
     Vals = rand(1,1e3);
-    I1 = tools.find.mfind_bin(X,Vals);
+    I1 = tools.find.mfind_bin(X,Vals,false);
     I2 = tools.find.mfind_bin(X,Vals,true);
     if sum(I1~=I2)>0
         error('tools.find.mfind_bin mex inconsistent');
     end
+
+
     X = rand(1e4,1);
     X(1:100) = NaN;
     X = sort(X);
@@ -22,15 +24,40 @@ function Result = unitTest()
         error('tools.find.mfind_bin mex inconsistent');
     end
     
-    tic; for I=1:1000, I1 = tools.find.mfind_bin(X,Vals); end, toc
-    tic; for I=1:1000, I2 = tools.find.mfind_bin(X,Vals,true); end, toc
+    tic;
+    for I=1:1000
+        I1 = tools.find.mfind_bin(X,Vals);
+    end
+    T=toc;
+    fprintf('tools.find.mfind_bin : %f\n',T);
+
+    tic;
+    for I=1:1000
+        I2 = tools.find.mfind_bin(X,Vals,true);
+    end
+    T=toc;
+    fprintf('tools.find.mfind_bin UseMex=true: %f\n',T);
+
 
     
     A=single(rand(1000,1000));                                  
     A(1000:2000)=single(1);
     V=single(1);
-    tic;for J=1:1:1e3, IM=tools.find.mex.findEqual(A,V); end, toc
-    tic;for J=1:1:1e3, I=find(A==1); end, toc                   
+    tic;
+    for J=1:1:1e3
+        IM=tools.find.mex.findEqual(A,V);
+    end
+    T=toc;
+    fprintf('tools.find.mex.findEqual : %f\n',T);
+
+    tic;
+    for J=1:1:1e3
+        I=find(A==1);
+    end
+    T=toc;
+    fprintf('I=find(A==1) : %f\n',T);
+
+
     if sum(abs(IM-I))>0
         error('Error in tools,find.mex.findEqual');
     end
@@ -39,17 +66,42 @@ function Result = unitTest()
     A(1000:2000)=single(1);
     A(1e5) = 1.1;
     V=single(1);
-    tic;for J=1:1:1e3, IM=tools.find.mex.findLargerFirst(A,V); end, toc
-    tic;for J=1:1:1e3, I=find(A>1,1); end, toc                   
+    tic;
+    for J=1:1:1e3
+        IM=tools.find.mex.findLargerFirst(A,V);
+    end
+    T=toc;
+    fprintf('tools.find.mex.findLargerFirst : %f\n',T);
+    
+    tic;
+    for J=1:1:1e3
+        I=find(A>1,1);
+    end
+    T=toc;                   
+    fprintf('I=find(A>1,1) : %f\n',T);
+
+
     if sum(abs(IM-I))>0
         error('Error in tools,find.mex.findLargerFirst');
     end
     
     A=(rand(1000,1000));                                  
     A(1e5) = -1;
-    V=(0);
-    tic;for J=1:1:1e3, IM=tools.find.mex.findSmallerFirst(A,V); end, toc
-    tic;for J=1:1:1e3, I=find(A<0,1); end, toc                   
+    V=0.5;;
+    tic;
+    for J=1:1:1e3
+        IM=tools.find.mex.findSmallerFirst(A,V);
+    end
+    T=toc;
+    fprintf('tools.find.mex.findSmallestFirst : %f\n',T);
+
+    tic;
+    for J=1:1:1e3
+        I=find(A<V,1);
+    end
+    T=toc;
+    fprintf('I=find(A<0.5,1) : %f\n',T);
+
     if sum(abs(IM-I))>0
         error('Error in tools,find.mex.findSmallerFirst');
     end
