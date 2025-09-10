@@ -85,7 +85,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
     % find a sublist of AllSS pointings visible > 45 (180) days 
     Lenp   = F(AllSky.Var1,AllSky.Var2);
     List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:);    
-        fprintf('Pointings visible > 45  days: %d\n',size(List45,1));
+    List60 = AllSky(Lenp>60,:); List90  = AllSky(Lenp>90,:); List120 = AllSky(Lenp>120,:);
+        fprintf('Pointings visible > 45 days: %d\n',size(List45,1));
+        fprintf('Pointings visible > 60 days: %d\n',size(List60,1));
+        fprintf('Pointings visible > 90 days: %d\n',size(List90,1));
+        fprintf('Pointings visible > 120 days: %d\n',size(List120,1));
         fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
         
     % now we turn on averaged extinction (with R_aver = 7 deg)
@@ -97,7 +101,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
     Fext    = scatteredInterpolant(RA, Dec, Averaged_extinction, 'linear', 'none');      
     Extp    = Fext(AllSky.Var1,AllSky.Var2);
     List45e = AllSky(Lenp>45 & Extp < 1,:); List180e = AllSky(Lenp>180 & Extp <1,:);
+    List60e = AllSky(Lenp>60 & Extp < 1,:); List90e = AllSky(Lenp>90 & Extp < 1,:); List120e = AllSky(Lenp>120 & Extp <1,:);
         fprintf('Low extinction pointings visible > 45  days: %d\n',size(List45e,1));
+        fprintf('Low extinction pointings visible > 60  days: %d\n',size(List60e,1));
+        fprintf('Low extinction pointings visible > 90  days: %d\n',size(List90e,1));
+        fprintf('Low extinction pointings visible > 120  days: %d\n',size(List120e,1));
         fprintf('Low extinction pointings visible > 180 days: %d\n',size(List180e,1));
 
     % a smaller subset 
@@ -155,6 +163,27 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
              for i=1:8
                  fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
+             end     
+             
+    cprintf('blue','6 x 60 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
+    [Route0a,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',6,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',60,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
+             for i=1:6
+                 fprintf('period %d: %d targets: ',i,numel(Route0a{i})); fprintf('%g ',Route0a{i}); fprintf('\n')                 
+             end     
+             
+    cprintf('blue','4 x 90 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
+    [Route0b,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',90,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
+             for i=1:4
+                 fprintf('period %d: %d targets: ',i,numel(Route0b{i})); fprintf('%g ',Route0b{i}); fprintf('\n')                 
+             end     
+                 
+    cprintf('blue','3 x 120 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
+    [Route0c,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',3,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',120,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
+             for i=1:3
+                 fprintf('period %d: %d targets: ',i,numel(Route0c{i})); fprintf('%g ',Route0c{i}); fprintf('\n')                 
              end     
              
     cprintf('blue','2 x 180 days (= 360 days) from day 1 x 40 objects, unique over the 360 days period:\n');
