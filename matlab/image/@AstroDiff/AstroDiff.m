@@ -1383,9 +1383,14 @@ classdef AstroDiff < AstroImage
                 TranCat = Objn.CatData;
             end
 
+            NumTran = TranCat.sizeCatalog;
+
             % Display Ref
-            ds9(Obj.Ref,1); 
-            ds9.plot(TranCat.getXY, Args.TranMarker);
+            ds9(Obj.Ref,1);
+
+            if NumTran > 0
+                ds9.plot(TranCat.getXY, Args.TranMarker);
+            end
     
             if ~isempty(Args.PoI) && Args.PoIUnits == "deg"
                 [Args.PoI(1), Args.PoI(2)] = Obj.WCS.sky2xy(Args.PoI);
@@ -1399,7 +1404,11 @@ classdef AstroDiff < AstroImage
             end
             % Display New
             ds9(Obj.New,2); 
-            ds9.plot(TranCat.getXY, Args.TranMarker);
+
+            if NumTran > 0
+                ds9.plot(TranCat.getXY, Args.TranMarker);
+            end
+
             if ~isempty(Args.PoI)
                 ds9.plot(Args.PoI, 'cx')
             end
@@ -1411,7 +1420,10 @@ classdef AstroDiff < AstroImage
             if ~isempty(Args.PoI)
                 ds9.plot(Args.PoI, 'cx')
             end
-            ds9.plot(TranCat.getXY, Args.TranMarker);
+            if NumTran > 0
+                ds9.plot(TranCat.getXY, Args.TranMarker);
+            end
+            
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
             end
