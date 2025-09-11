@@ -193,6 +193,20 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  fprintf('period %d: %d targets: ',i,numel(Route00{i})); fprintf('%g ',Route00{i}); fprintf('\n')                 
              end   
              
+    cprintf('blue','3 x 120 days (= 360 days) from day 1 x 40 objects, non-unique over the 360 days period:\n');
+    [Route00a,AvDist00a,TargetLists00a] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',3,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',120,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
+             for i=1:3
+                 fprintf('period %d: %d targets: ',i,numel(Route00a{i})); fprintf('%g ',Route00a{i}); fprintf('\n')                 
+             end 
+             
+    cprintf('blue','4 x 90 days (= 360 days) from day 1 x 40 objects, non-unique over the 360 days period:\n');
+    [Route00b,AvDist00b,TargetLists00b] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',90,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
+             for i=1:4
+                 fprintf('period %d: %d targets: ',i,numel(Route00b{i})); fprintf('%g ',Route00b{i}); fprintf('\n')                 
+             end 
+             
     cprintf('blue','2 x 180 days (= 360 days) from day 1 x 40 objects, unique over the 360 days period, \n w/o extinction limit:\n');
     [Route01,AvDist01,TargetLists01] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',100,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
@@ -205,7 +219,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',100,'MeanSunAng',MeanSunAng,'Unique',0});  % MeanSunAng
              for i=1:2
                  fprintf('period %d: %d targets: ',i,numel(Route02{i})); fprintf('%g ',Route02{i}); fprintf('\n')                 
-             end 
+             end                
              
 %     cprintf('blue','4 x 45 days (= 180 days) from day 1 x 10 objects, unique over the 180 days period:\n');
 %     [Route1,AvDist1,TargetLists1] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
