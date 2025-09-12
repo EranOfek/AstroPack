@@ -1444,7 +1444,9 @@ classdef AstroDiff < AstroImage
                 switch Args.OtherImages{Iother}
                     case 'S'
                         ds9(Obj.S,Nimgs);
-                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        if NumTran > 0
+                            ds9.plot(TranCat.getXY, Args.TranMarker);
+                        end
                         if exist('NonTranCat','var')
                             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
                         end
