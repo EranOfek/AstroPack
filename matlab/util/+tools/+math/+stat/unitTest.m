@@ -127,7 +127,7 @@ function Result = unitTest()
         b1=mean(A,3);
     end
     T=toc;
-    fprintf('std_mad & mean : %f',T);
+    fprintf('std_mad & mean : %f\n',T);
 
     if max(abs(a1-a),[],'all')>1e-7
         error('tools.math.stat.mex.std_madmean_mex mad error');
@@ -136,6 +136,39 @@ function Result = unitTest()
         error('tools.math.stat.mex.std_madmean_mex mean error');
     end
 
+
+    % test tools.math.stat.mex.medianMeanStd
+    A = rand(1726,1726,20);
+    tic;
+    for i=1:1e1
+        M1a=median(A,3);
+    end
+    T=toc;
+    fprintf('median on cube : %f\n',T);
+
+    tic;
+    for i=1:1e1
+        M1a=median(A,3); M2a=mean(A,3); M3a=std(A,[],3);
+    end
+    T=toc;
+    fprintf('median, mean, std on cube : %f\n',T);
+
+    tic;
+    for i=1:1e1
+        [M1,M2,M3]=tools.math.stat.mex.medianMeanStd(A,3);
+    end
+    T=toc;
+    fprintf('tools.math.stat.mex.medianMeanStd on cube : %f\n',T);
+
+    if max(abs(M1-M1a),[],'all')>1e-15
+        error('Problem with median in tools.math.stat.mex.medianMeanStd');
+    end
+    if max(abs(M2-M2a),[],'all')>1e-15
+        error('Problem with mean in tools.math.stat.mex.medianMeanStd');
+    end
+    if max(abs(M3-M3a),[],'all')>1e-15
+        error('Problem with std in tools.math.stat.mex.medianMeanStd');
+    end
 
 
     

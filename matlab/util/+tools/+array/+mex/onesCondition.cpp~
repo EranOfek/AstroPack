@@ -1,0 +1,228 @@
+#include "mex.h"
+#include <algorithm>
+#include <limits>
+#include <cctype>
+#include <cstring>
+#include <cmath>      // for std::llround / std::floor
+#if defined(_OPENMP)
+  #include <omp.h>
+#endif
+
+// ---- helpers ----
+static inline void tolower_inplace(char* s){
+    for (; *s; ++s) *s = static_cast<char>(std::tolower(*s));
+}
+
+static mxClassID parse_class(const mxArray* a){
+    if (!mxIsChar(a)) mexErrMsgIdAndTxt("onesCondition:VarClass","VarClass must be a char string.");
+    char buf[32]; mxGetString(a, buf, sizeof(buf)); buf[sizeof(buf)-1]=0;
+    tolower_inplace(buf);
+    if (!std::strcmp(buf,"double")) return mxDOUBLE_CLASS;
+    if (!std::strcmp(buf,"single")) return mxSINGLE_CLASS;
+    if (!std::strcmp(buf,"uint8"))  return mxUINT8_CLASS;
+    if (!std::strcmp(buf,"uint16") || !std::strcmp(buf,"unit16")) return mxUINT16_CLASS; // accept common typo
+    if (!std::strcmp(buf,"uint32")) return mxUINT32_CLASS;
+    if (!std::strcmp(buf,"uint64")) return mxUINT64_CLASS;
+    mexErrMsgIdAndTxt("onesCondition:VarClass","Unsupported VarClass '%s'.", buf);
+    return mxDOUBLE_CLASS; // unreachable
+}
+
+template<typename T> struct limits {
+    static inline T min(){return std::numeric_limits<T>::min();}
+    static inline T max(){return std::numeric_limits<T>::max();}
+};
+
+// Saturating cast from double -> T (MATLAB-like for uints; NaN -> 0)
+// Generic (floats): plain static_cast
+template<typename T> inline T sat_cast(double v){ return static_cast<T>(v); }
+
+// Unsigned integer specializations (round-to-nearest; clamp to [0,max])
+template<> inline uint8_T  sat_cast<uint8_T >(double v){
+    if (!(v==v)) return 0; // NaN
+    if (v <= 0.0) return 0;
+    if (v >= limits<uint8_T>::max()) return limits<uint8_T>::max();
+    return static_cast<uint8_T>(std::llround(v));
+}
+template<> inline uint16_T sat_cast<uint16_T>(double v){
+    if (!(v==v)) return 0;
+    if (v <= 0.0) return 0;
+    if (v >= limits<uint16_T>::max()) return limits<uint16_T>::max();
+    return static_cast<uint16_T>(std::llround(v));
+}
+template<> inline uint32_T sat_cast<uint32_T>(double v){
+    if (!(v==v)) return 0;
+    if (v <= 0.0) return 0;
+    if (v >= static_cast<double>(limits<uint32_T>::max())) return limits<uint32_T>::max();
+    return static_cast<uint32_T>(std::llround(v));
+}
+template<> inline uint64_T sat_cast<uint64_T>(double v){
+    if (!(v==v)) return 0;
+    if (v <= 0.0) return 0;
+    const long double vmax = static_cast<long double>(std::numeric_limits<uint64_T>::max());
+    if (static_cast<long double>(v) >= vmax) return std::numeric_limits<uint64_T>::max();
+    return static_cast<uint64_T>(std::llround(v));
+}
+
+// single-pass kernel: Out[i] = (A[i] > R[i or scalar]) ? ValC : OneC
+template<typename OutT, typename AMatT, typename ARadT>
+static void run_kernel(const AMatT* __restrict A,
+                       const ARadT* __restrict R,
+                       const bool RadScalar,
+                       const double RadScalarVal,  // as double for uniform compare
+                       OutT* __restrict Out,
+                       const size_t N,
+                       const OutT OneC,
+                       const OutT ValC)
+{
+    const bool use_omp =
+    #if defined(_OPENMP)
+        (N >= (1u<<18)) && (omp_get_max_threads() > 1);
+    #else
+        false;
+    #endif
+
+    if (use_omp){
+    #if defined(_OPENMP)
+      #pragma omp parallel for schedule(static)
+    #endif
+      for (mwIndex i=0; i<static_cast<mwIndex>(N); ++i){
+          const double ai = static_cast<double>(A[i]);
+          const double ri = RadScalar ? RadScalarVal : static_cast<double>(R[i]);
+          Out[i] = (ai > ri) ? ValC : OneC;
+      }
+    } else {
+      for (mwIndex i=0; i<static_cast<mwIndex>(N); ++i){
+          const double ai = static_cast<double>(A[i]);
+          const double ri = RadScalar ? RadScalarVal : static_cast<double>(R[i]);
+          Out[i] = (ai > ri) ? ValC : OneC;
+      }
+    }
+}
+
+// dispatch over output type
+template<typename OutT>
+static void dispatch_out(const mxArray* MatR2, const mxArray* Rad2,
+                         mxArray* OutArr, double value_cast)
+{
+    const mwSize nd = mxGetNumberOfDimensions(MatR2);
+    const mwSize* dims = mxGetDimensions(MatR2);
+    const size_t N = mxGetNumberOfElements(MatR2);
+
+    OutT* outp = reinterpret_cast<OutT*>(mxGetData(OutArr));
+    const OutT OneC = sat_cast<OutT>(1.0);
+    const OutT ValC = sat_cast<OutT>(value_cast);
+
+    const bool radScalar = (mxGetNumberOfElements(Rad2) == 1);
+
+    if (mxIsDouble(MatR2)){
+        const double* A = mxGetDoubles(MatR2);
+
+        if (mxIsDouble(Rad2)){
+            const double* R = mxGetDoubles(Rad2);
+            const double rscalar = radScalar ? R[0] : 0.0;
+            if (!radScalar){
+                if (mxGetNumberOfDimensions(Rad2)!=nd) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+                const mwSize* rdims = mxGetDimensions(Rad2);
+                for (mwSize k=0;k<nd;++k) if (rdims[k]!=dims[k]) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+            }
+            run_kernel<OutT,double,double>(A, R, radScalar, rscalar, outp, N, OneC, ValC);
+
+        } else if (mxIsSingle(Rad2)){
+            const float* R = mxGetSingles(Rad2);
+            const double rscalar = radScalar ? static_cast<double>(R[0]) : 0.0;
+            if (!radScalar){
+                if (mxGetNumberOfDimensions(Rad2)!=nd) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+                const mwSize* rdims = mxGetDimensions(Rad2);
+                for (mwSize k=0;k<nd;++k) if (rdims[k]!=dims[k]) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+            }
+            run_kernel<OutT,double,float>(A, R, radScalar, rscalar, outp, N, OneC, ValC);
+
+        } else {
+            mexErrMsgIdAndTxt("onesCondition:type","Rad2 must be single or double.");
+        }
+
+    } else if (mxIsSingle(MatR2)){
+        const float* A = mxGetSingles(MatR2);
+
+        if (mxIsSingle(Rad2)){
+            const float* R = mxGetSingles(Rad2);
+            const double rscalar = radScalar ? static_cast<double>(R[0]) : 0.0;
+            if (!radScalar){
+                if (mxGetNumberOfDimensions(Rad2)!=nd) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+                const mwSize* rdims = mxGetDimensions(Rad2);
+                for (mwSize k=0;k<nd;++k) if (rdims[k]!=dims[k]) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+            }
+            run_kernel<OutT,float,float>(A, R, radScalar, rscalar, outp, N, OneC, ValC);
+
+        } else if (mxIsDouble(Rad2)){
+            const double* R = mxGetDoubles(Rad2);
+            const double rscalar = radScalar ? R[0] : 0.0;
+            if (!radScalar){
+                if (mxGetNumberOfDimensions(Rad2)!=nd) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+                const mwSize* rdims = mxGetDimensions(Rad2);
+                for (mwSize k=0;k<nd;++k) if (rdims[k]!=dims[k]) mexErrMsgIdAndTxt("onesCondition:size","Rad2 size mismatch.");
+            }
+            run_kernel<OutT,float,double>(A, R, radScalar, rscalar, outp, N, OneC, ValC);
+
+        } else {
+            mexErrMsgIdAndTxt("onesCondition:type","Rad2 must be single or double.");
+        }
+
+    } else {
+        mexErrMsgIdAndTxt("onesCondition:type","MatR2 must be single or double.");
+    }
+}
+
+// ---- mex entry ----
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
+{
+    if (nrhs < 3 || nrhs > 4)
+        mexErrMsgIdAndTxt("onesCondition:usage",
+            "Usage: W_Max = onesCondition(MatR2, Rad2, VarClass, [Value=0])");
+
+    const mxArray* MatR2 = prhs[0];
+    const mxArray* Rad2  = prhs[1];
+    const mxArray* VarClass = prhs[2];
+
+    if (mxIsComplex(MatR2) || !(mxIsSingle(MatR2) || mxIsDouble(MatR2)))
+        mexErrMsgIdAndTxt("onesCondition:type","MatR2 must be real single or double.");
+    if (mxIsComplex(Rad2) || !(mxIsSingle(Rad2) || mxIsDouble(Rad2)))
+        mexErrMsgIdAndTxt("onesCondition:type","Rad2 must be real single or double.");
+
+    // size check: Rad2 scalar or same size
+    if (mxGetNumberOfElements(Rad2) != 1){
+        if (mxGetNumberOfDimensions(Rad2) != mxGetNumberOfDimensions(MatR2))
+            mexErrMsgIdAndTxt("onesCondition:size","Rad2 must be scalar or match MatR2 size.");
+        const mwSize* dA = mxGetDimensions(MatR2);
+        const mwSize* dR = mxGetDimensions(Rad2);
+        for (mwSize k=0;k<mxGetNumberOfDimensions(MatR2);++k)
+            if (dA[k]!=dR[k])
+                mexErrMsgIdAndTxt("onesCondition:size","Rad2 must be scalar or match MatR2 size.");
+    }
+
+    const mxClassID outClass = parse_class(VarClass);
+    const mwSize nd = mxGetNumberOfDimensions(MatR2);
+    const mwSize* dims = mxGetDimensions(MatR2);
+    plhs[0] = mxCreateNumericArray(nd, dims, outClass, mxREAL);
+
+    // Value (default 0), read as double then saturate-cast inside dispatch
+    double ValueD = 0.0;
+    if (nrhs >= 4){
+        if (!mxIsDouble(prhs[3]) && !mxIsSingle(prhs[3]) &&
+            !(mxIsUint8(prhs[3])||mxIsUint16(prhs[3])||mxIsUint32(prhs[3])||mxIsUint64(prhs[3])))
+            mexErrMsgIdAndTxt("onesCondition:Value","Value must be a real scalar (single/double/uint*).");
+        if (mxGetNumberOfElements(prhs[3])!=1)
+            mexErrMsgIdAndTxt("onesCondition:Value","Value must be a scalar.");
+        ValueD = mxGetScalar(prhs[3]); // NaN -> 0 for uint* via sat_cast; preserved for float/double
+    }
+
+    switch (outClass){
+        case mxDOUBLE_CLASS: dispatch_out<double>(MatR2, Rad2, plhs[0], ValueD); break;
+        case mxSINGLE_CLASS: dispatch_out<float >(MatR2, Rad2, plhs[0], ValueD); break;
+        case mxUINT8_CLASS:  dispatch_out<uint8_T >(MatR2, Rad2, plhs[0], ValueD); break;
+        case mxUINT16_CLASS: dispatch_out<uint16_T>(MatR2, Rad2, plhs[0], ValueD); break;
+        case mxUINT32_CLASS: dispatch_out<uint32_T>(MatR2, Rad2, plhs[0], ValueD); break;
+        case mxUINT64_CLASS: dispatch_out<uint64_T>(MatR2, Rad2, plhs[0], ValueD); break;
+        default: mexErrMsgIdAndTxt("onesCondition:VarClass","Unsupported output class.");
+    }
+}

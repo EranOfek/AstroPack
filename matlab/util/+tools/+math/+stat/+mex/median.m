@@ -1,4 +1,5 @@
 % Fast median function for arrays over a single dim
+%   Faster than matlab median for larger arrays.
 % Input  : - An array (single or double).
 %          - Dimension (scalar) over which to calculate the median.
 %          - 'omitnan'|'includenan' option. Default is 'includenan'.
