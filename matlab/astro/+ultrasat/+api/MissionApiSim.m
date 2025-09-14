@@ -8,7 +8,7 @@
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
-classdef MissionClientSim < ultrasat.api.MissionClientBase
+classdef MissionApiSim < ultrasat.api.MissionApiBase
     % 
     
     properties
@@ -19,21 +19,21 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
 
     methods
-        function obj = MissionClientSim(Args)
+        function obj = MissionApiSim(Args)
             arguments          
                 Args.SubUrl         = '/mission';  % planner_backend  
                 Args.LogFileName
             end
 
             % Initialize the logger
-            obj.LogPrefix = 'MissionClientSim';
+            obj.LogPrefix = 'MissionApiSim';
 
             % Initialize the ApiSimProvider
             obj.ApiSimProvider = ultrasat.api.ApiSimProvider(Args.SubUrl);
 
             % Call the base class constructor with the Args
             ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.MissionClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
+            obj@ultrasat.api.MissionApiBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
             obj.msglog('MissionClientSim constructor started');
             
             % SOC_PATH must be defined in env

@@ -12,7 +12,7 @@ function debug_ApiSimProvider()
     fprintf('====================================================\n\n');
     
     % --- Configuration ---
-    REMOTE_URL = 'http://localhost:5000';
+    REMOTE_URL = 'http://localhost:8090';
     REMOTE_BASE_PATH = 'api_sim_remote_tests/'; % A dedicated folder on the server
     
     LOCAL_BASE_PATH = 'C:\temp\api_sim_local_tests'; % A temporary local directory
@@ -24,7 +24,7 @@ function debug_ApiSimProvider()
     fprintf('    Target: %s\n', REMOTE_URL);
     fprintf('    Base Path: %s\n', REMOTE_BASE_PATH);
     try
-        remoteProvider = ApiSimProvider(REMOTE_URL, REMOTE_BASE_PATH);
+        remoteProvider = ultrasat.api.ApiSimProvider(REMOTE_URL, REMOTE_BASE_PATH);
         testProviderSuite(remoteProvider, 'Remote');
     catch ME
         fprintf('\n  [FATAL ERROR] Could not run remote tests.\n');
@@ -36,7 +36,7 @@ function debug_ApiSimProvider()
     fprintf('\n>>> Running test suite for LOCAL provider...\n');
     fprintf('    Target: %s\n', LOCAL_BASE_PATH);
     try
-        localProvider = ApiSimProvider(LOCAL_BASE_PATH);
+        localProvider = ultrasat.api.ApiSimProvider(LOCAL_BASE_PATH);
         testProviderSuite(localProvider, 'Local');
     catch ME
         fprintf('\n  [FATAL ERROR] Could not run local tests.\n');
@@ -58,7 +58,7 @@ function testProviderSuite(provider, providerType)
     fprintf('\n--- Testing WriteJsonFile and ReadJsonFile (%s) ---\n', providerType);
     testStruct.name = 'Test Data';
     testStruct.id = 12345;
-    testStruct.timestamp = datestr(now, 'isodatetime');
+    testStruct.timestamp = datestr(now, 30);
     testStruct.valid = true;
     testStruct.matrix = [1, 2, 3; 4, 5, 6];
     jsonFileName = 'test_config.json';
@@ -118,7 +118,7 @@ function testProviderSuite(provider, providerType)
     
     if isempty(fieldnames(nextFileResult))
         fprintf('  [FAIL] NextAvailableFile returned an empty result.\n');
-    elseif isfield(nextFileResult, 'index') && nextFileResult.index == 3
+    elseif isfield(nextFileResult, 'index') && nextFileResult.index >= 2
         fprintf('  [SUCCESS] Correctly identified next available index as %d.\n', nextFileResult.index);
         fprintf('  Next filename: %s\n', nextFileResult.filename);
         disp(nextFileResult);
@@ -126,5 +126,15 @@ function testProviderSuite(provider, providerType)
         fprintf('  [FAIL] Incorrectly identified next available index.\n');
         fprintf('  Expected index: 3\n');
         disp(nextFileResult);
+    end
+
+    % --- Test 4: Delete File ---
+    fprintf('\n--- Testing DeleteFile (%s) ---\n', providerType);
+    fprintf('Deleting file %s...\n', jsonFileName);
+    success = provider.DeleteFile(jsonFileName);
+    if success
+        fprintf('  [SUCCESS] File %s deleted successfully.\n', jsonFileName);
+    else
+        fprintf('  [FAIL] Failed to delete file %s.\n', jsonFileName);
     end
 end

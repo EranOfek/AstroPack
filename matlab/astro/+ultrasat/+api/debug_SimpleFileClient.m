@@ -10,7 +10,7 @@ function debug_SimpleFileClient()
     
     % --- Configuration ---
     % Ensure your simple_file_server.py is running and accessible at this URL.
-    SERVER_URL = 'http://localhost:5000'; 
+    SERVER_URL = 'http://localhost:8090'; 
     
     % A dedicated folder on the server for this debug script to use.
     % Using a subfolder keeps test files organized.
@@ -28,6 +28,7 @@ function debug_SimpleFileClient()
     debugWriteAndReadJson(client);
     debugListFiles(client);
     debugNextAvailableFile(client);
+    debugDeleteFile(client);
     
     fprintf('====================================================\n');
     fprintf('SimpleFileClient Debug Script Finished\n');
@@ -58,6 +59,10 @@ function debugWriteAndReadFile(client)
     fprintf('Attempting to read back file: %s\n', filePath);
     readContent = client.readFile(filePath);
     
+    %
+    originalContent = strrep(originalContent, sprintf('\r\n'), sprintf('\n'));
+    readContent = strrep(readContent, sprintf('\r\n'), sprintf('\n'));
+
     % 4. Verify the content
     if isempty(readContent)
         fprintf('  [FAIL] Failed to read file or file was empty.\n\n');
@@ -190,3 +195,22 @@ function debugNextAvailableFile(client)
     end
     fprintf('----------------------------------------\n\n');
 end
+
+
+function debugDeleteFile(client)
+    % debugDeleteFile - Tests deleting a file.
+    fprintf('--- Testing DeleteFile ---\n');
+    
+    % 1. Define parameters for the request
+    filePath = 'test_file.txt';
+    fprintf('Attempting to delete file: %s\n', filePath);
+    success = client.deleteFile(filePath);
+    
+    if success
+        fprintf('  [SUCCESS] File %s deleted successfully.\n', filePath);
+    else
+        fprintf('  [FAIL] Failed to delete file %s.\n', filePath);
+    end
+    fprintf('----------------------------------------\n\n');
+end
+

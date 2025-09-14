@@ -68,7 +68,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             endpoint = 'files/list';
-            payload.path = obj.safePath(obj.BasePath + folderPath);
+            payload.path = obj.safePath([obj.BasePath, folderPath]);
             if ~isempty(masks)
                 payload.masks = masks;
             end
@@ -77,7 +77,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 response = obj.performPostRequest(endpoint, payload);
                 if isfield(response, 'files') && ~isempty(response.files)
                     % response.files will be a cell array, convert to string array
-                    fileList = char(response.files);
+                    fileList = response.files;
                 else
                     fileList = {};
                 end
@@ -98,15 +98,18 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             endpoint = 'files/read';
-            payload.path = obj.safePath(obj.BasePath + filePath);
+            payload.path = obj.safePath([obj.BasePath, filePath]);
 
             try
-                % For reading raw text, we expect a text response
-                options = weboptions('Timeout', obj.Timeout, 'RequestMethod', 'post', ...
-                                     'MediaType', 'application/json', 'ContentType', 'text');
-                fullUrl = obj.getFullUrl(endpoint);
-                jsonPayload = jsonencode(payload);
-                content = char(webread(fullUrl, jsonPayload, options));
+                % Use performPostRequest (it handles URL + JSON)
+                resp = obj.performPostRequest(endpoint, payload);
+        
+                % Extract content from response (depending on FastAPI return type)
+                if isstruct(resp) && isfield(resp, "data")
+                    content = resp.data;   % assumes FastAPI returns {"data": "..."}
+                else
+                    content = char(resp);  % fallback if raw string
+                end
             catch ME
                 obj.msglog(sprintf('Error reading file %s: %s', filePath, ME.message));
                 content = '';
@@ -150,7 +153,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             endpoint = 'files/write';
-            payload.path = obj.safePath(obj.BasePath + filePath);
+            payload.path = obj.safePath([obj.BasePath, filePath]);
             payload.data = data;
             payload.append = append;
 
@@ -202,7 +205,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             endpoint = 'files/next_available_file';
-            payload.path = obj.safePath(obj.BasePath + folderPath);
+            payload.path = obj.safePath([obj.BasePath, folderPath]);
             payload.mask = mask;
             payload.zero_pad = zeroPad;
             payload.min_index = minIndex;
@@ -216,6 +219,27 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
         end
 
+
+        function result = deleteFile(obj, filePath)
+            % Delete a file from the server.
+            %   result = obj.deleteFile(filePath)
+            %   Returns true on success, false on error.
+            arguments
+                obj
+                filePath char
+            end
+
+            % Delete a file from the server
+            endpoint = 'files/delete';
+            payload.path = obj.safePath([obj.BasePath, filePath]);
+            try
+                result = obj.performPostRequest(endpoint, payload);
+            catch ME
+                obj.msglog(sprintf('Error deleting file %s: %s', filePath, ME.message));
+                result = false;
+            end
+        end
+    
     end
 
 
@@ -224,20 +248,30 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             % Construct the full URL for a given endpoint.
             baseUrl = obj.BaseUrl;
             if ~endsWith(baseUrl, '/')
-                baseUrl = baseUrl + '/';
+                baseUrl = [baseUrl, '/'];
             end
-            fullUrl = baseUrl + endpoint;
+            fullUrl = [baseUrl, endpoint];
         end
 
 
         function response = performPostRequest(obj, endpoint, payload)
             % A helper function for making JSON POST requests.
+
             fullUrl = obj.getFullUrl(endpoint);
-            options = weboptions('Timeout', obj.Timeout, 'RequestMethod', 'post', 'MediaType', 'application/json');
+            contentTypeField = matlab.net.http.HeaderField('Content-Type', 'application/json');            
             jsonPayload = jsonencode(payload);
-            % webread automatically decodes the JSON response into a MATLAB struct
-            response = webread(fullUrl, jsonPayload, options);
+            body = matlab.net.http.io.StringProvider(jsonPayload);
+
+            req = matlab.net.http.RequestMessage('post', contentTypeField, body);
+    
+            % Send request
+            resp = req.send(fullUrl);
+    
+            % Display response
+            disp(resp.Body.Data);
+            response = resp.Body.Data;
         end
+
     end
 
 

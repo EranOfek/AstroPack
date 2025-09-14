@@ -50,13 +50,14 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             % Initialize the logger
             obj.LogPrefix = 'ApiSimProvider';
 
+            % Target is a URL, so use the remote client.            
             if startsWith(backendTarget, 'http://', 'IgnoreCase', true) || ...
-               startsWith(backendTarget, 'https://', 'IgnoreCase', true)
-                % Target is a URL, so use the remote client.
+               startsWith(backendTarget, 'https://', 'IgnoreCase', true)                
                 obj.msglog(sprintf('Initializing with remote backend at %s', backendTarget));
                 obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget, basePath);
-            else
-                % Target is a local path, so use the local client.
+
+            % Target is a local path, so use the local client.                
+            else                
                 obj.msglog(sprintf('Initializing with local backend at %s', backendTarget));
                 obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
             end
@@ -110,6 +111,17 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             end
             result = obj.FileClient.nextAvailableFile(folderPath, mask, zeroPad, minIndex, maxIndex);
         end
-    
+
+        
+        function result = DeleteFile(obj, filePath)
+            % Deletes a file from the server.
+            %   Delegates the call to the underlying file client.
+            arguments
+                obj
+                filePath char
+            end
+            result = obj.FileClient.deleteFile(filePath);
+        end
+
     end
 end

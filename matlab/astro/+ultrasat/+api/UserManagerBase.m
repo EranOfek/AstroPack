@@ -27,6 +27,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
         Sessions        % sessions.json
         IsLoggedIn      % boolean flag
         DeviceId        %
+        Message         % Message to be displayed to the user
     end
 
 
@@ -59,7 +60,6 @@ classdef UserManagerBase < ultrasat.api.Loggable
             %obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
         end        
         
-
         % -------------------------------------------------------------------
 
         function response = login(obj, UserName, Password, Namespace)
@@ -99,7 +99,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
             [~, hostname] = system('hostname');
             deviceID = ['matlab-' strtrim(hostname)];
             %deviceID = strtrim(hostname);  % Remove any trailing newline or spaces        
-        end
+        end      
 
         % -------------------------------------------------------------------
 
@@ -133,8 +133,75 @@ classdef UserManagerBase < ultrasat.api.Loggable
             %     .message - Description message
             %     .ok - Boolean indicating success (true) or failure (false) 
         end        
-     
 
     end
+
+
+    methods (Access = public)
+
+        function mergedParams = MergeParams(~, baseParams, overrideParams)
+            % Merges two structs, with the second struct's fields overwriting the first's.
+            mergedParams = baseParams;
+            if isempty(overrideParams)
+                return;
+            end
+            
+            fields = fieldnames(overrideParams);
+            for i = 1:numel(fields)
+                key = fields{i};
+                mergedParams.(key) = overrideParams.(key);
+            end
+        end
+
+        
+        function isMatch = MatchParams(~, required, effective)
+            % Checks if the 'effective' struct satisfies the conditions in the 'required' struct.
+            isMatch = false; % Default to false
+            
+            reqFields = fieldnames(required);
+            for i = 1:numel(reqFields)
+                key = reqFields{i};
+                
+                % The effective parameters MUST have the required key
+                if ~isfield(effective, key)
+                    return; % Match fails
+                end
+                
+                reqValues = required.(key);   % This must be a cell array of allowed values
+                effValue = effective.(key); % This is the single value to check
+                
+                % The effective value must be a member of the required values array
+                if ~ismember(effValue, reqValues)
+                    return; % Match fails
+                end
+            end
+            
+            % If all required keys were found and all values matched, the match is successful
+            isMatch = true;
+        end
+
+
+        function isMatch = matchMask(~, str, mask)
+            % Compares a string against a mask with wildcards ('*', '?').
+            %   This is a MATLAB implementation of a wildcard mask match.
+            isMatch = false; % Default to false
+            
+            % Convert the simple wildcard mask to a regular expression
+            % 1. Escape any special regex characters in the mask itself
+            regex_mask = regexptranslate('escape', mask);
+            % 2. Replace the escaped wildcards with their regex equivalents
+            regex_mask = strrep(regex_mask, '\*', '.*'); % '*' -> '.*' (zero or more chars)
+            regex_mask = strrep(regex_mask, '\?', '.');  % '?' -> '.' (any single char)
+            
+            % Anchor the expression to ensure it matches the whole string
+            regex_mask = ['^' regex_mask '$'];
+            
+            % Use regexp to check for a match
+            if ~isempty(regexp(str, regex_mask, 'once'))
+                isMatch = true;
+            end
+        end
+    end
+
 end
 

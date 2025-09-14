@@ -238,7 +238,6 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             response.user = user;
         end
 
-
         % -------------------------------------------------------------------
 
         function response = login0(obj, UserName, Password, Namespace)
@@ -330,6 +329,115 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             response.status = 'ok';
             response.ok = true;
         end        
+
+        % -------------------------------------------------------------------
+
+        function isAllowed = IsAllowed(obj, Action, Item, Params)
+            %ISALLOWED Checks if the current user is permitted to perform a given action on an item.
+            %   This is a MATLAB conversion of the Delphi TUserManagerSim.IsAllowed function.
+            %
+            %   Parameters:
+            %       Action (char): The action to be performed (e.g., 'read', 'write').
+            %       Item (char): The item on which the action is performed (e.g., a filename, a dataset ID).
+            %       Params (struct): Optional. A struct of additional parameters for context.
+            %
+            %   Returns:
+            %       isAllowed (logical): True if the action is permitted, false otherwise.
+            %       message (char): A string explaining the reason for the decision.
+
+            % Handle optional 'Params' argument
+            if nargin < 4
+                Params = struct();
+            end
+
+            isAllowed = false;
+            obj.Message = '';
+
+            % --- Initial Validation ---
+            if ~obj.IsLoggedIn || isempty(obj.User)
+                obj.Message = 'User not logged in';
+                isAllowed = false;
+                return;
+            end
+
+            if ~isfield(obj.Users, obj.User)
+                obj.Message = 'User not found in user database';
+                isAllowed = false;
+                return;
+            end
+
+            % --- Main Permission Check Logic ---
+            userStruct = obj.Users.(obj.User);
+            userRoles = userStruct.roles; % This should be a cell array of role IDs
+
+            % 1. Iterate through all roles assigned to the user
+            for i = 1:numel(userRoles)
+                roleID = userRoles{i};
+                if ~isfield(obj.Roles, roleID)
+                    continue; % Skip if role ID from user does not exist in roles db
+                end
+                
+                roleStruct = obj.Roles.(roleID);
+                permissions = roleStruct.permissions; % Cell array of permission IDs
+
+                % 2. For each role, iterate through its permissions
+                for j = 1:numel(permissions)
+                    permID = permissions{j};
+
+                    % Handle wildcard permission: if a role has '*', it grants all permissions.
+                    if strcmp(permID, '*')
+                        obj.Message = sprintf('Permission granted for role ''%s'' via wildcard (*).', roleID);
+                        isAllowed = true;
+                        return;
+                    end
+
+                    if ~isfield(obj.Permissions, permID)
+                        continue; % Skip if perm ID does not exist in permissions db
+                    end
+                    
+                    permStruct = obj.Permissions.(permID);
+                    if ~isfield(permStruct, 'actions') || ~isfield(permStruct.actions, Action)
+                        continue; % Skip if this permission doesn't grant the requested Action
+                    end
+                    
+                    actionStruct = permStruct.actions.(Action);
+
+                    % 3. Check parameter match (if required by the permission)
+                    % Note: This logic was commented out in the Delphi source.
+                    % It has been implemented here based on the helper functions.
+                    if isfield(actionStruct, 'params')
+                        requiredParams = actionStruct.params;
+                        effectiveParams = obj.MergeParams(struct(), Params); % Assuming some base params might exist
+                        
+                        if ~obj.MatchParams(requiredParams, effectiveParams)
+                            continue; % Parameters do not match, so this rule does not apply.
+                        end
+                    end
+
+                    if ~isfield(actionStruct, 'items')
+                        continue; % This action has no items, so it cannot match.
+                    end
+                    
+                    items = actionStruct.items; % Cell array of item masks
+
+                    % 4. Check if the target Item matches any of the allowed item masks
+                    for k = 1:numel(items)
+                        pattern = items{k};
+                        % Grant permission if pattern is wildcard, or if Item is empty,
+                        % or if the Item matches the mask.
+                        if strcmp(pattern, '*') || isempty(Item) || obj.matchMask(Item, pattern)
+                            obj.Message = sprintf('Permission granted for role ''%s'' on action ''%s'' for item ''%s''.', roleID, Action, Item);
+                            isAllowed = true;
+                            return;
+                        end
+                    end
+                end
+            end
+            
+            % If loops complete, no permission was found
+            obj.Message = sprintf('Permission denied for action ''%s'' on item ''%s''.', Action, Item);
+            isAllowed = false;
+        end
 
         % -------------------------------------------------------------------
 

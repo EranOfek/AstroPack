@@ -303,5 +303,31 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             end
         end
 
+
+        function result = deleteFile(obj, filePath)
+            % Delete a file from the local disk.
+            %   result = obj.deleteFile(filePath)
+            %   Returns true on success, false on error.
+            arguments
+                obj
+                filePath char
+            end
+
+            fullLocalPath = fullfile(obj.BasePath, filePath);
+            if ~isfile(fullLocalPath)
+                obj.msglog(sprintf('Error deleting file: File not found at %s', fullLocalPath));
+                result = false;
+                return;
+            end
+
+            try
+                delete(fullLocalPath);
+                result = true;
+            catch ME
+                obj.msglog(sprintf('Error deleting file %s: %s', filePath, ME.message));
+                result = false;
+            end
+        end
+
     end
 end

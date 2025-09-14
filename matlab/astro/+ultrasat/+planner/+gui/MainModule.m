@@ -16,6 +16,7 @@ classdef MainModule < handle
     
     properties
         ApiClient               % MissionApiClient/MissionApiSim instance
+        UserClient              % UserManagerClient/UserManagerSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     %
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
@@ -73,7 +74,7 @@ classdef MainModule < handle
             obj.LogFileName = fullfile(obj.PlannerPath, 'planner.log');
             obj.msglog('MainModule started');
 
-            %
+            % Load Preferences from file
             obj.PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
             obj.Preferences = ultrasat.planner.gui.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
@@ -83,10 +84,12 @@ classdef MainModule < handle
             if UseSim
                 obj.msglog('Creating ApiClient as api.MissionClientSim');
                 obj.ApiClient = ultrasat.api.MissionApiSim('LogFileName', obj.LogFileName);
+                obj.UserClient = ultrasat.api.UserManagerSim('LogFileName', obj.LogFileName);
             else
                 obj.msglog('Creating ApiClient as api.MissionClient');
                 obj.ApiClient = ultrasat.api.MissionApiClient('LogFileName', obj.LogFileName);
-                obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
+                obj.ApiClient.ApiUrl = 'http://localhost:8215';
+                obj.UserClient = ultrasat.api.UserManagerClient('LogFileName', obj.LogFileName);
             end
 
             % Operational - When starting Planner from OPER, this is the
@@ -112,7 +115,7 @@ classdef MainModule < handle
             obj.NamespaceId = [];
             Result = false;
             ANamespaceId = obj.extractNameFromDisplayString(Namespace);
-            response = obj.ApiClient.login(UserName, Password, ANamespaceId);
+            response = obj.UserClient.login(UserName, Password, ANamespaceId);
             if response.ok
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
@@ -130,7 +133,7 @@ classdef MainModule < handle
                 return;
             end
             Result = false;
-            response = obj.ApiClient.logout(obj.UserName);
+            response = obj.UserClient.logout(obj.UserName);
 
             % Currently we do not check response.ok, so even if logout
             % failed (why?) we clear UserName, leave NamespaceId without change
@@ -200,8 +203,7 @@ classdef MainModule < handle
         
             % Create and return the style
             style = uistyle("FontColor", color);
-        end
-        
+        end       
 
         % =================================================================
         %                           Get UI Field Values

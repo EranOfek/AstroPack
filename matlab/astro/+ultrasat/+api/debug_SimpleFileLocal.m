@@ -21,7 +21,8 @@ function debug_SimpleFileLocal()
     debugWriteAndReadJson(client);
     debugListFiles(client);
     debugNextAvailableFile(client);
-    
+    debugDeleteFile(client);
+
     fprintf('====================================================\n');
     fprintf('SimpleFileLocal Debug Script Finished\n');
     fprintf('====================================================\n');
@@ -180,6 +181,24 @@ function debugNextAvailableFile(client)
         % Save for inspection
         save('c:\temp\sfc_nextfile_response.mat', 'response');
         fprintf('Saved next file response to c:\\temp\\sfc_nextfile_response.mat\n');
+    end
+    fprintf('----------------------------------------\n\n');
+end
+
+
+function debugDeleteFile(client)
+    % debugDeleteFile - Tests deleting a file.
+    fprintf('--- Testing DeleteFile ---\n');
+    
+    % 1. Define parameters for the request
+    filePath = 'test_file.txt';
+    fprintf('Attempting to delete file: %s\n', filePath);
+    success = client.deleteFile(filePath);
+    
+    if success
+        fprintf('  [SUCCESS] File %s deleted successfully.\n', filePath);
+    else
+        fprintf('  [FAIL] Failed to delete file %s.\n', filePath);
     end
     fprintf('----------------------------------------\n\n');
 end
