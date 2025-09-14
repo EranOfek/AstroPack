@@ -37,7 +37,7 @@ function Res=fit_flux(t,F_t,sigma_F,varargin)
 
 
 InPar = inputParser;
-addOptional(InPar,'Solver',@Utools.math.fit.fminunc_my);
+addOptional(InPar,'Solver',@tools.math.fit.fminunc_my);
 addOptional(InPar,'TimeDomain',false);  % work in time domain
 addOptional(InPar,'InputFT',false);  % input is t,F_t (false) or w,F_w (true)
 addOptional(InPar,'FitPar',[NaN   NaN              2]);  % [A1, A2, gamma]

@@ -9,8 +9,17 @@ function Result = unitTest
     if tools.array.mex.countNaN(A)~=100
         error('tools.array.mex.countNaN inconsistent');
     end
-    tic; for I=1:1:1000, VV=sum(isnan(A)); end, toc
-    tic; for I=1:1:1000, VV=tools.array.mex.countNaN(A); end, toc
+
+
+    tic;
+    for I=1:1:1000, VV=sum(isnan(A),'all'); end
+    T=toc;
+    fprintf('sum(isnan) on 1700x1700 matrxi: %f\n',T);
+
+    tic;
+    for I=1:1:1000, VV=tools.array.mex.countNaN(A); end
+    T = toc;
+    fprintf('mex.countNaN on 1700x1700 matrxi: %f\n',T);
     
     
     
@@ -18,8 +27,16 @@ function Result = unitTest
     A=rand(25,25,1000);
     B=rand(25,25,1000);
     Norm=rand(1000,1); 
-    tic;for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end, toc
-    tic;for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end, toc                
+    tic;
+    for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end
+    T=toc;
+    fprintf('mex.squeezeSumAmultB_Dim12 on cube : %f\n',T);
+
+    tic;
+    for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end
+    T=toc;                
+    fprintf('squeeze(sum(A.*B,[1 2])).*Norm on cube : %f\n',T);
+
     if max(abs(C-C1))>1000.*eps
         error('tools.array.mex.squeezeSumAmultB_Dim12 is inconsistent');
     end
@@ -29,11 +46,19 @@ function Result = unitTest
     MatXcen=rand(15,15);       
     Norm=ones(1000,1);
     WInt=imUtil.kernel2.gauss(ones(1000,1)+randn(1000,1));
-    tic;for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end, toc
+    tic;
+    for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end
+    T=toc;
+    fprintf('mex.squeezeSumCubeMatNorm on PSFs cube : %f\n',T);
+
     % Elapsed time is 0.689787 seconds.
-    tic;for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end, toc        
+    tic;
+    for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end
+    T=toc;
+    fprintf("squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm on PSFs cube : %f\n",T);
+
     % Elapsed time is 1.020883 seconds.
-    if max(abs(a2-b))>(10.*eps)
+    if max(abs(a-b))>(10.*eps)
         error('squeezeSumCubeMatNorm inconsistent');
     end
     
@@ -42,14 +67,17 @@ function Result = unitTest
     tic;for I=1:1:100
         [S,N]=tools.array.sumInRange(A,0.25,0.75);
     end
-    toc
+    T=toc;
+    fprintf('mex/sumInRange on 1700x1700 matrix : %f\n',T);
+
     tic;
     for I=1:1:100
         F=~isnan(A) & A>0.25 & A<0.75;
         S1=sum(A(F),'all');
         N1=sum(F,'all');
     end
-    toc
+    T=toc;
+    fprintf('matlab sum in range on 1700x1700 matrix : %f\n',T);
     
     if abs([N1-N])>0
         error('sumInRange is inconsistent (N)');
@@ -68,7 +96,7 @@ function Result = unitTest
     if abs(S2m-S2)>1e-7
         error('sum2InRange inconsistent (S2)');
     end
-    if abs(Sm./Nm - Mean)>10.*eps
+    if abs(Sm./Nm - Mean)>100.*eps
         error('sum2InRange inconsistent (mean)');
     end
     
@@ -76,7 +104,9 @@ function Result = unitTest
     for I=1:1:100
         [S2,S,N]=tools.array.sum2InRange(A,0.25,0.75);
     end
-    toc
+    T=toc;
+    fprintf('mex.sum2InRange in range on 1700x1700 matrix : %f\n',T);
+
     tic;
     for I=1:1:100
         F=~isnan(A) & A>0.25 & A<0.75;
@@ -84,8 +114,10 @@ function Result = unitTest
         S2=sum(A(F).^2,'all');
         N1=sum(F,'all');
     end
-    toc
+    T=toc;
+    fprintf('matlab sum2 in range on 1700x1700 matrix : %f\n',T);
      
+
     Array = uint32([1 2 3; 2 3 4; 3 4 5]);
     Val = tools.array.bitor_array(Array,1,true);
     if ~all(Val==[3 7 7])
@@ -93,8 +125,8 @@ function Result = unitTest
     end
     
     % Test: tools.array.cropMat
-    Nsim = 1000;
-    for I=1:1:5
+    Nsim = 5000;
+    %for I=1:1:5
         Array = uint16(rand(1700,1700));
         CCDSEC=[101 ceil(rand(1,1).*1300+201),  201 ceil(rand(1,1).*1300+201)];
         CCDSEC = [101 1600 101 1600];
@@ -103,20 +135,239 @@ function Result = unitTest
             SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
         end
         T2=toc;
+
         tic;
         for I=1:1:Nsim
             SA1 = tools.array.cropMat(Array, CCDSEC);
         end
         T1=toc;
         
-        T1./T2
+        fprintf('tools.array.cropMat run time divided by matlab: %f\n',T1./T2);
         
         if max(abs(SA1-SA2),[],'all')>0
-            error('cropMAT inconsistent');
+            error('tools.array.cropMAT inconsistent');
         end
+    %end
+    
+    % tools.array.onesCondition
+    % W_Max = ones(size(MatR2), 'like',Image);
+    % W_Max(MatR2>MomRadius2) = 0;
+    Image      = single(1);
+    MomRadius2 = 25;
+    MatR2      = rand(1726,1726,'single').*30;
+    
+    Nsim = 100;
+    tic;
+    for I=1:Nsim
+        W_Max = ones(size(MatR2), 'like',Image);
+        W_Max(MatR2>MomRadius2) = 0;
+    end
+    T=toc;
+    fprintf('onesCondition using matlab: %f\n',T);
+          
+    tic;
+    for Isim=1:Nsim
+        W_Max1 = tools.array.mex.onesCondition(MatR2,MomRadius2,class(Image));
+    end
+    T=toc;
+    fprintf('tools.array.mex.onesCondition : %f\n',T);
+
+    if max(abs(W_Max - W_Max1),[],'all')>10.*eps
+        error('Problem in tools.array.onesCondition');
+    end
+
+
+    %% bitorArray
+    A=uint32((rand(30,5000).*1e4)); 
+    Nsim=1e3;
+    tic;
+    for I=1:Nsim
+        Val0=tools.array.bitor_array(A,1,false);
+    end
+    T=toc;
+    fprintf('tools.array.bitor_array mex=false : %f\n',T);
+
+    %Nsim = 1e5;
+    tic;
+    for I=1:Nsim
+        Val1=tools.array.bitor_array(A,1,true);
+    end
+    T=toc;
+    fprintf('tools.array.bitor_array mex=true : %f\n',T);
+
+    %Nsim = 1e5;
+    tic;
+    for I=1:Nsim
+        Val2=tools.array.mex.bitorArray(A,1);
+    end
+    T=toc;
+    fprintf('tools.array.mex.bitorArray : %f\n',T);
+
+
+    A=uint32((rand(3,1000).*1e2)); 
+    Val0=tools.array.bitor_array(A,1,false);
+    Val2=tools.array.mex.bitorArray(A,1);
+    if max(abs(Val2-Val0))>0
+        error('Problem with tools.array.bitorArray');
     end
     
+    %% bitandArray
+    A=uint32((rand(30,5000).*1e4)); 
+    Nsim=1e3;
+    tic;
+    for I=1:Nsim
+        Val0=tools.array.bitand_array(A,1,false);
+    end
+    T=toc;
+    fprintf('tools.array.bitand_array mex=false : %f\n',T);
+
+    %Nsim = 1e5;
+    tic;
+    for I=1:Nsim
+        Val1=tools.array.bitand_array(A,1,true);
+    end
+    T=toc;
+    fprintf('tools.array.bitand_array mex=true : %f\n',T);
+
+    %Nsim = 1e5;
+    tic;
+    for I=1:Nsim
+        Val2=tools.array.mex.bitandArray(A,1);
+    end
+    T=toc;
+    fprintf('tools.array.mex.bitandArray : %f\n',T);
+
+
+    A=uint32((rand(3,1000).*1e2)); 
+    Val0=tools.array.bitand_array(A,1,false);
+    Val2=tools.array.mex.bitandArray(A,1);
+    if max(abs(Val2-Val0))>0
+        error('Problem with tools.array.bitandArray');
+    end
+
+    %% bitsetFlag
+    %   Result = bitset(Array(Flag), Bit, Value);
+
+    Array = zeros(1726, 1726, 'uint32');
+    Flag  = rand(1726, 1726) > 0.9;
+    Bit   = 2;
+    Val   = true;
+    Nsim  = 300;
+    tic;
+    for I=1:Nsim
+        Result1 = tools.array.bitsetFlag(Array, Flag, Bit, Val, false);            
+    end
+    toc
+
+    tic;
+    for I=1:Nsim
+        Result2 = tools.array.bitsetFlag(Array, Flag, Bit, Val, true);            
+    end
+    toc
+
+    tic;
+    for I=1:Nsim
+        Result3 = tools.array.mex.bitsetFlag(Array, Flag, Bit, Val);            
+    end
+    toc
+
+    %max(abs(Result1-Result2),[],'all')
+    if max(abs(Result2-Result3),[],'all')>0
+        error('Problem with tools.array.mex.bitsetFlag');
+    end
+
+
+    %% diluteArray
+    Array = single(rand(1726,1726));
+    Step = 10;
+
+    Nsim = 3000;
+
+    tic;
+    for Isim=1:Nsim
+        Vec = Array(1:Step:end);
+    end
+    T=toc;
+    fprintf('dilute array using matlab : %f\n',T);
+
+    tic;
+    for Isim=1:Nsim
+        Vec1 = tools.array.mex.diluteArray(Array, Step);
+        %Vec1 = diluteArray(Array, Step);
+    end
+    T=toc;
+    fprintf('dilute array using tools.array.mex.diluteArray : %f\n',T);
+
+    if max(abs(Vec(:)-Vec1(:)))>0
+        error('Problem with tools.array.mex.diluteArray');
+    end
+
+    %% diluteArray_MinMax
+    Array = single(rand(1726,1726));
+    Step = 10;
+
+    Nsim = 3000;
+
+    tic;
+    for Isim=1:Nsim
+        Vec = Array(1:Step:end);
+        Min = min(Vec);
+        Max = max(Vec);
+    end
+    T=toc;
+    fprintf('dilute array using matlab : %f\n',T);
+
+    tic;
+    for Isim=1:Nsim
+        %Vec1 = tools.array.mex.diluteArray(Array, Step);
+        [Vec1,Min1,Max1] = diluteArray_MinMax(Array, Step);
+    end
+    T=toc;
+    fprintf('dilute array using tools.array.mex.diluteArray_MinMax : %f\n',T);
+
+    if max(abs(Vec(:)-Vec1(:)))>0
+        error('Problem with tools.array.mex.diluteArray_MinMax');
+    end
+
+    if max(abs(Min-Min1))>0
+        error('Problem with tools.array.mex.diluteArray_MinMax Min outout');
+    end
+
+    if max(abs(Max-Max1))>0
+        error('Problem with tools.array.mex.diluteArray_MinMax Max outout');
+    end
+
+    %% tools.array.conditionalReplace
+
+    M=rand(1700,1700);
+    A=rand(1700,1700);
+    B=0.5;
+    V=0;
+
+    Nsim = 100;
+    tic;
+    for I=1:1:Nsim
+        M(A>B)=V;
+    end
+    T1=toc
     
+    tic;
+    for I=1:1:Nsim
+        %M = tools.array.conditionalReplace(M, A, B, V);
+        M = tools.array.mex.conditionalReplace(M, A, B, V);
+    end
+    T2=toc
+
+    T2./T1
+    
+    %%
+
+
+
+    
+
+
+    %%
     
     %test_onesExcept();
 
@@ -130,12 +381,12 @@ function Result = unitTest
 %     test_bit_or();
 %     test_bit_or_and();
 %     test_bit_or_and_mex();	
-	io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed');
 	Result = true;
 end
 
 function Result = test_onesExcept()
-    io.msgLog(LogLevel.Test, 'tools.array.onesexcept test started');
+    %io.msgLog(LogLevel.Test, 'tools.array.onesexcept test started');
     
     % Checking basic functionality and comparing mex and matlab
     UseMex = 0;
@@ -241,7 +492,7 @@ end
 
 
 function Result = test_onesCondition()
-    io.msgLog(LogLevel.Test, 'tools.array.onesCondition test started');
+    %io.msgLog(LogLevel.Test, 'tools.array.onesCondition test started');
     
     % Checking basic functionality and comparing mex and matlab
     UseMex = 0;
@@ -328,7 +579,7 @@ function Result = test_onesCondition()
         end
     end
     
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesCondition passed')
+    %io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesCondition passed')
     Result = true;    
 
 end

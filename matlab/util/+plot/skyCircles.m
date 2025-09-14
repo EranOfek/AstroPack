@@ -35,7 +35,7 @@ function skyCircles(RA, Dec, Args)
         [Lon,Lat]=celestial.coo.celestial_circ(RA(i)/RAD,Dec(i)/RAD,Rad(i)/RAD,Args.NumPoints);
         Lon(Lon<0) = Lon(Lon<0)+2*pi;
         if Args.PlotOnMap
-            plotm(Lat,Lon,'.','Color',Args.Color)
+            plotm(Lat*RAD,Lon*RAD,'.','Color',Args.Color)
         else
             plot(Lon*RAD,Lat*RAD,'.','Color',Args.Color)
         end

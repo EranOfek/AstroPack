@@ -831,7 +831,8 @@ classdef INPOP < Base
             Norder = min(Norder, Args.MaxOrder);
             VecOrder = (ColDataStart:1:(ColDataStart+Norder-1));
             
-            Pos = zeros(Args.Ncoo, Njd);
+            Pos   = zeros(Args.Ncoo, Njd);
+            JDTmid = (JD - Tmid(IndJD))./Thstep;
             for Icoo=1:1:Args.Ncoo
                 % need to do for each coordinate
                 
@@ -842,7 +843,8 @@ classdef INPOP < Base
                 
                 %TTmid = ((JD - Tmid(IndJD))./Thstep);
                 %ChebyEval    = Obj.ChebyFun{Norder}(TTmid);
-                ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
+                %ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
+                ChebyEval    = Obj.ChebyFun{Norder}(JDTmid);
                 
                 Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);
             end

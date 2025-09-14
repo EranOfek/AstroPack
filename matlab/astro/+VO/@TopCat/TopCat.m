@@ -15,6 +15,18 @@
 %
 %   Tap = VO.TopCat;
 %   T = Tap.query(Q, 'TapUrl',Tap.TapList{1,2})
+%
+%   Q = 'SELECT top 1 * FROM %s';
+%   T = Tap.query(Q, 'Cat','PS1');
+%
+% Search for VizieR catalogs
+%   Tap = VO.TopCat;
+%   Q = "SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE description LIKE '%Ritter%' OR description LIKE '%Cataclysmic%' OR table_name LIKE '%cb%';"
+%   Q = "SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE description LIKE '%Ritter%' AND description LIKE '%Cataclysmic%';"
+%   T = Tap.query(Q);
+%   Q = 'SELECT * FROM "V/82/catalog"'
+%   Tcv = Tap.query(Q);
+%   Tcv= tools.table.table_cell2string(Tcv);
 
 
 
@@ -54,6 +66,12 @@ classdef TopCat < Base
                    %https://registry.ivoa.net
                    %TOPCAT / STILTS:
                    %In TOPCAT: VO → Table Access Protocol (TAP) Query, then “Find Service”.
+
+
+        % Common/useful catalogs:
+        % CommonName, Description, NameInDB, TapUrl
+        CommonCat = ["PS1", "Pan-STARRS DR1 catalogue", "II/349/ps1", "https://tapvizier.cds.unistra.fr/TAPVizieR/tap";...
+                     "GAIA-DR3", "GAIA DR3", "gaiaedr3.gaia_source", "https://gea.esac.esa.int/tap-server/tap"];
     end
     
     properties (Hidden)
@@ -86,6 +104,17 @@ classdef TopCat < Base
             % Input  : - self.
             %          - Query.
             %          * ...,key,val,...
+            %            'Cat' - An optional short cut for common catalogs.
+            %                   In order to activate this option, this
+            %                   parameter should be not-empty AND the query
+            %                   string should contain a '%s' after the FROM
+            %                   clause.
+            %                   This option will also automatically set the
+            %                   TapUrl string.
+            %                   Available catalogs are:
+            %                   'PS1'
+            %                   'GAIA-DR3'
+            %                   Default is [].
             %            'Method' - 'java'|'http'. ('java' is faster).
             %                   Java requires installing jar file:
             %                   In=Installer; In.install('TopCatJar');
@@ -100,17 +129,39 @@ classdef TopCat < Base
             % Output : - A table with results.
             % Author : Eran Ofek (Aug 2025)
             % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12';
-            %          Top = VO.TopCat;
-            %          T = Top.query(Q);
+            %          Tap = VO.TopCat;
+            %          T = Tap.query(Q);
+            %
+            %          Q = 'SELECT top 1 * FROM %s';
+            %          T = Tap.query(Q, 'Cat','PS1');
 
             arguments
                 Obj
                 Query
+                Args.Cat        = [];
                 Args.Method     = 'java';  %'http'|'java'
                 Args.TapUrl     = [];   % []|'select' | or url
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
+            end
+
+
+            if ~isempty(Args.Cat)
+                % replace %s in query with catalog name from CommonCat
+                IndCat = find(strcmpi(Obj.CommonCat(:,1), Args.Cat));
+                if isempty(IndCat)
+                    error('Catalog %s was not found in VO.TopCat.CommonCat property (first column)', Args.Cat);
+                end
+                if numel(IndCat)>1
+                    error('Catalog %s - Multiple entries found', Args.Cat);
+                end
+
+                Args.TapUrl = Obj.CommonCat(IndCat,4);
+                TableName   = Obj.CommonCat(IndCat,3);
+                TableName   = sprintf('"%s"', TableName);    
+                Query = sprintf(Query, TableName);
+                
             end
 
             if isempty(Args.TapUrl)
@@ -154,6 +205,74 @@ classdef TopCat < Base
 
         end
 
+
+        function Result = searchCatalog(Obj, SearchString, Args)
+            % Search catalogs/tables in a specific TAP service
+            % Input  : - self.
+            %          - A string array of strings to search.
+            %            E.g., ["Ritter", "Cataclysmic"]
+            %            E.g., "Pan-STARRS DR1"
+            %            Default is [""].
+            %          * ...,key,val,...
+            %            'TapName' - Name of TAP service. Will search this
+            %                   string, and will use the first service
+            %                   found.
+            %                   Default is 'VizieR'.
+            %            'TapUrl' - Tap URL. If given, then TapName will be
+            %                   ignored. Default is [].
+            %            'Operator' - Operator betwewm searched strings.
+            %                   'OR' | 'AND'.
+            %                   Default is 'AND'.
+            % Output : - Table of all found ttables.
+            % Author : Eran Ofek (Sep 2025)
+            % Example: Tap=VO.TopCat;
+            %          Tap.searchCatalog(["Ritter", "Cataclysmic"])
+            %          Tap.searchCatalog(["Pan-STARRS DR1"])
+
+            arguments
+                Obj
+                SearchString   = [""];
+                Args.TapName   = 'VizieR';
+                Args.TapUrl    = [];
+                Args.Operator  = 'AND';
+            end
+
+            if isempty(Args.TapUrl)
+                % user TapName
+                if isempty(Args.TapName)
+                    % use GUI
+                    Args.TapUrl = Obj.selectTapServer;
+                else
+                    % search TapName in Obj.TapList
+                    IndUrl = find(contains(Obj.TapList(:,1), Args.TapName));
+                    if numel(IndUrl)==0
+                        error('Server name %s was not found in TapList', Args.TapName);
+                    else
+                        if numel(IndUrl)>1
+                            ListTaps = tools.cell.sprintf_concatCell(", ", Obj.TapList(IndUrl,1));
+                            fprintf('More than one server was found in TapList: %s\n', ListTaps);
+                            fprintf('Server selected: %s\n', Obj.TapList(IndUrl,1));
+                        end
+                        IndUrl      = IndUrl(1);
+                        Args.TapUrl = Obj.TapList(IndUrl,2);
+                    end
+                end
+            end
+
+            %Q = "SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE description LIKE '%Ritter%' AND description LIKE '%Cataclysmic%';"
+
+            Nss = numel(SearchString);
+            WhereDescription = "";
+            for Iss=1:1:Nss-1
+                WhereDescription =  sprintf("%s description LIKE '%%%s%%' %s",WhereDescription, SearchString(Iss), Args.Operator);
+            end
+            WhereDescription =  sprintf("%s description LIKE '%%%s%%';",WhereDescription, SearchString(Nss));
+
+            ListTpas = tools.cell.sprintf_concatCell(", ", Obj.TapList(IndUrl,1));
+            Q = sprintf("SELECT schema_name, table_name, description FROM TAP_SCHEMA.tables WHERE %s", WhereDescription);
+            Result = Obj.query(Q, 'TapUrl',Args.TapUrl);
+
+        end
 
     end
 

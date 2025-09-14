@@ -1,5 +1,6 @@
 function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
-    %
+    % Set bit val of selected elements in an array
+    %   For faster MEX version see: tools.array.mex.bitsetFlag
     % Input  : - Array - Array of integers
     %          - Flags - Array of logical flags
     %          - Bit - Bit number

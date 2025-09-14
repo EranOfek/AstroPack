@@ -1372,10 +1372,28 @@ classdef Scheduler < Component
                 Args.Mailbox;
             % Mailbox contains hashes TargetRequest:MountNumber, with fields:
             %         Status - 'requesting', 'provided', 'acquired',
-            %                  'refused', 'observed', 'failed'
+            %                  'acknowledged','refused', 'observed', 'failed'
             %         JD  - the time the last operation was performed
             %         Target  - a jsonencoded struct with FieldName, Ra, Dec,
             %                    Nexp, ExpTime
+            %
+            % Mailbox.Status meaning:
+            %
+            %  'requesting':   set by the Unit, when asking for a new target
+            %  'provided':     set by the Scheduler, when dispatching a
+            %                  target (or none available)
+            %  'acquired':     set by the Unit, when receiving a nonempty
+            %                  target
+            %  'acknowledged': set by the unit when receiving an empty
+            %                  target
+            %  'refused':      RFU. The Unit does not refuse targets yet
+            %  'observed':     set by the Unit at successful completion of
+            %                  the observation. Not checked back, yet, by
+            %                  the Scheduler
+            %  'failed':       set by the Unit if there are troubles during
+            %                  the observation. Not checked back, yet, by
+            %                  the Scheduler
+            %  
                 Args.AcknowledgeTimeout = 10; % seconds the scheduler waits for the Unit to confirm acquisition of the target
             end
             if ~isfield(Args,'Mailbox')
@@ -1458,9 +1476,9 @@ classdef Scheduler < Component
             t0=now;
             ReqStatus='';
             while (now-t0)*86400<Args.AcknowledgeTimeout && ...
-                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused'}))
+                    ~any(strcmpi(ReqStatus,{'acquired','failed','refused','acknowledged'}))
                 ReqStatus=Args.Mailbox.hget(Req,'Status');
-                Success=strcmpi(ReqStatus,'acquired');
+                Success=strcmpi(ReqStatus,'acquired') || strcmpi(ReqStatus,'acknowledged');
             end
         end
         
