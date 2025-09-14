@@ -453,9 +453,7 @@ classdef MatchedSources < Component
                                         'SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', 'PSF_CHI2DOF'};  % must be a subset of MatchedColums
                 Args.ColNamesAll   = {'MAG_PSF','MAG_APER_3'}; 
                 Args.RelPhot       = false;
-            end
-            %
-            Result = MatchedSources;
+            end     
             % clean the ingestion_time column:
             if ismember('ingestion_time', T.Properties.VariableNames)
                 T.ingestion_time = [];
@@ -465,7 +463,7 @@ classdef MatchedSources < Component
             T.Properties.VariableNames{'DEC'} = 'Dec';                        
             % find the unique image ids
             uniqueID = unique(T.(Args.IDcolumn));
-            AC = repmat(AstroCatalog,numel(uniqueID),1);
+            AC = AstroCatalog([numel(uniqueID) 1]);
             Ncol = width(T);
             % convert each epoch into an AstroCatalog 
             for Epoch = 1:numel(uniqueID)    
