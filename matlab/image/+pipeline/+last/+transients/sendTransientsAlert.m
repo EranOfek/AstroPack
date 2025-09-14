@@ -31,6 +31,9 @@ function [Status] = sendTransientsAlert(ADc, Args)
         Args.SingleEpochThresh = 7.7;
         Args.thisIsATest = false;
 
+        Args.MaskBrightRelCount = 10;
+        Args.MaskBrightAbsCount = 1000;
+
     end
 
     Status = 'Uncontrolled exit.';
@@ -337,25 +340,77 @@ function [Status] = sendTransientsAlert(ADc, Args)
             Image_DirFilenameCell = strcat(Args.SavePath,'/',ImageFN.genFile);
             Image_DirFilename = Image_DirFilenameCell{1};
 
-            % Prepare ref image cutout
-            RefImage = Transient.Rbs;
-            RefImageLowLim = prctile(RefImage(:),100-99.5);
-            RefImageHighLim = prctile(RefImage(:),99.5);
-            RefImagePlot = (RefImage-RefImageLowLim)./...
-                           (RefImageHighLim-RefImageLowLim);
-            RefImagePlot = min(max(RefImagePlot,0),1);
-            RefImagePlot = asinh(10*RefImagePlot)/3;
-            RefImagePlot = rot90(RefImagePlot,2);            
+            MaskKernel = ones(3,3);
 
             % Prepare new image cutout
             NewImage = Transient.Nbs;
-            NewImageLowLim = prctile(NewImage(:),100-99.5);
-            NewImageHighLim = prctile(NewImage(:),99.5);
-            NewImagePlot = (NewImage - NewImageLowLim)./...
+
+            % Get peak count within transient RoI
+
+            [NewImageSizeX, NewImageSizeY] = size(NewImage);
+
+            NewImageHalfSizeX = floor(NewImageSizeX / 2);
+            NewImageHalfSizeY = floor(NewImageSizeY / 2);
+            
+            NewImageXStart =NewImageHalfSizeX-5;
+            NewImageXEnd = NewImageHalfSizeX+5;
+            NewImageYStart = NewImageHalfSizeY-5;
+            NewImageYEnd = NewImageHalfSizeY+5;
+
+            NewImageRoi = NewImage(NewImageXStart:NewImageXEnd, ...
+                NewImageYStart:NewImageYEnd);
+            NewImageRoiPeak = max(NewImageRoi,[],'all');
+
+            % Mask bright NewImage pixels outside of the RoI
+            NewImageRel2Roi = NewImage/NewImageRoiPeak;
+            NewImageBrightMask = (NewImage > Args.MaskBrightAbsCount) & ...
+                (NewImageRel2Roi > Args.MaskBrightRelCount);
+            NewImageBrightMask = (conv2(NewImageBrightMask, MaskKernel, "same") > 0);
+            NewImageBrightMask(NewImageXStart:NewImageXEnd, ...
+                NewImageYStart:NewImageYEnd) = 0;
+            NewImageMasked = NewImage;
+            NewImageMasked(NewImageBrightMask) = 1;
+
+            % Renormalize New Image for plot
+            NewImageLowLim = prctile(NewImageMasked(:),100-99.5);
+            NewImageHighLim = prctile(NewImageMasked(:),99.5);
+            NewImagePlot = (NewImageMasked - NewImageLowLim)./...
                            (NewImageHighLim - NewImageLowLim);
             NewImagePlot = min(max(NewImagePlot,0),1);
             NewImagePlot = asinh(10*NewImagePlot)/3;
             NewImagePlot = rot90(NewImagePlot,2);
+            
+            
+            % Prepare ref image cutout
+            RefImage = Transient.Rbs;
+
+            [RefImageSizeX, RefImageSizeY] = size(RefImage);
+
+            RefImageHalfSizeX = floor(RefImageSizeX / 2);
+            RefImageHalfSizeY = floor(RefImageSizeY / 2);
+            
+            RefImageXStart = RefImageHalfSizeX-5;
+            RefImageXEnd = RefImageHalfSizeX+5;
+            RefImageYStart = RefImageHalfSizeY-5;
+            RefImageYEnd = RefImageHalfSizeY+5;
+
+            % Mask bright NewImage pixels outside of the RoI
+            RefImageRel2Roi = RefImage/NewImageRoiPeak;
+            RefImageBrightMask = (RefImage > Args.MaskBrightAbsCount) & ...
+                (RefImageRel2Roi > Args.MaskBrightRelCount);
+            RefImageBrightMask = (conv2(RefImageBrightMask, MaskKernel, "same") > 0);
+            RefImageBrightMask(RefImageXStart:RefImageXEnd, ...
+                RefImageYStart:RefImageYEnd) = 0;            
+            RefImageMasked = RefImage;
+            RefImageMasked(RefImageBrightMask) = 1;
+
+            RefImageLowLim = prctile(RefImageMasked(:),100-99.5);
+            RefImageHighLim = prctile(RefImageMasked(:),99.5);
+            RefImagePlot = (RefImageMasked-RefImageLowLim)./...
+                           (RefImageHighLim-RefImageLowLim);
+            RefImagePlot = min(max(RefImagePlot,0),1);
+            RefImagePlot = asinh(10*RefImagePlot)/3;
+            RefImagePlot = rot90(RefImagePlot,2);            
 
             % Prepare diff image cutout
             DiffImage = Transient.Image;

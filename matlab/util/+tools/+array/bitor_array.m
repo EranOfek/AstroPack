@@ -1,11 +1,12 @@
 function Val=bitor_array(Array, Dim, UseMex)
     % Perform a bitor operation along all elements in an array.
-    % Package: Util.array
+    %   For more effient function use: tools.array.mex.bitorArray
     % Description: Perform a bitor operation along all elements in an array
     %              along a specific dimension.
     % Input  : - An array of integers.
     %          - Dimension along to perform the bitor operation. Default is 1.
     %          - Flag, true to use MEX optimization if possible. Default is 1.
+    %            For more effient function use: tools.array.mex.bitorArray
     % Output : - The result of the bitor operation. If input is empty, then
     %            the output is empty.
     % See also: sum_bitor.m (the same)
@@ -49,6 +50,7 @@ function Val=bitor_array(Array, Dim, UseMex)
 
         % Check if we can use MEX implementation, convert input to uint64
         if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
+            %Val = bitorArray(Array, Dim);
             switch Nbit
                 case 8
                     Val = tools.array.mex.mex_bitor_array_int8(Array, Dim);       
