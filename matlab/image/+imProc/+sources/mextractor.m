@@ -138,7 +138,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     end    
                                                       
     % find and measure sources using multi-iteration PSF fitting    
-    SourceLess = repmat(AstroImage,1,Nobj); 
+    SourceLess = AstroImage([1 Nobj]);   
     
     for Iobj=1:1:Nobj
                             if Args.Verbose
@@ -146,7 +146,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                             end    
         % we need a deep copy here, otherwise, the initial image is not kept in the AI!
         AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj 
-        Cat             = repmat(AstroCatalog,1,Niter);                         % catalogs produced at each iter, merged afterwards
+        Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards 
         SourceImage     = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % source image after each iteration
         SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
                
