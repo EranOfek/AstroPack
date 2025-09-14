@@ -277,6 +277,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
                 if Args.MakePlots
                     figure(3); plot(181:Args.NumDays-180,Nfields(181:Args.NumDays-180),'*');
+                    plot(181:Args.NumDays-180,Nfields(181:Args.NumDays-180))
                     xlabel 'Days from 01.01.2028'; ylabel 'Number of available 180-day long fields'
                 end    
     

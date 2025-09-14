@@ -2717,9 +2717,6 @@ classdef DemonLAST < Component
                 In.install('Time');
             end
 
-
-
-
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
             end
@@ -2731,19 +2728,23 @@ classdef DemonLAST < Component
                 end
             end
 
-            if Args.Insert2DB
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-            end    
-            
-            if Args.InsertTransients2DB
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                PM = PasswordsManager;                                
-                DB          = db.Db;
-                DB.Host     = Args.DBHost;
-                DB.DbName   = Args.DbName;
-                DB.User     = Args.DbUser;
-                DB.Password = PM.search(Args.DbName).Pass;
-                DB.Conn;
+            try                
+                if Args.Insert2DB
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                end
+                % 
+                if Args.InsertTransients2DB
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;
+                    DB          = db.Db;
+                    DB.Host     = Args.DBHost;
+                    DB.DbName   = Args.DbName;
+                    DB.User     = Args.DbUser;
+                    DB.Password = PM.search(Args.DbName).Pass;
+                    DB.Conn;
+                end                
+            catch ME
+                Obj.writeLog(ME, LogLevel.Error);
             end
 
             % if isempty(getenv('SYSTEMD')) 
