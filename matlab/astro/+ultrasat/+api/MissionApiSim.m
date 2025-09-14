@@ -14,6 +14,7 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
     properties
         DbPath          % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
+        ApiSimProvider  % instance of ultrasat.api.ApiSimProvider()
     end
 
 
@@ -23,6 +24,12 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
                 Args.SubUrl         = '/mission';  % planner_backend  
                 Args.LogFileName
             end
+
+            % Initialize the logger
+            obj.LogPrefix = 'MissionClientSim';
+
+            % Initialize the ApiSimProvider
+            obj.ApiSimProvider = ultrasat.api.ApiSimProvider(Args.SubUrl);
 
             % Call the base class constructor with the Args
             ArgsCell = namedargs2cell(Args);
@@ -72,212 +79,6 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
             obj.msglog('getPlannerBasePath: %s', Result);
         end
 
-        % -------------------------------------------------------------------
-        
-        function response = getNamespaceList(obj)
-            % Returns the list of namespace_id values from namespaces.json
-            obj.msglog('getNamespaceList: Getting list of namespaces');
-        
-            response = struct();        
-            dbFile = fullfile(obj.DbPath, 'namespaces.json');
-        
-            if ~isfile(dbFile)
-                obj.msglog('Namespaces file not found at %s', dbFile);
-                response.status = 'error';
-                response.message = 'Namespaces database not found.';
-                response.ok = false;
-                response.namespaces = {};
-                return;
-            end
-        
-            try
-                % Read and decode JSON
-                fid = fopen(dbFile, 'r');
-                cleaner = onCleanup(@() fclose(fid));  % Ensure file is closed on exit
-                raw = fread(fid, inf, 'char');
-                data = jsondecode(char(raw'));
-        
-                % Extract namespace_id values
-                if isfield(data, 'namespaces') && isstruct(data.namespaces)
-                    list = {data.namespaces.namespace_id};
-                else
-                    list = {};
-                end
-        
-                response.status = 'ok';
-                response.ok = true;
-                response.namespaces = list;        
-            catch ME
-                obj.msglog('Error reading namespaces: %s', ME.message);
-                response.status = 'error';
-                response.message = 'Failed to read or parse namespaces.';
-                response.ok = false;
-                response.namespaces = {};
-            end
-        end
-        
-       
-
-        % -------------------------------------------------------------------
-
-        function response = login(obj, UserName, Password, Namespace)
-            % Simulate login by checking credentials from users.json and updating current_user.json
-            obj.msglog('login: user=%s, password=%s', UserName, Password);
-          
-            usersFile = fullfile(obj.DbPath, 'users.json');
-            currentUserFile = fullfile(obj.DbPath, 'current_user.json');
-            response = struct();
-        
-            if ~isfile(usersFile)
-                obj.msglog('login: Users file not found at %s', usersFile);
-                response.status = 'error';
-                response.message = 'Users database not found.';
-                response.ok = false;
-                return;
-            end
-        
-            % Load users from JSON
-            fid = fopen(usersFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            users = jsondecode(char(raw'));
-        
-            % Find user and verify password
-            user = [];
-            for i = 1:numel(users)
-                if strcmp(users(i).UserName, UserName) && strcmp(users(i).Password, Password)
-                    user = users(i);
-                    break;
-                end
-            end
-        
-            if isempty(user)
-                obj.msglog('login: Invalid username or password for user=%s', UserName);
-                response.status = 'error';
-                response.message = 'Invalid username or password.';
-                response.ok = false;
-            else
-                obj.msglog('login: User %s logged in successfully.', UserName);
-                response.status = 'ok';
-                response.user = user;
-        
-                % Update current_user.json
-                currentUser = struct('UserName', UserName, 'Role', user.Role);
-                fid = fopen(currentUserFile, 'w');
-                fwrite(fid, jsonencode(currentUser, 'PrettyPrint', true), 'char');
-                fclose(fid);
-        
-                response.ok = true;
-            end
-
-        end
-
-
-        function response = logout(obj, UserName)
-            % Simulate logout by clearing current_user.json
-        
-            currentUserFile = fullfile(obj.DbPath, 'current_user.json');
-            response = struct();
-        
-            if ~isfile(currentUserFile)
-                obj.msglog('logout: Current user file not found at %s', currentUserFile);
-                response.status = 'error';
-                response.message = 'No user currently logged in.';
-                response.ok = false;
-                return;
-            end
-        
-            % Load current user and verify
-            fid = fopen(currentUserFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            currentUser = jsondecode(char(raw'));
-        
-            if ~strcmp(currentUser.UserName, UserName)
-                obj.msglog('logout: User %s is not currently logged in.', UserName);
-                response.status = 'error';
-                response.message = 'User not logged in.';
-                response.ok = false;
-                return;
-            end
-        
-            % Clear current user
-            fid = fopen(currentUserFile, 'w');
-            fwrite(fid, jsonencode(struct('UserName', '', 'Role', ''), 'PrettyPrint', true), 'char');
-            fclose(fid);
-        
-            obj.msglog('logout: User %s logged out successfully.', UserName);
-            response.status = 'ok';
-            response.ok = true;
-        end        
-
-        % -------------------------------------------------------------------
-
-        function response = getKeyValue(obj, Store, Key, Default)
-            % Retrieves a value from the key-value database JSON file.
-            
-            obj.msglog('getKeyValue: store=%s, key=%s', Store, Key);
-            dbFile = fullfile(obj.DbPath, 'key_value_db.json');
-            response = struct();
-        
-            if ~isfile(dbFile)
-                obj.msglog('Database file not found, returning default value.');
-                response.value = Default;
-                response.status = 'ok';
-                response.ok = true;
-                return;
-            end
-        
-            % Read and parse the JSON file
-            fid = fopen(dbFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            db = jsondecode(char(raw'));
-        
-            if isfield(db, Store) && isfield(db.(Store), Key)
-                response.value = db.(Store).(Key);
-                response.status = 'ok';
-                response.ok = true;
-            else
-                obj.msglog('Key not found, returning default value.');
-                response.value = Default;
-                response.status = 'ok';
-                response.ok = true;
-            end
-        end
-        
-        
-        function response = setKeyValue(obj, Store, Key, Value)
-            % Sets a value in the key-value database JSON file.
-            
-            obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Store, Key, Value);
-            dbFile = fullfile(obj.DbPath, 'key_value_db.json');
-            response = struct();
-        
-            db = struct();
-            if isfile(dbFile)
-                % Load existing data
-                fid = fopen(dbFile, 'r');
-                raw = fread(fid, inf, 'char');
-                fclose(fid);
-                db = jsondecode(char(raw'));
-            end
-        
-            if ~isfield(db, Store)
-                db.(Store) = struct();
-            end
-            db.(Store).(Key) = Value;
-        
-            % Write updated data to the JSON file
-            fid = fopen(dbFile, 'w');
-            fwrite(fid, jsonencode(db, 'PrettyPrint', true), 'char');
-            fclose(fid);
-        
-            response.status = 'ok';
-            response.ok = true;
-            obj.msglog('Key-value pair saved successfully.');
-        end
-    
         % -----------------------------------------------------------------
 
         function response = getApprovedTargets(obj, start_time, end_time)
@@ -765,6 +566,15 @@ classdef MissionClientSim < ultrasat.api.MissionClientBase
 
         % -------------------------------------------------------------------
 
+        function data = load_json(obj, path)
+            data = obj.ApiSimProvider.ReadJsonFile(path);
+        end
+        
+        function save_json(obj, path, data)
+            obj.ApiSimProvider.WriteJsonFile(path, data);
+        end
+
+        % -------------------------------------------------------------------        
+
     end
 end
-

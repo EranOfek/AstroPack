@@ -10,7 +10,8 @@ function debug_MissionClientSim()
     fprintf('=== Testing ultrasat.api.MissionClientSim ===\n');
     
     % Set up test environment
-    DbPath = fullfile(pwd, 'DbPath'); % Use current directory for testing
+    %DbPath = fullfile(pwd, 'DbPath'); % Use current directory for testing
+    DbPath = fullfile(getenv('SOC_PATH'), 'sim', 'backend');
     if ~exist(DbPath, 'dir')
         %mkdir(DbPath);
     end
@@ -20,6 +21,10 @@ function debug_MissionClientSim()
 
     % Initialize MissionClientSim object
     clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);  
+
+
+    debugLogin(clientSim, 'chen', '123');
+    
 
     debugGetPlansList(clientSim, [], [], []);  
     
@@ -91,7 +96,7 @@ end
 function debugLogin(clientSim, UserName, Password)
     % Tests the login functionality with provided username and password.
     fprintf('Attempting login for user: %s\n', UserName);
-    response = clientSim.login(UserName, Password);
+    response = clientSim.login(UserName, Password, 'MyNamespace');
     if response.ok
         fprintf('Login successful: %s\n', jsonencode(response));
     else

@@ -8,7 +8,7 @@
 %
 %==========================================================================
 
-classdef MissionClient < ultrasat.api.MissionClientBase
+classdef MissionApiClient < ultrasat.api.MissionApiBase
     % Client implementation of the MissionClientBase interface
     % Provides communication with the Mission API server
     
@@ -46,74 +46,6 @@ classdef MissionClient < ultrasat.api.MissionClientBase
                 obj.ApiUrl = Args.ApiUrl;
                 obj.Client.BaseUrl = Args.ApiUrl;
             end
-        end        
-        
-
-        % -------------------------------------------------------------------
-
-        function response = login(obj, UserName, Password)
-            % Authenticates a user with the mission control API.
-            %
-            % Parameters:
-            %   UserName (string) - User name for authentication
-            %   Password (string) - Password for authentication
-            %
-            % Returns:
-            %   response - Structure containing authentication result
-            obj.msglog('login: user=%s, password=%s', UserName, Password);
-            params = struct('username', UserName, 'password', Password);
-            response = obj.Client.postRequest('/login/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end
-
-
-        function response = logout(obj, UserName)
-            % Logs out the current user from the mission control API.
-            %
-            % Parameters:
-            %   UserName (string) - Currently logged-in user name to verify
-            %
-            % Returns:
-            %   response - Structure containing logout result
-            obj.msglog('logout: user=%s', UserName);
-            params = struct('username', UserName);
-            response = obj.Client.postRequest('/logout/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end        
-
-        % -------------------------------------------------------------------
-
-        function response = getKeyValue(obj, Store, Key, Default)
-            % Retrieves a value from a key-value store on the server.
-            %
-            % Parameters:
-            %   Store (string) - Name of the store to access
-            %   Key (string) - Key to retrieve
-            %   Default - Default value to return if key not found
-            %
-            % Returns:
-            %   response - Structure containing result
-            obj.msglog('getKeyValue: store=%s, key=%s', Store, Key);
-            params = struct('store', Store, 'key', Key, 'default', Default);
-            response = obj.Client.postRequest('/get_key_value/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end
-
-
-        function response = setKeyValue(obj, Store, Key, Value)
-            % Stores a value in a key-value store on the server.
-            %
-            % Parameters:
-            %   Store (string) - Name of the store to access
-            %   Key (string) - Key to set
-            %   Value - Value to store
-            %
-            % Returns:
-            %   response - Structure containing result
-            obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Store, Key, Value);
-            params = struct('store', Store, 'key', Key, 'value', Value);
-            response = obj.Client.postRequest('/set_key_value/', params);
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end        
 
         % -------------------------------------------------------------------
