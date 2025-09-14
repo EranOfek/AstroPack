@@ -15,12 +15,12 @@ classdef MainModule < handle
     % This class serves like a DataModule in Delphi.
     
     properties
-        ApiClient               % MissionClient/MissionClientSim instance
+        ApiClient               % MissionApiClient/MissionApiSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     %
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
-        NamespaceTitle          % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
-        NamespaceList           % List of available namespaces other than OPER
+        NamespaceDisplay        % String as 'Id - Name'
+        NamespaceDisplayList    % List of available namespaces other than OPER as 'Id - Name'
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
@@ -82,20 +82,22 @@ classdef MainModule < handle
             UseSim = true;
             if UseSim
                 obj.msglog('Creating ApiClient as api.MissionClientSim');
-                obj.ApiClient = ultrasat.api.MissionClientSim('LogFileName', obj.LogFileName);
+                obj.ApiClient = ultrasat.api.MissionApiSim('LogFileName', obj.LogFileName);
             else
                 obj.msglog('Creating ApiClient as api.MissionClient');
-                obj.ApiClient = ultrasat.api.MissionClient('LogFileName', obj.LogFileName);
+                obj.ApiClient = ultrasat.api.MissionApiClient('LogFileName', obj.LogFileName);
                 obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
             end
 
             % Operational - When starting Planner from OPER, this is the
             % only option for the user, otherwise get the namespace list
             % from the server
-            if ~strcmp(obj.NamespaceId, 'OPER')
+            if strcmp(obj.NamespaceId, 'OPER')
+                obj.NamespaceDisplay = 'OPERATIONAL';
+            else
                 response = obj.ApiClient.getNamespaceList();
                 if response.ok
-                    obj.NamespaceList = response.namespaces;
+                    obj.NamespaceDisplayList = response.display_list;
                 end
             end
           
@@ -109,10 +111,12 @@ classdef MainModule < handle
             obj.UserName = [];
             obj.NamespaceId = [];
             Result = false;
-            response = obj.ApiClient.login(UserName, Password, Namespace);
+            ANamespaceId = obj.extractNameFromDisplayString(Namespace);
+            response = obj.ApiClient.login(UserName, Password, ANamespaceId);
             if response.ok
                 obj.UserName = UserName;
-                obj.NamespaceId = Namespace;
+                obj.NamespaceId = ANamespaceId;
+                obj.NamespaceDisplay = Namespace;
                 obj.ApiClient.NamespaceId = obj.NamespaceId;
                 Result = true;
             end
@@ -618,7 +622,20 @@ classdef MainModule < handle
             % Wrap in preformatted HTML block
             htmlStr = sprintf('<pre style="background:#f5f5f5; padding:10px; border:1px solid #ddd;">%s</pre>', jsonData);
         end
-               
+
+
+        % -------------------------------------------------------------------
+
+        function name = extractNameFromDisplayString(obj, displayStr)
+            % Extracts the name part from "id - name" format
+            parts = strsplit(displayStr, ' - ');
+            if numel(parts) >= 2
+                name = strtrim(parts{2});  % Take just the name part
+            else
+                name = strtrim(displayStr);  % Fallback: return whole string
+            end
+        end
+
     end
 
 end
