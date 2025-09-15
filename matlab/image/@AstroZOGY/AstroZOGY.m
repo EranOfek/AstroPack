@@ -31,8 +31,8 @@ classdef AstroZOGY < AstroDiff
         S_delta   % S for delta function response
         S_ext     % S for extended PSF response
         
-        DSDFn
-        DScorrDFn
+        DSDF
+        %DScorrDF
 
         D_den_hat
         D_num_hat
@@ -249,18 +249,18 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function Val=get.DSDFn(Obj)
-            % getter for dS/dFn (for Fr=1)
+        function Val=get.DSDF(Obj)
+            % getter for dS/dFn (for Fn=1)
 
-            if isempty(Obj.DSDFn)
-                % DSDFn is not available - calculate
-                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
+            if isempty(Obj.DSDF)
+                % DSDF is not available - calculate
+                Obj.DSDF = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
                     Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, ...
                     Obj.Fr, 'IsOutFFT',false);
             else
-                % DSDFn is already available - use as is
+                % DSDF is already available - use as is
             end
-            Val = Obj.DSDFn;
+            Val = Obj.DSDF;
         end
 
     end
@@ -837,6 +837,8 @@ classdef AstroZOGY < AstroDiff
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
                 Args.ExtendedFunArgs             = [0.5];
+
+                Args.Eps                    = 1e-5;
             end
             
             Nobj = numel(Obj);
@@ -925,7 +927,17 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).ThresholdImage = Obj(Iobj).S;
                 Obj(Iobj).ThresholdImage_IsSet = true;
+
+                Obj(Iobj).DSDF = imUtil.properSub.dSdF(Obj(Iobj).N_hat,...
+                   Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
+                   Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).Fr, ...
+                   'IsOutFFT', false);
                 
+                % Normalize the same way S was if Sflux exists.
+                if Args.PopSflux
+                    NormMap = Obj(Iobj).S./(Obj(Iobj).Sflux+Args.Eps);
+                    Obj(Iobj).DSDF = Obj(Iobj).DSDF.*NormMap;
+                end
             end
         end
 
@@ -1194,12 +1206,17 @@ classdef AstroZOGY < AstroDiff
                         error('Unknown NormMethod option');
                 end      
 
-                %if Args.IncludeSourceNoise
-                %   Obj(Iobj).DScorrDFn = imUtil.properSub.dScorrdF(Obj(Iobj).Sflux, ...
-                %        Obj(Iobj).N_hat, Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
-                %        Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).D_den_hat, ...
-                %        VN, VR, Obj(Iobj).Fr);
-                %end
+               % DScorrDF is very slow compared to DSDF
+               %{
+                if Args.IncludeSourceNoise
+
+                   Obj(Iobj).DScorrDF = imUtil.properSub.dScorrdF(Obj(Iobj).Sflux, ...
+                        Obj(Iobj).N_hat, Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
+                        Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).D_den_hat, ...
+                        VN, VR, Obj(Iobj).Fr);
+                
+                end
+               %}
             end
 
         end
