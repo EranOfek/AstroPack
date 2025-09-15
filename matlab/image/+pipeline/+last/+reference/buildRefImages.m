@@ -66,7 +66,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     fprintf('M%dC%d:\n',Im,Ic);
                     [Grp, ~] = findgroups(T1.jd_start); 
                     Nepoch   = max(Grp);                 
-                    S = repmat(AstroImage,Nepoch,1);
+                    S = AstroImage([Nepoch 1]);
                     for i = 1:Nepoch
                         T2  = T1(Grp == i, :);
                         Nim = height(T2);
@@ -79,8 +79,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
                         fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,i,Nim);
-                        Nim = height(T2);                       
-                        AI  = repmat(AstroImage,Nim,1);
+                        Nim = height(T2);                                               
+                        AI = AstroImage([1 Nim]);
                         Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
                         YY  = compose('%04d',T2.diryear(1)); MM = compose('%02d',T2.dirmon(1)); DD = compose('%02d',T2.dirday(1));
                         for Icrop = 1:Nim
@@ -116,7 +116,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
 %                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
 %                         
-                        % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
+                        % 4.2 rotate, align, and cut the merged crops to
+                        % the ref. coordinates: imwarp with WCS + refine
+                        % astrometry 
                         
                     end                                  
                     % 5. proper coadd the the aligned and merged crops

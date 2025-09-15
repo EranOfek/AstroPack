@@ -544,7 +544,7 @@ classdef ForcedPhotServer < Component
 
         end
     
-        function Tobs=selectObservations(Obj, Args)
+        function [Tobs,Tbin]=selectObservations(Obj, Args)
             % Select entries from forcedphotsub_output using optional constraints
             %   First search using selectRequest and then select from
             %   putput table.
@@ -576,6 +576,12 @@ classdef ForcedPhotServer < Component
                 Args.RA         = [];
                 Args.Dec        = [];
                 Args.CooShift   = 0.001;
+
+                Args.AddCalibFlux   = true;
+                Args.AddCalibFluxZP = 25;
+
+                Args.BinSize        = 1;
+                Args.BinPhase       = 0;
             end
 
             Treq = selectRequest(Obj, 'UserID',Args.UserID, 'RequestID',Args.RequestID, 'RA',Args.RA, 'Dec',Args.Dec, 'CooShift',Args.CooShift);
@@ -590,6 +596,47 @@ classdef ForcedPhotServer < Component
                 otherwise
                     Treq
                     error('Multiple entries were found');
+            end
+
+            Tobs.s2 = Tobs.s.^2;
+
+            Tbin = [];
+            if Args.AddCalibFlux
+                % add flux column with a common ZP: Args.AddCalibFluxZP
+
+                DeltaZP  = Tobs.zp - Args.AddCalibFluxZP;
+                FactorZP = 10.^(0.4.*DeltaZP);
+                Tobs.flux_psf_corr = Tobs.flux_psf.*FactorZP;
+                
+
+                if nargout>1
+                    MinJD = min(Tobs.jd);
+                    MaxJD = max(Tobs.jd);
+                    StartBin = floor(MinJD) - 1 + Args.BinPhase;
+                    EndBin   = ceil(MaxJD) + Args.BinPhase;
+
+                    Bflux = timeSeries.bin.binning([Tobs.jd, Tobs.flux_psf_corr], Args.BinSize, [StartBin, EndBin], {'MeanBin', @median, @mean, @tools.math.stat.rstd, @numel});
+                    
+                    Mag = convert.luptitude(Bflux(:,2), 10.^(0.4.*Args.AddCalibFluxZP));
+                    FluxErr = Bflux(:,4)./sqrt(Bflux(:,5));
+                    FluxRelErr = FluxErr./Bflux(:,2);
+
+                    Bs = timeSeries.bin.binning([Tobs.jd, Tobs.s], Args.BinSize, [StartBin, EndBin], {'MeanBin', @median, @mean, @tools.math.stat.rstd, @numel});
+                    Smean = Bs(:,3);
+                    SmeanNorm = Bs(:,3).*sqrt(Bs(:,5));
+
+                    Bs2 = timeSeries.bin.binning([Tobs.jd, Tobs.s2], Args.BinSize, [StartBin, EndBin], {'MeanBin', @sum});
+                    TotsalS = sqrt(Bs2(:,2));
+                    
+
+                    Tbin = [Bflux, FluxErr, FluxRelErr, Mag, SmeanNorm, TotsalS];
+                    Flag = ~isnan(Bflux(:,1));
+                    Tbin = Tbin(Flag,:);
+                    Tbin = array2table(Tbin);
+                    Tbin.Properties.VariableNames = {'JD', 'Median_FLUX_PSF', 'Mean_FLUX_PSF', 'RStd_Flux', 'N', 'ErrOnMean_FLUX_PSF', 'ErrorOnMean_Relative_FLUX_PSF', 'Mag', 'SmeanNorm', 'TotalS'};
+                    
+                end
+
             end
 
         end

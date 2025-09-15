@@ -453,9 +453,7 @@ classdef MatchedSources < Component
                                         'SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', 'PSF_CHI2DOF'};  % must be a subset of MatchedColums
                 Args.ColNamesAll   = {'MAG_PSF','MAG_APER_3'}; 
                 Args.RelPhot       = false;
-            end
-            %
-            Result = MatchedSources;
+            end     
             % clean the ingestion_time column:
             if ismember('ingestion_time', T.Properties.VariableNames)
                 T.ingestion_time = [];
@@ -465,7 +463,7 @@ classdef MatchedSources < Component
             T.Properties.VariableNames{'DEC'} = 'Dec';                        
             % find the unique image ids
             uniqueID = unique(T.(Args.IDcolumn));
-            AC = repmat(AstroCatalog,numel(uniqueID),1);
+            AC = AstroCatalog([numel(uniqueID) 1]);
             Ncol = width(T);
             % convert each epoch into an AstroCatalog 
             for Epoch = 1:numel(uniqueID)    
@@ -4665,7 +4663,7 @@ classdef MatchedSources < Component
 
         end
 
-        function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
+        function [JD, Mag, Err] = getLC_ind(Obj, Ind, FieldMag, FieldMagErr)
             % get the LC [JD, Mag] of a source by its index (column number)
             % Input  : - A single-element MatchedSources object
             %          - The index/s of the source in the matched matrix
@@ -4676,6 +4674,7 @@ classdef MatchedSources < Component
             % Output : - JD vector.
             %          - Mag (or selected field) vector/array for the selected
             %            sources.
+            %          - Mag error.
             % Author : Eran Ofek (Jul 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX')
@@ -4686,12 +4685,15 @@ classdef MatchedSources < Component
                 Obj(1,1) MatchedSources
                 Ind
                 FieldMag             = AstroCatalog.DefNamesMag;
+                FieldMagErr          = {'MAGERR_PSF'};
             end
             
-            [~, Name] = tools.cell.strNameDict2ind(Obj.Fields, FieldMag);
+            Obj.bestMag;
+            [~, NameMag] = tools.cell.strNameDict2ind(FieldMag, Obj.Fields);
+            [~, NameErr] = tools.cell.strNameDict2ind(FieldMagErr, Obj.Fields);
             JD  = Obj.JD;
-            Mag = Obj.Data.(Name)(:,Ind);
-            
+            Mag = Obj.Data.(NameMag)(:,Ind);
+            Err = Obj.Data.(NameErr)(:,Ind);
         end
         
         % index from position

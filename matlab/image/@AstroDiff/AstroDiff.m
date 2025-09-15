@@ -1397,7 +1397,8 @@ classdef AstroDiff < AstroImage
             end
 
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'cx')
+                ds9.plot(Args.PoI, 'cx', 'Size',5);
+                ds9.plot(Args.PoI, 'cx', 'Size',100);
             end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
@@ -1410,7 +1411,8 @@ classdef AstroDiff < AstroImage
             end
 
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'cx')
+                ds9.plot(Args.PoI, 'cx', 'Size',5);
+                ds9.plot(Args.PoI, 'cx', 'Size',100);
             end
             if exist('NonTranCat','var')
                 ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
@@ -1418,7 +1420,8 @@ classdef AstroDiff < AstroImage
             % Display D
             ds9(Obj,3);
             if ~isempty(Args.PoI)
-                ds9.plot(Args.PoI, 'cx')
+                ds9.plot(Args.PoI, 'cx', 'Size',5);
+                ds9.plot(Args.PoI, 'cx', 'Size',100);            
             end
             if NumTran > 0
                 ds9.plot(TranCat.getXY, Args.TranMarker);

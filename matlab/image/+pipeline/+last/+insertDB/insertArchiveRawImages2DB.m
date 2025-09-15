@@ -34,7 +34,7 @@ function [Result] = insertArchiveRawImages2DB(RootDir, FileNameTemplate, Args)
         Args.ColNameID   = 'id_raw';
         Args.StatusStamp = "Injected into the raw image table"; % "injected into the visit image DB"; % "Injected into the visit image table";
         
-        Args.RemoteUser  = 'euclid';
+        Args.RemoteUser  = 'euclid'; % or 'samar'
     end    
     % create a DB object and connect
     DB          = db.Db;

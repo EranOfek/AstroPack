@@ -1,4 +1,4 @@
-function H = astroView(Img, Args)
+function H = astroView1(Img, Args)
     % astroView : Minimal DS9-style image viewer
     %   Left click - center on point.
     %   Double left click - back to zoom 1.0 and center of image.
@@ -96,18 +96,24 @@ function H = astroView(Img, Args)
     BtnAuto = uicontrol(UIP,'Style','pushbutton','String','Auto Z1/Z2','Units','normalized', ...
         'Position',[0.08 0.75 0.84 0.065]);
     
+    % --- NEW: Invert colormap checkbox (under Auto Z1/Z2) ---
+    CbInvert = uicontrol(UIP,'Style','checkbox','String','Invert colormap','Units','normalized', ...
+        'Position',[0.08 0.69 0.84 0.055],'BackgroundColor',UIP.BackgroundColor, ...
+        'ForegroundColor',[.9 .9 .9],'Value',0);
+    
+    % Zoom UI shifted a bit down to avoid overlap
     uicontrol(UIP,'Style','text','String','Zoom factor','Units','normalized', ...
-        'Position',[0.08 0.66 0.50 0.06],'BackgroundColor',UIP.BackgroundColor, ...
+        'Position',[0.08 0.61 0.50 0.06],'BackgroundColor',UIP.BackgroundColor, ...
         'ForegroundColor',[.9 .9 .9],'HorizontalAlignment','left');
     EdZoom = uicontrol(UIP,'Style','edit','Units','normalized', ...
-        'Position',[0.60 0.66 0.32 0.065],'String',num2str(Args.Zoom,'%.3f'));
+        'Position',[0.60 0.61 0.32 0.065],'String',num2str(Args.Zoom,'%.3f'));
     
-    % Flip X / Flip Y stacked
+    % Flip X / Flip Y stacked (shifted a bit down)
     CbFlipX = uicontrol(UIP,'Style','checkbox','String','Flip X','Units','normalized', ...
-        'Position',[0.08 0.58 0.84 0.06],'BackgroundColor',UIP.BackgroundColor, ...
+        'Position',[0.08 0.53 0.84 0.06],'BackgroundColor',UIP.BackgroundColor, ...
         'ForegroundColor',[.9 .9 .9],'Value',Args.FlipX);
     CbFlipY = uicontrol(UIP,'Style','checkbox','String','Flip Y','Units','normalized', ...
-        'Position',[0.08 0.52 0.84 0.06],'BackgroundColor',UIP.BackgroundColor, ...
+        'Position',[0.08 0.47 0.84 0.06],'BackgroundColor',UIP.BackgroundColor, ...
         'ForegroundColor',[.9 .9 .9],'Value',Args.FlipY);
     
     % Initial image
@@ -117,7 +123,7 @@ function H = astroView(Img, Args)
     % State
     St.Img = Img; St.WCS = Args.WCS;
     St.EdZ1 = EdZ1; St.EdZ2 = EdZ2; St.DdStretch = DdStretch; St.EdZoom = EdZoom;
-    St.CbFlipX = CbFlipX; St.CbFlipY = CbFlipY;
+    St.CbFlipX = CbFlipX; St.CbFlipY = CbFlipY; St.CbInvert = CbInvert;
     St.Ax = Ax; St.Him = Him; St.Txt = Txt;
     guidata(Fig, St);
     
@@ -126,12 +132,14 @@ function H = astroView(Img, Args)
     set(EdZ1,      'Callback', @(~,~)UpdateImage());
     set(EdZ2,      'Callback', @(~,~)UpdateImage());
     set(BtnAuto,   'Callback', @(~,~)AutoZAndRefresh());
+    set(CbInvert,  'Callback', @(~,~)UpdateColormap());
     set(EdZoom,    'Callback', @(~,~)ApplyZoom());
     set(CbFlipX,   'Callback', @(~,~)OnFlip('X'));
     set(CbFlipY,   'Callback', @(~,~)OnFlip('Y'));
     set(Fig, 'WindowButtonMotionFcn', @(~,~)OnMotion());
     set(Fig, 'WindowButtonDownFcn',   @(~,~)OnClick());
     
+    UpdateColormap();     % apply initial cmap (not inverted)
     ApplyZoom();
     UpdateStatus(NaN,NaN);
     
@@ -160,9 +168,7 @@ function H = astroView(Img, Args)
     
         function AutoZAndRefresh
             St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            if isempty(St), return; end
             Z = AutoZ(St.Img);
             St.EdZ1.String = num2str(Z(1),'%.6g');
             St.EdZ2.String = num2str(Z(2),'%.6g');
@@ -171,9 +177,7 @@ function H = astroView(Img, Args)
     
         function ApplyZoom
             St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            if isempty(St), return; end
             Zf = str2double(St.EdZoom.String);
             if ~isfinite(Zf) || Zf<=0
                 Zf=1;
@@ -184,18 +188,14 @@ function H = astroView(Img, Args)
             Xl = xlim(St.Ax); Yl = ylim(St.Ax);
             Cx = mean(Xl); Cy = mean(Yl);
             if ~isfinite(Cx) || ~isfinite(Cy)
-                Cx=(W+1)/2;
-                Cy=(Hh+1)/2;
+                Cx=(W+1)/2; Cy=(Hh+1)/2;
             end
             xlim(St.Ax,[Cx - ViewW/2, Cx + ViewW/2]);
             ylim(St.Ax,[Cy - ViewH/2, Cy + ViewH/2]);
         end
     
         function ZoomHome
-            St = guidata(Fig); 
-            if isempty(St)
-                return;
-            end
+            St = guidata(Fig); if isempty(St), return; end
             St.EdZoom.String = '1'; guidata(Fig,St);
             xlim(St.Ax,[0.5 size(St.Img,2)+0.5]);
             ylim(St.Ax,[0.5 size(St.Img,1)+0.5]);
@@ -204,9 +204,7 @@ function H = astroView(Img, Args)
     
         function UpdateImage
             St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            if isempty(St), return; end
             Z1 = str2double(St.EdZ1.String); Z2 = str2double(St.EdZ2.String);
             if ~isfinite(Z1) || ~isfinite(Z2) || Z2<=Z1
                 ZZ = AutoZ(St.Img); Z1=ZZ(1); Z2=ZZ(2);
@@ -215,34 +213,31 @@ function H = astroView(Img, Args)
             set(St.Him,'CData', ApplyStretch(St.Img, [Z1 Z2], St.DdStretch));
             drawnow limitrate;
         end
+
+        function UpdateColormap
+            St = guidata(Fig); if isempty(St), return; end
+            if St.CbInvert.Value
+                colormap(St.Ax, flipud(gray(256)));
+            else
+                colormap(St.Ax, gray(256));
+            end
+        end
     
         function OnMotion
-            St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            St = guidata(Fig); if isempty(St), return; end
             Cp = get(St.Ax,'CurrentPoint');
             UpdateStatus(Cp(1,1),Cp(1,2));
         end
     
         function OnClick
-            St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            St = guidata(Fig); if isempty(St), return; end
             Sel = get(Fig,'SelectionType');
             Cp = get(St.Ax,'CurrentPoint'); X = Cp(1,1); Y = Cp(1,2);
             if strcmp(Sel,'open')          % double-left-click: home
-                ZoomHome();
-                return;
+                ZoomHome(); return;
             end
-            if ~isfinite(X) || ~isfinite(Y)
-                return;
-            end
-            Zf = str2double(St.EdZoom.String);
-            if ~isfinite(Zf)||Zf<=0
-                Zf=1;
-            end
+            if ~isfinite(X) || ~isfinite(Y), return; end
+            Zf = str2double(St.EdZoom.String); if ~isfinite(Zf)||Zf<=0, Zf=1; end
             Sz = size(St.Img); W = Sz(2); Hh = Sz(1);
             ViewW = W / Zf; ViewH = Hh / Zf;
             xlim(St.Ax,[X - ViewW/2, X + ViewW/2]);
@@ -251,10 +246,7 @@ function H = astroView(Img, Args)
         end
     
         function UpdateStatus(X, Y)
-            St = guidata(Fig);
-            if isempty(St)
-                return;
-            end
+            St = guidata(Fig); if isempty(St), return; end
             if ~isfinite(X) || ~isfinite(Y)
                 St.Txt.String = 'X= NaN   Y= NaN   Val= NaN   RA= NaN   Dec= NaN'; return;
             end
@@ -279,9 +271,7 @@ function H = astroView(Img, Args)
     % ===== Local utilities =====
     function Z = AutoZ(Im)
         V = Im(:); V = V(isfinite(V));
-        if isempty(V), Z=[0 1];
-            return;
-        end
+        if isempty(V), Z=[0 1]; return; end
         N = numel(V);
         if N>2e6
             rng(0);
@@ -305,5 +295,5 @@ function H = astroView(Img, Args)
             otherwise,     Y = X;
         end
         C = min(max(Y,0),1);
-end
+    end
 
