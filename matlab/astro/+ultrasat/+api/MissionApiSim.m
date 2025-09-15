@@ -25,16 +25,16 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 Args.LogFileName
             end
 
+            % Call the base class constructor with the Args
+            ArgsCell = namedargs2cell(Args);
+            obj@ultrasat.api.MissionApiBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
+            obj.msglog('MissionClientSim constructor started');
+            
             % Initialize the logger
             obj.LogPrefix = 'MissionApiSim';
 
             % Initialize the ApiSimProvider
             obj.ApiSimProvider = ultrasat.api.ApiSimProvider(Args.SubUrl);
-
-            % Call the base class constructor with the Args
-            ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.MissionApiBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-            obj.msglog('MissionClientSim constructor started');
             
             % SOC_PATH must be defined in env
             soc_path = getenv('SOC_PATH');
@@ -101,21 +101,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             targetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             response = struct();
         
-            if ~isfile(targetsFile)
-                obj.msglog('Approved targets file not found at %s', targetsFile);
+            targets = obj.ApiSimProvider.ReadJsonFile(targetsFile);
+            if isempty(targets)
+                obj.msglog('No approved targets found in the specified time range.');
+                response.status = 'ok';
                 response.targets = [];
-                response.status = 'error';
-                response.message = 'Approved targets database not found.';
-                response.ok = false;
+                response.ok = true;
                 return;
             end
-        
-            % Load approved targets from JSON
-            fid = fopen(targetsFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            targets = jsondecode(char(raw'));
-        
+
             % Filter targets by start_time and end_time
             filteredTargets = [];
             for i = 1:numel(targets)
@@ -148,14 +142,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             approvedTargetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             
             % Read existing file
-            if isfile(approvedTargetsFile)
-                fid = fopen(approvedTargetsFile, 'r');
-                raw = fread(fid, inf, 'char');
-                fclose(fid);
-                existingTargets = jsondecode(char(raw'));
-            else
-                existingTargets = [];
-            end
+            existingTargets = obj.ApiSimProvider.ReadJsonFile(approvedTargetsFile);           
             
             if replace
                 % Replace all existing targets
@@ -189,9 +176,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % updatedTargets = updatedTargets(sortIdx);
         
             % Save back to JSON
-            fid = fopen(approvedTargetsFile, 'w');
-            fwrite(fid, jsonencode(updatedTargets, 'PrettyPrint', true), 'char');
-            fclose(fid);
+            obj.ApiSimProvider.WriteJsonFile(approvedTargetsFile, updatedTargets);
             
             obj.msglog('Updated successfully: %s', approvedTargetsFile);
         end
@@ -245,6 +230,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
+            % @@@@TODO - remove this
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
             if ~isfile(jsonFile)
                 obj.msglog('Plan file not found for pk=%d', obj.PlanData.pk);
@@ -341,14 +327,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             response = struct();
             plansList = [];
         
-            if ~exist(plansFolder, 'dir')
-                obj.msglog('Plans folder not found.');
-                response.status = 'error';
-                response.message = 'Plans folder not found.';
-                response.ok = false;
-                return;
-            end
-
             % Ensure timestamps are datetime objects
             if ~isempty(start_timestamp) && ~isdatetime(start_timestamp)
                 start_timestamp = datetime(start_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
@@ -358,7 +336,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end            
         
             % Find all JSON files in the plans folder
-            jsonFiles = dir(fullfile(plansFolder, '*.json'));
+            jsonFiles = obj.ApiSimProvider.ListFilesInFolder(plansFolder, '*.json');
             for i = 1:numel(jsonFiles)
                 % Decode the number from the file name (e.g., 00001.json)
                 [~, name, ext] = fileparts(jsonFiles(i).name);
@@ -372,11 +350,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 end
 
                 % Load the JSON file
-                filePath = fullfile(plansFolder, jsonFiles(i).name);
-                fid = fopen(filePath, 'r');
-                raw = fread(fid, inf, 'char');
-                fclose(fid);
-                planData = api.ModelBase.json2struct(char(raw'));  %ultrasat.api.PlanData.fromJson(char(raw'));
+                planData = obj.ApiSimProvider.ReadJsonFile(jsonFiles(i).name);
        
                 % Apply time filter if specified
                 if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
@@ -407,22 +381,18 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
             matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
         
-            if ~isfile(jsonFile) || ~isfile(matFile)
+            % Load JSON data
+            text = obj.ApiSimProvider.ReadJsonFile(jsonFile);
+            if isempty(text)
                 obj.msglog('Plan files not found for pk=%d', plan_pk);
                 response.status = 'error';
                 response.message = 'Plan files not found.';
                 response.ok = false;
                 return;
-            end
-        
-            % Load JSON data
-            fid = fopen(jsonFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            text = char(raw');
-        
+            end            
+
             % Load MATLAB object (planner) from .mat file
-            loadedMat = load(matFile, 'planner');
+            loadedMat = obj.ApiSimProvider.loadMatObject(matFile, 'planner');
         
             % Populate obj.PlanData
             obj.PlanData = ultrasat.api.PlanData.fromJson(text);
@@ -449,18 +419,11 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         
             % Generate pk if not provided, as next file number (i.e '00003')
             if isempty(obj.PlanData.pk)
-                existingFiles = dir(fullfile(plansFolder, '*.json'));
-                pks = [];
-                for i = 1:numel(existingFiles)
-                    [~, pk, ~] = fileparts(existingFiles(i).name);
-                    num = str2double(pk);
-                    if ~isnan(num) && num >= 1 && num <= 9999
-                        pks(end+1) = num;
-                    end
+                NextAvailableFile = obj.ApiSimProvider.NextAvailableFile(plansFolder, '*.json', 5, 0, 0, 9999);
+                if ~isempty(NextAvailableFile)
+                    obj.PlanData.pk = str2double(NextAvailableFile.index);
+                    obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
                 end
-
-                obj.PlanData.pk = max([pks, 0]) + 1;
-                obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
             end
         
             % Write JSON file without 'PlanData.planner' field, it will be
@@ -472,14 +435,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % Convert datetime objects to iso format
             planStruct = api.ModelBase.convertDatetimeToString(planStruct);
 
-            fid = fopen(jsonFile, 'w');
-            fwrite(fid, jsonencode(planStruct, 'PrettyPrint', true), 'char');
-            fclose(fid);
+            obj.ApiSimProvider.WriteJsonFile(jsonFile, planStruct);
         
             % Write MATLAB object (planner) to .mat file
             matFile = fullfile(plansFolder, sprintf('%05d.mat', obj.PlanData.pk));
             planner = obj.PlanData.planner;  % Instance of ultrasat.uplanner
-            save(matFile, 'planner');
+            obj.ApiSimProvider.saveMatObject(matFile, planner, 'planner');
         
             response.status = 'ok';
             response.message = sprintf('Plan %d saved successfully.', obj.PlanData.pk);
@@ -516,12 +477,8 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
             matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
         
-            if isfile(jsonFile)
-                delete(jsonFile);
-            end
-            if isfile(matFile)
-                delete(matFile);
-            end
+            obj.ApiSimProvider.deleteFile(jsonFile);
+            obj.ApiSimProvider.deleteFile(matFile);
         
             obj.msglog('Plan %d deleted successfully.', plan_pk);
             response.status = 'ok';
@@ -547,10 +504,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end
         
             % Load the JSON plan file
-            fid = fopen(jsonFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            planData = jsondecode(char(raw'));
+            planData = obj.ApiSimProvider.ReadJsonFile(jsonFile);
         
             % Extract relevant fields
             response.status = 'ok';
@@ -563,18 +517,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             response.ok = true;
             obj.msglog('Plan status fetched successfully for pk=%d', plan_pk);
         end
-
-        % -------------------------------------------------------------------
-
-        function data = load_json(obj, path)
-            data = obj.ApiSimProvider.ReadJsonFile(path);
-        end
-        
-        function save_json(obj, path, data)
-            obj.ApiSimProvider.WriteJsonFile(path, data);
-        end
-
-        % -------------------------------------------------------------------        
 
     end
 end
