@@ -320,12 +320,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     Nobj = numel(AD);
     
     % Register New and Ref
-    try
-        AD.register;
-    catch
-        Status = 'Failed at registration.';
-        return;
-    end
+    AD.register;
 
     % Check if the New and Ref images are overlapping up to the 
     % requried amount after registration
@@ -359,19 +354,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % 6: ----- Fill New and Ref estimates -----
 
     % Estimate backround and variance of New and Ref
-    try
-        AD.estimateBackVar;
-    catch
-        Status = 'Failed at background estimation.';
-        return;
-    end
+    AD.estimateBackVar;
     % Estimate zero points
-    try
-        AD.estimateFnFr;
-    catch
-        Status = 'Failed at FnFr estimation.';
-        return;
-    end
+    AD.estimateFnFr;
 
     % 7: ----- Produce subtraction images -----
     
@@ -671,12 +656,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.measureTransients;
 
     % Flag non transients
-    try
-        AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
-    catch
-        Status = 'Failed at candidate flaggin.';
-        return;
-    end
+    AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
 
     % If AddMeta true, add meta information to catalog
     if Args.AddMeta
