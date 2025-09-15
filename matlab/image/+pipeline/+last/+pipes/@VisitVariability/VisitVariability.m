@@ -558,7 +558,7 @@ classdef VisitVariability < Component
             for I=1:1:N
                 [Found(I)] = coneSearch(MS(I), TargetRA(I), TargetDec(I), Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits, 'CooUnits',Args.CooUnits);
 
-                [Result(I).JD, Result(I).Mag] = MS(I).getLC_ind(Found(I).Ind, Args.FieldMag);
+                [Result(I).JD, Result(I).Mag, Result(I).MagErr] = MS(I).getLC_ind(Found(I).Ind, Args.FieldMag);
                 Result(I).TargetRA  = TargetRA(I);
                 Result(I).TargetDec = TargetDec(I);
                 [Result(I).URL] = VO.search.simbad_url(Result(I).TargetRA./RAD, Result(I).TargetDec./RAD);
@@ -597,6 +597,11 @@ classdef VisitVariability < Component
                 Args.FieldMag          = {'MAG_BEST', 'MAG_PSF', 'MAG_APER_3'};
 
                 Args.AssignToBase      = [];  % Variable name - if given, then assign the MS into this variable in the base session
+
+                Args.MainPlotFigNumber = 1;  % if empty open new.
+                Args.PlotRADec         = true;
+                Args.PlotMagPos        = true;
+                Args.PlotMagMag        = true;
             end
 
 
@@ -610,7 +615,13 @@ classdef VisitVariability < Component
                                                                                 'FieldMag',Args.FieldMag);
 
             I = 1;
-            plot((Result(I).JD-min(Result(I).JD)).*1440, Result(I).Mag, 'ko', 'MarkerFaceColor','k');
+            if isempty(Args.MainPlotFigNumber)
+                figure;
+            else
+                figure(Args.MainPlotFigNumber);
+            end
+            clf;
+            errorbar((Result(I).JD-min(Result(I).JD)).*1440, Result(I).Mag, Result(I).MagErr, 'ko', 'MarkerFaceColor','k');
             plot.invy;
             H = xlabel('Time [min]');
             H.FontSize = 16;
@@ -625,6 +636,47 @@ classdef VisitVariability < Component
                 assignin('base', Args.AssignToBase, MS);
                 fprintf('Variable %s containing MatchedSources object is assigned to base\n',Args.AssignToBase);
             end
+
+            % additional plots
+            if Args.PlotRADec
+                figure(2);
+                clf;
+                plot(MS.Data.RA(:,Found.Ind), MS.Data.Dec(:,Found.Ind), '+');
+                H = xlabel('RA [deg]');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+                H = ylabel('Dec');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+            end
+            if Args.PlotMagPos
+                figure(3);
+                clf;
+                plot((MS.Data.RA(:,Found.Ind)-median(MS.Data.RA(:,Found.Ind),1,'omitnan')).*3600, Result.Mag, 'o');
+                hold on;
+                plot((MS.Data.Dec(:,Found.Ind)-median(MS.Data.Dec(:,Found.Ind),1,'omitnan')).*3600, Result.Mag, 'o');
+                hold off;
+                plot.invy;
+                H = xlabel('Diff RA/Dec [arcsec]');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+                H = ylabel('Mag');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+            end
+            if Args.PlotMagMag
+                figure(4);
+                clf;
+                plot(MS.Data.MAG_PSF(:,Found.Ind), MS.Data.MAG_APER_3(:,Found.Ind), 'o');
+                H = xlabel('Mag PSF');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+                H = ylabel('Mag Aper 3');
+                H.FontSize = 16;
+                H.Interpreter = 'latex';
+            end
+
+
         end
     end
     

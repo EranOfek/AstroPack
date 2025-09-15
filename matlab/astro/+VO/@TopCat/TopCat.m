@@ -27,6 +27,11 @@
 %   Q = 'SELECT * FROM "V/82/catalog"'
 %   Tcv = Tap.query(Q);
 %   Tcv= tools.table.table_cell2string(Tcv);
+%
+% Complex queries on SIMBAD - query for all WD which are variable of any kind:
+%   Q="SELECT b.main_id,b.ra,b.dec,od.otype_shortname AS otype,b.sp_type FROM basic AS b JOIN otypedef AS od ON b.otype=od.otype WHERE ( ( (od.otype_shortname IN ('WD*','WD?') OR b.sp_type LIKE 'D%' OR b.sp_type LIKE 'PG 1159%') AND (od.otype_shortname LIKE 'V%' OR od.otype_shortname IN ('Pu*','EB*','El*')) ) OR od.otype_shortname IN ('CV*','CV?') ) ORDER BY ra";
+%   T = Tap.query(Q);  % select SIMBAD TAP
+
 
 
 

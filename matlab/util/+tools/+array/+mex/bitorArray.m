@@ -1,4 +1,4 @@
-% Perform a bit-wise or operation along all elements in an array.
+% (MEX) Perform a bit-wise or operation along all elements in an array.
 %   For less effient function use: tools.array.bitor_array
 % Input  : - Array (uint8, 16, 32, 64).
 %          - Dimension along to perform the operation.

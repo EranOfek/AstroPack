@@ -1,4 +1,4 @@
-% (Mex) Performs: Result = ones(size(MatR2), ClassImage); W_Max(MatR2>Radius2) = Val
+% (MEX) Performs: Result = ones(size(MatR2), ClassImage); W_Max(MatR2>Radius2) = Val
 %       This is a new (faster) mex verions.
 %       Old version in the +obsolete dir.
 % Input  : - Matrix (i.e., MatR2).

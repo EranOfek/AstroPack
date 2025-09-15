@@ -4,6 +4,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     %   celestial.SolarSys.jpl_horizons to generate ephemerides and
     %   celestial.SolarSys.conjunctionsStars to search for the
     %   conjunctions.
+    %   Time is in UTC.
     % Input  : * ...,key,val,...
     %            see code.
     % Output : - A structure array of found events.

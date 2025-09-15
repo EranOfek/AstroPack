@@ -1,4 +1,4 @@
-% Conditional replace: Given M,A,B,V perform: M(A>B)=V;
+% (MEX) Conditional replace: Given M,A,B,V perform: M(A>B)=V;
 % Input  : - M: Array of any dimension and any class.
 %          - A: Array of the size of the first input.
 %          - B: Scalar.
