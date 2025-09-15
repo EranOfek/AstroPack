@@ -24,7 +24,13 @@ function Result = ransacLinear2d(Data, Time, Args)
     %                   Default is 0.5.
     %            'MinNpt' - Minimum number of points in the solution.
     %                   Default is 5.
-    % Output : - A structure with the first found solution.
+    %            'AddIter' - If true, then perform additional iteration to
+    %                   match more data points to the best fit.
+    %                   Default is true.
+    %            'StopWhenFound' - A logical indicating if to stop after
+    %                   the first possible solution was found.
+    %                   Default is true.
+    % Output : - A structure array with the first (or all) found solution.
     %            The following fields are available:
     %            .Found - A logical indicating if a solution was found.
     %                   This is the only field that is available if no solution
@@ -57,6 +63,9 @@ function Result = ransacLinear2d(Data, Time, Args)
         Args.NtrialT          = 20;
         Args.ThresholdDist    = 0.5;
         Args.MinNpt           = 5;
+
+        Args.AddIter logical  = true;
+        Args.StopWhenFound logical = true;
     end
    
     Ndata        = size(Data,1);
@@ -87,6 +96,7 @@ function Result = ransacLinear2d(Data, Time, Args)
         SimInd = zeros(Args.NptFit, Args.NtrialT);
         Itrial = 0;
         Found  = false;
+        Ifound = 0;
         while Itrial<Args.Ntrial && ~Found
             Itrial = Itrial + 1;
             % generate NptFit unique times indices
@@ -119,10 +129,11 @@ function Result = ransacLinear2d(Data, Time, Args)
             Flag = DataDist<Args.ThresholdDist;
             NgoodPt = numel(unique(Time(Flag)));
             if NgoodPt>=Args.MinNpt
+                Ifound = Ifound + 1;
                 % refit with all data points
-                Result.FlagN    = sum(Flag);
+                Result(Ifound).FlagN    = sum(Flag);
                 
-                H = [ones(Result.FlagN,1), Time(Flag)];
+                H = [ones(Result(Ifound).FlagN,1), Time(Flag)];
                 ParX = H\X(Flag);
                 ParY = H\Y(Flag);
                 ResidX = X(Flag) - H*ParX;
@@ -130,17 +141,34 @@ function Result = ransacLinear2d(Data, Time, Args)
                 %FlagDataDist = sqrt(ResidX.^2 + ResidY.^2);
                 FlagDataDist = Args.DistFun(X(Flag), Y(Flag), H*ParX, H*ParY);
                 
+                % another iteration:
+                if Args.AddIter
+                    Flag = FlagDataDist<Args.ThresholdDist;
+                    Result(Ifound).FlagN    = sum(Flag);
+                    
+                    H = [ones(Result(Ifound).FlagN,1), Time(Flag)];
+                    ParX = H\X(Flag);
+                    ParY = H\Y(Flag);
+                    ResidX = X(Flag) - H*ParX;
+                    ResidY = Y(Flag) - H*ParY;
+                    %FlagDataDist = sqrt(ResidX.^2 + ResidY.^2);
+                    FlagDataDist = Args.DistFun(X(Flag), Y(Flag), H*ParX, H*ParY);
+                end
+
                 % solution found
-                Found = true;
-                Result.Found    = Found;
-                Result.FlagDataDist = FlagDataDist;
-                Result.FlagRMS  = std(FlagDataDist);
-                Result.FlagResidX = ResidX;
-                Result.FlagResidY = ResidY;
                 
-                Result.Flag     = Flag;
-                Result.ParX     = ParX;
-                Result.ParY     = ParY;
+                if Args.StopWhenFound
+                    Found = true;
+                end
+                Result(Ifound).Found    = Found;
+                Result(Ifound).FlagDataDist = FlagDataDist;
+                Result(Ifound).FlagRMS  = std(FlagDataDist);
+                Result(Ifound).FlagResidX = ResidX;
+                Result(Ifound).FlagResidY = ResidY;
+                
+                Result(Ifound).Flag     = Flag;
+                Result(Ifound).ParX     = ParX;
+                Result(Ifound).ParY     = ParY;
             end
             
         end
