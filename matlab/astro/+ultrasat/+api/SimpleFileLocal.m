@@ -9,7 +9,7 @@
 %==========================================================================
 
 classdef SimpleFileLocal < ultrasat.api.Loggable
-    %SIMPLEFILELOCAL A local file system interface with the same API as SimpleFileClient.
+    % Local file system interface with the same API as SimpleFileClient.
     %   This class provides methods to list, read, and write files directly
     %   on the local disk. It is designed to be a drop-in replacement for
     %   SimpleFileClient for local development and testing, allowing code to
@@ -251,6 +251,68 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
                 success = obj.writeFile(filePath, jsonStr);
             catch ME
                 obj.msglog(sprintf('Error encoding data for JSON file %s: %s', filePath, ME.message));
+                success = false;
+            end
+        end
+
+
+        function binaryData = readBinaryFile(obj, relativeFilePath)
+            % Reads a binary file directly from the local filesystem.
+            % Returns the file content as a uint8 row vector.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+            end
+            
+            fullLocalPath = fullfile(obj.BasePath, relativeFilePath);
+            binaryData = uint8.empty(1,0); % Return empty uint8 on failure
+            
+            if ~isfile(fullLocalPath)
+                obj.msglog(sprintf('Error: Binary file not found at "%s"', fullLocalPath));
+                return;
+            end
+            
+            try
+                fileID = fopen(fullLocalPath, 'rb'); % 'rb' = read binary
+                if fileID == -1
+                    error('Could not open file for reading.');
+                end
+                
+                % Read all bytes from the file into a uint8 array and ensure it's a row vector
+                binaryData = fread(fileID, inf, '*uint8')';                
+                fclose(fileID);
+            catch ME
+                obj.msglog(sprintf('Error reading binary file "%s": %s', fullLocalPath, ME.message));
+            end
+        end
+
+        function success = writeBinaryFile(obj, relativeFilePath, binaryData)
+            % Writes binary data (uint8 array) directly to the local filesystem.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+                binaryData (1,:) uint8 % Ensure data is a uint8 row vector
+            end
+            
+            fullLocalPath = fullfile(obj.BasePath, relativeFilePath);
+            
+            % Ensure the target directory exists
+            [targetDir, ~, ~] = fileparts(fullLocalPath);
+            if ~isfolder(targetDir)
+                mkdir(targetDir);
+            end
+            
+            try
+                fileID = fopen(fullLocalPath, 'wb'); % 'wb' = write binary
+                if fileID == -1
+                    error('Could not open file for writing.');
+                end
+                
+                fwrite(fileID, binaryData, 'uint8');                
+                fclose(fileID);
+                success = true;
+            catch ME
+                obj.msglog(sprintf('Error writing binary file "%s": %s', fullLocalPath, ME.message));
                 success = false;
             end
         end

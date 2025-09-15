@@ -1473,7 +1473,43 @@ classdef PipelineDemon < Component
 
 
     methods % preperations
-        
+        function DB = connectDB(Obj, Args)
+            % Prepare and connect to local DB
+            % Input  : - self.
+            %          - demon ARgs structure
+            % Output : - db.Db object
+            % Author : Eran Ofek (Sep 2025)
+            
+            try
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;    
+    
+                if Args.InsertTransients2DB
+                    DB          = db.Db;
+                    DB.Host     = Args.DBHost;
+                    DB.DbName   = Args.DbName;
+                    DB.User     = Args.DbUser;
+                    DB.Password = PM.search(Args.DbName).Pass;
+                    DB.connect;
+                
+
+                    if DB.isConnected
+                        MsgLog = 'DB connected sucessfully';
+                        LogL = LogLevel.Info;
+                    else
+                        MsgLog = 'DB connection failed';
+                        LogL = LogLevel.Error;
+                    end
+                else
+                    MsgLog = 'DB InsertTransients2DB is false';
+                    LogL = LogLevel.Info;
+                end
+            catch ME_DB
+                Obj.writeLog(ME_DB, LogLevel.Error);
+            end
+        end
+
+
         function [Args] = prepSolarSystemEphem(Obj, Args)
             % Populate GeoPos, OrbEl, INPOP arguments
             % Input  : - self
@@ -1495,6 +1531,37 @@ classdef PipelineDemon < Component
             end
         end
     
+        function Args = prepPath(Obj, Args)
+            % Path preparations
+            % Input  : - self
+            %          - Args structure.
+            % Output : - Updated Args structure
+            % Author : Eran Ofek (Sep 2025)
+        
+            switch Args.ReductionMode
+                case 'last'
+                    % do nothing
+                case 'local'
+                    if isempty(Args.CalibPath)
+                        % use CalibBasePath
+                        SplittedNewPath = split(Args.NewPath, filesep);
+                        Fc = contains(SplittedNewPath, 'LAST.');
+                        ProjName = SplittedNewPath(Fc);
+                        Args.CalibPath = sprintf('%s%s%s%s%s', Args.CalibBasePath, filsesep, ProjName, filesep, 'calib');
+                    end
+
+                    Obj.BasePath    = Args.LocalPath;
+                    Obj.NewPath     = Args.NewPath;
+                    Obj.CalibPath   = Args.CalibPath;
+                    Obj.LogPath     = sprintf('%s%s%s',Args.LocalDir, filesep, 'log');
+                    Obj.FailedPath  = sprintf('%s%s%s',Args.LocalDir, filesep, 'failed');
+                    Obj.RefPath     = Args.RefPath;
+                otherwise
+                    error('Unknown ReductionMode option');
+            end
+        end
+
+
         function cleanNewDir(Obj)
             % Clean 0 size files and day time images
 
@@ -1512,7 +1579,7 @@ classdef PipelineDemon < Component
     end
 
 
-    methods % pipelines
+    methods % sub pipelines
         
         function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
@@ -2139,6 +2206,10 @@ classdef PipelineDemon < Component
 
         end
 
+    end
+
+    methods % main
+
  
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
@@ -2174,19 +2245,14 @@ classdef PipelineDemon < Component
                 
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
-                Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
-                Args.EndJD         = Inf;            %
-                Args.NightJD       = [];             % Reduce single night (from -0.5 to 0.5 from date) - set StopWhenDone to true.
+                
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
-                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
-                Args.ReloadCalibTimeDiff   = 0.7;
                 
-                Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
-                Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
+                
 
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
-                Args.TempRawFocus    = '*_focus_raw_*.fits';
+                
 
                 Args.MinNumImageVisit  = 10;
                 Args.PauseDay          = 100;
@@ -2205,7 +2271,7 @@ classdef PipelineDemon < Component
                 Args.RepackRaw         = false;             % pack raw FITS images after processing 
 
                 % DataBase
-                Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
+                
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -2221,32 +2287,62 @@ classdef PipelineDemon < Component
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';
                 
+
+                %% NEW
+
+
                 Args.HostName          = []; 
+
+                Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
 
                 Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
                 Args.OrbEl                            = [];
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
-                                
+                        
+                Args.ReductionMode = 'last';
+                Args.LocalPath     = [];
+                Args.NewPath       = [];
+                Args.CalibBasePath = '/marvin';
+                Args.CalibPath     = [];
+
+                Args.StartJD       = 0;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf;            % if <0, then this is the number of nighst to reduce after StarJD
+                
+                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                
+                Args.ReloadCalibTimeDiff   = 0.7;
+                
+                Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
+                Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
+                
+                Args.TempRawFocus    = '*_focus_raw_*.fits';
+
+                Args.UnpackRaw     = 'auto';  % 'auto' | false | true
+
+
+
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
             
-
+            % set Logger log file 
+            Obj.setLogFile('HostName',Args.HostName);
+            Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
+            
+            
+            % Update argumenst from configuration file:
+            Args = tools.args.updateParFromConfig(Args, Obj.Config, Args.ArgsConfigName);
+            
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
             end
 
-            % set Logger log file 
-            Obj.setLogFile('HostName',Args.HostName);
-            Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
             Obj.HostName = Args.HostName;
 
-            % Update argumenst from configuration file:
-            Args = tools.args.updateParFromConfig(Args, Obj.Config, Args.ArgsConfigName);
-            
+
 
             IsRunningOnLAST = false;
             if numel(Args.HostName)>=4
@@ -2255,44 +2351,22 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if Args.InsertTransients2DB
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                PM = PasswordsManager;                                
-                DB          = db.Db;
-                DB.Host     = Args.DBHost;
-                DB.DbName   = Args.DbName;
-                DB.User     = Args.DbUser;
-                DB.Password = PM.search(Args.DbName).Pass;
-                DB.Conn;
-            end
+            % Prepare and connect to DB:
+            DB = connectDB(Obj, Args);
+
+
+
 
             if Args.SelectKnownAsteroid
                 Args = Obj.prepSolarSystemEphem(Args);
             end
               
-            ADB = [];  % AstroDB   %??????
-            
-            % change the paths if a non-standard new directory is given
-            if ~isempty(Args.NonStandardNew)
-                Args.MinNumImageVisit = 1;
-                Args.UpdateStatusFile = false;
-                CalibPath  = Obj.CalibPath;
-                FailedPath = Obj.FailedPath;
-                LogPath    = Obj.LogPath;
-                BasePath   = Obj.BasePath;
-                
-                NewPath    = Args.NonStandardNew;
-                Obj.BasePath   = [];
-                
-                Obj.NewPath    = NewPath;
-                Obj.CalibPath  = CalibPath;
-                Obj.FailedPath = FailedPath;
-                Obj.LogPath    = LogPath;
-            else
-                NewPath    = Obj.NewPath;
-                BasePath   = Obj.BasePath;
-                FailedPath = Obj.FailedPath;
-            end
+           
+            Args = Obj.prepPath;
+            NewPath    = Obj.NewPath;
+            CalibPath  = Obj.CalibPath;
+            BasePath   = Obj.BasePath;
+            FailedPath = Obj.FailedPath;
 
       
             % convert 'all'|'cat' to cell array of data products
@@ -2306,9 +2380,6 @@ classdef PipelineDemon < Component
             % remove files with zero size and day-time images:
             Obj.cleanNewDir;
 
-            if Args.UnpackRaw 
-                !funpack -D *raw*fits.fz 
-            end
 
             if numel(Args.StartJD)>1
                 Args.StartJD = celestial.time.julday(Args.StartJD);
@@ -2316,17 +2387,11 @@ classdef PipelineDemon < Component
             if numel(Args.EndJD)>1
                 Args.EndJD = celestial.time.julday(Args.EndJD);
             end
-
-            if ~isempty(Args.NightJD)
-                if numel(Args.NightJD)>1
-                    Args.NightJD = celestial.time.julday(Args.NightJD);
-                end
-
-                Args.StartJD = Args.NightJD - 0.5;
-                Args.EndJD   = Args.NightJD + 0.5;
-
+            if Args.EndJD<0 && ~isinf(Args.EndJD)
+                Args.EndJD = Args.StartJD - Args.EndJD;
                 Args.StopWhenDone = true;
             end
+
 
             if all(get(0, 'ScreenSize')==1)
                 % No display mode - set StopButton to false
@@ -2339,15 +2404,25 @@ classdef PipelineDemon < Component
             end
             
 
-            % GOT HERE
+
+            %%%% not here - move below
+            if isstring(Args.UnpackRaw) || ischar(Args.UnPackRaw)
+               
+            end
+
+            if Args.UnpackRaw 
+                !funpack -D *raw*fits.fz 
+            end
+
 
             JDlastCalib = 0;
             Cont = true;
+            MainLoopCounter = 0;
             while Cont
+                MainLoopCounter = MainLoopCounter + 1;
                 % Notify watchdog that process is running 
                 tools.systemd.mex.notify_watchdog;
    
-
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
                     [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
@@ -2361,19 +2436,24 @@ classdef PipelineDemon < Component
                         Obj.loadCalib;
                     end
                 end
-                
+
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
                     deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
                 end
 
                 % move focus images
-                FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+                %FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+                FN_Foc   = AstroFileName(Args.TempRawFocus);
                 FN_Foc.BasePath = Obj.BasePath;
                 FN_Foc.FullPath = [];
                 % The empty argument in genPath is required for moving each image to the correct (date) directory. 
                 FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
                 
+
+                %% GOT HERE
+
+
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);

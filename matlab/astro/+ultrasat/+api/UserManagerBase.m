@@ -32,32 +32,21 @@ classdef UserManagerBase < ultrasat.api.Loggable
 
 
     methods
-        function obj = UserManagerBase(Args)
+        function obj = UserManagerBase() %Args)
             % Constructor for the UserManagerBase class.
             % 
             % Parameters:
-            %   Args.SubUrl (string) - Endpoint path to append to the base API URL (default: '/mission')
-            %   Args.LogFileName (string) - Path to log file (default: same folder as this file)
             %
             % Returns:
             %   obj - Initialized MissionClientBase object            
-            arguments          
-                Args.SubUrl = '/mission';  % planner_backend
-                Args.LogFileName = []
-            end
+            %arguments          
+            %end
 
-            if isempty(Args.LogFileName)
-                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);  
-                obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
-            else
-                obj.LogFileName = Args.LogFileName;
-            end 
+            obj@ultrasat.api.Loggable();
+            obj.msglog('UserManagerBase constructor started');           
 
+            obj.LogPrefix = 'UserManagerBase';
             obj.DeviceId = obj.getDeviceId();
-
-            % Call parent class constructor
-            %ArgsCell = namedargs2cell(Args);
-            %obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
         end        
         
         % -------------------------------------------------------------------
@@ -97,8 +86,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
             % Returns a string that identifies the current device by hostname
         
             [~, hostname] = system('hostname');
-            deviceID = ['matlab-' strtrim(hostname)];
-            %deviceID = strtrim(hostname);  % Remove any trailing newline or spaces        
+            deviceID = ['matlab-' strtrim(hostname)];           
         end      
 
         % -------------------------------------------------------------------
