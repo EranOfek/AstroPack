@@ -94,6 +94,7 @@ function Result = ransacLinear2d(Data, Time, Args)
             
             H = [ones(Args.NptFit,1), UniqueTime(IndT)];
             
+            % From each epoch select up to one point
             for It=1:1:Args.NptFit
                 SimInd(It,:) = TimePtInd{IndT(It)}(randi(TimeNpt(IndT(It)), 1, Args.NtrialT));
             end
