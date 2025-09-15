@@ -19,23 +19,18 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
 
 
     methods
-        function obj = MissionClientSim(Args)
-            arguments          
-                Args.SubUrl         = '/mission';  % planner_backend  
-                Args.LogFileName
-            end
+        function obj = UserManagerSim()
+            % Call the base class constructor with the Args
+            ArgsCell = namedargs2cell(Args);
+            obj@ultrasat.api.UserManagerBase();
+            obj.msglog('UserManagerSim constructor started');           
 
             % Initialize the logger
             obj.LogPrefix = 'UserManagerSim';
 
             % Initialize the ApiSimProvider
-            obj.ApiSimProvider = ultrasat.api.ApiSimProvider(Args.SubUrl);
+            obj.ApiSimProvider = ultrasat.api.ApiSimProvider('', '');  %Args.SubUrl);
 
-            % Call the base class constructor with the Args
-            ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.UserManagerBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-            obj.msglog('UserManagerSim constructor started');
-            
             % SOC_PATH must be defined in env
             soc_path = getenv('SOC_PATH');
             if soc_path == ""
@@ -46,6 +41,8 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
             obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
             obj.msglog('DbPath: %s', obj.DbPath);
+
+            
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
@@ -159,7 +156,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             end
         
             if isempty(User)
-                obj.msglog('login: invalid credentials for %s', username);
+                obj.msglog('login: invalid credentials for %s', UserName);
                 response.ok = false;
                 response.status = 'error';
                 response.message = 'Invalid username or password';
@@ -203,7 +200,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             % Add current session
             s = struct();
             s.device_id = deviceId;
-            s.user_id = username;
+            s.user_id = UserName;
             s.login_time = datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ');
             s.expire_time = datestr(loginTime + days(1), 'yyyy-mm-ddTHH:MM:SSZ');
             sessions.(sessionId) = s;
@@ -212,17 +209,17 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         
             % Store in current_user.json
             currentUser = struct( ...
-                'user_id', username, ...
-                'roles', {user.roles}, ...
+                'user_id', UserName, ...
+                'roles', {User.roles}, ...
                 'session_id', sessionId, ...
-                'namespace', namespace, ...
+                'namespace', Namespace, ...
                 'display_name', user.display_name, ...
                 'login_time', datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ') ...
             );
             obj.save_json(currentUserFile, currentUser);
         
             % Store in object
-            obj.User = username;
+            obj.User = UserName;
             obj.SessionId = sessionId;
             obj.NamespaceId = namespace;
             obj.Roles = user.roles;

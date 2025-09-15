@@ -12,13 +12,15 @@ function debug_UserManagerSim()
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
     fprintf('============================================\n\n');
 
+    simDbPath = '';  %fullfile(getenv('SOC_PATH'), 'sim')
+
     % --- Setup: Create a temporary database environment ---
-    simDbPath = fullfile(tempdir, 'UserManagerSim_TestDB');
-    cleanupObj = onCleanup(@() cleanup(simDbPath)); % Ensure cleanup runs on exit/error
+    %simDbPath = fullfile(tempdir, 'UserManagerSim_TestDB');
+    %cleanupObj = onCleanup(@() cleanup(simDbPath)); % Ensure cleanup runs on exit/error
     
-    fprintf('--- Step 1: Setting up simulated database at: %s ---\n', simDbPath);
-    if isfolder(simDbPath); rmdir(simDbPath, 's'); end
-    mkdir(fullfile(simDbPath, 'users'));
+    %fprintf('--- Step 1: Setting up simulated database at: %s ---\n', simDbPath);
+    %if isfolder(simDbPath); rmdir(simDbPath, 's'); end
+    %mkdir(fullfile(simDbPath, 'users'));
     
     % Write the necessary JSON files to the temp directory
     createFiles = false;
@@ -34,7 +36,7 @@ function debug_UserManagerSim()
     try
         % We pass the temp path to the constructor's 'SubUrl' which is
         % interpreted as a local path by ApiSimProvider.
-        userManager = ultrasat.api.UserManagerSim('SubUrl', simDbPath);
+        userManager = ultrasat.api.UserManagerSim();  %'SubUrl', simDbPath);
     catch ME
         fprintf('  [FAIL] Could not instantiate UserManagerSim: %s\n', ME.message);
         return;
@@ -42,7 +44,7 @@ function debug_UserManagerSim()
     
     % Test successful login
     fprintf('Attempting login for user "chen"...\n');
-    loginResp = userManager.login('chen', '123', 'default_namespace');
+    loginResp = userManager.login('chen', '123', 'OPER');
     if loginResp.ok
         fprintf('  [SUCCESS] Login successful for user: %s\n', userManager.User);
     else

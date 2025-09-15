@@ -20,7 +20,7 @@ classdef Loggable < handle
 
         % A prefix string to identify which class is logging the message.
         % Subclasses should set this in their constructor.
-        LogPrefix char = '[Loggable]'
+        LogPrefix char = 'Loggable';
     end
 
 
@@ -30,7 +30,7 @@ classdef Loggable < handle
             %   This constructor resolves the log file path and ensures the
             %   containing directory exists.
             try
-                logDir = obj.resolveDefaultBasePath0();
+                logDir = fullfile(obj.resolveDefaultBasePath0(), 'log');
                 if ~isfolder(logDir)
                     mkdir(logDir);
                 end
@@ -64,7 +64,7 @@ classdef Loggable < handle
 
             % 2. Construct the full, timestamped log entry
             timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-            fullLogEntry = sprintf('%s %s %s', timestamp, obj.LogPrefix, coreMessage);
+            fullLogEntry = sprintf('%s [%s] %s', timestamp, obj.LogPrefix, coreMessage);
 
             % 3. Print to the console
             fprintf('%s\n', fullLogEntry);

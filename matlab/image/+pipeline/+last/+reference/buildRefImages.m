@@ -116,7 +116,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
 %                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
 %                         
-                        % 4.2 rotate, align, and cut the merged crops to the ref. coordinates
+                        % 4.2 rotate, align, and cut the merged crops to
+                        % the ref. coordinates: imwarp with WCS + refine
+                        % astrometry 
                         
                     end                                  
                     % 5. proper coadd the the aligned and merged crops
