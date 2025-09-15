@@ -8,7 +8,7 @@ function [Cat]=jpl_horizons(varargin)
 %                   Semicolumn following the number corresponds to
 %                   a small body number - e.g., '499;'
 %                   Default is '499;'.
-%            'StartJD' - Start JD, or [D M Y Frac].
+%            'StartJD' - Start JD UTC, or [D M Y Frac].
 %                   Default is 2451545.5
 %                   IMPORTANT: JD must be a whole day (i.e., ending with
 %                   0.5).

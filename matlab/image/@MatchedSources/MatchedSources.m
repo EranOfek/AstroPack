@@ -4663,7 +4663,7 @@ classdef MatchedSources < Component
 
         end
 
-        function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
+        function [JD, Mag, Err] = getLC_ind(Obj, Ind, FieldMag, FieldMagErr)
             % get the LC [JD, Mag] of a source by its index (column number)
             % Input  : - A single-element MatchedSources object
             %          - The index/s of the source in the matched matrix
@@ -4674,6 +4674,7 @@ classdef MatchedSources < Component
             % Output : - JD vector.
             %          - Mag (or selected field) vector/array for the selected
             %            sources.
+            %          - Mag error.
             % Author : Eran Ofek (Jul 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX')
@@ -4684,12 +4685,15 @@ classdef MatchedSources < Component
                 Obj(1,1) MatchedSources
                 Ind
                 FieldMag             = AstroCatalog.DefNamesMag;
+                FieldMagErr          = {'MAGERR_PSF'};
             end
             
-            [~, Name] = tools.cell.strNameDict2ind(Obj.Fields, FieldMag);
+            Obj.bestMag;
+            [~, NameMag] = tools.cell.strNameDict2ind(FieldMag, Obj.Fields);
+            [~, NameErr] = tools.cell.strNameDict2ind(FieldMagErr, Obj.Fields);
             JD  = Obj.JD;
-            Mag = Obj.Data.(Name)(:,Ind);
-            
+            Mag = Obj.Data.(NameMag)(:,Ind);
+            Err = Obj.Data.(NameErr)(:,Ind);
         end
         
         % index from position
