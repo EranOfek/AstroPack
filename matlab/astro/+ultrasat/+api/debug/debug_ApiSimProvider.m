@@ -11,15 +11,38 @@ function debug_ApiSimProvider()
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
     fprintf('====================================================\n\n');
     
+    % 1. Test the LOCAL provider (using SimpleFileLocal)
+    debug_TestLocal();
+
+    % 2. Test the REMOTE provider (using SimpleFileClient)
+    debug_TestRemote();
+    
+    fprintf('====================================================\n');
+    fprintf('ApiSimProvider Debug Script Finished\n');
+    fprintf('====================================================\n');
+end
+
+
+function debug_TestLocal()  
+    LOCAL_BASE_PATH = 'C:\temp\api_sim_local_tests'; % A temporary local directory   
+    
+    fprintf('\n>>> Running test suite for LOCAL provider...\n');
+    fprintf('    Target: %s\n', LOCAL_BASE_PATH);
+    try
+        localProvider = ultrasat.api.ApiSimProvider('', '');  %LOCAL_BASE_PATH);
+        testProviderSuite(localProvider, 'Local');
+    catch ME
+        fprintf('\n  [FATAL ERROR] Could not run local tests.\n');
+        fprintf('  Error details: %s\n\n', ME.message);
+    end
+end
+
+
+function debug_TestRemote()   
     % --- Configuration ---
     REMOTE_URL = 'http://localhost:8090';
     REMOTE_BASE_PATH = 'api_sim_remote_tests/'; % A dedicated folder on the server
-    
-    LOCAL_BASE_PATH = 'C:\temp\api_sim_local_tests'; % A temporary local directory
-    
-    % --- Test Suite Execution ---
-    
-    % 1. Test the REMOTE provider (using SimpleFileClient)
+
     fprintf('>>> Running test suite for REMOTE provider...\n');
     fprintf('    Target: %s\n', REMOTE_URL);
     fprintf('    Base Path: %s\n', REMOTE_BASE_PATH);
@@ -31,26 +54,11 @@ function debug_ApiSimProvider()
         fprintf('  Please ensure the Python server is running at %s\n', REMOTE_URL);
         fprintf('  Error details: %s\n\n', ME.message);
     end
-    
-    % 2. Test the LOCAL provider (using SimpleFileLocal)
-    fprintf('\n>>> Running test suite for LOCAL provider...\n');
-    fprintf('    Target: %s\n', LOCAL_BASE_PATH);
-    try
-        localProvider = ultrasat.api.ApiSimProvider(LOCAL_BASE_PATH);
-        testProviderSuite(localProvider, 'Local');
-    catch ME
-        fprintf('\n  [FATAL ERROR] Could not run local tests.\n');
-        fprintf('  Error details: %s\n\n', ME.message);
-    end
-
-    fprintf('====================================================\n');
-    fprintf('ApiSimProvider Debug Script Finished\n');
-    fprintf('====================================================\n');
 end
 
 
 function testProviderSuite(provider, providerType)
-    %TESTPROVIDERSUITE Runs a generic set of tests against any provider object.
+    % Runs a generic set of tests against any provider object.
     %   provider: An instance of ApiSimProvider.
     %   providerType: A string ('Remote' or 'Local') for logging purposes.
     
@@ -63,6 +71,18 @@ function testProviderSuite(provider, providerType)
     testStruct.matrix = [1, 2, 3; 4, 5, 6];
     jsonFileName = 'test_config.json';
 
+
+    % --- Test 1: Health Check ---
+    fprintf('\n--- Testing HealthCheck (%s) ---\n', providerType);
+    healthCheck = provider.healthCheck();
+    if healthCheck
+        fprintf('  [SUCCESS] HealthCheck returned true.\n');
+    else
+        fprintf('  [FAIL] HealthCheck returned false.\n');
+    end
+    fprintf('----------------------------------------\n\n');
+
+    % --- Test 1: Write and Read JSON ---
     fprintf('Writing struct to %s...\n', jsonFileName);
     disp(testStruct);
     success = provider.WriteJsonFile(jsonFileName, testStruct);
@@ -87,6 +107,69 @@ function testProviderSuite(provider, providerType)
         disp(readStruct);
     end
 
+    % --- Test 2: Write and Read Binary ---
+    fprintf('\n--- Testing WriteBinary and ReadBinary (%s) ---\n', providerType);
+
+    % 1. Cast the data to uint8 to match the binary file type.
+    % 2. Make it a 1x100 row vector to match the shape of the read data.
+    testData = uint8(randi([0, 255], 1, 100));
+    %testData = randi([0, 255], 100, 1);
+
+    binaryFileName = 'test_binary.bin';
+    fprintf('Writing binary data to %s...\n', binaryFileName);
+    success = provider.WriteBinaryFile(binaryFileName, testData);
+    
+    if ~success
+        fprintf('  [FAIL] WriteBinary returned false.\n');
+        return;
+    else
+        fprintf('  [SUCCESS] WriteBinary returned true.\n');
+    end
+
+    fprintf('Reading back %s...\n', binaryFileName);    
+    readData = provider.ReadBinaryFile(binaryFileName);
+
+    if isequal(testData, readData)
+        fprintf('  [SUCCESS] Read data matches original data.\n');
+    else
+        fprintf('  [FAIL] Read data does NOT match original data.\n');
+        disp('Original:');
+        disp(testData);
+        disp('Read:');
+        disp(readData);
+    end
+
+    % --- Test 3: WriteMatObject and LoadMatObject ---
+    fprintf('\n--- Testing WriteMatObject and LoadMatObject (%s) ---\n', providerType);
+    matFileName = 'test_object.mat';
+    variableName = 'myVar';
+    testObject = struct('a', 42, 'b', rand(3,1), 'msg', 'hello world');
+    fprintf('Writing MAT object to %s (variable: %s)...\n', matFileName, variableName);
+    success = provider.saveMatObject(matFileName, testObject, variableName);
+
+    if ~success
+        fprintf('  [FAIL] WriteMatObject returned false.\n');
+        return;
+    else
+        fprintf('  [SUCCESS] WriteMatObject returned true.\n');
+    end
+
+    fprintf('Loading MAT object from %s (variable: %s)...\n', matFileName, variableName);
+    [loadedObject, success] = provider.loadMatObject(matFileName, variableName);
+
+    if ~success
+        fprintf('  [FAIL] LoadMatObject returned false.\n');
+        return;
+    elseif isequal(testObject, loadedObject)
+        fprintf('  [SUCCESS] Loaded object matches original object.\n');
+    else
+        fprintf('  [FAIL] Loaded object does NOT match original object.\n');
+        disp('Original:');
+        disp(testObject);
+        disp('Loaded:');
+        disp(loadedObject);
+    end
+
     % --- Test 2: List Files ---
     fprintf('\n--- Testing ListFilesInFolder (%s) ---\n', providerType);
     mask = '*.json';
@@ -106,11 +189,12 @@ function testProviderSuite(provider, providerType)
     % --- Test 3: Next Available File ---
     fprintf('\n--- Testing NextAvailableFile (%s) ---\n', providerType);
     seqFolder = 'sequence_test/';
-    seqMask = 'data_*.dat';
+    seqMask = '*.dat';
     
     % Setup: create a few dummy files to establish a sequence
-    provider.WriteJsonFile(fullfile(seqFolder, 'data_001.dat'), struct('seq', 1));
-    provider.WriteJsonFile(fullfile(seqFolder, 'data_002.dat'), struct('seq', 2));
+    provider.WriteJsonFile(fullfile(seqFolder, '001.dat'), struct('seq', 1));
+    provider.WriteJsonFile(fullfile(seqFolder, '002.dat'), struct('seq', 2));
+    provider.WriteJsonFile(fullfile(seqFolder, '003.dat'), struct('seq', 3));    
     
     fprintf('Searching for next available file in %s with mask %s\n', seqFolder, seqMask);
     

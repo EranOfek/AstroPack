@@ -55,6 +55,25 @@ classdef SimpleFileClient < ultrasat.api.Loggable
         end
 
 
+        function result = healthCheck(obj)
+            % Check the health of the server.
+            %   healthCheck = obj.healthCheck()
+            %   Returns true on success, false on error.
+            arguments
+                obj
+            end
+            result = false;
+            try
+                response = obj.performPostRequest('files/health', {});
+                if isfield(response, 'status') && strcmp(response.status, 'ok')
+                    result = true;
+                end
+            catch ME
+                obj.msglog(sprintf('Error checking health of server: %s', ME.message));
+            end
+        end
+
+
         function fileList = listFiles(obj, folderPath, masks)
             % List files in a folder on the server.
             %  fileList = obj.listFiles(folderPath) lists all files.
@@ -296,6 +315,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             payload.path = obj.safePath([obj.BasePath, filePath]);
             try
                 result = obj.performPostRequest(endpoint, payload);
+                result = strcmp(result.status, 'ok');
             catch ME
                 obj.msglog(sprintf('Error deleting file %s: %s', filePath, ME.message));
                 result = false;
@@ -305,7 +325,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
     end
 
 
-    methods (Access = private)
+    methods (Access = public)
         function fullUrl = getFullUrl(obj, endpoint)
             % Construct the full URL for a given endpoint.
             baseUrl = obj.BaseUrl;

@@ -21,7 +21,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
     methods
         function obj = UserManagerSim()
             % Call the base class constructor with the Args
-            ArgsCell = namedargs2cell(Args);
+            % ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.UserManagerBase();
             obj.msglog('UserManagerSim constructor started');           
 

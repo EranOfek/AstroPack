@@ -24,8 +24,10 @@ function debug_SimpleFileClient()
     fprintf('Using server base path: %s\n\n', client.BasePath);
     
     % --- Run Individual Debug Functions ---
+    debugHealthCheck(client);
     debugWriteAndReadFile(client);
     debugWriteAndReadJson(client);
+    debugWriteAndReadBinary(client);
     debugListFiles(client);
     debugNextAvailableFile(client);
     debugDeleteFile(client);
@@ -36,6 +38,19 @@ function debug_SimpleFileClient()
 end
     
     
+function debugHealthCheck(client)
+    % debugHealthCheck - Tests the health check of the server.
+    fprintf('--- Testing HealthCheck ---\n');
+    healthCheck = client.healthCheck();
+    if healthCheck
+        fprintf('  [SUCCESS] HealthCheck returned true.\n');
+    else
+        fprintf('  [FAIL] HealthCheck returned false.\n');
+    end
+    fprintf('----------------------------------------\n\n');
+end
+
+
 function debugWriteAndReadFile(client)
     % debugWriteAndReadFile - Tests basic text file writing and reading.
     fprintf('--- Testing WriteFile and ReadFile ---\n');
@@ -123,9 +138,49 @@ function debugWriteAndReadJson(client)
 end
 
 
+function debugWriteAndReadBinary(client)
+    % debugWriteAndReadBinary - Tests binary file writing and reading.
+    fprintf('--- Testing WriteBinary and ReadBinary ---\n');
+    
+    % 1. Prepare test data
+    filePath = 'test_binary.bin';
+    originalData = randi([0, 255], 100, 1);
+
+    % 2. Write the binary file to the server
+    fprintf('Attempting to write binary file: %s\n', filePath);
+    success = client.writeBinaryFile(filePath, originalData);
+    
+    if ~success
+        fprintf('  [FAIL] Failed to write binary file.\n\n');
+        return;
+    else
+        fprintf('  [SUCCESS] writeBinary returned true.\n');
+    end
+
+    % 3. Read the binary file back from the server
+    fprintf('Attempting to read back binary file: %s\n', filePath);
+    readData = client.readBinaryFile(filePath);
+
+    % 4. Verify the data
+    if isempty(readData)
+        fprintf('  [FAIL] Failed to read binary file or file was empty.\n\n');
+    elseif isequal(originalData, readData)
+        fprintf('  [SUCCESS] Read data matches original data.\n');
+
+        disp('Original Data:');
+        disp(originalData);
+        disp('Read Data:');
+        disp(readData);
+    else
+        fprintf('  [FAIL] Read data does NOT match original data.\n');
+    end
+
+    fprintf('----------------------------------------\n\n');
+end
+
+
 function debugListFiles(client)
-    % debugListFiles - Tests the listing of files in a directory.
-    % This function relies on files created by previous debug steps.
+
     fprintf('--- Testing ListFiles ---\n');
 
     % 1. List all files in the base path
@@ -213,4 +268,5 @@ function debugDeleteFile(client)
     end
     fprintf('----------------------------------------\n\n');
 end
+
 
