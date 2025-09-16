@@ -1,4 +1,4 @@
-function [BestRA, BestDec, BestAlt] = nearZenithFramFromMoon(JD, Args)
+function [BestRA, BestDec, BestAlt] = nearZenithFarFromMoon(JD, Args)
     % Choose a point near zenith and far from the Moon (for focus)
     %   Choose from either zenith or Alt=70 deg in Az jumps of 45 deg.
     % Input  : - Scalar JD
