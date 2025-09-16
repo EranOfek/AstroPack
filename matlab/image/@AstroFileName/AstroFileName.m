@@ -1539,6 +1539,25 @@ classdef AstroFileName < Component
 
         end
     
+        function Result = isCompressed(Obj, Args)
+            % Check if file name corresponds to compressed file
+            % Input  : - A single element AstroFileName object.
+            %          * ...,key,val,...
+            %            'CompressionType' - Compression type to search.
+            %                   Default is '.fz'.
+            % Output : - A vector of logicals indicating if each file is
+            %            compressed.
+            % Author : Eran Ofek (Sep 2025)
+            
+            arguments
+                Obj(1,1)
+                Args.CompressionType = '.fz';
+            end
+
+            Result = contains(Obj(Iobj).FileType, Args.CompressionType);
+
+        end
+
         function Result = isFileInList(Obj, FileName)
             % Check if File name is contained within the object file names
             %   For physical existince of the file see: isFileExist

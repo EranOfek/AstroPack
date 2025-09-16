@@ -1636,7 +1636,7 @@ classdef PipelineDemon < Component
                 end
             else
             
-                if ~Skip && Ngroup>0 && isempty(IndGroupFound)
+                if ~Skip && Ngroup>0 && isempty(IndStartGroup)
                     % at least one group was found, but less than
                     % Args.MaxInGroup (20) images in group.
 
@@ -2559,7 +2559,6 @@ classdef PipelineDemon < Component
                 [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
                 FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
 
-            
                 % group images by counter
                 [Groups, FN_Sci_Groups] = groupByCounter(FN_Sci, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
 
@@ -2575,6 +2574,13 @@ classdef PipelineDemon < Component
 
                 %% GOT HERE
 
+                % Check if images are compressed
+                if any(FN_Sci_Groups(IndStartGroup).isCompressed)
+                    % files are compressed
+
+                end
+
+                
 
 % %%%% not here - move below
             % if isstring(Args.UnpackRaw) || ischar(Args.UnPackRaw)
