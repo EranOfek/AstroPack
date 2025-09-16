@@ -97,6 +97,24 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             end
         end
 
+        function result = healthCheck(obj)
+            % Check the health of the local file system.
+            %   healthCheck = obj.healthCheck()
+            %   Returns true on success, false on error.
+            arguments
+                obj
+            end
+            result = true;
+            try
+                if ~isfolder(obj.BasePath)
+                    error('Base path does not exist: %s', obj.BasePath);
+                end
+            catch ME
+                obj.msglog(sprintf('Error checking health of local file system: %s', ME.message));
+                result = false;
+            end
+            result = true;
+        end
 
         function fileList = listFiles(obj, folderPath, masks)
             % List files in a local folder.

@@ -73,6 +73,17 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
+        function result = healthCheck(obj)
+            % Check the health of the server.
+            %   healthCheck = obj.healthCheck()
+            %   Returns true on success, false on error.
+            arguments
+                obj
+            end
+            result = obj.FileClient.healthCheck();
+        end
+
+
         function content = readFile(obj, filePath)
             % Reads a file from the server.
             %   Delegates the call to the underlying file client.
@@ -131,7 +142,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 fileName char
             end
             path = [obj.BasePath, fileName];
-            data = obj.FileClient.readBinary(path);
+            data = obj.FileClient.readBinaryFile(path);
         end
 
 
@@ -142,10 +153,9 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 obj
                 filePath char
                 data
-                append (1,1) logical
             end
             path = [obj.BasePath, filePath];
-            success = obj.FileClient.writeBinary(path, data);
+            success = obj.FileClient.writeBinaryFile(path, data);
         end
 
 
@@ -157,9 +167,9 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             %   3. Sending those bytes using the WriteBinaryFile method.
             arguments
                 obj
-                relativeFilePath (1,:) char
+                relativeFilePath char
                 dataObject
-                variableName (1,:) char
+                variableName char
             end
             
             success = false; % Default to failure
@@ -200,8 +210,8 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             %   3. Loading the object from that temporary file.
             arguments
                 obj
-                relativeFilePath (1,:) char
-                variableName (1,:) char
+                relativeFilePath char
+                variableName char
             end
             
             loadedObject = [];
