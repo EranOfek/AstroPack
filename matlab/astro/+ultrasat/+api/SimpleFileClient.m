@@ -190,6 +190,68 @@ classdef SimpleFileClient < ultrasat.api.Loggable
         end
 
 
+        function binaryData = readBinaryFile(obj, relativeFilePath)
+            % Reads a binary file from the remote server by requesting it as Base64.
+            % Returns the decoded file content as a uint8 row vector.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+            end
+            
+            binaryData = uint8.empty(1,0); % Default empty response
+            endpoint = 'files/read';
+            
+            % Create a payload telling the server we want the file as Base64
+            payload.path = obj.safePath([obj.BasePath, relativeFilePath]);
+            payload.encoding = 'base64';
+            
+            try
+                % The server should return a JSON struct: {"data": "base64_string"}
+                response = obj.performPostRequest(endpoint, payload);
+                
+                if isfield(response, 'data') && ~isempty(response.data)
+                    % Use MATLAB's built-in Base64 decoder to convert the string
+                    % back to raw bytes (uint8 array).
+                    binaryData = matlab.net.base64decode(response.data);
+                else
+                    obj.msglog('Server response for binary file did not contain a "data" field.');
+                end
+            catch ME
+                obj.msglog(sprintf('Error reading binary file "%s": %s', relativeFilePath, ME.message));
+            end
+        end
+
+
+        function success = writeBinaryFile(obj, relativeFilePath, binaryData)
+            % Writes binary data (uint8 array) to the remote server by sending it as Base64.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+                binaryData (1,:) uint8 % Ensure data is a uint8 row vector
+            end
+            
+            success = false; % Default to failure
+            endpoint = 'files/write';
+            
+            try
+                % Use MATLAB's built-in Base64 encoder to convert the raw bytes
+                % into a string that can be safely sent in a JSON payload.
+                base64String = matlab.net.base64encode(binaryData);
+                
+                % Create the payload, including the data and the encoding flag
+                payload.path = obj.safePath([obj.BasePath, relativeFilePath]);
+                payload.data = base64String;
+                payload.encoding = 'base64';
+                
+                % Send the request. We only care about success, not the response body.
+                obj.performPostRequest(endpoint, payload);
+                success = true;
+            catch ME
+                obj.msglog(sprintf('Error writing binary file "%s": %s', relativeFilePath, ME.message));
+            end
+        end
+
+     
         function result = nextAvailableFile(obj, folderPath, mask, zeroPad, minIndex, maxIndex)
             % Get the next available file in a folder.
             %   result = obj.nextAvailableFile(folderPath, mask, zeroPad, minIndex, maxIndex)

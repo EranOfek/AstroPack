@@ -8,7 +8,7 @@
 %
 %==========================================================================
 
-classdef MissionClientBase < ultrasat.api.Loggable
+classdef MissionApiBase < ultrasat.api.Loggable
     % Base class for Mission client API calls.
     % Provides the foundation for communication between MATLAB-based ULTRASAT
     % observation planner and the backend server. This class is used by both
@@ -41,7 +41,7 @@ classdef MissionClientBase < ultrasat.api.Loggable
 
 
     methods
-        function obj = MissionClientBase(Args)
+        function obj = MissionApiBase(Args)
             % Constructor for the MissionClientBase class.
             % 
             % Parameters:
@@ -64,8 +64,6 @@ classdef MissionClientBase < ultrasat.api.Loggable
             else
                 obj.LogFileName = Args.LogFileName;
             end 
-
-            obj.DeviceId = obj.getDeviceId();
 
             % Call parent class constructor
             %ArgsCell = namedargs2cell(Args);
@@ -110,7 +108,6 @@ classdef MissionClientBase < ultrasat.api.Loggable
             % Notes:
             %   Called from uplanner, Plan is array of struct
         end        
-
 
 
         function response = submitPlan(obj, Plan)

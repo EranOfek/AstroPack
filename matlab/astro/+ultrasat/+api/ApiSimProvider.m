@@ -27,7 +27,9 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         % This property holds the instance of either SimpleFileClient or
         % SimpleFileLocal, determined at construction time.
         FileClient
+        BasePath
     end
+
 
     methods (Access = public)
         function obj = ApiSimProvider(backendTarget, basePath)
@@ -49,6 +51,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
 
             % Initialize the logger
             obj.LogPrefix = 'ApiSimProvider';
+            obj.BasePath = basePath;
 
             % Target is a URL, so use the remote client.            
             if startsWith(backendTarget, 'http://', 'IgnoreCase', true) || ...
@@ -59,8 +62,26 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             % Target is a local path, so use the local client.                
             else                
                 obj.msglog(sprintf('Initializing with local backend at %s', backendTarget));
-                obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
+
+                useLocal = true;
+                if useLocal
+                    obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
+                else
+                    obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);
+                end
             end
+        end
+
+
+        function content = readFile(obj, filePath)
+            % Reads a file from the server.
+            %   Delegates the call to the underlying file client.
+            arguments
+                obj
+                filePath char
+            end
+            path = [obj.BasePath, filePath];
+            content = obj.FileClient.readFile(path);
         end
 
 
@@ -69,9 +90,24 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             %   Delegates the call to the underlying file client.
             arguments
                 obj
-                fileName (1,1) string
+                fileName char
             end
-            data = obj.FileClient.readJson(fileName);
+            path = [obj.BasePath, fileName];
+            data = obj.FileClient.readJson(path);
+        end
+
+
+        function success = writeFile(obj, filePath, data, append)
+            % Writes a file to the server.
+            %   Delegates the call to the underlying file client.
+            arguments
+                obj
+                filePath char
+                data
+                append (1,1) logical
+            end
+            path = [obj.BasePath, filePath];
+            success = obj.FileClient.writeFile(path, data, append);
         end
 
 
@@ -80,10 +116,125 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             %   Delegates the call to the underlying file client.
             arguments
                 obj
-                fileName (1,1) string
+                fileName char
                 data
             end
-            success = obj.FileClient.writeJson(fileName, data);
+            path = [obj.BasePath, fileName];
+            success = obj.FileClient.writeJson(path, data);
+        end
+
+        function data = ReadBinaryFile(obj, fileName)
+            % Reads and parses a binary file.
+            %   Delegates the call to the underlying file client.
+            arguments
+                obj
+                fileName char
+            end
+            path = [obj.BasePath, fileName];
+            data = obj.FileClient.readBinary(path);
+        end
+
+
+        function success = WriteBinaryFile(obj, filePath, data)
+            % Writes a binary file to the server.
+            %   Delegates the call to the underlying file client.
+            arguments
+                obj
+                filePath char
+                data
+                append (1,1) logical
+            end
+            path = [obj.BasePath, filePath];
+            success = obj.FileClient.writeBinary(path, data);
+        end
+
+
+        function success = saveMatObject(obj, relativeFilePath, dataObject, variableName)
+            % Saves a MATLAB object/variable to a .mat file via the provider.
+            %   This is a high-level wrapper that handles the process of:
+            %   1. Saving the object to a temporary local .mat file.
+            %   2. Reading the raw binary bytes of that temp file.
+            %   3. Sending those bytes using the WriteBinaryFile method.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+                dataObject
+                variableName (1,:) char
+            end
+            
+            success = false; % Default to failure
+            
+            % Create a temporary file path.
+            tempMatFile = [tempname, '.mat'];
+            
+            % CRITICAL: Use onCleanup to guarantee the temp file is deleted,
+            % even if an error occurs during the process.
+            cleanupObj = onCleanup(@() delete(tempMatFile));
+            
+            try
+                % The 'save' command saves variables, not direct objects. The
+                % standard, robust way to handle this is to put the object
+                % into a struct and use the '-struct' flag with 'save'.
+                tempStruct.(variableName) = dataObject;
+                save(tempMatFile, '-struct', 'tempStruct', variableName);
+                
+                % Read the raw bytes from the newly created temporary file
+                fid = fopen(tempMatFile, 'rb');
+                matBytes = fread(fid, inf, '*uint8')';
+                fclose(fid);
+                
+                % Now, use the existing binary write method to send the data.
+                success = obj.WriteBinaryFile(relativeFilePath, matBytes);
+                
+            catch ME
+                obj.msglog('Failed to save MAT object to "%s": %s', relativeFilePath, ME.message);
+            end
+        end
+
+
+        function [loadedObject, success] = loadMatObject(obj, relativeFilePath, variableName)
+            % Loads a MATLAB object/variable from a .mat file via the provider.
+            %   This is a high-level wrapper that handles the process of:
+            %   1. Reading the raw binary bytes using the ReadBinaryFile method.
+            %   2. Writing those bytes to a temporary local .mat file.
+            %   3. Loading the object from that temporary file.
+            arguments
+                obj
+                relativeFilePath (1,:) char
+                variableName (1,:) char
+            end
+            
+            loadedObject = [];
+            success = false;
+            
+            % Read the binary data from the provider (local or remote)
+            matBytes = obj.ReadBinaryFile(relativeFilePath);
+            
+            if isempty(matBytes)
+                obj.msglog('Failed to load MAT object: received no binary data from "%s".', relativeFilePath);
+                return;
+            end
+            
+            % Create a temporary file path and guarantee its deletion.
+            tempMatFile = [tempname, '.mat'];
+            cleanupObj = onCleanup(@() delete(tempMatFile));
+            
+            try
+                % Write the received bytes to the temporary file
+                fid = fopen(tempMatFile, 'wb');
+                fwrite(fid, matBytes, 'uint8');
+                fclose(fid);
+                
+                % Load the variable from the temporary .mat file
+                loadedStruct = load(tempMatFile, variableName);
+                
+                % Extract the object from the loaded struct
+                loadedObject = loadedStruct.(variableName);
+                success = true;
+                
+            catch ME
+                obj.msglog('Failed to load MAT object from "%s": %s', relativeFilePath, ME.message);
+            end
         end
 
 
@@ -95,8 +246,10 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 folderName char
                 masks char = ''
             end
-            fileList = obj.FileClient.listFiles(folderName, masks);
+            path = [obj.BasePath, folderName];
+            fileList = obj.FileClient.listFiles(path, masks);
         end
+
 
         function result = NextAvailableFile(obj, folderPath, mask, zeroPad, minIndex, maxIndex)
             % Finds the next available sequential filename.
@@ -109,7 +262,8 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 minIndex (1,1) double {mustBeInteger, mustBeNonnegative}
                 maxIndex (1,1) double {mustBeInteger, mustBePositive}
             end
-            result = obj.FileClient.nextAvailableFile(folderPath, mask, zeroPad, minIndex, maxIndex);
+            path = [obj.BasePath, folderPath];
+            result = obj.FileClient.nextAvailableFile(path, mask, zeroPad, minIndex, maxIndex);
         end
 
         
@@ -120,7 +274,8 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 obj
                 filePath char
             end
-            result = obj.FileClient.deleteFile(filePath);
+            path = [obj.BasePath, filePath];
+            result = obj.FileClient.deleteFile(path);
         end
 
     end

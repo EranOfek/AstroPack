@@ -410,7 +410,6 @@ function TranCat = flagNonTransients(Obj, Args)
             NuclearCand = false(NumCand,1);
         end
 
-
         % ====== Apply flags =====
 
         % Flag negative candidates
@@ -605,6 +604,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
                 R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
                 PSFSize_Min = min(N_PSFSize,R_PSFSize);
+                PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
                 % To be on the conservative side, take the x1.1 of the
                 % second moments. 
@@ -626,7 +626,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Match candidates to contaminating sources within
                 % contamination radius.
                 [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
-                WideRadius = Args.ContaminationRadius*PSFSize_Min*Args.PixelScale;
+                WideRadius = Args.ContaminationRadius*PSFSize_Max*Args.PixelScale;
 
                 % Select positions and tail fluxes of contaminating sources.
                 R_NativeContRa = R_NativeRA(Contaminators);

@@ -49,6 +49,9 @@ function match2Stars(Obj, StarCat, Args)
         Args.ColNmatchName = 'STAR_N';
         Args.ColDistName = 'STAR_DIST';
 
+        Args.ColBpName = 'GAIA_BP';
+        Args.ColRpName = 'GAIA_RP';
+
         Args.ColBpMagGAIA  = 'phot_bp_mean_mag';
         Args.ColRpMagGAIA  = 'phot_rp_mean_mag';
         Args.ColAstExcessNoiseGAIA = 'astrometric_excess_noise';
@@ -137,6 +140,11 @@ function match2Stars(Obj, StarCat, Args)
 
         Matches = vertcat(MatchRes.Nmatch);
         Distances = NaN(CatSize,1);
+        MatchedBpMags = NaN(CatSize,1);
+        MatchedRpMags = NaN(CatSize,1);
+
+        BpMagsClose = StarCatClose.getCol(Args.ColBpMagGAIA);
+        RpMagsClose = StarCatClose.getCol(Args.ColRpMagGAIA);
 
         % Perform finer search
         for Isrc = 1:1:CatSize
@@ -159,7 +167,11 @@ function match2Stars(Obj, StarCat, Args)
             % Update match results with the results of the finer search
             Matches(Isrc) = sum(FlagM);
             if any(FlagM)
-                Distances(Isrc) = min(Dist);
+                MinDist = min(Dist);
+                NearestInd = Match.Ind(Dist == MinDist);
+                MatchedBpMags(Isrc) = BpMagsClose(NearestInd);
+                MatchedRpMags(Isrc) = RpMagsClose(NearestInd);
+                Distances(Isrc) = MinDist;
             end
     
         end
@@ -167,8 +179,9 @@ function match2Stars(Obj, StarCat, Args)
         % Update catalog with updated matches
         ACObj(Iobj).insertCol(Matches, inf, Args.ColNmatchName);
         ACObj(Iobj).insertCol(Distances, inf, Args.ColDistName);
+        ACObj(Iobj).insertCol(MatchedBpMags, inf, Args.ColBpName);
+        ACObj(Iobj).insertCol(MatchedRpMags, inf, Args.ColRpName);
     end
-
 
     StarCatFar = StarCat.selectRows(DistThresholdPerStar > CatSepDist);
     DistThresholdFar = DistThresholdPerStar(DistThresholdPerStar > CatSepDist);

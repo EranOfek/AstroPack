@@ -3164,7 +3164,7 @@ classdef DemonLAST < Component
                                     Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
-                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    Obj.writeLog(Msg, LogLevel.Error);
                                 end
 
                                 % Match to multi-epochs via DB
@@ -3178,7 +3178,7 @@ classdef DemonLAST < Component
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / Failed');
-                                        Obj.writeLog(Msg, LogLevel.Info);
+                                        Obj.writeLog(Msg, LogLevel.Error);
                                     end
                                 end
                                 
@@ -3192,7 +3192,7 @@ classdef DemonLAST < Component
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients alerting - %s', TranAlertStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipeline.DemonLAST - Alerting / Failed');
-                                        Obj.writeLog(Msg, LogLevel.Info);
+                                        Obj.writeLog(Msg, LogLevel.Error);
                                     end
                                 end
                                 RunTime = etime(clock, Tstart);
