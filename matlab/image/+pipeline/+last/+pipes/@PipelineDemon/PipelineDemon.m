@@ -34,7 +34,7 @@ classdef PipelineDemon < Component
         RefPath      = [];
         
 
-        ObsCoo       = [35 30 415];  % [deg deg m]
+        ObsCoo       = [35.04073 30.05298 415];  % [deg deg m]
     end
     
     properties (Hidden)
@@ -779,7 +779,7 @@ classdef PipelineDemon < Component
             arguments
                 Obj
                 Args.TempFileName = '*.fits';
-                Args.Type         = {'sci','science'};
+                Args.Type         = 'sci'; %{'sci','science'};
                 Args.SunAlt       = 0;
                 Args.Delete logical = true;
                 
@@ -788,10 +788,10 @@ classdef PipelineDemon < Component
             PWD = pwd;
             cd(Obj.NewPath);
             
-            FN = FileNames.generateFromFileName(Args.TempFileName);
-            FN.selectBy('Type',Args.Type);
+            FN = AstroFileName(Args.TempFileName);
+            FN.selectByPropVal('Type',Args.Type);
             
-            [SunAlt] = Obj.sunAlt(Obj, 'ObsCoo',Obj.ObsCoo(1:2));
+            [SunAlt] = FN.sunAlt('GeoPos',Obj.ObsCoo(1:2));
             Flag     = SunAlt>Args.SunAlt;
             
             FN.reorderEntries(Flag);
@@ -1481,16 +1481,24 @@ classdef PipelineDemon < Component
             % Author : Eran Ofek (Sep 2025)
             
             try
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                PM = PasswordsManager;    
+                if Args.Insert2DB
+
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;    
     
-                if Args.InsertTransients2DB
-                    DB          = db.Db;
-                    DB.Host     = Args.DBHost;
-                    DB.DbName   = Args.DbName;
-                    DB.User     = Args.DbUser;
-                    DB.Password = PM.search(Args.DbName).Pass;
-                    DB.connect;
+                
+                    if isempty(Args.DB)
+
+                        DB          = db.Db;
+                        DB.Host     = Args.DBHost;
+                        DB.DbName   = Args.DbName;
+                        DB.User     = Args.DbUser;
+                        DB.Password = PM.search(Args.DbName).Pass;
+                        DB.connect;
+                    else
+                        DB = Args.DB;
+                        
+                    end
                 
 
                     if DB.isConnected
@@ -1499,14 +1507,18 @@ classdef PipelineDemon < Component
                     else
                         MsgLog = 'DB connection failed';
                         LogL = LogLevel.Error;
+                        DB = [];
                     end
                 else
                     MsgLog = 'DB InsertTransients2DB is false';
                     LogL = LogLevel.Info;
+                    DB = [];
                 end
             catch ME_DB
                 Obj.writeLog(ME_DB, LogLevel.Error);
+                DB = [];
             end
+          
         end
 
 
@@ -1516,6 +1528,8 @@ classdef PipelineDemon < Component
             %          - The demon Args structure
             % Output : - The updated demon Args structure
             % Author : Eran Ofek (Jun 2025)
+
+            RAD = 180./pi;
 
             if isempty(Args.GeoPos)
                 ObsCooSt = celestial.earth.observatoryCoo('Name','LAST');
@@ -1556,6 +1570,10 @@ classdef PipelineDemon < Component
                     Obj.LogPath     = sprintf('%s%s%s',Args.LocalDir, filesep, 'log');
                     Obj.FailedPath  = sprintf('%s%s%s',Args.LocalDir, filesep, 'failed');
                     Obj.RefPath     = Args.RefPath;
+                case 'test'
+                    Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
+                    Obj.RefPath     = Args.RefPath;
+
                 otherwise
                     error('Unknown ReductionMode option');
             end
@@ -1573,6 +1591,84 @@ classdef PipelineDemon < Component
            
             % remove day time images (non-dark)
             Obj.deleteDayTimeImages;
+
+        end
+
+        function [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args)
+            % Select visit for reduction
+            % Input  : - self.
+            %          - AstroFileName objects of all identified groups
+            %          - Structure of arguments
+            % Output : - Index of selected visit for reduction
+            % Author : Eran Ofek (Sep 2025)
+
+            arguments
+                Obj
+                FN_Sci_Groups
+                Args
+            end
+
+            % number of groups
+            NinGroup = FN_Sci_Groups.nFiles;
+            Ngroup   = numel(NinGroup);
+            if Ngroup==0
+                % wait for more images
+                pause(200);   % pause for 200 s (i.e., 10x20 s)
+                Skip        = true;
+            else
+                Skip = false;
+            end
+
+            %--- Chose visit for reduction ---
+            if ~Skip
+                % at least one group was found
+                IndStartGroup = find(NinGroup==Args.MaxInGroup, 1, 'first');
+            else
+                IndStartGroup = [];
+            end
+
+
+            if ~isempty(Args.ReduceVisitContainingImage)
+                % Select only the visit that contains this image name
+                IndStartGroup = find(FN_Sci_Groups.isFileInList(Args.ReduceVisitContainingImage),1);
+                if isempty(IndStartGroup)
+                    error('ReduceVisitContainingImage file name: %s was not found - Abort', Args.ReduceVisitContainingImage);
+                end
+            else
+            
+                if ~Skip && Ngroup>0 && isempty(IndGroupFound)
+                    % at least one group was found, but less than
+                    % Args.MaxInGroup (20) images in group.
+
+                    MaxJDPerGroup = FN_Sci_Groups.juldayFun(@max);
+                    if Ngroup==1
+                        % get max JD of each sequence:
+                        
+                        TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
+                        if TimeSinceLastImage<(40./SEC_DAY)
+                            % Don't wait for more images
+                        else
+                            % wait for more images
+                            pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
+                            Skip = true;
+                        end
+                    else
+                        switch lower(Args.SortDirection)
+                            case 'ascend'
+                                IndStartGroup = Ngroup - 1;
+                            case 'descend'
+                                IndStartGroup = 2;
+                            otherwise
+                                Msg = sprintf('Unknown SortDirection option : %s', Args.SortDirection);
+                                Obj.writeLog(Msg, LogLevel.Error);
+            
+                                error('Unknown SortDirection option');
+                        end
+
+                    end
+
+                end
+            end
 
         end
 
@@ -2233,12 +2329,10 @@ classdef PipelineDemon < Component
 
                 Args.DataDir       = 1;              % LAST data dir: 1|2
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
-                Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
+                
                 Args.NewSubDir     = 'new';          % new sub dir
                 Args.NonStandardNew= '';             % non-standard new dir
-                Args.MinInGroup    = 10;             % min. number of images in visit/group to analyze.
-                Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
-                Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
+                
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
                 Args.StopButton logical = true;      % Display stop button
                 Args.StopDiskFull  = [];             % e.g., use 95 to abort if disk storage is above 95%
@@ -2267,8 +2361,7 @@ classdef PipelineDemon < Component
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
                 Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
-                Args.UnpackRaw         = false;             % unpack raw FITS images before processing
-                Args.RepackRaw         = false;             % pack raw FITS images after processing 
+                
 
                 % DataBase
                 
@@ -2293,7 +2386,16 @@ classdef PipelineDemon < Component
 
                 Args.HostName          = []; 
 
+                Args.ReductionMode = 'last';
+                Args.ReduceVisitContainingImage = []; % if provided this is an image name that must exist in the visit to reduce
+                Args.LocalPath     = [];
+                Args.NewPath       = [];
+                Args.CalibBasePath = '/marvin';
+                Args.CalibPath     = [];
+                Args.RefPath       = '/lastdata/references/v4';
+
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
+                Args.DB                = [];
 
                 Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
@@ -2301,11 +2403,7 @@ classdef PipelineDemon < Component
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
                         
-                Args.ReductionMode = 'last';
-                Args.LocalPath     = [];
-                Args.NewPath       = [];
-                Args.CalibBasePath = '/marvin';
-                Args.CalibPath     = [];
+                
 
                 Args.StartJD       = 0;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;            % if <0, then this is the number of nighst to reduce after StarJD
@@ -2317,17 +2415,33 @@ classdef PipelineDemon < Component
                 Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
                 Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
                 
-                Args.TempRawFocus    = '*_focus_raw_*.fits';
+                Args.TempRawFocus    = '*_focus_raw_*.fit*';
+                Args.TempRawSci      = '*_sci_raw_*.fit*';   % file name template to search
+
+                Args.MinInGroup    = 10;             % min. number of images in visit/group to analyze.
+                Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
+                Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
+
+                Args.ExpTime       = 20;
+
 
                 Args.UnpackRaw     = 'auto';  % 'auto' | false | true
-
+                Args.RepackRaw     = false;             % pack raw FITS images after processing 
 
 
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
+            SEC_DAY = 86400;
             
+            Args = Obj.prepPath(Args);
+            NewPath    = Obj.NewPath;
+            CalibPath  = Obj.CalibPath;
+            BasePath   = Obj.BasePath;
+            FailedPath = Obj.FailedPath;
+
+
             % set Logger log file 
             Obj.setLogFile('HostName',Args.HostName);
             Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
@@ -2339,9 +2453,7 @@ classdef PipelineDemon < Component
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
             end
-
             Obj.HostName = Args.HostName;
-
 
 
             IsRunningOnLAST = false;
@@ -2355,19 +2467,12 @@ classdef PipelineDemon < Component
             DB = connectDB(Obj, Args);
 
 
-
-
             if Args.SelectKnownAsteroid
                 Args = Obj.prepSolarSystemEphem(Args);
             end
               
            
-            Args = Obj.prepPath;
-            NewPath    = Obj.NewPath;
-            CalibPath  = Obj.CalibPath;
-            BasePath   = Obj.BasePath;
-            FailedPath = Obj.FailedPath;
-
+            
       
             % convert 'all'|'cat' to cell array of data products
             Args.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveEpochProduct);
@@ -2405,15 +2510,7 @@ classdef PipelineDemon < Component
             
 
 
-            %%%% not here - move below
-            if isstring(Args.UnpackRaw) || ischar(Args.UnPackRaw)
-               
-            end
-
-            if Args.UnpackRaw 
-                !funpack -D *raw*fits.fz 
-            end
-
+            
 
             JDlastCalib = 0;
             Cont = true;
@@ -2446,35 +2543,56 @@ classdef PipelineDemon < Component
                 %FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
                 FN_Foc   = AstroFileName(Args.TempRawFocus);
                 FN_Foc.BasePath = Obj.BasePath;
-                FN_Foc.FullPath = [];
-                % The empty argument in genPath is required for moving each image to the correct (date) directory. 
-                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
                 
-
-                %% GOT HERE
-
-
+                %FN_Foc.FullPath = [];
+                % The empty argument in genPath is required for moving each image to the correct (date) directory. 
+                if FN_Foc.nFiles>0
+                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
+                end
+                
                 % look for new images
-                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
-                [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
-                [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
-                [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+                FN_Sci   = AstroFileName(Args.TempRawSci);
+                FN_Sci.JD=FN_Sci.julday;
 
+               
                 % select observations by date
-                FN_JD  = FN_Sci.julday;
-                FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
-                FN_Sci = reorderEntries(FN_Sci, FlagJD);
+                [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
+                FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
 
+            
                 % group images by counter
-                [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                [Groups, FN_Sci_Groups] = groupByCounter(FN_Sci, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
+
 
                 % sort groups by JD (be default last observed group is
                 % first)
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
 
-                % number of groups
+                % Select visit for reduction:
+                [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args);
+                % log visit selected for reduction
+                IndStartGroup
+
+                %% GOT HERE
+
+
+% %%%% not here - move below
+            % if isstring(Args.UnpackRaw) || ischar(Args.UnPackRaw)
+            % 
+            % end
+            % 
+            % if Args.UnpackRaw 
+            %     !funpack -D *raw*fits.fz 
+            % end
+
+
+
+
                 Ngroup = numel(FN_Sci_Groups);
                 
+
+                %% GOT HERE
+
                 % select group for analysis
                
                 % check if need to wait for additional images
