@@ -84,13 +84,14 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     % find a sublist of AllSS pointings visible > 45 (180) days 
     Lenp   = F(AllSky.Var1,AllSky.Var2);
-    List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:);    
+    List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:); List360 = AllSky(Lenp>360,:);       
     List60 = AllSky(Lenp>60,:); List90  = AllSky(Lenp>90,:); List120 = AllSky(Lenp>120,:);
         fprintf('Pointings visible > 45 days: %d\n',size(List45,1));
         fprintf('Pointings visible > 60 days: %d\n',size(List60,1));
         fprintf('Pointings visible > 90 days: %d\n',size(List90,1));
         fprintf('Pointings visible > 120 days: %d\n',size(List120,1));
         fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
+        fprintf('Pointings visible > 360 days: %d\n',size(List360,1));
         
     % now we turn on averaged extinction (with R_aver = 7 deg)
     

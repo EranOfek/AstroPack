@@ -1482,10 +1482,14 @@ classdef AstroFileName < Component
             % Author : Eran Ofek (Oct 2024)
             % Example: nFiles(A)
 
-            Result = numel(Obj.Time);
-            if Result==1
-                if isempty(char(Obj.Time))
-                    Result = 0;
+            Nobj = numel(Obj);
+            Result = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = numel(Obj(Iobj).Time);
+                if Result==1
+                    if isempty(char(Obj(Iobj).Time))
+                        Result(Iobj) = 0;
+                    end
                 end
             end
         end
@@ -1535,12 +1539,31 @@ classdef AstroFileName < Component
 
         end
     
+        function Result = isFileInList(Obj, FileName)
+            % Check if File name is contained within the object file names
+            %   For physical existince of the file see: isFileExist
+            % Input  : - self.
+            %          - File Name.
+            % Output : - A logical array (size of input object), indicating
+            %            if each object element contain the file name 
+            % Author : Eran Ofek (Sep 2025)
+            % Example: AFN.isFileInList('LAST.01.01.01_20250915.213856.596_clear_1240_020_001_012_sci_proc_Image_1.fits');
+
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = any(strcmp(Obj(Iobj).genFile, FileName));
+            end
+
+        end
+
         % DONE
         function Result = isFileExist(Obj)
             % Check if files in AstroFileName object exist in their path
+            %   For logical existence of the file name see: isFileInList
             % Input  : - self.
             % Output : - A vector of logicals indicating if each file exist
-            %            in its path.
+            %            in its path (pgysical existence).
             % Author : Eran Ofek (Feb 2025)
             % Example: AFN.isFileExist
 

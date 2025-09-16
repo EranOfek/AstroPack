@@ -1459,10 +1459,10 @@ classdef AstroDiff < AstroImage
                         if exist('NonTranCat','var')
                             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
                         end
-                    %case 'dScorrdF'
-                    %    ds9(Obj.DScorrDFn,Nimgs);
-                    %    ds9.plot(TranCat.getXY, Args.TranMarker);
-                    %    ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                        
+                    case 'dSdF'
+                        ds9(Obj.DSDF,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                        
                     case 'S2'
                         ds9(Obj.S2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
