@@ -12,8 +12,8 @@ function [BestRA, BestDec, BestAlt] = nearZenithFarFromMoon(JD, Args)
     %          - Best Dec
     %          - Best Alt
     % Author : Eran Ofek (2025 Sep) 
-    % Example: [RA, Dec, Alt] = telescope.obs.nearZenithFramFromMoon(2451545);
-    %          [RA, Dec, Alt] = telescope.obs.nearZenithFramFromMoon(2451545, 'GeoPos',[35.04 30.05 0.415]);
+    % Example: [RA, Dec, Alt] = telescope.obs.nearZenithFarFromMoon(2451545);
+    %          [RA, Dec, Alt] = telescope.obs.nearZenithFarFromMoon(2451545, 'GeoPos',[35.04 30.05 0.415]);
 
     arguments
         JD(1,1)
