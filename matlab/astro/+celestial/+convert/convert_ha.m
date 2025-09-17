@@ -5,7 +5,7 @@ function [Out] = convert_ha(In, JD, Args)
     %          * ...,key,val,... 
     %            'InUnits' - Input units. Default is 'deg'.
     %            'OutUnits' - Output units. Default is 'deg'.
-    %            'Long' - east longitude of observer. Default is 35.
+    %            'Long' - east longitude of observer. Default is 35.04.
     %            'LongUnits' - Units of longitude. Default is 'deg'.
     %            'TypeLST' - LST type (see celestial.time.lst).
     %                   Default is 'a'.
@@ -22,7 +22,7 @@ function [Out] = convert_ha(In, JD, Args)
         Args.InUnits          = 'deg';
         Args.OutUnits         = 'deg';
         
-        Args.Long             = 35;
+        Args.Long             = 35.04;
         Args.LongUnits        = 'deg';
         Args.TypeLST          = 'a';
         Args.OutRange         = 'pi'
