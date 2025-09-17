@@ -128,7 +128,7 @@ classdef AstroFileName < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
+        ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log", "test"];
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
