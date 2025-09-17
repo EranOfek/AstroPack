@@ -33,7 +33,17 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     % High-cadence survey areas
     HCS = [215, 60; 254, 64; 67, -59]; 
-   
+    
+    % LSST deep drilling fields (https://www.lsst.org/sites/default/files/enews/deep-drilling-201202.html):
+%     RA  2000 	 00 37 48 	 02 22 50 	 03 32 30 	 10 00 24
+%     DEC 2000 	-44 00 00 	-04 45 00 	-28 06 00 	+02 10 55 
+
+%     RA  2000 	 9.450000  	 35.708333 	 53.125 	 150.1000
+%     DEC 2000 	-44.00000 	-4.750000 	-28.100 	 2.181944
+
+    LSST_DDR = [9.45, -44.0; 35.708333, -4.75; 53.125, -28.10; 150.10, 2.181944];
+    LSST_DDR_Rad = 3.5/2;
+    
     % read a reasonably dense equiareal grid in the equatorial coordinates
     Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2); Np = length(Grid);
     % convert the grid to the ecliptic coordinates
@@ -131,7 +141,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
                     plot.skyCircles(AllSkyEc.Var1(i), AllSkyEc.Var2(i), 'Rad', 7, 'Color','black');
                     text(AllSkyEc.Var1(i), AllSkyEc.Var2(i), num2str(i), 'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center');
                 end
-                
+                               
                 subplot(1,2,2)
                 plot.ungridded_image(RA, Dec, MaxLen.* (Averaged_extinction < 1)); caxis([0, 180]);
                 set(gca, 'Position', [0.55, 0.06, 0.4, 0.9]);
@@ -140,6 +150,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
                 for i=1:numel(AllSky.Var1)
                     plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
                     text(AllSky.Var1(i), AllSky.Var2(i), num2str(i), 'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center');
+                end
+                
+                % LSST deep drilling:
+                for i=1:4
+                    plot.skyCircles(LSST_DDR(i,1), LSST_DDR(i,2), 'Rad', LSST_DDR_Rad, 'Color','red');
                 end
 
 %             plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');   
