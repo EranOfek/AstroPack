@@ -266,7 +266,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagVariable logical = true;
 
         Args.flagNuclearNoise logical = true;
-        Args.BrightGalMagThresh = 17.0;
+        Args.BrightGalMagThresh = 20.0;
         Args.BrightGalPrcThresh = 80;
 
         % --- AstroZOGY ---
