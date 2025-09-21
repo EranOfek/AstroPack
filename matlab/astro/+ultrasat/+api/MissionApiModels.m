@@ -8,7 +8,7 @@
 %
 %==========================================================================
 
-classdef MissionApiModels < api.ModelFactoryBase
+classdef MissionApiModels < ultrasat.api.ModelFactoryBase
     % MissionApiModels - Factory for creating Mission API calls models instances.
     % This class 
     
@@ -29,7 +29,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -42,7 +42,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -55,7 +55,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end        
         
 
@@ -66,7 +66,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end        
 
         % -------------------------------------------------------------------        
@@ -89,7 +89,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -100,7 +100,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -111,7 +111,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -150,7 +150,7 @@ classdef MissionApiModels < api.ModelFactoryBase
                 'select_all', select_all, ...
                 'debug_print', debug_print ...
             );
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -162,7 +162,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -173,7 +173,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -184,7 +184,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -195,7 +195,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
 
@@ -206,7 +206,7 @@ classdef MissionApiModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
     end    

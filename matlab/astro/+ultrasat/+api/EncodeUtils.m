@@ -30,13 +30,13 @@ classdef EncodeUtils < handle
     % 
     % % Base64 Encoding & Decoding
     % data = struct('Field1', 123, 'Field2', 'Test');
-    % encoded = api.EncodeUtils().saveObjectToBase64(data);
-    % decoded = api.EncodeUtils().loadObjectFromBase64(encoded);
+    % encoded = ultrasat.api.EncodeUtils().saveObjectToBase64(data);
+    % decoded = ultrasat.api.EncodeUtils().loadObjectFromBase64(encoded);
     % assert(api.ModelBase.cmpstruct(data, decoded)); % Validate integrity
     %
     % % 7z Compression & Decompression
-    % compressed = api.EncodeUtils().serializeToBase64_7z(data);
-    % decompressed = api.EncodeUtils().deserializeFromBase64_7z(compressed);
+    % compressed = ultrasat.api.EncodeUtils().serializeToBase64_7z(data);
+    % decompressed = ultrasat.api.EncodeUtils().deserializeFromBase64_7z(compressed);
     % assert(api.ModelBase.cmpstruct(data, decompressed)); % Validate integrity
     % 
     % See Also: jsonencode, jsondecode, base64encode, base64decode

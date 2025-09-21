@@ -13,7 +13,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
     % Provides communication with the Mission API server
     
     properties
-        Client          % api.ClientBase instance for HTTP requests
+        Client          % ultrasat.api.ClientBase instance for HTTP requests
         ApiUrl          % Base URL for API endpoints
     end
 
@@ -39,7 +39,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});
             
             % Initialize API client
-            obj.Client = api.ClientBase('SubUrl', Args.SubUrl);
+            obj.Client = ultrasat.api.ClientBase('SubUrl', Args.SubUrl);
             
             % Set API URL if provided
             if ~isempty(Args.ApiUrl)

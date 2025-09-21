@@ -1,7 +1,7 @@
 %==========================================================================
 % ULTRASAT 
 %
-% File:   api.ClientBase.m
+% File:   ultrasat.api.ClientBase.m
 % Author: Chen Tishler
 % Created: 01/12/2024
 % Updated: 11/02/2025
@@ -88,7 +88,7 @@ classdef ClientBase < handle
         % -----------------------------------------------------------------
 
         function response = postRequest(obj, endpoint, params)
-            % Sends a synchronous POST request to the API.
+            % Sends a synchronous POST request to the API
             %
             % :param endpoint: API endpoint path (appended to BaseUrl).
             % :param params: Struct containing request parameters.
@@ -106,12 +106,12 @@ classdef ClientBase < handle
             if isa(params, 'api.ModelBase')                
                 params = params.Data;
             elseif ~isstruct(params)
-                error('postRequest:InvalidParams', 'params must be a struct or an instance of api.ModelBase.');
+                error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.ModelBase.');
             end
 
             % Remove empty fields and convert to JSON
-            cleanedData = api.ModelBase.removeEmptyFields(params);
-            jsonData = api.ModelBase.struct2json(cleanedData);
+            cleanedData = ultrasat.api.ModelBase.removeEmptyFields(params);
+            jsonData = ultrasat.api.ModelBase.struct2json(cleanedData);
             jsonData = jsondecode(jsonData);
             
 
@@ -133,7 +133,7 @@ classdef ClientBase < handle
                 
                 if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
                     respJson = jsonencode(rawResponse.Body.Data);
-                    response = api.ModelBase.fromJson(respJson);  % rawResponse.Body.Data);
+                    response = ultrasat.api.ModelBase.fromJson(respJson);  % rawResponse.Body.Data);
                 else
                     error('HTTP Error: %s', char(rawResponse.StatusCode));
                 end
@@ -154,7 +154,7 @@ classdef ClientBase < handle
         % -----------------------------------------------------------------
 
         function postRequestAsync(obj, endpoint, params, callback)
-            % Sends an asynchronous POST request to the API.
+            % Sends an asynchronous POST request to the API
             %
             % :param endpoint: API endpoint path (appended to BaseUrl).
             % :param params: Struct containing request parameters.
@@ -169,7 +169,7 @@ classdef ClientBase < handle
             if isa(params, 'api.ModelBase')                
                 params = params.Data;
             elseif ~isstruct(params)
-                error('postRequest:InvalidParams', 'params must be a struct or an instance of api.ModelBase.');
+                error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.ModelBase.');
             end
 
             % Remove empty fields and convert to JSON
@@ -239,7 +239,7 @@ classdef ClientBase < handle
             % Logs a formatted message to the console.
             %
             % :param varargin: Formatted message arguments.
-            api.ApiUtils.msglog(obj.LogFileName, 'ClientBase', varargin{:});
+            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'ClientBase', varargin{:});
         end
 
     end

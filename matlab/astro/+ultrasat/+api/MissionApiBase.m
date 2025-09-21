@@ -17,9 +17,9 @@ classdef MissionApiBase < ultrasat.api.Loggable
     % Related files:
     %
     % Base API Client:
-    %   - api.ClientBase        - matlab/util/+api/ClientBase.m
-    %   - api.ModelBase         - matlab/util/+api/ModelBase.m
-    %   - api.ModelFactoryBase  - matlab/util/+api/ModelFactoryBase.m
+    %   - ultrasat.api.ClientBase        - matlab/util/+api/ClientBase.m
+    %   - ultrasat.api.ModelBase         - matlab/util/+api/ModelBase.m
+    %   - ultrasat.api.ModelFactoryBase  - matlab/util/+api/ModelFactoryBase.m
     %
     % Mission Control API Client
     %

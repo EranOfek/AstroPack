@@ -52,7 +52,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
         % -------------------------------------------------------------------
 
         function response = login(obj, UserName, Password, Namespace)
-            % Authenticates a user with the mission control API.
+            % Authenticates a user with the mission control API
             %
             % Parameters:
             %   UserName (string) - User name for authentication
@@ -68,7 +68,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
 
 
         function response = logout(obj, UserName)
-            % Logs out the current user from the mission control API.
+            % Logs out the current user from the mission control API
             %
             % Parameters:
             %   UserName (string) - Currently logged-in user name to verify

@@ -7,8 +7,8 @@
 % Updated: 11/02/2025
 %==========================================================================
 %
-% Debug function for api.ModelFactoryBase class
-% Run by: api.debug_ModelFactoryBase()
+% Debug function for ultrasat.api.ModelFactoryBase class
+% Run by: ultrasat.api.debug_ModelFactoryBase()
 %
 
 function debug_ModelFactoryBase()
@@ -27,7 +27,7 @@ function debug_ModelFactoryBase()
     disp(sampleStruct);
     
     % Convert the struct to JSON using the toJson method
-    jsonStr = api.ModelBase.struct2json(sampleStruct);
+    jsonStr = ultrasat.api.ModelBase.struct2json(sampleStruct);
     disp('JSON Representation of Struct:');
     disp(jsonStr);
     
@@ -37,7 +37,7 @@ function debug_ModelFactoryBase()
     disp(decodedStruct);   
 
     % Parse the JSON back into a MATLAB structure for validation
-    decodedStruct = api.ModelBase.json2struct(jsonStr);
+    decodedStruct = ultrasat.api.ModelBase.json2struct(jsonStr);
     disp('Decoded Struct from JSON:');
     disp(decodedStruct);   
 

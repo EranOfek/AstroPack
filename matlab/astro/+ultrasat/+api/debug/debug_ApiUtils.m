@@ -7,8 +7,8 @@
 % Updated: 20/02/2025
 %==========================================================================
 %
-% Debug function for api.ApiUtils class
-% Run by: api.debug_ApiUtils()
+% Debug function for ultrasat.api.ApiUtils class
+% Run by: ultrasat.api.debug_ApiUtils()
 %
 
 function debug_ApiUtils()
@@ -40,8 +40,8 @@ function debug_msglog()
     Prefix = 'TestLogger';
     
     % Test simple logging
-    api.ApiUtils.msglog(LogFileName, Prefix, 'This is a test log message.');
-    api.ApiUtils.msglog(LogFileName, Prefix, 'Another message with a number: %d', 42);
+    ultrasat.api.ApiUtils.msglog(LogFileName, Prefix, 'This is a test log message.');
+    ultrasat.api.ApiUtils.msglog(LogFileName, Prefix, 'Another message with a number: %d', 42);
     
     disp('msglog test completed. Check console and log file.');
 end
@@ -66,10 +66,10 @@ function debug_logException()
         error('TestError:InvalidOperation', 'This is a test exception.');
     catch ME
         % Log with stack trace
-        api.ApiUtils.logException(LogFileName, Prefix, ME, true, 'Caught an exception with stack trace.');
+        ultrasat.api.ApiUtils.logException(LogFileName, Prefix, ME, true, 'Caught an exception with stack trace.');
 
         % Log without stack trace
-        api.ApiUtils.logException(LogFileName, Prefix, ME, false, 'Caught an exception without stack trace.');
+        ultrasat.api.ApiUtils.logException(LogFileName, Prefix, ME, false, 'Caught an exception without stack trace.');
     end
     
     disp('logException test completed. Check console and log file.');

@@ -41,7 +41,7 @@ classdef ModelBase
 
         function jsonStr = toJson(obj)
             % Converts the Data property to a JSON string, converting datetime fields
-            jsonStr = api.ModelBase.struct2json(obj.Data);
+            jsonStr = ultrasat.api.ModelBase.struct2json(obj.Data);
         end
 
 
@@ -103,8 +103,8 @@ classdef ModelBase
 
         function js = class2json(obj)            
             % Converts a MATLAB class instance to a struct with all properties
-            data = api.ModelBase.class2struct(obj);
-            js = api.ModelBase.struct2json(data);
+            data = ultrasat.api.ModelBase.class2struct(obj);
+            js = ultrasat.api.ModelBase.struct2json(data);
         end        
 
 
@@ -123,14 +123,14 @@ classdef ModelBase
 
         function obj = json2class(js, className)
             % Converts a struct back to an instance of the specified class
-            data = api.ModelBase.json2struct(js);
-            obj = api.ModelBase.struct2class(data, className);
+            data = ultrasat.api.ModelBase.json2struct(js);
+            obj = ultrasat.api.ModelBase.struct2class(data, className);
         end
 
 
         function jsonStr = struct2json(Data)
             % Converts the Data property to a JSON string, converting datetime fields
-            jsonReadyData = api.ModelBase.convertDatetimeToString(Data);
+            jsonReadyData = ultrasat.api.ModelBase.convertDatetimeToString(Data);
             jsonStr = jsonencode(jsonReadyData);    
         end
 
@@ -142,7 +142,7 @@ classdef ModelBase
             % :param jsonStr: JSON string or a filename containing JSON.
             % :return: struct
             decodedStruct = jsondecode(jsonStr);
-            jsonStruct = api.ModelBase.convertStringToDatetime(decodedStruct);
+            jsonStruct = ultrasat.api.ModelBase.convertStringToDatetime(decodedStruct);
         end        
 
 
@@ -152,8 +152,8 @@ classdef ModelBase
             % (settings its Data property)
             %
             % :return: New instance of BaseModel class
-            Model = api.ModelBase([]);
-            Model.Data = api.ModelBase.json2struct(jsonStr);
+            Model = ultrasat.api.ModelBase([]);
+            Model.Data = ultrasat.api.ModelBase.json2struct(jsonStr);
         end        
 
 
@@ -173,7 +173,7 @@ classdef ModelBase
                     % Retain non-empty fields
                     if isstruct(value)
                         % Recursively clean nested structs
-                        cleanedData.(fields{i}) = api.ModelBase.removeEmptyFields(value);
+                        cleanedData.(fields{i}) = ultrasat.api.ModelBase.removeEmptyFields(value);
                     else
                         cleanedData.(fields{i}) = value;
                     end
@@ -214,7 +214,7 @@ classdef ModelBase
                     
                     % Convert datetime fields to ISO format if not empty
                     if isdatetime(value) && ~isempty(value)
-                        data.(fieldName) = api.ModelBase.isoFormat(value);  % Convert datetime to string
+                        data.(fieldName) = ultrasat.api.ModelBase.isoFormat(value);  % Convert datetime to string
                     
                     % Recursively handle struct fields
                     elseif isstruct(value)
@@ -224,12 +224,12 @@ classdef ModelBase
                         elseif numel(value) > 1
                             % Handle struct arrays
                             for j = 1:numel(value)
-                                value(j) = api.ModelBase.convertDatetimeToString(value(j));
+                                value(j) = ultrasat.api.ModelBase.convertDatetimeToString(value(j));
                             end
                             data.(fieldName) = value;
                         else
                             % Handle single struct
-                            data.(fieldName) = api.ModelBase.convertDatetimeToString(value);
+                            data.(fieldName) = ultrasat.api.ModelBase.convertDatetimeToString(value);
                         end
                     end
                 end
@@ -267,12 +267,12 @@ classdef ModelBase
                         elseif numel(value) > 1
                             % Handle struct arrays
                             for j = 1:numel(value)
-                                value(j) = api.ModelBase.convertStringToDatetime(value(j));
+                                value(j) = ultrasat.api.ModelBase.convertStringToDatetime(value(j));
                             end
                             data.(fieldName) = value;
                         else
                             % Handle single struct
-                            data.(fieldName) = api.ModelBase.convertStringToDatetime(value);
+                            data.(fieldName) = ultrasat.api.ModelBase.convertStringToDatetime(value);
                         end
                     end
                 end

@@ -1,4 +1,4 @@
-classdef SkyExposureTrackerClient < api.ClientBase
+classdef SkyExposureTrackerClient < ultrasat.api.ClientBase
     % 
     
     properties

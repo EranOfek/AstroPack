@@ -20,7 +20,7 @@ classdef ModelFactoryBase < handle
     % - Defines a standard structure for model creation.
     % - Converts MATLAB structs to JSON format.
     % - Used in conjunction with `ModelBase` to ensure compatibility with 
-    %   the backend API.
+    %   the backend API
     %
     % Typical Usage:
     % - Subclasses of `ModelFactoryBase` define specific models.

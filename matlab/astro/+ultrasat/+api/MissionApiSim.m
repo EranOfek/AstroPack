@@ -433,7 +433,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             planStruct = rmfield(planStruct, 'planner');  % Remove planner for JSON
 
             % Convert datetime objects to iso format
-            planStruct = api.ModelBase.convertDatetimeToString(planStruct);
+            planStruct = ultrasat.api.ModelBase.convertDatetimeToString(planStruct);
 
             obj.ApiSimProvider.WriteJsonFile(jsonFile, planStruct);
         

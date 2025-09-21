@@ -7,8 +7,8 @@
 % Updated: 11/02/2025
 %==========================================================================
 %
-% Debug function for api.BaseModel class
-% Run by: api.debug_ModelBase()
+% Debug function for ultrasat.api.BaseModel class
+% Run by: ultrasat.api.debug_ModelBase()
 %
 
 function debug_ModelBase()
@@ -29,7 +29,7 @@ function debug_ModelBase()
     disp(sampleData);
     
     % Instantiate the ModelBase object
-    model = api.ModelBase(sampleData);
+    model = ultrasat.api.ModelBase(sampleData);
     
     % Show the model's data
     disp('Model Data:');
@@ -41,12 +41,12 @@ function debug_ModelBase()
     disp(jsonStr);
     
     % Test the removeEmptyFields method
-    cleanedData = api.ModelBase.removeEmptyFields(sampleData);
+    cleanedData = ultrasat.api.ModelBase.removeEmptyFields(sampleData);
     disp('Cleaned Data (Empty Fields Removed):');
     disp(cleanedData);
     
     % Test the isoFormat method with the current timestamp
-    isoTimestamp = api.ModelBase.isoFormat(datetime('now'));
+    isoTimestamp = ultrasat.api.ModelBase.isoFormat(datetime('now'));
     disp('ISO Formatted Timestamp:');
     disp(isoTimestamp);
     
@@ -59,16 +59,16 @@ end
 
 function debug_to_from_struct()
     % Create an instance of TestModel
-    originalObj = api.debug_ModelBase_MyClass();
+    originalObj = ultrasat.api.debug_ModelBase_MyClass();
     
     % Convert class to struct
-    s = api.ModelBase.class2struct(originalObj);
+    s = ultrasat.api.ModelBase.class2struct(originalObj);
     disp('Converted to struct:');
     disp(s);
     disp(jsonencode(s));
 
     % Convert struct back to class
-    reconstructedObj = api.ModelBase.struct2class(s, 'api.debug_ModelBase_MyClass');
+    reconstructedObj = ultrasat.api.ModelBase.struct2class(s, 'api.debug_ModelBase_MyClass');
     disp('Reconstructed object:');
     disp(reconstructedObj);
     
