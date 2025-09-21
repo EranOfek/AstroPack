@@ -57,6 +57,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.RefRangeMag                         = [10 17.0];  % [12 18]
         Args.SearchRadius                        = 6;
         Args.FilterSigma                         = 3;
+        
+        % Dynamic definition of RefRangeMag:
+        Args.KeyExpTime                          = 'EXPTIME';
+        Args.RefRangeMagExpTimeFun               = @(ET) 1.8.*log10(ET);
+
     end
     
     if Args.CreateNewObj
@@ -64,6 +69,14 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     else
         ResultObj = Obj;
     end
+    
+    ExpTime = ResultObj(1).HeaderData.getVal(Args.KeyExpTime);
+    if ~isnan(ExpTime) && ~isempty(Args.RefRangeMagExpTimeFun)
+        Diff = diff(Args.RefRangeMagExpTimeFun([20 ExpTime]));
+        
+        Args.RefRangeMag = Args.RefRangeMag + Diff;
+    end
+        
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);

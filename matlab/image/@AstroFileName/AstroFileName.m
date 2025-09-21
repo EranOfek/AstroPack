@@ -62,6 +62,10 @@
 % A=AstroFileName(OT(F,:),'JDCol','MIDJD');
 % A.genPath([],'AddSubDir',true)
 %
+% Examples related to writing file names:
+% FN_I.genPath('PathType','proc')
+% FN_I.generateSubDir
+%
 
 classdef AstroFileName < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
@@ -524,6 +528,35 @@ classdef AstroFileName < Component
             end
             Obj.Path = Val;
         end
+
+        function Obj = set.BasePath(Obj, Val)
+            % Setter for BasePath
+
+            if ischar(Val)
+                Val = string(Val);
+            end
+            Obj.BasePath = Val;
+        end
+
+        function Obj = set.BasePathRef(Obj, Val)
+            % Setter for BasePathRef
+
+            if ischar(Val)
+                Val = string(Val);
+            end
+            Obj.BasePathRef = Val;
+        end
+
+        % function Val = get.SubDir(Obj)
+        %     % Getter for SubDir
+        % 
+        %     if ischar(Obj.SubDir) || iscell(Obj.SubDir)
+        %         Val = string(Obj.SubDir);
+        %     end
+        %     Obj.SubDir = Val;
+        % end
+
+
     end
       
     methods (Static) % construction
@@ -1863,14 +1896,14 @@ classdef AstroFileName < Component
                        
                         if BasePathIncludeProjName
                             ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
-                            if Args.AddSubDir
+                            if AddSubDir
                                 Result = join([BasePathStr, ProjStr, YMD, repmat("proc", Nind, 1), VisitStr], filesep);
                             else
                                 Result = join([BasePathStr, ProjStr, YMD, repmat("proc", Nind, 1)], filesep);
                             end
                                 
                         else
-                            if Args.AddSubDir
+                            if AddSubDir
                                 Result = join([BasePathStr, YMD, repmat("proc", Nind, 1), VisitStr], filesep);
                             else
                                 Result = join([BasePathStr, YMD, repmat("proc", Nind, 1)], filesep);
@@ -1963,6 +1996,118 @@ classdef AstroFileName < Component
             
             
         end
+
+
+        function [Result, Path, File] = genFullPath(AFN_I, Args)
+            % Generate path+file name for all scenarios.
+            % Input  : - self.
+            %          * ...,key,val,... 
+            %            'PathType' - If the object "Path" property is
+            %                   populated, then the path will be retrieved
+            %                   from this property. Otherwise, will be
+            %                   work according to one of the following
+            %                   options:
+            %                   'proc' - Path of the form:
+            %                           /BasePath/ProjName/YYYY/MM/DD/proc/SubDir
+            %                   'raw' - Path of the form:
+            %                           /BasePath/ProjName/YYYY/MM/DD/raw
+            %                   'new'|'calib'|'failed' - Path of the form:
+            %                           /BasePath/ProjName/<new>
+            %                   'ref' - Get the reference images file names
+            %                           using genRefPath.
+            %                           Answer is of the form:
+            %                           /RefBasePath/FieldID
+            %                   Default is 'proc'.
+            %            'BasePathIncludeProjName' - A logical indicating
+            %                   if the path includes the ProjName string.
+            %                   If empty, then read it from the object
+            %                   property.
+            %                   Default is [].
+            %            'AddSubDir' - Like BasePathIncludeProjName but for
+            %                   adding the SubDir string. Default is [].
+            %            'Type' - AstroFileName Type. If empty, use object
+            %                   property. Default is [].
+            %            'Level' - AstroFileName Level. If empty, use object
+            %                   property. Default is [].
+            %            'Product' - AstroFileName Product. If empty, use object
+            %                   property. Default is [].
+            %            'BasePath' - AstroFileName BasePath. If empty, use object
+            %                   property. Default is [].
+            %            'BasePathRef' - AstroFileName BasePathRef. If empty, use object
+            %                   property. Default is [].
+            %            'Path' - Full Path. Default is [].
+            %            'CreateNewObj' - Create new object.
+            %                   Default is true.
+            % Output : - A string array of full paths.
+            %          - A string array of paths.
+            %          - A string array of file names.
+            % Author : Eran Ofek (2025 Sep) 
+            % Example: [Full,Path,File]=FN_I.genFullPath('PathType','proc','Level','proc','BasePath','/marvin','Product','PSF');
+            %          [Full,Path,File]=FN_I.genFullPath('PathType','failed');
+            %          [Full,Path,File]=FN_I.genFullPath('PathType','raw');
+            %          [Full,Path,File]=FN_I.genFullPath('PathType','new');
+        
+            arguments
+                
+                AFN_I
+                Args.PathType                 = 'proc';
+                Args.BasePathIncludeProjName  = [];
+                Args.AddSubDir                = [];
+
+                Args.Type                     = [];
+                Args.Level                    = [];
+                Args.Product                  = [];
+
+                Args.BasePath                 = [];
+                Args.BasePathRef              = [];
+                
+                Args.Path                     = [];
+
+                Args.CreateNewObj logical     = true;
+            end
+
+            if Args.CreateNewObj
+                AFN = AFN_I.copy;
+            else
+                AFN = AFN_I;
+            end
+        
+            if ~isempty(Args.BasePath)
+                AFN.BasePath = Args.BasePath;
+            end
+            if ~isempty(Args.BasePathRef)
+                AFN.BasePathRef = Args.BasePathRef;
+            end
+            if ~isempty(Args.AddSubDir)
+                AFN.AddSubDir = Args.AddSubDir;
+            end
+            if ~isempty(Args.Type)
+                AFN.Type = Args.Type;
+            end
+            if ~isempty(Args.Level)
+                AFN.Level = Args.Level;
+            end
+            if ~isempty(Args.Product)
+                AFN.Product = Args.Product;
+            end
+
+            % for Args.Path the treatment is different
+            AFN.Path = Args.Path;
+            
+            Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',Args.BasePathIncludeProjName);
+        
+            if strcmp(Args.PathType, 'proc')
+                AFN.generateSubDir('UpdateSubDir',true);
+            end
+            File = AFN.genFile();
+            Nf   = numel(File);
+            Result = join([Path,repmat(filesep, Nf,1),File],'',2);
+            
+        
+        end
+
+
+
     
         % DONE
         function Result = genProducts(Obj, Ind, Args)
@@ -2162,19 +2307,19 @@ classdef AstroFileName < Component
             
             PWD = pwd;
             PathAboveVisit = Obj.genPath(1, 'PathType','proc', 'AddSubDir',false);
-            cd(PathAboveList);
+            cd(PathAboveVisit);
             DirList = io.files.dirDir;
             
             switch lower(Args.Method)
                 case 'funjd'
                     FJD = Args.FunJD(Obj.JD);
                     HMS = celestial.time.jd2date(FJD, 'H');
-                    Result = sprintf('%02d%02d%02d',HMS(4:6));
+                    Result = sprintf('%02d%02d%02d',floor(HMS(4:6)));
                     
                     if Args.AddVersion
                         % search existing StrHMS
                         StrFolder = string({DirList.folder});
-                        FlagContain = contains(StrFolder, StrHMS);
+                        FlagContain = contains(StrFolder, Result);
                         Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
                         AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
                         MaxVersion  = max(AllVersions);
@@ -2205,10 +2350,213 @@ classdef AstroFileName < Component
             cd(PWD);
         end
                 
+    
+        function [Result,Obj] = nextSubDir(Obj, Args)
+            % Given SubDir which is a running numeric index, check which
+            %   directories exist in FileNames path and return the next
+            %   SubDir name
+            % Input  : - A FileNames object from which a path can be
+            %            generated using genPath.
+            %          * ...,key,val,...
+            %            'OneIfEmpty' - A logical indicating if to return
+            %                   SubDir='1', if directory does not exist
+            %                   (if false will return []).
+            %                   Default is true.
+            %            'UseTime' - A logical indicating if the SubDir
+            %                   string is a time stamp (true), or number (false).
+            %                   If true, then the SubDir will be of the
+            %                   format HHMMSSv#, where number indicate if
+            %                   there is more than one dir with this time
+            %                   stampe. First dir alwas have v0.
+            %                   Default is false.
+            % Output : - A char array containing the suggested SubDir name
+            %            that does not exist in path. 
+            %          - Only if the second argument is requested, then the
+            %            will update and return the FileNames object with
+            %            the new SubDir directory.
+            % Author : Eran Ofek (Dec 2022)
+           
+            arguments
+                Obj
+                Args.OneIfEmpty logical   = true;
+                Args.UseTime logical      = true;
+            end
+
+            Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
+            Dir  = dir(Path);
+            Dir  = Dir([Dir.isdir]);
+            
+            if Args.UseTime
+                % SubDir is a time stamp
+                %File = Obj.genFile;
+                Obj.julday2time;
+                SpTime  = split(Obj.Time{1},'.');
+                Result  = SpTime{2};
+                Flag    = contains({Dir.name}, Result);
+                Version = sum(Flag);
+                Result  = sprintf('%sv%d',Result, Version);
+            else
+                % SUbDir is a number
+                if isempty(Dir) && Args.OneIfEmpty
+                    Result = '1';
+                else
+                    % select non-hidden directories
+                    Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
+                    
+                    NumDir = str2double({Dir(Flag).name});
+                    if isempty(NumDir) && Args.OneIfEmpty
+                        Result = '1';
+                    else
+                        Result = sprintf('%d',max(NumDir) + 1);
+                    end
+                end
+            end
+
+            if nargout>1
+                % update SubDir
+                Obj.SubDir = Result;
+            end
+        
+                        
+        end
     end
 
     methods % header utilities        
-        
+        function Result=updateFromObjectInfo(Obj, DataObj, Args)
+            % Update an AstroFileName object using the metadata
+            %   Update the Time, CropID, and Counter in a FileNames object
+            %   from the header information of an AstroImage object, or JD
+            %   and counters of AstroCatalog and MatchedSources objects.
+            % Input  : - self.
+            %            For size restriction see the 'SelectFirst'
+            %            argument.
+            %          - A AstroImage/AstroCatalog/MatchedSources object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create a new copy of the input
+            %                   object. Default is true.
+            %            'SelectFirst' - A logical indicating if to take
+            %                   the rest of the FileNames properties from
+            %                   the first file in FileNames.
+            %                   Default is true.
+            %                   If false, then number of elements in
+            %                   FileNames must be 1 or equal to the number
+            %                   of elements in the AstroImage object.
+            %            'GetHeaderJD' - Update JD from header. Default is true.
+            %            'AI_CropID_FromHeader' - Update CropID from AstroImage header.
+            %                   Default is true.
+            %            'CropID_FromIndex' - For non AstroImage inputs,
+            %                   update CropID from object element index.
+            %                   Default is true.
+            %            'AI_Counter_FromHeader' - Update Counter from AstroImage header.
+            %                   Default is true.
+            %            'Counter_Zero' - For non AstroImage inputs,
+            %                   update Counter to 0.
+            %                   Default is true.
+            %            'KeyCropID' - Header keyword containing the
+            %                   CropID. Default is 'CROPID'.
+            %            'KeyCounter' - Header keyword containing the
+            %                   Counter. Default is 'COUNTER'.
+            % Output : - An updated FileNames object.
+            %            Number of files equal and corresponding to the
+            %            number of AstroImage elements.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
+
+            arguments
+                Obj
+                DataObj
+
+                Args.CreateNewObj logical   = true;
+                Args.SelectFirst logical    = true;
+                
+                Args.GetHeaderJD logical       = true;
+
+                Args.AI_CropID_FromHeader logical  = true;
+                Args.CropID_FromIndex logical      = true;
+
+                Args.AI_Counter_FromHeader logical = true;
+                Args.Counter_Zero logical          = true;
+
+                Args.KeyCropID              = 'CROPID';
+                Args.KeyCounter             = 'COUNTER';
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            if Args.SelectFirst
+                Result.reorderEntries(1);
+            end
+
+            Nfiles = Result.nFiles;
+            Ndo    = numel(DataObj);
+
+            if ~(Nfiles==1 || Ndo==Nfiles)
+                error('FileNames object number of files must be 1 or equal to the number of elements in the data object');
+            end
+
+            if Args.GetHeaderJD
+                switch class(DataObj)
+                    case 'MatchedSources'
+                        JD = DataObj.juldayFun('mid');
+                    case {'AstroImage','AstroCatalog'}
+                        JD = DataObj.julday;
+                    otherwise
+                        error('Unknwon class of DataObj');
+                end
+            else
+                JD = [];
+            end
+            JD = JD(:);
+
+            U_JD    = nan(Ndo,1);
+            CropID  = nan(Ndo,1);
+            Counter = nan(Ndo,1);
+
+
+            switch class(DataObj)
+                case {'AstroImage'}
+                    for Ido=1:1:Ndo
+                        if Args.AI_CropID_FromHeader 
+                            CropID(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCropID);
+                        else
+                            CropID = [];
+                        end
+                        if Args.AI_Counter_FromHeader
+                            Counter(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCounter);
+                        else
+                            Counter = [];
+                        end
+                    end
+
+
+                case {'MatchedSources','AstroCatalog'}
+                    if Args.CropID_FromIndex
+                        CropID = (1:1:Ndo).';
+                    else
+                        CropID = [];
+                    end
+                    
+                    if Args.Counter_Zero
+                        Counter = 0;
+                    else
+                        Counter = [];
+                    end
+
+
+                otherwise
+                    error('Unknown class of DataObj');
+            end
+
+            Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',JD);
+            
+        end
+
+
+
         % DONE
         function AIH=write2header(Obj, AIH, Args)
             % Update header with properties info
