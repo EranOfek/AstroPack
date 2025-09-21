@@ -37,7 +37,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                        for the coadded New image. Default is 18.
                 'MaximumCenterOffset' - The maximum offset between the New 
                        and Ref center coordinates. Default is 2.0.
-                'MinumumOverlapFraction' - The minimum overlap between the 
+                'MinimumOverlapFraction' - The minimum overlap between the 
                        New and Ref images as a fraction. Default is 0.5.
                 'AsteroidSearchRad' - Radius around each transient 
                        candidate with which to search for asteroids in New
@@ -73,7 +73,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
         Args.MinimumNCoadd = 18;
         Args.MaximumCenterOffset = 0.86;
-        Args.MinumumOverlapFraction = 0.5;
+        Args.MinimumOverlapFraction = 0.5;
 
         Args.AsteroidSearchRad = 10;
         Args.AsteroidLimMag = 21.5;
@@ -336,7 +336,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         FractionNotNaNs = (1-NaNs / TotalNumPixels);
         % If fraction of not-NaNs is below minumum overlap fraction,
         % remember and remove AstroDiff object.
-        if FractionNotNaNs < Args.MinumumOverlapFraction
+        if FractionNotNaNs < Args.MinimumOverlapFraction
             NotEnoughOverlap = NotEnoughOverlap +1;
             AD(Iobj) = [];
         end
