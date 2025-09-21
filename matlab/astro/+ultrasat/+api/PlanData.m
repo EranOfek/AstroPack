@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   PlanData.m
-% Author: Chen Tishler
-% Created: 17/02/2025
-% Updated: 17/03/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.PlanData.m
+% Author      : Chen Tishler
+% Created     : 17/02/2025
+% Updated     : 21/09/2025
+% Description : Data class for plan data.
 %==========================================================================
 
 classdef PlanData < handle

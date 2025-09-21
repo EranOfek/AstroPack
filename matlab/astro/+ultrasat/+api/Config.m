@@ -1,12 +1,11 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
-%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.Config.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Configuration class for the API.
+%========================================================================== 
 
 classdef Config < handle
     %LOGGABLE A base class that provides logging to the console and a file.

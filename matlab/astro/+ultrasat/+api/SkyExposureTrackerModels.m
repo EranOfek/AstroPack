@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.SkyExposureTrackerModels.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Factory for creating SkyExposureTracker models.
+%==========================================================================
+
 classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
     % Factory for creating SkyExposureTracker models.
 

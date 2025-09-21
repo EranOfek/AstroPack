@@ -1,14 +1,13 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.api.ClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 11/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.ClientBase.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Base class for interacting with REST API services.
 %==========================================================================
 
-classdef ClientBase < handle
+classdef ClientBase < ultrasat.api.Loggable
     % ClientBase - Base class for interacting with REST API services.
     % https://chatgpt.com/c/6756dedd-4c2c-8012-adad-4772c6780623
     % This class provides a standardized interface for communicating with 
@@ -233,15 +232,6 @@ classdef ClientBase < handle
             obj.msglog(sprintf('Response Body: %s', response.Body.Data));
         end
         
-        % -----------------------------------------------------------------
-
-        function msglog(obj, varargin)
-            % Logs a formatted message to the console.
-            %
-            % :param varargin: Formatted message arguments.
-            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'ClientBase', varargin{:});
-        end
-
     end
 
     % ---------------------------------------------------------------------

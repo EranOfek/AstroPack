@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.ApiSimProvider.m
-% Author: Chen Tishler
-% Created: 14/09/2025
-% Updated: 14/09/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.ApiSimProvider.m
+% Author      : Chen Tishler
+% Created     : 14/09/2025
+% Updated     : 21/09/2025
+% Description : Provides a unified interface for file operations, simulating an API backend.
 %==========================================================================
 
 classdef ApiSimProvider < ultrasat.api.Loggable
@@ -54,7 +53,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             obj.LogPrefix = 'ApiSimProvider';
             obj.BasePath = basePath;
 
-            config = ultrasat.api.config.getApiConfig();
+            config = ultrasat.api.Config.getApiConfig();
             obj.Mode = config.mode;
 
             if strcmp(obj.Mode, 'client')

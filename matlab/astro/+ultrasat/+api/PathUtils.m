@@ -1,15 +1,15 @@
 % ***************************************************************************
-% Project     : CT-Library for MATLAB
+% Project     : ULTRASAT Observation Planner
 % Filename    : PathUtils.m
 % Author      : Chen Tishler
 % Created     : 16/09/2025
-% Modified    : 17/09/2025
+% Modified    : 21/09/2025
 % Description : Utility functions for path operations
 % ***************************************************************************
 
 % PathUtils - Utility functions for system-wide path operations.
 % VERSION: char-based for compatibility with older MATLAB versions or specific requirements.
-classdef PathUtils
+classdef PathUtils < handle
     methods (Static)
         function val = BasePath(newVal)
             persistent basePath
@@ -25,7 +25,7 @@ classdef PathUtils
         function val = NamespaceId(newVal)
             persistent nsId
             if isempty(nsId)
-                nsId = '';
+                nsId = 'OPER';
             end
             if nargin > 0
                 nsId = newVal;

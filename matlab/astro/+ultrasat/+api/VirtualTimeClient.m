@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.VirtualTimeClient.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Derived class for virtual time management.
+%==========================================================================
+    
 classdef VirtualTimeClient < ultrasat.api.ClientBase
     % VirtualTimeClient - Derived class for virtual time management.
     

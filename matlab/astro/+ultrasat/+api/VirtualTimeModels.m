@@ -1,3 +1,11 @@
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.VirtualTimeModels.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Factory for creating VirtualTime models.
+%==========================================================================
 
 classdef VirtualTimeModels < ultrasat.api.ModelFactoryBase
     % VirtualTimeModels - Factory for creating VirtualTime model instances.
