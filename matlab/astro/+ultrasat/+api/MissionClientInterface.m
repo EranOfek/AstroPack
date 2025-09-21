@@ -1,14 +1,14 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientInterface.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionClientInterface.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Interface class for mission control API clients.
+%               Created in MainModule.ApiInterface, used by 'uplanner'.
 %==========================================================================
 
-classdef MissionClientInterface < handle
+classdef MissionClientInterface < ultrasat.api.Loggable
     % This class serves as the interface between MissionClient/MissionClientSim
     % and the uplanner class.
     %
@@ -169,19 +169,6 @@ classdef MissionClientInterface < handle
             %     .message - Description message (if error)
             %     .data - Array of exposure data structures (if successful)
             %     .ok - Boolean indicating success (true) or failure (false)
-        end
-
-        % -------------------------------------------------------------------
-
-        function msglog(obj, varargin)
-            % Logs a formatted message to the console.
-            %
-            % Parameters:
-            %   varargin - Variable arguments for fprintf-style formatting
-            %
-            % Notes:
-            %   This method adds a 'Client: ' prefix to all log messages
-            obj.ApiClient.msglog(varargin{:});
         end
 
     end

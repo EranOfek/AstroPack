@@ -1,14 +1,14 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   EncodeUtils.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 11/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.EncodeUtils.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Utility class for encoding, compression, and serialization.
 %==========================================================================
 
-classdef EncodeUtils < handle
+
+classdef EncodeUtils < ultrasat.api.Loggable
     % EncodeUtils - Utility class for encoding, compression, and serialization.
     %
     % This class provides utility functions for handling data serialization 
@@ -30,13 +30,13 @@ classdef EncodeUtils < handle
     % 
     % % Base64 Encoding & Decoding
     % data = struct('Field1', 123, 'Field2', 'Test');
-    % encoded = api.EncodeUtils().saveObjectToBase64(data);
-    % decoded = api.EncodeUtils().loadObjectFromBase64(encoded);
+    % encoded = ultrasat.api.EncodeUtils().saveObjectToBase64(data);
+    % decoded = ultrasat.api.EncodeUtils().loadObjectFromBase64(encoded);
     % assert(api.ModelBase.cmpstruct(data, decoded)); % Validate integrity
     %
     % % 7z Compression & Decompression
-    % compressed = api.EncodeUtils().serializeToBase64_7z(data);
-    % decompressed = api.EncodeUtils().deserializeFromBase64_7z(compressed);
+    % compressed = ultrasat.api.EncodeUtils().serializeToBase64_7z(data);
+    % decompressed = ultrasat.api.EncodeUtils().deserializeFromBase64_7z(compressed);
     % assert(api.ModelBase.cmpstruct(data, decompressed)); % Validate integrity
     % 
     % See Also: jsonencode, jsondecode, base64encode, base64decode
@@ -219,18 +219,6 @@ classdef EncodeUtils < handle
             
             % Return the path to the decompressed MAT file
             outputFile = fullfile(outputDir, files(1).name);
-        end
-
-        % -----------------------------------------------------------------
-
-        function msglog(obj, varargin)
-            % Logs a formatted message to the console.
-            %
-            % :param varargin: Formatted message arguments.
-            
-            fprintf('EncodeUtils: ');
-            fprintf(varargin{:});
-            fprintf('\n');
         end
 
     end

@@ -1,66 +1,89 @@
 function debug_PathUtils()
-    % debug_PathUtils - Tests the path utilities.
-    fprintf('--- Testing Path Utilities ---\n');
+    % debug_PathUtils - A comprehensive test script for the PathUtils class.
+    
+    import ultrasat.api.PathUtils;
 
-    % Set up test base path and namespace
-    ultrasat.api.PathUtils.setBasePath('/tmp/ultrasat');
-    ultrasat.api.PathUtils.setNamespaceId('SIM1');
+    fprintf('--- Testing PathUtils Class ---\n\n');
+    
+    % --- Setup ---
+    % Use a temporary directory for testing to avoid cluttering real paths.
+    basePath = fullfile('c:/soc/debug', 'matlab_PathUtils');
+    if exist(basePath, 'dir')
+        %rmdir(basePath, 's'); % Clean up from previous runs
+    end
+    mkdir(basePath);
+    
+    fprintf('1. SETUP: Configuring static properties...\n');
+    PathUtils.setBasePath(basePath);
 
-    % Test combinations: with/without module, with/without namespace
+    PathUtils.setNamespaceId('SIM1'); % Set a test namespace
+    
+    % Create a specific datetime for predictable results in daily functions
+    testDate = datetime(2025, 12, 30, 10, 0, 0, 'TimeZone', 'UTC');
+    
+    fprintf('   Base Path set to: %s\n', PathUtils.BasePath);
+    fprintf('   NamespaceId set to: %s\n', PathUtils.NamespaceId);
+    fprintf('   Test Date set to: %s\n\n', string(testDate));
 
-    % 1. getGlobalDataPath
-    fprintf('Testing getGlobalDataPath...\n');
-    disp('  No module:');
-    disp(ultrasat.api.PathUtils.getGlobalDataPath());
-    disp('  With module:');
-    disp(ultrasat.api.PathUtils.getGlobalDataPath('mod1'));
-    disp('  With module and relativePath:');
-    disp(ultrasat.api.PathUtils.getGlobalDataPath('mod1', 'file1.txt'));
-    disp('  No module, with relativePath:');
-    disp(ultrasat.api.PathUtils.getGlobalDataPath('', 'file2.txt'));
+    % --- Test Folder Methods ---
+    fprintf('2. TESTING FOLDER METHODS...\n');
+    disp('  a) getGlobalDataFolder(module, subfolder):');
+    disp(PathUtils.getGlobalDataFolder('mission', 'images'));
 
-    % 2. getNamespaceDataPath
-    fprintf('Testing getNamespaceDataPath...\n');
-    disp('  No module:');
-    disp(ultrasat.api.PathUtils.getNamespaceDataPath());
-    disp('  With module:');
-    disp(ultrasat.api.PathUtils.getNamespaceDataPath('mod2'));
-    disp('  With module and relativePath:');
-    disp(ultrasat.api.PathUtils.getNamespaceDataPath('mod2', 'file3.txt'));
-    disp('  No module, with relativePath:');
-    disp(ultrasat.api.PathUtils.getNamespaceDataPath('', 'file4.txt'));
+    disp('  b) getNamespaceDataFolder(module, subfolder) -> uses default NS "SIM1":');
+    disp(PathUtils.getNamespaceDataFolder('mission', 'products'));
+    
+    disp('  c) getNamespaceDataFolder(..., NamespaceId=...) -> override NS:');
+    disp(PathUtils.getNamespaceDataFolder('mission', 'products', NamespaceId='TEST'));
 
-    % 3. getGlobalLogPath
-    fprintf('Testing getGlobalLogPath...\n');
-    disp('  No module:');
-    disp(ultrasat.api.PathUtils.getGlobalLogPath());
-    disp('  With module:');
-    disp(ultrasat.api.PathUtils.getGlobalLogPath('mod3'));
-    disp('  With module and relativePath:');
-    disp(ultrasat.api.PathUtils.getGlobalLogPath('mod3', 'log1.txt'));
-    disp('  No module, with relativePath:');
-    disp(ultrasat.api.PathUtils.getGlobalLogPath('', 'log2.txt'));
+    disp('  d) getGlobalDailyDataFolder(..., DT=...):');
+    disp(PathUtils.getGlobalDailyDataFolder('telemetry', 'raw', DT=testDate));
 
-    % 4. getNamespaceLogPath
-    fprintf('Testing getNamespaceLogPath...\n');
-    disp('  No module:');
-    disp(ultrasat.api.PathUtils.getNamespaceLogPath());
-    disp('  With module:');
-    disp(ultrasat.api.PathUtils.getNamespaceLogPath('mod4'));
-    disp('  With module and fileName:');
-    disp(ultrasat.api.PathUtils.getNamespaceLogPath('mod4', 'log3.txt'));
-    disp('  No module, with fileName:');
-    disp(ultrasat.api.PathUtils.getNamespaceLogPath('', 'log4.txt'));
+    disp('  e) getNamespaceDailyDataFolder(..., DT=...):');
+    disp(PathUtils.getNamespaceDailyDataFolder('telemetry', 'processed', DT=testDate));
+    fprintf('\n');
 
-    % Test with namespace unset (should use default)
-    ultrasat.api.PathUtils.setNamespaceId('');
-    fprintf('Testing getNamespaceDataPath with default namespace...\n');
-    disp(ultrasat.api.PathUtils.getNamespaceDataPath('mod5', 'file5.txt'));
+    % --- Test Filename Methods ---
+    fprintf('3. TESTING FILENAME METHODS...\n');
+    disp('  a) getGlobalDataFilename(module, subfolder, file):');
+    disp(PathUtils.getGlobalDataFilename('config', '', 'settings.json'));
+    
+    disp('  b) getNamespaceDataFilename(module, subfolder, file):');
+    disp(PathUtils.getNamespaceDataFilename('planning', 'targets', 'schedule.csv'));
+    
+    disp('  c) getGlobalDailyDataFilename(..., IncludeTimestampInFilename=true):');
+    disp(PathUtils.getGlobalDailyDataFilename('images', 'raw', 'frame.fits', ...
+                                                           DT=testDate, IncludeTimestampInFilename=true));
+                                                       
+    disp('  d) getGlobalDailyDataFilename(..., IncludeTimestampInFilename=false):');
+    disp(PathUtils.getGlobalDailyDataFilename('images', 'raw', 'frame.fits', ...
+                                                           DT=testDate, IncludeTimestampInFilename=false));
 
-    fprintf('Testing getNamespaceLogPath with default namespace...\n');
-    disp(ultrasat.api.PathUtils.getNamespaceLogPath('mod6', 'log5.txt'));
+    disp('  e) getNamespaceDailyDataFilename(..., IncludeTimestampInFilename=true):');
+    disp(PathUtils.getNamespaceDailyDataFilename('images', 'processed', 'calibrated.fits', ...
+                                                              DT=testDate, IncludeTimestampInFilename=true));
+    fprintf('\n');
+
+    % --- Test Log Filename Methods ---
+    fprintf('4. TESTING LOG FILENAME METHODS...\n');
+    disp('  a) getGlobalLogFilename(module, file) -> uses current date:');
+    disp(PathUtils.getGlobalLogFilename('scheduler', 'run_summary')); % Note: date will be today's date
+    
+    disp('  b) getNamespaceLogFilename(module, file, DT=...):');
+    disp(PathUtils.getNamespaceLogFilename('processor', 'image_proc.log', DT=testDate));
+    fprintf('\n');
+
+    % --- Test Default Namespace Fallback ---
+    fprintf('5. TESTING DEFAULT NAMESPACE FALLBACK...\n');
+    PathUtils.setNamespaceId(''); % Unset the static property
+    fprintf('   NamespaceId cleared. Now calling namespace functions...\n');
+    
+    disp('  a) getNamespaceDataFolder -> should fall back to "OPER":');
+    disp(PathUtils.getNamespaceDataFolder('final', 'reports'));
+    
+    disp('  b) getNamespaceLogFilename -> should fall back to "OPER":');
+    disp(PathUtils.getNamespaceLogFilename('housekeeping', 'health.log', DT=testDate));
+    fprintf('\n');
 
     fprintf('--- Path Utilities tests complete ---\n');
-    fprintf('----------------------------------------\n\n');
 end
-

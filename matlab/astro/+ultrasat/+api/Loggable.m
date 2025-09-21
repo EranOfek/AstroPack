@@ -1,34 +1,42 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.Loggable.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Base class for logging.
 %==========================================================================
 
+
 classdef Loggable < handle
-    %LOGGABLE A base class that provides logging to the console and a file.
+    %L OGGABLE A base class that provides logging to the console and a file.
     %   Classes that inherit from Loggable gain access to the msglog method,
     %   which handles timestamping, formatting, and writing log entries to
     %   both the MATLAB command window and a central log file.
 
-    properties (Access = protected)
+    properties (Access = public)
         % The full path to the log file. Determined by the constructor.
         LogFilePath char = ''
 
         % A prefix string to identify which class is logging the message.
         % Subclasses should set this in their constructor.
         LogPrefix char = 'Loggable';
+
+        LogBasePath char = ''
     end
 
 
     methods
         function obj = Loggable()
-            %LOGGABLE Construct an instance of the Loggable class.
+            % Construct an instance of the Loggable class.
             %   This constructor resolves the log file path and ensures the
             %   containing directory exists.
+
+            obj.LogBasePath = getenv('SOC_PATH');
+            if isempty(obj.LogBasePath)
+                error('SOC_PATH env must be set (~/soc or c:/soc on Windows');
+            end
+
             try
                 logDir = fullfile(obj.resolveDefaultBasePath0(), 'log');
                 if ~isfolder(logDir)
@@ -63,19 +71,39 @@ classdef Loggable < handle
             end
 
             % 2. Construct the full, timestamped log entry
-            timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
+            dt = datetime('now', 'TimeZone', 'UTC');
+            timestamp = datestr(dt, 'yyyy-mm-dd HH:MM:SS');
             fullLogEntry = sprintf('%s [%s] %s', timestamp, obj.LogPrefix, coreMessage);
 
             % 3. Print to the console
             fprintf('%s\n', fullLogEntry);
 
+            NamespaceId = ultrasat.api.PathUtils.NamespaceId();
+            moduleName = 'planner';  % @TDO - This is the module name for the log file
+            fileName = 'planner';
+
+            if isempty(NamespaceId)
+                LogFileName = ultrasat.api.PathUtils.getGlobalLogFilename(moduleName, fileName, 'DT', dt);
+            else
+                LogFileName = ultrasat.api.PathUtils.getNamespaceLogFilename(moduleName, fileName, ...
+                    'NamespaceId', NamespaceId, 'DT', dt);
+            end
+
             % 4. Append to the log file, if the path is valid
-            if ~isempty(obj.LogFilePath)
+            % if ~isempty(obj.LogFilePath)
+            if ~isempty(LogFileName)
                 try
+                    LogFileName = fullfile(obj.LogBasePath, LogFileName);
+                    logDir = fileparts(LogFileName);
+                    if ~isfolder(logDir)
+                        fprintf('Creating folder: %s\n', logDir);
+                        mkdir(logDir);   % recursive, will create year/month etc.
+                    end
+
                     % Open the file in append mode ('a') with UTF-8 encoding
-                    fileID = fopen(obj.LogFilePath, 'a', 'n', 'UTF-8');
+                    fileID = fopen(LogFileName, 'a', 'n', 'UTF-8');
                     if fileID == -1
-                        warning('Could not open log file for writing: %s', obj.LogFilePath);
+                        warning('Could not open log file for writing: %s', LogFileName);
                         return;
                     end
                     % Ensure the file is closed even if an error occurs
@@ -88,6 +116,61 @@ classdef Loggable < handle
                 end
             end
         end
+
+
+        function msgex(obj, msg, ME, varargin)
+            % Log exception with message
+            obj.logException(ME, false, varargin{:});
+        end      
+
+
+        function logException(Exception, IncludeStackTrace, varargin)
+            % Logs a formatted message and exception details to the console and a log file.
+            %
+            % :param LogFileName: Path to the log file.
+            % :param Prefix: Custom prefix for the log message.
+            % :param Exception: The caught exception object (from `catch ME`).
+            % :param IncludeStackTrace: Boolean (true/false) to include stack trace.
+            % :param varargin: Additional formatted message arguments.
+        
+            if nargin < 4
+                IncludeStackTrace = true; % Default: include stack trace
+            end
+        
+            % Generate timestamp
+            dt = datetime('now', 'TimeZone', 'UTC');
+            timestamp = datestr(dt, 'yyyy-mm-dd HH:MM:SS');
+        
+            % Construct the base log message
+            logMessage = sprintf(varargin{:});
+        
+            % Exception details
+            exceptionMsg = sprintf('EXCEPTION: %s | ID: %s', Exception.message, Exception.identifier);
+        
+            % If stack trace is enabled, format it
+            stackTrace = '';
+            if IncludeStackTrace
+                for i = 1:numel(Exception.stack)
+                    stackTrace = sprintf('%s\n%s: Line %d in %s', stackTrace, ...
+                        Exception.stack(i).name, Exception.stack(i).line, Exception.stack(i).file);
+                end
+            end
+        
+            % Construct log output
+            if IncludeStackTrace
+                fullMessage = sprintf('%s - %s: %s\n%s\nSTACK TRACE:%s\n', ...
+                    timestamp, Prefix, logMessage, exceptionMsg, stackTrace);
+            else
+                fullMessage = sprintf('%s - %s: %s | %s', ...
+                    timestamp, Prefix, logMessage, exceptionMsg);
+            end
+        
+            % Print to console
+            fprintf('%s\n', fullMessage);
+        
+            % Append to log file
+            obj.msglog(fullMessage);
+        end       
 
 
         function basePath = resolveDefaultBasePath0(obj)

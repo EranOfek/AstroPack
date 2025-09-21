@@ -7,8 +7,8 @@
 % Updated: 11/02/2025
 %==========================================================================
 %
-% Debug function for api.BaseModel class
-% Run by: api.debug_ModelBase()
+% Debug function for ultrasat.api.BaseModel class
+% Run by: ultrasat.api.debug_ModelBase()
 %
 
 

@@ -1,5 +1,20 @@
-classdef SkyExposureTrackerClient < api.ClientBase
-    % 
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.SkyExposureTrackerClient.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Client for interacting with the Sky Exposure Tracker API.
+%==========================================================================
+
+classdef SkyExposureTrackerClient < ultrasat.api.ClientBase
+    % Client for interacting with the Sky Exposure Tracker API
+    % This class provides methods to interact with the Sky Exposure Tracker API
+    % It is a subclass of ultrasat.api.ClientBase.
+    %
+    % Typical Usage:
+    %   client = ultrasat.api.SkyExposureTrackerClient();
+    %   response = client.initTable('mission.sky_exposure_debug_matlab', 1000, 5, 1:10);
     
     properties
         TableName = '';

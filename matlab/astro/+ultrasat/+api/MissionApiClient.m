@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClient.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionApiClient.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Client implementation of the MissionApiBase interface.
 %==========================================================================
 
 classdef MissionApiClient < ultrasat.api.MissionApiBase
@@ -13,7 +12,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
     % Provides communication with the Mission API server
     
     properties
-        Client          % api.ClientBase instance for HTTP requests
+        Client          % ultrasat.api.ClientBase instance for HTTP requests
         ApiUrl          % Base URL for API endpoints
     end
 
@@ -39,7 +38,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});
             
             % Initialize API client
-            obj.Client = api.ClientBase('SubUrl', Args.SubUrl);
+            obj.Client = ultrasat.api.ClientBase('SubUrl', Args.SubUrl);
             
             % Set API URL if provided
             if ~isempty(Args.ApiUrl)
