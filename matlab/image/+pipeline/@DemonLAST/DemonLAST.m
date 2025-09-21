@@ -3199,7 +3199,13 @@ classdef DemonLAST < Component
                                 Msg{1} = sprintf('pipeline.DemonLAST - Transients / RunTime: %.1f', RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end
-
+                            
+                            % Calculate and apply absolute photometry
+                            % corrections to the Coadd catalogs
+                            Args.DoAbsolutePhotometry = false;
+                            if Args.DoAbsolutePhotometry
+                                imProc.cat.absolutePhotometry(Coadd);
+                            end                            
                             
                             % if CoaddTransienst.sizeCatalog>0
                             %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
