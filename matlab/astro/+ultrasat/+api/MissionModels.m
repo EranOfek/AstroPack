@@ -8,7 +8,7 @@
 %
 %==========================================================================
 
-classdef MissionModels < api.ModelFactoryBase
+classdef MissionModels < ultrasat.api.ModelFactoryBase
     % MissionModels - Factory for creating Mission data models instances.
     % This class contain builder functions that return instancs
 
@@ -42,7 +42,7 @@ classdef MissionModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
         % -----------------------------------------------------------------

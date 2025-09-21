@@ -9,12 +9,12 @@
 %==========================================================================
 
 classdef Loggable < handle
-    %LOGGABLE A base class that provides logging to the console and a file.
+    %L OGGABLE A base class that provides logging to the console and a file.
     %   Classes that inherit from Loggable gain access to the msglog method,
     %   which handles timestamping, formatting, and writing log entries to
     %   both the MATLAB command window and a central log file.
 
-    properties (Access = protected)
+    properties (Access = public)
         % The full path to the log file. Determined by the constructor.
         LogFilePath char = ''
 

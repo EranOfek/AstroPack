@@ -18,11 +18,13 @@ classdef Config < handle
         function obj = Config()      
         end
      end
+     
 
      methods (Static)
 
         function config = getApiConfig()
             % Get the API configuration from the global singleton configuration object
+            % To be used with config/UltrasatPlanner.yaml
             config = Configuration.getSingleton().Data.UltrasatPlanner.PlannerApi;
         end
 

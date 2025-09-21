@@ -1,6 +1,6 @@
 function debug_Config()
 
-    % debug_Config - Tests the configuration of the API.
+    % debug_Config - Tests the configuration of the API
     fprintf('--- Testing Configuration ---\n');
     config = ultrasat.api.Config.getApiConfig();
     fprintf('  [SUCCESS] Configuration returned.\n');

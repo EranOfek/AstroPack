@@ -1,4 +1,4 @@
-classdef VirtualTimeClient < api.ClientBase
+classdef VirtualTimeClient < ultrasat.api.ClientBase
     % VirtualTimeClient - Derived class for virtual time management.
     
     properties
