@@ -164,11 +164,51 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     
     % Find reference image for each New image
 
-    % Track number of found reference images
-    NRefsFound = 0;
+    % Preload refs
+
+    % Get name of New image and search for Ref image via wildcards
+    FN = FileNames.generateFromFileName(New(1).ImageData.FileName);
+    FNref = FN.copy();
+
+    % Convert telescope designation to wildcard if Refs from other
+    % telescopes are allowed.
+    if ~Args.SameTelOnly
+        FNref.ProjName={replaceBetween(FNref.ProjName{1},"LAST.01.",".0","*")};
+    end
+
+    % Wildcard time and crop ID.
+    FNref.Time = {'*.*.*'};
+    FNref.CropID = '*';
+
+    % Use only the LAST field ID for Ref search. If New image
+    % observation was of an Object with a dot extsion, the dot
+    % extension is removed for Ref search.
+    FieldID = split(FNref.FieldID{1},'.');
+    FieldID = FieldID{1};
+    
+    % Construct Ref filename
+    FieldRefPath = strcat(RefPath, '/', FieldID);
+    FNref.FieldID{1} = FieldID;
+    RefFile = fullfile(FieldRefPath,FNref.genFile);
+    RefFile{1} = replace(RefFile{1},'_coadd_','_*_');
+
+    % Load Ref image as AstroImage and Ref image FileName object
+    Refs = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
+    NumRefs = numel(Refs);
+
+    if NumRefs < 1
+        Status = 'No reference images found.';
+        return;        
+    end
+
+    % Track number of matched reference images
+    NRefsMatched = 0;
 
     % Track number of images failing Args.MinimumNCoadd criterium.
     NBelowMinNCoadd = 0;
+
+    % Tack number of images with no overlap to any reference image
+    NoOverlap = 0;
 
     for Iobj=Nobj:-1:1
 
@@ -187,58 +227,25 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             end
         end
 
-        % Get name of New image and search for Ref image via wildcards
-        FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
-        FNref = FN.copy();
-        % if contains(FNref.FieldID, '.')
-        %     SpFID = split(FNref.FieldID, '.');
-        %     FNref.FieldID = SpFIF{1};
-        % end
-
-        % Convert telescope designation to wildcard if Refs from other
-        % telescopes are allowed.
-        if ~Args.SameTelOnly
-            FNref.ProjName={replaceBetween(FNref.ProjName{1},"LAST.01.",".0","*")};
+        % Match Ref by finding the closest one
+        NewRADec = New(Iobj).WCS.CRVAL;
+        CRValDist = nan(NumRefs,1);
+        for IRef = 1:NumRefs
+            RefRADec = Refs(IRef).WCS.CRVAL;
+            CRValDist(IRef) = rad2deg(celestial.coo.sphere_dist(...
+                RefRADec(1), RefRADec(2), NewRADec(1), NewRADec(2), 'deg'));
         end
 
-        % Wildcard time.
-        FNref.Time = {'*.*.*'};
+        MinCRValDist = min(CRValDist);
 
-        % Use only the LAST field ID for Ref search. If New image
-        % observation was of an Object with a dot extsion, the dot
-        % extension is removed for Ref search.
-        FieldID = split(FNref.FieldID{1},'.');
-        FieldID = FieldID{1};
-        
-        % Construct Ref filename
-        FieldRefPath = strcat(RefPath, '/', FieldID);
-        FNref.FieldID{1} = FieldID;
-        RefFile = fullfile(FieldRefPath,FNref.genFile);
-
-        % Single coadd Ref filename
-        CoaddRefFile = RefFile;
-
-        % Deep coadd Ref filename
-        DeepRefFile{1} = replace(RefFile{1},'_coadd_','_ref_');
-
-        % Single coadd Refs are not background subtracted, but deep coadd
-        % Refs are. Remember and set accordingly.
-        RefIsBackgroundSubtracted = false;
-
-        % Check if deep coadd Ref exists, if not, check if single coadd Ref
-        % exists. Continue if no Ref image found.
-        if ~isempty(dir(DeepRefFile{1}))
-            RefFile = DeepRefFile;
-            RefIsBackgroundSubtracted = true;
-        elseif ~isempty(dir(CoaddRefFile{1}))
-            RefFile = CoaddRefFile;
-        else
-            warning('Reference image not found for image %s', FN.genFile{1});
+        % Verify there is some overlap between New and Ref
+        if MinCRValDist > Args.MaximumCenterOffset
+            NoOverlap = NoOverlap +1;
             continue
         end
 
-        % Load Ref image as AstroImage and Ref image FileName object
-        Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
+        Ref = Refs(CRValDist == MinCRValDist);
+
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
 
         % Make sure Ref products are complete, continue if not.
@@ -258,19 +265,26 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
 
         % Reference image found, remember this.
-        NRefsFound = NRefsFound + 1;
+        NRefsMatched = NRefsMatched + 1;
 
         % Create AstroDiff (AstroZOGY)
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
         % Remember in AD if Ref image is already background subtracted.
-        AD(Iobj).RefIsBackgroundSubtracted = RefIsBackgroundSubtracted;
+        if FNrref.Level{1} == "ref"
+            AD(Iobj).RefIsBackgroundSubtracted = true;
+        else
+            AD(Iobj).RefIsBackgroundSubtracted = false;
+        end
     end
+
+    % clear for memory
+    clear Refs;
 
     % 5: ----- Verify subtraction requirements -----
 
     % If no Ref images found, return
-    if NRefsFound < 1
-        Status = 'No reference images found.';
+    if NRefsMatched < 1
+        Status = 'No reference images matched.';
         return;
     end
 
@@ -280,6 +294,12 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         return;
     end
    
+    % If all New and Ref images have no overlap, return.
+    if NoOverlap == Nobj
+        Status = 'All New and Ref images have no overlap.';
+        return;
+    end
+    
     % Remove empty AstroDiff objects and remember number of AstroDiffs
     % Return if all are empty.
     NonEmptyCell = any(~cellfun('isempty',{AD(:).New}), 1);
@@ -290,33 +310,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     
     % Use only non-empty AstroDiff objects
     AD = AD(:, NonEmptyCell);
-    Nobj = numel(AD);
-
-    % Verify if New and Ref are taken on the same sky by checking offset
-    % between New and Ref center coordinates.
-    NoOverlap = 0;
-    for Iobj = Nobj:-1:1
-        % Get New and Ref coordinates and distance between the two.
-        RefRADec = AD(Iobj).Ref.WCS.CRVAL;
-        NewRADec = AD(Iobj).New.WCS.CRVAL;
-        CRValDist = rad2deg(celestial.coo.sphere_dist(...
-            RefRADec(1), RefRADec(2), NewRADec(1), NewRADec(2), 'deg'));
-
-        % Check if coordinates distance above threshold. If yes, remember
-        % and remove AstroDiff object.
-        if CRValDist > Args.MaximumCenterOffset
-            NoOverlap = NoOverlap +1;
-            AD(Iobj) = [];
-        end
-    end
-
-    % If all New and Ref images have no overlap, return.
-    if NoOverlap == Nobj
-        Status = 'All New and Ref images have no overlap.';
-        return;
-    end    
-
-    % Remember new number of AstroDiffs
     Nobj = numel(AD);
     
     % Register New and Ref
