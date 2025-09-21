@@ -15,13 +15,10 @@ classdef MainModule < handle
     % This class serves like a DataModule in Delphi.
     
     properties
-        ApiClient               % MissionApiClient/MissionApiSim instance
-        UserClient              % UserManagerClient/UserManagerSim instance
+        ApiClient               % MissionClient/MissionClientSim instance
+        ApiInterface            % MissionClientInterface instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     %
-        NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
-        NamespaceDisplay        % String as 'Id - Name'
-        NamespaceDisplayList    % List of available namespaces other than OPER as 'Id - Name'
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
@@ -42,7 +39,6 @@ classdef MainModule < handle
         DebugPath               % Folder of debug files, such as saved .mat files
         BaseDataDir             % uplanner constructor param
         LogFileName             %
-        AppUtils                %
     end
     
 
@@ -51,14 +47,6 @@ classdef MainModule < handle
             % Constructor
             disp('app.MainModule');
                        
-            % Get namespace from O/S env
-            % setenv('SOC_NAMESPACE_ID', 'OPER')
-            % setenv('SOC_NAMESPACE_ID', 'SIM')
-            obj.NamespaceId = getenv('SOC_NAMESPACE_ID');
-            if isempty(obj.NamespaceId)
-                obj.NamespaceId = 'OPER';
-            end
-
             % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
             obj.PlannerPath = '~/matlab/data/ULTRASAT/Planner/';
@@ -74,54 +62,37 @@ classdef MainModule < handle
             obj.LogFileName = fullfile(obj.PlannerPath, 'planner.log');
             obj.msglog('MainModule started');
 
-            % Load Preferences from file
+            %
             obj.PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
             obj.Preferences = ultrasat.planner.gui.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup ApiClient - CURRENTLY we use only Sim - with Local access 
-            % to JSON files or or remote access using simple_file_server.py
+            % Setup ApiClient %%%%%
             UseSim = true;
             if UseSim
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionClientSim');
-                obj.ApiClient = ultrasat.api.MissionApiSim('LogFileName', obj.LogFileName);
-                obj.UserClient = ultrasat.api.UserManagerSim('LogFileName', obj.LogFileName);
+                obj.msglog('Creating ApiClient as api.MissionClientSim');
+                obj.ApiClient = ultrasat.api.MissionClientSim('LogFileName', obj.LogFileName);
             else
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionClient');
-                obj.ApiClient = ultrasat.api.MissionApiClient('LogFileName', obj.LogFileName);
-                obj.ApiClient.ApiUrl = 'http://localhost:8215';
-                obj.UserClient = ultrasat.api.UserManagerClient('LogFileName', obj.LogFileName);
+                obj.msglog('Creating ApiClient as api.MissionClient');
+                obj.ApiClient = ultrasat.api.MissionClient('LogFileName', obj.LogFileName);
+                obj.ApiClient.ApiUrl = 'http://localhost:8215';                          
             end
 
-            % Operational - When starting Planner from OPER, this is the
-            % only option for the user, otherwise get the namespace list
-            % from the server
-            if strcmp(obj.NamespaceId, 'OPER')
-                obj.NamespaceDisplay = 'OPERATIONAL';
-            else
-                response = obj.ApiClient.getNamespaceList();
-                if response.ok
-                    obj.NamespaceDisplayList = response.display_list;
-                end
-            end
-          
-            % Create instance of AppUtils
+            % Create instance of MissionClientInterface, that is used by uplanner.
+            obj.ApiInterface = ultrasat.api.MissionClientInterface(obj.ApiClient);
+
             obj.msglog('MainModule created successfully');
         end
 
 
-        function Result = login(obj, UserName, Password, Namespace)
+        function Result = login(obj, UserName, Password)
             % Connect & login to server
             obj.UserName = [];
-            obj.NamespaceId = [];
             Result = false;
-            ANamespaceId = obj.extractNameFromDisplayString(Namespace);
-            response = obj.UserClient.login(UserName, Password, ANamespaceId);
+            Params = struct('userName', UserName, 'password', Password);
+            response = obj.ApiClient.login(Params);
             if response.ok
                 obj.UserName = UserName;
-                obj.NamespaceId = ANamespaceId;
-                obj.NamespaceDisplay = Namespace;
-                obj.ApiClient.NamespaceId = obj.NamespaceId;
                 Result = true;
             end
         end
@@ -129,18 +100,16 @@ classdef MainModule < handle
 
         function Result = logout(obj)
             % Logout from server
-            if isempty(obj.UserName)
+            if ~isempty(obj.UserName)
                 Result = true;
-                return;
             end
             Result = false;
-            response = obj.UserClient.logout(obj.UserName);
-
-            % Currently we do not check response.ok, so even if logout
-            % failed (why?) we clear UserName, leave NamespaceId without change
-            obj.UserName = [];
-            %obj.NamespaceId = [];
-            Result = true;
+            Params = struct('userName', obj.UserName);
+            response = obj.ApiClient.logout(Params);
+            if response.ok
+                obj.UserName = [];
+                Result = true;
+            end
         end        
 
 
@@ -149,7 +118,7 @@ classdef MainModule < handle
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
-            Planner.Mclient = obj.ApiClient;
+            Planner.Mclient = obj.ApiInterface;
         end
 
         % =================================================================
@@ -204,7 +173,8 @@ classdef MainModule < handle
         
             % Create and return the style
             style = uistyle("FontColor", color);
-        end       
+        end
+        
 
         % =================================================================
         %                           Get UI Field Values
@@ -422,7 +392,7 @@ classdef MainModule < handle
                 obj.CurrentStatus = NewStatus;
             end
             
-            NewText = sprintf('%s %s', ultrasat.api.ModelBase.nowUtcStr(), NewText);
+            NewText = sprintf('%s %s', api.ModelBase.nowUtcStr(), NewText);
             
             % Append new text to StatusText
             if isempty(obj.StatusText)
@@ -438,12 +408,12 @@ classdef MainModule < handle
 
         function msglog(obj, varargin)
             %
-            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'Planner', varargin{:});
+            api.ApiUtils.msglog(obj.LogFileName, 'Planner', varargin{:});
         end
 
         function msgex(obj, msg, ME, varargin)
             % Log exception with message
-            ultrasat.api.ApiUtils.logException(obj.LogFileName, sprintf('Planner: %s', msg), ME, false, varargin{:});
+            api.ApiUtils.logException(obj.LogFileName, sprintf('Planner: %s', msg), ME, false, varargin{:});
         end      
 
         % =================================================================
@@ -539,7 +509,7 @@ classdef MainModule < handle
             obj.PlanData = Data;
 
             % Link current instance to ApiClient
-            obj.ApiClient.PlanData = obj.PlanData;
+            obj.ApiInterface.PlanData = obj.PlanData;
             if ~isempty(obj.PlanData.planner)
                 obj.setPlanner(obj.PlanData.planner);
             end
@@ -552,7 +522,7 @@ classdef MainModule < handle
             % Clear planner-related data
             obj.Planner = [];
             obj.PlanData = [];
-            obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
+            obj.ApiInterface.PlanData = []; % Keep ApiInterface but clear its PlanData
                        
             % Clear plan type and permissions
             obj.PlanType = [];
@@ -625,20 +595,7 @@ classdef MainModule < handle
             % Wrap in preformatted HTML block
             htmlStr = sprintf('<pre style="background:#f5f5f5; padding:10px; border:1px solid #ddd;">%s</pre>', jsonData);
         end
-
-
-        % -------------------------------------------------------------------
-
-        function name = extractNameFromDisplayString(obj, displayStr)
-            % Extracts the name part from "id - name" format
-            parts = strsplit(displayStr, ' - ');
-            if numel(parts) >= 2
-                name = strtrim(parts{2});  % Take just the name part
-            else
-                name = strtrim(displayStr);  % Fallback: return whole string
-            end
-        end
-
+               
     end
 
 end

@@ -348,7 +348,7 @@ classdef WebPageExporter < handle
             %
 
             % Initialize API client
-            client = api.ClientBase('BaseUrl', obj.UploaderUrl);
+            client = ultrasat.api.ClientBase('BaseUrl', obj.UploaderUrl);
             params = struct();
             params.folder = obj.OutputFolder;            
             params.s3_key = s3Key;
