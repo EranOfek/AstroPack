@@ -46,6 +46,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
 
             obj.LogPrefix = 'UserManagerBase';
             obj.DeviceId = obj.getDeviceId();
+            obj.msglog('DeviceId: %s', obj.DeviceId);
         end        
         
         % -------------------------------------------------------------------

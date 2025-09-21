@@ -44,12 +44,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end
 
             % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
-            obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
-            obj.msglog('DbPath: %s', obj.DbPath);
-            if ~exist(obj.DbPath, 'dir')
-                mkdir(obj.DbPath);
-                mkdir(fullfile(obj.DbPath, 'plans'));
-            end
+            %obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
+            %obj.msglog('DbPath: %s', obj.DbPath);
+            %if ~exist(obj.DbPath, 'dir')
+            %    mkdir(obj.DbPath);
+            %    mkdir(fullfile(obj.DbPath, 'plans'));
+            %end
 
             % Master files path from the git repo: use sim/ subfolder under current folder, there should be a .gitignore file
             currentFile = mfilename('fullpath');
@@ -57,14 +57,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             masterPath = fullfile(currentFolder, 'sim_master');
 
             % Copy master files if first run % @TODO
-            if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
-                obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
-                obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
-                copyfile(masterPath, obj.DbPath);
-            end
+            %if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
+            %    obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
+            %    obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
+            %    copyfile(masterPath, obj.DbPath);
+            %end
 
             % Create an instance of ValidatorSim
-            obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
+            % @TODO !!!!!!!!!!
+            % obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
             obj.msglog('MissionClientSim constructor done');
         end                
 
@@ -72,10 +73,22 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         
         function Result = getPlannerBasePath(obj)
             % Returns the base path for a given namespace's planner directory
-            if isempty(obj.NamespaceId)
+            if isempty(ultrasat.api.PathUtils.NamespaceId)
                 error('NamespaceId must be set in the object to get the base path.');
             end
-            Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
+            %Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
+
+            Result = ultrasat.api.PathUtils.getNamespaceDataFolder( ...
+                'planner', ...                  % module name
+                '', ...                         % subfolder (empty, top-level)
+                'NamespaceId', ultrasat.api.PathUtils.NamespaceId);% pass current namespace
+
+            dataDir = fileparts(Result);
+            if ~isfolder(dataDir)
+                fprintf('Creating folder: %s\n', dataDir);
+                mkdir(dataDir);
+            end
+                    
             obj.msglog('getPlannerBasePath: %s', Result);
         end
 
@@ -322,7 +335,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
             % Returns a list of existing plans from JSON files in the DbPath folder.
-            obj.msglog('getPlansList: Scanning for plans in %s', obj.DbPath);
+            obj.msglog('getPlansList: Scanning for plans in %s', obj.getPlannerBasePath());
             plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
             plansList = [];
@@ -419,9 +432,9 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         
             % Generate pk if not provided, as next file number (i.e '00003')
             if isempty(obj.PlanData.pk)
-                NextAvailableFile = obj.ApiSimProvider.NextAvailableFile(plansFolder, '*.json', 5, 0, 0, 9999);
+                NextAvailableFile = obj.ApiSimProvider.NextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
                 if ~isempty(NextAvailableFile)
-                    obj.PlanData.pk = str2double(NextAvailableFile.index);
+                    obj.PlanData.pk = NextAvailableFile.index;
                     obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
                 end
             end

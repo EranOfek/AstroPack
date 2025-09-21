@@ -53,7 +53,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             obj.LogPrefix = 'ApiSimProvider';
             obj.BasePath = basePath;
 
-            config = ultrasat.api.config.getApiConfig();
+            config = ultrasat.api.Config.getApiConfig();
             obj.Mode = config.mode;
 
             if strcmp(obj.Mode, 'client')

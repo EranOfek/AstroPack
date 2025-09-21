@@ -47,7 +47,8 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             end
 
             % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
-            obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
+            %obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
+            obj.DbPath = ultrasat.api.PathUtils.getGlobalDataFolder('users', '');
             obj.msglog('DbPath: %s', obj.DbPath);
 
             
@@ -78,32 +79,20 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         function response = getNamespaceList(obj)
             % Returns the list of namespace_id values from namespaces.json
             obj.msglog('getNamespaceList: Getting list of namespaces');
-        
-            response = struct();        
-            dbFile = fullfile(obj.DbPath, 'namespaces.json');
-        
-            if ~isfile(dbFile)
-                obj.msglog('Namespaces file not found at %s', dbFile);
-                response.status = 'error';
-                response.message = 'Namespaces database not found.';
-                response.ok = false;
-                response.namespaces = {};
-                response.display_list = {};
-                return;
-            end
-        
+
+       
             try
-                % Read and decode JSON
-                fid = fopen(dbFile, 'r');
-                cleaner = onCleanup(@() fclose(fid));  % Ensure file is closed on exit
-                raw = fread(fid, inf, 'char');
-                data = jsondecode(char(raw'));
-        
+                % Use PathUtils to get the global data filename for namespaces.json
+                dbFile = ultrasat.api.PathUtils.getGlobalDataFilename('', '', 'namespaces.json');
+
+                % Use ApiSimProvider to read the JSON file
+                data = obj.ApiSimProvider.ReadJsonFile(dbFile);
+
                 % Extract namespace_id values
                 if isfield(data, 'namespaces') && isstruct(data.namespaces)
                     entries = data.namespaces;
                     list = {entries.namespace_id};
-                    displayList = strcat({entries.namespace_id}, ' - ', {entries.name});
+                    displayList = strcat({entries.namespace_id}, ':', {entries.name});
                 else
                     list = {};
                     displayList = {};
@@ -133,20 +122,20 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             obj.msglog('login: user=%s', UserName);
         
             % Set DB paths
-            usersFile       = fullfile(obj.DbPath, 'users', 'users.json');
-            rolesFile       = fullfile(obj.DbPath, 'users', 'roles.json');
-            permissionsFile = fullfile(obj.DbPath, 'users', 'permissions.json');
-            sessionsFile    = fullfile(obj.DbPath, 'users', 'sessions.json');
-            currentUserFile = fullfile(obj.DbPath, 'users', 'current_user.json');
+            usersFile       = fullfile(obj.DbPath, 'users.json');
+            rolesFile       = fullfile(obj.DbPath, 'roles.json');
+            permissionsFile = fullfile(obj.DbPath, 'permissions.json');
+            sessionsFile    = fullfile(obj.DbPath, 'sessions.json');
+            %currentUserFile = fullfile(obj.DbPath, 'current_user.json');
         
             % Load users
-            if ~isfile(usersFile)
-                obj.msglog('login: users.json not found');
-                response.ok = false;
-                response.status = 'error';
-                response.message = 'Users file not found';
-                return;
-            end
+            %if ~isfile(usersFile)
+            %    obj.msglog('login: users.json not found');
+            %    response.ok = false;
+            %    response.status = 'error';
+            %    response.message = 'Users file not found';
+            %    return;
+            %end
             users = obj.load_json(usersFile);
             if isfield(users, 'users')
                 users = users.users;
@@ -172,7 +161,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             end
         
             % Check is_active
-            if isfield(User, 'is_active') && ~user.is_active
+            if isfield(User, 'is_active') && ~User.is_active
                 response.ok = false;
                 response.status = 'error';
                 response.message = 'User is not active';
@@ -192,7 +181,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         
             % Create session ID
             loginTime = datetime('now', 'TimeZone', 'UTC');
-            sessionId = sprintf('%s_%s_%s', deviceId, username, datestr(loginTime, 'yyyymmddTHHMMSS'));
+            sessionId = sprintf('%s_%s_%s', obj.DeviceId, UserName, datestr(loginTime, 'yyyymmddTHHMMSS'));
         
             % Load existing sessions
             if isfile(sessionsFile)
@@ -206,41 +195,45 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             sessions = sessionsAll.sessions;
         
             % Add current session
-            s = struct();
-            s.device_id = deviceId;
-            s.user_id = UserName;
-            s.login_time = datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ');
-            s.expire_time = datestr(loginTime + days(1), 'yyyy-mm-ddTHH:MM:SSZ');
-            sessions.(sessionId) = s;
-            sessionsAll.sessions = sessions;
-            obj.save_json(sessionsFile, sessionsAll);
+            ThisSession = struct();
+            ThisSession.device_id = obj.DeviceId;
+            ThisSession.user_id = UserName;
+            ThisSession.login_time = datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ');
+            ThisSession.expire_time = datestr(loginTime + days(1), 'yyyy-mm-ddTHH:MM:SSZ');
+            %sessions.(sessionId) = ThisSession;
+            %sessionsAll.sessions = sessions;
+
+            % DO NOT update sessions (???) @TODO - Think 
+            % obj.save_json(sessionsFile, sessionsAll);
         
             % Store in current_user.json
-            currentUser = struct( ...
-                'user_id', UserName, ...
-                'roles', {User.roles}, ...
-                'session_id', sessionId, ...
-                'namespace', Namespace, ...
-                'display_name', user.display_name, ...
-                'login_time', datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ') ...
-            );
-            obj.save_json(currentUserFile, currentUser);
+            % currentUser = struct( ...
+            %     'user_id', UserName, ...
+            %     'roles', {User.roles}, ...
+            %     'session_id', sessionId, ...
+            %     'namespace', Namespace, ...
+            %     'display_name', user.display_name, ...
+            %     'login_time', datestr(loginTime, 'yyyy-mm-ddTHH:MM:SSZ') ...
+            % );
+
+            % Save to local computer (not server)
+            % obj.save_json(currentUserFile, currentUser);
         
             % Store in object
             obj.User = UserName;
             obj.SessionId = sessionId;
-            obj.NamespaceId = namespace;
-            obj.Roles = user.roles;
+            obj.NamespaceId = Namespace;
+            obj.Roles = User.roles;
             obj.Permissions = permissions;
             obj.RolesData = roles;
-            obj.Sessions = sessionsAll;
+            %obj.Sessions = sessionsAll;
             obj.IsLoggedIn = true;
         
             response.ok = true;
             response.status = 'ok';
             response.message = 'Login successful';
             response.session_id = sessionId;
-            response.user = user;
+            response.user = UserName;
         end
 
         % -------------------------------------------------------------------
@@ -300,16 +293,15 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         function response = logout(obj, UserName)
             % Simulate logout by clearing current_user.json
         
-            currentUserFile = fullfile(obj.DbPath, 'current_user.json');
-            response = struct();
-        
-            if ~isfile(currentUserFile)
-                obj.msglog('logout: Current user file not found at %s', currentUserFile);
-                response.status = 'error';
-                response.message = 'No user currently logged in.';
-                response.ok = false;
-                return;
-            end
+            % currentUserFile = fullfile(obj.DbPath, 'current_user.json');
+            % response = struct();        
+            % if ~isfile(currentUserFile)
+            %     obj.msglog('logout: Current user file not found at %s', currentUserFile);
+            %     response.status = 'error';
+            %     response.message = 'No user currently logged in.';
+            %     response.ok = false;
+            %     return;
+            % end
         
             % Load current user and verify
             fid = fopen(currentUserFile, 'r');

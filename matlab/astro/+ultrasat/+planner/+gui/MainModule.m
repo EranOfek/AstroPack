@@ -11,7 +11,7 @@
 %   DM = ultrasat.planner.gui.MainModule()
 %
 
-classdef MainModule < handle
+classdef MainModule < ultrasat.api.Loggable
     % This class serves like a DataModule in Delphi.
     
     properties
@@ -84,13 +84,13 @@ classdef MainModule < handle
             UseSim = true;
             if UseSim
                 obj.msglog('Creating ApiClient as ultrasat.api.MissionClientSim');
-                obj.ApiClient = ultrasat.api.MissionApiSim('LogFileName', obj.LogFileName);
-                obj.UserClient = ultrasat.api.UserManagerSim('LogFileName', obj.LogFileName);
+                obj.ApiClient = ultrasat.api.MissionApiSim();   %'LogFileName', obj.LogFileName);
+                obj.UserClient = ultrasat.api.UserManagerSim();  %'LogFileName', obj.LogFileName);
             else
                 obj.msglog('Creating ApiClient as ultrasat.api.MissionClient');
-                obj.ApiClient = ultrasat.api.MissionApiClient('LogFileName', obj.LogFileName);
+                obj.ApiClient = ultrasat.api.MissionApiClient();  % 'LogFileName', obj.LogFileName);
                 obj.ApiClient.ApiUrl = 'http://localhost:8215';
-                obj.UserClient = ultrasat.api.UserManagerClient('LogFileName', obj.LogFileName);
+                obj.UserClient = ultrasat.api.UserManagerClient();  %'LogFileName', obj.LogFileName);
             end
 
             % Operational - When starting Planner from OPER, this is the
@@ -99,7 +99,7 @@ classdef MainModule < handle
             if strcmp(obj.NamespaceId, 'OPER')
                 obj.NamespaceDisplay = 'OPERATIONAL';
             else
-                response = obj.ApiClient.getNamespaceList();
+                response = obj.UserClient.getNamespaceList();
                 if response.ok
                     obj.NamespaceDisplayList = response.display_list;
                 end
@@ -121,7 +121,10 @@ classdef MainModule < handle
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
                 obj.NamespaceDisplay = Namespace;
-                obj.ApiClient.NamespaceId = obj.NamespaceId;
+                %obj.ApiClient.NamespaceId = obj.NamespaceId;
+
+                % Set the namespace id for the PathUtils class, so any class derived from Loggable will use this namespace id
+                ultrasat.api.PathUtils.NamespaceId(obj.NamespaceId);
                 Result = true;
             end
         end
@@ -433,20 +436,6 @@ classdef MainModule < handle
         end
 
         % =================================================================
-        %
-        % =================================================================        
-
-        function msglog(obj, varargin)
-            %
-            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'Planner', varargin{:});
-        end
-
-        function msgex(obj, msg, ME, varargin)
-            % Log exception with message
-            ultrasat.api.ApiUtils.logException(obj.LogFileName, sprintf('Planner: %s', msg), ME, false, varargin{:});
-        end      
-
-        % =================================================================
         %                            Utilities
         % =================================================================
         function Result = loadTableFromCsvText(obj, CsvText)
@@ -631,7 +620,7 @@ classdef MainModule < handle
 
         function name = extractNameFromDisplayString(obj, displayStr)
             % Extracts the name part from "id - name" format
-            parts = strsplit(displayStr, ' - ');
+            parts = strsplit(displayStr, ':');
             if numel(parts) >= 2
                 name = strtrim(parts{2});  % Take just the name part
             else
