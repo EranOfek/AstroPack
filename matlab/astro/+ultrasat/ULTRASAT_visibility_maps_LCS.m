@@ -219,7 +219,8 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     % thus all the slots are filled and we have 54 x 45 + 3 x 360 days LCS fields
     
-    ExcludedFields = [6 9 19 222 224 234 235 240]; % 8 all-year-round fields
+    % currently the optimal solution is:
+    ExcludedFields = [6 9 19 222 224 234 235 240]; % all the 8 all-year-round fields
     cprintf('blue',['8 x 45 days (= 360 days) from day 1: 1 x 8 objects + 4-d cadence x 8 objects, unique over the 360 days period, '...
             'with 3 HC and 3 additional fields excluded:\n']);
     [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
@@ -227,8 +228,12 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  'Exclude',ExcludedFields});  % MeanSunAng
              for i=1:8
                  fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
-             end                      
-             
+             end         
+             AnnualBy45d(208,:)
+             AnnualBy45d(211,:)
+    % then fields 208 and 211 are added for 3 x 45 days long periods as
+    % well as 7 from the 8 year-long fields to make a 4-day cadence (i.e. 8 fields on 2 free slots every day).
+    
     cprintf('blue','6 x 60 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
     [Route0a,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',6,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',60,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
