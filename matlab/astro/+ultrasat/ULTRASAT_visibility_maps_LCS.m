@@ -125,6 +125,14 @@ function ULTRASAT_visibility_maps_LCS(Args)
     Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
     L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
     L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
+    
+    L3_240_lowA = L3_240 .* (Extp<1)';                       % for the objects of A > 1 the visibility is set to 0
+    for i=1:8
+        Start = 45*(i-1)+1; Stop = 45*i;
+        Per{i} = (prod(L3_240_lowA(Start:Stop,:)))';
+    end
+    AnnualBy45d = [Per{1} Per{2} Per{3} Per{4} Per{5} Per{6} Per{7} Per{8}]; % a table of 240 objects x 8 45-d periods 
+    
     SunAng     = RAD.*reshape(Vis240.SunAngDist,[NightBins,Args.NumDays,240]);
     MeanSunAng = squeeze(mean(SunAng,1));
           
@@ -195,8 +203,8 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
              end         
              
-    ExcludedFields = [19 223 224 234 240 6];
-    cprintf('blue',['8 x 45 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period, '...
+    ExcludedFields = [19 223 224 234 240 6]; % HCS fields + 3 more 
+    cprintf('blue',['8 x 45 days (= 360 days) from day 1 x (7 +3) objects, unique over the 360 days period, '...
             'with 3 HC and 3 additional fields excluded:\n']);
     [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',7,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1,...
@@ -211,6 +219,16 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     % thus all the slots are filled and we have 54 x 45 + 3 x 360 days LCS fields
     
+    ExcludedFields = [6 9 19 222 224 234 235 240]; % 8 all-year-round fields
+    cprintf('blue',['8 x 45 days (= 360 days) from day 1: 1 x 8 objects + 4-d cadence x 8 objects, unique over the 360 days period, '...
+            'with 3 HC and 3 additional fields excluded:\n']);
+    [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',8,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1,...
+                 'Exclude',ExcludedFields});  % MeanSunAng
+             for i=1:8
+                 fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
+             end                      
+             
     cprintf('blue','6 x 60 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
     [Route0a,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',6,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',60,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
