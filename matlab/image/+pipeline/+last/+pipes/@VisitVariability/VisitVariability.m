@@ -602,6 +602,8 @@ classdef VisitVariability < Component
                 Args.PlotRADec         = true;
                 Args.PlotMagPos        = true;
                 Args.PlotMagMag        = true;
+                Args.PlotAllMag        = true;
+                Args.PlotGAIA          = true;
             end
 
 
@@ -614,6 +616,7 @@ classdef VisitVariability < Component
                                                                                 'CooUnits',Args.CooUnits,...
                                                                                 'FieldMag',Args.FieldMag);
 
+            
             I = 1;
             if isempty(Args.MainPlotFigNumber)
                 figure;
@@ -621,7 +624,8 @@ classdef VisitVariability < Component
                 figure(Args.MainPlotFigNumber);
             end
             clf;
-            errorbar((Result(I).JD-min(Result(I).JD)).*1440, Result(I).Mag, Result(I).MagErr, 'ko', 'MarkerFaceColor','k');
+            TimeMin = (Result(I).JD-min(Result(I).JD)).*1440;
+            errorbar(TimeMin, Result(I).Mag, Result(I).MagErr, 'ko', 'MarkerFaceColor','k');
             plot.invy;
             H = xlabel('Time [min]');
             H.FontSize = 16;
@@ -629,6 +633,33 @@ classdef VisitVariability < Component
             H = ylabel('Mag');
             H.FontSize = 16;
             H.Interpreter = 'latex';
+
+            if Args.PlotAllMag
+                [ResultP] = pipeline.last.pipes.VisitVariability.getLC(T, 'SearchRadius',Args.SearchRadius,...
+                                                                                'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                                                'ColRA',Args.ColRA,...
+                                                                                'ColDec',Args.ColDec,...
+                                                                                'FieldRA',Args.FieldRA,...
+                                                                                'FieldDec',Args.FieldDec,...
+                                                                                'CooUnits',Args.CooUnits,...
+                                                                                'FieldMag',{'MAG_PSF'});
+
+                [ResultA] = pipeline.last.pipes.VisitVariability.getLC(T, 'SearchRadius',Args.SearchRadius,...
+                                                                                'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                                                'ColRA',Args.ColRA,...
+                                                                                'ColDec',Args.ColDec,...
+                                                                                'FieldRA',Args.FieldRA,...
+                                                                                'FieldDec',Args.FieldDec,...
+                                                                                'CooUnits',Args.CooUnits,...
+                                                                                'FieldMag',{'MAG_APER_3'});
+                hold on;
+                plot(TimeMin, ResultP.Mag, '+','Color',[0.8 0.8 0.8]);
+                plot(TimeMin, ResultA.Mag, 'o','Color',[0.8 0.8 0.8]);
+
+            end
+            
+
+
 
             if ~isempty(Args.AssignToBase)
                 % assign the Table into the base session
@@ -641,13 +672,33 @@ classdef VisitVariability < Component
             if Args.PlotRADec
                 figure(2);
                 clf;
-                plot(MS.Data.RA(:,Found.Ind), MS.Data.Dec(:,Found.Ind), '+');
-                H = xlabel('RA [deg]');
+                MeanRA  = MS.SrcData.RA(:,Found.Ind);
+                MeanDec = MS.SrcData.Dec(:,Found.Ind);
+                CosDec  = cosd(MeanDec);
+                plot((MS.Data.RA(:,Found.Ind)-MeanRA).*CosDec.*3600, (MS.Data.Dec(:,Found.Ind)-MeanDec).*3600, '+');
+                H = xlabel('RA [arcsec] (x cos Dec)');
                 H.FontSize = 16;
                 H.Interpreter = 'latex';
-                H = ylabel('Dec');
+                H = ylabel('Dec [arcsec]');
                 H.FontSize = 16;
                 H.Interpreter = 'latex';
+
+                if Args.PlotGAIA
+                    RAD = 180./pi;
+                    RA   = MS.SrcData.RA(Found.Ind);
+                    Dec  = MS.SrcData.Dec(Found.Ind);
+                    GCat = catsHTM.cone_search('GAIADR3',RA./RAD,Dec./RAD,20, 'OutType','AstroCatalog');
+    
+                    hold on;
+                    plot((GCat.Table.RA.*RAD-MeanRA).*CosDec.*3600, (GCat.Table.Dec.*RAD-MeanDec).*3600, 'o');
+                    Mag = GCat.Table.phot_bp_mean_mag;
+                    for Imag=1:1:numel(Mag)
+                        text((GCat.Table.RA(Imag).*RAD-MeanRA).*CosDec.*3600, (GCat.Table.Dec(Imag).*RAD-MeanDec).*3600, sprintf(' %.1f',Mag(Imag)));
+                    end
+                    hold off;
+    
+                end
+
             end
             if Args.PlotMagPos
                 figure(3);
@@ -675,7 +726,6 @@ classdef VisitVariability < Component
                 H.FontSize = 16;
                 H.Interpreter = 'latex';
             end
-
 
         end
     end
