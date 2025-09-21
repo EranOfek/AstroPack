@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.UserManagerBase.m
-% Author: Chen Tishler
-% Created: 14/09/2025
-% Updated: 14/09/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.UserManagerBase.m
+% Author      : Chen Tishler
+% Created     : 14/09/2025
+% Updated     : 21/09/2025
+% Description : Base class for user management
 %==========================================================================
 
 classdef UserManagerBase < ultrasat.api.Loggable

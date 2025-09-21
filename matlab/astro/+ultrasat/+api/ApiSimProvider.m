@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.ApiSimProvider.m
-% Author: Chen Tishler
-% Created: 14/09/2025
-% Updated: 14/09/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.ApiSimProvider.m
+% Author      : Chen Tishler
+% Created     : 14/09/2025
+% Updated     : 21/09/2025
+% Description : Provides a unified interface for file operations, simulating an API backend.
 %==========================================================================
 
 classdef ApiSimProvider < ultrasat.api.Loggable

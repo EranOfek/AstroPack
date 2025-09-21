@@ -1,14 +1,13 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ModelFactoryBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 11/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.ModelFactoryBase.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Base class for factories that create model instances.
 %==========================================================================
 
-classdef ModelFactoryBase < handle
+classdef ModelFactoryBase < ultrasat.api.Loggable
     % ModelFactoryBase - Base class for factories that create model instances.
     %
     % This class provides a factory pattern for creating structured data 

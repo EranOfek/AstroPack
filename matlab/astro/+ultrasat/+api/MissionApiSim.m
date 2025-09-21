@@ -1,10 +1,10 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.MissionClientSim.m
+% Filename    : ultrasat.api.MissionApiSim.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 16/03/2025
-% Description : 
+% Description : Simulator implementation of the MissionApiBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 

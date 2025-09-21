@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   MissionApiModels.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 11/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionApiModels.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Factory for creating Mission API calls models instances.
 %==========================================================================
 
 classdef MissionApiModels < ultrasat.api.ModelFactoryBase

@@ -1,11 +1,11 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.SimpleFileClient.m 
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Client for uploading and downloading files from a simple file server.
+%               Used by ApiSimProvider, see simple_file_server.py in Ultrasat repository.
 %==========================================================================
 
 classdef SimpleFileClient < ultrasat.api.Loggable

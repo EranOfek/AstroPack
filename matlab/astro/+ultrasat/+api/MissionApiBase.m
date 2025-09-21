@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionApiBase.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Base class for Mission client API calls.
 %==========================================================================
 
 classdef MissionApiBase < ultrasat.api.Loggable

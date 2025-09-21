@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ValidatorSim.m
-% Author: Chen Tishler
-% Created: 17/02/2025
-% Updated: 17/03/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.ValidatorSim.m
+% Author      : Chen Tishler
+% Created     : 17/02/2025
+% Updated     : 21/09/2025
+% Description : Simulator implementation of the ValidatorBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 

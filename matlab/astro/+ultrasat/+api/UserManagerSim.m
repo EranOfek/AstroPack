@@ -1,15 +1,23 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.MissionClientSim.m
+% Filename    : ultrasat.api.UserManagerSim.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 16/03/2025
-% Description : 
+% Updated     : 21/09/2025
+% Description : Simulator implementation of the UserManagerBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
 classdef UserManagerSim < ultrasat.api.UserManagerBase
-    % 
+    % Simulator implementation of the UserManagerBase interface.
+    % This class provides methods to interact with the UserManagerBase interface.
+    % It is a subclass of ultrasat.api.UserManagerBase.
+    %
+    % Typical Usage:
+    %   userManager = ultrasat.api.UserManagerSim();
+    %   response = userManager.login('chen', '123', 'OPER');
+    %   response = userManager.IsAllowed('MissionControl.Planner.Run', 'any_plan', true);
+    %   response = userManager.logout('chen');
     
     properties
         DbPath          % Path to simulator data files
