@@ -84,7 +84,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
     arguments
         Obj
-        FNin FileNames
+        FNin 
         Args.Save logical           = true;
         Args.Type                   = [];
         Args.Level                  = [];
@@ -177,7 +177,11 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 end
         end
         
-        Nfn   = FN.nfiles;
+        if isa(FN, 'AstroFileName')
+            Nfn   = FN.nFiles;
+        else
+            Nfn   = FN.nfiles;
+        end
         if Nobj~=Nfn && ~Args.Write1mat
             error('Number of elements in AstroImage and FileNames object must be identical');
         end
