@@ -282,15 +282,15 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % 5: ----- Verify subtraction requirements -----
 
-    % If no Ref images found, return
-    if NRefsMatched < 1
-        Status = 'No reference images matched.';
-        return;
-    end
-
     % If no New images pass the NCoadd criterium, return.
     if NBelowMinNCoadd == Nobj
         Status = 'All new images below required amount of NCOADD.';
+        return;
+    end
+    
+    % If no Ref images found, return
+    if NRefsMatched < 1
+        Status = 'No reference images matched.';
         return;
     end
    
