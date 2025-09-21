@@ -128,7 +128,7 @@ classdef AstroFileName < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
+        ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log", "test"];
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
@@ -1539,6 +1539,89 @@ classdef AstroFileName < Component
 
         end
     
+        function Result = isCompressed(Obj, Args)
+            % Check if file name corresponds to compressed file
+            % Input  : - A single element AstroFileName object.
+            %          * ...,key,val,...
+            %            'CompressionType' - Compression type to search.
+            %                   Default is '.fz'.
+            % Output : - A vector of logicals indicating if each file is
+            %            compressed.
+            % Author : Eran Ofek (Sep 2025)
+
+            arguments
+                Obj(1,1)
+                Args.CompressionType = '.fz';
+            end
+
+            Iobj = 1;
+            Result = contains(Obj(Iobj).FileType, Args.CompressionType);
+
+        end
+
+        function Obj=compress(Obj, Type)
+            % Compress files in AstroFileName object and modify FileType accordingly.
+            % Input  : - self.
+            %          - Compression type. Options are:
+            %            'fz' | 'gz' | 'bz2'
+            %            Default is 'fz'.
+            % Output : - Updated AstroFileName object.
+            % Author : Eran Ofek (Sep 2025)
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Files = Obj(Iobj).genFile();
+                Nf = numel(Files);
+                for If=1:1:Nf
+                    switch lower(Type)
+                        case 'fz'
+                            system(sprintf("fpack %s", Files{If}));
+                        case 'gz'
+                            system(sprintf("gzip %s", Files{If}));
+                        case 'bz2'
+                            system(sprintf("bzip2 %s", Files{If}));
+                        otherwise
+                            error('Unsupported compression type: %s',Type);
+                    end
+                end
+                Obj(Iobj).FileType = append(Obj(Iobj).FileType, ['.',Type]);
+                
+            end
+
+        end
+
+        function Obj=uncompress(Obj, Type)
+            % Uncompress files in AstroFileName object and modify FileType accordingly.
+            % Input  : - self.
+            %          - Compression type. Options are:
+            %            'fz' | 'gzip' | 'bzip2'
+            %            Default is 'fz' (with -D option).
+            % Output : - Updated AstroFileName object.
+            % Author : Eran Ofek (Sep 2025)
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Files = Obj(Iobj).genFile();
+                Nf = numel(Files);
+                for If=1:1:Nf
+                    switch lower(Args.Type)
+                        case 'fz'
+                            system(sprintf("funpack -D %s", Files{If}));
+                        case 'gz'
+                            system(sprintf("gunzip %s", Files{If}));
+                        case 'bz2'
+                            system(sprintf("bunzip2 %s", Files{If}));
+                        otherwise
+                            error('Unsupported compression type: %s',Type);
+                    end
+                end
+                Obj(Iobj).FileType = strrep(Obj(Iobj).FileType, ['.',Type], '');
+            end
+
+        end
+
+
+        
         function Result = isFileInList(Obj, FileName)
             % Check if File name is contained within the object file names
             %   For physical existince of the file see: isFileExist
