@@ -1,6 +1,6 @@
 function [X, Y, F] = ipix2xyf(Ipix, Nside)
     % Convert a nested HEALPix pixel index to (X, Y, F [face number]) 
-    %     Optional detailed description
+    %     NB: for NESTED scheme only!
     % Input  : - the healpix index (Ipix)
     %          - Nside healpix resolution
     % Output : - x coordinate
