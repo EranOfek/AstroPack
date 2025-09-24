@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.ApiSimProvider.m
-% Author: Chen Tishler
-% Created: 14/09/2025
-% Updated: 14/09/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.ApiSimProvider.m
+% Author      : Chen Tishler
+% Created     : 14/09/2025
+% Updated     : 21/09/2025
+% Description : Provides a unified interface for file operations, simulating an API backend.
 %==========================================================================
 
 classdef ApiSimProvider < ultrasat.api.Loggable
@@ -26,8 +25,9 @@ classdef ApiSimProvider < ultrasat.api.Loggable
     properties (Access = private)
         % This property holds the instance of either SimpleFileClient or
         % SimpleFileLocal, determined at construction time.
-        FileClient
-        BasePath
+        Mode char = 'remote';   % 'remote' | 'local' - Loaded from Config/UltrasatPlanner.yaml
+        FileClient              % ultrasat.api.SimpleFileClient | ultrasat.api.SimpleFileLocal
+        BasePath char
     end
 
 
@@ -52,6 +52,19 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             % Initialize the logger
             obj.LogPrefix = 'ApiSimProvider';
             obj.BasePath = basePath;
+
+            config = ultrasat.api.Config.getApiConfig();
+            obj.Mode = config.mode;
+
+            if strcmp(obj.Mode, 'client')
+                backendTarget = config.server_url;
+                obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);
+            else
+                backendTarget = getenv('SOC_PATH');
+                obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
+            end
+
+            return;
 
             % Target is a URL, so use the remote client.            
             if startsWith(backendTarget, 'http://', 'IgnoreCase', true) || ...

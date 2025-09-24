@@ -1,14 +1,13 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   MissionModels.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 11/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionModels.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Factory for creating Mission data models instances.
 %==========================================================================
 
-classdef MissionModels < api.ModelFactoryBase
+classdef MissionModels < ultrasat.api.ModelFactoryBase
     % MissionModels - Factory for creating Mission data models instances.
     % This class contain builder functions that return instancs
 
@@ -42,7 +41,7 @@ classdef MissionModels < api.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
         % -----------------------------------------------------------------

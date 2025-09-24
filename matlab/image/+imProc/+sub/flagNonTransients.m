@@ -266,7 +266,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagVariable logical = true;
 
         Args.flagNuclearNoise logical = true;
-        Args.BrightGalMagThresh = 17.0;
+        Args.BrightGalMagThresh = 20.0;
         Args.BrightGalPrcThresh = 80;
 
         % --- AstroZOGY ---
@@ -951,6 +951,14 @@ function TranCat = flagNonTransients(Obj, Args)
                 DynamicBinMin = TargetRMag - 0.5;
                 DynamicBinMax = TargetRMag;
                 BinnedMags = (R_MAG_PSF > DynamicBinMin) & (R_MAG_PSF < DynamicBinMax);
+
+                % Some comparison sources are at the edge of the nan-border
+                % and have a low R_MAG_PSF but high SCORE value, which
+                % leads to filtering of real nuclear transients.
+                % TODO: this maybe should be done cleaner
+                if exist('BadPixHard','var')
+                    BinnedMags = BinnedMags & ~BadPixHard;
+                end
                 
                 % If bin is empty, assume that this magnitude range is well
                 % subtracted and don't flag the candidate.

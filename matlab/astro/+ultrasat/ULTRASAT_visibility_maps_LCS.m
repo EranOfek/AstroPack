@@ -125,6 +125,14 @@ function ULTRASAT_visibility_maps_LCS(Args)
     Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
     L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
     L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
+    
+    L3_240_lowA = L3_240 .* (Extp<1)';                       % for the objects of A > 1 the visibility is set to 0
+    for i=1:8
+        Start = 45*(i-1)+1; Stop = 45*i;
+        Per{i} = (prod(L3_240_lowA(Start:Stop,:)))';
+    end
+    AnnualBy45d = [Per{1} Per{2} Per{3} Per{4} Per{5} Per{6} Per{7} Per{8}]; % a table of 240 objects x 8 45-d periods 
+    
     SunAng     = RAD.*reshape(Vis240.SunAngDist,[NightBins,Args.NumDays,240]);
     MeanSunAng = squeeze(mean(SunAng,1));
           
@@ -133,7 +141,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
                 figure(1); clf; hold on
                 
                 subplot(1,2,1)
-                plot.ungridded_image(lambda, beta, MaxLen.* (Averaged_extinction < 1)); caxis([0, 180]);  % plot in ecliptic coordinates
+                plot.ungridded_image(lambda, beta, MaxLen.* (Averaged_extinction < 1)); caxis([0, 360]);  % plot in ecliptic coordinates
                 set(gca, 'Position', [0.05, 0.06, 0.4, 0.9]);
                 xlabel '\lambda, deg'; ylabel '\beta, deg'
                 title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'
@@ -143,7 +151,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
                 end
                                
                 subplot(1,2,2)
-                plot.ungridded_image(RA, Dec, MaxLen.* (Averaged_extinction < 1)); caxis([0, 180]);
+                plot.ungridded_image(RA, Dec, MaxLen.* (Averaged_extinction < 1)); caxis([0, 360]);
                 set(gca, 'Position', [0.55, 0.06, 0.4, 0.9]);
                 
                 xlabel 'RA, deg'; ylabel 'Dec, deg'
@@ -155,6 +163,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
                 % LSST deep drilling:
                 for i=1:4
                     plot.skyCircles(LSST_DDR(i,1), LSST_DDR(i,2), 'Rad', LSST_DDR_Rad, 'Color','red');
+                end
+                
+                % HCS:
+                for i=1:3
+                    plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7.0, 'Color','blue');
                 end
 
 %             plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');   
@@ -181,6 +194,46 @@ function ULTRASAT_visibility_maps_LCS(Args)
                  fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
              end     
              
+    ExcludedFields = [19 223 224]; % HCS fields
+    cprintf('blue','8 x 45 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period, with 3 HC fields excluded:\n');
+    [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1,...
+                 'Exclude',ExcludedFields});  % MeanSunAng
+             for i=1:8
+                 fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
+             end         
+             
+    ExcludedFields = [19 223 224 234 240 6]; % HCS fields + 3 more 
+    cprintf('blue',['8 x 45 days (= 360 days) from day 1 x (7 +3) objects, unique over the 360 days period, '...
+            'with 3 HC and 3 additional fields excluded:\n']);
+    [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',7,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1,...
+                 'Exclude',ExcludedFields});  % MeanSunAng
+             for i=1:8
+                 fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
+             end                      
+    % for how many days we could add the 3 additional fields?
+    sum(L3_240(1:360,234))
+    sum(L3_240(1:360,240))
+    sum(L3_240(1:360,6))
+    
+    % thus all the slots are filled and we have 54 x 45 + 3 x 360 days LCS fields
+    
+    % currently the optimal solution is:
+    ExcludedFields = [6 9 19 222 224 234 235 240]; % all the 8 all-year-round fields
+    cprintf('blue',['8 x 45 days (= 360 days) from day 1: 1 x 8 objects + 4-d cadence x 8 objects, unique over the 360 days period, '...
+            'with 3 HC and 3 additional fields excluded:\n']);
+    [Route0,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',8,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',8,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1,...
+                 'Exclude',ExcludedFields});  % MeanSunAng
+             for i=1:8
+                 fprintf('period %d: %d targets: ',i,numel(Route0{i})); fprintf('%g ',Route0{i}); fprintf('\n')                 
+             end         
+             AnnualBy45d(208,:)
+             AnnualBy45d(211,:)
+    % then fields 208 and 211 are added for 3 x 45 days long periods as
+    % well as 7 from the 8 year-long fields to make a 4-day cadence (i.e. 8 fields on 2 free slots every day).
+    
     cprintf('blue','6 x 60 days (= 360 days) from day 1 x 10 objects, unique over the 360 days period:\n');
     [Route0a,AvDist0,TargetLists0] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',6,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',60,'FieldsPerPeriod',10,'AvLimit',1,'MeanSunAng',MeanSunAng,'Unique',1});  % MeanSunAng
@@ -434,7 +487,8 @@ end
 
 function [Selected, NotUsed] = find_unique_set2(VisTable,Av_ext,Args)
     % select unique fields for NumPeriods of PeriodLength-day long epochs starting from StartDay
-    % according to the VisTable and Av < AvLimit, prioritize fields with large Sun angles   
+    % according to the VisTable and Av < AvLimit, prioritize fields with large Sun angles 
+    % and excluding some of the fields which are explicitly set
     arguments
         VisTable
         Av_ext
@@ -445,18 +499,20 @@ function [Selected, NotUsed] = find_unique_set2(VisTable,Av_ext,Args)
         Args.AvLimit         = 1;
         Args.Unique          = true;
         Args.MeanSunAng      = [];
+        Args.Exclude         = [];
     end
     LowExt = Av_ext < Args.AvLimit;
     Np     = size(VisTable,2);
 
-    HCS_fields = zeros(1,Np); HCS_fields(223:224) = 1; HCS_fields(19) = 1; % NB: these numbers will change with rotation along RA
+    ExcludedFields = zeros(1,Np);     
+    ExcludedFields(Args.Exclude) = 1; % these fields will not be considered as available
 
     Selected = cell(1,Args.NumPeriods);
     
     for Iper = 1:Args.NumPeriods   % e.g, 8 periods of 45 days within a single 360 days period 
         Day1 = (Iper-1)*Args.PeriodLength+Args.StartDay;
         DayN =     Iper*Args.PeriodLength+Args.StartDay-1;
-        Avail(Iper,:)  = prod(VisTable(Day1:DayN,:)) .* LowExt' .* (1 - HCS_fields) > 0;          
+        Avail(Iper,:)  = prod(VisTable(Day1:DayN,:)) .* LowExt' .* (1 - ExcludedFields) > 0;          
     end
     
     % measure availability throughout all the epochs    

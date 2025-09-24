@@ -38,15 +38,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     Status = 'Uncontrolled exit.';
 
-    % Return if no transients candidates empty.
-    if isempty(ADc(1).Table)
-        Status = 'No transients found, nothing to report.';
-        return
-    end
-
     % Get number of transient cutouts.
     Nadc = numel(ADc);
     NadcNotReported = 0;
+
+    % Return if no transients candidates empty.
+    if (Nadc == 0) || isempty(ADc(1).Table) 
+        Status = 'No transients found, nothing to report.';
+        return
+    end
 
     % Run loop on each transient cutout
     for Iadc = 1:Nadc

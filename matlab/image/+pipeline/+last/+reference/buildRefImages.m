@@ -18,6 +18,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                             "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.RefTable    = 'ref_images_v4';     
+        Args.Verbose     = 'false';
+        Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
     end
     % 
     RAD = 180/pi;  
@@ -31,7 +33,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     RefGrid.RA4 = RefGrid.RA4 + 180;
     
     % loop over the ref. image grid
-    for Iref = 150000:Nref  % 1:Nref (no LAST obs in the South, so for the tests starting from around the equator)                      
+    if isempty(Args.RefNumbers)
+        RefNumbers = 1:Nref;
+    else
+        RefNumbers = Args.RefNumbers;
+    end
+    
+    for Iref = RefNumbers    
         % 0. build the ref polygon to be covered and find the healpix coverage
         
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
@@ -39,6 +47,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch);  
+%         % TEMPORARY (celestial.healpix.neighbors does not work well near the poles!):
+%         if abs(RefGrid.Dec(Iref)) > 99. % 70. % ???
+%             UpixNeighb = UpixCenter;
+%         end
         % translate the center and the neighbors to Args.NsideLow (as in the DB)                
         UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
@@ -59,6 +71,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end      
         T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
 
+        if isempty(T)          
+            if Args.Verbose
+                fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+            end
+        else
         for Im = 1:10
             for Ic = 1:4
                 T1 = T(T.mountnum==Im & T.camnum==Ic,:);
@@ -127,6 +144,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 end
             end % camera
         end % mount                 
+        end % if the image table is not empty
     end % reference image grid      
 end
 

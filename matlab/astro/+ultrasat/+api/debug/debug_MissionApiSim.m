@@ -1,7 +1,7 @@
 % Run with: ultrasat.api.debug_MissionClientSim()
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
-function debug_MissionClientSim()
+function debug_MissionApiSim()
     % debug_MissionClientSim - Main function to test MissionClientSim functionalities.
     %
     % Tests the login and logout functionality of the ultrasat.api.MissionClientSim class.

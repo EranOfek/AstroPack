@@ -1,11 +1,11 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.SimpleFileLocal.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Local file system interface with the same API as SimpleFileClient.
+%               Used by ApiSimProvider, see simple_file_server.py in Ultrasat repository.
 %==========================================================================
 
 classdef SimpleFileLocal < ultrasat.api.Loggable

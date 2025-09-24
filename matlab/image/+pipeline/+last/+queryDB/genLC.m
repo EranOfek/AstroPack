@@ -25,7 +25,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
     % RA=182.925919255858; Dec=38.3066889437051; FieldID='1338.WDM4'; CamNum=2; CropID=14; % new / possible 22.545888 min period, but phase...
     % RA=178.083291666667; Dec=2.80400; 
     % RA=151.49625;        Dec=22.8256388888889; FieldID='151+23'; CamNum=1;  CropID=10;
-    % RA=125.66475;        Dec=30.8158861111111; FieldID='1347';  CamNum=2; CropID=20;
+    % RA=125.66475;      RA=  Dec=30.8158861111111; FieldID='1347';  CamNum=2; CropID=20;
     % MS = pipeline.last.queryDB.genLC(RA,Dec,'FieldID',FieldID,'CamNum',CamNum,'CropID',CropID); 
     % R=MS.coneSearch(RA,Dec);
     % JD = MS.JD;

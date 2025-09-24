@@ -7,8 +7,8 @@
 % Updated: 11/02/2025
 %==========================================================================
 %
-% Debug function for api.BaseModel class
-% Run by: api.debug_EncodeUtils()
+% Debug function for ultrasat.api.BaseModel class
+% Run by: ultrasat.api.debug_EncodeUtils()
 %
 
 function debug_EncodeUtils()
@@ -22,7 +22,7 @@ end
 function debug_base64()
     % Tests Base64 serialization and deserialization.
     disp('Testing Base64 encoding and decoding...');
-    Utils = api.EncodeUtils();
+    Utils = ultrasat.api.EncodeUtils();
 
     sampleData = struct('Field1', 123, 'Field2', 'Test');
     encoded = Utils.saveObjectToBase64(sampleData);
@@ -42,7 +42,7 @@ end
 function debug_compression()
     % Tests compression and decompression using 7z.
     disp('Testing 7z compression and decompression...');
-    Utils = api.EncodeUtils();
+    Utils = ultrasat.api.EncodeUtils();
 
     sampleData = struct('Key', 'Value', 'Number', 42);
     compressed = Utils.serializeToBase64_7z(sampleData);
@@ -63,7 +63,7 @@ end
 function debug_large_data_compression()
     % Tests encoding and decoding of a large dataset (at least 1MB).
     disp('Testing 7z compression and decompression on large data...');
-    Utils = api.EncodeUtils();
+    Utils = ultrasat.api.EncodeUtils();
 
     % Generate large struct (1MB+ of random data)
     largeData = struct();

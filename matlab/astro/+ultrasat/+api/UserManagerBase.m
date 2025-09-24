@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.UserManagerBase.m
-% Author: Chen Tishler
-% Created: 14/09/2025
-% Updated: 14/09/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.UserManagerBase.m
+% Author      : Chen Tishler
+% Created     : 14/09/2025
+% Updated     : 21/09/2025
+% Description : Base class for user management
 %==========================================================================
 
 classdef UserManagerBase < ultrasat.api.Loggable
@@ -47,12 +46,13 @@ classdef UserManagerBase < ultrasat.api.Loggable
 
             obj.LogPrefix = 'UserManagerBase';
             obj.DeviceId = obj.getDeviceId();
+            obj.msglog('DeviceId: %s', obj.DeviceId);
         end        
         
         % -------------------------------------------------------------------
 
         function response = login(obj, UserName, Password, Namespace)
-            % Authenticates a user with the mission control API.
+            % Authenticates a user with the mission control API
             %
             % Parameters:
             %   UserName (string) - User name for authentication
@@ -68,7 +68,7 @@ classdef UserManagerBase < ultrasat.api.Loggable
 
 
         function response = logout(obj, UserName)
-            % Logs out the current user from the mission control API.
+            % Logs out the current user from the mission control API
             %
             % Parameters:
             %   UserName (string) - Currently logged-in user name to verify

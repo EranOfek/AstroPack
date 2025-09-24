@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ultrasat.MissionClientBase.m
-% Author: Chen Tishler
-% Created: 01/12/2024
-% Updated: 16/02/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.MissionApiBase.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Base class for Mission client API calls.
 %==========================================================================
 
 classdef MissionApiBase < ultrasat.api.Loggable
@@ -17,9 +16,9 @@ classdef MissionApiBase < ultrasat.api.Loggable
     % Related files:
     %
     % Base API Client:
-    %   - api.ClientBase        - matlab/util/+api/ClientBase.m
-    %   - api.ModelBase         - matlab/util/+api/ModelBase.m
-    %   - api.ModelFactoryBase  - matlab/util/+api/ModelFactoryBase.m
+    %   - ultrasat.api.ClientBase        - matlab/util/+api/ClientBase.m
+    %   - ultrasat.api.ModelBase         - matlab/util/+api/ModelBase.m
+    %   - ultrasat.api.ModelFactoryBase  - matlab/util/+api/ModelFactoryBase.m
     %
     % Mission Control API Client
     %

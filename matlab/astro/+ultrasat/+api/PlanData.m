@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   PlanData.m
-% Author: Chen Tishler
-% Created: 17/02/2025
-% Updated: 17/03/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.PlanData.m
+% Author      : Chen Tishler
+% Created     : 17/02/2025
+% Updated     : 21/09/2025
+% Description : Data class for plan data.
 %==========================================================================
 
 classdef PlanData < handle
@@ -36,20 +35,20 @@ classdef PlanData < handle
     methods (Static)
         function obj = fromStruct(data)
             % Create new class instance from struct
-            obj = api.ModelBase.struct2class(data, 'ultrasat.api.PlanData');
+            obj = ultrasat.api.ModelBase.struct2class(data, 'ultrasat.api.PlanData');
         end
 
 
         function obj = fromJson(js)
             % Create new class instance from JSON text
-            obj = api.ModelBase.json2class(js, 'ultrasat.api.PlanData');
+            obj = ultrasat.api.ModelBase.json2class(js, 'ultrasat.api.PlanData');
         end        
     end
 
 
     methods
         function obj = PlanData()
-            obj.create_time = api.ModelBase.nowUtc();
+            obj.create_time = ultrasat.api.ModelBase.nowUtc();
             obj.metadata = obj.newMetadata();
         end
 
@@ -68,13 +67,13 @@ classdef PlanData < handle
 
         function data = toStruct(obj)
             % Converts the object back to a struct
-            data = api.ModelBase.class2struct(obj);
+            data = ultrasat.api.ModelBase.class2struct(obj);
         end
 
 
         function js = toJson(obj)
             % Converts the object back to a struct
-            js = api.ModelBase.class2json(obj);
+            js = ultrasat.api.ModelBase.class2json(obj);
         end        
 
 
@@ -135,7 +134,7 @@ classdef PlanData < handle
             if ~isempty(Args.Html), obj.metadata.(fieldName).Html = Args.Html; end
     
             % Set UpdateTime to current UTC time
-            obj.metadata.(fieldName).UpdateTime = api.ModelBase.nowUtc();
+            obj.metadata.(fieldName).UpdateTime = ultrasat.api.ModelBase.nowUtc();
     
             % If StartTime is empty, set it to UpdateTime
             if isempty(obj.metadata.(fieldName).StartTime)
@@ -156,7 +155,7 @@ classdef PlanData < handle
         function addHistory(obj, message)
             % Adds a new entry to the history with the current timestamp.
             newHistoryEntry = struct(...
-                'timestamp', api.ModelBase.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
+                'timestamp', ultrasat.api.ModelBase.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'message', message ...
             );
     

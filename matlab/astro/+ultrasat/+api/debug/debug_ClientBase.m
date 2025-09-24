@@ -7,7 +7,7 @@
 % Updated: 11/02/2025
 %==========================================================================
 %
-% Debugging function for api.ClientBase class.
+% Debugging function for ultrasat.api.ClientBase class.
 % Run this script in MATLAB:
 % >> debug_ClientBase
 %
@@ -20,7 +20,7 @@
 
 function debug_ClientBase()
     % Initialize ClientBase with FastAPI server URL
-    client = api.ClientBase('BaseUrl', 'http://127.0.0.1:8299');
+    client = ultrasat.api.ClientBase('BaseUrl', 'http://127.0.0.1:8299');
     client.ApiKey = [];
     
     % Test addition endpoint

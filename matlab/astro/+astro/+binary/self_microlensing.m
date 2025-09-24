@@ -66,7 +66,23 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %          [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','1dfast', 'LC',Args.LC);
     %          Args.LC=[Beta.', TM(:)];
     %           [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','2d', 'LC',Args.LC);  
-    
+    %          
+    %         [TM,Res]=astro.binary.self_microlensing(b, 'Dls',Dls,'SrcRad',696000.*astro.stars.wdMassRadius('M',0.5),'Mass',8, 'LensRad',3);
+    %
+    %         Beta = (0:0.05:3)';
+    %         Period = logspace(0,2,10).'.*3600;
+    %         K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',Period); %3600);
+    %         Dls = K.a./constant.pc;
+    %         Nk = numel(K.a);
+    %         VecMass = (1.5:0.5:10)'; Nm = numel(VecMass);
+    %         VecSrcRad = logspace(-2,-0.5,10).'.*696000;
+    %         Nr=numel(VecSrcRad)
+    %         for Ik=1:1:Nk, for Im=1:1:Nm, for Ir=1:1:Nr
+    %               [TM,Res]=astro.binary.self_microlensing(Beta,'Dls',Dls(Ik), 'Mass',VecMass(Im),'SrcRad',VecSrcRad(Ir), 'LensRad',15);
+    %               Res.Max(Ik,Im,Ir) = max(TM); 
+    %               Res.Dur(Ik,Im,Ir) = 2.*sum(TM>1.1)./20 .* VecSrcRad(Ir).*1e5./K.v(Ik);
+    %         end, end, end
+
     arguments
         ImpactPar             % in SrcRad units
         Args.ImpactParUnits  = 'SrcRad';  % 'SrcRad','SrcRadUnits'

@@ -534,8 +534,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     
-    %AllFlagGoodAstrometry = imProc.astrometry.isSuccessWCS(AllSI);
-    
+    %AllFlagGoodAstrometry = imProc.astrometry.isSuccessWCS(AllSI);      
+            
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, OnlyMP] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...
                                                                                              'MergedMatchMergedCat',Args.MergedMatchMergedCat,...

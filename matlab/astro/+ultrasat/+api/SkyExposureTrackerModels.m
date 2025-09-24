@@ -1,4 +1,13 @@
-classdef SkyExposureTrackerModels < api.ModelFactoryBase
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.SkyExposureTrackerModels.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 21/09/2025
+% Description : Factory for creating SkyExposureTracker models.
+%==========================================================================
+
+classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
     % Factory for creating SkyExposureTracker models.
 
     properties (Constant)
@@ -41,7 +50,7 @@ classdef SkyExposureTrackerModels < api.ModelFactoryBase
             );
         
             % Create and return the model instance
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -65,7 +74,7 @@ classdef SkyExposureTrackerModels < api.ModelFactoryBase
                 'duration', duration, ...
                 'timestamp', timestamp ...
             );
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
         % -------------------------------------------------------------------
@@ -102,7 +111,7 @@ classdef SkyExposureTrackerModels < api.ModelFactoryBase
                 'select_all', select_all, ...
                 'debug_print', debug_print ...
             );
-            model = api.ModelBase(data);
+            model = ultrasat.api.ModelBase(data);
         end
 
     end

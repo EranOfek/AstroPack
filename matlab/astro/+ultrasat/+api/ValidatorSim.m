@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT 
-%
-% File:   ValidatorSim.m
-% Author: Chen Tishler
-% Created: 17/02/2025
-% Updated: 17/03/2025
-%
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.api.ValidatorSim.m
+% Author      : Chen Tishler
+% Created     : 17/02/2025
+% Updated     : 21/09/2025
+% Description : Simulator implementation of the ValidatorBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
@@ -77,7 +76,7 @@ classdef ValidatorSim < handle
         function response = newResponse(obj)
             % Creates a new response struct with a status field
             response = struct(...
-                'validation_time', api.ModelBase.nowUtc(), ...
+                'validation_time', ultrasat.api.ModelBase.nowUtc(), ...
                 'status', 'pending', ... % Default status
                 'task', struct() ...     % Task data will be populated later
             );
@@ -161,7 +160,7 @@ classdef ValidatorSim < handle
             validationSerial = numel(logData.validations) + 1;
             validationEntry = struct(...
                 'serial', validationSerial, ...
-                'timestamp', api.ModelBase.nowUtcStr(), ...
+                'timestamp', ultrasat.api.ModelBase.nowUtcStr(), ...
                 'input', targets, ...
                 'output', response ...
             );
@@ -191,7 +190,7 @@ classdef ValidatorSim < handle
 
         function msglog(obj, varargin)
             % Logs a formatted message to the log file
-            api.ApiUtils.msglog(obj.LogFileName, 'ValidatorSim', varargin{:});
+            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'ValidatorSim', varargin{:});
         end
     end
 
