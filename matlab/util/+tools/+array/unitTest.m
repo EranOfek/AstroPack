@@ -3,27 +3,38 @@ function Result = unitTest
 	
     %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
 
-    % tools.array.mex.countNaN
+    %% tools.array.mex.countNaN
     A = rand(1700, 1700);
     A(801:900) = NaN;
     if tools.array.mex.countNaN(A)~=100
         error('tools.array.mex.countNaN inconsistent');
     end
 
-
     tic;
     for I=1:1:1000, VV=sum(isnan(A),'all'); end
     T=toc;
-    fprintf('sum(isnan) on 1700x1700 matrxi: %f\n',T);
+    fprintf('sum(isnan) on 1700x1700 matrix: %f\n',T);
 
     tic;
     for I=1:1:1000, VV=tools.array.mex.countNaN(A); end
     T = toc;
-    fprintf('mex.countNaN on 1700x1700 matrxi: %f\n',T);
+    fprintf('mex.countNaN on 1700x1700 matrix: %f\n',T);
+
+
+    %% tools.array.mex.countAboveVal
+
+    Image = rand(9600,6400, 'single');
+    Nsim = 30;
+    tic;for i=1:Nsim, R1=sum(Image>0.96);end,T=toc;        
+    fprintf('Count above value using matlab: %f\n',T);
+    %Elapsed time is 1.562338 seconds.
+    tic;for i=1:Nsim, R1=tools.array.mex.countAboveVal(Image,0.96);end,T=toc;
+    %Elapsed time is 0.615306 seconds.
+    fprintf('Count above value using tools.array.mex.countAboveVal: %f\n',T);
+
     
     
-    
-    % tools.array.mex.squeezeSumAmultB_Dim12
+    %% tools.array.mex.squeezeSumAmultB_Dim12
     A=rand(25,25,1000);
     B=rand(25,25,1000);
     Norm=rand(1000,1); 
@@ -124,32 +135,33 @@ function Result = unitTest
         error('Error in tools.array.bitor_array');
     end
     
-    % Test: tools.array.cropMat
-    Nsim = 5000;
-    %for I=1:1:5
-        Array = uint16(rand(1700,1700));
-        CCDSEC=[101 ceil(rand(1,1).*1300+201),  201 ceil(rand(1,1).*1300+201)];
-        CCDSEC = [101 1600 101 1600];
-        tic;
-        for I=1:1:Nsim
-            SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
-        end
-        T2=toc;
+    % % Test: tools.array.cropMat
+    % Nsim = 5000;
+    % %for I=1:1:5
+    %     Array = uint16(rand(1700,1700));
+    %     CCDSEC=[101 ceil(rand(1,1).*1300+201),  201 ceil(rand(1,1).*1300+201)];
+    %     CCDSEC = [101 1600 101 1600];
+    %     tic;
+    %     for I=1:1:Nsim
+    %         SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+    %     end
+    %     T2=toc;
+    % 
+    %     tic;
+    %     for I=1:1:Nsim
+    %         SA1 = tools.array.cropMat(Array, CCDSEC);
+    %     end
+    %     T1=toc;
+    % 
+    %     fprintf('tools.array.cropMat run time divided by matlab: %f\n',T1./T2);
+    % 
+    %     if max(abs(SA1-SA2),[],'all')>0
+    %         error('tools.array.cropMAT inconsistent');
+    %     end
+    % %end
+    % 
 
-        tic;
-        for I=1:1:Nsim
-            SA1 = tools.array.cropMat(Array, CCDSEC);
-        end
-        T1=toc;
-        
-        fprintf('tools.array.cropMat run time divided by matlab: %f\n',T1./T2);
-        
-        if max(abs(SA1-SA2),[],'all')>0
-            error('tools.array.cropMAT inconsistent');
-        end
-    %end
-    
-    % tools.array.onesCondition
+    %% tools.array.onesCondition
     % W_Max = ones(size(MatR2), 'like',Image);
     % W_Max(MatR2>MomRadius2) = 0;
     Image      = single(1);

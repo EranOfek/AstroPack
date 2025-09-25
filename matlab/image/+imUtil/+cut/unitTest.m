@@ -89,6 +89,28 @@ function Result = mex_bitwise_cutouts_unitTest()
 
     end
 
+
+    % mex.trimImage
+    Image=rand(9600,6400,'single');
+    Nsim = 1000;
+    tic;
+    for i=1:Nsim
+        R2=Image(3001:4000,1001:2000);
+    end
+    T=toc;
+    fprintf('Trimimage using matlab: %f\n',T);
+
+    tic;
+    for i=1:Nsim
+        R1=imUtil.cut.mex.trimImage(Image,[1001 2000 3001 4000]);
+    end
+    T=toc;
+    fprintf('Trimimage using imUtil.cut.mex.trimImage: %f\n',T);
+
+    if max(abs(R1-R2))>0
+        error('Problem with imUtil.cut.mex.trimImage');
+    end
+
     Result = true;
 
     %io.msgStyle(LogLevel.Test, '@passed', 'passed');    
