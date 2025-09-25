@@ -23,6 +23,8 @@ function IpixNeighbors = neighbors(Ipix, Nside, Args)
     IpixNeighbors(2) = celestial.healpix.xyf2ipix(X, Y+1, F, Nside);
     IpixNeighbors(3) = celestial.healpix.xyf2ipix(X+1, Y+1, F, Nside);    
     
+    % need a special section for RA < size(pixel)
+    
     if X > 0 && Y > 0
         IpixNeighbors(4) = celestial.healpix.xyf2ipix(X, Y-1, F, Nside);
         IpixNeighbors(5) = celestial.healpix.xyf2ipix(X-1, Y, F, Nside);    
