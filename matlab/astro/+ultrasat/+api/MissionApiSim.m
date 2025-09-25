@@ -114,7 +114,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             targetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             response = struct();
         
-            targets = obj.ApiSimProvider.ReadJsonFile(targetsFile);
+            targets = obj.ApiSimProvider.readJsonFile(targetsFile);
             if isempty(targets)
                 obj.msglog('No approved targets found in the specified time range.');
                 response.status = 'ok';
@@ -155,7 +155,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             approvedTargetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
             
             % Read existing file
-            existingTargets = obj.ApiSimProvider.ReadJsonFile(approvedTargetsFile);           
+            existingTargets = obj.ApiSimProvider.readJsonFile(approvedTargetsFile);           
             
             if replace
                 % Replace all existing targets
@@ -189,7 +189,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % updatedTargets = updatedTargets(sortIdx);
         
             % Save back to JSON
-            obj.ApiSimProvider.WriteJsonFile(approvedTargetsFile, updatedTargets);
+            obj.ApiSimProvider.writeJsonFile(approvedTargetsFile, updatedTargets);
             
             obj.msglog('Updated successfully: %s', approvedTargetsFile);
         end
@@ -349,22 +349,31 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end            
         
             % Find all JSON files in the plans folder
-            jsonFiles = obj.ApiSimProvider.ListFilesInFolder(plansFolder, '*.json');
+            jsonFiles = obj.ApiSimProvider.listFilesInFolder(plansFolder, '*.json');
             for i = 1:numel(jsonFiles)
                 % Decode the number from the file name (e.g., 00001.json)
-                [~, name, ext] = fileparts(jsonFiles(i).name);
+                [~, name, ext] = fileparts(jsonFiles(i));  % Removed 25/09/2025 - .name);
                 if length(name) == 5 && all(isstrprop(name, 'digit'))
                     planNum = str2double(name);
                     if planNum > 9999
-                        break; % Stop if plan number exceeds 9999
+
+                        % Skip if plan number exceeds 9999, 
+                        % NOTE: values above it are for Maintenance Plans (In the SIM version, to be modified in the Database version)
+                        continue;                         
                     end
                 else
                     continue; % Skip files that do not match the pattern
                 end
 
                 % Load the JSON file
-                planData = obj.ApiSimProvider.ReadJsonFile(jsonFiles(i).name);
+                fileName = fullfile(plansFolder, jsonFiles(i));  % .name);
+                planData = obj.ApiSimProvider.readJsonFile(fileName);
        
+                % List only plans that are still pre-committed
+                if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft')
+                    continue;
+                end
+
                 % Apply time filter if specified
                 if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
                    (~isempty(end_timestamp) && planData.start_time > end_timestamp)
@@ -376,7 +385,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     continue;
                 end
 
-                plansList = [plansList; planData];
+                plansList = [plansList; {planData}];
             end
         
             response.status = 'ok';
@@ -395,7 +404,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
         
             % Load JSON data
-            text = obj.ApiSimProvider.ReadJsonFile(jsonFile);
+            text = obj.ApiSimProvider.readFile(jsonFile);
             if isempty(text)
                 obj.msglog('Plan files not found for pk=%d', plan_pk);
                 response.status = 'error';
@@ -409,7 +418,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         
             % Populate obj.PlanData
             obj.PlanData = ultrasat.api.PlanData.fromJson(text);
-            obj.PlanData.planner = loadedMat.planner;
+            obj.PlanData.planner = loadedMat;  %.planner;
         
             response.status = 'ok';
             response.message = sprintf('Plan %d loaded successfully.', plan_pk);
@@ -432,7 +441,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         
             % Generate pk if not provided, as next file number (i.e '00003')
             if isempty(obj.PlanData.pk)
-                NextAvailableFile = obj.ApiSimProvider.NextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
+                NextAvailableFile = obj.ApiSimProvider.nextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
                 if ~isempty(NextAvailableFile)
                     obj.PlanData.pk = NextAvailableFile.index;
                     obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
@@ -448,7 +457,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % Convert datetime objects to iso format
             planStruct = ultrasat.api.ModelBase.convertDatetimeToString(planStruct);
 
-            obj.ApiSimProvider.WriteJsonFile(jsonFile, planStruct);
+            obj.ApiSimProvider.writeJsonFile(jsonFile, planStruct);
         
             % Write MATLAB object (planner) to .mat file
             matFile = fullfile(plansFolder, sprintf('%05d.mat', obj.PlanData.pk));
@@ -517,7 +526,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end
         
             % Load the JSON plan file
-            planData = obj.ApiSimProvider.ReadJsonFile(jsonFile);
+            planData = obj.ApiSimProvider.readJsonFile(jsonFile);
         
             % Extract relevant fields
             response.status = 'ok';

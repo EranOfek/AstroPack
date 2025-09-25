@@ -109,7 +109,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
-        function data = ReadJsonFile(obj, fileName)
+        function data = readJsonFile(obj, fileName)
             % Reads and parses a JSON file.
             %   Delegates the call to the underlying file client.
             arguments
@@ -135,7 +135,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
-        function success = WriteJsonFile(obj, fileName, data)
+        function success = writeJsonFile(obj, fileName, data)
             % Writes a MATLAB struct/array to a JSON file.
             %   Delegates the call to the underlying file client.
             arguments
@@ -147,7 +147,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             success = obj.FileClient.writeJson(path, data);
         end
 
-        function data = ReadBinaryFile(obj, fileName)
+        function data = readBinaryFile(obj, fileName)
             % Reads and parses a binary file.
             %   Delegates the call to the underlying file client.
             arguments
@@ -159,7 +159,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
-        function success = WriteBinaryFile(obj, filePath, data)
+        function success = writeBinaryFile(obj, filePath, data)
             % Writes a binary file to the server.
             %   Delegates the call to the underlying file client.
             arguments
@@ -207,7 +207,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 fclose(fid);
                 
                 % Now, use the existing binary write method to send the data.
-                success = obj.WriteBinaryFile(relativeFilePath, matBytes);
+                success = obj.writeBinaryFile(relativeFilePath, matBytes);
                 
             catch ME
                 obj.msglog('Failed to save MAT object to "%s": %s', relativeFilePath, ME.message);
@@ -231,7 +231,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             success = false;
             
             % Read the binary data from the provider (local or remote)
-            matBytes = obj.ReadBinaryFile(relativeFilePath);
+            matBytes = obj.readBinaryFile(relativeFilePath);
             
             if isempty(matBytes)
                 obj.msglog('Failed to load MAT object: received no binary data from "%s".', relativeFilePath);
@@ -261,7 +261,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
-        function fileList = ListFilesInFolder(obj, folderName, masks)
+        function fileList = listFilesInFolder(obj, folderName, masks)
             % Lists files in a given folder.
             %   Delegates the call to the underlying file client.
             arguments
@@ -274,7 +274,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
 
-        function result = NextAvailableFile(obj, folderPath, mask, zeroPad, minIndex, maxIndex)
+        function result = nextAvailableFile(obj, folderPath, mask, zeroPad, minIndex, maxIndex)
             % Finds the next available sequential filename.
             %   Delegates the call to the underlying file client.
             arguments
@@ -290,7 +290,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
         end
 
         
-        function result = DeleteFile(obj, filePath)
+        function result = deleteFile(obj, filePath)
             % Deletes a file from the server.
             %   Delegates the call to the underlying file client.
             arguments
