@@ -19,27 +19,27 @@ function IpixNeighbors = neighbors(Ipix, Nside, Args)
     
     [X, Y, F] = celestial.healpix.ipix2xyf(Ipix, Nside);
     
-    IpixNeighbors(1) = celestial.healpix.xyf2ipix(X+1, Y, F, Nside);
-    IpixNeighbors(2) = celestial.healpix.xyf2ipix(X, Y+1, F, Nside);
+    IpixNeighbors(1) = celestial.healpix.xyf2ipix(X+1, Y,   F, Nside);
+    IpixNeighbors(2) = celestial.healpix.xyf2ipix(X,   Y+1, F, Nside);
     IpixNeighbors(3) = celestial.healpix.xyf2ipix(X+1, Y+1, F, Nside);    
     
     % need a special section for RA < size(pixel)
     
-    if X > 0 && Y > 0
-        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X, Y-1, F, Nside);
-        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X-1, Y, F, Nside);    
+    if X > 0 && Y > 0 
+        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X,   Y-1, F, Nside);
+        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X-1, Y,   F, Nside);    
         IpixNeighbors(6) = celestial.healpix.xyf2ipix(X+1, Y-1, F, Nside);
         IpixNeighbors(7) = celestial.healpix.xyf2ipix(X-1, Y+1, F, Nside);
         IpixNeighbors(8) = celestial.healpix.xyf2ipix(X-1, Y-1, F, Nside);
     elseif X > 0 && Y == 0
-        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X-1, Y,   F, Nside);  
-        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X-1, Y+1, F, Nside);
+        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X-1, Y,   F,   Nside);  
+        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X-1, Y+1, F,   Nside);
         IpixNeighbors(6) = celestial.healpix.xyf2ipix(X-1, Y,   F+1, Nside);
         IpixNeighbors(7) = celestial.healpix.xyf2ipix(X-1, Y+1, F+1, Nside);
         IpixNeighbors(8) = celestial.healpix.xyf2ipix(X-1, Y+2, F+1, Nside);                    
     elseif X == 0 && Y > 0
-        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X+1, Y-1, F, Nside);     
-        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X,   Y-1, F, Nside);             
+        IpixNeighbors(4) = celestial.healpix.xyf2ipix(X+1, Y-1, F,   Nside);     
+        IpixNeighbors(5) = celestial.healpix.xyf2ipix(X,   Y-1, F,   Nside);             
         IpixNeighbors(6) = celestial.healpix.xyf2ipix(X+1, Y-1, F-1, Nside);
         IpixNeighbors(7) = celestial.healpix.xyf2ipix(X+2, Y-1, F-1, Nside);         
         IpixNeighbors(8) = celestial.healpix.xyf2ipix(X,   Y-1, F-1, Nside);     
