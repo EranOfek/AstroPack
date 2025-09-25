@@ -1,6 +1,6 @@
 function Ipix = xyf2ipix(X, Y, F, Nside)
     % Convert (x, y, face number) to HEALPix pixel index in the NESTED scheme
-    %     Optional detailed description
+    %      NB: for NESTED scheme only!
     % Input  : - x coordinate
     %          - y coordinate
     %          - f (face)
