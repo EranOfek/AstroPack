@@ -33,7 +33,7 @@ arguments
     CCDSEC
     Type      = 'ccdsec';
     FillVal   = [];
-    UseMex    = true;
+    UseMex    = false;
 end
 
 Size = size(Data);
@@ -89,12 +89,12 @@ else
         error('FillVal different than [] is not yet supported');
     end
         
-    if ndims==2
-        % use MEX
-        TrimedData = imUtil.cut.mex.trimImage(Data, [Y1 Y2 X1 X2]);
-    else
+    %if ndims==2
+    %    % use MEX
+    %    TrimedData = imUtil.cut.mex.trimImage(Data, [Y1 Y2 X1 X2]);
+    %else
         TrimedData = Data(Y1:Y2,X1:X2,:);
-    end
+    %end
     
 end
 
