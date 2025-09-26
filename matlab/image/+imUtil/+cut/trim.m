@@ -1,4 +1,4 @@
-function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal)
+function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal, UseMex)
 % Trim an image or a cube using CCDSEC coordinates.
 % Pacakge: imUtilimage
 % Description: Trim an image or a cube using CCDSEC coordinates.
@@ -16,6 +16,7 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal)
 %            this is the fill value to insert into the edge, such that the
 %            trim section will have the requires size. If empty, then
 %            return only the overlap region. Default is [].
+%          - UseMex. Deafult is true.
 % Output : - A trimmed image or cube.
 %          - A CCDSEC vector.
 % License: GNU general public license version 3
@@ -32,6 +33,7 @@ arguments
     CCDSEC
     Type      = 'ccdsec';
     FillVal   = [];
+    UseMex    = true;
 end
 
 Size = size(Data);
@@ -87,7 +89,13 @@ else
         error('FillVal different than [] is not yet supported');
     end
         
-    TrimedData = Data(Y1:Y2,X1:X2,:);
+    if ndims==2
+        % use MEX
+        TrimedData = imUtil.cut.mex.trimImage(Data, [Y1 Y2 X1 X2]);
+    else
+        TrimedData = Data(Y1:Y2,X1:X2,:);
+    end
+    
 end
 
 CCDSEC = [X1, X2, Y1, Y2];

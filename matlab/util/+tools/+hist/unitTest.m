@@ -30,6 +30,7 @@ function [Result] = unitTest()
     Es=single(E);
     N0 = histcounts2(Xs,Ys,Es,Es);
     N = tools.hist.histcounts2regular_mex(Xs,Ys,Es,Es);
+    %N = tools.hist.histcounts2regular_mex(Xs,Ys,Es,Es);
     
     if max(abs(double(N0) - double(N)),[],'all')>eps
         error('histcounts2regular_mex not consistent with histcounts2 (double)');
@@ -39,14 +40,16 @@ function [Result] = unitTest()
     % tools.hist.mex.histcounts1regular_mex
     V=rand(1e4,1);        
     E=(0:0.01:1);      
-    N=tools.hist.mex.histcounts1regular_mex(V,E);
+    N=tools.hist.mex.histcounts1regular(V,0,0.01,100);
+    
     N1=histcounts(V,E);
-    if sum(abs(N-N1))>0
+    if sum(abs(double(N(:))-double(N1(:))))>0
         error('histcounts1regular_mex inconsistent');
     end
     
     tic;for I=1:1:1e4, N=histcounts(V,E);end,toc                           
-    tic;for I=1:1:1e4, N=tools.hist.mex.histcounts1regular_mex(V,E);end,toc
+    tic;for I=1:1:1e4, N=tools.hist.mex.histcounts1regular(V,0,0.01,100);end,toc
+    
     
 
 

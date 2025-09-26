@@ -86,7 +86,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 dbFile = ultrasat.api.PathUtils.getGlobalDataFilename('', '', 'namespaces.json');
 
                 % Use ApiSimProvider to read the JSON file
-                data = obj.ApiSimProvider.ReadJsonFile(dbFile);
+                data = obj.ApiSimProvider.readJsonFile(dbFile);
 
                 % Extract namespace_id values
                 if isfield(data, 'namespaces') && isstruct(data.namespaces)
@@ -304,24 +304,24 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             % end
         
             % Load current user and verify
-            fid = fopen(currentUserFile, 'r');
-            raw = fread(fid, inf, 'char');
-            fclose(fid);
-            currentUser = jsondecode(char(raw'));
-        
-            if ~strcmp(currentUser.UserName, UserName)
-                obj.msglog('logout: User %s is not currently logged in.', UserName);
-                response.status = 'error';
-                response.message = 'User not logged in.';
-                response.ok = false;
-                return;
-            end
-        
-            % Clear current user
-            fid = fopen(currentUserFile, 'w');
-            fwrite(fid, jsonencode(struct('UserName', '', 'Role', '', 'Namespace', ''), 'PrettyPrint', true), 'char');
-            fclose(fid);
-        
+            % fid = fopen(currentUserFile, 'r');
+            % raw = fread(fid, inf, 'char');
+            % fclose(fid);
+            % currentUser = jsondecode(char(raw'));
+            % 
+            % if ~strcmp(currentUser.UserName, UserName)
+            %     obj.msglog('logout: User %s is not currently logged in.', UserName);
+            %     response.status = 'error';
+            %     response.message = 'User not logged in.';
+            %     response.ok = false;
+            %     return;
+            % end
+            % 
+            % % Clear current user
+            % fid = fopen(currentUserFile, 'w');
+            % fwrite(fid, jsonencode(struct('UserName', '', 'Role', '', 'Namespace', ''), 'PrettyPrint', true), 'char');
+            % fclose(fid);
+            % 
             obj.msglog('logout: User %s logged out successfully.', UserName);
             response.status = 'ok';
             response.ok = true;
@@ -495,11 +495,11 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         % -------------------------------------------------------------------
 
         function data = load_json(obj, path)
-            data = obj.ApiSimProvider.ReadJsonFile(path);
+            data = obj.ApiSimProvider.readJsonFile(path);
         end
         
         function save_json(obj, path, data)
-            obj.ApiSimProvider.WriteJsonFile(path, data);
+            obj.ApiSimProvider.writeJsonFile(path, data);
         end
 
         % -------------------------------------------------------------------        
