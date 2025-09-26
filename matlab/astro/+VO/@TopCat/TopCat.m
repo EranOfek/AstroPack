@@ -728,6 +728,8 @@ classdef TopCat < Base
                     T = readtable(outfile, 'FileType','text', 'Delimiter','comma');
                 case 'tsv'
                     T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
+                case 'fits'
+                    T = AstroCatalog(outfile);
                 otherwise
                     try
                         T = readtable(outfile, 'FileType','text');
