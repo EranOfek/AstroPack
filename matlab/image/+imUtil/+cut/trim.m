@@ -1,4 +1,4 @@
-function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal, UseMex)
+function [TrimedData, CCDSEC]=trim(Data, CCDSEC, TypeCCDSEC, FillVal, UseMex)
 % Trim an image or a cube using CCDSEC coordinates.
 % Pacakge: imUtilimage
 % Description: Trim an image or a cube using CCDSEC coordinates.
@@ -10,13 +10,15 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal, UseMex)
 %                    type='center'
 %                 or [Xhalfsize, Yhalfsize] around central pixel if type =
 %                 'center'.
-%          - Type. Either 'ccdsec', or 'center'.
-%            Default is 'ccdsec'.
+%          - If true, or 'ccdsec', treat the CCDSEC vector as CCDSEC.
+%            If false or 'center', or the CCDSEC contains two elements,
+%            then treat the CCDSEC vector as center position/size.
+%            Default is true.
 %          - Fill value. In case that the trim section is near the edge,
 %            this is the fill value to insert into the edge, such that the
 %            trim section will have the requires size. If empty, then
 %            return only the overlap region. Default is [].
-%          - UseMex. Deafult is true.
+%          - UseMex. Deafult is false.
 % Output : - A trimmed image or cube.
 %          - A CCDSEC vector.
 % License: GNU general public license version 3
@@ -31,11 +33,88 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal, UseMex)
 arguments
     Data
     CCDSEC
-    Type      = 'ccdsec';
-    FillVal   = [];
-    UseMex    = false;
+    TypeCCDSEC  = true;
+    FillVal     = [];
+    UseMex      = false;
 end
 
+Size = size(Data);
+if numel(CCDSEC)==2
+    TypeCCDSEC = false;
+end
+
+if ischar(TypeCCDSEC) || isstring(TypeCCDSEC)
+    switch lower(TypeCCDSEC)
+        case 'ccdsec'
+            TypeCCDSEC = true;
+        case 'center'
+            TypeCCDSEC = false;
+        otherwise
+            error('Unknown TypeCCDSEC option');
+    end
+end
+
+if TypeCCDSEC
+    % [Xmin, Xmax, Ymin, Ymax]
+    X1 = CCDSEC(1);
+    X2 = CCDSEC(2);
+    Y1 = CCDSEC(3);
+    Y2 = CCDSEC(4);
+else
+    if numel(CCDSEC)==4
+        % [Xcenter, Ycenter, Xhalfsize, Yhalfsize]
+        X1 = CCDSEC(1) - CCDSEC(3);
+        X2 = CCDSEC(1) + CCDSEC(3);
+        Y1 = CCDSEC(2) - CCDSEC(4);
+        Y2 = CCDSEC(2) + CCDSEC(4);
+    elseif numel(CCDSEC)==2
+        % [Xhalfsize, Yhalfsize] around centeral pixel
+        Xc = floor(Size(2).*0.5);
+        Yc = floor(Size(1).*0.5);
+        X1 = Xc - CCDSEC(1);
+        X2 = Xc + CCDSEC(1);
+        Y1 = Yc - CCDSEC(2);
+        Y2 = Yc + CCDSEC(2);
+    else
+        error('Uknown CCDSEC format - CCDSEC must contain 2 or 4 elements');
+    end
+end
+
+
+if isempty(Data)
+    TrimedData = [];
+else
+    if isempty(FillVal)
+        % remove boundries from trimed image
+        if Y1<1
+            Y1 = 1;
+        end
+        if X1<1
+            X1 = 1;
+        end
+        if Y2>Size(1)
+            Y2 = Size(1);
+        end
+        if X2>Size(2)
+            X2 = Size(2);
+        end
+    else
+        error('FillVal different than [] is not yet supported');
+    end
+        
+    if UseMex
+        TrimedData = imUtil.cut.mex.trimImage(Data, [Y1 Y2 X1 X2]);
+    else
+        TrimedData = Data(Y1:Y2,X1:X2,:);
+    end
+    
+end
+
+CCDSEC = [X1, X2, Y1, Y2];
+
+
+%%
+if 1==0
 Size = size(Data);
 
 switch lower(Type)
@@ -98,5 +177,7 @@ else
     
 end
 
+
 CCDSEC = [X1, X2, Y1, Y2];
         
+end

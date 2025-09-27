@@ -1,7 +1,7 @@
 // trim_crop_mex.cpp
 // out = trim_crop_mex(Image, CCDSEC)
-// 2D: out = Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2))
-// 3D: out = Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2), :)
+// 2D: out = Image(CCDSEC(1):CCDSEC(2), CCDSEC(3):CCDSEC(4))
+// 3D: out = Image(CCDSEC(1):CCDSEC(2), CCDSEC(3):CCDSEC(4), :)
 //
 // - Supports ANY built-in class (incl. uint64) and complex (interleaved).
 // - Extremely fast: memcpy per column per plane; OpenMP across cols×planes.
@@ -67,20 +67,21 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     if (nd < 2 || nd > 3) mexErrMsgIdAndTxt("trim:Dim", "Image must be 2-D or 3-D.");
 
     if ((!mxIsNumeric(CCD) && !mxIsLogical(CCD)) || mxIsComplex(CCD) || mxGetNumberOfElements(CCD)!=4)
-        mexErrMsgIdAndTxt("trim:CCDSEC", "CCDSEC must be real numeric/logical vector [x1 x2 y1 y2].");
+        mexErrMsgIdAndTxt("trim:CCDSEC", "CCDSEC must be real numeric/logical vector [y1 y2 x1 x2].");
 
-    // Read CCDSEC (1-based inclusive)
-    const mwSize x1 = to_index_checked(get_elem_as_double(CCD, 0), "CCDSEC(1)");
-    const mwSize x2 = to_index_checked(get_elem_as_double(CCD, 1), "CCDSEC(2)");
-    const mwSize y1 = to_index_checked(get_elem_as_double(CCD, 2), "CCDSEC(3)");
-    const mwSize y2 = to_index_checked(get_elem_as_double(CCD, 3), "CCDSEC(4)");
-    if (x2 < x1) mexErrMsgIdAndTxt("trim:Order", "CCDSEC(2) must be >= CCDSEC(1).");
-    if (y2 < y1) mexErrMsgIdAndTxt("trim:Order", "CCDSEC(4) must be >= CCDSEC(3).");
+    // Read CCDSEC (1-based inclusive) — NOTE: order is [y1 y2 x1 x2]
+    const mwSize y1 = to_index_checked(get_elem_as_double(CCD, 0), "CCDSEC(1)");
+    const mwSize y2 = to_index_checked(get_elem_as_double(CCD, 1), "CCDSEC(2)");
+    const mwSize x1 = to_index_checked(get_elem_as_double(CCD, 2), "CCDSEC(3)");
+    const mwSize x2 = to_index_checked(get_elem_as_double(CCD, 3), "CCDSEC(4)");
+
+    if (y2 < y1) mexErrMsgIdAndTxt("trim:Order", "CCDSEC(2) must be >= CCDSEC(1).");
+    if (x2 < x1) mexErrMsgIdAndTxt("trim:Order", "CCDSEC(4) must be >= CCDSEC(3).");
 
     // Sizes
     const mwSize* dims = mxGetDimensions(A);
-    const mwSize inRows = dims[0];
-    const mwSize inCols = dims[1];
+    const mwSize inRows  = dims[0];
+    const mwSize inCols  = dims[1];
     const mwSize inPages = (nd==3) ? dims[2] : 1;
 
     if (x1>inCols || x2>inCols || y1>inRows || y2>inRows)
@@ -126,8 +127,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     } else {
         // Parallel over (columns × pages)
         const mwSize P = inPages;
-        // Use collapse(2) when available to distribute 2D iteration space.
-        #if defined(_OPENMP) && (_OPENMP >= 200805) // OpenMP 3.0+
+        #if defined(_OPENMP) && (_OPENMP >= 200805)
         #pragma omp parallel for collapse(2) if(static_cast<size_t>(outCols)*static_cast<size_t>(P) > 64) schedule(static)
         #endif
         for (mwSize k = 0; k < P; ++k) {
