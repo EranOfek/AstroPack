@@ -735,76 +735,7 @@ classdef TopCat < Base
                 case 'tsv'
                     T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
                 case 'fits'
-                    % Read a FITS binary table with typed columns (int64/uint64 preserved)
-                    % Requires the matlab.io.fits package (R2013b+)
-                    if exist('matlab.io.fits.openFile','file') ~= 2
-                        error(['FITS I/O not found. Your MATLAB lacks the matlab.io.fits package. ' ...
-                               'Try a newer MATLAB or use Ofmt="votable" as a fallback.']);
-                    end
-                
-                    % Locate a binary table HDU using fitsinfo
-                    finfo = fitsinfo(outfile);  % returns struct
-                    % Find the first binary table HDU
-                    hIdx = [];
-                    for k = 1:numel(finfo.Contents)
-                        % In modern MATLAB, Type is like 'Binary table' or 'Image'
-                        if isfield(finfo.Contents(k), 'Type') && strcmpi(finfo.Contents(k).Type,'Binary table')
-                            hIdx = k; break
-                        end
-                        % Back-compat: some releases use Class or XTension fields
-                        if isempty(hIdx)
-                            if (isfield(finfo.Contents(k),'Class') && strcmpi(finfo.Contents(k).Class,'BinaryTableHDU')) || ...
-                               (isfield(finfo.Contents(k),'XTension') && strcmpi(finfo.Contents(k).XTension,'BINTABLE'))
-                                hIdx = k; break
-                            end
-                        end
-                    end
-                    if isempty(hIdx)
-                        % STILTS usually writes primary image + ext#2 as table; fall back to HDU 2
-                        hIdx = 2;
-                    end
-                
-                    % Extract column metadata from fitsinfo
-                    colsMeta = [];
-                    if isfield(finfo.Contents(hIdx),'Fields')
-                        colsMeta = finfo.Contents(hIdx).Fields;  % struct array with Name, etc.
-                    end
-                
-                    % Open with fully-qualified FITS API
-                    fptr = matlab.io.fits.openFile(outfile, 'READONLY');
-                    cobj = onCleanup(@() matlab.io.fits.closeFile(fptr));
-                    matlab.io.fits.movAbsHDU(fptr, hIdx);
-                
-                    % Determine number of columns (prefer info; otherwise query header)
-                    if ~isempty(colsMeta)
-                        ncol = numel(colsMeta);
-                        varnames = string({colsMeta.Name});
-                    else
-                        % Query TFIELDS from header if fields are missing in this MATLAB version
-                        ncol = double(matlab.io.fits.getNumCols(fptr));
-                        varnames = strings(1, ncol);
-                        for c = 1:ncol
-                            try
-                                varnames(c) = string(matlab.io.fits.getColName(fptr, c));
-                            catch
-                                varnames(c) = "Col"+c;
-                            end
-                        end
-                    end
-                
-                    % Read all columns preserving their native integer types (incl. int64)
-                    data = cell(1, ncol);
-                    for c = 1:ncol
-                        colvec = matlab.io.fits.readCol(fptr, c);
-                        if isrow(colvec), colvec = colvec.'; end
-                        data{c} = colvec;
-                    end
-                
-                    % Build table (keeps int64/uint64 classes as-is)
-                    T = table(data{:}, 'VariableNames', cellstr(varnames));
-
-
-              
+                    T = AstroCatalog(outfile);              
                 otherwise
                     try
                         T = readtable(outfile, 'FileType','text');
