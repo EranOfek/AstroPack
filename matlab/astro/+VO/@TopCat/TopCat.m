@@ -734,11 +734,6 @@ classdef TopCat < Base
                     T = readtable(outfile, 'FileType','text', 'Delimiter','comma');
                 case 'tsv'
                     T = readtable(outfile, 'FileType','text', 'Delimiter','tab');
-<<<<<<< HEAD
-                case 'fits'
-                    T = AstroCatalog(outfile);
-=======
-
                 case 'fits'
                     % Read a FITS binary table with typed columns (int64/uint64 preserved)
                     % Requires the matlab.io.fits package (R2013b+)
@@ -809,9 +804,7 @@ classdef TopCat < Base
                     T = table(data{:}, 'VariableNames', cellstr(varnames));
 
 
-               
-
->>>>>>> 71e8fbe292391cb3d9bda1ac783d0af267fad66d
+              
                 otherwise
                     try
                         T = readtable(outfile, 'FileType','text');
