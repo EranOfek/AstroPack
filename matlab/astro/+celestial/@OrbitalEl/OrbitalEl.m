@@ -1725,7 +1725,7 @@ classdef OrbitalEl < Base
             %            'MagLimit' - Magnitude limit. Default is Inf.
             %            'INPOP' - A populated celestial.INPOP object.
             %                   If empty then will be generated.
-            %                   Default is [].
+            %                   Default is celestial.INPOP.init;
             %            'AddDist' - A logical indicating if to add a
             %                   'Dist' column to the output table, containing the
             %                   distance between the search position and asteroid
@@ -1821,7 +1821,7 @@ classdef OrbitalEl < Base
                 Args.AddDist logical       = true;
                 
                 Args.MagLimit              = Inf;
-                Args.INPOP                 = [];
+                Args.INPOP                 = celestial.INPOP.init;
                 Args.GeoPos                = [];
                 Args.RefEllipsoid          = 'WGS84';
 
