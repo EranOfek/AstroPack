@@ -1,4 +1,4 @@
-function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, WaveUnits)
+function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, WaveUnits, Args)
     % Calculates Rayleigh transmission, returns cashed result if the inputs
     % did not change since last call. Part of the Transmission package for absolute photometric calibration.  
     % Input:  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] (optional if cached)
@@ -17,34 +17,39 @@ function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, Wave
         Pressure_mbar = 965
         Lam = linspace(300, 1100, 401);
         WaveUnits = 'nm'
+        Args.Result = [];
     end
 
     persistent cachedTransm cachedZenith cachedPressure cachedLam
 
-    % Validate zenith angle
-    if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
-        error('Zenith angle out of range [0, 90] deg');
+    if isempty(Args.Result)        
+        % Validate zenith angle
+        if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
+            error('Zenith angle out of range [0, 90] deg');
+        end
+        
+        % Check if we can use cached data (same inputs)
+        if ~isempty(cachedTransm) && isequal(ZenithAngle_deg, cachedZenith) && ...
+                isequal(Pressure_mbar, cachedPressure) && isequal(Lam, cachedLam)
+            Transm = cachedTransm;
+            return;
+        end
+        
+        Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).rayleigh;
+        
+        % Calculate Rayleigh optical depth using AstroPack function
+        % rayleighScatering
+        Tau_rayleigh = astro.atmosphere.rayleighScattering(Lam, Pressure_mbar, WaveUnits);
+        
+        % Calculate transmission
+        Transm = exp(-Am_ .* Tau_rayleigh);
+        
+        % Cache the results
+        cachedTransm = Transm;
+        cachedZenith = ZenithAngle_deg;
+        cachedPressure = Pressure_mbar;
+        cachedLam = Lam;
+    else
+        Transm = Args.Result;
     end
-
-    % Check if we can use cached data (same inputs)
-    if ~isempty(cachedTransm) && isequal(ZenithAngle_deg, cachedZenith) && ...
-            isequal(Pressure_mbar, cachedPressure) && isequal(Lam, cachedLam)
-        Transm = cachedTransm;
-        return;
-    end
-    
-    Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).rayleigh;
-    
-    % Calculate Rayleigh optical depth using AstroPack function
-    % rayleighScatering
-    Tau_rayleigh = astro.atmosphere.rayleighScattering(Lam, Pressure_mbar, WaveUnits);
-    
-    % Calculate transmission
-    Transm = exp(-Am_ .* Tau_rayleigh);
-
-    % Cache the results
-    cachedTransm = Transm;
-    cachedZenith = ZenithAngle_deg;
-    cachedPressure = Pressure_mbar;
-    cachedLam = Lam;
 end
