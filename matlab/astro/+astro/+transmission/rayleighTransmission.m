@@ -1,4 +1,5 @@
-function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, WaveUnits, Args)
+function Transm = rayleighTransmission(Lam, ModelPar, Args)
+% function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, WaveUnits, Args)
     % Calculates Rayleigh transmission, returns cashed result if the inputs
     % did not change since last call. Part of the Transmission package for absolute photometric calibration.  
     % Input:  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] (optional if cached)
@@ -7,22 +8,27 @@ function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, Wave
     % Output: - Transm (double array): Transmission values (0-1)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Sep 2025)
-    % Example: Transm = astro.atmosphere.rayleighTransmission(55.18, 1013.25);
+    % Example: Transm = astro.transmission.rayleighTransmission(55.18, 1013.25);
     %          % Later calls with the same arguments
     %          % return output without calculation
-    %          Transm = astro.atmosphere.rayleighTransmission(55.18, 1013.25);
-    
+    %          Transm = astro.transmission.rayleighTransmission(55.18, 1013.25);    
     arguments
-        ZenithAngle_deg = 30
-        Pressure_mbar = 965
+        % ZenithAngle_deg = 30
+        % Pressure_mbar = 965
+        % WaveUnits = 'nm'
         Lam = linspace(300, 1100, 401);
-        WaveUnits = 'nm'
-        Args.Result = [];
+        ModelPar    = {{'ZenithAngle_deg',30},{'Pressure_mbar',965},{'WaveUnits','nm'}}; 
+        Args.Result = [];        
     end
 
     persistent cachedTransm cachedZenith cachedPressure cachedLam
 
-    if isempty(Args.Result)        
+    if isempty(Args.Result) 
+
+        ZenithAngle_deg = ModelPar{cellfun(@(c) strcmp(c{1}, 'ZenithAngle_deg'), ModelPar)}{2};
+        Pressure_mbar   = ModelPar{cellfun(@(c) strcmp(c{1}, 'Pressure_mbar'), ModelPar)}{2};
+        WaveUnits       = ModelPar{cellfun(@(c) strcmp(c{1}, 'WaveUnits'), ModelPar)}{2};
+      
         % Validate zenith angle
         if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
             error('Zenith angle out of range [0, 90] deg');

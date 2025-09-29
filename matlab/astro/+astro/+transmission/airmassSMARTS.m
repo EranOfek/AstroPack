@@ -15,7 +15,7 @@ function Constituent_Airmasses = airmassSMARTS(ZenithAngle_deg)
     
     persistent cachedAirmasses cachedZenithAngle
 
-    % If no input or empty input, return cached data
+    % If no input or empty input, return cached data  
     if nargin == 0 || isempty(ZenithAngle_deg)
         if isempty(cachedAirmasses)
             error('No cached airmass data. Call with zenithAngle_deg first.');
