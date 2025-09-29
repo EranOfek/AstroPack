@@ -35,7 +35,7 @@ function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, Wave
             return;
         end
         
-        Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).rayleigh;
+        Am_ = astro.transmission.airmassSMARTS(ZenithAngle_deg).rayleigh;
         
         % Calculate Rayleigh optical depth using AstroPack function
         % rayleighScatering

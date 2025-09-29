@@ -25,7 +25,7 @@ function [Path] = pathProc(Mount, Cam, Date, Args)
 
     ProjName = sprintf('%s.%02d.%02d.%02d',Args.ProjName, Args.Node, Mount, Cam);
 
-    Path = fullfile(Args.BasePath, ProjName, string(Date(3)), string(Date(2)), string(Date(1)), 'proc');
+    Path = fullfile(Args.BasePath, ProjName, sprintf('%04d',Date(3)), sprintf('%02d',Date(2)), sprintf('%02d',Date(1)), 'proc');
     if ~isempty(Args.Visit)
         Path = fullfile(Path, Args.Visit);
     end

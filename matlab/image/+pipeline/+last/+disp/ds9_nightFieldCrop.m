@@ -45,7 +45,7 @@ function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
     if isnumeric(Field)
         Field = string(Field);
     end
-    TempName = sprintf('%s*_%s*_%d_%s_%s_%s*.fits', Args.ProjName, Field, Crop, Args.Type, Args.Level, Args.Product);
+    TempName = sprintf('%s*_%s*_%03d_%s_%s_%s*.fits', Args.ProjName, Field, Crop, Args.Type, Args.Level, Args.Product);
 
     Cmd = sprintf('find . -type f -name %s',TempName);
     [~,Files]=system(Cmd);
@@ -53,16 +53,16 @@ function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
     % convert to string array
     Files = splitlines(Files);
     % remove blank lines
-    Files = Res(strlength(Files) > 0);
+    Files = Files(strlength(Files) > 0);
 
-    if Args.Dispaly
+    if Args.Display
         if isempty(Files)
-            fprintf('Files not found');
+            fprintf('Files not found\n');
             D9 = [];
         else
-            fprintf('Found %d files', numel(Result));
+            fprintf('Found %d files\n', numel(Files));
             
-            AI = AstroImage.loadProduct(Files);
+            AI = AstroImage.readProducts({Files{:}});
             D9 = DS9analysis;
             D9.load(AI);
         end
