@@ -1,4 +1,4 @@
-function Transm = rayleighTransmission(zenithAngle_deg, pressure_mbar, Lam, waveUnits)
+function Transm = rayleighTransmission(zenithAngle_deg, pressure_mbar, Lam, waveUnits, Args)
     % Rayleigh transmission with caching 
     % Input:  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] (optional if cached)
     %         - pressure_mbar (double): Atmospheric pressure in mbar (default: 965, optional if cached)
@@ -15,10 +15,13 @@ function Transm = rayleighTransmission(zenithAngle_deg, pressure_mbar, Lam, wave
         pressure_mbar = 965;
         Lam = linspace(300, 1100, 401);
         waveUnits = 'nm'
+        Args.Result    = [];
     end
-
+      
     persistent cachedTransm cachedZenith cachedPressure cachedLam
 
+    if isempty(Args.Result)
+    
     % Validate zenith angle
     if zenithAngle_deg > 90 || zenithAngle_deg < 0
         error('Zenith angle out of range [0, 90] deg');
@@ -45,4 +48,8 @@ function Transm = rayleighTransmission(zenithAngle_deg, pressure_mbar, Lam, wave
     cachedZenith = zenithAngle_deg;
     cachedPressure = pressure_mbar;
     cachedLam = Lam;
+    
+    else
+        Transm = Args.Result;
+    end
 end
