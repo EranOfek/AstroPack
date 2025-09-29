@@ -31,9 +31,10 @@
 % Complex queries on SIMBAD - query for all WD which are variable of any kind:
 %   Q="SELECT b.main_id,b.ra,b.dec,od.otype_shortname AS otype,b.sp_type FROM basic AS b JOIN otypedef AS od ON b.otype=od.otype WHERE ( ( (od.otype_shortname IN ('WD*','WD?') OR b.sp_type LIKE 'D%' OR b.sp_type LIKE 'PG 1159%') AND (od.otype_shortname LIKE 'V%' OR od.otype_shortname IN ('Pu*','EB*','El*')) ) OR od.otype_shortname IN ('CV*','CV?') ) ORDER BY ra";
 %   T = Tap.query(Q);  % select SIMBAD TAP
-
-
-
+%
+% Simbad name resolver:
+% Q="SELECT b.main_id, b.ra, b.dec FROM ident AS i JOIN basic AS b ON i.oidref=b.oid WHERE i.id = 'M 31'"
+% T=Tap.query(Q, 'TapName','SIMBAD TAP')
 
 
 classdef TopCat < Base
@@ -127,6 +128,9 @@ classdef TopCat < Base
             %            'TapUrl' - If empty, then use object TapUrl.
             %                   If 'select', then call GUI selector.
             %                   Default is [].
+            %            'TapName' - If argument is not empty, then will use searchTapList
+            %                   to search for Tap URL.
+            %                   Default is [].
             %            'Ofmt' - Format. Default is 'csv'.
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             %            'JarFile' - Jar file full path.
@@ -146,9 +150,14 @@ classdef TopCat < Base
                 Args.Cat        = [];
                 Args.Method     = 'java';  %'http'|'java'
                 Args.TapUrl     = [];   % []|'select' | or url
+                Args.TapName    = [];
                 Args.Ofmt       = 'csv';
                 Args.TimeoutSec = 600;
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
+            end
+
+            if ~isempty(Args.TapName) && isempty(Args.TapUrl)
+                Args.TapUrl = VO.TopCat.searchTapList(Args.TapName);
             end
 
 
@@ -396,7 +405,21 @@ classdef TopCat < Base
             s = regexprep(s, '(\\|")', '\\$1');
         end
 
+        function Url=searchTapList(Name)
+            % Search Tap URL by its name
+            % Input  : - Tap server name.
+            %          - Tap server URL.
+            % Author : Eran Ofek (Sep 2025)
+            % Example: Url = VO.TopCat.searchTapList('SIMBAD TAP');
+            
+            I=find(contains(Name,VO.TopCat.TapList(:,1)));
+            if isempty(I)
+                Url = [];
+            else
+                Url = VO.TopCat.TapList(I(1),2);
+            end
 
+        end
     end
 
     methods (Static)
