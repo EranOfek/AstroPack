@@ -49,6 +49,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
         Args.CamNum            = 1;
         Args.CropID            = [];
 
+        Args.MinRMS            = 0.01;
         Args.MinNotNanFrac     = 0.1; %0.95;
         Args.UseMagMinRMS      = false;
         Args.Nsysrem           = 2;
@@ -132,7 +133,7 @@ function [MS1s, Flags] = genLC(RA, Dec, Args)
 
     Rrms = MS.calcRMS('FieldX',{'MAG_APER_3'});
     %plot([Rrms.MagMinRMS],[Rrms.MinRMS], '.')
-    Igood = find([Rrms.MinRMS]<0.005);
+    Igood = find([Rrms.MinRMS]<Args.MinRMS);
     fprintf('Use %d MS out of %d MS\n', numel(Igood), numel(Rrms));
 
     MS = MS(Igood);

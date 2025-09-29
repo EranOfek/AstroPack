@@ -176,7 +176,7 @@ classdef MsgLogger < handle
     end
 
 
-	methods
+	methods % msg logger
 
 		function msgLog(Obj, Level, varargin)
             % Log message to console/file according to current LogLevel settings
@@ -417,6 +417,73 @@ classdef MsgLogger < handle
             %Msg = sprintf('File: %s, Line: #%d, Caller: %s - %s', File, Line, CallerName, sprintf(varargin{:}));
             %Obj.msgLog(Level, Msg);
             Obj.msgLog(Level, '');
+        end
+    
+        function writeLog(Obj, Msg, Level, Args)
+            % write a log message to screen and log file
+            % Input  : - A MsgLogger object.
+            %          - One of the following:
+            %            Char array containing message to print/log.
+            %            A cell array of messages.
+            %            As truct array with messages in the .Msg field.
+            %            An MException object.
+            %            Empty (do nothing).
+            %          - A LogLevel object with the specified message
+            %            level. See LogLeve.<tab> for options.
+            %            Default is LogLevel.Info
+            %          * ...,key,val,...
+            %            'WriteLog' - write log file. Default is true.
+            %            'WriteDev' - write to screen. Default is true.
+            %            'ConcatenateImageEmpty' - instead of N "image is empty" lines put out just a summary
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Msg
+                Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
+                Args.WriteLog logical    = true;
+                Args.WriteDev logical    = false;
+                Args.ConcatenateImageEmpty logical = true;
+            end
+
+            if ~isempty(Msg)
+                if ischar(Msg)
+                    Lines{1} = Msg;
+                elseif isstruct(Msg)
+                    Lines = squeeze(struct2cell(Msg));
+                elseif isa(Msg, 'MException')
+                    Nst      = numel(Msg.stack);
+                    Lines    = cell(1+Nst,1);
+                    Lines{1} = sprintf('Exception: id=%s msg=%s',Msg.identifier, Msg.message);
+                    
+                    for Ist=1:1:Nst
+                        Lines{Ist+1} = sprintf('stack: Ind=%d; FunName=%s; line=%d',Ist, Msg.stack(Ist).name, Msg.stack(Ist).line);
+                    end
+                elseif iscell(Msg)
+                    % do nothing - already in cell format
+                    Lines = Msg;
+                else
+                    error('Unknown Msg option');
+                end
+                
+                %instead of N "image is empty" lines put out just a summary
+                NumEmpty = sum(contains(Lines, "image is empty"));
+                if NumEmpty > 0 && Args.ConcatenateImageEmpty
+                    Lines = {sprintf('%d empty images were not written', NumEmpty)};
+                end
+    
+                Nl = numel(Lines);
+                for Il=1:1:Nl
+                    Lines{Il} = {[Obj.HostName ': ' Lines{Il}]};
+                    if Args.WriteDev
+                        fprintf('%s\n', Lines{Il});
+                    end
+                    if Args.WriteLog
+                        Obj.Logger.msgLog(Level, Lines{Il});
+                    end
+                end
+            end
         end
     end
 
