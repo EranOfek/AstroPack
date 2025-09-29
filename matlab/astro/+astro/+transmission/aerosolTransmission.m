@@ -9,9 +9,9 @@ function Transm = aerosolTransmission(ZenithAngle_deg, Tau_aod500, Alpha, Lam, W
     % Output : - Transm (double array): Transmission values (0-1)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Sep 2025)
-    % Example: Trans = astro.atmosphere.aerosolTransmission(55.18, 0.1, 1.3);
+    % Example: Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3);
     %          % Later calls with same arguments return cached result
-    %          Trans = astro.atmosphere.aerosolTransmission(55.18, 0.1, 1.3); 
+    %          Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3); 
 
     arguments
         ZenithAngle_deg = 30
@@ -37,7 +37,7 @@ function Transm = aerosolTransmission(ZenithAngle_deg, Tau_aod500, Alpha, Lam, W
     end
 
     % Calculate airmass 
-    Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).aerosol;
+    Am_ = astro.transmission.airmassSMARTS(ZenithAngle_deg).aerosol;
         
     % Calculate aerosol optical depth using AstroPack aerosolScattering
     Tau_aerosol = astro.atmosphere.aerosolScattering(Lam, Tau_aod500, Alpha, WaveUnits);
