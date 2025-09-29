@@ -1,5 +1,8 @@
-function Leg_model = qeLegendre(Lam_rescaled, Li)
-    % Calculates Legendre polynomial model for instrumental transmission with caching
+function Leg_model = legendreModel(Lam_rescaled, Li)
+    % Calculates Legendre polynomial model for perturbations to
+    % instrumental transmission.  Returns cashed result if called repeatedly with 
+    % empty input. Part of the Transmission package for absolute photometric calibration. 
+    % The input is supposed to be held fixed.
     % Input  : - Lam_rescaled (double array): input data rescaled to [-1,1]
     %                                         (initially wavelength array in nm)
     %          - Li: vector of Legendre coefficients
@@ -9,9 +12,9 @@ function Leg_model = qeLegendre(Lam_rescaled, Li)
     %                default Li values;
     %             2. Garrappa et al. 2025, A&A 699, A50.
     % Example : % First call with parameters
-    %           Leg_model = telescope.Optics.qeLegendre(); % Use defaults and cache
+    %           Leg_model = astro.atmosphere.legendreModel(); % Use defaults and cache
     %           % Later calls without arguments
-    %           Leg_model = telescope.Optics.qeLegendre(); % Return cached result
+    %           Leg_model = astro.atmosphere.legendreModel(); % Return cached result
 
     
     arguments

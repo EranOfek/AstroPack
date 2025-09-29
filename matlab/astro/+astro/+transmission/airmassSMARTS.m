@@ -1,20 +1,22 @@
-function Constituent_Airmasses = airmassSMARTS(zenithAngle_deg)
+function Constituent_Airmasses = airmassFromSMARTS(ZenithAngle_deg)
     % Calculate airmasses for all atmospheric constituents with caching.
+    % Returns cashed data when called with empty input. Part of the
+    % Transmission package for absolute photometric calibration.
     % Constituents available are: 'rayleigh'; 'aerosol'; 'o3'/'ozone';
     % 'h2o'/'water'; 'o2'; 'ch4'; 'co'; 'n2o'; 'co2'; 'n2'; 'hno3';
     % 'no2'; 'no'; 'so2'; 'nh3'.
     % Based on SMARTS2.9.5 tabulated values. 
     % Input    : - Zenith angle in degrees (optional, on first call)
-    % Output   : - Constituent_Airmasses: Structure with fields for all atmospheric constituents
+    % Output   : - Constituent_Airmasses: Structure with fields for all atmospheric Constituents
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author   : D. Kovaleva (Sep 2025)
-    % Example  : First call:  Constituent_Airmasses = astro.transmission.airmassSMARTS(45);  % Calculate for 45 degrees
-    %            Later calls: Constituent_Airmasses = astro.transmission.airmassSMARTS();    % Return cached values
+    % Example  : First call:  Constituent_Airmasses = astro.atmosphere.airmassFromSMARTS(45);  % Calculate for 45 degrees
+    %            Later calls: Constituent_Airmasses = astro.atmosphere.airmassFromSMARTS();    % Return cached values
     
     persistent cachedAirmasses cachedZenithAngle
 
     % If no input or empty input, return cached data
-    if nargin == 0 || isempty(zenithAngle_deg)
+    if nargin == 0 || isempty(ZenithAngle_deg)
         if isempty(cachedAirmasses)
             error('No cached airmass data. Call with zenithAngle_deg first.');
         end
@@ -23,12 +25,12 @@ function Constituent_Airmasses = airmassSMARTS(zenithAngle_deg)
     end
 
     % Validate zenith angle
-    if zenithAngle_deg > 90 || zenithAngle_deg < 0
+    if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
         error('Zenith angle out of range [0, 90] deg');
     end
 
     % Check if we already have cached data for this exact zenith angle
-    if ~isempty(cachedAirmasses) && ~isempty(cachedZenithAngle) && cachedZenithAngle == zenithAngle_deg
+    if ~isempty(cachedAirmasses) && ~isempty(cachedZenithAngle) && cachedZenithAngle == ZenithAngle_deg
         Constituent_Airmasses = cachedAirmasses;
         return;
     end
@@ -52,24 +54,24 @@ function Constituent_Airmasses = airmassSMARTS(zenithAngle_deg)
     Coefs('nh3')      = [0.32101, 0.010793,  94.337, -2.0548];
 
     % Get all constituent names
-    constituentNames = keys(Coefs);
+    ConstituentNames = keys(Coefs);
 
     % Calculate airmass for each constituent
     Constituent_Airmasses = struct();
-    Cosz = cos(deg2rad(zenithAngle_deg));
+    Cosz = cos(deg2rad(ZenithAngle_deg));
 
-    for i = 1:length(constituentNames)
-        constituent = constituentNames{i};
-        P = Coefs(constituent);
+    for i = 1:length(ConstituentNames)
+        Constituent = ConstituentNames{i};
+        P = Coefs(Constituent);
 
         % SMARTS airmass formula
-        airmass = 1 / (Cosz + P(1) * (zenithAngle_deg^P(2)) * (P(3) - zenithAngle_deg)^P(4));
+        airmass = 1 / (Cosz + P(1) * (ZenithAngle_deg^P(2)) * (P(3) - ZenithAngle_deg)^P(4));
 
         % Store in structure
-        Constituent_Airmasses.(constituent) = airmass;
+        Constituent_Airmasses.(Constituent) = airmass;
     end
 
     % Cache the results
     cachedAirmasses = Constituent_Airmasses;
-    cachedZenithAngle = zenithAngle_deg;
+    cachedZenithAngle = ZenithAngle_deg;
 end

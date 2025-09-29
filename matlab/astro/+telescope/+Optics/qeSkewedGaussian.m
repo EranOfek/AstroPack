@@ -1,5 +1,8 @@
-function Sg_model = qeSkewedGaussian(Lam, Args)
-    % Calculate skewed Gaussian model for quantum efficiency with caching
+function Sg_model = skewedGaussianModel(Lam, Args)
+    % Calculate skewed Gaussian model for instrumental transmission 
+    % (quantum efficiency model measured for the LAST QHY600-PH CMOS camera).   
+    % Returns cashed result if the inputs did not change since last call. 
+    % Part of the Transmission package for absolute photometric calibration. 
     % Input  : - Lam : Wavelength array in nm (optional if cached)
     %          * ...,key,val,...
     %            Amplitude
@@ -14,9 +17,9 @@ function Sg_model = qeSkewedGaussian(Lam, Args)
     %             2. Garrappa et al. 2025, A&A 699, A50.
     % Example: % First call with wavelength array
     %          Lam = linspace(300,1100,401);
-    %          Sg = telescope.Optics.qeSkewedGaussian(Lam);
+    %          Sg = astro.atmosphere.skewedGaussianModel(Lam);
     %          % Later calls without arguments
-    %          Sg = telescope.Optics.qeSkewedGaussian();
+    %          Sg = astro.atmosphere.skewedGaussianModel();
     
     arguments
         Lam = linspace(300, 1100, 401) % wavelength array, nm

@@ -1,4 +1,6 @@
-function Transm = aerosolTransmission(zenithAngle_deg, tau_aod500, alpha, Lam, waveUnits)
+function Transm = aerosolTransmission(ZenithAngle_deg, Tau_aod500, Alpha, Lam, WaveUnits)
+    % Calculates aerosol transmission, returns cashed result if the inputs
+    % did not change since last call. Part of the Transmission package for absolute photometric calibration. 
     % Input :  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] 
     %          - tau_aod500 (double): Aerosol optical depth at 500nm 
     %          - alpha (double): Angstrom exponent 
@@ -7,47 +9,59 @@ function Transm = aerosolTransmission(zenithAngle_deg, tau_aod500, alpha, Lam, w
     % Output : - Transm (double array): Transmission values (0-1)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Sep 2025)
-    % Example: Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3);
+    % Example: Trans = astro.atmosphere.aerosolTransmission(55.18, 0.1, 1.3);
     %          % Later calls with same arguments return cached result
-    %          Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3); 
+    %          Trans = astro.atmosphere.aerosolTransmission(55.18, 0.1, 1.3); 
 
     arguments
-        zenithAngle_deg = 30
-        tau_aod500 = 0.1
-        alpha  = 1.3
+        ZenithAngle_deg = 30
+        Tau_aod500 = 0.1
+        Alpha  = 1.3
         Lam = linspace(300, 1100, 401);
-        waveUnits string = 'nm'
+        WaveUnits string = 'nm'
     end
 
     persistent cachedTransm cachedZenith cachedTau cachedAlpha cachedLam cachedUnits
 
     % Check if we can use cached data (same inputs)
-    if ~isempty(cachedTransm) && isequal(zenithAngle_deg, cachedZenith) && ...
-            isequal(tau_aod500, cachedTau) && isequal(alpha, cachedAlpha) && ...
-            isequal(Lam, cachedLam) && isequal(waveUnits, cachedUnits)
+    if ~isempty(cachedTransm) && isequal(ZenithAngle_deg, cachedZenith) && ...
+            isequal(Tau_aod500, cachedTau) && isequal(Alpha, cachedAlpha) && ...
+            isequal(Lam, cachedLam) && isequal(WaveUnits, cachedUnits)
         Transm = cachedTransm;
         return;
     end
 
     % Validate zenith angle
-    if zenithAngle_deg > 90 || zenithAngle_deg < 0
+    if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
         error('Zenith angle out of range [0, 90] deg');
     end
 
     % Calculate airmass 
-    Am_ = astro.transmission.airmassSMARTS(zenithAngle_deg).aerosol;
-        
+    Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).aerosol;
+    
+    % Convert wavelength to micrometers for aerosol calculation
+    switch lower(WaveUnits)
+        case 'nm'
+            Lam_um = Lam / 1000;
+        case 'um'  
+            Lam_um = Lam;
+        case 'angstrom'
+            Lam_um = Lam / 10000;
+        otherwise
+            error('Unsupported wavelength units: %s. Use nm, um, or angstrom', WaveUnits);
+    end
+    
     % Calculate aerosol optical depth using AstroPack aerosolScattering
-    Tau_aerosol = astro.atmosphere.aerosolScattering(Lam, tau_aod500, alpha, waveUnits);
+    Tau_aerosol = astro.atmosphere.aerosolScattering(Lam, Tau_aod500, Alpha, WaveUnits);
     
     % Calculate transmission
     Transm = exp(-Am_ .* Tau_aerosol);
 
     % Cache the results
     cachedTransm = Transm;
-    cachedZenith = zenithAngle_deg;
-    cachedTau = tau_aod500;
-    cachedAlpha = alpha;
+    cachedZenith = ZenithAngle_deg;
+    cachedTau = Tau_aod500;
+    cachedAlpha = Alpha;
     cachedLam = Lam;
-    cachedUnits = waveUnits;
+    cachedUnits = WaveUnits;
 end
