@@ -26,7 +26,7 @@ function [Result] = histAnomaly(AI, varargin)
 
     Nim = numel(AI);
     for Iim=1:1:Nim
-        [Result(Iim)] = imUtil.quality.histAnomaly(AI(Iim).ImageData.Image, varargin{:});
+        [Result(Iim)] = imUtil.image.histAnomaly(AI(Iim).ImageData.Image, varargin{:});
     end
     
 end

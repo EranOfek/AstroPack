@@ -1,9 +1,23 @@
 function [AI, TableForDB] = prePrep(Images, Args)
-    % 
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % pre-preparation of astronomical images (cast, quality checks)
+    %     Optional steps include:
+    %       Read images from local directory or get an AstroImage object.
+    %       Apply CCDSEC to images. Default is full image.
+    %       Cast image type to single.
+    %       Flag and remove empty images.
+    %       Flag and remove images with incorrect size.
+    %       Estimate the global bcakground
+    %       Check that there are not too many pixels with high level
+    %       Check for image histogram anomalies.
+    %       Check for large number of pixels with fixed value.
+    %       Estimate the PSF using the ACF.
+    %       Check for bad PSF.
+    %       Add file name literals to image header.
+    %       Add raw image ID to header.
+    % Input  : - Images - Either an AstroImage or a cell array of images,
+    %            or a char array with image template name.
     %          * ...,key,val,... 
+    %            
     % Output : - 
     % Author : Eran Ofek (2025 Sep) 
     % Example: [AI, TFD]=pipeline.generic.prePrep(AI);
@@ -15,13 +29,9 @@ function [AI, TableForDB] = prePrep(Images, Args)
         Args.CCDSEC                      = [];
         %Args.BitDictionaryName           = 'BitMask.Image.Default.yml';
 
+        Args.ImageClass                  = 'single';
+
         
-
-        Args.AddFileNameLiteralsToHeader = {'ProjName','FieldID'};
-        Args.AddRawImageID               = true;
-        Args.KeyRawID                    = 'ID_RAW';
-        Args.ClassID                     = @uint64;
-
         Args.LogObj                      = []; % if given write log.
         Args.TableForDB                  = true; % if given then update table with header + results.
 
@@ -47,6 +57,12 @@ function [AI, TableForDB] = prePrep(Images, Args)
         Args.CCDSEC2                     = [1 1000 1 1000];   % failure region
         Args.MaxFWHM                     = 5;
         Args.UseMex                      = true;
+
+        Args.AddFileNameLiteralsToHeader = {'ProjName','FieldID'};
+        Args.AddRawImageID               = true;
+        Args.KeyRawID                    = 'ID_RAW';
+        Args.ClassID                     = @uint64;
+
         
     end
     TableForDB = Args.TableForDB;
@@ -66,7 +82,11 @@ function [AI, TableForDB] = prePrep(Images, Args)
             AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
         end
         AI = AI(:);
-        
+
+        if ~isempty(Args.ImageClass)
+            AI.cast(Args.ImageClass);
+        end
+
         % allocate TableForDB
         Nim = numel(AI);
         
@@ -113,9 +133,9 @@ function [AI, TableForDB] = prePrep(Images, Args)
         % many pixels with the same value
         if ~isempty(Args.MaxNBadVal)
             for Iim=1:1:Nim
-                TableForDB.NPixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
+                TableForDB.NpixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
             end
-            TableForDB.NpixWithBadValOK = TableForDB.NPixWithBadVal<Args.MaxNBadVal;
+            TableForDB.NpixWithBadValOK = TableForDB.NpixWithBadVal<Args.MaxNBadVal;
             FlagGoodImages = FlagGoodImages & TableForDB.NpixWithBadValOK;
         end
            
@@ -125,7 +145,7 @@ function [AI, TableForDB] = prePrep(Images, Args)
             % Crop image
             for Iim=1:1:Nim
                 if NotEmptyImage(Iim)
-                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HlafSize, Args.ACF_HalfSize], false, [], Args.UseMex);
+                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
                     % subtract background
                     BackSubImage = BackSubImage - TableForDB.Median(Iim);
                 
@@ -140,9 +160,10 @@ function [AI, TableForDB] = prePrep(Images, Args)
                     end
         
                     TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
-                    TableForDB.GoodACF_FWHM(Iim) = FWHM_ACF>Args.MaxFWHM;
+                    
                 end
             end
+            TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
             FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
         end
     
@@ -159,7 +180,7 @@ function [AI, TableForDB] = prePrep(Images, Args)
             Nlit = numel(Args.AddFileNameLiteralsToHeader);
             for Ilit=1:1:Nlit
                 for Iim=1:1:NimGood
-                    AI(IIm).HeaderData.replaceVal(upper(Args.AddFileNameLiteralsToHeader{Ilit}), AFN.ProjName(Iim));
+                    AI(Iim).HeaderData.replaceVal(upper(Args.AddFileNameLiteralsToHeader{Ilit}), AFN.ProjName(Iim));
                 end
             end
         end
