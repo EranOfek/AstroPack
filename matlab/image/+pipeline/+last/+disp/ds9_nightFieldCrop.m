@@ -1,0 +1,75 @@
+function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
+    % Find LAST images by date, field, crop, in local disk and display and load into DS9analysis.
+    % Input  : - Mount number
+    %          - Camera number
+    %          - Date [Day, Month, Year]
+    %          * ...,key,val,... 
+    %            'Visit' - If empty, do not add visit to path.
+    %                   Default is [].
+    %            'BasePath' - Base path. Default is '/lastdata'.
+    %            'Node' - Node number. Default is 1.
+    %            'ProjName' - Project name. Default is 'LAST'.
+    %            'Type' - Image type. Default is 'sci'.
+    %            'Level' - Image level. Default is 'coadd'.
+    %            'Product' - Image product. Default is 'Image'.
+    %            'Display' - Default is true.
+    % Output : - DS9anlaysis object with the images loaded.
+    %          - File names.
+    % Author : Eran Ofek (2025 Sep) 
+    % Example: pipeline.last.disp.ds9_nightFieldCrop(2,3,[1 1 2025], 1101, 10)
+
+    arguments
+        Mount
+        Cam
+        Date
+        Field
+        Crop
+        Args.Visit      = [];
+        Args.BasePath   = '/lastdata';
+        Args.Node       = 1;
+        Args.ProjName   = 'LAST';
+        Args.Type       = 'sci';
+        Args.Level      = 'coadd';
+        Args.Product    = 'Image';
+        Args.Display    = true;
+    end
+
+    Path=pipeline.last.path.pathProc(Mount, Cam, Date,...
+        'BasePath',Args.BasePath,...
+        'Node',Args.Node,...
+        'ProjName',Args.ProjName);
+
+    PWD = pwd;
+    cd(Path);
+
+    if isnumeric(Field)
+        Field = string(Field);
+    end
+    TempName = sprintf('%s*_%s*_%d_%s_%s_%s*.fits', Args.ProjName, Field, Crop, Args.Type, Args.Level, Args.Product);
+
+    Cmd = sprintf('find . -type f -name %s',TempName);
+    [~,Files]=system(Cmd);
+
+    % convert to string array
+    Files = splitlines(Files);
+    % remove blank lines
+    Files = Res(strlength(Files) > 0);
+
+    if Args.Dispaly
+        if isempty(Files)
+            fprintf('Files not found');
+            D9 = [];
+        else
+            fprintf('Found %d files', numel(Result));
+            
+            AI = AstroImage.loadProduct(Files);
+            D9 = DS9analysis;
+            D9.load(AI);
+        end
+    else
+        D9 = [];
+    end
+
+    cd(PWD);
+
+end

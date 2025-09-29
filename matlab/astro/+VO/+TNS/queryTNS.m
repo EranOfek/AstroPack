@@ -31,10 +31,10 @@ function [T, ObjectUrl, Raw] = queryTNS(RA, Dec, Args)
         Args.Units             = "arcsec";
 
         % --- Auth / UA marker ---
-        Args.TnsApiKey  = "df99d99d706602e781756e26231033f857111e2d";
-        Args.TnsId      = 159514
+        Args.TnsApiKey  = [];
+        Args.TnsId      = [];
+        Args.TnsName    = [];
         Args.TnsType    = "bot"
-        Args.TnsName    = "LAST_Bot1"
     
         % Query mode: if Name given -> GET endpoint; else -> SEARCH endpoint
         %Args.Name        (1,1) string = ""
@@ -65,6 +65,15 @@ function [T, ObjectUrl, Raw] = queryTNS(RA, Dec, Args)
         Args.Verbose logical = false;
     end
     
+    if isempty(Args.TnsApiKey)
+        % get from Configuration
+        Conf = Configuration.getSingelton;
+        Args.TnsApiKey = Conf.Data.TNS.ApiKey;
+        Args.TnsId     = Conf.Data.TNS.TnsId;
+        Args.TnsName   = Conf.Data.BotName;
+    end
+
+
     % ---------- Guards ----------
     if strlength(strtrim(Args.TnsApiKey)) == 0
         error("TnsApiKey is empty. Pass it via 'TnsApiKey', <your key>.");

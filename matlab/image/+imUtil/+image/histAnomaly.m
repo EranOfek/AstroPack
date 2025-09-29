@@ -17,7 +17,7 @@ function [Flag] = histAnomaly(Image, Args)
     %            'RangeDistPeaks' - Distance range of peaks that will
     %                   define a bad image.
     % Output : - A logical indicating if the bi-modal anomaly was detected
-    %            in image. Default is true.
+    %            in image. If true, then the image is bad.
     % Author : Eran Ofek (2025 Mar) 
     % Example: R=imUtil.image.histAnomaly(Image)
 
@@ -25,10 +25,11 @@ function [Flag] = histAnomaly(Image, Args)
         Image
         Args.CCDSEC            = [];
         Args.Dilute            = 1;
-        Args.HistEdges         = (-0.5:5:5000.5);
+        Args.HistEdges         = [-0.5, 5, 1000]; %(-0.5:5:5000.5);
         Args.RelPeakHeight     = 0.04;
         Args.RangeDistPeaks    = [15 400];
         Args.Plot              = false;
+        Args.UseMex            = true;
     end
 
     % trim image using CCDSEC
@@ -42,7 +43,13 @@ function [Flag] = histAnomaly(Image, Args)
     end
 
     % make histogram
-    Nh        = histcounts(Image(:), Args.HistEdges);
+    if Args.UseMex
+        Nh = tools.hist.mex.histcounts1regular(Image(:), Args.HistEdges(1), Args.HistEdges(2), Args.HistEdges(3));
+    else
+        EndVal    = Args.HistEdges(1) + Args.HistEdges(2).*Args.HistEdges(3);
+        HistEdges = (Args.HistEdges(1):Args.HistEdges(2):EndVal);
+        Nh        = histcounts(Image(:), HistEdges);
+    end
     BinCenter = (Args.HistEdges(1:end-1) + Args.HistEdges(2:end)).*0.5;
     Nh        = Nh./max(Nh);
 

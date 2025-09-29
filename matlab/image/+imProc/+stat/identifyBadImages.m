@@ -180,6 +180,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
             Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     FWHM_ACF>Args.MaxFWHM || isnan(FWHM_ACF) || ...
                                     Result(Iobj).N32768>Args.N32768;
+            
         else
             % FFU: treat saturated pixels!
             BackSubImage(BackSubImage>40000) = 0; % NOT GOOD WHEN USED WITH UseFWHM=true
