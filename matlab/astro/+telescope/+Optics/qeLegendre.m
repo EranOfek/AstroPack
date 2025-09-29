@@ -1,4 +1,4 @@
-function Leg_model = legendreModel(Lam_rescaled, Li)
+function Leg_model = qeLegendre(Lam_rescaled, Li)
     % Calculates Legendre polynomial model for perturbations to
     % instrumental transmission.  Returns cashed result if called repeatedly with 
     % empty input. Part of the Transmission package for absolute photometric calibration. 
@@ -15,8 +15,7 @@ function Leg_model = legendreModel(Lam_rescaled, Li)
     %           Leg_model = astro.atmosphere.legendreModel(); % Use defaults and cache
     %           % Later calls without arguments
     %           Leg_model = astro.atmosphere.legendreModel(); % Return cached result
-
-    
+    %
     arguments
         Lam_rescaled = linspace(-1, 1, 401)
         Li = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60] % default Legendre expansion coefficients
@@ -49,7 +48,7 @@ function Leg_model = legendreModel(Lam_rescaled, Li)
     Leg = vertcat(Leg0{:});
 
     % Calculate Legendre model
-    Leg_expansion = Li*Leg;
+    Leg_expansion = Li * Leg;
 
     % Return exponential of the expansion
     Leg_model = exp(Leg_expansion);

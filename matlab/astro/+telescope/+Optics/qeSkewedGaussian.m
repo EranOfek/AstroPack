@@ -1,4 +1,4 @@
-function Sg_model = skewedGaussianModel(Lam, Args)
+function Sg_model = qeSkewedGaussian(Lam, Args)
     % Calculate skewed Gaussian model for instrumental transmission 
     % (quantum efficiency model measured for the LAST QHY600-PH CMOS camera).   
     % Returns cashed result if the inputs did not change since last call. 
@@ -20,13 +20,13 @@ function Sg_model = skewedGaussianModel(Lam, Args)
     %          Sg = astro.atmosphere.skewedGaussianModel(Lam);
     %          % Later calls without arguments
     %          Sg = astro.atmosphere.skewedGaussianModel();
-    
+    %
     arguments
         Lam = linspace(300, 1100, 401) % wavelength array, nm
         Args.Amplitude = 328.1936 %
-        Args.Center = 570.973     % nm
-        Args.Sigma = 139.77       % nm
-        Args.Gamma = -0.1517      % skewness parameter
+        Args.Center    = 570.973  % nm
+        Args.Sigma     = 139.77   % nm
+        Args.Gamma     = -0.1517  % skewness parameter
     end
 
     persistent cachedModel cachedLam cachedArgs

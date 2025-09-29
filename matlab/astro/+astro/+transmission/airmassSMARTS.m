@@ -1,4 +1,4 @@
-function Constituent_Airmasses = airmassFromSMARTS(ZenithAngle_deg)
+function Constituent_Airmasses = airmassSMARTS(ZenithAngle_deg)
     % Calculate airmasses for all atmospheric constituents with caching.
     % Returns cashed data when called with empty input. Part of the
     % Transmission package for absolute photometric calibration.

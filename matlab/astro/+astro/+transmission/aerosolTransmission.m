@@ -38,19 +38,7 @@ function Transm = aerosolTransmission(ZenithAngle_deg, Tau_aod500, Alpha, Lam, W
 
     % Calculate airmass 
     Am_ = astro.atmosphere.airmassFromSMARTS(ZenithAngle_deg).aerosol;
-    
-    % Convert wavelength to micrometers for aerosol calculation
-    switch lower(WaveUnits)
-        case 'nm'
-            Lam_um = Lam / 1000;
-        case 'um'  
-            Lam_um = Lam;
-        case 'angstrom'
-            Lam_um = Lam / 10000;
-        otherwise
-            error('Unsupported wavelength units: %s. Use nm, um, or angstrom', WaveUnits);
-    end
-    
+        
     % Calculate aerosol optical depth using AstroPack aerosolScattering
     Tau_aerosol = astro.atmosphere.aerosolScattering(Lam, Tau_aod500, Alpha, WaveUnits);
     
