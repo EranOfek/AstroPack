@@ -53,7 +53,8 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         Image
         Args.CCDSEC       = [];
         Args.HalfSize     = [];
-        
+
+        Args.Back              = [];
         Args.BackStep          = 1;
         Args.CorrFrac          = 0.65; %84;
         
@@ -90,8 +91,19 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         Image = single(Image);
     end
     
+    % background
+    if isempty(Args.Back)
+        if Args.UseMex
+            MedianImage = tools.math.stat.mex.median(Image(:),1);
+        else    
+            MedianImage = median(Image,'all','omitnan');
+        end
+    else
+        MedianImage = Args.Back;
+    end
+
     % check if image is saturated
-    if median(Image,'all','omitnan')>Args.SatLevel
+    if MedianImage>Args.SatLevel
         % image is saturated
         FWHM = NaN;
         Info.Status = false;
@@ -99,12 +111,8 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
 
         % quick background subtraction
         Image(isnan(Image)) = 0;
-        if Args.BackStep==1
-            Image = Image - median(Image,'all');
-        else
-            Image = Image - median(Image(1:Args.BackStep:end,1:Args.BackStep:end),'all');
-        end
-
+        Image = Image - MedianImage;
+        
         % std
         Std = tools.math.stat.rstd(Image(:),1,1);
         Image(Image<(Args.Nsigma0.*Std)) = 0;
@@ -116,21 +124,21 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         %ACF = ACF./(Std.^2);
         %ACF = ACF - median(ACF(:));
         
-        if Args.UseMex
-            SizeACF = size(ACF);
-            CenterPix = fliplr(floor((SizeACF + 1).*0.5));
-            [Rad, Mean, Std] = imUtil.psf.mex.radialProfile_mex(ACF, [CenterPix], Args.MaxRadius, Args.Step);
-
-            CumVal = cumsum(Mean);
-            CumVal = CumVal./CumVal(end);
-        else
+        % if Args.UseMex
+        %     SizeACF = size(ACF);
+        %     CenterPix = fliplr(floor((SizeACF + 1).*0.5));
+        %     [Rad, Mean, Std] = imUtil.psf.mex.radialProfile_mex(ACF, [CenterPix], Args.MaxRadius, Args.Step);
+        % 
+        %     CumVal = cumsum(Mean);
+        %     CumVal = CumVal./CumVal(end);
+        % else
 
             RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
 
             Rad = RR.MeanR(2:end);
             CumVal = cumsum(RR.MeanV(2:end));
             CumVal = CumVal./CumVal(end);
-        end
+        %end
 
         if any(isnan(CumVal))
             FWHM = NaN;

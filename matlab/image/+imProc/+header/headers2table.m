@@ -126,7 +126,7 @@ function [Result] = headers2table(Obj, Args)
     switch Args.OutType
         case 'table'
             % do notning
-            Result = OutTbl;
+            Result = tools.table.table_cell2string(OutTbl);
         case 'AstroCatalog'
             Result = AstroCatalog;
             Result.Catalog = OutTbl;

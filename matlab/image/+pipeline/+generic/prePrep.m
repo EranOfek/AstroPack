@@ -1,5 +1,6 @@
-function [AI, TableForDB] = prePrep(Images, Args)
+function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     % pre-preparation of astronomical images (cast, quality checks)
+    %     The operations are wrapped within try catch block.
     %     Optional steps include:
     %       Read images from local directory or get an AstroImage object.
     %       Apply CCDSEC to images. Default is full image.
@@ -17,8 +18,84 @@ function [AI, TableForDB] = prePrep(Images, Args)
     % Input  : - Images - Either an AstroImage or a cell array of images,
     %            or a char array with image template name.
     %          * ...,key,val,... 
+    %            'AstroImageReadArgs' - A cell array of arguments to pass
+    %                   to the AstroImage reader. Default is {}.
+    %            'CCDSEC' - CCDSEC for image to trim. If empty then no trim.
+    %                   Default is [].
+    %            'Convert2single' - Transform raw images to single class.
+    %                   Default is true.
+    %            'LogObj' - An optional MsgLogger object.
+    %                   If non empty, then will write error and information
+    %                   messages to the specified log file and standard
+    %                   output.
+    %                   Default is [].
+    %            % ---------- Quality checks ----------
+    %            'MinNim' - Minimum number of images required for success.
+    %                   If fewer than this pass, AI is returned empty and
+    %                   SelectedImages=false for all images. Default is 5.
+    %            'CheckEmpty' - Logical indicating whether to flag empty images.
+    %                   Non-empty images will have NotEmptyImage=true in
+    %                   TableForDB. Default is true.
+    %            'RequiredSizeXY' - If non-empty, required [X Y] image size.
+    %                   Images with correct size will have CorrectSize=true
+    %                   in TableForDB. Default is [6422 9600].
+    %            'GlobalBackLevel' - If true, measure & check the global
+    %                   background level (via imProc.quality.backgroundLevel).
+    %                   Default is true.
+    %            'backgroundLevelArgs' - Cell array of args forwarded to
+    %                   imProc.quality.backgroundLevel (e.g.,
+    %                   {'DiluteFactor',101,'UseMex',true,'MaxPixFraction',0.4,
+    %                    'ThresholdBack',4000}). Default is {}.
+    %            'HistAnomaly' - If true, check for histogram anomalies
+    %                   (via imProc.quality.histAnomaly). Default is true.
+    %            'histAnomalyArgs' - Cell array of args for histAnomaly.
+    %                   Default is {}.
+    %            'BadVal' - Pixel value considered “bad/fixed”. If empty,
+    %                   do not check. Default is 32768.
+    %            'MaxNBadVal' - Maximum allowed number of pixels equal to BadVal.
+    %                   Images exceeding this are flagged. Default is 1e4.
+    %            'GlobalBadPSF' - If true, estimate PSF via ACF and flag
+    %                   images with too-large FWHM. Default is true.
+    %            'MaxRadius' - Max radius (pixels) for ACF-based PSF measure.
+    %                   Default is 50.
+    %            'ACF_HalfSize' - Half-size [X Y] of the cutout used for ACF.
+    %                   Default is [500 500].
+    %            'CCDSEC2' - Alternate CCDSEC [X1 X2 Y1 Y2] for a second PSF
+    %                   attempt if the first fails (e.g., streaks). Default is
+    %                   [1 1000 1 1000].
+    %            'MaxFWHM' - Maximum acceptable ACF-based FWHM (pixels).
+    %                   Default is 5.
+    %            'UseMex' - If true, use MEX-accelerated implementations where
+    %                   available. Default is true.
+    %            % ---------- Header updates & table ----------
+    %            'AddFileNameLiteralsToHeader' - Cell array of literal names
+    %                   (e.g., {'ProjName','FieldID'}) to inject from file
+    %                   names into the FITS header. Default is {'ProjName','FieldID'}.
+    %            'AddRawImageID' - If true, generate and add a raw image ID
+    %                   to the header (via imProc.db.generateImageID).
+    %                   Default is true.
+    %            'KeyRawID' - Header keyword name for the raw ID.
+    %                   Default is 'ID_RAW'.
+    %            'ClassID' - Function handle for ID numeric class (e.g., @uint64).
+    %                   Default is @uint64.
+    %            'Keys2table' - Cell array of header keys to export into the
+    %                   TableHeader output. Default is
+    %                   {'EXPMODE','FILTER','JD','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
+    %                    'M_RA','M_DEC','M_HA','M_JRA','M_JDEC','M_JHA','AZ','ALT','AIRMASS','TRK_RA','TRK_DEC','MNTTEMP','FOCUS','PREVFOCUS'}.
+    %            'TableForDB' - If true, return a table with image quality
+    %                   status/flags (TableForDB). Default is true.
     %            
-    % Output : - 
+    % Output : - Updated AstroImage object.
+    %            Contains only good images, updateds in the header,
+    %            and optionally single precision format.
+    %          - Table with quality status and flags per image in the
+    %            original list. Images in the first output arguments were
+    %            selected based on the SelectedImages column.
+    %            GoodImages indicate that the image passed all the quality
+    %            criteria (with the exception of Args.MinNim).
+    %          - Optional table with the selected header keywords for all
+    %            the images. The columns in this table corresponds to the
+    %            header keyword names in the Args.Keys2table argument.
     % Author : Eran Ofek (2025 Sep) 
     % Example: [AI, TFD]=pipeline.generic.prePrep(AI);
 
@@ -29,14 +106,13 @@ function [AI, TableForDB] = prePrep(Images, Args)
         Args.CCDSEC                      = [];
         %Args.BitDictionaryName           = 'BitMask.Image.Default.yml';
 
-        Args.ImageClass                  = 'single';
+        Args.Convert2single              = true;
 
         
         Args.LogObj                      = []; % if given write log.
-        Args.TableForDB                  = true; % if given then update table with header + results.
-
+        
         % quality checks
-        Args.MinNim                      = 10;
+        Args.MinNim                      = 5;
 
         Args.CheckEmpty                  = true;
 
@@ -51,7 +127,7 @@ function [AI, TableForDB] = prePrep(Images, Args)
         Args.BadVal                      = 32768;  % if empty do not check
         Args.MaxNBadVal                  = 1e4;   
 
-        Args.GlobalBadPSF                = false;
+        Args.GlobalBadPSF                = true;
         Args.MaxRadius                   = 50;
         Args.ACF_HalfSize                = [500 500];
         Args.CCDSEC2                     = [1 1000 1 1000];   % failure region
@@ -62,6 +138,13 @@ function [AI, TableForDB] = prePrep(Images, Args)
         Args.AddRawImageID               = true;
         Args.KeyRawID                    = 'ID_RAW';
         Args.ClassID                     = @uint64;
+
+        Args.Keys2table                  = {'EXPMODE','FILTER','JD','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
+                                            'M_RA','M_DEC','M_HA',...
+                                            'M_JRA','M_JDEC','M_JHA',...
+                                            'AZ','ALT','AIRMASS','TRK_RA','TRK_DEC',...
+                                            'MNTTEMP','FOCUS','PREVFOCUS'};
+        Args.TableForDB                  = true; % if given then update table with header + results.
 
         
     end
@@ -82,13 +165,17 @@ function [AI, TableForDB] = prePrep(Images, Args)
             AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
         end
         AI = AI(:);
+        Nim = numel(AI);
 
-        if ~isempty(Args.ImageClass)
-            AI.cast(Args.ImageClass);
+        if Args.Convert2single
+            %AI.cast(Args.ImageClass);  % very slow
+
+            for Iim=1:1:Nim
+                AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
+                %AI(Iim).Image = single(AI(Iim).Image);
+            end
         end
 
-        % allocate TableForDB
-        Nim = numel(AI);
         
         % allocate TableForDB:
         TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
@@ -99,6 +186,7 @@ function [AI, TableForDB] = prePrep(Images, Args)
             if any(~NotEmptyImage)
                 TableForDB.NotEmptyImage = NotEmptyImage;            
             end
+            TableForDB.NotEmptyImage = NotEmptyImage;
             FlagGoodImages = NotEmptyImage;
         end
     
@@ -118,7 +206,7 @@ function [AI, TableForDB] = prePrep(Images, Args)
         % global background
         if Args.GlobalBackLevel
             % need to call it in ImProc...
-             [TableForDB.GoodGlobalBack, TableForDB.FracPixAboveThreshold, TableForDB.Median] = imProc.quality.backgroundLevel(AI, Args.backgroundLevelArgs{:});
+             [TableForDB.GoodGlobalBack, TableForDB.FracPixAboveThreshold, TableForDB.Median] = imProc.quality.backgroundLevel(AI, 'UseMex',Args.UseMex, Args.backgroundLevelArgs{:});
              FlagGoodImages = FlagGoodImages & TableForDB.GoodGlobalBack;
         end
     
@@ -145,18 +233,24 @@ function [AI, TableForDB] = prePrep(Images, Args)
             % Crop image
             for Iim=1:1:Nim
                 if NotEmptyImage(Iim)
+                    if isnan(TableForDB.Median(Iim))
+                        BackImage = median(AI(Iim).ImageData.Image, 'all','omitnan');
+                    else
+                        BackImage = TableForDB.Median(Iim);
+                    end
                     BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
                     % subtract background
-                    BackSubImage = BackSubImage - TableForDB.Median(Iim);
+                    BackSubImage = BackSubImage - BackImage;
                 
-                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+                    
+                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
                     if FWHM_ACF>Args.MaxFWHM
                         % run it again in a different CCDSEC
                         % this may be due to satellite streaks
                         BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
                         % subtract background
                         BackSubImage = BackSubImage - TableForDB.Median(Iim);
-                        [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(Image, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+                        [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
                     end
         
                     TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
@@ -167,9 +261,13 @@ function [AI, TableForDB] = prePrep(Images, Args)
             FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
         end
     
+        % Populate GoodImages
+        TableForDB.GoodImages = FlagGoodImages;
+        % Populate EnoughImages (i.e., >=MinNim)
+        TableForDB.SelectedImages = TableForDB.GoodImages & sum(FlagGoodImages)>=Args.MinNim;
+
         % return selected images
-        TableForDB.GoodImage = FlagGoodImages;
-        AI = AI(FlagGoodImages);
+        AI = AI(TableForDB.SelectedImages);
         NimGood = numel(AI);
         % update header
     
@@ -196,6 +294,15 @@ function [AI, TableForDB] = prePrep(Images, Args)
             TableForDB.RawID(FlagGoodImages) = ID;
         end
     
+        TableForDB = struct2table(TableForDB);
+
+        if nargout>2 && ~isempty(Args.Keys2table)
+            TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
+            TableHeader.FileNames = string(Images(:));
+        else
+            TableHeader = [];
+        end
+
     
         % write log
         if ~isempty(Args.LogObj)
@@ -210,6 +317,9 @@ function [AI, TableForDB] = prePrep(Images, Args)
         % write catch error:
         if ~isempty(Args.LogObj)
             Obj.writeLog(ME, LogLevel.Error);
+        else
+            ME
+            error('Failed on try catch');
         end
     end
 end
@@ -234,7 +344,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                         'NpixWithBadValOK',false(Nim,1),...
                                         'ACF_FWHM',nan(Nim,1),...
                                         'GoodACF_FWHM',false(Nim,1),...
-                                        'GoodImage',false(Nim,1));
+                                        'GoodImages',false(Nim,1),...
+                                        'SelectedImages',false(Nim,1));
                 else
                     % Add columns:
                     TableForDB.NotEmptyImage         = false(Nim,1);
@@ -250,7 +361,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                     TableForDB.NpixWithBadValOK      = false(Nim,1);
                     TableForDB.ACF_FWHM              = nan(Nim,1);
                     TableForDB.GoodACF_FWHM          = false(Nim,1);
-                    TableForDB.GoodImage             = false(Nim,1);
+                    TableForDB.GoodImages            = false(Nim,1);
+                    TableForDB.SelectedImages        = false(Nim,1);
                 end
     end
 end
