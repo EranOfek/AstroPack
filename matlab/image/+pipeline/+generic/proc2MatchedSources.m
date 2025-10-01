@@ -6,7 +6,7 @@ function [Result] = proc2MatchedSources(AI, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2025 Oct) 
-    % Example: 
+    % Example: pipeline.generic.proc2MatchedSources
 
     arguments
         AI
