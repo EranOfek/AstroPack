@@ -1,5 +1,7 @@
 function [Mat, VecX, VecY, BinX, BinY] = hist2d_fast(Xv,Yv, Xedges, Yedges, StepX, StepY)
     % A fast version of histcounts2 (without all the overheads)
+    %   THIS IS NOT FAST ANYMORE - WILL BECOME OBSOLETE
+    %   KNONWN BUG: not working for non equal edges size.
     %       This is faster than imUtil.patternMatch.hist2d
     %       BUT unlike, imUtil.patternMatch.hist2d, the returned matrix X/Y
     %       directions I like those of histcounts2.
@@ -55,7 +57,7 @@ function [Mat, VecX, VecY, BinX, BinY] = hist2d_fast(Xv,Yv, Xedges, Yedges, Step
         BinX = ceil((Xv - Xedges(1))./StepX);
         BinY = ceil((Yv - Yedges(1))./StepY);
         CountslenX = ceil((Xedges(end) - Xedges(1))./StepX);
-        CountslenY = ceil((Yedges(end) - Yedges(1))./StepX);
+        CountslenY = ceil((Yedges(end) - Yedges(1))./StepY);
     end
   
     
