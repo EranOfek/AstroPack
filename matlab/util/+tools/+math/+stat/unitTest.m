@@ -170,6 +170,16 @@ function Result = unitTest()
         error('Problem with std in tools.math.stat.mex.medianMeanStd');
     end
 
+    %% test tools.math.stat.quantile1
+    % speed test in unitPerf
+    R = rand(1726,1726);
+    q1=quantile(R(:),0.92);
+    q2=tools.math.stat.mex.quantile1(R(:),0.92);
+
+    if abs(q1-q2)>1e-6
+        error('Problem with tools.math.stat.mex.quantile1');
+    end    
+
 
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');

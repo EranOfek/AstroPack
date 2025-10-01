@@ -10,7 +10,8 @@ function Rstd=rstd(Mat,Dim,Algo)
 %               up/down.
 %            2 - use direct prctile after sorting
 %            3 - use prctile.
-%            Default is 3. Best and fastest is 1.
+%            0 - use prctile for both values.
+%            Default is 0. Best and fastest is 0 or 1.
 % Output : - Robust std.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
@@ -23,12 +24,16 @@ function Rstd=rstd(Mat,Dim,Algo)
 arguments
     Mat
     Dim   = 1;
-    Algo  = 3;
+    Algo  = 0;
 end
 
-Factor = 1.4826;  % = 1./norminv(0.75,0,1)
+Factor = 0.7413; % 1.4826./2  %= 0.5./norminv(0.75,0,1)
 
-if Algo==1
+if Algo==0
+    Tmp     = prctile(Mat,[25,75],Dim);
+    ValLow  = Tmp(1);
+    ValHigh = Tmp(2);
+elseif Algo==1
     Mat     = sort(Mat);
     SizeMat = size(Mat);
     N       = SizeMat(Dim);
@@ -58,4 +63,4 @@ elseif Algo==3
     ValHigh = prctile(Mat,75,Dim);
 end
 
-Rstd    = (ValHigh - ValLow).*0.5.*Factor;
+Rstd    = (ValHigh - ValLow).*Factor; %0.5.*Factor;
