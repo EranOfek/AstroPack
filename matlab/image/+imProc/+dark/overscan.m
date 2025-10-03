@@ -171,7 +171,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
 
         % subtract OverScanLine
         if Args.Subtract
-            Result(Iim).(Args.DataProp).(Args.DataPropIn) = Result.(Args.DataProp).(Args.DataPropIn) - OverScanLine;
+            Result(Iim).(Args.DataProp).(Args.DataPropIn) = Result(Iim).(Args.DataProp).(Args.DataPropIn) - OverScanLine;
         end
 
         %SizeOriginalImageIJ = size(Result.(Args.DataProp).(Args.DataPropIn));

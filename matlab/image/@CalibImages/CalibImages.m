@@ -1209,7 +1209,7 @@ classdef CalibImages < Component
             %           any size.
             %         * ...,key,val,...
             %           'CreateNewObj' - false, true. Default is false.
-            %           'BitDictinaryName' - Bit dictionary name.
+            %           'BitDict' - Bit dictionary name.
             %                   Default is 'BitMask.Image.Default'.
             %           'SingleFilter' - A logical indicating if the
             %                   provided images were taken using a single filter.
@@ -1297,7 +1297,7 @@ classdef CalibImages < Component
                 Args.CreateNewObj logical           = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
-                Args.BitDictinaryName               = 'BitMask.Image.Default'; % or BitDictionary object.
+                Args.BitDict                        = 'BitMask.Image.Default'; % or BitDictionary object.
                 
                 Args.SingleFilter logical           = false;
                 Args.MaskSaturated logical          = true;
@@ -1332,10 +1332,10 @@ classdef CalibImages < Component
                 Result = Image;
             end
                 
-            if isa(Args.BitDictinaryName, 'BitDictionary')
-                BD = Args.BitDictinaryName;
+            if isa(Args.BitDict, 'BitDictionary')
+                BD = Args.BitDict;
             else
-                BD = BitDictionary(Args.BitDictinaryName);
+                BD = BitDictionary(Args.BitDict);
             end
 
             [Nobj, Nim] = Obj.checkObjImageSize(Image);

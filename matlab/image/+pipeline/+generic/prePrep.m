@@ -13,7 +13,9 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     %       Check for large number of pixels with fixed value.
     %       Estimate the PSF using the ACF.
     %       Check for bad PSF.
+    %       Add additional header keywords.
     %       Add file name literals to image header.
+    %       Add git version to image header.
     %       Add raw image ID to header.
     % Input  : - Images - Either an AstroImage or a cell array of images,
     %            or a char array with image template name.
@@ -71,6 +73,21 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     %            'AddFileNameLiteralsToHeader' - Cell array of literal names
     %                   (e.g., {'ProjName','FieldID'}) to inject from file
     %                   names into the FITS header. Default is {'ProjName','FieldID'}.
+    %            'AddHeadKeys' - A two columns cell array of additional header kewyords
+    %                   to head to the header {KeyName, KeyValue}.
+    %                   Default is : {'FILTER','clear';...
+    %                                        'TIMEZONE',2;...
+    %                                        'CCDID',1;...
+    %                                        'CROPID',0;...
+    %                                        'LEVEL','raw';...
+    %                                        'VERSION','1';...
+    %                                        'SUBDIR','';...
+    %                                        'LIGHTSEC','[1 6388 25 9600]';...
+    %                                        'OVERSCAN','[6389 6422 1 9600]'};   % '[1 6354 1 9600]'};
+    %            'AddGitVersion' - If true, add git version to image header.
+    %                   Default is true.
+    %            'KeySoftVer' - Git software version header keyword name.
+    %                   Default is 'PIPEVER'.
     %            'AddRawImageID' - If true, generate and add a raw image ID
     %                   to the header (via imProc.db.generateImageID).
     %                   Default is true.
@@ -134,7 +151,18 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         Args.MaxFWHM                     = 5;
         Args.UseMex                      = true;
 
+        Args.AddHeadKeys                 = {'FILTER','clear';...
+                                            'TIMEZONE',2;...
+                                            'CCDID',1;...
+                                            'CROPID',0;...
+                                            'LEVEL','raw';...
+                                            'VERSION','1';...
+                                            'SUBDIR','';...
+                                            'LIGHTSEC','[1 6388 25 9600]';...
+                                            'OVERSCAN','[6389 6422 1 9600]'};   % '[1 6354 1 9600]'};
         Args.AddFileNameLiteralsToHeader = {'ProjName','FieldID'};
+        Args.AddGitVersion               = true;
+        Args.KeySoftVer                  = 'PIPEVER';
         Args.AddRawImageID               = true;
         Args.KeyRawID                    = 'ID_RAW';
         Args.ClassID                     = @uint64;
@@ -271,6 +299,15 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         NimGood = numel(AI);
         % update header
     
+
+        % UPDATE/fix header
+
+        % add additional header keywords
+        if ~isempty(Args.AddHeadKeys)
+            AI.setKeyVal(Args.AddHeadKeys(:,1), Args.AddHeadKeys(:,2));
+        end
+
+
         % add header keywords
         if ~isempty(Args.AddFileNameLiteralsToHeader)
             AFN = AstroFileName(Images);
@@ -278,12 +315,17 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
             Nlit = numel(Args.AddFileNameLiteralsToHeader);
             for Ilit=1:1:Nlit
                 for Iim=1:1:NimGood
-                    AI(Iim).HeaderData.replaceVal(upper(Args.AddFileNameLiteralsToHeader{Ilit}), AFN.ProjName(Iim));
+                    AI(Iim).HeaderData.replaceVal(char(upper(Args.AddFileNameLiteralsToHeader{Ilit})), char(AFN.(Args.AddFileNameLiteralsToHeader{Ilit})(Iim)));
                 end
             end
         end
     
-    
+        % update header with SoftVersion keyword
+        if Args.AddGitVersion
+            VerString = tools.git.getVersion;
+            AI.setKeyVal(Args.KeySoftVer,VerString);
+        end
+        
         % add raw image ID
         if Args.AddRawImageID
             % populate LEVEL and CROPID
@@ -329,40 +371,40 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
     % allocate TableForDB
 
     if ~isempty(TableForDB)
-                if islogical(TableForDB) && TableForDB
-                    % create new TableForDB
-                    TableForDB = struct('NotEmptyImage',false(Nim,1),...
-                                        'CorrectSize',false(Nim,1),...
-                                        'Nx',nan(Nim,1),...
-                                        'Ny',nan(Nim,1),...
-                                        'RawID',ClassID(nan(Nim,1)),...
-                                        'GoodGlobalBack',false(Nim,1),...
-                                        'FracPixAboveThreshold',nan(Nim,1),...
-                                        'Median',nan(Nim,1),...
-                                        'HistOK',false(Nim,1),...
-                                        'NpixWithBadVal',nan(Nim,1),...
-                                        'NpixWithBadValOK',false(Nim,1),...
-                                        'ACF_FWHM',nan(Nim,1),...
-                                        'GoodACF_FWHM',false(Nim,1),...
-                                        'GoodImages',false(Nim,1),...
-                                        'SelectedImages',false(Nim,1));
-                else
-                    % Add columns:
-                    TableForDB.NotEmptyImage         = false(Nim,1);
-                    TableForDB.CorrectSize           = false(Nim,1);
-                    TableForDB.Nx                    = nan(Nim,1);
-                    TableForDB.Ny                    = nan(Nim,1);
-                    TableForDB.RawID                 = nan(Nim,1);
-                    TableForDB.GoodGlobalBack        = false(Nim,1);
-                    TableForDB.FracPixAboveThreshold = nan(Nim,1);
-                    TableForDB.Median                = nan(Nim,1);
-                    TableForDB.HistOK                = false(Nim,1);
-                    TableForDB.NpixWithBadVal        = nan(Nim,1);
-                    TableForDB.NpixWithBadValOK      = false(Nim,1);
-                    TableForDB.ACF_FWHM              = nan(Nim,1);
-                    TableForDB.GoodACF_FWHM          = false(Nim,1);
-                    TableForDB.GoodImages            = false(Nim,1);
-                    TableForDB.SelectedImages        = false(Nim,1);
-                end
+        if islogical(TableForDB) && TableForDB
+            % create new TableForDB
+            TableForDB = struct('NotEmptyImage',false(Nim,1),...
+                                'CorrectSize',false(Nim,1),...
+                                'Nx',nan(Nim,1),...
+                                'Ny',nan(Nim,1),...
+                                'RawID',ClassID(nan(Nim,1)),...
+                                'GoodGlobalBack',false(Nim,1),...
+                                'FracPixAboveThreshold',nan(Nim,1),...
+                                'Median',nan(Nim,1),...
+                                'HistOK',false(Nim,1),...
+                                'NpixWithBadVal',nan(Nim,1),...
+                                'NpixWithBadValOK',false(Nim,1),...
+                                'ACF_FWHM',nan(Nim,1),...
+                                'GoodACF_FWHM',false(Nim,1),...
+                                'GoodImages',false(Nim,1),...
+                                'SelectedImages',false(Nim,1));
+        else
+            % Add columns:
+            TableForDB.NotEmptyImage         = false(Nim,1);
+            TableForDB.CorrectSize           = false(Nim,1);
+            TableForDB.Nx                    = nan(Nim,1);
+            TableForDB.Ny                    = nan(Nim,1);
+            TableForDB.RawID                 = nan(Nim,1);
+            TableForDB.GoodGlobalBack        = false(Nim,1);
+            TableForDB.FracPixAboveThreshold = nan(Nim,1);
+            TableForDB.Median                = nan(Nim,1);
+            TableForDB.HistOK                = false(Nim,1);
+            TableForDB.NpixWithBadVal        = nan(Nim,1);
+            TableForDB.NpixWithBadValOK      = false(Nim,1);
+            TableForDB.ACF_FWHM              = nan(Nim,1);
+            TableForDB.GoodACF_FWHM          = false(Nim,1);
+            TableForDB.GoodImages            = false(Nim,1);
+            TableForDB.SelectedImages        = false(Nim,1);
+        end
     end
 end
