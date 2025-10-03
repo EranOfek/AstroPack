@@ -31,8 +31,17 @@ Factor = 0.7413; % 1.4826./2  %= 0.5./norminv(0.75,0,1)
 
 if Algo==0
     Tmp     = prctile(Mat,[25,75],Dim);
-    ValLow  = Tmp(1);
-    ValHigh = Tmp(2);
+    if Dim==1
+        ValLow  = Tmp(1, :);
+        ValHigh = Tmp(2, :);
+    elseif Dim==2
+        ValLow  = Tmp(:, 1);
+        ValHigh = Tmp(:, 2);
+    else
+        error('Dim must be 1 or 2');
+    end
+    %ValLow  = Tmp(1);
+    %ValHigh = Tmp(2);
 elseif Algo==1
     Mat     = sort(Mat);
     SizeMat = size(Mat);
