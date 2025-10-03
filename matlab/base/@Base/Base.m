@@ -156,6 +156,25 @@ classdef Base < matlab.mixin.Copyable
     end
 
 
+    % methods (Hidden)
+    %     function Obj = createArray(ClassHandle, Size, varargin)
+    %         %
+    % 
+    %         N = prod(Size);
+    %         Tmp = arrayfun(@() ClassHandle, 1:N, 'UniformOutput', false);
+    %         Obj = reshape([Tmp{:}], Size);
+    % 
+    %         % --- apply name-value defaults to all elements ---
+    %         if ~isempty(varargin)
+    %             S = struct(varargin{:});
+    %             FN = fieldnames(S);
+    %             for K = 1:numel(FN)
+    %                 [Obj.(FN{K})] = deal(S.(FNN{K}));
+    %             end
+    %         end
+    %     end
+    % end
+
     methods
 
         function Result = setProps(Obj, Args)
