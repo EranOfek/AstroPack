@@ -133,6 +133,9 @@ function [Result] = subtractionZOGY(AI, Args)
                     if Args.DoDSDF
                         % dS/dF
                         HERE:
+                        % Be careful dS/dF is not normalized like S!
+                        % require normalization...
+                        HERE: check sign of median - maybe can be used to refine Fn/Fr?
                     end
     
                     if Args.FindTransients

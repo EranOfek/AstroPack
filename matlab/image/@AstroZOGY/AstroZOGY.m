@@ -1357,6 +1357,41 @@ classdef AstroZOGY < AstroDiff
 
         end
 
+        function Obj=dSdF(Obj, Args)
+            % Populate DSDF - the dS/dFn (Fr=1) derivative for ZOGY subtraction.
+            % Input  : - N_hat (Fourier Transform of new image).
+            %            N, R, Pn, Pr can be either matrices or cubes in which the
+            %            image index is in the 3rd dimension (see example).
+            %            If you want to provide N instead of N_hat (and R, Pn, Pr),
+            %            then set the IsFFT argument to false.
+            %          - R_hat (Fourier Transform of ref image).
+            %          - Pn_hat (Fourier Transform of new image PSF with size equal
+            %            to the new image size).
+            %            Prior to FT, the PSF should be in the image corner.
+            %          - Pr_hat (like Pn_hat, but for the ref image).
+            %          - VarN (var of new image background).
+            %          - VarR (var of ref image background).
+            %          - Fr (Ref image flux normalization). Default is 1.
+            % Output : - An AstroZOGY objerct in which the DSDF property is
+            %            populated with dS/dFn (for Fr=1).
+            %            Be careful this is unnormalized.
+            %            Normalization the same as S is needed.
+            % Author : Eran Ofek (2024 Jun) 
+
+            Fr = 1;
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).DSDF = imUtil.properSub.dSdF(Obj(Iobj).N_hat,...
+                                                       Obj(Iobj).R_hat,...
+                                                       Obj(Iobj).Pn_hat,...
+                                                       Obj(Iobj).Pr_hat, ...
+                                                       Obj(Iobj).VarN,...
+                                                       Obj(Iobj).VarR, ...
+                                                       Fr,...
+                                                       'IsOutFFT',false);
+            end
+    
+        end
     end
 
     methods % catalog matching
