@@ -18,6 +18,7 @@ function [Result] = subtractionZOGY(AI, Args)
     arguments
         AI
         Args.RefAI                 = [];
+        Args.RegisterRef           = true;
         Args.MinmalOverlapFraction = 0.1;
         Args.MinimalOverlapNpix    = 3e5;  % about 10% of the LAST cropped image
         Args.DoGabor               = true;
@@ -76,7 +77,9 @@ function [Result] = subtractionZOGY(AI, Args)
                 AD(Iai).New = AI(Iai);
         
                 % registration
-                AD(Iai).register;
+                % register ref to new
+                % The ref will have the same size as the new
+                AD(Iai).register('RegisterRef',Args.RegisterRef);
         
                 % Estimate area of overlap between new and ref
                 % do it for both full overlap and overlap of regions with
@@ -87,10 +90,14 @@ function [Result] = subtractionZOGY(AI, Args)
                 %                                   with ref.
                 %   Info.OverlapUsed - like NoNewRefOverlapNpix but can be
                 %                                   set to 0 if no subtraction produced.
-                Here: Info.NewRefOverlapNpix(Iai) = ...
-        
+                HERE: require a seperate function: depands on Args.RegisterRef...
+                Info.NewRefOverlapNpix(Iai) = ...
+                % is the new image mask is updated at this stage?
+                Info.NewRefOverlapNpix(Iai) = sum(AD(Iai).New.MaskData.findBit({'NaN','Overap'}, 'Method','any'),'all');
                 %SizeNew = size(AI(Iai).ImageData.Image);
                 MinimalOverlapNpix = Args.MinimalOverlapFraction.*numel(AI(Iai).ImageData.Image);
+
+
 
                 % Check if mininmal overlap exist
                 if OverlapInfo(Iai).NoNewRefOverlapNpix>MinimalOverlapNpix
