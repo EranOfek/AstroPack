@@ -221,7 +221,7 @@ classdef TableHelper < ultrasat.api.Loggable
                                 if isnat(val)  % Check if it's NaT
                                     newCol{j} = "";  % Empty string for NaT values
                                 else
-                                    newCol{j} = datestr(val, 'yyyy-MM-dd HH:mm:ss'); % Convert datetime to string
+                                    newCol{j} = datestr(val, 'yyyy-mm-dd HH:MM:SS'); % Convert datetime to string
                                 end
                             catch ME
                                 obj.msglog(sprintf('convertTableDatetimeToString: row %d conversion failed for column %s: %s', j, colName, ME.message));

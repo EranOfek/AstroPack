@@ -51,14 +51,14 @@ classdef MainModule < ultrasat.api.Loggable
     
 
     methods
-        function obj = MainModule()
+        function obj = MainModule(NamespaceId)
             % Constructor
             disp('app.MainModule');
                        
             % Get namespace from O/S env
             % setenv('SOC_NAMESPACE_ID', 'OPER')
             % setenv('SOC_NAMESPACE_ID', 'SIM')
-            obj.NamespaceId = getenv('SOC_NAMESPACE_ID');
+            obj.NamespaceId = NamespaceId;  %getenv('SOC_NAMESPACE_ID');
             obj.NamespaceDisplay = '';
             if isempty(obj.NamespaceId)
                 obj.NamespaceId = 'OPER';
@@ -81,7 +81,7 @@ classdef MainModule < ultrasat.api.Loggable
 
             % Load Preferences from file
             obj.PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
-            obj.Preferences = ultrasat.planner.gui.Preferences(obj.PreferencesFileName);
+            obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
             % Setup ApiClient - CURRENTLY we use only Sim - with Local access 

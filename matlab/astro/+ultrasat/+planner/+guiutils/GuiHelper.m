@@ -339,8 +339,8 @@ classdef GuiHelper < ultrasat.api.Loggable
                 % Otherwise try parsing as a duration string (e.g., 'HH:MM:SS')
                 try
                     d = duration(strValue);
-                    % duration() can return NaT for invalid strings, check this
-                    if isduration(d) && ~isnat(d)
+                    
+                    if isduration(d) &&  ~isempty(d)
                         Result = d;
                     else
                         obj.msglog(sprintf('getFieldDuration: invalid duration string "%s"', strValue));
