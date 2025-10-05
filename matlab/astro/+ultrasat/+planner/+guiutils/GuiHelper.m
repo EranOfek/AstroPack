@@ -280,18 +280,23 @@ classdef GuiHelper < ultrasat.api.Loggable
         
 
         function Result = getFieldDuration(obj, Value)
-            % Return the value of a duration text field as a duration object.
+            % getFieldDuration Convert various textual/numeric duration inputs to a duration object.
             %
             % Expected Input:
             %   Value - A character vector, string scalar, or numeric value.
-            %           Examples: '300', "00:10:00", 120
+            %           Examples: '300', "00:10:00", 120, '3 hr', '70 min', '3600 sec'
             %
             % Output:
             %   Result - A duration object. If Value is empty or invalid, returns [].
             %
             % Behavior:
-            %   - If the input is a valid integer (e.g., '300'), interpret as seconds.
-            %   - Otherwise, try parsing it as a duration string (e.g., '00:10:00').
+            %   - Empty input → []
+            %   - Numeric (scalar) → seconds(Value)
+            %   - Pure integer string → seconds(str2double(Value))
+            %   - 'hh:mm:ss' / 'dd:hh:mm:ss' → parsed by duration()
+            %   - Natural language like '3 hr', '70 min', '3600 sec' → parsed by regexp
+            %
+            % Notes:
             %   - Handles char, string, numeric gracefully.
             %   - Logs errors but never throws exceptions.
         
@@ -302,17 +307,12 @@ classdef GuiHelper < ultrasat.api.Loggable
                     return;
                 end
         
-                % Normalize to char (preferred in your codebase)
+                % Normalize to char
                 if isstring(Value)
                     Value = char(Value);
                 elseif isnumeric(Value)
-                    % If it's already numeric, handle directly
                     if isscalar(Value) && ~isnan(Value)
-                        if mod(Value, 1) == 0
-                            Result = seconds(Value);
-                        else
-                            obj.msglog(sprintf('getFieldDuration: numeric value %.3f is not an integer, ignored.', Value));
-                        end
+                        Result = seconds(Value);
                     else
                         obj.msglog('getFieldDuration: unsupported numeric input.');
                     end
@@ -328,32 +328,54 @@ classdef GuiHelper < ultrasat.api.Loggable
                     return;
                 end
         
-                % Try converting to numeric first
+                % 1. Try converting to numeric first (e.g., '300')
                 numValue = str2double(strValue);
-                if ~isnan(numValue) && isfinite(numValue) && mod(numValue, 1) == 0
-                    % Valid integer seconds
+                if ~isnan(numValue) && isfinite(numValue)
                     Result = seconds(numValue);
                     return;
                 end
         
-                % Otherwise try parsing as a duration string (e.g., 'HH:MM:SS')
+                % 2. Try parsing as hh:mm:ss or dd:hh:mm:ss
                 try
                     d = duration(strValue);
-                    
-                    if isduration(d) &&  ~isempty(d)
+                    if isduration(d) && ~isempty(d)
                         Result = d;
-                    else
-                        obj.msglog(sprintf('getFieldDuration: invalid duration string "%s"', strValue));
+                        return;
                     end
-                catch innerME
-                    obj.msglog(sprintf('getFieldDuration: failed to parse duration string "%s": %s', strValue, innerME.message));
+                catch
+                    % we'll try natural units next
                 end
+        
+                % 3. Try parsing natural language strings like "3 hr", "10 min", "3600 sec"
+                %    Also supports plural like 'hours', 'minutes', etc., and decimals like '1.5 hr'
+                tokens = regexp(lower(strValue), '^\s*([0-9]+(?:\.[0-9]+)?)\s*(hr|hrs|hour|hours|min|mins|minute|minutes|sec|secs|second|seconds)\s*$', 'tokens');
+                if ~isempty(tokens)
+                    valNum = str2double(tokens{1}{1});
+                    unitStr = tokens{1}{2};
+        
+                    switch unitStr
+                        case {'hr','hrs','hour','hours'}
+                            Result = hours(valNum);
+                        case {'min','mins','minute','minutes'}
+                            Result = minutes(valNum);
+                        case {'sec','secs','second','seconds'}
+                            Result = seconds(valNum);
+                        otherwise
+                            obj.msglog(sprintf('getFieldDuration: unrecognized unit "%s" in "%s"', unitStr, strValue));
+                            Result = [];
+                    end
+                    return;
+                end
+        
+                % 4. If nothing matched
+                obj.msglog(sprintf('getFieldDuration: unrecognized duration format "%s"', strValue));
         
             catch ME
                 obj.msglog(sprintf('getFieldDuration: error processing input (%s): %s', class(Value), ME.message));
                 Result = [];
             end
         end
+
 
         % =================================================================
         %                            Utilities
