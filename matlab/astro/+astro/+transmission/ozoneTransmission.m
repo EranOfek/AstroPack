@@ -1,16 +1,16 @@
-function Transm = ozoneTransmission(zenithAngle_deg, dobsonUnits, Lam, waveUnits)
+function Transm = ozoneTransmission(ZenithAngle_deg, DobsonUnits, Lam, WaveUnits)
     % Input:  - Lam (double array): Wavelength array  
-    %         - zenithAngle_deg (double): Zenith angle in degrees [0, 90] (default: 55.18)
-    %         - dobsonUnits (double): Ozone column in Dobson Units (default: 300)
-    %         - waveUnits (string): Wavelength units (default: 'nm')
+    %         - ZenithAngle_deg (double): Zenith angle in degrees [0, 90] (default: 55.18)
+    %         - DobsonUnits (double): Ozone column in Dobson Units (default: 300)
+    %         - WaveUnits (string): Wavelength units (default: 'nm')
     % Output: - Transm (double array): Transmission values (0-1)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Sep 2025) - Fast direct calculation version
     % Example: Trans = astro.transmission.ozoneTransmission(55.18, 300);
     
     arguments
-        zenithAngle_deg  = 30
-        dobsonUnits  = 300
+        ZenithAngle_deg  = 30
+        DobsonUnits  = 300
         Lam = linspace(300,1100,401);      % added for uniformity, O3UV absorption data already interpolated to the net
         waveUnits = "nm";                  % for uniformity
     end
@@ -18,18 +18,18 @@ function Transm = ozoneTransmission(zenithAngle_deg, dobsonUnits, Lam, waveUnits
     O3UV_cross_section = getO3UVcrossSection;
 
    % Checkup for zenith angle value correctness
-    if zenithAngle_deg > 90 || zenithAngle_deg < 0
+    if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
         error('Zenith angle out of range [0, 90] deg');
     end
    
     % Calculate airmass 
-    Am_ = astro.transmission.airmassSMARTS(zenithAngle_deg).ozone;
+    Am_ = astro.transmission.airmassSMARTS(ZenithAngle_deg).ozone;
        
     % Loschmidt scaling
     Absorption_coeff = constant.Loschmidt * O3UV_cross_section;
     
     % Convert Dobson units to atm-cm
-    Ozone_atm_cm = dobsonUnits * 0.001;
+    Ozone_atm_cm = DobsonUnits * 0.001;
 
     % Calculate optical depth
     Tau_ozone = Absorption_coeff * Ozone_atm_cm;

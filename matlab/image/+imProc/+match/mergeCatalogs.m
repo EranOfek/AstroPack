@@ -80,9 +80,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   Default is {'MAG_CONV_2','MAGERR_CONV_2'};
     %            'MagCalibColName' - A char array of column name by which to
     %                   calculate the relative photometric calibration.
-    %                   Default is 'MAG_CONV_2'.
+    %                   Default is 'MAG_APER_3'.
     %            'MagCalibErrColName' - Error column name corresponding to
-    %                   'MagCalibColName'. Default is 'MAGERR_CONV_2'.
+    %                   'MagCalibColName'. Default is 'MAGERR_APER_3'.
     %           
     %            'unifiedSourcesCatalogArgs' - A cell array of additional
     %                   arguments to pass to MatchedSources/unifiedCatalogsIntoMatched

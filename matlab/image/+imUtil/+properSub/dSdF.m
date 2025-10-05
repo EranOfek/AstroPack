@@ -19,8 +19,8 @@ function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Fr, Args)
     %            'Eps' - A small value to add to the demoninators in order
     %                   to avoid division by zero due to roundoff errors.
     %                   Default is 0. (If needed set to about 100.*eps).
-    %            'IsOutFFT' - A logical indicating if the output S, D and Pd
-    %                   are ffted (true) or in regular space (false).
+    %            'IsOutFFT' - A logical indicating if the output DSDFn
+    %                   is ffted (true) or in regular space (false).
     %                   Default is true.
     % Output : - dS/dFn (for Fr=1). Be careful this is unnormalized.
     %            Normalization the same as S is needed.

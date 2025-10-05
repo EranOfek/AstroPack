@@ -23,6 +23,8 @@ function Result = zp_meddiff(MS, Args)
     %            'UseWMedian' - A logical indicating if to use weighted
     %                   median instead of median.
     %                   Default is true.
+    %            'UseMex' - A logical indicating if to use MEX when
+    %                   possible. Default is false.
     %
     %            'RemoveFlags' - A cell array of flag names to remove
     %                   from the plot. If empty, show all. Default is {}.
@@ -64,6 +66,7 @@ function Result = zp_meddiff(MS, Args)
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
         Args.MinNsrc                = 10;
         Args.UseWMedian logical     = false;
+        Args.UseMex                 = false;
         
         %Args.Plot(1,1) logical      = false;
         
@@ -120,14 +123,23 @@ function Result = zp_meddiff(MS, Args)
 
         DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
 
-        if Args.UseWMedian
-            Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+        if Args.UseMex
+            if Args.UseWMedian
+                [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2); 
+            else
+                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.mex.median(DiffMagEpoch, 2, 'omitnan');
+                Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
+             end
         else
-            Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
+            if Args.UseWMedian
+                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+            else
+                Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
+            end            
+            Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         end
         Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
         
-        Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;
     end

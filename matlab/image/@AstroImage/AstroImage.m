@@ -3592,6 +3592,22 @@ classdef AstroImage < Component
     end
        
     methods % utilities
+        function FileNames = getFileNames(Obj)
+            % Get stored file names from AstroImage object
+            % Input  : - self.
+            % Output : - A cell array of file names as stored in the
+            %            ImageData.FileName property.
+            % Author : Eran Ofek (Sep 2025)
+
+            
+            Nim = numel(Obj);
+            FileNames = cell(Nim,1);
+            for Iim=1:1:Nim
+                FileNames{Iim} = Obj(Iim).ImageData.FileName;
+            end
+
+        end
+
         function DataProp = depandentProp2DataProp(Obj, Prop)
             % Depandent property to data property containing the ImageComponent object.
             %   Given a dependent data property (e.g., 'Image') convert to

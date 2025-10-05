@@ -170,6 +170,60 @@ function Result = unitTest()
         error('Problem with std in tools.math.stat.mex.medianMeanStd');
     end
 
+    %% test tools.math.stat.quantile1
+    % speed test in unitPerf
+    R = rand(1726,1726);
+    q1=quantile(R(:),0.92);
+    q2=tools.math.stat.mex.quantile1(R(:),0.92);
+
+    if abs(q1-q2)>1e-6
+        error('Problem with tools.math.stat.mex.quantile1');
+    end    
+
+
+    %% tools.math.stat.mex.wmedian_mex
+    R = rand(1e3,3);
+    W = rand(1e3,3)+2;
+    [M]=tools.math.stat.mex.wmedian_mex(R,W);
+    Err = 1./sqrt(W);
+    [M1]=tools.math.stat.wmedian(R,Err);
+    if max(abs(M-M1))>1e-8
+        error('Problem with tools.math.stat.mex.wmedian_mex');
+    end
+    
+    %% tools.math.stat.mex.wmedianStd_mex
+    R = rand(1e3,3);
+    W = rand(1e3,3)+2;
+    [M,S]=tools.math.stat.mex.wmedianStd_mex(R,W);
+    Err = 1./sqrt(W);
+    [M1]=tools.math.stat.wmedian(R,Err);
+    if max(abs(M-M1))>1e-8
+        error('Problem with tools.math.stat.mex.wmedian_mex');
+    end
+
+    %% tools.math.stat.mex.wMeanStd_mex
+    R = rand(1e3,3);
+    W = rand(1e3,3)+2;
+    [M,S,E]=tools.math.stat.mex.wMeanStd_mex(R,W);
+    Err = 1./sqrt(W);
+    [M1,E1,S1]=tools.math.stat.wmean(R,Err);
+    if max(abs(M-M1))>1e-8 || max(abs(S-S1))>1e-3 || max(abs(E-E1))>1e-8 
+        error('Problem with tools.math.stat.mex.wMeanStd_mex');
+    end
+    
+    %% tools.math.stat.mex.rstd_mex
+    R = rand(1726,1726);
+    r1=tools.math.stat.rstd(R,1);
+    r2=tools.math.stat.mex.rstd_mex(R,[],1);
+    if max(abs(r1-r2),[],'all')>3e-3
+        error('Problem with tools.math.stat.mex.rstd_mex Dim=1');
+    end
+    r1=tools.math.stat.rstd(R,2);
+    r2=tools.math.stat.mex.rstd_mex(R,[],2);
+    if max(abs(r1-r2),[],'all')>3e-3
+        error('Problem with tools.math.stat.mex.rstd_mex Dim=2');
+    end
+
 
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');

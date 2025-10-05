@@ -97,8 +97,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     MergedTranCat = AstroCatalog();
 
     % Some unit conversion parameters
-    Rad2Arcsec = 206265;
-    Arcsec2Rad = 4.84814e-6;
+    Rad2Arcsec = 3600.*180./pi; %206265;
+    Arcsec2Rad = 1./Rad2Arcsec; %4.84814e-6;
 
     % 2: ----- Set and verify paths -----
     
