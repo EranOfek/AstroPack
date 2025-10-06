@@ -1,8 +1,28 @@
-classdef PlannerMainPlotHelper < handle
+%==========================================================================
+% ULTRASAT Planner
+%
+% File:   +planner/+gui/GuiHelper.m
+% Author:  Chen Tishler
+% Created: 07/01/2025
+% Updated: 06/10/2025
+% Title:   
+%==========================================================================
 
-    methods (Static)
+classdef PlannerMainPlotHelper < ultrasat.api.Loggable
+    % This class serves like a DataModule in Delphi.
+    
+    properties  
+    end
+    
 
-        function showSkyMapPlot(app)
+    methods
+        function obj = PlannerMainPlotHelper()
+            % Constructor
+            obj.msglog('PlannerMainPlotHelper created successfully');
+        end
+
+
+        function showSkyMapPlot(obj, app)
             % Update GUI plot with SkyMap
             app.msglog('showSkyMapPlot');
             if ~app.hasPlanner(), return; end            
@@ -15,11 +35,11 @@ classdef PlannerMainPlotHelper < handle
             % end
             try
                 % Update the plot embedded in this window
-                ultrasat.planner.guiutils.PlannerMainPlotHelper.doPlotSkyMap(app, app.AxesSkymapPlot);
+                obj.doPlotSkyMap(app, app.AxesSkymapPlot);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotSkyMapApp) && isvalid(app.PlotSkyMapApp)
-                    ultrasat.planner.guiutils.PlannerMainPlotHelper.doPlotSkyMap(app, app.PlotSkyMapApp.AxesSkymapPlot);
+                    obj.doPlotSkyMap(app, app.PlotSkyMapApp.AxesSkymapPlot);
                 end
             catch ME
                 app.msgex('plotMapPlan', ME);
@@ -27,7 +47,7 @@ classdef PlannerMainPlotHelper < handle
         end
 
         
-        function doPlotSkyMap(app, AxesHandle)
+        function doPlotSkyMap(obj, app, AxesHandle)
             % Plot SkyMap on the specified Axes (embedded or stand-alone)
             try
                 Planner = app.MainModule.Planner;
@@ -55,7 +75,7 @@ classdef PlannerMainPlotHelper < handle
         % =================================================================
         %
         % =================================================================        
-        function plotCalibObj(app)
+        function plotCalibObj(obj, app)
 
             % Plot Calibration Objects graph
             app.msglog('plotCalibObj');
@@ -109,7 +129,7 @@ classdef PlannerMainPlotHelper < handle
         end
 
         
-        function showCalibObjTable(app)
+        function showCalibObjTable(obj, app)
             % showCalibObjTable  Open (or create) the CalibObjTable window and update its content.
             %
             % This function ensures the CalibObjTable window exists and is valid,
@@ -150,7 +170,7 @@ classdef PlannerMainPlotHelper < handle
         end
                 
 
-        function uniqueTargetSelectedInPlot(app, UniqueTargetIndex)
+        function uniqueTargetSelectedInPlot(obj, app, UniqueTargetIndex)
             % Helper: 
             Planner = app.MainModule.Planner;
 
@@ -178,8 +198,7 @@ classdef PlannerMainPlotHelper < handle
         end
 
 
-        function plotCalibObjSub(app)
-            ultrasat.planner.guiutils.PlannerMainPlotHelper.plotCalibObjSub(app);
+        function plotCalibObjSub(obj, app)
 
             % Called on selecting CalibObj in the drop-down next to the Graphs plot
             try
@@ -209,8 +228,7 @@ classdef PlannerMainPlotHelper < handle
         end
 
 
-        function plotVisibility(app)
-            ultrasat.planner.guiutils.PlannerMainPlotHelper.plotVisibility(app);
+        function plotVisibility(obj, app)
 
             % Plot Visibility graph of currently select Unique Target
             if ~app.hasPlanner(), return; end

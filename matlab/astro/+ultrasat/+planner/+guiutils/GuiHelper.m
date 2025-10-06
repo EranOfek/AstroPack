@@ -75,6 +75,33 @@ classdef GuiHelper < ultrasat.api.Loggable
             style = uistyle("FontColor", color);
         end       
 
+        %------------------------------------------------------------------        
+
+        function setStatusField(obj, app, EditField, Status, StatusText)
+            % Helper: Set the background color of the EditField based on the Status value.
+            % Valid values for Status: OK, Warning, Error, (empty)
+
+            if isempty(StatusText)
+                StatusText = '';
+            end
+            EditField.Value = StatusText;
+
+            % Logic for background color
+            if strcmp(Status, 'OK')
+                % Light gray-green for 'OK'
+                EditField.BackgroundColor = [0.8, 0.9, 0.8];
+            elseif strcmp(Status, 'Warning')
+                % Light yellow for 'Warning'
+                EditField.BackgroundColor = [1.0, 1.0, 0.8];                
+            elseif ~isempty(Status)
+                % Light red for non-empty status that is not 'OK'
+                EditField.BackgroundColor = [1, 0.8, 0.8];
+            else
+                % Light gray for empty status
+                EditField.BackgroundColor = [0.9, 0.9, 0.9];
+            end
+        end
+
         % =================================================================
         %                           Get UI Field Values
         % =================================================================
@@ -516,7 +543,72 @@ classdef GuiHelper < ultrasat.api.Loggable
                 titleStr = strtrim(displayStr);
             end
         end
-                
+        
+        % =================================================================
+        %
+        % =================================================================
+
+        function Status = showModal(obj, app, FormApp)
+            % Helper: Show modal app window and return FormApp.Status
+            % Call FormApp.beforeShow() if such function exists in FormApp
+            % Note: FormApp should have 'Status' property
+            appName = class(FormApp);
+            hasBeforeShow = ismethod(FormApp, 'beforeShow');
+            app.msglog(sprintf('showModal: %s, hasBeforeShow: %d', appName, hasBeforeShow));
+
+            % Call FormApp.beforeShow() if exists
+            if hasBeforeShow
+                app.msglog(sprintf('showModal: calling %s.beforeShow', appName));
+                try
+                    FormApp.beforeShow();
+                catch ME
+                    app.msgex('beforeShow', ME)
+                end
+            end
+
+            % Override CloseRequestFcn to handle 'X' button click
+            FormApp.UIFigure.CloseRequestFcn = @(src, event) app.handleCloseRequest(FormApp);
+
+            % Show the app window as modal window
+            uiwait(FormApp.UIFigure);
+
+            % Hide the app window and get its Status property
+            if isvalid(FormApp)
+                FormApp.UIFigure.Visible = 'off';
+                Status = FormApp.Status;
+                app.msglog(sprintf('showModal: %s - returned, Status=%s', appName, Status));
+            else
+                Status = 'Cancel';  % Handle case where the user closed the app
+                app.msglog(sprintf('showModal: %s - closed via X button, Status=%s', appName, Status));                
+            end
+        end
+
+        
+        function copyUITable(obj, SourceUITable, TargetUITable)
+            % Copies data, column names, editability settings, and styles from SourceUITable to TargetUITable
+            
+            % Copy table data
+            TargetUITable.Data = SourceUITable.Data;
+            
+            % Copy column names
+            TargetUITable.ColumnName = SourceUITable.ColumnName;
+            
+            % Copy column editability settings
+            TargetUITable.ColumnEditable = SourceUITable.ColumnEditable;
+            
+            % Remove existing styles from TargetUITable
+            removeStyle(TargetUITable);
+            
+            % Retrieve styles from SourceUITable and reapply them to TargetUITable
+            styles = get(SourceUITable, 'StyleConfigurations');
+
+            % addStyle(app.UITableApprovedTarget, Style, "row", Targets);
+
+            % Apply styles to TargetUITable
+            for i = 1:height(styles)
+                addStyle(TargetUITable, styles.Style(i), string(styles.Target(i)), styles.TargetIndex{i});
+            end
+        end        
     end
 
 end
