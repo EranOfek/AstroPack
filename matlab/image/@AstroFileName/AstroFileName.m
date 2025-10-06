@@ -848,7 +848,42 @@ classdef AstroFileName < Component
 
         end
 
-        
+        function Result=getFieldIDperVisit(Args)
+            % Recursively find all visit dir in the path and return the FieldID of each visit.
+            % Input  : * ...,key,val,...
+            %            'TempName' - File template name to search.
+            %                   Default is '*coadd_Image*.fits'
+            %            'OutLiterals' - List of literals to add to output.
+            %                   Default is {'FieldID'}
+            % Output : - A table of of visit dir names and their fields.
+            % Author : Eran Ofek (Oct 2025)
+            % Example: AstroFileName.getFieldIDperVisit
+            arguments
+                Args.TempName = '*coadd_Image*.fits';
+                Args.OutLiterals = {'FieldID'};
+            end
+
+            PWD = pwd;
+
+            Nlit = numel(Args.OutLiterals);
+
+            List  = io.files.rdir(Args.TempName);
+            UnDir = unique(string({List.folder}));
+            Nun   = numel(UnDir);
+            Out   = cell(Nun, Nlit+1);
+            for Iun=1:1:Nun
+                cd(UnDir{Iun});
+                AFN = AstroFileName.dir(Args.TempName);
+                for Ilit=1:1:Nlit
+                    Out{Iun, Ilit} = AFN(1).(Args.OutLiterals{Ilit})(1);
+                end
+                Out{Iun, Nlit+1} = UnDir{Iun};
+            end
+            Result = cell2table(Out, 'VariableNames',[Args.OutLiterals, 'DirName']);
+            Result = tools.table.table_cell2string(Result);
+            cd(PWD);
+
+        end
 
         % Done
         function Result=getValFromFileName(File,Prop)
