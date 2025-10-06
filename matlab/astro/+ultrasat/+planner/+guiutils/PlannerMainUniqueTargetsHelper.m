@@ -1,23 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
     
-    properties  
-    end
-    
-
     methods
+        
         function obj = PlannerMainUniqueTargetsHelper()
             % Constructor
+            obj.LogPrefix = 'UniqueTargetsHelper';
             obj.msglog('PlannerMainUniqueTargetsHelper created successfully');
         end
 

@@ -1,23 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainPlanParamsHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
-    
-    properties  
-    end
-    
 
     methods
+        
         function obj = PlannerMainPlanParamsHelper()
             % Constructor
+            obj.LogPrefix = 'PlanParamsHelper';
             obj.msglog('PlannerMainPlanParamsHelper created successfully');
         end
 
@@ -38,7 +34,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
             % Make the form read-only if plan is already built
             app.MainModule.AfterBuild = height(Planner.Plan);
-            obj.setPlanParamsFields(ParamsApp);
+            obj.setPlanParamsFields(app, ParamsApp);
 
             % Show app
             if strcmp(app.showModal(ParamsApp), 'Save')
@@ -147,7 +143,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             % Helper: Apply plan parameters in current planner from PlanParams app
             % Called from showPlanParamsWindow            
             try
-                obj.doApplyPlanParams(ParamsApp);
+                obj.doApplyPlanParams(app, ParamsApp);
             catch ME
                 app.msgex('applyPlanParams', ME);
             end

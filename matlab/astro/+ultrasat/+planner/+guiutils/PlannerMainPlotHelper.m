@@ -1,23 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainPlotHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Plot Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainPlotHelper < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
-    
-    properties  
-    end
-    
 
     methods
+        
         function obj = PlannerMainPlotHelper()
             % Constructor
+            obj.LogPrefix = 'PlotHelper';
             obj.msglog('PlannerMainPlotHelper created successfully');
         end
 

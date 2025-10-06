@@ -1,28 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainNewPlanHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Create New Plan - HCS, LCS, DDT, AllSS, TOO
 %==========================================================================
 
 classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
-     < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
-    
-    properties  
-    end
-    
-    % =====================================================================
-    %             Create New Plan - HCS, LCS, DDT, AllSS, ToO
-    % =====================================================================    
     methods
 
         function obj = PlannerMainNewPlanHelper()
             % Constructor
+            obj.LogPrefix = 'NewPlanHelper';
             obj.msglog('PlannerMainNewPlanHelper created successfully');
         end
         
@@ -139,7 +130,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanLCS started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = obj.getNewPlanUserName();
+            UserName = obj.getNewPlanUserName(app);
             
             % Create new uplanner instance
             upLCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'LCS', 'BaseDataDir', app.MainModule.BaseDataDir);
@@ -158,7 +149,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanDDT started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = obj.getNewPlanUserName();            
+            UserName = obj.getNewPlanUserName(app);            
 
             % Create new uplanner instance            
             upDDT = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'DDT', 'BaseDataDir', app.MainModule.BaseDataDir);
@@ -177,7 +168,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanTOO started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = obj.getNewPlanUserName();            
+            UserName = obj.getNewPlanUserName(app);            
 
             % Create new uplanner instance            
             upTOO = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'TOO', 'BaseDataDir', app.MainModule.BaseDataDir);
@@ -232,6 +223,4 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
         end
 
     end
-
 end
-

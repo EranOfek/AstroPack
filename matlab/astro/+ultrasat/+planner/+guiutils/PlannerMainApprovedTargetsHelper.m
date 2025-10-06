@@ -1,23 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
     
-    properties  
-    end
-    
-
     methods
+        
         function obj = PlannerMainApprovedTargetsHelper()
             % Constructor
+            obj.LogPrefix = 'ApprovedTargetsHelper';
             obj.msglog('PlannerMainApprovedTargetsHelper created successfully');
         end
 

@@ -413,6 +413,46 @@ classdef SimpleFileClient < ultrasat.api.Loggable
 
     end
 
+    
+    methods (Access = private)
+        function previewStr = previewDataForLog(obj, data)
+            % previewDataForLog Create a short, safe preview string for logging.
+    
+            maxLen = 200; % max preview length
+    
+            try
+                if ischar(data) || isstring(data)
+                    strData = char(data);
+                    if length(strData) > maxLen
+                        previewStr = sprintf('%s ... [truncated %d chars]', ...
+                            strData(1:maxLen), length(strData) - maxLen);
+                    else
+                        previewStr = strData;
+                    end
+    
+                elseif isnumeric(data)
+                    previewStr = sprintf('[numeric array %dx%d]', size(data,1), size(data,2));
+    
+                elseif isstruct(data)
+                    fieldsList = strjoin(fieldnames(data), ', ');
+                    previewStr = sprintf('[struct with fields: %s]', fieldsList);
+    
+                elseif iscell(data)
+                    previewStr = sprintf('[cell array %dx%d]', size(data,1), size(data,2));
+    
+                elseif isempty(data)
+                    previewStr = '[empty]';
+    
+                else
+                    previewStr = sprintf('[%s]', class(data));
+                end
+    
+            catch ME
+                previewStr = sprintf('[preview error: %s]', ME.message);
+            end
+        end
+    end
+    
 
     methods (Static, Access = private)
         function safe_path = safePath(path)

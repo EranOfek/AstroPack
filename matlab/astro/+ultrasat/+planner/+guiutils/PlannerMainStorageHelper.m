@@ -1,23 +1,19 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/GuiHelper.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 06/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainStorageHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
 classdef PlannerMainStorageHelper < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
-    
-    properties  
-    end
-    
-
+  
     methods
+        
         function obj = PlannerMainStorageHelper()
             % Constructor
+            obj.LogPrefix = 'StorageHelper';
             obj.msglog('PlannerMainStorageHelper created successfully');
         end
 
@@ -76,7 +72,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 Pk = app.OpenPlanApp.Pk;
                 response = app.MainModule.ApiClient.loadPlan(Pk);
                 if response.ok
-                    app.doOpenPlan(app.MainModule.ApiClient.PlanData);
+                    obj.doOpenPlan(app, app.MainModule.ApiClient.PlanData);
                 end
 
             end
@@ -152,7 +148,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 end
             end
 
-            app.doClosePlan();
+            obj.doClosePlan(app);
             app.clearModified();
             app.setButtons();
         end
