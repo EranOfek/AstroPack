@@ -81,7 +81,6 @@ classdef ClientBase < ultrasat.api.Loggable
 
             % Construct the full API URL
             obj.ApiUrl = [obj.BaseUrl, obj.SubUrl];
-
         end
 
         % -----------------------------------------------------------------
@@ -232,12 +231,6 @@ classdef ClientBase < ultrasat.api.Loggable
             obj.msglog(sprintf('Response Body: %s', response.Body.Data));
         end
         
-    end
-
-    % ---------------------------------------------------------------------
-
-    methods (Static)
-
     end
 
 end

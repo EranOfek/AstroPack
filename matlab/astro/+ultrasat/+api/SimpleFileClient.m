@@ -335,8 +335,65 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             fullUrl = [baseUrl, endpoint];
         end
 
+        % =================================================================
 
         function response = performPostRequest(obj, endpoint, payload)
+            % performPostRequest Send a JSON POST request with robust logging.
+            %
+            %   response = performPostRequest(obj, endpoint, payload)
+            %
+            %   - Encodes the payload to JSON and sends it to the specified endpoint.
+            %   - Logs the request and response using obj.msglog without dumping large data.
+            %   - Truncates long strings and summarizes structs, arrays, and other types.
+            %   - Catches and logs all errors (including logging errors), never throws.
+            %
+            % Input:
+            %   endpoint - relative URL to send the POST to
+            %   payload  - struct, string, or data to JSON-encode
+            %
+            % Output:
+            %   response - decoded response body (usually struct, char, or string)
+        
+            response = [];
+            try
+                fullUrl = obj.getFullUrl(endpoint);
+        
+                % --- Request preview (robust) ---
+                try
+                    reqPreview = obj.previewDataForLog(payload);
+                catch innerME
+                    reqPreview = sprintf('[request preview error: %s]', innerME.message);
+                end
+                obj.msglog(sprintf('performPostRequest: POST %s → %s | Request preview: %s', ...
+                    endpoint, fullUrl, reqPreview));
+        
+                % --- Build and send request ---
+                jsonPayload = jsonencode(payload);
+                headers = matlab.net.http.HeaderField('Content-Type', 'application/json');
+                body = matlab.net.http.io.StringProvider(jsonPayload);
+                req = matlab.net.http.RequestMessage('post', headers, body);
+        
+                resp = req.send(fullUrl);
+        
+                % --- Response preview (robust) ---
+                try
+                    respPreview = obj.previewDataForLog(resp.Body.Data);
+                catch innerME
+                    respPreview = sprintf('[response preview error: %s]', innerME.message);
+                end
+        
+                obj.msglog(sprintf('performPostRequest: Status: %s', string(resp.StatusCode)));
+                obj.msglog(sprintf('performPostRequest: Response preview: %s', respPreview));
+        
+                response = resp.Body.Data;
+        
+            catch ME
+                obj.msglog(sprintf('performPostRequest: ERROR endpoint=%s | %s', endpoint, ME.message));
+            end
+        end
+        
+
+        function response = performPostRequest0(obj, endpoint, payload)
             % A helper function for making JSON POST requests.
 
             fullUrl = obj.getFullUrl(endpoint);
