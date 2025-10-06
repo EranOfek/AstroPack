@@ -335,8 +335,65 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             fullUrl = [baseUrl, endpoint];
         end
 
+        % =================================================================
 
         function response = performPostRequest(obj, endpoint, payload)
+            % performPostRequest Send a JSON POST request with robust logging.
+            %
+            %   response = performPostRequest(obj, endpoint, payload)
+            %
+            %   - Encodes the payload to JSON and sends it to the specified endpoint.
+            %   - Logs the request and response using obj.msglog without dumping large data.
+            %   - Truncates long strings and summarizes structs, arrays, and other types.
+            %   - Catches and logs all errors (including logging errors), never throws.
+            %
+            % Input:
+            %   endpoint - relative URL to send the POST to
+            %   payload  - struct, string, or data to JSON-encode
+            %
+            % Output:
+            %   response - decoded response body (usually struct, char, or string)
+        
+            response = [];
+            try
+                fullUrl = obj.getFullUrl(endpoint);
+        
+                % --- Request preview (robust) ---
+                try
+                    reqPreview = obj.previewDataForLog(payload);
+                catch innerME
+                    reqPreview = sprintf('[request preview error: %s]', innerME.message);
+                end
+                obj.msglog(sprintf('performPostRequest: POST %s → %s | Request preview: %s', ...
+                    endpoint, fullUrl, reqPreview));
+        
+                % --- Build and send request ---
+                jsonPayload = jsonencode(payload);
+                headers = matlab.net.http.HeaderField('Content-Type', 'application/json');
+                body = matlab.net.http.io.StringProvider(jsonPayload);
+                req = matlab.net.http.RequestMessage('post', headers, body);
+        
+                resp = req.send(fullUrl);
+        
+                % --- Response preview (robust) ---
+                try
+                    respPreview = obj.previewDataForLog(resp.Body.Data);
+                catch innerME
+                    respPreview = sprintf('[response preview error: %s]', innerME.message);
+                end
+        
+                obj.msglog(sprintf('performPostRequest: Status: %s', string(resp.StatusCode)));
+                obj.msglog(sprintf('performPostRequest: Response preview: %s', respPreview));
+        
+                response = resp.Body.Data;
+        
+            catch ME
+                obj.msglog(sprintf('performPostRequest: ERROR endpoint=%s | %s', endpoint, ME.message));
+            end
+        end
+        
+
+        function response = performPostRequest0(obj, endpoint, payload)
             % A helper function for making JSON POST requests.
 
             fullUrl = obj.getFullUrl(endpoint);
@@ -356,6 +413,46 @@ classdef SimpleFileClient < ultrasat.api.Loggable
 
     end
 
+    
+    methods (Access = private)
+        function previewStr = previewDataForLog(obj, data)
+            % previewDataForLog Create a short, safe preview string for logging.
+    
+            maxLen = 200; % max preview length
+    
+            try
+                if ischar(data) || isstring(data)
+                    strData = char(data);
+                    if length(strData) > maxLen
+                        previewStr = sprintf('%s ... [truncated %d chars]', ...
+                            strData(1:maxLen), length(strData) - maxLen);
+                    else
+                        previewStr = strData;
+                    end
+    
+                elseif isnumeric(data)
+                    previewStr = sprintf('[numeric array %dx%d]', size(data,1), size(data,2));
+    
+                elseif isstruct(data)
+                    fieldsList = strjoin(fieldnames(data), ', ');
+                    previewStr = sprintf('[struct with fields: %s]', fieldsList);
+    
+                elseif iscell(data)
+                    previewStr = sprintf('[cell array %dx%d]', size(data,1), size(data,2));
+    
+                elseif isempty(data)
+                    previewStr = '[empty]';
+    
+                else
+                    previewStr = sprintf('[%s]', class(data));
+                end
+    
+            catch ME
+                previewStr = sprintf('[preview error: %s]', ME.message);
+            end
+        end
+    end
+    
 
     methods (Static, Access = private)
         function safe_path = safePath(path)

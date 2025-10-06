@@ -83,11 +83,11 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 '', ...                         % subfolder (empty, top-level)
                 'NamespaceId', ultrasat.api.PathUtils.NamespaceId);% pass current namespace
 
-            dataDir = fileparts(Result);
-            if ~isfolder(dataDir)
-                fprintf('Creating folder: %s\n', dataDir);
-                mkdir(dataDir);
-            end
+            %dataDir = fileparts(Result);
+            %if ~isfolder(dataDir)
+                %fprintf('Creating folder: %s\n', dataDir);
+                %mkdir(dataDir);
+            %end
                     
             obj.msglog('getPlannerBasePath: %s', Result);
         end
@@ -111,7 +111,16 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             obj.ApprovedTargetsEndTime = end_time;
 
             obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
-            targetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
+
+            targetsFile = ultrasat.api.PathUtils.getNamespaceDataFilename( ...
+                'mission', ...                  % module name
+                '', ...                         % subfolder (empty, top-level)
+                'scheduled_targets.json', ...   % Filename
+                'NamespaceId', ultrasat.api.PathUtils.NamespaceId);% pass current namespace
+
+            %targetsFile = fullfile(obj.getPlannerBasePath(), 'scheduled_targets.json');
+
+
             response = struct();
         
             targets = obj.ApiSimProvider.readJsonFile(targetsFile);
@@ -123,11 +132,14 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 return;
             end
 
+            % Get the 'targets' array from the file
+            targets = targets.targets;
+
             % Filter targets by start_time and end_time
             filteredTargets = [];
             for i = 1:numel(targets)
-                tStart = datetime(targets(i).start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
-                tEnd = datetime(targets(i).end_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
+                tStart = obj.parseIsoDatetime(targets(i).start_time);
+                tEnd = obj.parseIsoDatetime(targets(i).end_time);
                 
                 if tStart >= start_time && tEnd <= end_time
                     filteredTargets = [filteredTargets; targets(i)];
@@ -540,5 +552,50 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             obj.msglog('Plan status fetched successfully for pk=%d', plan_pk);
         end
 
+
+        function dt = parseIsoDatetime(obj, str)
+            % parseIsoDatetime  Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
+            %
+            %   dt = parseIsoDatetime(str)
+            %
+            %   Supports:
+            %       2025-01-01T00:00:00.000000Z
+            %       2025-01-01T00:00:00.000000+00:00
+            %
+            %   Returns datetime with TimeZone = 'UTC'.
+            %   Returns NaT if parsing fails.
+        
+            dt = NaT;
+            if isempty(str)
+                return;
+            end
+        
+            % Convert string type if needed
+            if isstring(str)
+                str = char(str);
+            end
+        
+            % Detect the suffix to choose the format
+            str = strtrim(str);
+            if endsWith(str, 'Z')
+                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''';
+            elseif ~isempty(regexp(str, '[\+\-]\d\d:\d\d$', 'once'))
+                % Matches +00:00 or -05:30 etc. at the end
+                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX';
+            else
+                warning('parseIsoDatetime:UnknownFormat', ...
+                    'String does not match expected ISO 8601 formats: "%s"', str);
+                return;
+            end
+        
+            % Parse the datetime
+            try
+                dt = datetime(str, 'InputFormat', fmt, 'TimeZone', 'UTC');
+            catch ME
+                warning('parseIsoDatetime:Failed', ...
+                    'Failed to parse datetime string "%s" with format "%s": %s', str, fmt, ME.message);
+            end
+        end
+        
     end
 end

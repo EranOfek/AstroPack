@@ -3,7 +3,7 @@
 % Filename    : ultrasat.api.EncodeUtils.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 21/09/2025
+% Updated     : 05/10/2025
 % Description : Utility class for encoding, compression, and serialization.
 %==========================================================================
 
@@ -46,49 +46,103 @@ classdef EncodeUtils < ultrasat.api.Loggable
             % Constructor for EncodeUtils
         end
 
-        
+
         function base64String = saveObjectToBase64(obj, matObj)
             % Serializes a MATLAB object to a Base64 string.
             %
             % :param matObj: MATLAB object to serialize.
             % :return: Base64-encoded string.
-
+        
+            base64String = "";
             tempFile = [tempname, '.mat'];
-            save(tempFile, 'matObj');
-            
+        
+            try
+                save(tempFile, 'matObj');
+            catch ME
+                obj.msglog(sprintf('saveObjectToBase64: failed to save object: %s', ME.message));
+                return;
+            end
+        
             fid = fopen(tempFile, 'rb');
-            binaryData = fread(fid, inf, 'uint8=>uint8');
+            if fid == -1
+                obj.msglog(sprintf('saveObjectToBase64: failed to open %s for reading', tempFile));
+                return;
+            end
+        
+            try
+                binaryData = fread(fid, inf, 'uint8=>uint8');
+            catch ME
+                obj.msglog(sprintf('saveObjectToBase64: fread failed: %s', ME.message));
+                fclose(fid);
+                return;
+            end
+        
             fclose(fid);
-            
-            base64String = matlab.net.base64encode(binaryData);
-            delete(tempFile);
-
-            obj.msglog('saveObjectToBase64: len=%d', length(base64String));
+        
+            try
+                base64String = matlab.net.base64encode(binaryData);
+            catch ME
+                obj.msglog(sprintf('saveObjectToBase64: base64encode failed: %s', ME.message));
+            end
+        
+            try
+                delete(tempFile);
+            catch ME
+                obj.msglog(sprintf('saveObjectToBase64: failed to delete temp file %s: %s', tempFile, ME.message));
+            end
+        
+            obj.msglog(sprintf('saveObjectToBase64: len=%d', strlength(base64String)));
         end
-
-
+        
+        
         function matObj = loadObjectFromBase64(obj, base64String)
             % Deserializes a Base64 string to a MATLAB object.
             %
             % :param base64String: Base64-encoded object string.
             % :return: MATLAB object.
-
-            obj.msglog('loadObjectFromBase64: len=%d', length(base64String));
-
-            binaryData = matlab.net.base64decode(base64String);
+        
+            obj.msglog(sprintf('loadObjectFromBase64: len=%d', strlength(base64String)));
+            matObj = [];
+        
+            try
+                binaryData = matlab.net.base64decode(base64String);
+            catch ME
+                obj.msglog(sprintf('loadObjectFromBase64: base64decode failed: %s', ME.message));
+                return;
+            end
+        
             tempFile = [tempname, '.mat'];
-            
             fid = fopen(tempFile, 'wb');
-            fwrite(fid, binaryData);
+            if fid == -1
+                obj.msglog(sprintf('loadObjectFromBase64: failed to open %s for writing', tempFile));
+                return;
+            end
+        
+            try
+                fwrite(fid, binaryData);
+            catch ME
+                obj.msglog(sprintf('loadObjectFromBase64: fwrite failed: %s', ME.message));
+                fclose(fid);
+                return;
+            end
+        
             fclose(fid);
-            
-            loadedData = load(tempFile, 'matObj');
-            matObj = loadedData.matObj;
-            delete(tempFile);
+        
+            try
+                loadedData = load(tempFile, 'matObj');
+                matObj = loadedData.matObj;
+            catch ME
+                obj.msglog(sprintf('loadObjectFromBase64: load failed: %s', ME.message));
+            end
+        
+            try
+                delete(tempFile);
+            catch ME
+                obj.msglog(sprintf('loadObjectFromBase64: failed to delete temp file %s: %s', tempFile, ME.message));
+            end
         end
-
-        % -----------------------------------------------------------------
-
+        
+        
         function base64String = serializeToBase64_7z(obj, matObj)
             % Serializes a MATLAB object to a compressed Base64 string.
             %
@@ -98,30 +152,58 @@ classdef EncodeUtils < ultrasat.api.Loggable
             %
             % :param matObj: MATLAB object to be serialized.
             % :return: Base64-encoded string of the compressed data.
-
-            % Create a temporary file for the .mat file
-            tempMatFile = [tempname, '.mat'];
-            save(tempMatFile, 'matObj');
-            
-            % Compress the MAT file with 7z
-            compressedFile = obj.compressWith7z(tempMatFile);
-            
-            % Read the compressed file as binary
-            fid = fopen(compressedFile, 'rb');
-            binaryData = fread(fid, inf, 'uint8=>uint8');  % Read as uint8
-            fclose(fid);
-            
-            % Convert the binary data to Base64
-            base64String = matlab.net.base64encode(binaryData);
-            
-            % Clean up temporary files
-            delete(tempMatFile);
-            delete(compressedFile);
         
-            obj.msglog('serializeToBase64: len=%d', length(base64String));
+            base64String = "";
+            tempMatFile = [tempname, '.mat'];
+            compressedFile = "";
+        
+            try
+                save(tempMatFile, 'matObj');
+            catch ME
+                obj.msglog(sprintf('serializeToBase64_7z: failed to save object: %s', ME.message));
+                return;
+            end
+        
+            try
+                compressedFile = obj.compressWith7z(tempMatFile);
+            catch ME
+                obj.msglog(sprintf('serializeToBase64_7z: compression failed: %s', ME.message));
+                return;
+            end
+        
+            fid = fopen(compressedFile, 'rb');
+            if fid == -1
+                obj.msglog(sprintf('serializeToBase64_7z: failed to open %s for reading', compressedFile));
+                return;
+            end
+        
+            try
+                binaryData = fread(fid, inf, 'uint8=>uint8');
+            catch ME
+                obj.msglog(sprintf('serializeToBase64_7z: fread failed: %s', ME.message));
+                fclose(fid);
+                return;
+            end
+        
+            fclose(fid);
+        
+            try
+                base64String = matlab.net.base64encode(binaryData);
+            catch ME
+                obj.msglog(sprintf('serializeToBase64_7z: base64encode failed: %s', ME.message));
+            end
+        
+            try
+                if exist(tempMatFile, 'file'), delete(tempMatFile); end
+                if ~isempty(compressedFile) && exist(compressedFile, 'file'), delete(compressedFile); end
+            catch ME
+                obj.msglog(sprintf('serializeToBase64_7z: cleanup failed: %s', ME.message));
+            end
+        
+            obj.msglog(sprintf('serializeToBase64_7z: len=%d', strlength(base64String)));
         end
         
-
+        
         function matObj = deserializeFromBase64_7z(obj, base64String)
             % Deserializes a compressed Base64 string to a MATLAB object.
             %
@@ -130,33 +212,57 @@ classdef EncodeUtils < ultrasat.api.Loggable
             %
             % :param base64String: Base64-encoded compressed object.
             % :return: MATLAB object restored from the compressed data.
-
-            obj.msglog('deserializeFromBase64: len=%d', length(base64String));
-            
-            % Decode the Base64 string to binary
-            binaryData = matlab.net.base64decode(base64String);
-            
-            % Create a temporary file for the compressed data
+        
+            obj.msglog(sprintf('deserializeFromBase64_7z: len=%d', strlength(base64String)));
+            matObj = [];
+        
+            try
+                binaryData = matlab.net.base64decode(base64String);
+            catch ME
+                obj.msglog(sprintf('deserializeFromBase64_7z: base64decode failed: %s', ME.message));
+                return;
+            end
+        
             compressedFile = [tempname, '.7z'];
-            
-            % Write the binary data to the compressed file
             fid = fopen(compressedFile, 'wb');
-            fwrite(fid, binaryData);
+            if fid == -1
+                obj.msglog(sprintf('deserializeFromBase64_7z: failed to open %s for writing', compressedFile));
+                return;
+            end
+        
+            try
+                fwrite(fid, binaryData);
+            catch ME
+                obj.msglog(sprintf('deserializeFromBase64_7z: fwrite failed: %s', ME.message));
+                fclose(fid);
+                return;
+            end
+        
             fclose(fid);
-            
-            % Decompress the file with 7z
-            tempMatFile = obj.decompressWith7z(compressedFile);
-            
-            % Load the MATLAB object from the decompressed MAT file
-            loadedData = load(tempMatFile, 'matObj');
-            matObj = loadedData.matObj;
-            
-            % Clean up temporary files
-            delete(compressedFile);
-            delete(tempMatFile);
+        
+            try
+                tempMatFile = obj.decompressWith7z(compressedFile);
+            catch ME
+                obj.msglog(sprintf('deserializeFromBase64_7z: decompression failed: %s', ME.message));
+                return;
+            end
+        
+            try
+                loadedData = load(tempMatFile, 'matObj');
+                matObj = loadedData.matObj;
+            catch ME
+                obj.msglog(sprintf('deserializeFromBase64_7z: load failed: %s', ME.message));
+            end
+        
+            try
+                if exist(compressedFile, 'file'), delete(compressedFile); end
+                if ~isempty(tempMatFile) && exist(tempMatFile, 'file'), delete(tempMatFile); end
+            catch ME
+                obj.msglog(sprintf('deserializeFromBase64_7z: cleanup failed: %s', ME.message));
+            end
         end
         
-
+        
         function compressedFile = compressWith7z(obj, inputFile)
             % Compresses a file using 7z.
             %
@@ -165,25 +271,31 @@ classdef EncodeUtils < ultrasat.api.Loggable
             %
             % :param inputFile: Path to the file to be compressed.
             % :return: Path to the compressed `.7z` file.
-
+        
             compressedFile = [tempname, '.7z'];
             if ispc
-                % Windows command
                 cmd = sprintf('7za a -y "%s" "%s"', compressedFile, inputFile);
             else
-                % Linux/Unix command
                 cmd = sprintf('7z a -y "%s" "%s"', compressedFile, inputFile);
             end
-            
-            % Execute the compression command
-            obj.msglog('compressWith7z: %s', cmd);
-            [status, cmdout] = system(cmd);
+        
+            obj.msglog(sprintf('compressWith7z: %s', cmd));
+        
+            try
+                [status, cmdout] = system(cmd);
+            catch ME
+                obj.msglog(sprintf('compressWith7z: system call failed: %s', ME.message));
+                compressedFile = "";
+                return;
+            end
+        
             if status ~= 0
-                error('Compression failed: %s', cmdout);
+                obj.msglog(sprintf('compressWith7z: compression failed: %s', cmdout));
+                compressedFile = "";
             end
         end
         
-
+        
         function outputFile = decompressWith7z(obj, compressedFile)
             % Decompresses a 7z archive and extracts a `.mat` file.
             %
@@ -192,35 +304,44 @@ classdef EncodeUtils < ultrasat.api.Loggable
             %
             % :param compressedFile: Path to the `.7z` file to decompress.
             % :return: Path to the extracted `.mat` file.
-
-            outputDir = tempname; % Create a temporary directory
+        
+            outputFile = "";
+            outputDir = tempname;
             mkdir(outputDir);
-            
+        
             if ispc
-                % Windows command
                 cmd = sprintf('7za x -y -o"%s" "%s"', outputDir, compressedFile);
             else
-                % Linux/Unix command
                 cmd = sprintf('7z x -y -o"%s" "%s"', outputDir, compressedFile);
             end
-            
-            % Execute the decompression command
-            obj.msglog('decompressWith7z: %s', cmd);
-            [status, cmdout] = system(cmd);
+        
+            obj.msglog(sprintf('decompressWith7z: %s', cmd));
+        
+            try
+                [status, cmdout] = system(cmd);
+            catch ME
+                obj.msglog(sprintf('decompressWith7z: system call failed: %s', ME.message));
+                return;
+            end
+        
             if status ~= 0
-                error('Decompression failed: %s', cmdout);
+                obj.msglog(sprintf('decompressWith7z: decompression failed: %s', cmdout));
+                return;
             end
-            
-            % Find the extracted file
-            files = dir(fullfile(outputDir, '*.mat'));
-            if isempty(files)
-                error('No MAT file found after decompression.');
+        
+            try
+                files = dir(fullfile(outputDir, '*.mat'));
+                if isempty(files)
+                    obj.msglog('decompressWith7z: no MAT file found after decompression');
+                    return;
+                end
+                outputFile = fullfile(outputDir, files(1).name);
+            catch ME
+                obj.msglog(sprintf('decompressWith7z: failed to list MAT files: %s', ME.message));
             end
-            
-            % Return the path to the decompressed MAT file
-            outputFile = fullfile(outputDir, files(1).name);
         end
 
+    
     end
 
 end

@@ -1,9 +1,9 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% Filename    : ultrasat.ApiSimProvider.m
+% File        : ultrasat.api.ApiSimProvider.m
 % Author      : Chen Tishler
 % Created     : 14/09/2025
-% Updated     : 21/09/2025
+% Updated     : 06/10/2025
 % Description : Provides a unified interface for file operations, simulating an API backend.
 %==========================================================================
 
@@ -53,12 +53,15 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             obj.LogPrefix = 'ApiSimProvider';
             obj.BasePath = basePath;
 
+            % Get configuration
             config = ultrasat.api.Config.getApiConfig();
             obj.Mode = config.mode;
 
+            % Client mode - use API to access server
+            % Local mode - access local files directly
             if strcmp(obj.Mode, 'client')
                 backendTarget = config.server_url;
-                obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);
+                obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);             
             else
                 backendTarget = getenv('SOC_PATH');
                 obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
@@ -146,6 +149,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             path = [obj.BasePath, fileName];
             success = obj.FileClient.writeJson(path, data);
         end
+
 
         function data = readBinaryFile(obj, fileName)
             % Reads and parses a binary file.

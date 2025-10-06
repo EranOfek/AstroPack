@@ -1,9 +1,9 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% Filename    : ultrasat.api.Loggable.m
+% File        : ultrasat.api.Loggable.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 21/09/2025
+% Updated     : 06/10/2025
 % Description : Base class for logging.
 %==========================================================================
 

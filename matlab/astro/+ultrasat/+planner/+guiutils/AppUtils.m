@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   AppUtils.m
-% Author: Chen Tishler
-% Created: 07/01/2025
-% Updated: 02/09/2025
-%
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/AppUtils.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : App Utils for Main Planner
 %==========================================================================
 
 classdef AppUtils < handle

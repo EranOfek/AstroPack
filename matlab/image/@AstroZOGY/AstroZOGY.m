@@ -1,8 +1,15 @@
 % Class for astronomical difference/subtraction images and transients data
 % using the ZOGY image subtraction method.
 %
-%
-%
+% Example: 
+%   cd /lastdata/LAST.01.01.01/2025/09/27/proc/195817v0
+%   AI=AstroImage.readFileNamesObj('LAST.01.01.01_20250927.195807.180_clear_1240_000_001_010_sci_coadd_Image_1.fits');
+%   cd /lastdata/LAST.01.01.01/2025/09/27/proc/210512v0
+%   Ref=AstroImage.readFileNamesObj('LAST.01.01.01_20250927.210502.055_clear_1240_000_001_010_sci_coadd_Image_1.fits');
+%   AD=AstroZOGY;
+%   AD.New = AI;
+%   AD.Ref = Ref;
+%   AD.register;
 
 classdef AstroZOGY < AstroDiff
    

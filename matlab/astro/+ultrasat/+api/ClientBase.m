@@ -1,9 +1,9 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% Filename    : ultrasat.api.ClientBase.m
+% File        : ultrasat.api.ClientBase.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 21/09/2025
+% Updated     : 06/10/2025
 % Description : Base class for interacting with REST API services.
 %==========================================================================
 
@@ -81,7 +81,6 @@ classdef ClientBase < ultrasat.api.Loggable
 
             % Construct the full API URL
             obj.ApiUrl = [obj.BaseUrl, obj.SubUrl];
-
         end
 
         % -----------------------------------------------------------------
@@ -232,12 +231,6 @@ classdef ClientBase < ultrasat.api.Loggable
             obj.msglog(sprintf('Response Body: %s', response.Body.Data));
         end
         
-    end
-
-    % ---------------------------------------------------------------------
-
-    methods (Static)
-
     end
 
 end

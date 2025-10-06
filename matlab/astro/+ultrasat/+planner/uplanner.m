@@ -874,6 +874,7 @@ classdef uplanner < Component
             % clean the visibility
             Obj.Vis = [];
         end
+
         %
         function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
             % Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
@@ -881,7 +882,7 @@ classdef uplanner < Component
             arguments
                 Obj
                 UniqTargetIndexes
-                StartTime
+                StartTime             % datetime object
                 Args.Nexp       = []; % number of exposures taken in a row
                 Args.Exptime    = []; % exposure time
                 Args.Tiles      = []; % active tile numbers               
@@ -911,12 +912,31 @@ classdef uplanner < Component
                 Args.Tiles = repmat(Args.Tiles(1),1,NUtarg);
             end
             
+            % Chen (05/10/2025)
+            % Avoid Warning: "The assignment added rows to the table, but did not assign values to all of the table's existing variables. Those variables are extended with rows containing default values".
+            lastRowNeeded = NProws + NUtarg;
+            if height(Obj.Plan) < lastRowNeeded
+
+                % Create filler table
+                nToAdd = lastRowNeeded - height(Obj.Plan);
+                filler = table('Size',[nToAdd numel(Obj.Plan_DefVarNames)], ...
+                       'VariableNames', Obj.Plan_DefVarNames, 'VariableTypes', Obj.Plan_DefVarTypes);
+
+                % Set proper timezone
+                filler.Tstart.TimeZone = Obj.SysTimeZone;
+                filler.Tend.TimeZone = Obj.SysTimeZone;
+                filler.Tend_ValidationEstimate.TimeZone = Obj.SysTimeZone;                
+
+                % Extend the Plan tale
+                Obj.Plan = [Obj.Plan; filler];
+            end
+            
             % Add plan rows one be one
             for ii = 1:NUtarg
             
                 Plan_row = NProws+ii;
                 curr_UniqTargInd = UniqTargetIndexes(ii);
-                                
+                
                 Obj.Plan.Name(Plan_row) = Obj.UniqTarg.Name(curr_UniqTargInd);
                 Obj.Plan.UniqTargInd(Plan_row) = curr_UniqTargInd;
                 Obj.Plan.RA(Plan_row)  = Obj.UniqTarg.RA(curr_UniqTargInd); 
@@ -946,6 +966,7 @@ classdef uplanner < Component
             % Timestamp of schedule
             Obj.schedule;
         end
+
         %
         function editPlanRow(Obj,Plan_row,Args)
             % Allow to directly edit only the following fields in a plan row:ExpTime, Tiles, Nexposures.

@@ -19,8 +19,13 @@ function [Result] = subtractionZOGY(AI, Args)
         AI
         Args.RefAI                 = [];
         Args.RegisterRef           = true;
+        % Overlap parameters
         Args.MinmalOverlapFraction = 0.1;
-        Args.MinimalOverlapNpix    = 3e5;  % about 10% of the LAST cropped image
+        Args.CheckBits             = {'NaN','Overlap','NearEdge'};
+        Args.RefIsRegistered       = true;
+        %Args.OutUnits              = 'deg';
+        Args.UseMex                = false;
+
         Args.DoGabor               = true;
         Args.DoScorr               = true;
         Args.DoTranslient          = true;
@@ -42,13 +47,15 @@ function [Result] = subtractionZOGY(AI, Args)
     
         % allocate Info struct
         % The Info struct contains information on the sucess of different steps
-        Info.RefImageExist = true(Nai,1);
-        Info.NewRefOverlapNpix   = nan(Nai,1);
-        Info.NoNewRefOverlapNpix = nan(Nai,1); % new w/no-overlap bit overlap with ref.
-        Info.OverlapUsed         = nan(Nai,1); % like NoNewRefOverlapNpix but can be
-                                               % set to 0 if no subtraction produced.
-    
-    
+        Info = struct('RefImageExist',nan(Nai,1),...
+                      'RefImageExist',true(Nai,1),...
+                      'Npix',nan(Nai,1),...
+                      'OverlapFraction',nan(Nai,1),...
+                      'CornersX',nan(Nai,4),...
+                      'CornersY',nan(Nai,4),...
+                      'CornersRA',nan(Nai,4),...
+                      'CornersDec',nan(Nai,4));
+        
         for Iai=1:1:Nai
             % populate Args.RefAI
             if isempty(Args.RefAI)
@@ -82,25 +89,14 @@ function [Result] = subtractionZOGY(AI, Args)
                 AD(Iai).register('RegisterRef',Args.RegisterRef);
         
                 % Estimate area of overlap between new and ref
-                % do it for both full overlap and overlap of regions with
-                % Overlap=false bit.
-                % The following info is kept:
-                %   Info.NewRefOverlapNpix
-                %   Info.NoNewRefOverlapNpix - new w/no-overlap bit overlap
-                %                                   with ref.
-                %   Info.OverlapUsed - like NoNewRefOverlapNpix but can be
-                %                                   set to 0 if no subtraction produced.
-                HERE: require a seperate function: depands on Args.RegisterRef...
-                Info.NewRefOverlapNpix(Iai) = ...
-                % is the new image mask is updated at this stage?
-                Info.NewRefOverlapNpix(Iai) = sum(AD(Iai).New.MaskData.findBit({'NaN','Overap'}, 'Method','any'),'all');
-                %SizeNew = size(AI(Iai).ImageData.Image);
-                MinimalOverlapNpix = Args.MinimalOverlapFraction.*numel(AI(Iai).ImageData.Image);
-
-
+                [Info.OverlapFraction(Iai), Info.Npix(Iai), Corners, CornersWCS] = AD(Iai).overlapArea('CheckBits',Args.CheckBits, 'RefIsRegistered',Args.RefIsRegistered', 'OutUnits','deg', 'UseMex',Args.UseMex);
+                Info.CornersX(Iai,:)   = Corners(:,2).';
+                Info.CornersY(Iai,:)   = Corners(:,1).';
+                Info.CornersRA(Iai,:)  = CornersWCS(:,1).';
+                Info.CornersDec(Iai,:) = CornersWCS(:,2).';
 
                 % Check if mininmal overlap exist
-                if OverlapInfo(Iai).NoNewRefOverlapNpix>MinimalOverlapNpix
+                if OverlapInfo(Iai).OverlapFraction>Args.MinmalOverlapFraction
                     % Estimate backround and variance of New and Ref
                     AD(Iai).estimateBackVar;
                     % Estimate zero points

@@ -48,6 +48,7 @@ classdef PathUtils < handle
             folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'global', moduleName, subFolder), filesep];
         end
 
+
         function folderPath = getNamespaceDataFolder(moduleName, subFolder, options)
             % Get the namespace data folder.
             arguments
@@ -58,6 +59,7 @@ classdef PathUtils < handle
             nsId = ultrasat.api.PathUtils.resolveNamespaceId(options.NamespaceId);
             folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'namespaces', nsId, moduleName, subFolder), filesep];
         end
+
 
         function folderPath = getGlobalDailyDataFolder(moduleName, subFolder, options)
             % Get the global daily data folder.
@@ -78,6 +80,7 @@ classdef PathUtils < handle
             end
         end
 
+
         function folderPath = getNamespaceDailyDataFolder(moduleName, subFolder, options)
             % Get the namespace daily data folder.
             arguments
@@ -97,6 +100,7 @@ classdef PathUtils < handle
             end
         end
 
+
         %% Filename Generation Methods
 
         function filePath = getGlobalDataFilename(moduleName, subFolder, fileName)
@@ -110,6 +114,7 @@ classdef PathUtils < handle
             filePath = fullfile(folder, fileName);
         end
 
+
         function filePath = getNamespaceDataFilename(moduleName, subFolder, fileName, options)
             % Get the namespace data filename.
             arguments
@@ -121,6 +126,7 @@ classdef PathUtils < handle
             folder = ultrasat.api.PathUtils.getNamespaceDataFolder(moduleName, subFolder, 'NamespaceId', options.NamespaceId);
             filePath = fullfile(folder, fileName);
         end
+
 
         function filePath = getGlobalDailyDataFilename(moduleName, subFolder, fileName, options)
             % Get the global daily data filename.
@@ -141,6 +147,7 @@ classdef PathUtils < handle
             end
             filePath = fullfile(folder, fileName);
         end
+
 
         function filePath = getNamespaceDailyDataFilename(moduleName, subFolder, fileName, options)
             % Get the namespace daily data filename.
@@ -175,6 +182,7 @@ classdef PathUtils < handle
             filePath = fullfile(ultrasat.api.PathUtils.BasePath, 'log', 'global', moduleName, logSubPath);
         end
 
+
         function filePath = getNamespaceLogFilename(moduleName, fileName, options)
             % Get the namespace log filename.
             arguments
@@ -203,6 +211,7 @@ classdef PathUtils < handle
             ultrasat.api.PathUtils.BasePath(path);
         end
 
+
         function setNamespaceId(Id)
             % Set the base path, normalizing path separators.
             arguments
@@ -211,6 +220,7 @@ classdef PathUtils < handle
             ultrasat.api.PathUtils.NamespaceId = Id;
         end        
     end
+
 
     methods (Static, Access = private)
         % Internal helper methods
@@ -227,6 +237,7 @@ classdef PathUtils < handle
             subPath = fullfile(yearStr, monthStr, baseName);
         end
         
+
         function nsId = resolveNamespaceId(providedNsId)
             % Resolves the namespace ID based on provided, static, and default values.
             if ~isempty(providedNsId)
@@ -238,6 +249,7 @@ classdef PathUtils < handle
             end
         end
 
+        
         function dt = resolveDateTime(providedDT)
             % Resolves the datetime object, using current UTC time if not provided.
             if isempty(providedDT)
