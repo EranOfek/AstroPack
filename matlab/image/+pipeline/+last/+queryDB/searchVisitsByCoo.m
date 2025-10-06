@@ -60,7 +60,7 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
         Args.MaxNim            = []; %1e7;  % maximum number of images to add
         Args.SortBy            = 'fwhm';
 
-        Args.Constraints       = {}; %{'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
+        Args.Constraints       = {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
         Args.RangeJD           = [];
         Args.InUnits           = 'deg';
         Args.DB                = [];

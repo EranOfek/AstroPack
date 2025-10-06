@@ -613,6 +613,75 @@ classdef AstroDiff < AstroImage
 
         end
 
+        function [OverlapArea, OrigNpix, Corners, CornersWCS]=overlapArea(Obj, Args)
+            % Calculate the overlap area and corners between New and Ref images after registration
+            % Input  : - AstroDiff/AstroZOGY object.
+            %          * ...,key,val,...
+            %            'CheckBits' -Cell array or string array of bit
+            %                   mask names which defines the non overlapping
+            %                   regions.
+            %                   Default is {'NaN','Overlap','NearEdge'}
+            %            'RefIsRegistered' - A logical indicating if the
+            %                   reference images was registered to the new (true),
+            %                   or the new to the ref (false).
+            %                   Default is true.
+            %            'OutUnits' - CornersWCS output units.
+            %                   Default is 'deg'.
+            %            'UseMex' - A logical indicating if to use the fast mex
+            %                   version imUtil.mask.mex.rectangularMaskCorners_mex
+            %                   Default is false.
+            % Output  : - Array of fractional area of overlap, in compared to the
+            %             non-registered image.
+            %           - Array of number of pixels in the non-registered image.
+            %           - [Y, X] Corners of the overlap regions.
+            %           - CornersWCS [RA, Dec] Corners of the overlap regions
+            % Author : Eran Ofek (Oct 2025)
+            % Example: [a,b,c]=AD.overlapArea  
+
+            arguments
+                Obj
+                Args.CheckBits = {'NaN','Overlap','NearEdge'};
+                Args.RefIsRegistered = true;
+                Args.OutUnits        = 'deg';
+                Args.UseMex          = false;
+            end
+
+            Nobj = numel(Obj);
+            OverlapArea = nan(size(Obj));
+            OrigNpix    = nan(size(Obj));
+            for Iobj=1:1:Nobj
+                if Args.RefIsRegistered
+                    % Ref is registered - use the New as a baseline
+                    Npix = numel(Obj(Iobj).New.ImageData.Image);
+                else
+                    % New is registered - use the Ref as a baseline
+                    Npix = numel(Obj(Iobj).Ref.ImageData.Image);
+                end
+            
+                FlagRef = Obj(Iobj).Ref.MaskData.findBit(Args.CheckBits, 'Method','any');
+                FlagNew = Obj(Iobj).Ref.MaskData.findBit(Args.CheckBits, 'Method','any');
+                Flag = ~(FlagRef | FlagNew);
+                
+                OverlapArea(Iobj) = sum(Flag,'all')./Npix;
+                OrigNpix(Iobj)    = Npix;
+
+                if nargout>2
+                    % produce Corners
+                    Corners=imUtil.mask.rectangularMaskCorners(Flag, 'UseMex',Args.UseMex);
+
+                    if nargout>3
+                        % convert corners to RA/Dec
+                        if Args.RefIsRegistered
+                            [RA, Dec]=Obj(Iobj).New.WCS.xy2sky(Corners(:,2), Corners(:,1), 'OutUnits',Args.OutUnits);
+                        else
+                            [RA, Dec]=Obj(Iobj).Ref.WCS.xy2sky(Corners(:,2), Corners(:,1), 'OutUnits',Args.OutUnits);
+                        end
+                        CornersWCS = [RA, Dec];
+                    end
+                end
+            end
+
+        end
     end
 
     methods % estimate: Fn, Fr, Back, Var
