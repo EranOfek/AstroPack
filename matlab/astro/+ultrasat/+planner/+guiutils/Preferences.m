@@ -1,11 +1,10 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/Preferences.m
-% Author:  Chen Tishler
-% Created: 20/01/2025
-% Updated: 05/10/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/Preferences.m
+% Author      : Chen Tishler
+% Created     : 20/01/2025
+% Updated     : 06/10/2025
+% Description : Preferences for Main Planner
 %==========================================================================
 
 classdef Preferences < ultrasat.api.Loggable
