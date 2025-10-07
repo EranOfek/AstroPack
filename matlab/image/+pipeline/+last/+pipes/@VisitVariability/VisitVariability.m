@@ -120,8 +120,8 @@ classdef VisitVariability < Component
                 Args.UniqueID logical = true;
                 Args.DB               = [];
 
-                Args.VarTableName      = [];
-                Args.AstTableName      = [];
+                Args.VarTableName      = []; %'mergedmat_var'; %[];
+                Args.AstTableName      = []; %'fastmoving_asteroids'; %[];
 
             end
            
@@ -233,7 +233,7 @@ classdef VisitVariability < Component
             %          DB=db.Db; DB.User='euclid/root', DB.connect; DB.useDB('last'); DB.showTables
             %          VV=pipeline.last.pipes.VisitVariability;
             %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460872 2460873])
-            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460880 2460881])
+            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460898 2460899])
 
 
             arguments
