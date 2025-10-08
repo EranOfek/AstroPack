@@ -1,12 +1,24 @@
+%==========================================================================
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainNewPlanHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 06/10/2025
+% Description : Create New Plan - HCS, LCS, DDT, AllSS, TOO
+%==========================================================================
 
-classdef PlannerMainNewPlanHelper < handle
+classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
-    % =====================================================================
-    %             Create New Plan - HCS, LCS, DDT, AllSS, ToO
-    % =====================================================================    
-    methods (Static)
+    methods
 
-        function createNewPlan(app)
+        function obj = PlannerMainNewPlanHelper()
+            % Constructor
+            obj.LogPrefix = 'NewPlanHelper';
+            obj.msglog('PlannerMainNewPlanHelper created successfully');
+        end
+        
+
+        function createNewPlan(obj, app)
             % Create new plan
             app.msglog('createNewPlan');            
 
@@ -39,7 +51,7 @@ classdef PlannerMainNewPlanHelper < handle
 
             app.msglog(sprintf('New plan type: %s ....', app.MainModule.PlanType));
             try
-                ultrasat.planner.guiutils.PlannerMainNewPlanHelper.doCreateNewPlan(app);
+                obj.doCreateNewPlan(app);
             catch ME
                 app.msgex('createNewPlan', ME);
             end
@@ -49,9 +61,7 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlan(app)
-
-            import ultrasat.planner.guiutils.PlannerMainNewPlanHelper;
+        function doCreateNewPlan(obj, app)
 
             % Create new plan according to parameters in app.NewPlanApp
             PlanType = app.NewPlanApp.PlanType;
@@ -62,15 +72,15 @@ classdef PlannerMainNewPlanHelper < handle
 
             % Call the designated function according to PlanType
             if strcmp(PlanType, 'HCS')
-                PlannerMainNewPlanHelper.doCreateNewPlanHCS(app);
+                obj.doCreateNewPlanHCS(app);
             elseif strcmp(PlanType, 'LCS')
-                PlannerMainNewPlanHelper.doCreateNewPlanLCS(app);
+                obj.doCreateNewPlanLCS(app);
             elseif strcmp(PlanType, 'DDT')
-                PlannerMainNewPlanHelper.doCreateNewPlanDDT(app);                
+                obj.doCreateNewPlanDDT(app);                
             elseif strcmp(PlanType, 'AllSS')
-                PlannerMainNewPlanHelper.doCreateNewPlanAllSS(app);
+                obj.doCreateNewPlanAllSS(app);
             elseif strcmp(PlanType, 'TOO')
-                PlannerMainNewPlanHelper.doCreateNewPlanTOO(app);
+                obj.doCreateNewPlanTOO(app);
             else
                 app.msglog(sprintf('doCreateNewPlan: Unknown PlanType: %s', PlanType));
             end
@@ -96,16 +106,16 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlanHCS(app)
+        function doCreateNewPlanHCS(obj, app)
             % Create new plan according to parameters in app.NewPlanApp
             app.msglog('doCreateNewPlanHCS started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = ultrasat.planner.guiutils.PlannerMainNewPlanHelper.getNewPlanUserName(app);
+            UserName = obj.getNewPlanUserName(app);
 
             % Create new uplanner instance            
             upHCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'HCS', 'BaseDataDir', app.MainModule.BaseDataDir);
-            ultrasat.planner.guiutils.PlannerMainNewPlanHelper.setNewPlanDataFromCreateDialog(app, upHCS);
+            obj.setNewPlanDataFromCreateDialog(app, upHCS);
 
             app.MainModule.setPlanner(upHCS);
             app.setModified('doCreateNewPlanHCS');
@@ -115,16 +125,16 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlanLCS(app)
+        function doCreateNewPlanLCS(obj, app)
             % Create new plan according to parameters in app.NewPlanApp
             app.msglog('doCreateNewPlanLCS started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = ultrasat.planner.guiutils.PlannerMainNewPlanHelper.getNewPlanUserName();
+            UserName = obj.getNewPlanUserName(app);
             
             % Create new uplanner instance
             upLCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'LCS', 'BaseDataDir', app.MainModule.BaseDataDir);
-            ultrasat.planner.guiutils.PlannerMainNewPlanHelper.setNewPlanDataFromCreateDialog(app, upLCS);
+            obj.setNewPlanDataFromCreateDialog(app, upLCS);
 
             app.MainModule.setPlanner(upLCS);
             app.setModified('doCreateNewPlanLCS');
@@ -134,16 +144,16 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlanDDT(app)
+        function doCreateNewPlanDDT(obj, app)
             % Create new plan according to parameters in app.NewPlanApp
             app.msglog('doCreateNewPlanDDT started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = ultrasat.planner.guiutils.PlannerMainNewPlanHelper.getNewPlanUserName();            
+            UserName = obj.getNewPlanUserName(app);            
 
             % Create new uplanner instance            
             upDDT = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'DDT', 'BaseDataDir', app.MainModule.BaseDataDir);
-            ultrasat.planner.guiutils.PlannerMainNewPlanHelper.setNewPlanDataFromCreateDialog(app, upDDT);
+            obj.setNewPlanDataFromCreateDialog(app, upDDT);
 
             app.MainModule.setPlanner(upDDT);
             app.setModified('doCreateNewPlanDDT');
@@ -153,16 +163,16 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlanTOO(app)
+        function doCreateNewPlanTOO(obj, app)
             % Create new plan according to parameters in app.NewPlanApp
             app.msglog('doCreateNewPlanTOO started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = ultrasat.planner.guiutils.PlannerMainNewPlanHelper.getNewPlanUserName();            
+            UserName = obj.getNewPlanUserName(app);            
 
             % Create new uplanner instance            
             upTOO = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'TOO', 'BaseDataDir', app.MainModule.BaseDataDir);
-            ultrasat.planner.guiutils.PlannerMainNewPlanHelper.setNewPlanDataFromCreateDialog(app, upHCS);            
+            obj.setNewPlanDataFromCreateDialog(app, upHCS);            
 
             app.MainModule.setPlanner(upTOO);
             app.setModified('doCreateNewPlanDDT');
@@ -172,16 +182,16 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function doCreateNewPlanAllSS(app)
+        function doCreateNewPlanAllSS(obj, app)
             % Create new plan according to parameters in app.NewPlanApp
             app.msglog('doCreateNewPlanAllSS started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = ultrasat.planner.guiutils.PlannerMainNewPlanHelper.getNewPlanUserName(app);
+            UserName = obj.getNewPlanUserName(app);
 
             % Create new uplanner instance            
             upAllSS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'AllSS', 'BaseDataDir', app.MainModule.BaseDataDir);
-            ultrasat.planner.guiutils.PlannerMainNewPlanHelper.setNewPlanDataFromCreateDialog(app, upHCS);
+            obj.setNewPlanDataFromCreateDialog(app, upHCS);
 
             app.MainModule.setPlanner(upAllSS);
             app.setModified('doCreateNewPlanDDT');
@@ -191,7 +201,7 @@ classdef PlannerMainNewPlanHelper < handle
         end        
 
 
-        function UserName = getNewPlanUserName(app)
+        function UserName = getNewPlanUserName(obj, app)
             % Helper: Get logged-in user name, or user name entered in NewPlanApp dialog            
             if app.isLogin()
                 UserName = app.MainModule.UserName;
@@ -201,7 +211,7 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
 
-        function setNewPlanDataFromCreateDialog(app, Planner)
+        function setNewPlanDataFromCreateDialog(obj, app, Planner)
             % Helper: Set planner data from the create dialog: PlanTitle, StartTime, EndTime
             PlanTitle = app.MainModule.GuiHelper.getFieldTitle( app.NewPlanApp.TitleEditField.Value );
             StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
@@ -213,6 +223,4 @@ classdef PlannerMainNewPlanHelper < handle
         end
 
     end
-
 end
-

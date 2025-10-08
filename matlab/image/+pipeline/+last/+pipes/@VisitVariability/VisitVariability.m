@@ -74,7 +74,7 @@ classdef VisitVariability < Component
             
         end
         
-        function searchVisitDir(Path, Args)
+        function [VarAC, AstAC]=searchVisitDir(Path, Args)
             % Analyze (search for variability) in all MergedMat files in a visit dir, and write product to the visit dir.
             % Input  : - Path for visit to analyze.
             %            If empty, use current dir. Default is [].
@@ -120,8 +120,8 @@ classdef VisitVariability < Component
                 Args.UniqueID logical = true;
                 Args.DB               = [];
 
-                Args.VarTableName      = [];
-                Args.AstTableName      = [];
+                Args.VarTableName      = []; %'mergedmat_var'; %[];
+                Args.AstTableName      = []; %'fastmoving_asteroids'; %[];
 
             end
            
@@ -229,6 +229,12 @@ classdef VisitVariability < Component
             %          VV.analayzeAllData('DB',DB, 'T','VisitImages.mat', 'Ind',Ind);
             %          VV.analayzeAllData('DB',DB);
             %          VV.analayzeAllData('DB',DB,'Mount',8,'IngestionTime',[2460708 2460740])
+            %
+            %          DB=db.Db; DB.User='euclid/root', DB.connect; DB.useDB('last'); DB.showTables
+            %          VV=pipeline.last.pipes.VisitVariability;
+            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460872 2460873])
+            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460898 2460899])
+
 
             arguments
                 Obj
@@ -338,6 +344,7 @@ classdef VisitVariability < Component
                 Args.StateVal   = "2460810";
                 Args.SubDir     = 'local';
                 Args.ConfigFile = 'VisitVariability.State.yml';
+
             end
 
             ConfigStructName = strrep(Args.ConfigFile, '.yml', '');
@@ -352,7 +359,8 @@ classdef VisitVariability < Component
 
             [Data,KeyVal] = Configuration.argsFromConfig(Con, ConfigStructName);
             LastIngestionTime = KeyVal{1,2};
-            
+           
+
             Cont = true;
             Counter = 0;
             while Cont

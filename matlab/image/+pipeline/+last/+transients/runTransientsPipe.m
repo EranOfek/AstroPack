@@ -47,6 +47,10 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                 'CometSearchRad' - Radius around each transient 
                        candidate in which to search for comets in New
                        and Ref images. Given in arcsec. Default is 90.
+                'GeoPos' - Geodetic position of the observer (on
+                       Earth). [Lon (rad), Lat (rad), Height (m)].
+                       If empty, then calculate geocentric
+                       positions. Default is [35.05 30.04 415].
     Output  : - AstroDiff objects holding all products and results derived 
                 by the algorithm.
               - AstroDiff cutouts around each single transients candidate 
@@ -78,6 +82,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.AsteroidSearchRad = 10;
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
+        Args.GeoPos = [35.05 30.04 415];
 
         Args.CropIDs = [];
 
@@ -420,6 +425,10 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % MP match
 
+    if numel(Args.GeoPos) == 3
+        Args.GeoPos(1:2) = Args.GeoPos(1:2)*pi/180;
+    end
+
     % Get asteroid catalogs for New and Ref
     INPOP = celestial.INPOP;
     INPOP.populateAll;
@@ -428,21 +437,21 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Propogate catalog to New image epoch
     NewJulDay = median(arrayfun(@(x) x.New.julday,AD));
 
-    [AstCatNew] = searchMinorPlanetsNearPosition(...
-        OrbElMerge, NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+    [AstCatNew] = OrbElMerge.searchMinorPlanetsNearPosition(...
+        NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', Args.AsteroidLimMag,...
-        'RefEllipsoid','WGS84',...
+        'RefEllipsoid','WGS84', 'GeoPos', Args.GeoPos,...
         'OutUnitsDeg',true,'Integration', true);
 
     % Propogate catalog to Ref image epoch
     RefJulDay = median(arrayfun(@(x) x.Ref.julday,AD));
 
-    [AstCatRef] = searchMinorPlanetsNearPosition(...
-        OrbElMerge, RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+    [AstCatRef] = OrbElMerge.searchMinorPlanetsNearPosition(...
+        RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', Args.AsteroidLimMag,...
-        'RefEllipsoid','WGS84',...
+        'RefEllipsoid','WGS84', 'GeoPos', Args.GeoPos,...
         'OutUnitsDeg',true,'Integration', true);
     
     % Split the catalogs in New and Ref sources (positive and 
@@ -463,14 +472,16 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                         'SourcesColDistName', 'N_DistMP', 'AstCat', AstCatNew,...
                         'JD', NewJulDay, 'AddMag2Obj', true, ...
                         'ColMag', 'Mag', 'ObjColMag', 'N_MagMP',...
-                        'SearchRadius',Args.AsteroidSearchRad);
+                        'SearchRadius', Args.AsteroidSearchRad, ...
+                        'GeoPos', Args.GeoPos);
 
         % Match MP in Ref
         [~,~,RefSrcs] = imProc.match.match2solarSystem(RefSrcs, 'InCooUnits', 'deg', ...
                         'SourcesColDistName', 'R_DistMP', 'AstCat', AstCatRef,...
                         'JD', RefJulDay, 'AddMag2Obj', true, ...
                         'ColMag', 'Mag', 'ObjColMag', 'R_MagMP',...
-                        'SearchRadius', Args.AsteroidSearchRad);
+                        'SearchRadius', Args.AsteroidSearchRad, ...
+                        'GeoPos',Args.GeoPos);
 
         N_DistMP = nan(NumRows,1);
         if NewSrcs.isColumn('N_DistMP')
@@ -517,7 +528,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     [ComCatNew] = OrbElComet.searchMinorPlanetsNearPosition(...
         NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
-        'OutUnitsDeg',true,'Integration', false);
+        'OutUnitsDeg', true, 'Integration', false, ...
+        'GeoPos', Args.GeoPos);
 
     % If comets within FoV, match to candidates
     if size(ComCatNew.Catalog,1) > 0
@@ -557,9 +569,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             for IComMatches = 1:1:NComMatches
                 IComMatchInd = ComMatchsInd(IComMatches);
                 OldDist = MPDist_newOnly(IComMatchInd);
-                NewDist = min(ComMatches(IComMatchInd).Dist);
+                NewDist = min(ComMatches(IComMatchInd).Dist)*Rad2Arcsec;
                 if isnan(OldDist) || (NewDist < OldDist)
-                    MPDist_newOnly(IComMatchInd) = NewDist*Rad2Arcsec;
+                    MPDist_newOnly(IComMatchInd) = NewDist;
                     Ind1 = ComMatches(IComMatchInd).Ind1;
                     ComMags = ComCatNew.getCol('Mag');
                     MPMag_newOnly(IComMatchInd) = ComMags(Ind1);
@@ -584,7 +596,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     [ComCatRef] = OrbElComet.searchMinorPlanetsNearPosition(...
         RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
-        'OutUnitsDeg',true,'Integration', false);
+        'OutUnitsDeg',true,'Integration', false, ...
+        'GeoPos', Args.GeoPos);
 
     % If comets within FoV, match to candidates
     if size(ComCatRef.Catalog,1) > 0
@@ -623,9 +636,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             for IComMatches = 1:1:NComMatches
                 IComMatchInd = ComMatchsInd(IComMatches);
                 OldDist = MPDist_refOnly(IComMatchInd);
-                NewDist = min(ComMatches(IComMatchInd).Dist);
+                NewDist = min(ComMatches(IComMatchInd).Dist)*Rad2Arcsec;
                 if isnan(OldDist) || (NewDist < OldDist)
-                    MPDist_refOnly(IComMatchInd) = NewDist*Rad2Arcsec;
+                    MPDist_refOnly(IComMatchInd) = NewDist;
                     Ind1 = ComMatches(IComMatchInd).Ind1;
                     ComMags = ComCatRef.getCol('Mag');
                     MPMag_refOnly(IComMatchInd) = ComMags(Ind1);

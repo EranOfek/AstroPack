@@ -148,6 +148,7 @@ CatDiffX = CatX - CatX.';
 CatDiffY = CatY - CatY.';
 % select withn Max Dist
 Fc = abs(CatDiffX(:))<MaxDist & abs(CatDiffY(:))<MaxDist;
+% find(Fc) is slower here...
 CatDiffX = CatDiffX(Fc);
 CatDiffY = CatDiffY(Fc);
 % all possible distances/angle between sources in Cat
