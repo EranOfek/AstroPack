@@ -38,7 +38,7 @@ classdef AstroZOGY < AstroDiff
         S_delta   % S for delta function response
         S_ext     % S for extended PSF response
         
-        DSDF
+        DSDFn
         %DScorrDF
 
         D_den_hat
@@ -256,20 +256,21 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function Val=get.DSDF(Obj)
+        function Val=get.DSDFn(Obj)
             % getter for dS/dFn (for Fn=1)
 
-            if isempty(Obj.DSDF)
+            if isempty(Obj.DSDFn)
                 % DSDF is not available - calculate
-                Obj.DSDF = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
+                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
                     Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, ...
                     Obj.Fr, 'IsOutFFT',false);
             else
                 % DSDF is already available - use as is
             end
-            Val = Obj.DSDF;
+            Val = Obj.DSDFn;
         end
 
+    
     end
     
     methods % read/write
@@ -802,7 +803,7 @@ classdef AstroZOGY < AstroDiff
             %                   Options include
             %                   'norm','norm_robust','chi2_mean','chi2_median','chi2_std',
             %                   'none'.
-            %                   Default is 'norm_robust'
+            %                   Default is 'norm_robust_rstd1'
             %            'PopS2' - Populate the S2 (S.^2) property.
             %                   Default is true.
             %            'PopSflux' - Populate Sflux (i.e., S prior to
@@ -1364,8 +1365,9 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function Obj=dSdF(Obj, Args)
+        function Obj=dSdFn(Obj, Args)
             % Populate DSDF - the dS/dFn (Fr=1) derivative for ZOGY subtraction.
+            %   Obsoloete: USE getter DSDFn instead
             % Input  : - N_hat (Fourier Transform of new image).
             %            N, R, Pn, Pr can be either matrices or cubes in which the
             %            image index is in the 3rd dimension (see example).
@@ -1399,6 +1401,39 @@ classdef AstroZOGY < AstroDiff
             end
     
         end
+    end
+
+    methods % special PSFs
+        % NOT NEEDED AS ALREADY POPULATED BU subtractionD
+        % function psfDelta(Obj, Args)
+        %     %
+        % 
+        %     arguments
+        %         Obj
+        %         Args.IsN        = true; % if false calculate for R
+        %         Args.CalcFdelta = false;
+        %         Args.Norm       = 1;
+        %     end
+        % 
+        %     Nobj=numel(Obj);
+        %     for Iobj=1:1:Nobj
+        %         % for each element of AstroZOGY
+        % 
+        %         if Args.IsN
+        %             if Args.CalcFdelta
+        %                 FDN = Obj(Iobj).Fr./sqrt(Obj(Iobj).VarN.*Obj(Iobj).Fr.^2 + Obj(Iobj).VarR.*Obj(Iobj).Fn.^2);
+        %             else
+        %                 FDN = 1;
+        %             end
+        % 
+        %             Obj(Iobj).Fr.*Obj(Iobj).Pr_hat./(FDN .*sqrt(Obj(Iobj).VarN.*Obj(Iobj).Fr.^2.*AbsPr.^2 + Obj(Iobj).VarR.*Obj(Iobj).Fn.^2.*AbsPn.^2 ))
+        % 
+        % 
+        % 
+        %     end
+        % 
+        % end
+    
     end
 
     methods % catalog matching
