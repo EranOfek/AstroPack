@@ -263,6 +263,62 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             app.showModal(app.PlanHistoryApp);
         end
 
+
+        function updatePlanParams(obj, app)
+            % Helper: Update fields in top panel of with window with values from Plan parameters
+            app.msglog('updatePlanParams');
+            if ~app.hasPlanner(), return; end
+
+            % Set fields
+            Planner = app.MainModule.Planner;
+            app.PlanTypeEditField.Value = Planner.Type;
+            app.UserNameEditField.Value = Planner.AstPlanner;
+            app.PlanTitleEditField.Value = Planner.Title;
+            app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
+            app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+
+            if app.isReadOnly()
+                app.StartTimeEditField.Editable = "off";
+                app.EndTimeEditField.Editable = "off";
+                app.PlanTitleEditField.Editable = "off";
+            else
+                app.StartTimeEditField.Editable = "on";
+                app.EndTimeEditField.Editable = "on";                
+                app.PlanTitleEditField.Editable = "on";                
+            end
+
+            % Show message if plan was already submitted and cannot be modified
+            if strcmp(Planner.Status, 'submitted')
+                app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
+            else
+                app.setTopLabel('', [], []);
+            end
+        end
+
+        
+        function Result = checkPlanSelfConsistency(obj, app)
+            % Check plan for self consistency, update status display
+            app.msglog('checkPlan')
+            Result = false;
+            try
+                % Perform the check
+                if height(app.MainModule.Planner.Plan) > 0
+                    CheckStatus = app.MainModule.Planner.planSelfConsistencyCheck();
+                end
+
+                % Update display with status
+                if CheckStatus
+                    app.MainModule.setStatus('OK', 'self consistency: OK');
+                    Result = true;
+                else
+                    app.MainModule.setStatus('Error', 'self consistency: issues found');
+                end
+            catch ME
+                app.msgex('planSelfConsistencyCheck failed', ME);
+                app.MainModule.setStatus('Error', sprintf('self consistency: exception: %s', ME.message));
+            end            
+        end
+        
     end
 end
 
