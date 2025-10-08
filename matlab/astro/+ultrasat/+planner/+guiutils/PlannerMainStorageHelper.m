@@ -48,7 +48,14 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             app.OpenPlanApp.UITable.RowName = "numbered";
 
             % Query backend database for saved plans
-            response = app.MainModule.ApiClient.getPlansList([], [], []);
+            app.showPleaseWait('Fetching plans...');
+            try
+                response = app.MainModule.ApiClient.getPlansList([], [], []);
+            catch ME
+                app.msgex('openPlan', ME);
+            end
+            app.closePleaseWait();
+
             if ~response.ok
                 app.AppUtils.msgError('ApiClient.getPlansList returned empty list');
                 return;
@@ -70,7 +77,13 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
                 % Call the backend to load plan from database
                 Pk = app.OpenPlanApp.Pk;
-                response = app.MainModule.ApiClient.loadPlan(Pk);
+                app.showPleaseWait('Loading plan...');
+                try
+                    response = app.MainModule.ApiClient.loadPlan(Pk);
+                catch ME
+                    app.msgex('openPlan', ME);
+                end                    
+                app.closePleaseWait();
                 if response.ok
                     obj.doOpenPlan(app, app.MainModule.ApiClient.PlanData);
                 end
@@ -120,7 +133,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             end            
 
             % Call backend to save the plan in database
-            app.showPleaseWait('Saving...');
+            app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
                 app.MainModule.ApiClient.savePlan();
                 app.clearModified();
@@ -193,7 +206,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             % Show app
             if strcmp(app.showModal(app.SavePlanToFileApp), 'Save')
-                app.showPleaseWait('Saving to file...');
+                app.showPleaseWait('Saving plan to file...');
                 try
                     FileName = app.SavePlanToFileApp.FileName;
 

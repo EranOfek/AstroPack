@@ -1098,14 +1098,14 @@ classdef uplanner < Component
             TargetsTable = struct2table(structPlan.targets);            
             
             Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
-            Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.title; 
+            Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.name; 
             Obj.MissionApprovedPlan.pk(1:height(TargetsTable))  = TargetsTable.pk; 
             Obj.MissionApprovedPlan.TargetID = TargetsTable.target_id;
             Obj.MissionApprovedPlan.RA       = TargetsTable.ra ;
             Obj.MissionApprovedPlan.Dec      = TargetsTable.decl ;
             Obj.MissionApprovedPlan.Roll     = TargetsTable.roll ;
-            Obj.MissionApprovedPlan.Tstart   = datetime(TargetsTable.start_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
-            Obj.MissionApprovedPlan.Tend     = datetime(TargetsTable.end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone',Obj.SysTimeZone);
+            Obj.MissionApprovedPlan.Tstart   = Obj.parseIsoDatetime(TargetsTable.start_time);
+            Obj.MissionApprovedPlan.Tend     = Obj.parseIsoDatetime(TargetsTable.end_time);
             Obj.MissionApprovedPlan.ExpTime  = seconds(TargetsTable.exposure);
             Obj.MissionApprovedPlan.Nexposures = TargetsTable.image_count;
             Obj.MissionApprovedPlan.TotalDuration = seconds(TargetsTable.total_seconds);               
@@ -1466,7 +1466,7 @@ classdef uplanner < Component
                     Obj.Plan.ValidationStatus(i) = targets(i).status;
                     Obj.Plan.PowerStatus(i) = targets(i).power_status;
                     Obj.Plan.ObrdStatus(i) = targets(i).obrd_status;
-                    Obj.Plan.Tend_ValidationEstimate(i) = datetime(targets(i).estimated_end_time,'Format','yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z','TimeZone','UTC');
+                    Obj.Plan.Tend_ValidationEstimate(i) = Obj.parseIsoDatetime(targets(i).estimated_end_time);
                     Obj.Plan.Roll_ValidationEstimate(i) = targets(i).coord_roll;
                     Obj.Plan.ValidationWarning{i} = targets(i).warning;
                 end
@@ -1524,7 +1524,6 @@ classdef uplanner < Component
                 Obj
                 Args.fields = {};
                 Args.DefRoll = 0;
-                Args.timeFormat = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z';
             end        
                       
             if isempty(Args.fields) %use defults fields
@@ -1560,16 +1559,12 @@ classdef uplanner < Component
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tstart');
                 keepVars = keepVars | curr_ind;
                 tmpTable.Properties.VariableNames(curr_ind) = {'start_time'};                
-                
-                tmpTable.start_time.Format = Args.timeFormat;
-                
+                              
                 %rename Tend->end_time
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'Tend');
                 keepVars = keepVars | curr_ind;
-                tmpTable.Properties.VariableNames(curr_ind) = {'end_time'};  
-                
-                tmpTable.end_time.Format = Args.timeFormat;
-                
+                tmpTable.Properties.VariableNames(curr_ind) = {'end_time'};                  
+               
                 %rename ExpTime->exposure
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'ExpTime');
                 keepVars = keepVars | curr_ind;
@@ -1868,6 +1863,18 @@ classdef uplanner < Component
             
             hold(ax, 'off'); 
         end
+
+
+        function dt = parseIsoDatetime(Obj, str)
+            % Convert JSON date/time string to datetime object
+            if endsWith(str, 'Z')
+                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''';
+            else
+                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX';
+            end
+            dt = datetime(str, 'InputFormat', fmt, 'TimeZone', Obj.SysTimeZone);
+        end
+        
     end
     % 
     methods (Static)  % static methods

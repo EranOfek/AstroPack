@@ -15,7 +15,6 @@ classdef GuiHelper < ultrasat.api.Loggable
             obj.msglog('GuiHelper created successfully');
         end
 
-        % =================================================================
 
         function color = getValidationStatusColor(obj, status)
             % Returns text color (RGB) based on the validation status
@@ -396,7 +395,6 @@ classdef GuiHelper < ultrasat.api.Loggable
                 Result = [];
             end
         end
-
 
         % =================================================================
         %                            Utilities
