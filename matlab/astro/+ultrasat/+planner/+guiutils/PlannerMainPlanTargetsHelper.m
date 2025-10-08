@@ -61,50 +61,54 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Helper: Set field values - Currently there are 23 fields for Plan Target
             app.msglog('setPlanTargetParamsFiels');
 
-            ParamsApp.PlanTargetIndexEditField.Value = int2str(Index);
-
-            % Editable fields
-            ParamsApp.ExposureTimeEditField.Value = seconds(Plan.ExpTime(Index));  % Numeric field
-            ParamsApp.EpochsPerVisitEditField.Value = Plan.Nexposures(Index);
-            app.MainModule.updateCheckboxesFromTiles(ParamsApp, Plan.Tiles(Index));
-
-            % String fields
-            ParamsApp.NameEditField.Value = Plan.Name(Index);
-            
-            % Integer fields (uint8 → convert to string)
-            ParamsApp.UniqueTargetIndexEditField.Value = num2str(Plan.UniqTargInd(Index));
-            ParamsApp.GroupEditField.Value = num2str(Plan.Group(Index));
-             
-            % Double fields (convert to string for display)
-            ParamsApp.RAEditField.Value = app.MainModule.ra2Str( Plan.RA(Index) );
-            ParamsApp.DecEditField.Value = app.MainModule.dec2Str( Plan.Dec(Index));
-            ParamsApp.ExpectedRollEditField.Value = num2str(Plan.ExpectedRoll(Index));
-            
-            % Datetime fields (convert to string using date format)
-            ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tstart(Index));
-            ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tend(Index));
-             
-            % Double fields (convert to string)
-            ParamsApp.MJDstartEditField.Value = num2str(Plan.JDstart(Index));
-            ParamsApp.MJDendEditField.Value = num2str(Plan.JDend(Index));
-             
-            % Duration fields (convert to string)            
-            ParamsApp.TotalDurationEditField.Value = char(Plan.TotalDuration(Index));
-            ParamsApp.SlewTimeBeforeEditField.Value = char(Plan.SlewTimeBefore(Index));
-                       
-            % Logical fields (convert to "Yes" / "No" or "1"/"0")
-            ParamsApp.NoCommEditField.Value = string(Plan.NoComm(Index)); % "true"/"false"
-            ParamsApp.HardObsEditField.Value = string(Plan.HardObs(Index));
-            
-            % Double fields (convert to string)
-            ParamsApp.MoonDistEditField.Value = num2str(Plan.MoonDist(Index));
-            ParamsApp.SunDistEditField.Value = num2str(Plan.SunDist(Index));
-            ParamsApp.EarthDistEditField.Value = num2str(Plan.EarthDist(Index));
-            ParamsApp.ZodyEditField.Value = num2str(Plan.Zody(Index));
-            ParamsApp.LimMagEditField.Value = num2str(Plan.LimMag(Index));
-            
-            % Cell array field (convert to comma-separated string for display)
-            ParamsApp.OverlapTargetsEditField.Value = app.MainModule.cell2Str(Plan.OverlapTargets);
+            try
+                ParamsApp.PlanTargetIndexEditField.Value = int2str(Index);
+    
+                % Editable fields
+                ParamsApp.ExposureTimeEditField.Value = seconds(Plan.ExpTime(Index));  % Numeric field
+                ParamsApp.EpochsPerVisitEditField.Value = Plan.Nexposures(Index);
+                app.MainModule.updateCheckboxesFromTiles(ParamsApp, Plan.Tiles(Index));
+    
+                % String fields
+                ParamsApp.NameEditField.Value = Plan.Name(Index);
+                
+                % Integer fields (uint8 → convert to string)
+                ParamsApp.UniqueTargetIndexEditField.Value = num2str(Plan.UniqTargInd(Index));
+                ParamsApp.GroupEditField.Value = num2str(Plan.Group(Index));
+                 
+                % Double fields (convert to string for display)
+                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( Plan.RA(Index) );
+                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( Plan.Dec(Index));
+                ParamsApp.ExpectedRollEditField.Value = num2str(Plan.ExpectedRoll(Index));
+                
+                % Datetime fields (convert to string using date format)
+                ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tstart(Index));
+                ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tend(Index));
+                 
+                % Double fields (convert to string)
+                ParamsApp.MJDstartEditField.Value = num2str(Plan.JDstart(Index));
+                ParamsApp.MJDendEditField.Value = num2str(Plan.JDend(Index));
+                 
+                % Duration fields (convert to string)            
+                ParamsApp.TotalDurationEditField.Value = char(Plan.TotalDuration(Index));
+                ParamsApp.SlewTimeBeforeEditField.Value = char(Plan.SlewTimeBefore(Index));
+                           
+                % Logical fields (convert to "Yes" / "No" or "1"/"0")
+                ParamsApp.NoCommEditField.Value = string(Plan.NoComm(Index)); % "true"/"false"
+                ParamsApp.HardObsEditField.Value = string(Plan.HardObs(Index));
+                
+                % Double fields (convert to string)
+                ParamsApp.MoonDistEditField.Value = num2str(Plan.MoonDist(Index));
+                ParamsApp.SunDistEditField.Value = num2str(Plan.SunDist(Index));
+                ParamsApp.EarthDistEditField.Value = num2str(Plan.EarthDist(Index));
+                ParamsApp.ZodyEditField.Value = num2str(Plan.Zody(Index));
+                ParamsApp.LimMagEditField.Value = num2str(Plan.LimMag(Index));
+                
+                % Cell array field (convert to comma-separated string for display)
+                ParamsApp.OverlapTargetsEditField.Value = app.MainModule.cell2Str(Plan.OverlapTargets);
+            catch ME
+                app.msgex('setPlanTargetParamsFiels', ME);
+            end                            
         end
 
 
@@ -201,34 +205,38 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 return; 
             end
 
-            app.UITablePlanTargets.SelectionType = "row";
-            app.UITablePlanTargets.Multiselect = "off";            
-            app.UITablePlanTargets.RowName = "numbered";
-
-            Data = app.MainModule.Planner.Plan;
-            Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-            
-            app.UITablePlanTargets.Data = Data;
-            if ~isempty(Data)
-                app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames; 
-            end
-
-            % --- Apply text color styling to the 'ValidationStatus' column ---
-            % Find the column index for 'ValidationStatus'
-            colIdx = find(strcmp(Data.Properties.VariableNames, 'ValidationStatus'), 1);       
-            if ~isempty(colIdx) % Ensure the column exists       
-                % Apply styles row by row based on the ValidationStatus value
-                for row = 1:height(Data)
-                    status = string(Data{row, colIdx}); % Read status as string
-                    style = app.MainModule.GuiHelper.getValidationStatusStyle(status);
-                    addStyle(app.UITablePlanTargets, style, "cell", [row, colIdx]);
+            try
+                app.UITablePlanTargets.SelectionType = "row";
+                app.UITablePlanTargets.Multiselect = "off";            
+                app.UITablePlanTargets.RowName = "numbered";
+    
+                Data = app.MainModule.Planner.Plan;
+                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+                
+                app.UITablePlanTargets.Data = Data;
+                if ~isempty(Data)
+                    app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames; 
                 end
-            end
-
-            % Update also the table in the window
-            if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
-                app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
-            end            
+    
+                % --- Apply text color styling to the 'ValidationStatus' column ---
+                % Find the column index for 'ValidationStatus'
+                colIdx = find(strcmp(Data.Properties.VariableNames, 'ValidationStatus'), 1);       
+                if ~isempty(colIdx) % Ensure the column exists       
+                    % Apply styles row by row based on the ValidationStatus value
+                    for row = 1:height(Data)
+                        status = string(Data{row, colIdx}); % Read status as string
+                        style = app.MainModule.GuiHelper.getValidationStatusStyle(status);
+                        addStyle(app.UITablePlanTargets, style, "cell", [row, colIdx]);
+                    end
+                end
+    
+                % Update also the table in the window
+                if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
+                    app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
+                end            
+            catch ME
+                app.msgex('showPlanTargets', ME)
+            end                       
         end
 
 
@@ -243,25 +251,25 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.AdjustGroupStartTimeApp = ultrasat.planner.gui.AdjustGroupStartTime(app.MainModule);                
             end
 
-            % Prepae data
-            Planner = app.MainModule.Planner;
-            uniqueGroups = unique(app.MainModule.Planner.Plan.Group);
-            groupItems = cellstr(string(uniqueGroups));
-            groupItems = ['All'; groupItems];
-            app.AdjustGroupStartTimeApp.GroupDropDown.Items = groupItems;
-
-            % Enable/disable options according to the existance of Approved Targets list
-            if height(Planner.MissionApprovedPlan) == 0
-                app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'off';
-                app.AdjustGroupStartTimeApp.ShiftTimeButton.Value = true;
-            else
-                app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'on';
-                app.AdjustGroupStartTimeApp.RelativeButton.Value = true;
-            end
-
-            % Show app
-            if strcmp(app.showModal(app.AdjustGroupStartTimeApp), 'OK')
-                try
+            try
+                % Prepae data
+                Planner = app.MainModule.Planner;
+                uniqueGroups = unique(app.MainModule.Planner.Plan.Group);
+                groupItems = cellstr(string(uniqueGroups));
+                groupItems = ['All'; groupItems];
+                app.AdjustGroupStartTimeApp.GroupDropDown.Items = groupItems;
+    
+                % Enable/disable options according to the existance of Approved Targets list
+                if height(Planner.MissionApprovedPlan) == 0
+                    app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'off';
+                    app.AdjustGroupStartTimeApp.ShiftTimeButton.Value = true;
+                else
+                    app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'on';
+                    app.AdjustGroupStartTimeApp.RelativeButton.Value = true;
+                end
+    
+                % Show app
+                if strcmp(app.showModal(app.AdjustGroupStartTimeApp), 'OK')
                     % Apply
                     GroupList = app.AdjustGroupStartTimeApp.GroupList;
                     if strcmp(app.AdjustGroupStartTimeApp.Mode, 'Relative')
@@ -274,10 +282,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                         app.msglog('adjustGroupStartTime: NewStartTime');
                         app.MainModule.Planner.adjustGroupStartTime('GroupList', GroupList, 'NewStartTime', app.AdjustGroupStartTimeApp.StartTime);
                     end                   
-                catch ME
-                    app.msgex('adjustGroupStartTime', ME)
+                    app.showPlanAll();
                 end
-                app.showPlanAll();
+            catch ME
+                app.msgex('adjustGroupStartTime', ME)
             end
         end
 
@@ -308,22 +316,25 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
     
         function planRowDoubleClick(obj, app)
             % Called on plan target double click
-            Index = app.UITablePlanTargets.Selection;
-            if isempty(Index) || (Index < 1)
-                return
-            end                        
-
-            % Select the Unique-Target
-            UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
-            app.UITableUniqueTargets.Selection = UniqueTargetIndex;
-            app.uniqueTargetDoubleClick();
-            app.plotGraphs();
+            try
+                Index = app.UITablePlanTargets.Selection;
+                if isempty(Index) || (Index < 1)
+                    return
+                end                        
+    
+                % Select the Unique-Target
+                UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
+                app.UITableUniqueTargets.Selection = UniqueTargetIndex;
+                app.uniqueTargetDoubleClick();
+                app.plotGraphs();
+            catch ME
+                app.msgex('planRowDoubleClick', ME)
+            end                
         end
        
 
         function showPlanTargetsWindow(obj, app)
             % Show separate window with Plan Targets table
-
             app.msglog('showPlanTargetsWindow');
             if ~app.hasPlanner(), return; end
 

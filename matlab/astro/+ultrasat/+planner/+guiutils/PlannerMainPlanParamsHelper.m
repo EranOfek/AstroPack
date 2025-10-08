@@ -54,108 +54,101 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             % Helper: Set PlanParams app fields from current planner
             % Called from showPlanParamsWindow
 
-            % Get the Planner instance from the main module
-            PlanData = app.MainModule.PlanData;
-            Planner = app.MainModule.Planner;
-        
-            % Assign values to UI fields
-            ParamsApp.TitleEditField.Value = Planner.Title;
-            ParamsApp.PlanTypeDropDown.Value = Planner.Type;
-            ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
-            ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
-            ParamsApp.ExposureEditField.Value = num2str(seconds(Planner.Exptime));
-            ParamsApp.EpochsPerVisitEditField.Value = num2str(Planner.DefEpochsPerVisit);
+            try
+                % Get the Planner instance from the main module
+                PlanData = app.MainModule.PlanData;
+                Planner = app.MainModule.Planner;
             
-            % Assign tile checkboxes
-            tileNumbers = '1234';
-            checkBoxes = [ParamsApp.Tile1CheckBox, ParamsApp.Tile2CheckBox, ParamsApp.Tile3CheckBox, ParamsApp.Tile4CheckBox];
+                % Assign values to UI fields
+                ParamsApp.TitleEditField.Value = Planner.Title;
+                ParamsApp.PlanTypeDropDown.Value = Planner.Type;
+                ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
+                ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+                ParamsApp.ExposureEditField.Value = num2str(seconds(Planner.Exptime));
+                ParamsApp.EpochsPerVisitEditField.Value = num2str(Planner.DefEpochsPerVisit);
+                
+                % Assign tile checkboxes
+                tileNumbers = '1234';
+                checkBoxes = [ParamsApp.Tile1CheckBox, ParamsApp.Tile2CheckBox, ParamsApp.Tile3CheckBox, ParamsApp.Tile4CheckBox];
+                
+                for i = 1:length(tileNumbers)
+                    checkBoxes(i).Value = ismember(tileNumbers(i), char(Planner.Tiles));
+                end
+                
+                % Assign folders and files
+                ParamsApp.BaseDataDirEditField.Value = Planner.BaseDataDir;
+                ParamsApp.CalSubDirEditField.Value = Planner.CalibDir;
+                ParamsApp.CalObjFileEditField.Value = '@TODO';  %Planner.CalibObj;
             
-            for i = 1:length(tileNumbers)
-                checkBoxes(i).Value = ismember(tileNumbers(i), char(Planner.Tiles));
-            end
+                % Assign Unique Targets & Plan Targets
+                ParamsApp.PlanTargetsEditField.Value = num2str(Planner.N_planTargets);
+                ParamsApp.UniqueTargetsEditField.Value = num2str(Planner.N_uniqueTargets);
             
-            % Assign folders and files
-            ParamsApp.BaseDataDirEditField.Value = Planner.BaseDataDir;
-            ParamsApp.CalSubDirEditField.Value = Planner.CalibDir;
-            ParamsApp.CalObjFileEditField.Value = '@TODO';  %Planner.CalibObj;
-        
-            % Assign Unique Targets & Plan Targets
-            ParamsApp.PlanTargetsEditField.Value = num2str(Planner.N_planTargets);
-            ParamsApp.UniqueTargetsEditField.Value = num2str(Planner.N_uniqueTargets);
-        
-            % Assign Check Times
-            ParamsApp.CheckStartTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(1) );
-            ParamsApp.CheckEndTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(2) );
-        
-            % Assign System Parameters
-            ParamsApp.FieldOfViewRadiusEditField.Value = num2str(Planner.Rfov);
-            ParamsApp.TileReadTimeEditField.Value = num2str(seconds(Planner.FullTileReadTime));
-            ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));
-        
-            % Assign LCSTab Parameters
-            ParamsApp.LcsDailyWindowStartTimeEditField.Value = char(Planner.DailyWindowStartTime);
-            ParamsApp.LcsDailyWindowMaxDurationEditField.Value = char(Planner.DailyWindowMaxDuration);
-        
-            % Assign AllSkyTab Parameters
-            ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.DailyWindowStartTime);
-            ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
-            ParamsApp.AllSkyGalacticLatTresholdEditField.Value = Planner.AllSSHighLatThresh;
-
-            % @Yossi @Todo ??
-            ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
-            ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.HighLatVisits;
-            ParamsApp.AllSkyHighGalacticLatDitherPatternDropDown.Value = num2str(Planner.DitherPattern);
-        
-            % Assign TOOTab Parameters
-            ParamsApp.TooStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.TOOStartTime);
-            ParamsApp.TooWindowDurationEditField.Value = num2str(hours(Planner.TOOWindowDuration));
-        
-            % Assign Mission Status Fields
-            ParamsApp.PlanStatusEditField.Value = Planner.Status;
-            ParamsApp.AstPlannerEditField.Value = Planner.AstPlanner;
-
-            % Status text
-            app.setStatusField(ParamsApp.BuildStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);
-            app.setStatusField(ParamsApp.ValidationStatusEditField, PlanData.metadata.ValidationStatus.Status, PlanData.metadata.ValidationStatus.Status);
-            app.setStatusField(ParamsApp.SubmitStatusEditField, PlanData.metadata.SubmitStatus.Status, PlanData.metadata.SubmitStatus.Status);
-
-            % Status times
-            ParamsApp.BuildTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ScheduledTime);            
-            ParamsApp.ValidationTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ValidatedTime);
-            ParamsApp.SubmitTimeEditField.Value = app.MainModule.DateTime2Str(Planner.SubmittedTime);           
-        
-            % Assign Mission Distance Constraints            
-            ParamsApp.SunMinDistObsEditField.Value = num2str(Planner.ObsSunDist);
-            ParamsApp.MoonMinDistObsEditField.Value = num2str(Planner.ObsMoonDist);
-            ParamsApp.EarthMinDistObsEditField.Value = num2str(Planner.ObsEarthDist);
+                % Assign Check Times
+                ParamsApp.CheckStartTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(1) );
+                ParamsApp.CheckEndTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(2) );
             
-            ParamsApp.SunMinDistSlewEditField.Value = '@Todo';
-            ParamsApp.MoonMinDistSlewEditField.Value = '@Todo';
-            ParamsApp.EarthMinDistSlewEditField.Value = '@Todo';
-
-            % Assign Plan Buttons
-            ParamsApp.SaveButton.Enable = true;
-            ParamsApp.CancelButton.Enable = true;
+                % Assign System Parameters
+                ParamsApp.FieldOfViewRadiusEditField.Value = num2str(Planner.Rfov);
+                ParamsApp.TileReadTimeEditField.Value = num2str(seconds(Planner.FullTileReadTime));
+                ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));
+            
+                % Assign LCSTab Parameters
+                ParamsApp.LcsDailyWindowStartTimeEditField.Value = char(Planner.DailyWindowStartTime);
+                ParamsApp.LcsDailyWindowMaxDurationEditField.Value = char(Planner.DailyWindowMaxDuration);
+            
+                % Assign AllSkyTab Parameters
+                ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.DailyWindowStartTime);
+                ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
+                ParamsApp.AllSkyGalacticLatTresholdEditField.Value = Planner.AllSSHighLatThresh;
+    
+                % @Yossi @Todo ??
+                ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
+                ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.HighLatVisits;
+                ParamsApp.AllSkyHighGalacticLatDitherPatternDropDown.Value = num2str(Planner.DitherPattern);
+            
+                % Assign TOOTab Parameters
+                ParamsApp.TooStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.TOOStartTime);
+                ParamsApp.TooWindowDurationEditField.Value = num2str(hours(Planner.TOOWindowDuration));
+            
+                % Assign Mission Status Fields
+                ParamsApp.PlanStatusEditField.Value = Planner.Status;
+                ParamsApp.AstPlannerEditField.Value = Planner.AstPlanner;
+    
+                % Status text
+                app.setStatusField(ParamsApp.BuildStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);
+                app.setStatusField(ParamsApp.ValidationStatusEditField, PlanData.metadata.ValidationStatus.Status, PlanData.metadata.ValidationStatus.Status);
+                app.setStatusField(ParamsApp.SubmitStatusEditField, PlanData.metadata.SubmitStatus.Status, PlanData.metadata.SubmitStatus.Status);
+    
+                % Status times
+                ParamsApp.BuildTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ScheduledTime);            
+                ParamsApp.ValidationTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ValidatedTime);
+                ParamsApp.SubmitTimeEditField.Value = app.MainModule.DateTime2Str(Planner.SubmittedTime);           
+            
+                % Assign Mission Distance Constraints            
+                ParamsApp.SunMinDistObsEditField.Value = num2str(Planner.ObsSunDist);
+                ParamsApp.MoonMinDistObsEditField.Value = num2str(Planner.ObsMoonDist);
+                ParamsApp.EarthMinDistObsEditField.Value = num2str(Planner.ObsEarthDist);
+                
+                ParamsApp.SunMinDistSlewEditField.Value = '@Todo';
+                ParamsApp.MoonMinDistSlewEditField.Value = '@Todo';
+                ParamsApp.EarthMinDistSlewEditField.Value = '@Todo';
+    
+                % Assign Plan Buttons
+                ParamsApp.SaveButton.Enable = true;
+                ParamsApp.CancelButton.Enable = true;
+            catch ME
+                app.msgex('setPlanParamsFields', ME);
+            end                                    
         end
 
 
         function applyPlanParams(obj, app, ParamsApp)
             % Helper: Apply plan parameters in current planner from PlanParams app
             % Called from showPlanParamsWindow            
-            try
-                obj.doApplyPlanParams(app, ParamsApp);
-            catch ME
-                app.msgex('applyPlanParams', ME);
-            end
-        end
-
-
-        function doApplyPlanParams(obj, app, ParamsApp)
-            % Helper: Apply plan parameters in current planner from PlanParams app
-            % Called from showPlanParamsWindow
-
-            Planner = app.MainModule.Planner;
-            %try
+            try   
+                Planner = app.MainModule.Planner;
+            
                 % General parameters to all plan types
                 Planner.Title = ParamsApp.TitleEditField.Value;
                 
@@ -189,9 +182,9 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
                 % @Future: Apply system constants from ParamsApp
 
-            %catch ME
-            %    app.msgex('applyPlanParams', ME);
-            %end
+            catch ME
+                app.msgex('applyPlanParams', ME);
+            end
         end
 
 
@@ -249,7 +242,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             end
 
             % Todo - set the table
-            if true
+            try
                 History = app.MainModule.PlanData.history;
                 Data = struct2table(History, 'AsArray', true);
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
@@ -257,10 +250,12 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 if ~isempty(Data)
                     app.PlanHistoryApp.UITable.ColumnName = Data.Properties.VariableNames;
                 end
-            end            
 
-            % Show app
-            app.showModal(app.PlanHistoryApp);
+                % Show the history window
+                app.showModal(app.PlanHistoryApp);                
+            catch ME
+                app.msgex('showPlanHistory', ME);
+            end
         end
 
 
@@ -269,30 +264,34 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             app.msglog('updatePlanParams');
             if ~app.hasPlanner(), return; end
 
-            % Set fields
-            Planner = app.MainModule.Planner;
-            app.PlanTypeEditField.Value = Planner.Type;
-            app.UserNameEditField.Value = Planner.AstPlanner;
-            app.PlanTitleEditField.Value = Planner.Title;
-            app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
-            app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
-
-            if app.isReadOnly()
-                app.StartTimeEditField.Editable = "off";
-                app.EndTimeEditField.Editable = "off";
-                app.PlanTitleEditField.Editable = "off";
-            else
-                app.StartTimeEditField.Editable = "on";
-                app.EndTimeEditField.Editable = "on";                
-                app.PlanTitleEditField.Editable = "on";                
-            end
-
-            % Show message if plan was already submitted and cannot be modified
-            if strcmp(Planner.Status, 'submitted')
-                app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
-            else
-                app.setTopLabel('', [], []);
-            end
+            try
+                % Set fields
+                Planner = app.MainModule.Planner;
+                app.PlanTypeEditField.Value = Planner.Type;
+                app.UserNameEditField.Value = Planner.AstPlanner;
+                app.PlanTitleEditField.Value = Planner.Title;
+                app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
+                app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+    
+                if app.isReadOnly()
+                    app.StartTimeEditField.Editable = "off";
+                    app.EndTimeEditField.Editable = "off";
+                    app.PlanTitleEditField.Editable = "off";
+                else
+                    app.StartTimeEditField.Editable = "on";
+                    app.EndTimeEditField.Editable = "on";                
+                    app.PlanTitleEditField.Editable = "on";                
+                end
+    
+                % Show message if plan was already submitted and cannot be modified
+                if strcmp(Planner.Status, 'submitted')
+                    app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
+                else
+                    app.setTopLabel('', [], []);
+                end
+            catch ME
+                app.msgex('updatePlanParams failed', ME);
+            end                            
         end
 
         

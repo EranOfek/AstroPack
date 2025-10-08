@@ -223,48 +223,52 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
 
-
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
             % Returns the row indices sorted by 'Order' column.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
         
-            % If only one row in the table, return index 1
-            if height(Data) == 1
+            try
+                % If only one row in the table, return index 1
+                if height(Data) == 1
+                    Result = 1;
+                    return;
+                end
+            
+                % Convert to string array for uniform processing
+                OrderColumn = string(Data.Order);
+            
+                % Identify non-empty rows (ignoring whitespace and empty strings)
+                trimmedOrder = strtrim(OrderColumn);
+                isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
+                
+                % If only one valid row with non-empty 'Order', return its index
+                if sum(isValid) == 1
+                    Result = find(isValid);
+                    return;
+                end
+            
+                % Handle case: all values are invalid or non-numeric
+                validNumbers = str2double(trimmedOrder(isValid));
+                if all(isnan(validNumbers))
+                    OrderColumn = string(1:height(Data))';
+                    trimmedOrder = OrderColumn;
+                    isValid = true(height(Data), 1);
+                end
+                
+                % Now safely convert all to numbers, keeping invalid as NaN
+                numericOrder = NaN(height(Data), 1);
+                numericOrder(isValid) = str2double(trimmedOrder(isValid));
+                
+                % Get non-empty rows and sort
+                nonEmptyRows = find(~isnan(numericOrder));
+                [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
+                Result = nonEmptyRows(sortedIdx)';          
+            catch ME
+                app.msgex('getUniqueTargetsIndexByOrderColumn', ME);
                 Result = 1;
-                return;
-            end
-        
-            % Convert to string array for uniform processing
-            OrderColumn = string(Data.Order);
-        
-            % Identify non-empty rows (ignoring whitespace and empty strings)
-            trimmedOrder = strtrim(OrderColumn);
-            isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
-            
-            % If only one valid row with non-empty 'Order', return its index
-            if sum(isValid) == 1
-                Result = find(isValid);
-                return;
-            end
-        
-            % Handle case: all values are invalid or non-numeric
-            validNumbers = str2double(trimmedOrder(isValid));
-            if all(isnan(validNumbers))
-                OrderColumn = string(1:height(Data))';
-                trimmedOrder = OrderColumn;
-                isValid = true(height(Data), 1);
-            end
-            
-            % Now safely convert all to numbers, keeping invalid as NaN
-            numericOrder = NaN(height(Data), 1);
-            numericOrder(isValid) = str2double(trimmedOrder(isValid));
-            
-            % Get non-empty rows and sort
-            nonEmptyRows = find(~isnan(numericOrder));
-            [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
-            Result = nonEmptyRows(sortedIdx)';          
+            end                                
         end
 
 

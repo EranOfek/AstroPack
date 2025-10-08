@@ -113,45 +113,49 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.ValidationStatusApp = ultrasat.planner.gui.ValidationStatus(app.MainModule);
             end            
 
-            % Retrieve validation history from metadata
-            ValidationHistory = app.MainModule.PlanData.metadata.ValidationResponse;        
-            if isempty(ValidationHistory)
-                app.msglog('No validation history available.');
-                return;
-            end
-        
-            % Extract struct from cell array if needed, convert to struct array
-            if iscell(ValidationHistory)
-                ValidationHistory = [ValidationHistory{:}];
-            end
-
-            % Setup table
-            app.ValidationStatusApp.UITable.SelectionType = "row";
-            app.ValidationStatusApp.UITable.Multiselect = "off";            
-            app.ValidationStatusApp.UITable.RowName = "numbered";
-
-            app.ValidationStatusApp.UITableHistory.SelectionType = "row";
-            app.ValidationStatusApp.UITableHistory.Multiselect = "off";            
-            app.ValidationStatusApp.UITableHistory.RowName = "numbered";            
-
-
-            % Show latest validation response (first item in history)
-            Response = ValidationHistory(1);
-            app.showValidationResponse(Response);
-        
-            % Convert history to table (only keeping validation_time and status)
-            HistoryData = struct2table(ValidationHistory, 'AsArray', true);
-            HistoryData = HistoryData(:, {'validation_time', 'status'});
-        
-            % Assign history data to UITableHistory
-            app.ValidationStatusApp.UITableHistory.Data = HistoryData;
-        
-            % Set column names for UITableHistory
-            if ~isempty(HistoryData)
-                app.ValidationStatusApp.UITableHistory.ColumnName = HistoryData.Properties.VariableNames;
-            end
-
-            app.showModal(app.ValidationStatusApp);
+            try
+                % Retrieve validation history from metadata
+                ValidationHistory = app.MainModule.PlanData.metadata.ValidationResponse;        
+                if isempty(ValidationHistory)
+                    app.msglog('No validation history available.');
+                    return;
+                end
+            
+                % Extract struct from cell array if needed, convert to struct array
+                if iscell(ValidationHistory)
+                    ValidationHistory = [ValidationHistory{:}];
+                end
+    
+                % Setup table
+                app.ValidationStatusApp.UITable.SelectionType = "row";
+                app.ValidationStatusApp.UITable.Multiselect = "off";            
+                app.ValidationStatusApp.UITable.RowName = "numbered";
+    
+                app.ValidationStatusApp.UITableHistory.SelectionType = "row";
+                app.ValidationStatusApp.UITableHistory.Multiselect = "off";            
+                app.ValidationStatusApp.UITableHistory.RowName = "numbered";            
+    
+    
+                % Show latest validation response (first item in history)
+                Response = ValidationHistory(1);
+                app.showValidationResponse(Response);
+            
+                % Convert history to table (only keeping validation_time and status)
+                HistoryData = struct2table(ValidationHistory, 'AsArray', true);
+                HistoryData = HistoryData(:, {'validation_time', 'status'});
+            
+                % Assign history data to UITableHistory
+                app.ValidationStatusApp.UITableHistory.Data = HistoryData;
+            
+                % Set column names for UITableHistory
+                if ~isempty(HistoryData)
+                    app.ValidationStatusApp.UITableHistory.ColumnName = HistoryData.Properties.VariableNames;
+                end
+    
+                app.showModal(app.ValidationStatusApp);
+            catch ME
+                app.msgex('showValidationStatusWindow', ME)
+            end                                
         end
         
 
@@ -245,4 +249,3 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
     end
 end
-
