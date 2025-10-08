@@ -161,6 +161,51 @@ function [Result] = subtractionZOGY(AI, Args)
                         imProc.match.match2Galaxies(AD(Iai)); % will be moved to obsolete
                         imProc.match.match2Stars(AD(Iai), StarCat); % will be moved to obsolete
                         % consider supply StarCat from Args...
+
+
+                        %for stars:
+                        Args.CatStars = 'GAIADR3';
+                        Args.CatStarsRadius = 2;
+                        imProc.match.match_catsHTM(AD(Iai), Args.CatStars,...
+                                                   'CooUnits','deg',...
+                                                   'RadiusUnits','arcsec',...
+                                                   'Radius',Args.CatStarsRadius,...
+                                                   'AddColDist',
+                                                   'ColDistName',
+                                                   'AddColNmatch'
+                                                   'ColNmatchName'
+
+
+                        %            'AddColDist' - Default is true.
+    %            'ColDistPos' - Default is Inf.
+    %            'ColDistName' - Default is 'Dist'.
+    %            'ColDistUnits' - Default is 'arcsec'.
+    %            'AddColNmatch' - Default is true.
+    %            'ColNmatchPos' - Default is Inf.
+    %            'ColNmatchName' - Default is 'Nmatch'.
+
+                       
+ Args.Coo                 = [];
+        Args.CooUnits            = 'deg';
+        Args.Radius              = 3;
+        Args.RadiusUnits         = 'arcsec';
+        Args.CatRadius           = [];
+        Args.CatRadiusUnits      = 'arcsec';
+        Args.Con                 = {};
+        Args.catsHTMisRef        = false;
+        
+        Args.AddColDist logical   = true;
+        Args.ColDistPos           = Inf;
+        Args.ColDistName          = 'Dist';
+        Args.ColDistUnits         = 'arcsec';
+        Args.AddColNmatch logical = true;
+        Args.ColNmatchPos         = Inf;
+        Args.ColNmatchName        = 'Nmatch';
+        Args.CreateNewObj logical = false;
+
+
+
+
                     end
                     
         
