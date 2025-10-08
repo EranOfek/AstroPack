@@ -43,14 +43,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 error('SOC_PATH environment variable is not defined, on Linux set it to ~/soc, on Windows set it to c:\\soc');
             end
 
-            % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
-            %obj.DbPath = fullfile(soc_path, 'sim', 'backend');  % @TODO
-            %obj.msglog('DbPath: %s', obj.DbPath);
-            %if ~exist(obj.DbPath, 'dir')
-            %    mkdir(obj.DbPath);
-            %    mkdir(fullfile(obj.DbPath, 'plans'));
-            %end
-
             % Master files path from the git repo: use sim/ subfolder under current folder, there should be a .gitignore file
             currentFile = mfilename('fullpath');
             currentFolder = fileparts(currentFile);
@@ -82,12 +74,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 'planner', ...                  % module name
                 '', ...                         % subfolder (empty, top-level)
                 'NamespaceId', ultrasat.api.PathUtils.NamespaceId);% pass current namespace
-
-            %dataDir = fileparts(Result);
-            %if ~isfolder(dataDir)
-                %fprintf('Creating folder: %s\n', dataDir);
-                %mkdir(dataDir);
-            %end
                     
             obj.msglog('getPlannerBasePath: %s', Result);
         end
@@ -255,16 +241,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
             response = struct();
         
-            % @@@@TODO - remove this
-            jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
-            if ~isfile(jsonFile)
-                obj.msglog('Plan file not found for pk=%d', obj.PlanData.pk);
-                response.status = 'error';
-                response.message = 'Plan file not found.';
-                response.ok = false;
-                return;
-            end
-              
             % Set targets from provided Plan array of structs
             obj.PlanData.targets = Plan;  % Direct assignment, no conversion needed        
         
@@ -300,16 +276,8 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                        table_name, mat2str(healpix_indices), datestr(start_timestamp), datestr(end_timestamp), select_all);
         
             dbFile = fullfile(obj.getPlannerBasePath(), sprintf('%s.json', table_name));
-            response = struct();
-        
-            if ~isfile(dbFile)
-                obj.msglog('Exposure data file not found at %s', dbFile);
-                response.status = 'error';
-                response.message = 'Exposure data file not found.';
-                response.ok = false;
-                return;
-            end
-        
+            response = struct();       
+       
             fid = fopen(dbFile, 'r');
             raw = fread(fid, inf, 'char');
             fclose(fid);
@@ -447,10 +415,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             response = struct();
 
             obj.updateFromPlanner();
-            if ~exist(plansFolder, 'dir')
-                mkdir(plansFolder);
-            end
-        
+                    
             % Generate pk if not provided, as next file number (i.e '00003')
             if isempty(obj.PlanData.pk)
                 NextAvailableFile = obj.ApiSimProvider.nextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
@@ -493,6 +458,9 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 obj.PlanData.end_time = obj.PlanData.planner.EndTime;
                 obj.PlanData.targets = obj.PlanData.planner.planTable2struct();
 
+                % Update status (08/10/2025)
+                obj.PlanData.status = obj.PlanData.planner.Status;
+
                 % MATLAB cannot have array with single struct item, the
                 % only solution is to convert the array to cellarray
                 if numel(obj.PlanData.targets) == 1
@@ -529,13 +497,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             response = struct();
         
             jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
-            if ~isfile(jsonFile)
-                obj.msglog('Plan file not found for pk=%d', plan_pk);
-                response.status = 'error';
-                response.message = 'Plan file not found.';
-                response.ok = false;
-                return;
-            end
         
             % Load the JSON plan file
             planData = obj.ApiSimProvider.readJsonFile(jsonFile);
