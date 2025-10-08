@@ -30,7 +30,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             %    return;
             %end
 
-            app.showPleaseWait('Validating your plan...');
+            app.showPleaseWait('Validating your plan. This make take a while. Please wait...');
             try
                 app.MainModule.PlanData.addHistory('validation started');
                 app.MainModule.Planner.validate();
@@ -86,7 +86,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 return;
             end
 
-            app.showPleaseWait('Submitting your plan...');
+            app.showPleaseWait('Submitting your plan. This may take a while. Please wait...');
             try
                 % Send submit request to backend, uplanner.submit() calls
                 % MissionClient.submitPlan().

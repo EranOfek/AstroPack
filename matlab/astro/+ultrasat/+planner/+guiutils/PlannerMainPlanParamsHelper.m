@@ -215,7 +215,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end            
             if app.isReadOnlyMsg(), return; end
 
-            app.showPleaseWait('Updating CheckTimes...');
+            app.showPleaseWait('Updating CheckTimes, this may take a while. Please wait...');
             try                                
                 Planner = app.MainModule.Planner;
                 StartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckStartTimeEditField.Value);

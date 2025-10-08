@@ -205,6 +205,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 return; 
             end
 
+            app.showPleaseWait('Updating plan targets display...');            
             try
                 app.UITablePlanTargets.SelectionType = "row";
                 app.UITablePlanTargets.Multiselect = "off";            
@@ -236,7 +237,8 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 end            
             catch ME
                 app.msgex('showPlanTargets', ME)
-            end                       
+            end
+            app.closePleaseWait();
         end
 
 

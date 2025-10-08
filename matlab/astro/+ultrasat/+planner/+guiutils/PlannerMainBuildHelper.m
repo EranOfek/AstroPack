@@ -32,7 +32,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 end
             end
 
-            app.showPleaseWait('Building your plan...');
+            app.showPleaseWait('Building your plan. This may take a while. Please wait....');
             try
                 PlanType = app.MainModule.PlanType;
                 app.MainModule.clearStatus();

@@ -100,17 +100,18 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
 
 
-        function Result = isLogin(obj, app, Args)
+        function Result = isLogin(obj, app, varargin)
             % Return true is user is loggned in, show popup message if Args.Message is true
-            arguments
-                app
-                Args.Message = false
+            Message = false;
+            if ~isempty(varargin)
+                Message = varargin{1};
             end
+
             % Return true if used is logged-in
             Result = ~isempty(app.MainModule.UserName);
             if ~Result
                 app.msglog('isLogin: not loggedin');
-                if Args.Message
+                if Message
                     uialert(app.UIFigure, 'Login to the server is required to proceed with this operation', 'Message', 'Icon', 'success');            
                 end
             end

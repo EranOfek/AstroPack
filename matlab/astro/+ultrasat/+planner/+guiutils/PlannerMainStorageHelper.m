@@ -120,7 +120,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             end            
 
             % Call backend to save the plan in database
-            app.showPleaseWait('Saving...');
+            app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
                 app.MainModule.ApiClient.savePlan();
                 app.clearModified();
@@ -193,7 +193,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             % Show app
             if strcmp(app.showModal(app.SavePlanToFileApp), 'Save')
-                app.showPleaseWait('Saving to file...');
+                app.showPleaseWait('Saving plan to file...');
                 try
                     FileName = app.SavePlanToFileApp.FileName;
 
