@@ -163,6 +163,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             obj.doClosePlan(app);
             app.clearModified();
+            app.setReadOnly(false);
             app.setButtons();
         end
 

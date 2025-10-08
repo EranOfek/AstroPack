@@ -1531,10 +1531,10 @@ classdef uplanner < Component
                 
                 keepVars = false(size(tmpTable.Properties.VariableNames));
                 
-                %rename Name->title
+                %rename Name->name
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'Name');
                 keepVars = keepVars | curr_ind;
-                tmpTable.Properties.VariableNames(curr_ind) = {'title'};
+                tmpTable.Properties.VariableNames(curr_ind) = {'name'};
                 
                 %rename RA->ra
                 curr_ind = strcmp(tmpTable.Properties.VariableNames,'RA');
