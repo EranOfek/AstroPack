@@ -1,5 +1,5 @@
-function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
-    % Match an AstroCatalog object with catsHTM catalog and add columns to catalog.
+function [ResInd, CatH] = matchMulti_catsHTM(Obj, CatName, Args)
+    % Match an AstroCatalog object with catsHTM catalog and return (all) multiple matches.
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
     %            be matched against a catsHTM catalog.
@@ -39,6 +39,10 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     %            'CreateNewObj' -If input is AstroImage, then indicating if
     %                   to create a new copy of the catalog.
     %                   Default is false.
+    %            'CheckIsSorted' - Check that catalog is sorted.
+    %                   Default is true.
+    %            'SortCol' - If catalog is not sorted then sort by this
+    %                   catalog. Default is 'Dec'.
     % Output : - The input catalog with added columns for the nearest match
     %            in the catsHTM catalog.
     %          - Select lines only from the input catalog. Only sources
@@ -47,11 +51,11 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
     %          M = imProc.cat.Match;
     %          M.coneSearch(AC,[1 1],'Radius',3600);
-    %          [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2')
+    %          [MatchedObj, UnMatchedO
 
     arguments
         Obj
-        CatName char
+        CatName     = 'GAIADR3';
         Args.Coo                 = [];
         Args.CooUnits            = 'deg';
         Args.Radius              = 3;
@@ -69,29 +73,18 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         Args.ColNmatchPos         = Inf;
         Args.ColNmatchName        = 'Nmatch';
         Args.CreateNewObj logical = false;
-    end
 
-    % convert AstroImage to AstroCatalog
-    if isa(Obj,'AstroImage') || isa(Obj, 'AstroDiff') || isa(Obj, 'AstroZOGY')
-        Result = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
-    elseif isa(Obj,'AstroCatalog')
-        % do nothing
-        if Args.CreateNewObj
-            Result = Obj.copy;
-        else
-            Result = Obj;
-        end
-    elseif isnumeric(Obj)
-        error('Input Obj is of unsupported class');
-    else
-        error('Input Obj is of unsupported class');
+
+        Args.CheckIsSorted  = true;
+        Args.SortCol        = 'Dec';
+
     end
 
 
     if isempty(Args.Coo) || isempty(Args.Radius)
-        UseUserCoo = true;
+        EstimateCoo = true;
     else
-        UseUserCoo = false;
+        EstimateCoo = false;
     end
 
 
@@ -103,11 +96,28 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         SelObj = AstroCatalog(size(Obj));
     end
     
+    %
+
     CatH = AstroCatalog(size(Obj));  % output of catsHTM
     for Iobj=1:1:Nobj
-        if isempty(Args.Coo) || isempty(Args.CatRadius)
+        if isa(Obj, 'AstroCatalog')
+            Cat = Obj(Iobj);
+        else
+            % assume AstroImage or AstroZOGY
+            Cat = Obj(Iobj).CatData;
+        end
+
+        if Args.CheckIsSorted
+            if ~Cat.IsSorted
+                % sort catalog
+                Cat = Cat.sortrows(Args.SortCol);
+            end
+        end
+        
+        if EstimateCoo
+            % isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Result(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
+            [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
@@ -119,25 +129,20 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
         if Args.catsHTMisRef
-            ResInd = imProc.match.matchReturnIndices(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
+            ResInd(Iobj).Ind = imProc.match.matchReturnIndicesMulti(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd = imProc.match.matchReturnIndices(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
+            ResInd(Iobj).Ind = imProc.match.matchReturnIndicesMulti(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         end
         
-        [Result(Iobj), SelObj] = imProc.match.insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
-                                                                              'ColDistPos',Args.ColDistPos,...
-                                                                              'ColDistName',Args.ColDistName,...
-                                                                              'ColDistUnits',Args.ColDistUnits,...
-                                                                              'AddColNmatch',Args.AddColNmatch,...
-                                                                              'ColNmatchPos',Args.ColNmatchPos,...
-                                                                              'ColNmatchName',Args.ColNmatchName);
-        
-        
+    
 
     end
+
+
+
 end

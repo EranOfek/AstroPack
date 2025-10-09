@@ -1,6 +1,6 @@
-function Result = matchReturnIndices(Obj1, Obj2, Args)
-    % Match two catalogs in AstroCatalog objects and return the matched indices.
-    %       This is a basic utility function that returns the two-directional
+function Result = matchReturnIndicesMulti(Obj1, Obj2, Args)
+    % Match two catalogs in AstroCatalog objects, and for each source in Obj2, return all the matched sources in Obj1.
+    %       This is a basic utility function that returns the
     %       indices of the matched sources.
     %       This function is used by the more advanced matching programs.
     % Input  : - An AstroCatalog/AstroImage object.
@@ -28,33 +28,23 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
     %            'ColCatY' - Like 'ColCatX', but for the Y coordinate.
     %            'ColRefX' - Like 'ColCatX', but for te ref catalog.
     %            'ColRefY' - Like 'ColRefX', but for the Y coordinate.
-    % Output : - A structure array (element per Obj1/Obj2 matching) with
-    %            the following fields:
-    %            'Obj2_IndInObj1' - A vector, for each source in Obj2, of
-    %                   its matched indices in Obj1. NaN if no match.
-    %            'Obj2_Dist' - A vector, for each source in Obj2, of the
-    %                   angular distance ['rad' if 'sphere'] between the
-    %                   matched sources.
-    %            'Obj2_NmatchObj1' - A vector, for each source in Obj2, of the
-    %                   number of matches within search radius.
-    %            'Obj1_IndInObj2' - A vector, for each source in Obj1, of 
-    %                   its matched indices in Obj2. NaN if no match.
-    %            'Obj1_FlagNearest' - A vector, for each source in Obj1,
-    %                   of logicals indicating if this source is the neaest
-    %                   match to a source is Obj2.
-    %            'Obj1_FlagAll' - A vector, for each source in Obj1,
-    %                   of logicals indicating if this source is a
-    %                   match (within search radius) to a source is Obj2.
-    %            'Obj1_Dist' - A vector, for each source in Obj1, of the
-    %                   angular distance ['rad' if 'sphere'] between the
-    %                   matched sources.
+    %            'CalcDist' - Return also the distances to the matched
+    %                   sources and the distance to the nearest source.
+    %                   Default is true;
+    %
+    % Output : - A structure array (element per Obj1/Obj2 matching) 
+    %            the .Ind field.
+    %            By itself this is a structure array that returned by:
+    %            VO.search.search_sortedlat_multi
+    %            The size of the array is like that of the catalog in the
+    %            second input.
     % Author : Eran Ofek (Sep 2021)
     % Example : AC = AstroCatalog;
     %           AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
     %           AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
     %           AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
     %           AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
-    %           Result = imProc.match.matchReturnIndices(AC,AC2,'Radius',0.01,'CooType','sphere','RadiusUnits','rad')
+    %           Result = imProc.match.matchReturnIndicesMulti(AC,AC2,'Radius',0.01,'CooType','sphere','RadiusUnits','rad')
 
     arguments
         Obj1
@@ -71,12 +61,20 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         
         Args.SphereDistFun               = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %Thresh;
         Args.SphereDistFunArgs           = {}; %{4.8481e-5};
+
+        Args.CalcDist                    = true;
     end    
 
     if Args.CreateNewObj
         Obj1 = Obj1.copy();
     end
-    
+
+    if Args.CalcDist
+        CalcDist = -1;
+    else
+        CalcDist = 1;
+    end
+
     Nobj1 = numel(Obj1);
     Nobj2 = numel(Obj2);
     Nmax  = max(Nobj1, Nobj2);
@@ -89,8 +87,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         [CommonCooType{1:Nmax}] = deal(Args.CooType);
     end
     
-    Result = struct('Obj2_IndInObj1',cell(Nmax,1), 'Obj2_Dist',cell(Nmax,1), 'Obj2_NmatchObj1',cell(Nmax,1),...
-                    'Obj1_IndInObj2',cell(Nmax,1), 'Obj1_FlagNearest',cell(Nmax,1), 'Obj1_FlagAll',cell(Nmax,1));
+    Result = struct('Ind',cell(Nmax,1));
     for Imax=1:1:Nmax
         Iobj1 = min(Imax, Nobj1);
         Iobj2 = min(Imax, Nobj2);
@@ -153,30 +150,11 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         end   
 
         % match
-        [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
-                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, 'DistFunArgs',DistFunArgs);
-
+        % CalcDist is either +1 or -1, depanding if we ant to get out the
+        % distances
+        [Result(Imax).Ind]=VO.search.search_sortedlat_multi(Coo1,...
+                                                    Coo2(:,1), Coo2(:,2), CalcDist.*RadiusRad, [], DistFun, 'DistFunArgs',DistFunArgs);
         
-        % Columns of IndTable:
-        % For each source in Obj2:
-        % 1. Index of nearest source, within search radius, in Obj1
-        % 2. Distance;
-        % 3. Total number of matches within radius.
-        Result(Imax).Obj2_IndInObj1   = IndTable(:,1);
-        Result(Imax).Obj2_Dist        = IndTable(:,2);
-        Result(Imax).Obj2_NmatchObj1  = IndTable(:,3);
-        % IndInRef: For each source in Obj1 its index in Obj2
-        Result(Imax).Obj1_IndInObj2   = IndInObj2;
-        Result(Imax).Obj1_FlagNearest = CatFlagNearest;
-        Result(Imax).Obj1_FlagAll     = CatFlagAll;
 
-        %Result(Imax).Obj1_Dist = nan(size(CatFlagAll));
-        FlagNaN = isnan(IndInObj2);
-        IndInObj2(FlagNaN) = 1;  % temporary
-        
-        % new: Obj1_Dist
-        Col = 2;
-        Result(Imax).Obj1_Dist          = IndTable(IndInObj2, Col);
-        Result(Imax).Obj1_Dist(FlagNaN) = NaN;
     end
 end
