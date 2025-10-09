@@ -684,7 +684,7 @@ classdef AstroDiff < AstroImage
         end
     end
 
-    methods % estimate: Fn, Fr, Back, Var
+    methods % estimate: Fn, Fr
         % ready / Fn/Fr not tested
         function [Obj, Fn, Fr]=estimateFnFr(Obj, Args)
             % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
@@ -786,9 +786,48 @@ classdef AstroDiff < AstroImage
 
         end
 
+        function [AssymSigma, NpixAbove0, Npix]=checkSubAssymetry(Obj, Args)
+            % Check that the number of positive and negative pixels, in the difference image, are consistent with each other
+            %   I.e., Assymetry of the resulted subtraction image to postive/negative values.
+            % Input  : - AstroDiff/AstroZOGY object
+            %          * ...,key,val,...
+            %            'UseMex' - A logical indicating if to use MEX
+            %                   function: tools.array.mex.countAboveVal
+            %                   Default is false.
+            % Output : - The difference in the number of positive and
+            %            negative pixels in the subtraction image measured in units of
+            %            the standard deviation.
+            %            Usually values below 2,3 means the Fn, Fr values
+            %            are good.
+            %          - Number of pixels above 0.
+            %          - Total number of pixels.
+            % Authors : Eran Ofek (Oct 2025)
+            % Example: [AssymSigma, NpixAbove0, Npix]=AD.checkSubAssymetry;
+
+            arguments
+                Obj
+                Args.UseMex               = false;
+            end
+
+            Nobj = numel(Obj);
+            SizeObj    = size(Obj);
+            AssymSigma = nan(SizeObj);
+            NpixAbove0 = nan(SizeObj);
+            Npix       = nan(SizeObj);
+            for Iobj=1:1:Nobj
+                Npix(Iobj) = numel(Obj(Iobj).ImageData.Image);
+                if Args.UseMex
+                    NpixAbove0(Iobj) = tools.array.mex.countAboveVal(Obj(Iobj).ImageData.Image, 0);
+                else
+                    NpixAbove0(Iobj) = sum(Obj(Iobj).ImageData.Image>0, 'all');
+                end
+                
+                AssymSigma(Iobj) = abs(Npix(Iobj)-2.*NpixAbove0(Iobj))./sqrt(Npix(Iobj));
+            end
+        end
     end
 
-    methods
+    methods % estimate: Back, Var
        
         function Obj=estimateBackVar(Obj, Args)
             % Estimate global background and variance of New and Ref images

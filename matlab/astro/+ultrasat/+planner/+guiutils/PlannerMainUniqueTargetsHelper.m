@@ -56,53 +56,61 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
 
-            % Get index of selected Unique Target
-            Index = app.UITableUniqueTargets.Selection;
-            if isempty(Index) || (Index < 1)
-                return
-            end
-
-            % Create app            
-            if isempty(app.UniqueTargetParamsApp) || ~isvalid(app.UniqueTargetParamsApp)
-                app.UniqueTargetParamsApp = ultrasat.planner.gui.UniqueTargetParams(app.MainModule);                
-            end
-            
-            % Set field values - Currently there are 9 fields for Unique Target
-            ParamsApp = app.UniqueTargetParamsApp;
-            UniqTarg = app.MainModule.Planner.UniqTarg;
-            app.setUniqueTargetParamsFields(UniqTarg, Index, ParamsApp);
-
-            % Show the form, update values if closed with Save
-            if strcmp(app.showModal(app.UniqueTargetParamsApp), 'Save')
-                Name = app.MainModule.GuiHelper.getFieldUniqueTargetName( ParamsApp.NameEditField.Value );
-                RA = app.MainModule.GuiHelper.getFieldRA( ParamsApp.RAEditField.Value );
-                Dec = app.MainModule.GuiHelper.getFieldDec( ParamsApp.DecEditField.Value );
-                app.setModified('editUniqueTarget');
-                try
-                    app.MainModule.Planner.editUniqTarg(Index, 'Name', Name, 'RA', RA, 'Dec', Dec);
-                    if app.checkPlanSelfConsistency()
-                        app.msglog('editUniqueTarget successfully');
-                    end
-                catch ME
-                    app.msgex('editUniqTarget', ME);
+            try
+                % Get index of selected Unique Target
+                Index = app.UITableUniqueTargets.Selection;
+                if isempty(Index) || (Index < 1)
+                    return
                 end
-                app.showPlanAll();
-            end            
+    
+                % Create app            
+                if isempty(app.UniqueTargetParamsApp) || ~isvalid(app.UniqueTargetParamsApp)
+                    app.UniqueTargetParamsApp = ultrasat.planner.gui.UniqueTargetParams(app.MainModule);                
+                end
+                
+                % Set field values - Currently there are 9 fields for Unique Target
+                ParamsApp = app.UniqueTargetParamsApp;
+                UniqTarg = app.MainModule.Planner.UniqTarg;
+                app.setUniqueTargetParamsFields(UniqTarg, Index, ParamsApp);
+    
+                % Show the form, update values if closed with Save
+                if strcmp(app.showModal(app.UniqueTargetParamsApp), 'Save')
+                    Name = app.MainModule.GuiHelper.getFieldUniqueTargetName( ParamsApp.NameEditField.Value );
+                    RA = app.MainModule.GuiHelper.getFieldRA( ParamsApp.RAEditField.Value );
+                    Dec = app.MainModule.GuiHelper.getFieldDec( ParamsApp.DecEditField.Value );
+                    app.setModified('editUniqueTarget');
+                    try
+                        app.MainModule.Planner.editUniqTarg(Index, 'Name', Name, 'RA', RA, 'Dec', Dec);
+                        if app.checkPlanSelfConsistency()
+                            app.msglog('editUniqueTarget successfully');
+                        end
+                    catch ME
+                        app.msgex('editUniqeTarget', ME);
+                    end
+                    app.showPlanAll();
+                end            
+            catch ME
+                app.msgex('editUniqueTarget', ME);
+            end
         end
 
 
         function setUniqueTargetParamsFields(obj, app, UniqTarg, Index, ParamsApp)           
             % Helper: Set field values - Currently there are 9 fields for Unique Target
-            ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
-            ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
-            ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
-            ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
-            ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
-            ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
-            ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
-            ParamsApp.ExtSurveysEditField.Value = app.MainModule.length2Str( UniqTarg.ExtSurveys(Index) );
-            ParamsApp.FieldObjEditField.Value = app.MainModule.length2Str( UniqTarg.FieldObj(Index) );
-            ParamsApp.HealpixArrayEditField.Value = app.MainModule.length2Str( UniqTarg.HealpixArray(Index) );
+            try
+                ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
+                ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
+                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
+                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
+                ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
+                ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
+                ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
+                ParamsApp.ExtSurveysEditField.Value = app.MainModule.length2Str( UniqTarg.ExtSurveys(Index) );
+                ParamsApp.FieldObjEditField.Value = app.MainModule.length2Str( UniqTarg.FieldObj(Index) );
+                ParamsApp.HealpixArrayEditField.Value = app.MainModule.length2Str( UniqTarg.HealpixArray(Index) );
+            catch ME
+                app.msgex('setUniqueTargetParamsFields', ME);
+            end
         end        
 
 
@@ -357,16 +365,20 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         function uniqueTargetDoubleClick(obj, app)
             % Called on Unique-Target double-click in the table
-            UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-            if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-                return
-            end
-
-            % Update drop-down with unique target double-clicked
-            Planner = app.MainModule.Planner;
-            Value = Planner.UniqTarg.Name(UniqueTargetIndex);            
-            app.GraphPlotUniqueTargetDropDown.Value = Value;
-            app.plotGraphs();
+            try
+                UniqueTargetIndex = app.UITableUniqueTargets.Selection;
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
+    
+                % Update drop-down with unique target double-clicked
+                Planner = app.MainModule.Planner;
+                Value = Planner.UniqTarg.Name(UniqueTargetIndex);            
+                app.GraphPlotUniqueTargetDropDown.Value = Value;
+                app.plotGraphs();
+            catch ME
+                app.msgex('uniqueTargetDoubleClick', ME)
+            end                           
         end        
         
 

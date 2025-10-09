@@ -18,6 +18,45 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         end
 
 
+        function plotGraphs(obj, app)
+            % Plot CalibObj or Visibility according to selected radio button
+            try
+                if ~app.hasPlanner()
+                    app.clearPlots();
+                    return;
+                end
+
+                % Plot CalibObj
+                if app.CalibrationStarButton.Value
+                    app.plotCalibObj();
+                end
+
+                % Plot Visibility
+                if app.VisibilityButton.Value
+                    app.plotVisibility();
+                end                
+            catch ME
+                app.msgex('plotCalibObj', ME);
+            end                
+        end
+
+
+        function clearPlots(obj, app)
+            % Clear the SkyMap and Graphs plots, on this window and the standalone windows.
+            app.msglog('clearPlots');
+            cla(app.AxesSkymapPlot, 'reset');
+            cla(app.AxesGraphsPlot, 'reset');
+
+            if ~isempty(app.PlotSkyMapApp) && isvalid(app.PlotSkyMapApp)
+                cla(app.PlotSkyMapApp.AxesSkymapPlot, 'reset');
+            end
+
+            if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+            end
+        end
+
+        
         function showSkyMapPlot(obj, app)
             % Update GUI plot with SkyMap
             app.msglog('showSkyMapPlot');
@@ -42,7 +81,30 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             end   
         end
 
+       
+        function showGraphsPlotWindow(obj, app)
+            % Create app
+            if isempty(app.PlotGraphsApp) || ~isvalid(app.PlotGraphsApp)
+                app.PlotGraphsApp = ultrasat.planner.gui.PlotGraphs(app.MainModule);                
+            end
+            app.PlotGraphsApp.UIFigure.Visible = 'on';            
+        end
+
         
+        function showSkyMapPlotWindow(obj, app)
+            % Show stand-alone window with SkyMap plot, the user need to
+            % click teh Update button in the embedded plot in this 
+            app.msglog('plotCalibObj');
+            if ~app.hasPlanner(), return; end
+
+            % Create app
+            if isempty(app.PlotSkyMapApp) || ~isvalid(app.PlotSkyMapApp)
+                app.PlotSkyMapApp = ultrasat.planner.gui.PlotSkyMap(app.MainModule);                
+            end
+            app.PlotSkyMapApp.UIFigure.Visible = 'on';
+        end
+
+
         function doPlotSkyMap(obj, app, AxesHandle)
             % Plot SkyMap on the specified Axes (embedded or stand-alone)
             try
@@ -71,6 +133,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         % =================================================================
         %
         % =================================================================        
+
         function plotCalibObj(obj, app)
 
             % Plot Calibration Objects graph
@@ -254,7 +317,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 app.msgex('plotVisibility', ME);
             end
         end        
-       
+
     end
 end
 

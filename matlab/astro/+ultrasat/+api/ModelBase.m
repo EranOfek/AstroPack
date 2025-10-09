@@ -65,7 +65,7 @@ classdef ModelBase
 
         function Result = nowUtcStr()
             % Returns the current UTC datetime as a formatted string (YYYY-MM-DD HH:MM:SS)
-            Result = datestr(datetime('now', 'TimeZone', 'UTC'), 'yyyy-MM-dd HH:mm:ss');            
+            Result = datestr(datetime('now', 'TimeZone', 'UTC'), 'yyyy-mm-dd HH:MM:SS');            
         end
 
 
@@ -74,7 +74,7 @@ classdef ModelBase
             if isempty(dt)
                 Result = 'None';
             else
-                Result = datestr(dt, 'yyyy-MM-dd HH:mm:ss');            
+                Result = datestr(dt, 'yyyy-mm-dd HH:MM:SS');            
             end
         end
 

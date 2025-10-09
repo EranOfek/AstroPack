@@ -33,6 +33,9 @@ function [Result] = subtractionZOGY(AI, Args)
         Args.DoDelta               = true;
         Args.FindTransients        = true;
         Args.MatchExternal         = true;
+
+        Args.ThresholdSubAssymSigma  = 3;
+
         Args.LogObj                = [];
     end
 
@@ -54,7 +57,9 @@ function [Result] = subtractionZOGY(AI, Args)
                       'CornersX',nan(Nai,4),...
                       'CornersY',nan(Nai,4),...
                       'CornersRA',nan(Nai,4),...
-                      'CornersDec',nan(Nai,4));
+                      'CornersDec',nan(Nai,4),...
+                      'SubAssymSigma',nan(Nai,1),...
+                      'SubNpixAbove0',nan(Nai,1));
         
         for Iai=1:1:Nai
             % populate Args.RefAI
@@ -101,15 +106,29 @@ function [Result] = subtractionZOGY(AI, Args)
                     AD(Iai).estimateBackVar;
                     % Estimate zero points
                     AD(Iai).estimateFnFr;
-    
-                    % Check quality of FnFr 
-                    HERE: 
-    
+                        
                     % ----- Produce subtraction images -----
                     % Create proper subtraction image D
-                    AD(Iai).subtractionD;
+                    % also populates: P_deltaNhat, P_deltaRhat
+                    % In the futire Args.DoDelta should go here...
+                    AD(Iai).subtractionD; 
+                    
+                    % Check quality of FnFr 
+                    % fraction of pixels above below zero
+                    % store results in the Info structure:
+                    [Info.SubAssymSigma(Iai), Info.SubNpixAbove0(Iai)] = AD(Iai).checkSubAssymetry('UseMex',Args.UseMex);
+                    
+                    if Info.SubAssymSigma>Args.ThresholdSubAssymSigma
+                        % possible problem with background subtraction or Fn/Fr
+                        % redo subtraction with some freedom in Fn/Fr                      
+                        RR=AD(Iai).subAsFunFn('UseNominalFr',true, RangeFr,(0.8:0.02:1.2))
+                        HERE:
+                    end
+
                     % Derive S stat image
+                    % Consider control the normalization (see dSdF)
                     AD(Iai).subtractionS;
+
                     if Args.DoGabor
                         % Derive Gabor stat image
                         AD(Iai).matchfilterGabor;
@@ -122,16 +141,12 @@ function [Result] = subtractionZOGY(AI, Args)
                         % Derive Z2 stat image
                         AD(Iai).translient;
                     end
-                    if Args.DoDelta
-                        % score for delta functions
-                        HERE:
-                    end
+                    
                     if Args.DoDSDF
                         % dS/dF
-                        HERE:
                         % Be careful dS/dF is not normalized like S!
                         % require normalization...
-                        HERE: check sign of median - maybe can be used to refine Fn/Fr?
+                        AD(Iai).DSDF;
                     end
     
                     if Args.FindTransients
@@ -142,8 +157,55 @@ function [Result] = subtractionZOGY(AI, Args)
                         % Match with external sources
                         % Extranla catalogs, galaxies, stars, asteroids,...
                         HERE:
-                        imProc.match.match2Galaxies(AD(Iai));
-                        imProc.match.match2Stars(AD, StarCat); % consider supply StarCat from Args...
+                        % require re-writing
+                        imProc.match.match2Galaxies(AD(Iai)); % will be moved to obsolete
+                        imProc.match.match2Stars(AD(Iai), StarCat); % will be moved to obsolete
+                        % consider supply StarCat from Args...
+
+
+                        %for stars:
+                        Args.CatStars = 'GAIADR3';
+                        Args.CatStarsRadius = 2;
+                        imProc.match.match_catsHTM(AD(Iai), Args.CatStars,...
+                                                   'CooUnits','deg',...
+                                                   'RadiusUnits','arcsec',...
+                                                   'Radius',Args.CatStarsRadius,...
+                                                   'AddColDist',
+                                                   'ColDistName',
+                                                   'AddColNmatch'
+                                                   'ColNmatchName'
+
+
+                        %            'AddColDist' - Default is true.
+    %            'ColDistPos' - Default is Inf.
+    %            'ColDistName' - Default is 'Dist'.
+    %            'ColDistUnits' - Default is 'arcsec'.
+    %            'AddColNmatch' - Default is true.
+    %            'ColNmatchPos' - Default is Inf.
+    %            'ColNmatchName' - Default is 'Nmatch'.
+
+                       
+ Args.Coo                 = [];
+        Args.CooUnits            = 'deg';
+        Args.Radius              = 3;
+        Args.RadiusUnits         = 'arcsec';
+        Args.CatRadius           = [];
+        Args.CatRadiusUnits      = 'arcsec';
+        Args.Con                 = {};
+        Args.catsHTMisRef        = false;
+        
+        Args.AddColDist logical   = true;
+        Args.ColDistPos           = Inf;
+        Args.ColDistName          = 'Dist';
+        Args.ColDistUnits         = 'arcsec';
+        Args.AddColNmatch logical = true;
+        Args.ColNmatchPos         = Inf;
+        Args.ColNmatchName        = 'Nmatch';
+        Args.CreateNewObj logical = false;
+
+
+
+
                     end
                     
         

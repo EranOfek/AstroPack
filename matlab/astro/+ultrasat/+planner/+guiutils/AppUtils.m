@@ -12,7 +12,7 @@ classdef AppUtils < handle
     
     properties
         MainModule              % Handle of MainModule instance
-        App
+        App                     % Reference to PlannerMain
     end
 
 
@@ -29,10 +29,7 @@ classdef AppUtils < handle
             % Write message to log, @Todo - Console / LogFile
             fprintf('%s\n', msg);
         end
-    end
 
-
-    methods
 
         function msgOk(obj, Msg, Title)
             if nargin < 3
