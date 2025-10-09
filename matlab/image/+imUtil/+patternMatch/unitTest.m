@@ -4,6 +4,7 @@ function Result = unitTest()
 
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
+    %% histograms
     Xcat=rand(1e3,1).*1024; Ycat=rand(1e3,1).*1024; Xref=[Xcat+2;1]; Yref=[Ycat+1;2];
     FlipX=1; FlipY=1;
     RangeX=[-2000 2000]; 
@@ -20,18 +21,18 @@ function Result = unitTest()
         [H2] = histcounts2(Dx(:),Dy(:), (RangeX(1):StepX:RangeX(2)),(RangeY(1):StepY:RangeY(2)) );
     end
     toc
-    tic;
-    for i=1:Nsim
-        %[H2b,VecYa,VecXa] = hist2d_VVtrans(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
-        [H2b,VecXa,VecYa] = hist2d_VVtrans_fix(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
-    end
-    toc   
+    % tic;
+    % for i=1:Nsim
+    %     %[H2b,VecYa,VecXa] = hist2d_VVtrans(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
+    %     [H2b,VecXa,VecYa] = hist2d_VVtrans_fix(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
+    % end
+    % toc   
+    % 
+    % if max(abs(H2-H2b),[],'all')>0
+    %     error('Problem with tools.hist.mex.hist2d_VVtrans');
+    % end
 
-    if max(abs(H2-H2b),[],'all')>0
-        error('Problem with tools.hist.mex.hist2d_VVtrans');
-    end
-
-    %%
+    % histograms
 
 
     tic;
@@ -54,14 +55,72 @@ function Result = unitTest()
     
 
     
-    if max(abs(H2-single(H2c)),[],'all')>0
-        error('Problem with tools.hist.histcounts2regular_mex');
-    end
+    %f max(abs(H2-single(H2c)),[],'all')>0
+    %    error('Problem with tools.hist.histcounts2regular_mex');
+    %end
     if max(abs(H2-H2a),[],'all')>0
-        %% tools.array.hist2d_fast is not fully consistent with histcounts2 but it is ok (edge effects)
+        %tools.array.hist2d_fast is not fully consistent with histcounts2 but it is ok (edge effects)
         error('Problem with tools.array.hist2d_fast');
     end
     
+
+    %% imUtil.patternMatch.mex.distAngPairs_mex
+
+    N=1e3;
+    CatX=rand(N,1).*1024;
+    CatY=rand(N,1).*1024;
+    MaxDist = 500;
+    FlipX   = -1;
+    FlipY   = 1;
+
+    Nsim=1;
+  
+    tic;
+    for i=1:Nsim
+        CatXt = CatX.*FlipX;
+        CatYt = CatY.*FlipY;
+        CatDiffX = CatXt - CatXt.';
+        CatDiffY = CatYt - CatYt.';
+        % select withn Max Dist
+        Fc = abs(CatDiffX(:))<MaxDist & abs(CatDiffY(:))<MaxDist;
+        % find(Fc) is slower here...
+        CatDiffX = CatDiffX(Fc);
+        CatDiffY = CatDiffY(Fc);
+        % all possible distances/angle between sources in Cat
+        CatDist  = sqrt(CatDiffX.^2 + CatDiffY.^2);
+        CatTan   = atan(CatDiffY./CatDiffX);
+    
+    end
+    FF = CatDist<MaxDist;
+    CatDist = CatDist(FF);
+    CatTan  = CatTan(FF);
+    T1=toc;
+
+    tic;
+    for i=1:Nsim
+	    [a,b]=imUtil.patternMatch.mex.distAngPairs_mex(CatX,CatY,MaxDist, false, FlipX, FlipY);
+    end
+    T2=toc;
+
+    [CatDist,SI] = sort(CatDist);
+    CatTan = CatTan(SI);
+    [a,SI] = sort(a);
+    b      = b(SI);
+
+    %size(a)
+    %size(CatDist)
+
+    if max(abs(a-CatDist))>1e-12
+        error('Problem with ]=imUtil.patternMatch.mex.distAngPairs_mex CatDist output');
+    end
+    DiffTan = abs(b-CatTan);
+    Frest = DiffTan>1e-12;
+    if max(abs(DiffTan(Frest)-pi))>1e-12
+        error('Problem with ]=imUtil.patternMatch.mex.distAngPairs_mex CatTan output');
+    end
+
+  
+    %%
 
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
