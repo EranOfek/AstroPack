@@ -48,7 +48,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                        candidate in which to search for comets in New
                        and Ref images. Given in arcsec. Default is 90.
                 'GeoPos' - Geodetic position of the observer (on
-                       Earth). [Lon (rad), Lat (rad), Height (m)].
+                       Earth). [Lon (deg), Lat (deg), Height (m)].
                        If empty, then calculate geocentric
                        positions. Default is [35.05 30.04 415].
     Output  : - AstroDiff objects holding all products and results derived 
