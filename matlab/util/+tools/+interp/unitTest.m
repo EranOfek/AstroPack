@@ -61,7 +61,33 @@ function Result = unitTest()
     end
 
 
+    %% tools.interp.interp_diff
 
+    Deg=4;
+    X=(5:0.4:500).';
+    Fun = @(x) 0.1.*x.^1.7 + 0.2.*x.^-0.9;
+    Y= Fun(X);
+    Xp = rand(1e4,1).*300+10;
+
+    Yi = tools.interp.interp_diff(X,Y,Xp, Deg);
+
+    Yexact = Fun(Xp);
+
+    %max(abs(Yi-Yexact))
+    if max(abs(Yi-Yexact))>1e-7
+        max(abs(Yi-Yexact))
+        error('Problem with tools.interp.interp_diff')
+    end
+
+    % speed compared to old/obsolete version:
+    %tic;
+    %for i=1:1e3
+    %    %Yi = tools.interp.obsolete.interp_diff(X,Y,Xp, Deg);
+    %    Yi = tools.interp.interp_diff(X,Y,Xp, Deg);
+    %end
+    %toc
+
+    %%
 
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
