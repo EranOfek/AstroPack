@@ -38,7 +38,7 @@ classdef AstroZOGY < AstroDiff
         S_delta   % S for delta function response
         S_ext     % S for extended PSF response
         
-        DSDFn
+        DSDF
         %DScorrDF
 
         D_den_hat
@@ -256,18 +256,18 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function Val=get.DSDFn(Obj)
+        function Val=get.DSDF(Obj)
             % getter for dS/dFn (for Fn=1)
 
-            if isempty(Obj.DSDFn)
+            if isempty(Obj.DSDF)
                 % DSDF is not available - calculate
-                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
+                Obj.DSDF = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
                     Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, ...
                     Obj.Fr, 'IsOutFFT',false);
             else
                 % DSDF is already available - use as is
             end
-            Val = Obj.DSDFn;
+            Val = Obj.DSDF;
         end
 
     
