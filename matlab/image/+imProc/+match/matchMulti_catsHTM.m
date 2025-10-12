@@ -43,6 +43,18 @@ function [ResInd, CatH] = matchMulti_catsHTM(Obj, CatName, Args)
     %                   Default is true.
     %            'SortCol' - If catalog is not sorted then sort by this
     %                   catalog. Default is 'Dec'.
+    %            'ApplyPM' - Apply proper motion to the catalog.
+    %                   Relevant for GAIA catalog.
+    %                   Default is false.
+    %            'RefEpoch' - Julian year of the epoch of the reference
+    %                   catalog, or the column name containing the epoch.
+    %                   Default is 'Epoch'.
+    %            'Epoch' - Epoch of input catalog. If empty, will try to
+    %                   read it. Default is [].
+    %            'ApplyPlx' - Apply parallax (If ApplyPM=true).
+    %                   Default is false.
+    %            'KeyJD' - Header key JD (if known; e.g., 'MIDJD').
+    %                   Default is [] (will calculate).
     % Output : - The input catalog with added columns for the nearest match
     %            in the catsHTM catalog.
     %          - Select lines only from the input catalog. Only sources
@@ -65,18 +77,24 @@ function [ResInd, CatH] = matchMulti_catsHTM(Obj, CatName, Args)
         Args.Con                 = {};
         Args.catsHTMisRef        = false;
         
-        Args.AddColDist logical   = true;
-        Args.ColDistPos           = Inf;
-        Args.ColDistName          = 'Dist';
-        Args.ColDistUnits         = 'arcsec';
-        Args.AddColNmatch logical = true;
-        Args.ColNmatchPos         = Inf;
-        Args.ColNmatchName        = 'Nmatch';
+        % Args.AddColDist logical   = true;
+        % Args.ColDistPos           = Inf;
+        % Args.ColDistName          = 'Dist';
+        % Args.ColDistUnits         = 'arcsec';
+        % Args.AddColNmatch logical = true;
+        % Args.ColNmatchPos         = Inf;
+        % Args.ColNmatchName        = 'Nmatch';
         Args.CreateNewObj logical = false;
 
 
         Args.CheckIsSorted  = true;
         Args.SortCol        = 'Dec';
+
+        Args.ApplyPM        = false;
+        Args.RefEpoch       = 'Epoch'; %2016;  % for GAIA-DR3, or column name - e.g., 'Epoch'.
+        Args.Epoch          = [];
+        Args.ApplyPlx       = false;
+        Args.KeyJD          = [];  
 
     end
 
@@ -128,13 +146,36 @@ function [ResInd, CatH] = matchMulti_catsHTM(Obj, CatName, Args)
         Icoo = 1;
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
+        % apply proper motion
+        if Args.ApplyPM
+            if isnumeric(Args.RefEpoch)
+                RefEpoch = Args.RefEpoch;
+            else
+                Tmp=CatH(Iobj).getCol(Args.RefEpoch);
+                RefEpoch = Tmp(1);
+            end
+            if isempty(Args.Epoch)
+                % attempt to get the catalog epoch
+                if isempty(Cat.JD)
+                    % get from AstroImage
+                    Epoch = convert.time(Obj(Iobj).julday('KeyJD',Args.KeyJD), 'JD', 'J');
+                else
+                    Epoch = convert.time(Cat.JD, 'JD', 'J');
+                end
+            else
+                Epoch = Args.Epoch;
+            end
+
+            CatH(Iobj) = imProc.cat.applyProperMotion(CatH(Iobj), RefEpoch, Epoch,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',Args.ApplyPlx);
+        end
+
         if Args.catsHTMisRef
-            ResInd(Iobj).Ind = imProc.match.matchReturnIndicesMulti(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndicesMulti(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd(Iobj).Ind = imProc.match.matchReturnIndicesMulti(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndicesMulti(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         end
