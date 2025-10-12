@@ -1,5 +1,5 @@
 function [All, PerCam] = pointingRMS(Args)
-    % Estimate the pointing accuracy of LAST
+    % Estimate the pointing accuracy of LAST using information in the DB.
     % Input  : * ...,key,val,... 
     %            See code for options.
     % Output : - A table with the median std, airmass, etc, per each
