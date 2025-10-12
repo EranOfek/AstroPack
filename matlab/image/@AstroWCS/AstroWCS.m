@@ -1669,6 +1669,8 @@ classdef AstroWCS < Component
                     PV = AstroWCS.build_TANSIP_from_Header(Header);
                 case 'zpn'
                     error('Need to add ZPN - TODO');
+                 case 'ait'
+                    error('Need to add Hammer-Aitoff - TODO');
                 otherwise
                     error('Unsupported projection type (%s)',ProjType);
              end

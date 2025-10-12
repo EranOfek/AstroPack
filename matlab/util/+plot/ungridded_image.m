@@ -6,6 +6,7 @@ function [Xlin, Ylin, Zgr] = ungridded_image(X, Y, Z, Args)
     %         * ...,key,val,... 
     %        'NGridX' -- number of points in a regular grid in X
     %        'NGridY' -- number of points in a regular grid in Y
+    %        'ZLog'   -- log scale in the Z as function of X, Y
     % Output: - a color plot of Z(X,Y) as an image
     % Author: A.M. Krassilchtchikov (Jan 2024)
     % Example: X = rand(100,1); Y = rand(100,1); Z = X.*(1-Y);
@@ -16,6 +17,7 @@ function [Xlin, Ylin, Zgr] = ungridded_image(X, Y, Z, Args)
         Z
         Args.NGridX = 1000;
         Args.NGridY = 1000;
+        Args.ZLog   = false;
     end
 
     Xlin = linspace(min(X),max(X),Args.NGridX);
@@ -24,5 +26,8 @@ function [Xlin, Ylin, Zgr] = ungridded_image(X, Y, Z, Args)
     Zgr  = griddata(X, Y, Z, Xgr, Ygr);
     imagesc(Xlin, Ylin, Zgr); colorbar
     set(gca,'YDir','normal');
+    if Args.ZLog
+        set(gca,'ColorScale','log');
+    end
        
 end
