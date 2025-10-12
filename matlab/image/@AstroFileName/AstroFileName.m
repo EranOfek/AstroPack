@@ -2033,7 +2033,7 @@ classdef AstroFileName < Component
         end
 
 
-        function [Result, Path, File] = genFullPath(AFN_I, Args)
+        function [Result, Path, File, AFN] = genFullPath(AFN_I, Args)
             % Generate path+file name for all scenarios.
             % Input  : - self.
             %          * ...,key,val,... 
@@ -2076,6 +2076,7 @@ classdef AstroFileName < Component
             % Output : - A string array of full paths.
             %          - A string array of paths.
             %          - A string array of file names.
+            %          - An updated AstroFileName object.
             % Author : Eran Ofek (2025 Sep) 
             % Example: [Full,Path,File]=FN_I.genFullPath('PathType','proc','Level','proc','BasePath','/marvin','Product','PSF');
             %          [Full,Path,File]=FN_I.genFullPath('PathType','failed');

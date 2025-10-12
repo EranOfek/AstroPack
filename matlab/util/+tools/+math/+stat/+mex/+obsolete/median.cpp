@@ -201,66 +201,52 @@ void median_dim_as_last(const T* in, T* out, const mwSize* dims, mwSize nd, mwSi
 // ===== MEX entry =====
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
-    if (nrhs < 1)
+    if (nrhs < 2)
         mexErrMsgIdAndTxt("median_mixdim_mex:usage",
-            "Usage: M = median_mixdim_mex(A [, Dim] [, 'omitnan'|'includenan'])");
+            "Usage: M = median_mixdim_mex(A, Dim [, 'omitnan'|'includenan'])");
 
     const mxArray* A = prhs[0];
     if (!(mxIsDouble(A) || mxIsSingle(A)))
         mexErrMsgIdAndTxt("median_mixdim_mex:type","A must be single or double.");
 
-    // Defaults
-    mwSize dim0_based = 0;            // default Dim = 1 -> 0-based = 0
-    NanMode mode = INCLUDENAN;        // <-- default per your request
+    if (!mxIsDouble(prhs[1]) || mxIsComplex(prhs[1]))
+        mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim must be a real scalar.");
 
-    // Parse optional arguments:
-    if (nrhs >= 2) {
-        if (mxIsChar(prhs[1])) {
-            // Only mode provided: median_mixdim_mex(A, 'omitnan'|'includenan')
-            char opt[32]; mxGetString(prhs[1], opt, sizeof(opt));
-            if      (!std::strcmp(opt,"omitnan"))    mode = OMITNAN;
-            else if (!std::strcmp(opt,"includenan")) mode = INCLUDENAN;
-            else mexErrMsgIdAndTxt("median_mixdim_mex:arg","Use 'omitnan' or 'includenan'.");
-        } else {
-            // Dim provided (and maybe mode as 3rd arg)
-            if (!mxIsDouble(prhs[1]) || mxIsComplex(prhs[1]))
-                mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim must be a real scalar.");
-            mwSize dim = (mwSize)mxGetScalar(prhs[1]);
-            if (dim < 1) mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim must be >= 1.");
-            dim0_based = dim - 1;
+    mwSize dim = (mwSize)mxGetScalar(prhs[1]);
+    if (dim < 1) mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim must be >= 1.");
+    dim -= 1; // convert to 0-based
 
-            if (nrhs >= 3) {
-                if (!mxIsChar(prhs[2])) mexErrMsgIdAndTxt("median_mixdim_mex:arg","Third argument must be a string.");
-                char opt[32]; mxGetString(prhs[2], opt, sizeof(opt));
-                if      (!std::strcmp(opt,"omitnan"))    mode = OMITNAN;
-                else if (!std::strcmp(opt,"includenan")) mode = INCLUDENAN;
-                else mexErrMsgIdAndTxt("median_mixdim_mex:arg","Use 'omitnan' or 'includenan'.");
-            }
-        }
+    NanMode mode = INCLUDENAN; // <-- default per your request
+    if (nrhs >= 3) {
+        if (!mxIsChar(prhs[2])) mexErrMsgIdAndTxt("median_mixdim_mex:arg","Third argument must be a string.");
+        char opt[32]; mxGetString(prhs[2], opt, sizeof(opt));
+        if      (!std::strcmp(opt,"omitnan"))    mode = OMITNAN;
+        else if (!std::strcmp(opt,"includenan")) mode = INCLUDENAN;
+        else mexErrMsgIdAndTxt("median_mixdim_mex:arg","Use 'omitnan' or 'includenan'.");
     }
 
     const mwSize nd = mxGetNumberOfDimensions(A);
     const mwSize* dims = mxGetDimensions(A);
-    if (dim0_based >= nd) mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim exceeds ndims(A).");
+    if (dim >= nd) mexErrMsgIdAndTxt("median_mixdim_mex:dim","Dim exceeds ndims(A).");
 
     // Output dims: same as input, but size(Dim)=1
     std::vector<mwSize> outDims(dims, dims+nd);
-    outDims[dim0_based] = 1;
+    outDims[dim] = 1;
 
     if (mxIsDouble(A)) {
         const double* in = mxGetPr(A);
         plhs[0] = mxCreateNumericArray(nd, outDims.data(), mxDOUBLE_CLASS, mxREAL);
         double* out = mxGetPr(plhs[0]);
 
-        if (dim0_based == 0) median_dim1(in, out, dims, nd, mode);
-        else                 median_dim_as_last(in, out, dims, nd, dim0_based, mode);
+        if (dim == 0) median_dim1(in, out, dims, nd, mode);
+        else          median_dim_as_last(in, out, dims, nd, dim, mode);
 
     } else { // single
         const float* in  = reinterpret_cast<const float*>(mxGetData(A));
         plhs[0] = mxCreateNumericArray(nd, outDims.data(), mxSINGLE_CLASS, mxREAL);
         float* out = reinterpret_cast<float*>(mxGetData(plhs[0]));
 
-        if (dim0_based == 0) median_dim1(in, out, dims, nd, mode);
-        else                 median_dim_as_last(in, out, dims, nd, dim0_based, mode);
+        if (dim == 0) median_dim1(in, out, dims, nd, mode);
+        else          median_dim_as_last(in, out, dims, nd, dim, mode);
     }
 }
