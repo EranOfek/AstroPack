@@ -3,6 +3,8 @@ function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
     % Input  : - Mount number
     %          - Camera number
     %          - Date [Day, Month, Year]
+    %          - FieldID
+    %          - CropID
     %          * ...,key,val,... 
     %            'Visit' - If empty, do not add visit to path.
     %                   Default is [].

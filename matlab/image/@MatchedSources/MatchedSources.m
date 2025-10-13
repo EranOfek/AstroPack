@@ -2565,7 +2565,7 @@ classdef MatchedSources < Component
                     JD = (1:1:Obj.Nepoch).';
                 end
                 JD = JD(:);
-                for If=1:1:Nfields
+                for If=1:1:Nfields+1
                     if Args.SameEpochBlock
                         % write blocks of the same epoch followed by next
                         % epoch

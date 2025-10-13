@@ -403,7 +403,7 @@ function [Result] = forcedPhot(Obj, Args)
                 case 'table'
                     Nsrc = numel(RA);
                     if Iobj==1
-
+                        % {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS','SN'}; 
                         Mat = table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1));
 
                         %[RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
