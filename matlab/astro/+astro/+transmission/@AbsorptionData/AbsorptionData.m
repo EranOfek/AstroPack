@@ -32,7 +32,7 @@ classdef AbsorptionData < handle
                 Args.Verbose = false;
             end
 
-            obj.DataPath = '~/matlab/data/transmission_fitter/'; % fullfile('+astro', 'Data', 'Absorption');  % Fixed location
+            obj.DataPath = '~/matlab/data/spec/Atmosphere/Transmission/'; % fullfile('+astro', 'Data', 'Absorption');  % Fixed location
             obj.Verbose = Args.Verbose;
             obj.InterpCache = containers.Map();
             obj.RawData = struct();
