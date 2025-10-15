@@ -87,6 +87,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.CropIDs = [];
 
         Args.FilterConfigFile = '';
+
+        Args.PixScale = 1.25;
     end
 
     % 1: ----- Set default arguments -----
@@ -369,7 +371,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Derive Z2 stat image
     AD.translient;
 
-    % 7: ----- Find and process transients -----
+    % 8: ----- Find and process transients -----
     
     % Find transients
     AD.findTransients;
@@ -406,7 +408,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % Get the distance from the visit center to the farthest sub-image and 
     % add the width of a sub-image to cover all sub-images
-    SubImageWidth = 1726*1.25*Arcsec2Rad;
+
+    SubImageWidth = AD(1).sizeImage*Args.PixScale*Arcsec2Rad;
     MaxDistRad = max(celestial.coo.sphere_dist(...
         C_RA, C_Dec, C_RA_med, C_Dec_med, 'rad'), [], 'all');
     MaxDistRad = MaxDistRad + SubImageWidth;
@@ -723,7 +726,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
     end
     
-    % 8: ----- Create output products -----
+    % 9: ----- Create output products -----
 
     % Create a merged catalog, holding all candidates in the individual AD
     % catalogs. Generally this will be a visit catalog when used in the
@@ -859,7 +862,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     end
     
-    % 9: ----- Save to-disk products -----
+    % 10: ----- Save to-disk products -----
     
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
