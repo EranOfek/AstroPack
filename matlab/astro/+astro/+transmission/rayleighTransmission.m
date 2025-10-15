@@ -1,61 +1,58 @@
-function Transm = rayleighTransmission(Lam, ModelPar, Args)
-% function Transm = rayleighTransmission(ZenithAngle_deg, Pressure_mbar, Lam, WaveUnits, Args)
-    % Calculates Rayleigh transmission, returns cashed result if the inputs
-    % did not change since last call. Part of the Transmission package for absolute photometric calibration.  
-    % Input:  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] (optional if cached)
-    %         - pressure_mbar (double): Atmospheric pressure in mbar (default: 965, optional if cached)
-    %         - Lam (double array): Wavelength array in nm (optional if cached)
-    % Output: - Transm (double array): Transmission values (0-1)
-    % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
-    % Author: D. Kovaleva (Sep 2025)
-    % Example: Transm = astro.transmission.rayleighTransmission(55.18, 1013.25);
-    %          % Later calls with the same arguments
-    %          % return output without calculation
-    %          Transm = astro.transmission.rayleighTransmission(55.18, 1013.25);    
+function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
+    % Rayleigh transmission of the Earth atmosphere 
+    % Input  : - Lambda (double array): Wavelength array in nm.
+    %          - ParamMatrix (double matrix): Parameter matrix where each row is
+    %            [ZenithAngle_deg, Pressure_mbar]. 
+    %          * ...,key,val,...
+    %            'Return' - Pre-computed results for caching. Default is [].
+    % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets).
+    % Author : D. Kovaleva (Oct 2025)
+    % Example: Lambda = linspace(300, 1100, 401)';
+    %          ParamMatrix = [45, 1013; 60, 950; 30, 1020];
+    %          Result = astro.transmission.rayleighTransmission(Lambda, ParamMatrix);
+
     arguments
-        % ZenithAngle_deg = 30
-        % Pressure_mbar = 965
-        % WaveUnits = 'nm'
-        Lam = linspace(300, 1100, 401);
-        ModelPar    = {{'ZenithAngle_deg',30},{'Pressure_mbar',965},{'WaveUnits','nm'}}; 
-        Args.Result = [];        
+        Lambda      = linspace(300, 1100, 401)
+        ParamMatrix = [30, 965]               % [ZenithAngle_deg, Pressure_mbar]  
+        Args.AbsorptionData = []
+        Args.Return = []
     end
 
-    persistent cachedTransm cachedZenith cachedPressure cachedLam
+    % Check for pre-computed results (external cache)
+    if ~isempty(Args.Return)
+        Result = Args.Return;
+        return;
+    end
 
-    if isempty(Args.Result) 
+    % Validate input dimensions
+    if size(ParamMatrix, 2) ~= 2
+        error('ParamMatrix must have 2 columns: [ZenithAngle_deg, Pressure_mbar]');
+    end
 
-        ZenithAngle_deg = ModelPar{cellfun(@(c) strcmp(c{1}, 'ZenithAngle_deg'), ModelPar)}{2};
-        Pressure_mbar   = ModelPar{cellfun(@(c) strcmp(c{1}, 'Pressure_mbar'), ModelPar)}{2};
-        WaveUnits       = ModelPar{cellfun(@(c) strcmp(c{1}, 'WaveUnits'), ModelPar)}{2};
-      
-        % Validate zenith angle
-        if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
-            error('Zenith angle out of range [0, 90] deg');
-        end
-        
-        % Check if we can use cached data (same inputs)
-        if ~isempty(cachedTransm) && isequal(ZenithAngle_deg, cachedZenith) && ...
-                isequal(Pressure_mbar, cachedPressure) && isequal(Lam, cachedLam)
-            Transm = cachedTransm;
-            return;
-        end
-        
-        Am_ = astro.transmission.airmassSMARTS(ZenithAngle_deg).rayleigh;
-        
-        % Calculate Rayleigh optical depth using AstroPack function
-        % rayleighScatering
-        Tau_rayleigh = astro.atmosphere.rayleighScattering(Lam, Pressure_mbar, WaveUnits);
-        
+    % Extract parameters
+    ZenithAngles = ParamMatrix(:, 1);  % Column vector
+    Pressure = ParamMatrix(:, 2);      % Column vector
+    NumParamSets = size(ParamMatrix, 1);
+    NumWavelengths = length(Lambda);
+
+    % Validate zenith angles
+    if any(ZenithAngles > 90 | ZenithAngles < 0)
+        error('Zenith angles out of range [0, 90] degrees');
+    end
+
+    % Initialize result matrix
+    Result = zeros(NumWavelengths, NumParamSets);
+
+    % Calculate transmission for each parameter set
+    for i = 1:NumParamSets
+        % Calculate airmass for Rayleigh scattering
+        Airmasses = astro.transmission.airmassSMARTS(ZenithAngles(i));
+        Am_rayleigh = Airmasses.rayleigh;
+
+        % Calculate Rayleigh optical depth using AstroPack rayleighScattering
+        TauRayleigh = astro.atmosphere.rayleighScattering(Lambda, Pressure(i), 'nm');
+
         % Calculate transmission
-        Transm = exp(-Am_ .* Tau_rayleigh);
-        
-        % Cache the results
-        cachedTransm = Transm;
-        cachedZenith = ZenithAngle_deg;
-        cachedPressure = Pressure_mbar;
-        cachedLam = Lam;
-    else
-        Transm = Args.Result;
+        Result(:, i) = exp(-Am_rayleigh .* TauRayleigh);
     end
 end
