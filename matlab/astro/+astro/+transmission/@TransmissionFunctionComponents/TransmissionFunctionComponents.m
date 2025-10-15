@@ -3,8 +3,12 @@ classdef TransmissionFunctionComponents < handle
     % This class provides a unified interface for computing transmission
     % using multiple components (ozone, aerosol, Rayleigh, water vapor, etc.).
     % Usage:
+    %   Lambda = linspace(300, 1100, 401)';
     %   Model = astro.transmission.TransmissionFunctionComponents();
     %   Model.addComponent(@astro.transmission.ozoneTransmission);  % Use all defaults
+    %   Model.addComponent(@astro.transmission.aerosolTransmission); 
+    %   Trans = Model.evaluate(Lambda, []);
+       
     %   Model.addComponent(@astro.transmission.aerosolTransmission, 'TauAod500', NaN);  % Override specific param
     %   Trans = Model.evaluate(Lambda, FittedParameters);
     %   Model.getOptimizationInfo();
