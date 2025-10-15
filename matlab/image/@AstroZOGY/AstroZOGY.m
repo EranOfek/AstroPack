@@ -703,6 +703,7 @@ classdef AstroZOGY < AstroDiff
                 end
                 
                 % Normalize to flux units (according to Fn, Fr)
+                % ZOGY: Eq. 14 (division by Fd)
                 if Args.NormDbyFd
                     D = D./Obj(Iobj).Fd;
                     Obj(Iobj).ZpD = Obj(Iobj).ZpN;
@@ -851,31 +852,40 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Obj(Iobj).S = imUtil.filter.filter2_fast(...
-                    Obj(Iobj).Image, Obj(Iobj).PSF);
+                % ZOGY Eq 16:
+                Obj(Iobj).S = imUtil.filter.filter2_fast(Obj(Iobj).Image, Obj(Iobj).PSF);
+                %Obj(Iobj).S = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, Obj(Iobj).PSF);  % issue #741
+               
                 
                 if Args.PopS_delta
-                    DeltaPSF = imUtil.kernel2.gauss(...
-                        Args.DeltaWidth, Args.DeltaStampSize);
-                    Obj(Iobj).S_delta = imUtil.filter.filter2_fast(...
-                        Obj(Iobj).Image, DeltaPSF);
+                    DeltaPSF = imUtil.kernel2.gauss(Args.DeltaWidth, Args.DeltaStampSize);
+                    
+                    Obj(Iobj).S_delta = imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaPSF);
+                    %Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaPSF); % issue #741
                 end
 
                 if Args.PopS_ext
+                    % likely faster to do it in real space
                     PSF         = Obj(Iobj).PSFData.getPSF;
                     ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
                     ExtPSF      = conv2(PSF, ExtendedFun, 'same');
                     FullExtPSF  = imUtil.psf.padShift(ExtPSF, size(Obj(Iobj).Image));
                     
+                    
                     Obj(Iobj).S_ext = ifft2(Obj(Iobj).D_hat.*conj(fft2(FullExtPSF)));
+                    %Obj(Iobj).S_ext = Obj(Iobj).Fd .* ifft2(Obj(Iobj).D_hat.*conj(fft2(FullExtPSF))); % issue #741
                 end
 
                 if Args.PopS_hat
+                    
                     Obj(Iobj).S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                    %Obj(Iobj).S_hat = Obj(Iobj).Fd .* Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat); % issue #741
                 end
 
                 if Args.PopSflux
+                    
                     Obj(Iobj).Sflux = Obj(Iobj).S;
+                    %Obj(Iobj).Sflux = Obj(Iobj).S./Obj(Iobj).F_S;   % issue #741
                 end
 
                 if ~isempty(Args.NormMethod)
@@ -937,9 +947,9 @@ classdef AstroZOGY < AstroDiff
                 Obj(Iobj).ThresholdImage_IsSet = true;
 
                 Obj(Iobj).DSDF = imUtil.properSub.dSdF(Obj(Iobj).N_hat,...
-                   Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
-                   Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).Fr, ...
-                   'IsOutFFT', false);
+                                    Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
+                                    Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).Fr, ...
+                                    'IsOutFFT', false);
                 
                 % Normalize the same way S was if Sflux exists.
                 if Args.PopSflux
@@ -1035,6 +1045,11 @@ classdef AstroZOGY < AstroDiff
             %            'SigmaAstRef' - sigma of the single axis
             %                   astrometric noise of the Ref image [pix].
             %                   Default is 0.1.
+            %            'VarNormMethod' - FUnction handle by which to
+            %                   normalize Vtotal (=Vsrc + Vast).
+            %                   E.g., @median
+            %                   If empty, do not normalize.
+            %                   Default is [].
             %            'NormMethod' - Normalization method for Scorr.
             %                   Default is 'norm_robust'.
             %            'NormKnKr' - Normalize Kn and Kr to unity.
@@ -1063,9 +1078,13 @@ classdef AstroZOGY < AstroDiff
                 Args.RN_New      = 2.7;  % Read noise in electrons [single image]
                 Args.RN_Ref      = 2.7;  % Read noise in electrons [single image]
 
+                Args.SysNoiseN   = [];
+                Args.SysNoiseR   = [];
+
                 Args.SigmaAstNew = 0.1;   % astrometric noise in pixels.
                 Args.SigmaAstRef = 0.1;   % astrometric noise in pixels.
 
+                Args.VarNormMethod          = [];
                 Args.NormMethod             = 'norm_robust_rstd1';
 
                 Args.NormKnKr logical       = false;
@@ -1085,20 +1104,16 @@ classdef AstroZOGY < AstroDiff
 
                     if isnumeric(Args.ExpTimeNewArr{1})
                         ExpTimeNew = Args.ExpTimeNewArr{1};
-                    elseif Obj(Iobj).New.HeaderData.isKeyExist(...
-                            Args.ExpTimeNewArr{1})
-                        ExpTimeNew = Obj(Iobj).New.HeaderData.getVal(...
-                            Args.ExpTimeNewArr{1});
+                    elseif Obj(Iobj).New.HeaderData.isKeyExist(Args.ExpTimeNewArr{1})
+                        ExpTimeNew = Obj(Iobj).New.HeaderData.getVal(Args.ExpTimeNewArr{1});
                     else
                         ExpTimeNew = 0;
                     end
 
                     if isnumeric(Args.ExpTimeNewArr{2})
                         MExpTimeNew = Args.ExpTimeNewArr{2};
-                    elseif Obj(Iobj).New.HeaderData.isKeyExist(...
-                            Args.ExpTimeNewArr{2})
-                        MExpTimeNew = Obj(Iobj).New.HeaderData.getVal(...
-                            Args.ExpTimeNewArr{2});
+                    elseif Obj(Iobj).New.HeaderData.isKeyExist(Args.ExpTimeNewArr{2})
+                        MExpTimeNew = Obj(Iobj).New.HeaderData.getVal(Args.ExpTimeNewArr{2});
                     else
                         MExpTimeNew = 0;
                     end
@@ -1166,8 +1181,8 @@ classdef AstroZOGY < AstroDiff
                 RN_Ref = Args.RN_Ref;
 
                 [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, ...
-                    'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
-                    'OverwriteFrVal',Args.OverwriteFrVal);
+                                                           'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
+                                                           'OverwriteFrVal',Args.OverwriteFrVal);
 
                 % New and Ref should contain the images including
                 % background in units of electrons - i.e., the variance
@@ -1177,6 +1192,11 @@ classdef AstroZOGY < AstroDiff
                     % including background
                     VN = NcoaddNew.*(Obj(Iobj).New.Image + RN_New.^2);
                     VR = NcoaddRef.*(Obj(Iobj).Ref.Image + RN_Ref.^2);
+
+                    if ~isempty(Args.SysNoiseN) && ~isempty(Args.SysNoiseR)
+                        VN = VN + (Args.SysNoiseN.*VN).^2;
+                        VR = VR + (Args.SysNoiseR.*VR).^2;
+                    end
 
                     [Vsrc]      = abs(imUtil.properSub.sourceNoise(VN, VR, Kn, Kr));
                 else
@@ -1193,7 +1213,15 @@ classdef AstroZOGY < AstroDiff
                     error('Must use at least one of source noise or astrometric noise');
                 end
 
-                Obj(Iobj).Scorr = Obj(Iobj).Sflux./sqrt(Vsrc + Vast);
+
+                Vtotal = Vsrc + Vast;
+
+                if ~isempty(Args.VarNormMethod)
+                    % norm Vtotal
+                    Vtotal = Vtotal./Args.VarNormMethod(Vtotal(:));
+                end
+
+                Obj(Iobj).Scorr = Obj(Iobj).Sflux./sqrt(Vtotal);
                 
                 switch lower(Args.NormMethod(1:4))
                     case 'norm'
