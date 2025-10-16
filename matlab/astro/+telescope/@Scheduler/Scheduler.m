@@ -833,7 +833,7 @@ classdef Scheduler < Component
             %          - MaxHA1 [day]
             %          - Flag of bad targets (MaxHA1<MinHA1)
             % Author : Eran Ofek (Oct 2025)
-            % Example: 
+            % Example: [~,MinHA1,MaxH1,F]=S.setMinMaxHA1(40,2.5./24);
             
 
             arguments
