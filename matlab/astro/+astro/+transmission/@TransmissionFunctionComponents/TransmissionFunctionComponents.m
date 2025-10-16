@@ -444,7 +444,7 @@ classdef TransmissionFunctionComponents < handle
             %            'Verbose' - Display loading progress. Default is obj.Verbose.
             % Output : None.
             % Author : D. Kovaleva (Oct 2025)
-            % Example: Model.loadAbsorptionData('Verbose', true);
+            % Example: Model.loadAbsorptionData();
 
             arguments
                 obj
@@ -452,7 +452,7 @@ classdef TransmissionFunctionComponents < handle
             end
 
             if isempty(obj.SharedData)
-                obj.SharedData = astro.transmission.AbsorptionData('Verbose', Args.Verbose);
+                obj.SharedData = astro.transmission.loadAbsorptionInterpolants('Verbose', Args.Verbose);
             end
         end
 
