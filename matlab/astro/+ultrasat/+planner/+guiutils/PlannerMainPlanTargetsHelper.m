@@ -67,7 +67,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 % Editable fields
                 ParamsApp.ExposureTimeEditField.Value = seconds(Plan.ExpTime(Index));  % Numeric field
                 ParamsApp.EpochsPerVisitEditField.Value = Plan.Nexposures(Index);
-                app.MainModule.updateCheckboxesFromTiles(ParamsApp, Plan.Tiles(Index));
+                app.MainModule.GuiHelper.updateCheckboxesFromTiles(ParamsApp, Plan.Tiles(Index));
     
                 % String fields
                 ParamsApp.NameEditField.Value = Plan.Name(Index);

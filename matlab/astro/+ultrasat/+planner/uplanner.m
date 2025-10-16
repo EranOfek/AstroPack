@@ -104,6 +104,7 @@
 classdef uplanner < Component 
     % 
     properties(Access = public)
+        Pk                  int32 = 0;          % Primary key of the plan in database, 0 if not set yet
         Title               char                % Name of the object
         Type                char                % HCS, LCS, AllSS, DDT, TOO 
         StartTime           datetime            % start of the whole plan
@@ -1095,7 +1096,7 @@ classdef uplanner < Component
                 return;
             end
 
-            TargetsTable = struct2table(structPlan.targets);            
+            TargetsTable = struct2table(structPlan.targets, 'AsArray', true);            
             
             Obj.MissionApprovedPlan.RA(1:height(TargetsTable))  = 0; 
             Obj.MissionApprovedPlan.Name(1:height(TargetsTable))  = TargetsTable.name; 
