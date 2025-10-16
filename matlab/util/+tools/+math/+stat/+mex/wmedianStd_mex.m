@@ -7,6 +7,6 @@
 %            Default is 1.
 % Output : - Weighted median.
 %          - Weighted std.
-% Author : Eran Ofek (2025 Oct)
+% Author : ChatGPT + Eran Ofek (2025 Oct)
 % Compilation: mex -O -R2018a CXXFLAGS="\$CXXFLAGS -fopenmp -O3 -march=native" LDFLAGS="\$LDFLAGS -fopenmp" wmedianStd_mex.cpp
-% Example: [M]=tools.math.stat.mex.wmedian_mex(R,W)
+% Example: [M,S]=tools.math.stat.mex.wmedianStd_mex(R,W)

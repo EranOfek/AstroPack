@@ -100,7 +100,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         end
         
         % convert AstroImage to AstroCatalog: Obj1
-        if isa(Obj1,'AstroImage')
+        if isa(Obj1,'AstroImage') || isa(Obj1, 'AstroDiff') || isa(Obj1, 'AstroZOGY')
             Cat1 = Obj1(Iobj1).CatData;
         elseif isa(Obj1,'AstroCatalog')
             Cat1 = Obj1(Iobj1);

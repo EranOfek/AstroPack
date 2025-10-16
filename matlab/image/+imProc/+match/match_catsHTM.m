@@ -72,7 +72,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     end
 
     % convert AstroImage to AstroCatalog
-    if isa(Obj,'AstroImage')
+    if isa(Obj,'AstroImage') || isa(Obj, 'AstroDiff') || isa(Obj, 'AstroZOGY')
         Result = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
     elseif isa(Obj,'AstroCatalog')
         % do nothing

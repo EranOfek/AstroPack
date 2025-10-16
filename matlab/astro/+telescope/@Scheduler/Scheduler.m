@@ -13,7 +13,7 @@
 %   % some getters
 %   S.RA
 %   S.Dec
-%   S.TotalExpTime
+%   S.TotalExpTimei
 %   S.LST
 %   S.Alt
 %   S.EclLon
@@ -43,6 +43,11 @@
 %
 %   % simulations
 %   S.simulate
+%
+%   % collect all visible fields during some night:
+%   JD = 2451545; FracDay=(0.01:0.01:1); Nfd= numel(FracDay);
+%   Flag=false(1784,1);for Ifd=1:Nfd, Fnow=S.isVisible(JD+FracDay(Ifd)); Flag=Flag | Fnow; end
+
 
 
 

@@ -32,7 +32,18 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %                   to fit the 2nd order polynomial. If false, then use
     %                   polyfit.
     %                   Default is true.
+    %            'RN2' - ReadNoise^2 of image. Will be used only if
+    %                   variance estimation failed.
+    %                   Default is 12.
+    %            'CalclPoissVar' - A logical indicating if to calculate the
+    %                   variance assuming pure Poisson noise + ReadNoise^2.
+    %                   Default is false.
+    %            'VarSqrtFactor' - If variance is estimated assuming
+    %                   Poisson noise + Readnoise^2, then this factor multiply the
+    %                   final variance. Default is 1.05;
+    %
     %            See code for additional arguments (use with care).
+    %
     % Output : - Estimated mode.
     %          - Estimated variance.
     % Author : Eran Ofek (2023 Dec) 
@@ -58,7 +69,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
         Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration
         
-        Args.VarSqrtFactor             = 1.2;   % if Var/Mode is failed - estimate Var from Mode0*VarSqrtFactor
+        Args.VarSqrtFactor             = 1.05;   % if Var/Mode is failed - estimate Var from Mode0*VarSqrtFactor
+        Args.RN2                       = 12;     % RN variance (RN^2)
+        Args.CalclPoissVar             = false;
     end
     
     %OrigArray = Array;
@@ -156,11 +169,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     end
     Mode  = Mode0 - Par(2)./(2.*Par(1));
     Var = -0.5./Par(1);
-    if Var<0
+    if Var<0 || Args.CalclPoissVar
         % use Mode from hsitogram
         Mode = Mode0;
         % For variance, assume Poisson noise
-        Var  = Mode.*Args.VarSqrtFactor;
+        Var  = (Mode + Args.RN2).*Args.VarSqrtFactor;
 
         %error('Unable to find Var (Var is negative) - need to debug: Mode=%f   Var=%f',Mode,Var);
     end

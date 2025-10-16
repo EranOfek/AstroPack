@@ -233,7 +233,7 @@ classdef VisitVariability < Component
             %          DB=db.Db; DB.User='euclid/root', DB.connect; DB.useDB('last'); DB.showTables
             %          VV=pipeline.last.pipes.VisitVariability;
             %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460872 2460873])
-            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460931 2460932])
+            %          VV.analayzeAllData('DB',DB,'IngestionTime',[2460961 2460962])
 
 
             arguments

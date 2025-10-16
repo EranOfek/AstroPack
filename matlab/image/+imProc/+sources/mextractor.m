@@ -134,7 +134,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % if the catalog is not removed, it may conflict with the new ones 
     if Args.DeleteInputCatalog
         Result.deleteProp('CatData');
-        Result.deleteProp('Table');
+        Result.deleteProp('Table');  % NOT NEEDED!
     end    
                                                       
     % find and measure sources using multi-iteration PSF fitting    
@@ -155,7 +155,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             if Iiter>1     
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
                 % add local variance from the sources revealed at all the previous iterations
-                AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);                
+                AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);                 
             end
             
             % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians                     

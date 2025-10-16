@@ -1,55 +1,70 @@
-function Transm = aerosolTransmission(ZenithAngle_deg, Tau_aod500, Alpha, Lam, WaveUnits)
-    % Calculates aerosol transmission, returns cashed result if the inputs
-    % did not change since last call. Part of the Transmission package for absolute photometric calibration. 
-    % Input :  - zenithAngle_deg (double): Zenith angle in degrees [0, 90] 
-    %          - tau_aod500 (double): Aerosol optical depth at 500nm 
-    %          - alpha (double): Angstrom exponent 
-    %          - Lam (double array): Wavelength array
-    %          - waveUnits (string): Wavelength units 
-    % Output : - Transm (double array): Transmission values (0-1)
-    % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
-    % Author: D. Kovaleva (Sep 2025)
-    % Example: Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3);
-    %          % Later calls with same arguments return cached result
-    %          Trans = astro.transmission.aerosolTransmission(55.18, 0.1, 1.3); 
+function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
+    % Aerosol transmission of the Earth atmosphere 
+    % Input  : - Lambda (double array): Wavelength array in nm.
+    %          - ParamMatrix (double matrix): Parameter matrix where each row is
+    %            [ZenithAngle_deg, TauAod500, AngstromExponent]. 
+    %          * ...,key,val,...
+    %            'Return' - Pre-computed results for caching. Default is [].
+    % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets).
+    % Author : D. Kovaleva (Oct 2025)
+    % Example: Lambda = linspace(300, 1100, 401)';
+    %          ParamMatrix = [45, 0.1, 0.6; 60, 0.2, 1.1;];
+    %          Result = astro.transmission.aerosolTransmission(Lambda, ParamMatrix);
 
     arguments
-        ZenithAngle_deg = 30
-        Tau_aod500 = 0.1
-        Alpha  = 1.3
-        Lam = linspace(300, 1100, 401);
-        WaveUnits string = 'nm'
+        Lambda      = linspace(300,1100,401)
+        ParamMatrix = [30, 0.085, 0.6]            %  [ZenithAngle_deg, TauAod500, AngstromExponent]
+        Args.AbsorptionData = []
+        Args.Return = []
     end
-
-    persistent cachedTransm cachedZenith cachedTau cachedAlpha cachedLam cachedUnits
-
-    % Check if we can use cached data (same inputs)
-    if ~isempty(cachedTransm) && isequal(ZenithAngle_deg, cachedZenith) && ...
-            isequal(Tau_aod500, cachedTau) && isequal(Alpha, cachedAlpha) && ...
-            isequal(Lam, cachedLam) && isequal(WaveUnits, cachedUnits)
-        Transm = cachedTransm;
+   
+    % Check for pre-computed results (external cache)
+    if ~isempty(Args.Return)
+        Result = Args.Return;
         return;
     end
 
-    % Validate zenith angle
-    if ZenithAngle_deg > 90 || ZenithAngle_deg < 0
-        error('Zenith angle out of range [0, 90] deg');
+ %   persistent cachedResult cachedParamMatrix
+
+    % Check if we can use cached data (same inputs)
+ %   if ~isempty(cachedResult) && isequal(ParamMatrix, cachedParamMatrix)
+ %       Result = cachedResult;
+ %       return;
+ %   end
+
+    % Validate input dimensions
+    if size(ParamMatrix, 2) ~= 3
+        error('ParamMatrix must have 3 columns: [ZenithAngle_deg, Tau_aod500, ZngstromExponent]');
     end
 
-    % Calculate airmass 
-    Am_ = astro.transmission.airmassSMARTS(ZenithAngle_deg).aerosol;
-        
-    % Calculate aerosol optical depth using AstroPack aerosolScattering
-    Tau_aerosol = astro.atmosphere.aerosolScattering(Lam, Tau_aod500, Alpha, WaveUnits);
-    
-    % Calculate transmission
-    Transm = exp(-Am_ .* Tau_aerosol);
+    % Extract parameters
+    ZenithAngles = ParamMatrix(:, 1);      % Column vector
+    TauAod500 = ParamMatrix(:, 2);         % Column vector
+    AngstromExponent = ParamMatrix(:, 3);  % Column vector
+    NumParamSets = size(ParamMatrix, 1);
+    NumWavelengths = length(Lambda);
 
-    % Cache the results
-    cachedTransm = Transm;
-    cachedZenith = ZenithAngle_deg;
-    cachedTau = Tau_aod500;
-    cachedAlpha = Alpha;
-    cachedLam = Lam;
-    cachedUnits = WaveUnits;
+    % Validate zenith angles
+    if any(ZenithAngles > 90 | ZenithAngles < 0)
+        error('Zenith angles out of range [0, 90] degrees');
+    end
+
+    % Initialize result matrix
+    Result = zeros(NumWavelengths, NumParamSets);
+
+    % Calculate transmission for each parameter set
+    for i = 1:NumParamSets
+        % Calculate airmass for aerosol
+        Airmasses = astro.transmission.airmassSMARTS(ZenithAngles(i));
+        Am_aerosol = Airmasses.aerosol;
+
+        % Calculate aerosol optical depth using Angstrom law
+        TauLambda = astro.atmosphere.aerosolScattering(Lambda, TauAod500(i), AngstromExponent(i), 'nm');
+
+        % Calculate transmission
+        Result(:, i) = exp(-Am_aerosol .* TauLambda);
+    end
+  % Cache the results
+ % cachedParamMatrix = ParamMatrix;
+ % cachedResult = Result;
 end
