@@ -9,12 +9,12 @@ function [AllBestPar, Cov, Info] = lsqNonLinWithFixed(X, Y, Sigma, Model, Args)
     %          - Y        : Observations vector.
     %          - Sigma    : Weights (scalar or vector), default 1 (no weighting).
     %          - Model    : Function handle @(X,P)-> yhat. Default: @(X,P) P(1).*sin(P(2)+P(3).*X)
-    %          - Args     : Structure with the following fields:
-    %                       .FitPar  : Logical mask or indices of params to fit. Default [true,false,true].
-    %                       .InitPar : Initial parameter vector. Default [1 0.1 0.5].
-    %                       .Lb      : Lower bounds (only fitted, full-length or []), default [].
-    %                       .Ub      : Upper bounds (only fitted, full-length or []), default [].
-    %                       .Opts    : optimoptions for lsqnonlin, default [].
+    %          * ...,key,val,...
+    %            'FitPar' - Logical mask or indices of params to fit. Default [true,false,true].
+    %            'InitPar' - Initial parameter vector. Default [1 0.1 0.5].
+    %            'Lb' - Lower bounds (only fitted, full-length or []), default [].
+    %            'Ub' - Upper bounds (only fitted, full-length or []), default [].
+    %            'Opts' - optimoptions for lsqnonlin, default [].
     % Output : - BestPar     : Best-fit values for the *fitted subset only*
     %                          (same order as Args.InitPar(Args.FitPar)).
     %          - AllBestPar  : Full parameter vector (fitted + fixed).

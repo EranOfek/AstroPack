@@ -13,7 +13,7 @@ classdef TransmissionFunctionComponents < handle
     %   Trans = Model.evaluate(Lambda, FittedParameters);
     %   Model.getOptimizationInfo();
 
-    properties (Access = private)
+    properties %(Access = private)
         ParameterRegistry  % Central parameter definitions {name, defaultValue, functions}
         CurrentDefaults    % Current default values (can be modified)
         Components         % Added components {funHandle, paramMatrix, options}
