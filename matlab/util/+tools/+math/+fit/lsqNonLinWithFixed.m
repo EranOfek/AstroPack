@@ -24,9 +24,9 @@ function [AllBestPar, Cov, Info] = lsqNonLinWithFixed(X, Y, Sigma, Model, Args)
     %          - Dof         : Degrees of freedom (= numel(residuals) - #fitted parameters).
     %          - Resid       : Weighted residuals at the solution ((Model - Y)./Sigma).
     % See also: lsqnonlin, nlparci
-    % Example: [Par, Cov, Info] = lsqNonLinWithFixed(); % simulation mode
+    % Example: [Par, Cov, Info] = tools.math.fit.lsqNonLinWithFixed(); % simulation mode
     %          or i=1:100, [Par, Cov, Info] = lsqNonLinWithFixed(); C2(i)=Info.Chi2; end; hist(C2,30);
-    %          [Par, Cov, Info] = lsqNonLinWithFixed(X,Y,1,@(X,P) P(1).*sin(P(2)+P(3).*X),'FitPar',[true,false,true],'InitPar',[1 0.1 0.5]));
+    %          [Par, Cov, Info] = tools.math.fit.lsqNonLinWithFixed(X,Y,1,@(X,P) P(1).*sin(P(2)+P(3).*X),'FitPar',[true,false,true],'InitPar',[1 0.1 0.5]));
     
     
     arguments
