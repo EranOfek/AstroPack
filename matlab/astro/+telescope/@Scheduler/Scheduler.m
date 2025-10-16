@@ -414,6 +414,39 @@ classdef Scheduler < Component
                                                   
         end
        
+        function ObsArcLength=obsArcLength(Dec, Lat, AzAlt, Units, StepSize)
+            % (Static) Calculate the observability arc-length given Dec, Lat and Az/Alt constraints.
+            %   The visibility arc-length is the length of the arc from
+            %   horizon to horizon given the horizon Az/Alt constraints.
+            % Input  : - A vector of Declinations for which to calculate
+            %            observability arc-length.
+            %          - Observatory latitude.
+            %          - A two column matrix of [Az, Alt] constraints.
+            %          - Units. Default is 'deg'.
+            %          - StepSize [deg]. Default is 1.
+            % Output : - A vector of arc-length (same size as Dec).
+            % Author : Eran Ofek (Oct 2025)
+            % Example: S=telescope.Scheduler;                                      
+            %          S.generateRegularGrid;
+            %          S.populateMountAltConstraints(CMC);    
+
+            arguments
+                Dec
+                Lat
+                AzAlt
+                Units    = 'deg';
+                StepSize = 1;  % deg
+            end
+            HA = (-180:StepSize:180).';
+            Dec = Dec(:).';
+
+            [Az, Alt] = celestial.coo.hadec2azalt(HA,Dec,Lat,Units);
+            AltLimit = interp1(AzAlt(:,1), AzAlt(:,2), Az);
+            ObsArcLength = sum(Alt>AltLimit, 1).*StepSize;
+            % reshape to the same orientation of Dec
+            ObsArcLength = reshape(ObsArcLength, size(Dec));
+
+        end
     end
     
     
@@ -756,6 +789,77 @@ classdef Scheduler < Component
             end
         end
         
+        function ArcLength=getObsArcLength(Obj)
+            % Calculate the observability arc-length given Dec, Lat and Az/Alt constraints.
+            %   The visibility arc-length is the length of the arc from
+            %   horizon to horizon given the horizon Az/Alt constraints.
+            %   The Alt constraints are taken per mount.
+            % Input  : - self.
+            % Output : - A column vector of arc-length [days].
+            % Author : Eran Ofek (Oct 2025)
+            % Example: S=telescope.Scheduler;                    
+
+            Lat = Obj.GeoPos(2);
+
+            Nt = Obj.Ntarget;
+            ArcLength = nan(Nt,1);
+            for It=1:1:Nt
+                Mnt = Obj.List.Catalog.MountNum(It);
+                Dec = Obj.List.Catalog.Dec(It);
+                if isnan(Mnt)
+                    ArcLength(It) = telescope.Scheduler.obsArcLength(Dec,Lat,Obj.AltConstraints)./360; % [days]
+                else
+                    ArcLength(It) = telescope.Scheduler.obsArcLength(Dec,Lat,Obj.MountAltConstraints(Mnt).Con)./360; % [days]
+                end
+            end
+        end
+
+        function [Obj, MinHA1, MaxHA1, FlagBad]=setMinMaxHA1(Obj, MinAlt, MinObsTime,SetHA1)
+            % Set the MinHA1 and MaxH1 columns
+            %   The setting is done based on the following criteria:
+            %   The MinHA1 is set from MinAlt
+            %   The MaxHA1 is set such that from this HA the target is
+            %   visible to MinObsTime (till it sets at the Az/Alt
+            %   constraints; i.e., no daylight considerations).
+            % Input  : - self.
+            %          - Min Alt [deg].
+            %          - Min. obs. time [day].
+            %          - Set MinHA1 and MaxHA1 parameters in target table.
+            %            Default is false.
+            % Output : - Updated object.
+            %            Targets for which MinHA1 is NaN or FlagBad, the
+            %            MinHA1 and MaxHA1 will be set to 0.
+            %          - MinHA1 [day]
+            %          - MaxHA1 [day]
+            %          - Flag of bad targets (MaxHA1<MinHA1)
+            % Author : Eran Ofek (Oct 2025)
+            % Example: 
+            
+
+            arguments
+                Obj
+                MinAlt  % [deg]
+                MinObsTime  % [day]
+                SetHA1 = false;
+            end
+            
+            HA_MinAlt    = celestial.coo.alt2ha(MinAlt, Obj.List.Catalog.Dec, Obj.GeoPos(2), 'deg')./360;  % [day]
+            MinHA1       = -HA_MinAlt;      % [day]
+            %ArcLengthDay = Obj.getObsArcLength;  % [day]
+            MaxHA1       = HA_MinAlt - MinObsTime;
+            FlagBad      = MaxHA1<MinHA1;
+
+            if SetHA1
+                AllBad = FlagBad | isnan(MinHA1);
+
+                Obj.List.Catalog.MinHA1 = MinHA1;
+                Obj.List.Catalog.MinHA1(AllBad) = 0;
+                Obj.List.Catalog.MaxHA1 = MaxHA1;
+                Obj.List.Catalog.MaxHA1(AllBad) = 0;
+            end
+
+
+        end
     end
     
     methods (Static)  % read files
