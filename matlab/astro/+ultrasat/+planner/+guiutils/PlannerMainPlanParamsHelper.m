@@ -60,6 +60,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 Planner = app.MainModule.Planner;
             
                 % Assign values to UI fields
+                ParamsApp.PkEditField.Value = num2str(Planner.Pk);
                 ParamsApp.TitleEditField.Value = Planner.Title;
                 ParamsApp.PlanTypeDropDown.Value = Planner.Type;
                 ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
@@ -269,6 +270,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 Planner = app.MainModule.Planner;
                 app.PlanTypeEditField.Value = Planner.Type;
                 app.UserNameEditField.Value = Planner.AstPlanner;
+                app.PlanPkEditField.Value = num2str(Planner.Pk);
                 app.PlanTitleEditField.Value = Planner.Title;
                 app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
                 app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);

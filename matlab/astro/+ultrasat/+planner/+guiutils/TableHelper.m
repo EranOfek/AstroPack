@@ -327,7 +327,7 @@ classdef TableHelper < ultrasat.api.Loggable
         
             % Convert to table
             try
-                T = struct2table(S);
+                T = struct2table(S, 'AsArray', true);
             catch ME
                 obj.msglog(sprintf('plansToTopLevelTable: struct2table failed: %s', ME.message));
                 % Return empty table if conversion fails

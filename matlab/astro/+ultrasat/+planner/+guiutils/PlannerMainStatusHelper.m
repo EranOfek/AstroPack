@@ -21,7 +21,8 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
         function applyPlanStatus(obj, app)
             % Helper:
             if app.hasPlanner()
-                if strcmp(app.MainModule.Planner.Status, 'Submitted')
+                % Only draft plans can be editted, otherwise read-only
+                if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft')                
                     app.setReadOnly(true);
                 else
                     app.setReadOnly(false);
