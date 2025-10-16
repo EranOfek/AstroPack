@@ -16,8 +16,8 @@ function AbsData = loadAbsorptionInterpolants(Args)
     %          Values = Abs_O3UV(Lambda);
 
     arguments
-        Args.DataPath string = '/home/dana/matlab/data/transmission_fitter/';
-        Args.Species cell = {'O3UV', 'O3IR', 'H2O', 'CO2', 'CH4', 'N2O', 'CO', 'NO2', 'NO', 'NO3', 'SO2I', 'SO2U', 'NH3', 'HNO2', 'HNO3', 'CH2O', 'BrO', 'ClNO', 'O2', 'O4', 'N2'};
+        Args.DataPath = "~/matlab/data/spec/Atmosphere/Transmission/";
+        Args.Species  = {'O3UV', 'O3IR', 'H2O', 'CO2', 'CH4', 'N2O', 'CO', 'NO2', 'NO', 'NO3', 'SO2I', 'SO2U', 'NH3', 'HNO2', 'HNO3', 'CH2O', 'BrO', 'ClNO', 'O2', 'O4', 'N2'};
         Args.Verbose logical = false;
     end
 

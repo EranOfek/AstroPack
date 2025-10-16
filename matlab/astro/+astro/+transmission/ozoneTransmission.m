@@ -12,7 +12,7 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Oct 2025)
     % Example:
-    %   AbsData = astro.transmission.AbsorptionData();
+    %   AbsData = astro.transmission.loadAbsorptionInterpolants();
     %   Lambda = linspace(300, 1100, 401)';
     %   ParamMatrix = [45, 300; 60, 280; 30, 320];
     %   Result = astro.transmission.ozoneTransmission(Lambda, ParamMatrix, 'AbsorptionData', AbsData);
@@ -37,7 +37,7 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
 
     % Create or validate AbsorptionData object
     if isempty(Args.AbsorptionData)
-        Args.AbsorptionData = astro.transmission.AbsorptionData();
+        Args.AbsorptionData = astro.transmission.loadAbsorptionInterpolants();
     end
 
     % Extract parameters
