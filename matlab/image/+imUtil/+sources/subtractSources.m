@@ -31,6 +31,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     arguments
         Image
         PSF                    = [];
+        Args.IsShiftedPSF      = false;
         Args.X                 = [];   % or AstroCatalog column (all from header)
         Args.Y                 = [];   % "
         Args.Flux              = [];   % "
@@ -64,39 +65,40 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     %     Flux   = XYF(:,3);
     % else
 
-    % User supplied numeric DX,DY,Flux,X,Y 
-    if isscalr(Args.DX) && Args.DX==0 && isscalar(Args.DY) && Args.DY==0
-        % X and Y contains non-rounded coordinates
-        % Shift PSF to such the stamp center will be in the rounded
-        % position
-        RoundX = round(X);
-        RoundY = round(Y);
-        DX     = Args.X - RoundX;
-        DY     = Args.Y - RoundY;
-    else
-        % Assume X and Y contains rounded coordinates
-        % and DX, DY shifts relative to these rounded coordinates
-        RoundX = Args.X;
-        RoundY = Args.Y;
-        DX     = Args.DX;
-        DY     = Args.DY;
+    if ~Args.IsShiftedPSF
+        % User supplied numeric DX,DY,Flux,X,Y 
+        if isscalr(Args.DX) && Args.DX==0 && isscalar(Args.DY) && Args.DY==0
+            % X and Y contains non-rounded coordinates
+            % Shift PSF to such the stamp center will be in the rounded
+            % position
+            RoundX = round(X);
+            RoundY = round(Y);
+            DX     = Args.X - RoundX;
+            DY     = Args.Y - RoundY;
+        else
+            % Assume X and Y contains rounded coordinates
+            % and DX, DY shifts relative to these rounded coordinates
+            RoundX = Args.X;
+            RoundY = Args.Y;
+            DX     = Args.DX;
+            DY     = Args.DY;
+        end
+        Flux = Args.Flux;
+    
+    
+        % shift PSF cube to rounded coordinates
+        switch Args.ShiftMethod
+            case 'fft'
+                ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+    
+            case 'interp'
+                % call imUtil.trans.shift_interp
+                % NEED TO CREATE THIS FUNCTION BASED ON YOUR CODED in
+                % mextractor
+            otherwise
+                error('Unknown ShiftMethod option');
+        end
     end
-    Flux = Args.Flux;
-
-
-    % shift PSF cube to rounded coordinates
-    switch Args.ShiftMethod
-        case 'fft'
-            ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
-
-        case 'interp'
-            % call imUtil.trans.shift_interp
-            % NEED TO CREATE THIS FUNCTION BASED ON YOUR CODED in
-            % mextractor
-        otherwise
-            error('Unknown ShiftMethod option');
-    end
-
     % supress PSF edges & Normalize
     if ~isempty(Args.SupressPSF)
         ShiftedPSF = imUtil.psf.suppressEdges(ShiftedPSF, 'Fun',Args.SupressPSF, 'FunPars', Args.SupressPSFArgs, 'Norm', Args.NormPSF);
