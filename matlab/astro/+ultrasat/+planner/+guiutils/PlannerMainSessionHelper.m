@@ -151,6 +151,34 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
 
 
+        function showLogger(obj, app)
+            % Show log window
+            app.msglog('showLogger');
+
+            % Create app windows if not already created
+            if isempty(app.LoggerApp) || ~isvalid(app.LoggerApp)
+                app.LoggerApp = ultrasat.planner.gui.Logger(app.MainModule);
+            end            
+
+            % Show the window
+            app.LoggerApp.UIFigure.Visible = 'on';
+        end        
+
+
+        function showErrorLogger(obj, app)
+            % Show error log window
+            app.msglog('showErrorLogger');
+
+            % Create app windows if not already created
+            if isempty(app.ErrorLogApp) || ~isvalid(app.ErrorLogApp)
+                app.ErrorLogApp = ultrasat.planner.gui.ErrorLogger(app.MainModule);
+            end            
+            
+            % Show the window
+            app.ErrorLogApp.UIFigure.Visible = 'on';
+        end                
+        
+        
         function exitPlanner(obj, app)
             % Exit the planner GUI
             %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');            

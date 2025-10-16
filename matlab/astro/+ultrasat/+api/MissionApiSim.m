@@ -256,6 +256,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
             try
+                % Allow submit only if not submitted yet, if cannot submit
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft')
+                    response.status = 'error';
+                    response.message = sprintf('Submit ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.ok = false;
+                    obj.msglog('Submit ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+					return;
+                end
+
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
             
@@ -471,6 +480,17 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % Saves the current PlanData instance to the DbPath folder as JSON and MAT files.
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
+
+                % Allow save only if not submitted yet, if cannot save
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft')
+                    response.status = 'error';
+                    response.message = sprintf('Save ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.ok = false;
+                    obj.msglog('Save ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+					return;
+                end
+
+                % Prepare to save the plan
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
 
@@ -497,7 +517,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
                 % Convert datetime objects to iso format                
                 if ~isempty(planStruct.targets)
-                    planStruct = ultrasat.api.ModelBase.convertDatetimeToString(planStruct.targets);
+                    planStruct.targets = ultrasat.api.ModelBase.convertDatetimeToString(planStruct.targets);
                 end
 
                 obj.ApiSimProvider.writeJsonFile(jsonFile, planStruct);

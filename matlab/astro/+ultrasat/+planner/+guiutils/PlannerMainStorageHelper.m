@@ -137,6 +137,9 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             try
                 app.MainModule.ApiClient.savePlan();
                 app.clearModified();
+
+                % Update Pk display (required if this plan saved for the first time)
+                app.PlanPkEditField.Value = num2str(app.MainModule.Planner.Pk);
             catch ME
                 app.msgex('savePlan', ME);
             end

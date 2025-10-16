@@ -79,7 +79,9 @@ classdef Loggable < handle
             fprintf('%s\n', fullLogEntry);
 
             NamespaceId = ultrasat.api.PathUtils.NamespaceId();
-            moduleName = 'planner';  % @TDO - This is the module name for the log file
+
+            % @TDO - This is the module name for the log file
+            moduleName = 'planner';  
             fileName = 'planner';
 
             if isempty(NamespaceId)
@@ -115,6 +117,20 @@ classdef Loggable < handle
                     warning('Failed to write to log file. Error: %s', ME.message);
                 end
             end
+
+            % 5. Check if message is error/exception → log to extra file
+            obj.checkErrorAndLogExtra(fullLogEntry, dt);
+
+            % 6. Forward all logs to LoggerApp
+            ultrasat.api.LogManager.logMessage(fullLogEntry);
+
+            % 7. If this looks like an error or exception, also forward to ErrorLoggerApp and bring it to front
+            lowerMsg = lower(coreMessage);
+            if startsWith(lowerMsg, 'error') || contains(lowerMsg, 'exception') || ...
+                    (contains(lowerMsg, 'error') && ~contains(lowerMsg, 'no error'))
+                ultrasat.api.LogManager.logError(fullLogEntry);
+            end
+
         end
 
 
@@ -211,5 +227,46 @@ classdef Loggable < handle
         end
 
 
+        function checkErrorAndLogExtra(obj, logEntry, dt)
+            % Checks if the log entry is error-related and writes to an extra error log file.
+    
+            lowerMsg = lower(logEntry);
+    
+            % Detect error/exception but ignore phrases like "no error"
+            if startsWith(strtrim(lowerMsg), 'error') || ...
+                contains(lowerMsg, 'exception') || ...
+                (contains(lowerMsg, 'error') && ~contains(lowerMsg, 'no error'))
+    
+                NamespaceId = ultrasat.api.PathUtils.NamespaceId();
+                moduleName = 'planner';
+                fileName = 'planner_errors';
+    
+                if isempty(NamespaceId)
+                    ErrorLogFileName = ultrasat.api.PathUtils.getGlobalLogFilename(moduleName, fileName, 'DT', dt);
+                else
+                    ErrorLogFileName = ultrasat.api.PathUtils.getNamespaceLogFilename(moduleName, fileName, ...
+                        'NamespaceId', NamespaceId, 'DT', dt);
+                end
+    
+                if ~isempty(ErrorLogFileName)
+                    try
+                        ErrorLogFileName = fullfile(obj.LogBasePath, ErrorLogFileName);
+                        logDir = fileparts(ErrorLogFileName);
+                        if ~isfolder(logDir)
+                            mkdir(logDir);
+                        end
+    
+                        fileID = fopen(ErrorLogFileName, 'a', 'n', 'UTF-8');
+                        if fileID ~= -1
+                            cleanup = onCleanup(@() fclose(fileID));
+                            fprintf(fileID, '%s\r\n', logEntry);
+                        end
+                    catch ME
+                        warning('Failed to write to error log file. Error: %s', ME.message);
+                    end
+                end
+            end
+        end
+        
     end
 end

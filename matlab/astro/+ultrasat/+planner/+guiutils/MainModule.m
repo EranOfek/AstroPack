@@ -25,7 +25,7 @@ classdef MainModule < ultrasat.api.Loggable
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
-        
+        ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger        
         PlanType                % Current plan type: HCS, LCS, AllSS, DDT, TOO (= ultrasat.planner.uplanner.Type)
         Planner                 % instance of ultrasat.planner.uplanner
         PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData

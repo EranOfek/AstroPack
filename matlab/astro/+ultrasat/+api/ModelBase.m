@@ -200,36 +200,45 @@ classdef ModelBase
 
    
         function data = convertDatetimeToString(data)
-            % Recursively converts all datetime fields in a struct to ISO strings
+            % Recursively converts all datetime fields in a struct (or cell array of structs)
+            % to ISO strings.
             %
-            % :param data: Struct containing datetime fields.
-            % :return: Struct with datetime fields converted to ISO format.
+            % :param data: Struct or cell containing datetime fields.
+            % :return: Struct or cell with datetime fields converted to ISO format.
         
+            % Handle cell arrays (e.g. when targets is {struct, struct, ...})
+            if iscell(data)
+                for i = 1:numel(data)
+                    if isstruct(data{i}) || iscell(data{i})
+                        data{i} = ultrasat.api.ModelBase.convertDatetimeToString(data{i});
+                    elseif isdatetime(data{i}) && ~isempty(data{i})
+                        data{i} = ultrasat.api.ModelBase.isoFormat(data{i});
+                    end
+                end
+                return
+            end
+        
+            % Handle structs (scalar or array)
             if isstruct(data)
+                % If struct array, loop over elements
+                if numel(data) > 1
+                    for k = 1:numel(data)
+                        data(k) = ultrasat.api.ModelBase.convertDatetimeToString(data(k));
+                    end
+                    return
+                end
+        
+                % Scalar struct — convert its fields
                 fields = fieldnames(data);
                 for i = 1:numel(fields)
                     fieldName = fields{i};
                     value = data.(fieldName);
-                    
-                    % Convert datetime fields to ISO format if not empty
+        
                     if isdatetime(value) && ~isempty(value)
-                        data.(fieldName) = ultrasat.api.ModelBase.isoFormat(value);  % Convert datetime to string
-                    
-                    % Recursively handle struct fields
-                    elseif isstruct(value)
-                        if isempty(value)
-                            % If struct field is empty, keep it as empty struct
-                            data.(fieldName) = struct();
-                        elseif numel(value) > 1
-                            % Handle struct arrays
-                            for j = 1:numel(value)
-                                value(j) = ultrasat.api.ModelBase.convertDatetimeToString(value(j));
-                            end
-                            data.(fieldName) = value;
-                        else
-                            % Handle single struct
-                            data.(fieldName) = ultrasat.api.ModelBase.convertDatetimeToString(value);
-                        end
+                        data.(fieldName) = ultrasat.api.ModelBase.isoFormat(value);
+        
+                    elseif isstruct(value) || iscell(value)
+                        data.(fieldName) = ultrasat.api.ModelBase.convertDatetimeToString(value);
                     end
                 end
             end
