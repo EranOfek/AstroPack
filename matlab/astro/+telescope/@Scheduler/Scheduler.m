@@ -702,7 +702,7 @@ classdef Scheduler < Component
                         
         end
          
-        function [FlagCoo] = cooInField(Obj, RA, Dec, Args)
+        function [FlagCoo,FieldName] = cooInField(Obj, RA, Dec, Args)
             % Search for fields that contains a list of coordinates
             % Input  : - A celestial.targets object.
             %          - J2000 RA [H M S] or [deg] or sexagesimal.
@@ -712,6 +712,8 @@ classdef Scheduler < Component
             %                   each field. Default is [2.1 3.2] (deg).
             % Output : - A vector of logical indicating if the targets in
             %            the celestial.targets object contains one or the RA/Dec.
+            %          - A string array of field names/IDs containin the
+            %            coordinates.
             % Author : Eran Ofek (Mar 2023)
             % Example: S.cooInField(100,10);
             %          find(S.cooInField(352.59,1.88))
@@ -741,6 +743,8 @@ classdef Scheduler < Component
             for Isrc=1:1:Nsrc
                 FlagCoo(Isrc) = celestial.coo.in_box(RA, Dec, [FieldRA(Isrc), FieldDec(Isrc)], HalfSize);
             end
+
+            FieldName = Obj.List.Catalog.FieldName(FlagCoo);
             
         end
         
@@ -2307,6 +2311,49 @@ classdef Scheduler < Component
             end
         end
     
+        function [Ind, RA, Dec] = getPrevTarget(Obj, Mnt, JD)
+            % Get previously observed target for a given monut
+            % Input  : - self.
+            %          - Mount number. If empty then return [].
+            %          - Current JD Default is now.
+            % Output : - Index of target previously observed with the
+            %            specific mount.
+            %          - RA of previous target [deg].
+            %          - Dec of previous target [deg].
+            % Author : Eran Ofek (Oct 2025)
+            % Example: [Ind, RA, Dec] = S.getPrevTarget(1)
+
+            arguments
+                Obj
+                Mnt
+                JD   = celestial.time.julday();
+            end
+
+            if isempty(Mnt)
+                Ind = [];
+                RA  = [];
+                Dec = [];
+            else
+                Imnt = find(Obj.List.Catalog.MountNum==Mnt);
+
+                [MaxLastJD,Imax] = max(Obj.List.Catalog.LastJD(Imnt));
+                if (JD-MaxLastJD)>0.5
+                    % prev obs done more than 0.5 days ago:
+                    % assume previous observations are not relevant
+
+                    Ind = [];
+                    RA  = [];
+                    Dec = [];
+                else
+                    Ind = Imnt(Imax);
+                    RA  = Obj.List.Catalog.RA(Ind);
+                    Dec = Obj.List.Catalog.Dec(Ind);
+                end
+            end
+
+        end
+
+
         function [TargetInd, Priority, Tbl, Struct] = selectTarget(Obj, JD, Args)
             % Select best target for observation
             %   Highest priority & isVisible.
@@ -2331,6 +2378,9 @@ classdef Scheduler < Component
             %            'IndPrev' - Index of previous observations.
             %                   If empty, will get automatically based on
             %                   the LastJD. Default is [].
+            %            'UseDistW' - Logical indicating if to use distance
+            %                   weights for targets allocated to specific mounts.
+            %                   Default is false.
             % Output : - Target index in Obj.List.
             %          - Vector of all target priority.
             %          - Table with best target info.
@@ -2345,6 +2395,7 @@ classdef Scheduler < Component
                 Args.MountNum     = [];
                 Args.SelectMethod = 'minam'; %'mindist'; %'westward';
                 Args.IndPrev      = [];
+                Args.UseDistW     = false;
             end
             RAD = 180./pi;
             
@@ -2353,6 +2404,13 @@ classdef Scheduler < Component
             end
             
             W   = Obj.weight(JD);
+            if Args.UseDistW
+                [~, PrevRA, PrevDec] = Obj.getPrevTarget(Args.MountNum);
+                if ~isempty(PrevRA) & ~isempty(PrevDec)
+                    WeightD = Obj.weightDist(PrevRA, PrevDec);
+                    W       = W.*WeightD;
+                end
+            end
             [IsV,FlagsIn] = Obj.isVisible(JD, 'MountNum',Args.MountNum);
             Priority = W.*IsV;
             % select target for observation
@@ -2475,6 +2533,69 @@ classdef Scheduler < Component
             %Flag_MNC = Obj.List.Catalog.NightCounter>=Obj.List.Catalog.MaxNightCounter;
             %W(Flag_MNC) = Obj.List.Catalog.BasePriority(Flag_MNC);
             
+        end
+
+        function W=weightDist(Obj, RA, Dec, Args)
+            % Weight targets by distance from a given position (RA, Dec)
+            %   Weight of the form DistWeightNorm.*(1+Dist).^-WeightDistPL
+            % Input  : - self.
+            %          - RA [deg].
+            %          - Dec [deg].
+            %          * ...,key,val,...
+            %            'DistWeightNorm' - DistWeightNorm factor.
+            %                   If empty, use data from target list with
+            %                   column name provided in DistWeightNormCol.
+            %                   If doesn't exist, the use 1.
+            %                   Default is 1.01
+            %            'DistWeightPL' - Like 'DistWeightNorm', but for
+            %                   the power-law index DistWeightPL.
+            %                   If doesb't exist use 0.
+            %                   Default is 0.01.
+            %            'DistwWeightNormCol' - Column name containing
+            %                   DistWeightNorm.
+            %                   Default is 'DisrWeightNorm'.
+            %            'DistwWeightPLCol' - Column name containing
+            %                   DistWeightPL.
+            %                   Default is 'DisrWeightPL'.
+            % Output  : - Weights per target.
+            % Author : Eran Ofek (Oct 2025)
+            % Example: W=S.weightDist(RA, Dec)
+
+            arguments
+                Obj 
+                RA 
+                Dec 
+                Args.DistWeightNorm   = 1.01;
+                Args.DistWeightPL     = 0.01;
+                Args.DistWeightNormCol= 'DistWeightNorm';
+                Args.DistWeightPLCol  = 'DistWeightPL';
+            end
+
+            RAD = 180./pi;
+
+            Dist = celestial.coo.sphere_dist_fast(RA./RAD, Dec./RAD, Obj.List.Catalog.RA./RAD, Obj.List.Catalog.Dec./RAD);
+
+            if isempty(Args.DistWeightNorm)
+                if tools.table.isColumn(Obj.List.Catalog, Args.DistWeightNormCol)
+                    DistWeightNorm = Obj.List.Catalog.(Args.DistWeightNormCol);
+                else
+                    DistWeightNorm = 1;
+                end
+            else
+                DistWeightNorm = Args.DistWeightNorm;
+            end
+            if isempty(Args.DistWeightPL)
+                if tools.table.isColumn(Obj.List.Catalog, Args.DistWeightPLCol)
+                    DistWeightPL = Obj.List.Catalog.(Args.DistWeightPLCol);
+                else
+                    DistWeightPL = 0;
+                end
+            else
+                DistWeightPL = Args.DistWeightPL;
+            end
+
+            W    = DistWeightNorm./((1+Dist.*RAD).^DistWeightPL );
+
         end
     end
     
