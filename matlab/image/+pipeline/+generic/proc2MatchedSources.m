@@ -115,6 +115,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.fitMotionArgs     = {};
 
         Args.UseMex            = false;
+        %Args.LogObj            = [];
     end
 
 

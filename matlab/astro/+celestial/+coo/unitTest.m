@@ -6,7 +6,7 @@ function Result = unitTest()
     %test_sphere_dist_fast();
     
     RAD = 180/pi;
-    % Check conversion for altitude to hour angle, and the inverse.
+    %% Check conversion for altitude to hour angle, and the inverse.
     Dec=0.5;
     Phi = 30/180*pi;
     Alt = (20:1:60)/180*pi;
@@ -14,7 +14,7 @@ function Result = unitTest()
     [Alt_inv,AM]=celestial.coo.ha2alt(HA,Dec,Phi);
     assert(all(abs(Alt_inv-Alt)<1e-12));
     
-    % Check the azalt2hadec and the inverse
+    %% Check the azalt2hadec and the inverse
     
     Lat = (-90:1:90)'/RAD;
     Az = (0:180)'/RAD;
@@ -70,6 +70,20 @@ function Result = unitTest()
     assert(all(abs(Long_cos_inv-Long)<1e-13));
     assert(all(abs(Lat_cos_inv-Lat)<1e-13));
     
+
+    %% cosined2coo_mex
+    CD1=rand(1e6,2).*2-1;
+    CD2=rand(1e6,2).*2-1;
+    CD3=rand(1e6,2).*2-1;
+    tic;[Long,Lat] = celestial.coo.cosined2coo(CD1, CD2, CD3, true);toc;                 
+    tic;[Long1,Lat1] = celestial.coo.cosined2coo(CD1, CD2, CD3, false);toc;
+
+    if max(abs(Long-Long1),[],'all')>(10.*eps) || max(abs(Lat-Lat1),[],'all')>(10.*eps) 
+        error('Problem with celestial.coo.mex.cosined2coo_mex');
+    end
+
+
+
     func_unitTest();    
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');

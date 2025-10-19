@@ -1,6 +1,5 @@
 function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     % pre-preparation of astronomical images (cast, quality checks)
-    %     The operations are wrapped within try catch block.
     %     Optional steps include:
     %       Read images from local directory or get an AstroImage object.
     %       Apply CCDSEC to images. Default is full image.
@@ -179,191 +178,178 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     TableForDB = Args.TableForDB;
     Nim = NaN;
 
-    try
-        % try block
-        % read Images
-        if isa(Images, 'AstroImage')
-            AI = Images;
-            % crop if needed
-            AI = AI.crop(Args.CCDSEC);
-            % search file names in AstroImage
-            Images = AI.getFileNames;
-        else
-            % assume input is a list of images
-            AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
-        end
-        AI = AI(:);
-        Nim = numel(AI);
+   
+    if isa(Images, 'AstroImage')
+        AI = Images;
+        % crop if needed
+        AI = AI.crop(Args.CCDSEC);
+        % search file names in AstroImage
+        Images = AI.getFileNames;
+    else
+        % assume input is a list of images
+        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
+    end
+    AI = AI(:);
+    Nim = numel(AI);
 
-        if Args.Convert2single
-            %AI.cast(Args.ImageClass);  % very slow
+    if Args.Convert2single
+        %AI.cast(Args.ImageClass);  % very slow
 
-            for Iim=1:1:Nim
-                AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
-                %AI(Iim).Image = single(AI(Iim).Image);
-            end
-        end
-
-        
-        % allocate TableForDB:
-        TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
-       
-        % Check for empty images
-        if Args.CheckEmpty
-            NotEmptyImage = ~AI.isemptyImage;
-            if any(~NotEmptyImage)
-                TableForDB.NotEmptyImage = NotEmptyImage;            
-            end
-            TableForDB.NotEmptyImage = NotEmptyImage;
-            FlagGoodImages = NotEmptyImage;
-        end
-    
-        % check for images with wrong size
-        if ~isempty(Args.RequiredSizeXY)
-            [Ny, Nx] = AI.sizeImage;
-            TableForDB.Nx = Nx;
-            TableForDB.Ny = Ny;
-            FlagCorrectSize = Args.RequiredSizeXY(1)==Nx(:) & Args.RequiredSizeXY(2)==Ny(:);
-    
-            TableForDB.CorrectSize = FlagCorrectSize;
-    
-            FlagGoodImages = FlagGoodImages & FlagCorrectSize;
-        end
-    
-        
-        % global background
-        if Args.GlobalBackLevel
-            % need to call it in ImProc...
-             [TableForDB.GoodGlobalBack, TableForDB.FracPixAboveThreshold, TableForDB.Median] = imProc.quality.backgroundLevel(AI, 'UseMex',Args.UseMex, Args.backgroundLevelArgs{:});
-             FlagGoodImages = FlagGoodImages & TableForDB.GoodGlobalBack;
-        end
-    
-        % histogram anomaly
-        if Args.HistAnomaly
-            % need an imProc version...
-            [TableForDB.HistOK(FlagGoodImages)] = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
-            FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
-            
-        end
-    
-        % many pixels with the same value
-        if ~isempty(Args.MaxNBadVal)
-            for Iim=1:1:Nim
-                TableForDB.NpixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
-            end
-            TableForDB.NpixWithBadValOK = TableForDB.NpixWithBadVal<Args.MaxNBadVal;
-            FlagGoodImages = FlagGoodImages & TableForDB.NpixWithBadValOK;
-        end
-           
-    
-        % PSF based on image ACF
-        if Args.GlobalBadPSF
-            % Crop image
-            for Iim=1:1:Nim
-                if NotEmptyImage(Iim)
-                    if isnan(TableForDB.Median(Iim))
-                        BackImage = median(AI(Iim).ImageData.Image, 'all','omitnan');
-                    else
-                        BackImage = TableForDB.Median(Iim);
-                    end
-                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
-                    % subtract background
-                    BackSubImage = BackSubImage - BackImage;
-                
-                    
-                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
-                    if FWHM_ACF>Args.MaxFWHM
-                        % run it again in a different CCDSEC
-                        % this may be due to satellite streaks
-                        BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
-                        % subtract background
-                        BackSubImage = BackSubImage - TableForDB.Median(Iim);
-                        [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
-                    end
-        
-                    TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
-                    
-                end
-            end
-            TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
-            FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
-        end
-    
-        % Populate GoodImages
-        TableForDB.GoodImages = FlagGoodImages;
-        % Populate EnoughImages (i.e., >=MinNim)
-        TableForDB.SelectedImages = TableForDB.GoodImages & sum(FlagGoodImages)>=Args.MinNim;
-
-        % return selected images
-        AI = AI(TableForDB.SelectedImages);
-        NimGood = numel(AI);
-        % update header
-    
-
-        % UPDATE/fix header
-
-        % add additional header keywords
-        if ~isempty(Args.AddHeadKeys)
-            AI.setKeyVal(Args.AddHeadKeys(:,1), Args.AddHeadKeys(:,2));
-        end
-
-
-        % add header keywords
-        if ~isempty(Args.AddFileNameLiteralsToHeader)
-            AFN = AstroFileName(Images);
-            
-            Nlit = numel(Args.AddFileNameLiteralsToHeader);
-            for Ilit=1:1:Nlit
-                for Iim=1:1:NimGood
-                    AI(Iim).HeaderData.replaceVal(char(upper(Args.AddFileNameLiteralsToHeader{Ilit})), char(AFN.(Args.AddFileNameLiteralsToHeader{Ilit})(Iim)));
-                end
-            end
-        end
-    
-        % update header with SoftVersion keyword
-        if Args.AddGitVersion
-            VerString = tools.git.getVersion;
-            AI.setKeyVal(Args.KeySoftVer,VerString);
-        end
-        
-        % add raw image ID
-        if Args.AddRawImageID
-            % populate LEVEL and CROPID
-            AI = AI.setKeyVal('LEVEL','raw');
-            AI = AI.setKeyVal('CROPID',0);
-            [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
-    
-            TableForDB.RawID(FlagGoodImages) = ID;
-        end
-    
-        TableForDB = struct2table(TableForDB);
-
-        if nargout>2 && ~isempty(Args.Keys2table)
-            TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
-            TableHeader.FileNames = string(Images(:));
-        else
-            TableHeader = [];
-        end
-
-    
-        % write log
-        if ~isempty(Args.LogObj)
-            Nim = numel(AI);
-            Msg = sprintf('prePrep quality checks: %d out of %d images passed', NimGood, Nim);
-            Obj.writeLog(Msg, LogLevel.Info);
-        end
-    catch ME
-        % allocate TableForDB:
-        TableForDB = allocateTableForDB(TableForDB, Nim, Args.ClassID);
-        AI         = AstroImage;
-        % write catch error:
-        if ~isempty(Args.LogObj)
-            Obj.writeLog(ME, LogLevel.Error);
-        else
-            ME
-            error('Failed on try catch');
+        for Iim=1:1:Nim
+            AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
+            %AI(Iim).Image = single(AI(Iim).Image);
         end
     end
+
+    
+    % allocate TableForDB:
+    TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
+   
+    % Check for empty images
+    if Args.CheckEmpty
+        NotEmptyImage = ~AI.isemptyImage;
+        if any(~NotEmptyImage)
+            TableForDB.NotEmptyImage = NotEmptyImage;            
+        end
+        TableForDB.NotEmptyImage = NotEmptyImage;
+        FlagGoodImages = NotEmptyImage;
+    end
+
+    % check for images with wrong size
+    if ~isempty(Args.RequiredSizeXY)
+        [Ny, Nx] = AI.sizeImage;
+        TableForDB.Nx = Nx;
+        TableForDB.Ny = Ny;
+        FlagCorrectSize = Args.RequiredSizeXY(1)==Nx(:) & Args.RequiredSizeXY(2)==Ny(:);
+
+        TableForDB.CorrectSize = FlagCorrectSize;
+
+        FlagGoodImages = FlagGoodImages & FlagCorrectSize;
+    end
+
+    
+    % global background
+    if Args.GlobalBackLevel
+        % need to call it in ImProc...
+         [TableForDB.GoodGlobalBack, TableForDB.FracPixAboveThreshold, TableForDB.Median] = imProc.quality.backgroundLevel(AI, 'UseMex',Args.UseMex, Args.backgroundLevelArgs{:});
+         FlagGoodImages = FlagGoodImages & TableForDB.GoodGlobalBack;
+    end
+
+    % histogram anomaly
+    if Args.HistAnomaly
+        % need an imProc version...
+        [TableForDB.HistOK(FlagGoodImages)] = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
+        FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
+        
+    end
+
+    % many pixels with the same value
+    if ~isempty(Args.MaxNBadVal)
+        for Iim=1:1:Nim
+            TableForDB.NpixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
+        end
+        TableForDB.NpixWithBadValOK = TableForDB.NpixWithBadVal<Args.MaxNBadVal;
+        FlagGoodImages = FlagGoodImages & TableForDB.NpixWithBadValOK;
+    end
+       
+
+    % PSF based on image ACF
+    if Args.GlobalBadPSF
+        % Crop image
+        for Iim=1:1:Nim
+            if NotEmptyImage(Iim)
+                if isnan(TableForDB.Median(Iim))
+                    BackImage = median(AI(Iim).ImageData.Image, 'all','omitnan');
+                else
+                    BackImage = TableForDB.Median(Iim);
+                end
+                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
+                % subtract background
+                BackSubImage = BackSubImage - BackImage;
+            
+                
+                [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
+                if FWHM_ACF>Args.MaxFWHM
+                    % run it again in a different CCDSEC
+                    % this may be due to satellite streaks
+                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
+                    % subtract background
+                    BackSubImage = BackSubImage - TableForDB.Median(Iim);
+                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
+                end
+    
+                TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
+                
+            end
+        end
+        TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
+        FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
+    end
+
+    % Populate GoodImages
+    TableForDB.GoodImages = FlagGoodImages;
+    % Populate EnoughImages (i.e., >=MinNim)
+    TableForDB.SelectedImages = TableForDB.GoodImages & sum(FlagGoodImages)>=Args.MinNim;
+
+    % return selected images
+    AI = AI(TableForDB.SelectedImages);
+    NimGood = numel(AI);
+    % update header
+
+
+    % UPDATE/fix header
+
+    % add additional header keywords
+    if ~isempty(Args.AddHeadKeys)
+        AI.setKeyVal(Args.AddHeadKeys(:,1), Args.AddHeadKeys(:,2));
+    end
+
+
+    % add header keywords
+    if ~isempty(Args.AddFileNameLiteralsToHeader)
+        AFN = AstroFileName(Images);
+        
+        Nlit = numel(Args.AddFileNameLiteralsToHeader);
+        for Ilit=1:1:Nlit
+            for Iim=1:1:NimGood
+                AI(Iim).HeaderData.replaceVal(char(upper(Args.AddFileNameLiteralsToHeader{Ilit})), char(AFN.(Args.AddFileNameLiteralsToHeader{Ilit})(Iim)));
+            end
+        end
+    end
+
+    % update header with SoftVersion keyword
+    if Args.AddGitVersion
+        VerString = tools.git.getVersion;
+        AI.setKeyVal(Args.KeySoftVer,VerString);
+    end
+    
+    % add raw image ID
+    if Args.AddRawImageID
+        % populate LEVEL and CROPID
+        AI = AI.setKeyVal('LEVEL','raw');
+        AI = AI.setKeyVal('CROPID',0);
+        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+
+        TableForDB.RawID(FlagGoodImages) = ID;
+    end
+
+    TableForDB = struct2table(TableForDB);
+
+    if nargout>2 && ~isempty(Args.Keys2table)
+        TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
+        TableHeader.FileNames = string(Images(:));
+    else
+        TableHeader = [];
+    end
+
+
+    % write log
+    if ~isempty(Args.LogObj)
+        Nim = numel(AI);
+        Msg = sprintf('prePrep quality checks: %d out of %d images passed', NimGood, Nim);
+        Obj.writeLog(Msg, LogLevel.Info);
+    end
+
 end
 
 % Aux functions:
