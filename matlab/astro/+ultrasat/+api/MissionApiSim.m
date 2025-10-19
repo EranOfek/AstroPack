@@ -257,7 +257,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
             try
                 % Allow submit only if not submitted yet, if cannot submit
-                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft')
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
                     response.status = 'error';
                     response.message = sprintf('Submit ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
                     response.ok = false;
@@ -278,7 +278,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 obj.PlanData.addHistory(sprintf('plan submitted by %s', obj.PlanData.created_by));
             
                 % Save updated plan data to JSON
+
+                % Change uplanner status to submitted otherwrite it will not
+                % be saved - @TODO --- Bad workaround but for now (19/10/2025)
+                %SavePlannerStatus = obj.PlanData.planner.Status;
+                %obj.PlanData.planner.Status = 'submitted';
                 obj.savePlan();
+
+                % Restore status, it will be set again to submitted in uplanner.submit()
+                %obj.PlanData.planner.Status = SavePlannerStatus;
             
                 response.status = 'ok';
                 response.message = sprintf('Plan %d submitted successfully.', obj.PlanData.pk);
@@ -482,11 +490,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             try
 
                 % Allow save only if not submitted yet, if cannot save
-                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft')
+                % @Todo - Need to fix this submit issue
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
                     response.status = 'error';
                     response.message = sprintf('Save ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
                     response.ok = false;
-                    obj.msglog('Save ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+                    obj.msglog('Error: savePlan ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
 					return;
                 end
 

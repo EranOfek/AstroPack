@@ -88,14 +88,14 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
             app.showPleaseWait('Submitting your plan. This may take a while. Please wait...');
             try
-                % Send submit request to backend, uplanner.submit() calls
-                % MissionClient.submitPlan().
-                % After submit the plan should become read-only.
+                % Send submit request to backend, uplanner.submit() calls MissionClient.submitPlan().
                 app.MainModule.Planner.submit();
 
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');
                 app.addHistory('submit');
                 app.savePlan();
+
+                % After submit the plan should become read-only.                
                 app.setReadOnly(true);
             catch ME
                 app.msgex('submit', ME);
