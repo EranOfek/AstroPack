@@ -1,5 +1,7 @@
 function [OutRA, OutDec, Alt, Refraction, ParAng, DelAlpha, DelDelta] = refractedCoo(InRA, InDec, Args)
     % Apply atmospheric refraction to RA and Dec coordinates
+    %       See also: celestial.convert.refraction_coo (for calculation
+    %       relative to a reference atmosphere).
     % Input  : - R.A., [deg|rad|sex] or object name.
     %            If second input is provided and RA is not numeric, then
     %            will assume input is in sexagesinal coordinates.
