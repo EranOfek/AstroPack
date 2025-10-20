@@ -12,7 +12,7 @@
 %
 
 classdef MainModule < ultrasat.api.Loggable
-    % This class serves like a DataModule in Delphi.
+    % This class serves like a DataModule in Delphi
     
     properties
         ApiClient               % MissionApiClient/MissionApiSim instance
@@ -35,18 +35,18 @@ classdef MainModule < ultrasat.api.Loggable
         StatusText              % Status text for display        
         CurrentStatus           % 'OK', 'Error', 'Warning'
 
-        %
+        % 
         Modified = false;       % True after data is being modified        
         AfterBuild = false;     %
         PlannerPath             %
         DebugPath               % Folder of debug files, such as saved .mat files
         BaseDataDir             % uplanner constructor param
         LogFileName             %
-        AppUtils                %
 
         % Helpers
-        TableHelper             %
-        GuiHelper               %
+        AppUtils                % Utility functions        
+        TableHelper             % Utility functions for tables
+        GuiHelper               % Utility functions for GUI
     end
     
 

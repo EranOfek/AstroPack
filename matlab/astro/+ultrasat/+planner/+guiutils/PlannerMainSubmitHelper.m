@@ -3,12 +3,28 @@
 % File        : +planner/+guiutils/PlannerMainSubmitHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 08/10/2025
+% Updated     : 20/10/2025
 % Description : Submit Helper for Main Planner (Submit & Validation)
 %==========================================================================
 
 classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
-  
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
     methods
         
         function obj = PlannerMainSubmitHelper()
@@ -21,9 +37,13 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
         function validate(obj, app)
             % Validate plan by sending it to the Validation service
             app.msglog('validate');
-            if ~app.hasPlanner(), return; end            
-            if app.isReadOnlyMsg(), return; end            
-            if ~app.isLogin('Message', true), return; end
+            if ~app.hasPlanner(), return; end
+
+            % Validation is not allowed when plain is read-only
+            if app.isReadOnlyMsg(), return; end
+            
+            % Validation is not allowed when not logged-in
+            if ~app.SessionHelper.isLogin('Message', true), return; end
             
             % Ask user to confirm - currently not
             %if ~strcmp(app.AppUtils.askYesNo('Send plan with GCS Validator?', 'Confirm'), 'Yes')
@@ -61,10 +81,12 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             % Debug: see files in D:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\sim
             app.msglog('submit');
             if ~app.hasPlanner(), return; end            
+
+            % Submit is not allowed when plain is read-only
             if app.isReadOnlyMsg(), return; end            
-            if ~app.isLogin()
-                return;
-            end
+
+            % Submit is not allowed when not logged-in
+            if ~app.SessionHelper.isLogin('Message', true), return; end
 
             % Must save before submit, because backend need to access the
             % plan in the database.
@@ -236,7 +258,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
         function showSubmitStatusWindow(obj, app)
             % Show window with submit status
-            app.msglog('dshowSubmitStatusWindow');
+            app.msglog('showSubmitStatusWindow');
             if ~app.hasPlanner(), return; end
 
             % Create app

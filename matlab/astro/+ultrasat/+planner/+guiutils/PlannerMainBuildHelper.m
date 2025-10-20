@@ -8,7 +8,23 @@
 %==========================================================================
 
 classdef PlannerMainBuildHelper < ultrasat.api.Loggable
-    
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+        
     methods
 
         function obj = PlannerMainBuildHelper()
@@ -71,6 +87,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function setBuildStatus(obj, app, Status)
+            % Set build status in PlanData
             app.MainModule.PlanData.setStatus('BuildStatus', Status);
         end
 
@@ -90,7 +107,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             upHCS = app.MainModule.Planner;            
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
-            app.setBuildStatus('OK');
+            obj.setBuildStatus('OK');
             app.MainModule.setStatus('OK', 'Build: self consistency: OK');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
@@ -109,8 +126,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             upLCS.buildLCS('TargetList', SelectedRows);
           
             app.addHistory('BuildLCS Ok');
-            app.setBuildStatus('OK');
-            %app.debugSave('upLCS.mat', upLCS);
+            obj.setBuildStatus('OK');
             app.msglog('doBuildLCS done');
         end
 

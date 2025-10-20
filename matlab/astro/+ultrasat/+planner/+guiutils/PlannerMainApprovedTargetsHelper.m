@@ -3,12 +3,28 @@
 % File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 20/10/2025
 % Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
-    
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+        
     methods
         
         function obj = PlannerMainApprovedTargetsHelper()
@@ -43,7 +59,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             app.closePleaseWait();
 
             % Update GUI with updated list of targets
-            app.showApprovedTargets();
+            obj.showApprovedTargets();
         end
 
 
@@ -76,9 +92,9 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
                     ultrasat.api.ModelBase.datetimeStr(app.MainModule.ApiClient.ApprovedTargetsEndTime), ...
                     ultrasat.api.ModelBase.datetimeStr(app.MainModule.Planner.RetrivedMissionTime));
     
-                % Update also the table in the window
+                % Update the table content from PlannerMain to ApprovedTargetsApp
                 if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
-                    app.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);            
+                    app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
                 end            
             catch ME
                 app.msgex('showApprovedTargets', ME);
@@ -94,7 +110,10 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if app.isReadOnlyMsg(), return; end
 
             try
+                % Caller uPlanner to clear the list of approved targets
                 app.MainModule.Planner.clearMissionApprovedPlan();
+
+                % Refresh display
                 app.showPlanAll();  
             catch ME
                 app.msgex('clearApprovedTargets', ME);
@@ -104,6 +123,9 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         function approvedTargetSelected(obj, app, Index)
             % Called on selecting (single click) approved target from table
+            app.msglog(sprintf('approvedTargetSelected: %d', Index));
+            if ~app.hasPlanner(), return; end
+
             Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);
             if ~isempty(Data)
                 app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
@@ -113,6 +135,8 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         function showOverriddenApprovedTargets(obj, app, PlanTargetIndex)
             % Update the display with list of approved targets
+            app.msglog(sprintf('showOverriddenApprovedTargets: %d', PlanTargetIndex);
+            if ~app.hasPlanner(), return; end
 
             app.showApprovedTargets();
             PlanTarget = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, PlanTargetIndex);
@@ -145,16 +169,17 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             app.msglog('showApprovedTargetsWindow');
             if ~app.hasPlanner(), return; end
 
-            % Create app
+            % Create and show ApprovedTargetsApp
             if isempty(app.ApprovedTargetsApp) || ~isvalid(app.ApprovedTargetsApp)
                 app.ApprovedTargetsApp = ultrasat.planner.gui.ApprovedTargets(app.MainModule);
             end
             app.ApprovedTargetsApp.UIFigure.Visible = 'on';
+
+            % Copy table content from PlannerMain to ApprovedTargetsApp
             if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
-                app.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);            
+                app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
             end
         end                       
 
     end
 end
-

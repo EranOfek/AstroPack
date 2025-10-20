@@ -3,12 +3,28 @@
 % File        : +planner/+guiutils/PlannerMainSessionHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 08/10/2025
+% Updated     : 20/10/2025
 % Description : Session Helper for Main Planner (Login, Logout, etc.)
 %==========================================================================
 
 classdef PlannerMainSessionHelper < ultrasat.api.Loggable
-  
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
     methods
         
         function obj = PlannerMainSessionHelper()
@@ -41,8 +57,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             LoginStatus = app.showModal(app.LoginApp);
             app.msglog( sprintf('login uiwait returned: isempty: %d, isvalid: %d', isempty(app.LoginApp), isvalid(app.LoginApp)) );
 
-            app.setLoginButtonStatus();
-            app.setButtons();
+            obj.setLoginButtonStatus();
+            obj.setButtons();
 
             % Set AstPlanner to connected user
             if app.hasPlanner()
@@ -68,8 +84,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             end
 
             app.MainModule.logout();
-            app.setLoginButtonStatus();
-            app.setButtons();            
+            obj.setLoginButtonStatus();
+            obj.setButtons();            
         end        
 
 

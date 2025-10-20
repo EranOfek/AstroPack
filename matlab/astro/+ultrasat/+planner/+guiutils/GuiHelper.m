@@ -8,6 +8,7 @@
 %==========================================================================
 
 classdef GuiHelper < ultrasat.api.Loggable
+    % Low level utilities for PlannerMain
     
     methods
         function obj = GuiHelper()

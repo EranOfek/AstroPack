@@ -3,12 +3,28 @@
 % File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 20/10/2025
 % Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
-    
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
     methods
         
         function obj = PlannerMainUniqueTargetsHelper()
@@ -24,12 +40,12 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end            
             if app.isReadOnlyMsg(), return; end
 
-            % Create app
+            % Create AddUniqueTargetApp
             if isempty(app.AddUniqueTargetApp) || ~isvalid(app.AddUniqueTargetApp)
                 app.AddUniqueTargetApp = ultrasat.planner.gui.AddUniqueTarget(app.MainModule);                
             end
 
-            % Show app
+            % Show AddUniqueTargetApp, if closed by the 'Add' button perform the add operation
             if strcmp(app.showModal(app.AddUniqueTargetApp), 'Add')
                 try
                     % Get field values
@@ -71,7 +87,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 % Set field values - Currently there are 9 fields for Unique Target
                 ParamsApp = app.UniqueTargetParamsApp;
                 UniqTarg = app.MainModule.Planner.UniqTarg;
-                app.setUniqueTargetParamsFields(UniqTarg, Index, ParamsApp);
+                obj.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
     
                 % Show the form, update values if closed with Save
                 if strcmp(app.showModal(app.UniqueTargetParamsApp), 'Save')
@@ -81,7 +97,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     app.setModified('editUniqueTarget');
                     try
                         app.MainModule.Planner.editUniqTarg(Index, 'Name', Name, 'RA', RA, 'Dec', Dec);
-                        if app.checkPlanSelfConsistency()
+                        if app.PlanParamsHelper.checkPlanSelfConsistency(app)
                             app.msglog('editUniqueTarget successfully');
                         end
                     catch ME
@@ -282,9 +298,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         function uniqueTargetSelected(obj, app, Index)
             % Helper: Called on Unique Target selection in table - @Todo
+            app.msglog(sprintf('Unique target selected: %d', Index));
             Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.UniqTarg, Index);
             if ~isempty(Data)
-                app.msglog(sprintf('uniqueTargetSelected: %d - %s', Index, Data.Name));
+                app.msglog(sprintf('uniqueTargetSelected done: %d - %s', Index, Data.Name));
             end
         end
 
@@ -347,9 +364,9 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 end            
             end
 
-            % Update also the table in the window
+            % Copy table content from PlannerMain to UniqueTargetsApp
             if ~isempty(app.UniqueTargetsApp) && isvalid(app.UniqueTargetsApp)            
-                app.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
+                app.GuiHelper.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
             end            
         end
 
@@ -366,6 +383,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         function uniqueTargetDoubleClick(obj, app)
             % Called on Unique-Target double-click in the table
             try
+                % Get the selected unique targets
                 UniqueTargetIndex = app.UITableUniqueTargets.Selection;
                 if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
                     return
@@ -375,6 +393,8 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 Planner = app.MainModule.Planner;
                 Value = Planner.UniqTarg.Name(UniqueTargetIndex);            
                 app.GraphPlotUniqueTargetDropDown.Value = Value;
+
+                % Plot the graphs of this unique target
                 app.plotGraphs();
             catch ME
                 app.msgex('uniqueTargetDoubleClick', ME)
@@ -387,13 +407,15 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             app.msglog('showUniqueTargetsWindow');
             if ~app.hasPlanner(), return; end
 
-            % Create app
+            % Create and show UniqueTargetsApp
             if isempty(app.UniqueTargetsApp) || ~isvalid(app.UniqueTargetsApp)
                 app.UniqueTargetsApp = ultrasat.planner.gui.UniqueTargets(app.MainModule);
             end
             app.UniqueTargetsApp.UIFigure.Visible = 'on';
+
+            % Copy table content from PlannerMain to UniqueTargetsApp
             if ~isempty(app.UniqueTargetsApp) && isvalid(app.UniqueTargetsApp)            
-                app.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
+                app.GuiHelper.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
             end
         end        
         

@@ -8,7 +8,23 @@
 %==========================================================================
 
 classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
-
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+    
     methods
 
         function obj = PlannerMainNewPlanHelper()
@@ -37,7 +53,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             end
 
             % Set PlannerName field value
-            if app.isLogin()
+            if app.SessionHelper.isLogin(app)
                 app.NewPlanApp.PlannerNameEditField.Value = app.MainModule.UserName;
                 app.NewPlanApp.PlannerNameEditField.Enable = false;
             else
@@ -57,7 +73,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             end
 
             %
-            app.setButtons();
+            app.SessionHelper.setButtons(app);
         end
 
 
@@ -119,7 +135,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             app.MainModule.setPlanner(upHCS);
             app.setModified('doCreateNewPlanHCS');
-            app.updatePlanParams();
+            app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upHCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanHCS done');
         end
@@ -138,7 +154,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             app.MainModule.setPlanner(upLCS);
             app.setModified('doCreateNewPlanLCS');
-            app.updatePlanParams();
+            app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanLCS done');
         end
@@ -157,7 +173,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             app.MainModule.setPlanner(upDDT);
             app.setModified('doCreateNewPlanDDT');
-            app.updatePlanParams();
+            app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upDDT.mat', 'app.MainModule.Planner');
             app.msglog('doCreateNewPlanDDT done');
         end
@@ -176,7 +192,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             app.MainModule.setPlanner(upTOO);
             app.setModified('doCreateNewPlanDDT');
-            app.updatePlanParams();
+            app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upTOO.mat', 'app.MainModule.Planner');
             app.msglog('doCreateNewPlanTOO done');
         end
@@ -195,7 +211,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             app.MainModule.setPlanner(upAllSS);
             app.setModified('doCreateNewPlanDDT');
-            app.updatePlanParams();
+            app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upLCS.mat', 'app.MainModule.Planner');
             app.msglog('doCreateNewPlanAllSS done');
         end        
@@ -203,7 +219,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
         function UserName = getNewPlanUserName(obj, app)
             % Helper: Get logged-in user name, or user name entered in NewPlanApp dialog            
-            if app.isLogin()
+            if app.SessionHelper.isLogin(app)
                 UserName = app.MainModule.UserName;
             else
                 UserName = app.NewPlanApp.PlannerNameEditField.Value;

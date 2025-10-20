@@ -3,11 +3,27 @@
 % File        : +planner/+guiutils/PlannerMainPlanTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 20/10/2025
 % Description : Plan Targets Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable  
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
 
     methods
         
@@ -38,14 +54,14 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Set field values - Currently there are 23 fields for Plan Target
             ParamsApp = app.PlanTargetParamsApp;
             Plan = app.MainModule.Planner.Plan;
-            app.setPlanTargetParamsFiels(Plan, Index, ParamsApp);          
+            obj.setPlanTargetParamsFiels(app, Plan, Index, ParamsApp);          
             ParamsApp.setEditMode(false);
 
             % Show app
             if strcmp(app.showModal(app.PlanTargetParamsApp), 'Save')
                 try
                     % Apply the paramters from the dialog to the plan
-                    app.applyPlanTargetParams(Index, ParamsApp);
+                    obj.applyPlanTargetParams(app, Index, ParamsApp);
                 catch ME
                     app.msgex('editPlanRow', ME);
                 end
@@ -138,7 +154,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.MainModule.Planner.editPlanRow(Index, 'ExpTime', ExpTime, 'Tiles', Tiles, 'Nexposures', Nexposures);  
 
                 %
-                if app.checkPlanSelfConsistency()
+                if app.PlanParamsHelper.checkPlanSelfConsistency(app)
                     app.msglog('applyPlanTargetParams successfully');
                 end                    
             catch ME
@@ -231,9 +247,9 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                     end
                 end
     
-                % Update also the table in the window
+                % Copy table content from PlannerMain to PlanTargetsApp
                 if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
-                    app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
+                    app.GuiHelper.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
                 end            
             catch ME
                 app.msgex('showPlanTargets', ME)
@@ -294,11 +310,13 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function planTargetSelected(obj, app, Index)
             % Called on plan target selection (single click)
+            app.msglog(sprintf('Plan target selected: %d', Index));
+
             if ~app.hasPlanner(), return; end
             Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, Index);
             if ~isempty(Data)
                 app.msglog(sprintf('planTargetSelected: %d - %s', Index, Data.Name));
-                app.showOverriddenApprovedTargets(Index);
+                app.ApprovedTargetsHelper.showOverriddenApprovedTargets(app, Index);
             end
         end
 
@@ -340,13 +358,15 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.msglog('showPlanTargetsWindow');
             if ~app.hasPlanner(), return; end
 
-            % Create app
+            % Create and show PlanTargetsApp
             if isempty(app.PlanTargetsApp) || ~isvalid(app.PlanTargetsApp)
                 app.PlanTargetsApp = ultrasat.planner.gui.PlanTargets(app.MainModule);
             end
             app.PlanTargetsApp.UIFigure.Visible = 'on';
+
+            % Copy table content from PlannerMain to PlanTargetsApp
             if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
-                app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
+                app.GuiHelper.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
             end
         end               
 

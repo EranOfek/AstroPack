@@ -4,11 +4,11 @@
 % Author      : Chen Tishler
 % Created     : 07/01/2025
 % Updated     : 06/10/2025
-% Description : App Utils for Main Planner
+% Description : App utils for PlannerMain
 %==========================================================================
 
 classdef AppUtils < handle
-    % This class serves as DataModule in Delphi.
+    % Low level utility functions for PlannerMain
     
     properties
         MainModule              % Handle of MainModule instance
@@ -122,6 +122,6 @@ classdef AppUtils < handle
             movegui(App.UIFigure, 'center');
         end
         
-    end
-    
+    end  
+
 end
