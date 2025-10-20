@@ -6,11 +6,11 @@ end
 
 function debugGetApprovedTargets()
     % debugGetApprovedTargets
-    
+
     % Define API URL and create client (will be fetched from Env)
     client = ultrasat.api.MissionClient();
     client.ApiUrl = 'http://localhost:8215';
-    
+
     % Prepare function parameters
     fprintf('Testing getApprovedTargets...\n');
     start_time = datetime(2024, 1, 1, 0, 0, 0);
@@ -36,6 +36,6 @@ function debugGetApprovedTargets()
     % Convert Table to array of struct
     TargetsArray = table2struct(TargetsTable);
     disp(TargetsArray);
-   
+
 end
 

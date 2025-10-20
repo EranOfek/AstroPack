@@ -5,10 +5,10 @@ function debug_MissionApiSim()
     % debug_MissionClientSim - Main function to test MissionClientSim functionalities.
     %
     % Tests the login and logout functionality of the ultrasat.api.MissionClientSim class.
-    
+
     %clc;
     fprintf('=== Testing ultrasat.api.MissionClientSim ===\n');
-    
+
     % Set up test environment
     %DbPath = fullfile(pwd, 'DbPath'); % Use current directory for testing
     DbPath = fullfile(getenv('SOC_PATH'), 'sim', 'backend');
@@ -20,14 +20,14 @@ function debug_MissionApiSim()
     % createSampleUsersFile(DbPath);
 
     % Initialize MissionClientSim object
-    clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);  
+    clientSim = ultrasat.api.MissionClientSim();   % 'DbPath', DbPath);
 
 
     debugLogin(clientSim, 'chen', '123');
-    
 
-    debugGetPlansList(clientSim, [], [], []);  
-    
+
+    debugGetPlansList(clientSim, [], [], []);
+
     return;
 
     %debugSavePlan(clientSim);
@@ -53,18 +53,18 @@ function debug_MissionApiSim()
     debugSetKeyValue(clientSim, 'Settings', 'FontSize', 12);
 
     fprintf('\n--- Debugging getApprovedTargets ---\n');
-    debugGetApprovedTargets(clientSim, datetime('2028-01-01 00:00:00'), datetime('2028-01-01 02:30:00'));    
+    debugGetApprovedTargets(clientSim, datetime('2028-01-01 00:00:00'), datetime('2028-01-01 02:30:00'));
 
     fprintf('\n--- Debugging getExposure ---\n');
     debugGetExposure(clientSim, 'sky_exposure', [101, 103], datetime('2028-01-01 00:00:00'), datetime('2028-01-01 04:00:00'), false);
 
     fprintf('\n--- Debugging savePlan ---\n');
     %debugSavePlan(clientSim);
-    
+
     fprintf('\n--- Debugging getPlansList ---\n');
-    debugGetPlansList(clientSim, [], [], 'first');  
-    debugGetPlansList(clientSim, [], [], 'second');  
-    debugGetPlansList(clientSim, [], [], 'plan');  
+    debugGetPlansList(clientSim, [], [], 'first');
+    debugGetPlansList(clientSim, [], [], 'second');
+    debugGetPlansList(clientSim, [], [], 'plan');
 
 
     debugGetPlansList(clientSim, [], [], []);  % Retrieve all plans
@@ -76,7 +76,7 @@ function debug_MissionApiSim()
     debugLoadPlan(clientSim, 15);
 
     fprintf('\n--- Debugging deletePlan ---\n');
-    debugDeletePlan(clientSim, 2);    
+    debugDeletePlan(clientSim, 2);
 
     fprintf('\n--- Debugging getPlanStatus ---\n');
     debugGetPlanStatus(clientSim, 1);
@@ -85,10 +85,10 @@ function debug_MissionApiSim()
     debugSubmit(clientSim);
 
     fprintf('\n--- Debugging validate ---\n');
-    debugValidate(clientSim);    
+    debugValidate(clientSim);
 
 end
-    
+
 % =========================================================================
 
 % =========================================================================
@@ -291,7 +291,7 @@ function debugSavePlan(clientSim)
         upHCS.StartTime = 'now';
         upHCS.EndTime = upHCS.StartTime+calmonths(6)-days(1);
         upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
-        upHCS.buildHCS;    
+        upHCS.buildHCS;
     end
 
     % Set the client's PlanData and save

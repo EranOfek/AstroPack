@@ -3,7 +3,7 @@ function debug_UserManagerBase()
     %   This script tests the utility methods (matchMask, MatchParams, MergeParams)
     %   inherited by user manager classes. It creates a dummy child class to
     %   gain access to these protected methods for testing.
-    
+
     fprintf('============================================\n');
     fprintf('Starting debug script for UserManagerBase class\n');
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
@@ -21,7 +21,7 @@ function debug_UserManagerBase()
     end
 
     % --- Test Suite ---
-    
+
     % Test 1: matchMask
     fprintf('\n--- Testing matchMask method ---\n');
     test_matchMask(testManager, 'data.csv', '*.csv', true);
@@ -30,15 +30,15 @@ function debug_UserManagerBase()
     test_matchMask(testManager, 'image_abc.jpg', 'image_??.jpg', false);
     test_matchMask(testManager, 'MissionControl.PlanList.History.Open', 'MissionControl.PlanList.*', true);
     test_matchMask(testManager, 'ObservationPlanner.HCS.Open', 'ObservationPlanner.*', true);
-    
+
     % Test 2: MergeParams
     fprintf('\n--- Testing MergeParams method ---\n');
     base = struct('user', 'chen', 'mode', 'read');
     override = struct('mode', 'write', 'level', 5);
     expectedMerge = struct('user', 'chen', 'mode', 'write', 'level', 5);
-    
+
     merged = testManager.MergeParams_public(base, override);
-    
+
     if isequal(merged, expectedMerge)
         fprintf('  [SUCCESS] MergeParams correctly merged structs.\n');
     else
@@ -46,11 +46,11 @@ function debug_UserManagerBase()
         disp('Expected:'); disp(expectedMerge);
         disp('Got:'); disp(merged);
     end
-    
+
     % Test 3: MatchParams
     fprintf('\n--- Testing MatchParams method ---\n');
     required = struct('status', {{'approved', 'pending'}}, 'priority', {{'high'}});
-    
+
     % Test case 1: Successful match
     effective_success = struct('status', 'pending', 'priority', 'high', 'extra_field', 'abc');
     test_MatchParams(testManager, required, effective_success, true);
@@ -58,7 +58,7 @@ function debug_UserManagerBase()
     % Test case 2: Failed match (wrong value)
     effective_fail_value = struct('status', 'rejected', 'priority', 'high');
     test_MatchParams(testManager, required, effective_fail_value, false);
-    
+
     % Test case 3: Failed match (missing key)
     effective_fail_key = struct('status', 'approved');
     test_MatchParams(testManager, required, effective_fail_key, false);

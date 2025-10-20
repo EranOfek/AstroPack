@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   debug_ModelFactoryBase.m
 % Author: Chen Tishler
@@ -21,25 +21,25 @@ function debug_ModelFactoryBase()
         'Timestamp', datetime('now'), ...
         'Attributes', struct('Color', 'Blue', 'Size', 42) ...
     );
-    
+
     % Display the original struct
     disp('Original Struct:');
     disp(sampleStruct);
-    
+
     % Convert the struct to JSON using the toJson method
     jsonStr = ultrasat.api.ModelBase.struct2json(sampleStruct);
     disp('JSON Representation of Struct:');
     disp(jsonStr);
-    
+
     % Parse the JSON back into a MATLAB structure for validation
     decodedStruct = jsondecode(jsonStr);
     disp('Decoded Struct from JSON:');
-    disp(decodedStruct);   
+    disp(decodedStruct);
 
     % Parse the JSON back into a MATLAB structure for validation
     decodedStruct = ultrasat.api.ModelBase.json2struct(jsonStr);
     disp('Decoded Struct from JSON:');
-    disp(decodedStruct);   
+    disp(decodedStruct);
 
     % Convert the timestamp field back to datetime
     % decodedStruct.Timestamp = datetime(decodedStruct.Timestamp, 'InputFormat', 'dd-MMM-yyyy HH:mm:ss');

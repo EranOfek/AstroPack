@@ -33,7 +33,7 @@ classdef MissionClientInterface < ultrasat.api.Loggable
         ApprovedTargetsStartTime        % Updated by getApprovedTargets()
         ApprovedTargetsEndTime          % Updated by getApprovedTargets()
 
-        % Instance of ultrasat.api.PlanData containing current plan information, 
+        % Instance of ultrasat.api.PlanData containing current plan information,
         % required because uplanner has only partial data (this is Yossi design that we need to meet).
         PlanData                        % Instance of ultrasat.api.PlanData
     end
@@ -42,19 +42,19 @@ classdef MissionClientInterface < ultrasat.api.Loggable
     methods
         function obj = MissionClientInterface(ApiClient)
             % Constructor for the MissionClientInterface class.
-            % 
+            %
             % Parameters:
             %   ApiClient - Instance of MissionClientBase
             %
             % Returns:
-            %   obj - Initialized MissionClientInterface object            
-            arguments          
+            %   obj - Initialized MissionClientInterface object
+            arguments
                 ApiClient
             end
 
             obj.ApiClient = ApiClient;
-        end        
-        
+        end
+
         % =================================================================
         %                       Called by uplanner
         % =================================================================
@@ -73,7 +73,7 @@ classdef MissionClientInterface < ultrasat.api.Loggable
             %     .ok - Boolean indicating success (true) or failure (false)
             %
             % Notes:
-            %   This method updates the ApprovedTargetsStartTime and 
+            %   This method updates the ApprovedTargetsStartTime and
             %   ApprovedTargetsEndTime properties.
             arguments
                 obj
@@ -110,7 +110,7 @@ classdef MissionClientInterface < ultrasat.api.Loggable
             end
             Params = struct('plan', Plan);
             response = obj.ApiClient.validatePlan(Params);
-        end        
+        end
 
 
         function response = submitPlan(obj, Plan)
@@ -133,7 +133,7 @@ classdef MissionClientInterface < ultrasat.api.Loggable
             end
             Params = struct('plan', Plan);
             response = obj.ApiClient.submitPlan(Params);
-        end        
+        end
 
 
         function response = retractPlan(obj, Plan)
@@ -150,9 +150,9 @@ classdef MissionClientInterface < ultrasat.api.Loggable
             %
             % Notes:
             %   Called from uplanner
-        end                
-        
-        
+        end
+
+
         function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Retrieves exposure data for specified healpix indices and time range.
             %

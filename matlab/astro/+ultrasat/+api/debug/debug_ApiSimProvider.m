@@ -10,22 +10,22 @@ function debug_ApiSimProvider()
     fprintf('Starting ApiSimProvider Debug Script\n');
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
     fprintf('====================================================\n\n');
-    
+
     % 1. Test the LOCAL provider (using SimpleFileLocal)
     debug_TestLocal();
 
     % 2. Test the REMOTE provider (using SimpleFileClient)
     debug_TestRemote();
-    
+
     fprintf('====================================================\n');
     fprintf('ApiSimProvider Debug Script Finished\n');
     fprintf('====================================================\n');
 end
 
 
-function debug_TestLocal()  
-    LOCAL_BASE_PATH = 'C:\temp\api_sim_local_tests'; % A temporary local directory   
-    
+function debug_TestLocal()
+    LOCAL_BASE_PATH = 'C:\temp\api_sim_local_tests'; % A temporary local directory
+
     fprintf('\n>>> Running test suite for LOCAL provider...\n');
     fprintf('    Target: %s\n', LOCAL_BASE_PATH);
     try
@@ -38,7 +38,7 @@ function debug_TestLocal()
 end
 
 
-function debug_TestRemote()   
+function debug_TestRemote()
     % --- Configuration ---
     REMOTE_URL = 'http://localhost:8090';
     REMOTE_BASE_PATH = 'api_sim_remote_tests/'; % A dedicated folder on the server
@@ -61,7 +61,7 @@ function testProviderSuite(provider, providerType)
     % Runs a generic set of tests against any provider object.
     %   provider: An instance of ApiSimProvider.
     %   providerType: A string ('Remote' or 'Local') for logging purposes.
-    
+
     % --- Test 1: Write and Read JSON ---
     fprintf('\n--- Testing WriteJsonFile and ReadJsonFile (%s) ---\n', providerType);
     testStruct.name = 'Test Data';
@@ -118,7 +118,7 @@ function testProviderSuite(provider, providerType)
     binaryFileName = 'test_binary.bin';
     fprintf('Writing binary data to %s...\n', binaryFileName);
     success = provider.WriteBinaryFile(binaryFileName, testData);
-    
+
     if ~success
         fprintf('  [FAIL] WriteBinary returned false.\n');
         return;
@@ -126,7 +126,7 @@ function testProviderSuite(provider, providerType)
         fprintf('  [SUCCESS] WriteBinary returned true.\n');
     end
 
-    fprintf('Reading back %s...\n', binaryFileName);    
+    fprintf('Reading back %s...\n', binaryFileName);
     readData = provider.ReadBinaryFile(binaryFileName);
 
     if isequal(testData, readData)
@@ -190,16 +190,16 @@ function testProviderSuite(provider, providerType)
     fprintf('\n--- Testing NextAvailableFile (%s) ---\n', providerType);
     seqFolder = 'sequence_test/';
     seqMask = '*.dat';
-    
+
     % Setup: create a few dummy files to establish a sequence
     provider.WriteJsonFile(fullfile(seqFolder, '001.dat'), struct('seq', 1));
     provider.WriteJsonFile(fullfile(seqFolder, '002.dat'), struct('seq', 2));
-    provider.WriteJsonFile(fullfile(seqFolder, '003.dat'), struct('seq', 3));    
-    
+    provider.WriteJsonFile(fullfile(seqFolder, '003.dat'), struct('seq', 3));
+
     fprintf('Searching for next available file in %s with mask %s\n', seqFolder, seqMask);
-    
+
     nextFileResult = provider.NextAvailableFile(seqFolder, seqMask, 3, 1, 100);
-    
+
     if isempty(fieldnames(nextFileResult))
         fprintf('  [FAIL] NextAvailableFile returned an empty result.\n');
     elseif isfield(nextFileResult, 'index') && nextFileResult.index >= 2

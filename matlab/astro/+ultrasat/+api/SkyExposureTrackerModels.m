@@ -32,7 +32,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
             %
             % Returns:
             %   A ModelBase instance containing the initialization parameters.
-        
+
             % Define named arguments with defaults
             arguments
                 table_name (1, :) char                 % Positional: Table name as a required parameter
@@ -40,7 +40,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
                 Args.healpix_level = []                % Default value is empty
                 Args.healpix_indices = []              % Default value is empty
             end
-        
+
             % Construct the data structure
             data = struct(...
                 'table_name', table_name, ...
@@ -48,7 +48,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
                 'healpix_level', Args.healpix_level, ...
                 'healpix_indices', Args.healpix_indices ...
             );
-        
+
             % Create and return the model instance
             model = ultrasat.api.ModelBase(data);
         end
@@ -63,11 +63,11 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
             %   healpix_indices: List of HEALPix indices to update
             %   duration: Duration of the exposure in seconds
             %   timestamp: Timestamp of the exposure
-            
+
             if isa(timestamp, 'datetime')
                 timestamp = datestr(timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ'); % ISO 8601 format
             end
-            
+
             data = struct(...
                 'table_name', table_name, ...
                 'healpix_indices', healpix_indices, ...
@@ -89,7 +89,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
             %   end_timestamp: Optional end timestamp
             %   select_all: Boolean for selecting all rows
             %   debug_print: Debugging information
-            
+
             if nargin < 6
                 debug_print = ''; % Default to empty if not provided
             end
@@ -102,7 +102,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.ModelFactoryBase
             if nargin >= 4 && isa(end_timestamp, 'datetime')
                 end_timestamp = datestr(end_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             end
-            
+
             data = struct(...
                 'table_name', table_name, ...
                 'healpix_indices', healpix_indices, ...

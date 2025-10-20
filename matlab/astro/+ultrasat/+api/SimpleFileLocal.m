@@ -74,9 +74,9 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             %
             %   Returns:
             %       basePath (char): The resolved, absolute path.
-        
+
             soc_env = getenv('SOC_PATH');
-        
+
             if ~isempty(soc_env)
                 % Use the path from the environment variable
                 basePath = fullfile(soc_env, 'sim', 'backend');
@@ -137,19 +137,19 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             if isempty(masks)
                 masks = '*'; % Default to all files
             end
-            
+
             % Split masks by comma or semicolon
             mask_patterns = split(masks, [',', ';']);
-            
+
             allFileNames = {};
             for i = 1:numel(mask_patterns)
                 pattern = strtrim(mask_patterns{i});
                 if isempty(pattern)
                     continue;
                 end
-                
+
                 dir_struct = dir(fullfile(fullFolderPath, pattern));
-                
+
                 % Filter out directories
                 is_file = ~[dir_struct.isdir];
                 filenames = {dir_struct(is_file).name};
@@ -224,7 +224,7 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
                 data char
                 append logical = false
             end
-            
+
             fullLocalPath = fullfile(obj.BasePath, filePath);
 
             % Ensure the target directory exists
@@ -281,23 +281,23 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
                 obj
                 relativeFilePath (1,:) char
             end
-            
+
             fullLocalPath = fullfile(obj.BasePath, relativeFilePath);
             binaryData = uint8.empty(1,0); % Return empty uint8 on failure
-            
+
             if ~isfile(fullLocalPath)
                 obj.msglog(sprintf('Error: Binary file not found at "%s"', fullLocalPath));
                 return;
             end
-            
+
             try
                 fileID = fopen(fullLocalPath, 'rb'); % 'rb' = read binary
                 if fileID == -1
                     error('Could not open file for reading.');
                 end
-                
+
                 % Read all bytes from the file into a uint8 array and ensure it's a row vector
-                binaryData = fread(fileID, inf, '*uint8')';                
+                binaryData = fread(fileID, inf, '*uint8')';
                 fclose(fileID);
             catch ME
                 obj.msglog(sprintf('Error reading binary file "%s": %s', fullLocalPath, ME.message));
@@ -311,22 +311,22 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
                 relativeFilePath (1,:) char
                 binaryData (1,:) uint8 % Ensure data is a uint8 row vector
             end
-            
+
             fullLocalPath = fullfile(obj.BasePath, relativeFilePath);
-            
+
             % Ensure the target directory exists
             [targetDir, ~, ~] = fileparts(fullLocalPath);
             if ~isfolder(targetDir)
                 mkdir(targetDir);
             end
-            
+
             try
                 fileID = fopen(fullLocalPath, 'wb'); % 'wb' = write binary
                 if fileID == -1
                     error('Could not open file for writing.');
                 end
-                
-                fwrite(fileID, binaryData, 'uint8');                
+
+                fwrite(fileID, binaryData, 'uint8');
                 fclose(fileID);
                 success = true;
             catch ME
@@ -353,12 +353,12 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             result = struct();
             try
                 existingFiles = obj.listFiles(folderPath, mask);
-                
+
                 nextIndex = -1;
                 for i = minIndex:maxIndex
                     numStr = sprintf(['%0' num2str(zeroPad) 'd'], i);
                     expectedFile = replace(mask, '*', numStr);
-                    
+
                     if ~ismember(expectedFile, existingFiles)
                         nextIndex = i;
                         break;
@@ -369,10 +369,10 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
                      obj.msglog(sprintf('No available file index found in range %d-%d for mask %s', minIndex, maxIndex, mask));
                      return;
                 end
-                
+
                 finalNumStr = sprintf(['%0' num2str(zeroPad) 'd'], nextIndex);
                 finalFilename = replace(mask, '*', finalNumStr);
-                
+
                 result.index = nextIndex;
                 result.filename = finalFilename;
                 result.full_path = fullfile(obj.BasePath, folderPath, finalFilename);

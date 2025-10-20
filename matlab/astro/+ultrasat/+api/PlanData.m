@@ -15,8 +15,8 @@ classdef PlanData < handle
         plan_kind = 'imaging'  % Always 'imaging' for Observation Planner
         plan_type = ''         % Plan type (LCS, etc.)
         ast_planner = ''       %
-        title = ''             % Title of the plan        
-        status = ''            % Plan status        
+        title = ''             % Title of the plan
+        status = ''            % Plan status
         created_by = ''        % User who created the plan
         create_time = []       % Timestamp for creation
         update_time = []       % Timestamp for last update
@@ -27,8 +27,8 @@ classdef PlanData < handle
 
         metadata = struct()    % Metadata, created by newMetadata() below
         history = struct()     % Array of struct, see addHistory() below
-        targets = struct()     % Array of struct, created by uplanner.planTable2struct()        
-        planner = []           % MATLAB object (binary data) - instance of ultrasat.uplanner         
+        targets = struct()     % Array of struct, created by uplanner.planTable2struct()
+        planner = []           % MATLAB object (binary data) - instance of ultrasat.uplanner
     end
 
 
@@ -42,7 +42,7 @@ classdef PlanData < handle
         function obj = fromJson(js)
             % Create new class instance from JSON text
             obj = ultrasat.api.ModelBase.json2class(js, 'ultrasat.api.PlanData');
-        end        
+        end
     end
 
 
@@ -52,7 +52,7 @@ classdef PlanData < handle
             obj.metadata = obj.newMetadata();
         end
 
-        
+
         function metadata = newMetadata(obj)
             % Create new Metadata struct
             metadata = struct(...
@@ -74,18 +74,18 @@ classdef PlanData < handle
         function js = toJson(obj)
             % Converts the object back to a struct
             js = ultrasat.api.ModelBase.class2json(obj);
-        end        
+        end
 
 
         % MATLAB cannot have array with single struct item, the
         % only solution is to convert the array to cellarray
         %if numel(data.targets) == 1
         %    data.targets = {data.targets};
-        %end            
+        %end
 
 
         function data = newStatusData(obj, Status)
-            % 
+            %
             if nargin < 2
                 Status = [];
             end
@@ -94,12 +94,12 @@ classdef PlanData < handle
             data = struct(...
                 'Status', Status, ...   % 'OK', 'Error', 'Warning'
                 'StartTime', [], ...    % Operation start time (i.e. validation start time)
-                'UpdateTime', [], ...   % Status update time 
+                'UpdateTime', [], ...   % Status update time
                 'ShortStatus', [], ...  % Short status plain text
                 'Text', [], ...         % Detailed status as plain text
                 'Html', [] ...          % Detailed status as HTML
             );
-        end        
+        end
 
 
         function obj = setStatus(obj, fieldName, Status, Args)
@@ -110,7 +110,7 @@ classdef PlanData < handle
             % - Args.Html (Optional): Detailed HTML message
             % - UpdateTime is always set to nowUtc()
             % - If StartTime is empty, it is set to UpdateTime
-    
+
             arguments
                 obj
                 fieldName
@@ -124,24 +124,24 @@ classdef PlanData < handle
             if ~isfield(obj.metadata, fieldName)
                 error('Field "%s" does not exist in obj.metadata', fieldName);
             end
-            
+
             % Directly modify obj.metadata.<fieldName>
             obj.metadata.(fieldName).Status = Status;
-    
+
             % Assign optional fields if provided
             if ~isempty(Args.ShortStatus), obj.metadata.(fieldName).ShortStatus = Args.ShortStatus; end
             if ~isempty(Args.Text), obj.metadata.(fieldName).Text = Args.Text; end
             if ~isempty(Args.Html), obj.metadata.(fieldName).Html = Args.Html; end
-    
+
             % Set UpdateTime to current UTC time
             obj.metadata.(fieldName).UpdateTime = ultrasat.api.ModelBase.nowUtc();
-    
+
             % If StartTime is empty, set it to UpdateTime
             if isempty(obj.metadata.(fieldName).StartTime)
                 obj.metadata.(fieldName).StartTime = obj.metadata.(fieldName).UpdateTime;
             end
         end
-        
+
 
         function clearStatus(obj)
             % Clear all status fields
@@ -151,14 +151,14 @@ classdef PlanData < handle
             obj.metadata.SubmitStatus = obj.newStatusData();
         end
 
-        
+
         function addHistory(obj, message)
             % Adds a new entry to the history with the current timestamp.
             newHistoryEntry = struct(...
                 'timestamp', ultrasat.api.ModelBase.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'message', message ...
             );
-    
+
             if isempty(fieldnames(obj.history)) || (isstruct(obj.history) && isempty(obj.history))
                 % Handle empty history struct array
                 obj.history = newHistoryEntry;

@@ -15,20 +15,20 @@ classdef SkyExposureTrackerClient < ultrasat.api.ClientBase
     % Typical Usage:
     %   client = ultrasat.api.SkyExposureTrackerClient();
     %   response = client.initTable('mission.sky_exposure_debug_matlab', 1000, 5, 1:10);
-    
+
     properties
         TableName = '';
     end
-    
+
     methods
         function obj = SkyExposureTrackerClient(Args)
-            arguments          
-                Args.SubUrl     = '/sky_exposure_tracker';    
+            arguments
+                Args.SubUrl     = '/sky_exposure_tracker';
             end
             ArgsCell = namedargs2cell(Args);
             obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-        end        
-     
+        end
+
 
         function response = initTable(obj, table_name, healpix_rows, healpix_level, healpix_indices)
             % Initialize a Sky Exposure Tracker table.
@@ -55,7 +55,7 @@ classdef SkyExposureTrackerClient < ultrasat.api.ClientBase
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
 
-        
+
         function response = select(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Select rows from the Sky Exposure Tracker table.
             % Params:

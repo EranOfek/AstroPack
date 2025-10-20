@@ -3,14 +3,30 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 20/10/2025
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
 classdef PlannerMainStorageHelper < ultrasat.api.Loggable
-  
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
     methods
-        
+
         function obj = PlannerMainStorageHelper()
             % Constructor
             obj.LogPrefix = 'StorageHelper';
@@ -20,13 +36,13 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
         function openPlan(obj, app)
             % Load plan from database, requires login and server connection
-            app.msglog('openPlan');    
+            app.msglog('openPlan');
 
             % User is not connected, suggset to load plan from local file
-            if ~app.isLogin()
+            if ~app.SessionHelper.isLogin()
                 if strcmp(app.AppUtils.askYesNo('You are not connected to the ULTRASAT DB, would you like to open a local file?', 'Open'), 'Yes')
                     app.loadPlanFromFile();
-                end                
+                end
                 return;
             end
 
@@ -37,14 +53,14 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 end
             end
 
-            % Create app
+            % Create OpenPlanApp
             if isempty(app.OpenPlanApp) || ~isvalid(app.OpenPlanApp)
-                app.OpenPlanApp = ultrasat.planner.gui.OpenPlan(app.MainModule);                
+                app.OpenPlanApp = ultrasat.planner.gui.OpenPlan(app.MainModule);
             end
 
-            % Setup table
+            % Configure the table in the OpenPlanApp window
             app.OpenPlanApp.UITable.SelectionType = "row";
-            app.OpenPlanApp.UITable.Multiselect = "off";            
+            app.OpenPlanApp.UITable.Multiselect = "off";
             app.OpenPlanApp.UITable.RowName = "numbered";
 
             % Query backend database for saved plans
@@ -60,8 +76,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 app.AppUtils.msgError('ApiClient.getPlansList returned empty list');
                 return;
             end
-            
-            % Update the GUI table            
+
+            % Update the GUI table
             % WHY this is required if OpenPlan has getList() func that does
             % the same ??? (25/09/2025)
             %Data = app.MainModule.plansToTopLevelTable(response.plans);
@@ -71,7 +87,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             %if ~isempty(Data)
             %    app.OpenPlanApp.UITable.ColumnName = Data.Properties.VariableNames;
             %end
-            
+
             % Show app
             if strcmp(app.showModal(app.OpenPlanApp), 'Open')
 
@@ -82,7 +98,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     response = app.MainModule.ApiClient.loadPlan(Pk);
                 catch ME
                     app.msgex('openPlan', ME);
-                end                    
+                end
                 app.closePleaseWait();
                 if response.ok
                     obj.doOpenPlan(app, app.MainModule.ApiClient.PlanData);
@@ -90,7 +106,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             end
             app.clearModified();
-            app.setButtons();
+            app.SessionHelper.setButtons();
         end
 
 
@@ -117,20 +133,20 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             app.updateStatus();
             app.showPlanAll();
         end
-        
+
 
         function savePlan(obj, app)
             % Save current plan to database, requires login and server connection
-            app.msglog('savePlan');                        
+            app.msglog('savePlan');
             if ~app.hasPlanner(), return; end
 
             % User is not connected to server, suggest saving to local file
-            if ~app.isLogin()
+            if ~app.SessionHelper.isLogin()
                 if strcmp(app.AppUtils.askYesNo('You are not connected to the ULTRASAT DB, would you like to save to local file?', 'Save'), 'Yes')
                     app.savePlanToFile();
-                end                
+                end
                 return;
-            end            
+            end
 
             % Call backend to save the plan in database
             app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
@@ -144,7 +160,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 app.msgex('savePlan', ME);
             end
 
-            app.closePleaseWait();            
+            app.closePleaseWait();
             app.clearModified();
             app.MainModule.setStatus('OK', 'Plan saved successfully.');
         end
@@ -167,7 +183,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             obj.doClosePlan(app);
             app.clearModified();
             app.setReadOnly(false);
-            app.setButtons();
+            app.SessionHelper.setButtons();
         end
 
 
@@ -178,7 +194,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             app.showPlanAll();
             app.clearModified();
-            app.setButtons();            
+            app.SessionHelper.setButtons();
         end
 
 
@@ -201,7 +217,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             % Create app and set initial values from preferences
             if isempty(app.SavePlanToFileApp) || ~isvalid(app.SavePlanToFileApp)
-                app.SavePlanToFileApp = ultrasat.planner.gui.SavePlanToFile(app.MainModule);                
+                app.SavePlanToFileApp = ultrasat.planner.gui.SavePlanToFile(app.MainModule);
                 if ~isempty(app.Preferences.LocalPlanFolder)
                     app.SavePlanToFileApp.FileNameEditField.Value = app.Preferences.LocalPlanFileName;
                     app.SavePlanToFileApp.Folder = app.Preferences.LocalPlanFolder;
@@ -227,8 +243,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 catch ME
                     app.msgex('savePlanToFile', ME);
                 end
-                app.closePleaseWait();            
-            end            
+                app.closePleaseWait();
+            end
         end
 
 
@@ -262,12 +278,12 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     % Update preferences
                     app.Preferences.LocalPlanFileName = FileName;
                     app.Preferences.LocalPlanFolder = fileparts(FileName);
-                    app.savePreferences();                    
+                    app.savePreferences();
                 catch ME
                     app.msgex('loadPlanFromFile', ME);
                 end
             end
-            app.setButtons();
+            app.SessionHelper.setButtons();
 
             % Check active planner user name
             if ~isempty(app.MainModule.UserName) && ~strcmp(app.MainModule.Planner.AstPlanner, app.MainModule.UserName)
@@ -277,14 +293,14 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
                 app.msglog(sprintf('loadPlanFromFile: Setting AstPlanner field of open plan: %s, %s', app.MainModule.Planner.AstPlanner, app.MainModule.User));
                 app.MainModule.Planner.AstPlanner = app.MainModule.UserName;
-            end                      
+            end
         end
 
 
         function duplicatePlan(obj, app)
             % Duplicate the current observation plan.
             %
-            % This function creates a copy of the current plan with a new title and user-assigned 
+            % This function creates a copy of the current plan with a new title and user-assigned
             % owner while ensuring necessary resets:
             %
             % - Prompts user confirmation by opening DuplicatePlanApp for input.
@@ -316,13 +332,14 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     Planner = app.MainModule.Planner;
 
                     %Title = app.DuplicatePlanApp.PlanTitleEditField;
-                    %UserName = app.DuplicatePlanApp.UserNameEditField; 
+                    %UserName = app.DuplicatePlanApp.UserNameEditField;
 
-                    %OldPk = PlanData.pk;
+                    % Save current pk for addHistory() below
+                    OldPk = PlanData.pk;
                     %OldId = PlanData.id;
                     %OldAstPlanner = PlanData.ast_planner;
 
-                    % Clear the pk field                    
+                    % Clear the pk field
                     PlanData.pk = [];
                     PlanData.id = [];
 
@@ -331,7 +348,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     PlanData.update_time = PlanData.create_time;
                     PlanData.history = struct();
                     PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.ModelBase.datetimeStr(PlanData.update_time)));
-                   
+
                     % Reset the submit status
                     PlanData.metadata.SubmitStatus = PlanData.newStatusData();
 
@@ -342,7 +359,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     % What other status we need to clear? @Todo @Yossi
 
                     % Update display
-                    app.showPlanAll();                    
+                    app.showPlanAll();
                 catch ME
                     app.msgex('duplicatePlan', ME);
                 end

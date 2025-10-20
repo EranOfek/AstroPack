@@ -27,7 +27,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
     %   - ultrasat.api.MissionApiModels   - matlab/astro/+ultrasat/+api/MissionApiModels.m
     %   - ultrasat.api.MissionClientBase  - matlab/astro/+ultrasat/+api/MissionClientBase.m
 
-    
+
     properties
         ApiUrl          % Base URL of the mission control API
         PlanData        % Instance of ultrasat.api.PlanData containing current plan information
@@ -42,14 +42,14 @@ classdef MissionApiBase < ultrasat.api.Loggable
     methods
         function obj = MissionApiBase(Args)
             % Constructor for the MissionClientBase class.
-            % 
+            %
             % Parameters:
             %   Args.SubUrl (string) - Endpoint path to append to the base API URL (default: '/mission')
             %   Args.LogFileName (string) - Path to log file (default: same folder as this file)
             %
             % Returns:
-            %   obj - Initialized MissionClientBase object            
-            arguments          
+            %   obj - Initialized MissionClientBase object
+            arguments
                 Args.SubUrl = '/mission';  % planner_backend
                 Args.LogFileName = []
             end
@@ -58,17 +58,17 @@ classdef MissionApiBase < ultrasat.api.Loggable
             obj.LogPrefix = 'MissionClientBase';
 
             if isempty(Args.LogFileName)
-                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);  
+                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);
                 obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
             else
                 obj.LogFileName = Args.LogFileName;
-            end 
+            end
 
             % Call parent class constructor
             %ArgsCell = namedargs2cell(Args);
             %obj@api.ClientBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-        end        
-        
+        end
+
         % -------------------------------------------------------------------
 
         function response = getApprovedTargets(obj, start_time, end_time)
@@ -86,7 +86,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %     .ok - Boolean indicating success (true) or failure (false)
             %
             % Notes:
-            %   This method updates the ApprovedTargetsStartTime and 
+            %   This method updates the ApprovedTargetsStartTime and
             %   ApprovedTargetsEndTime properties.
         end
 
@@ -106,7 +106,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %
             % Notes:
             %   Called from uplanner, Plan is array of struct
-        end        
+        end
 
 
         function response = submitPlan(obj, Plan)
@@ -123,7 +123,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %
             % Notes:
             %   Called from uplanner
-        end        
+        end
 
 
         function response = retractPlan(obj, Plan)
@@ -140,9 +140,9 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %
             % Notes:
             %   Called from uplanner
-        end                
-        
-        
+        end
+
+
         function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Retrieves exposure data for specified healpix indices and time range.
             %
@@ -160,10 +160,10 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %     .data - Array of exposure data structures (if successful)
             %     .ok - Boolean indicating success (true) or failure (false)
         end
-        
+
         % =================================================================
         %                       Plans Table CRUD
-        % =================================================================        
+        % =================================================================
 
         function response = getPlansList(obj)
             % Retrieves a list of all observation plans from the server.
@@ -232,11 +232,11 @@ classdef MissionApiBase < ultrasat.api.Loggable
             %     .message - Description message (if error)
             %     .data - Structure with plan status information (if successful)
             %     .ok - Boolean indicating success (true) or failure (false)
-        end             
+        end
 
         % =================================================================
 
-        % =================================================================        
+        % =================================================================
 
         function submitData = convertPlanTableToSubmitData(obj, Plan)
             % Converts the uplanner.Plan table to a list of structs for submission.
@@ -250,10 +250,10 @@ classdef MissionApiBase < ultrasat.api.Loggable
             % Notes:
             %   This method extracts specific fields needed for the submission API and
             %   performs necessary data type conversions.
-        
+
             % Initialize the output
             submitData = [];
-        
+
             % Loop through each row of the table
             for i = 1:height(Plan)
                 % Extract required fields and store in a struct
@@ -269,7 +269,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
                 submitData = [submitData; rowStruct];
             end
         end
-        
+
 
         function Plan = convertPlanTimesToUtc(obj, Plan)
             % Converts start_time and end_time fields of each plan entry to UTC.
@@ -287,7 +287,7 @@ classdef MissionApiBase < ultrasat.api.Loggable
                 Plan(i).end_time = ultrasat.api.MissionModels.toUtc(Plan(i).end_time);
             end
         end
-               
+
     end
 end
 

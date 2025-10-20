@@ -3,14 +3,30 @@
 % File        : +planner/+guiutils/PlannerMainPlanTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 20/10/2025
 % Description : Plan Targets Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable  
+classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
 
     methods
-        
+
         function obj = PlannerMainPlanTargetsHelper()
             % Constructor
             obj.LogPrefix = 'PlanTargetsHelper';
@@ -22,7 +38,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Edit plan target by editPlanRow()
             app.msglog('editPlanTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             % Get index of selectred plan target
             Index = app.UITablePlanTargets.Selection;
@@ -32,20 +48,20 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             % Create app
             if isempty(app.PlanTargetParamsApp) || ~isvalid(app.PlanTargetParamsApp)
-                app.PlanTargetParamsApp = ultrasat.planner.gui.PlanTargetParams(app.MainModule);                
+                app.PlanTargetParamsApp = ultrasat.planner.gui.PlanTargetParams(app.MainModule);
             end
 
             % Set field values - Currently there are 23 fields for Plan Target
             ParamsApp = app.PlanTargetParamsApp;
             Plan = app.MainModule.Planner.Plan;
-            app.setPlanTargetParamsFiels(Plan, Index, ParamsApp);          
+            obj.setPlanTargetParamsFiels(app, Plan, Index, ParamsApp);
             ParamsApp.setEditMode(false);
 
             % Show app
             if strcmp(app.showModal(app.PlanTargetParamsApp), 'Save')
                 try
                     % Apply the paramters from the dialog to the plan
-                    app.applyPlanTargetParams(Index, ParamsApp);
+                    obj.applyPlanTargetParams(app, Index, ParamsApp);
                 catch ME
                     app.msgex('editPlanRow', ME);
                 end
@@ -53,9 +69,9 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 % Refresh GUI
                 app.showPlanAll();
                 app.setModified('editPlanTarget');
-            end            
+            end
         end
- 
+
 
         function setPlanTargetParamsFiels(obj, app, Plan, Index, ParamsApp)
             % Helper: Set field values - Currently there are 23 fields for Plan Target
@@ -63,52 +79,52 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             try
                 ParamsApp.PlanTargetIndexEditField.Value = int2str(Index);
-    
+
                 % Editable fields
                 ParamsApp.ExposureTimeEditField.Value = seconds(Plan.ExpTime(Index));  % Numeric field
                 ParamsApp.EpochsPerVisitEditField.Value = Plan.Nexposures(Index);
                 app.MainModule.GuiHelper.updateCheckboxesFromTiles(ParamsApp, Plan.Tiles(Index));
-    
+
                 % String fields
                 ParamsApp.NameEditField.Value = Plan.Name(Index);
-                
+
                 % Integer fields (uint8 → convert to string)
                 ParamsApp.UniqueTargetIndexEditField.Value = num2str(Plan.UniqTargInd(Index));
                 ParamsApp.GroupEditField.Value = num2str(Plan.Group(Index));
-                 
+
                 % Double fields (convert to string for display)
                 ParamsApp.RAEditField.Value = app.MainModule.ra2Str( Plan.RA(Index) );
                 ParamsApp.DecEditField.Value = app.MainModule.dec2Str( Plan.Dec(Index));
                 ParamsApp.ExpectedRollEditField.Value = num2str(Plan.ExpectedRoll(Index));
-                
+
                 % Datetime fields (convert to string using date format)
                 ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tstart(Index));
                 ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tend(Index));
-                 
+
                 % Double fields (convert to string)
                 ParamsApp.MJDstartEditField.Value = num2str(Plan.JDstart(Index));
                 ParamsApp.MJDendEditField.Value = num2str(Plan.JDend(Index));
-                 
-                % Duration fields (convert to string)            
+
+                % Duration fields (convert to string)
                 ParamsApp.TotalDurationEditField.Value = char(Plan.TotalDuration(Index));
                 ParamsApp.SlewTimeBeforeEditField.Value = char(Plan.SlewTimeBefore(Index));
-                           
+
                 % Logical fields (convert to "Yes" / "No" or "1"/"0")
                 ParamsApp.NoCommEditField.Value = string(Plan.NoComm(Index)); % "true"/"false"
                 ParamsApp.HardObsEditField.Value = string(Plan.HardObs(Index));
-                
+
                 % Double fields (convert to string)
                 ParamsApp.MoonDistEditField.Value = num2str(Plan.MoonDist(Index));
                 ParamsApp.SunDistEditField.Value = num2str(Plan.SunDist(Index));
                 ParamsApp.EarthDistEditField.Value = num2str(Plan.EarthDist(Index));
                 ParamsApp.ZodyEditField.Value = num2str(Plan.Zody(Index));
                 ParamsApp.LimMagEditField.Value = num2str(Plan.LimMag(Index));
-                
+
                 % Cell array field (convert to comma-separated string for display)
                 ParamsApp.OverlapTargetsEditField.Value = app.MainModule.cell2Str(Plan.OverlapTargets);
             catch ME
                 app.msgex('setPlanTargetParamsFiels', ME);
-            end                            
+            end
         end
 
 
@@ -135,15 +151,15 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 end
 
                 % Update plan target
-                app.MainModule.Planner.editPlanRow(Index, 'ExpTime', ExpTime, 'Tiles', Tiles, 'Nexposures', Nexposures);  
+                app.MainModule.Planner.editPlanRow(Index, 'ExpTime', ExpTime, 'Tiles', Tiles, 'Nexposures', Nexposures);
 
                 %
-                if app.checkPlanSelfConsistency()
+                if app.PlanParamsHelper.checkPlanSelfConsistency(app)
                     app.msglog('applyPlanTargetParams successfully');
-                end                    
+                end
             catch ME
                 app.msgex('applyPlanTargetParams', ME);
-            end            
+            end
         end
 
 
@@ -151,7 +167,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Delete plan target with delPlanRow()
             app.msglog('deletePlanTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             Index = app.UITablePlanTargets.Selection;
             if isempty(Index) || (Index < 1)
@@ -171,7 +187,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.msgex('delPlanRow', ME);
                 %if ~strcmp(app.AppUtils.askYesNo(sprintf('Unique target is used, deleting it will delete plan targets. Are you sure (%s)?', Name)), 'Yes')
                 %    return;
-                %end                
+                %end
             end
             app.showPlanAll();
         end
@@ -179,9 +195,9 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function clearPlanTargets(obj, app)
             % Clear all plan targets with clearPlan()
-            app.msglog('clearPlanTargets');            
+            app.msglog('clearPlanTargets');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             % Ask user confirmation
             if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to delete ALL TARGETS ???', 'Delete all targets'), 'Yes')
@@ -189,40 +205,40 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             end
 
             try
-                app.MainModule.Planner.clearPlan();                
+                app.MainModule.Planner.clearPlan();
             catch ME
                 app.msgex('clearPlanTargets', ME)
-            end                       
+            end
             app.showPlanAll();
         end
-     
+
 
         function showPlanTargets(obj, app)
             % Update the display of Plan Targets table
             app.msglog('showPlanTargets');
             if ~app.hasPlanner()
                 app.UITablePlanTargets.Data = [];
-                return; 
+                return;
             end
 
-            app.showPleaseWait('Updating plan targets display...');            
+            app.showPleaseWait('Updating plan targets display...');
             try
                 app.UITablePlanTargets.SelectionType = "row";
-                app.UITablePlanTargets.Multiselect = "off";            
+                app.UITablePlanTargets.Multiselect = "off";
                 app.UITablePlanTargets.RowName = "numbered";
-    
+
                 Data = app.MainModule.Planner.Plan;
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-                
+
                 app.UITablePlanTargets.Data = Data;
                 if ~isempty(Data)
-                    app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames; 
+                    app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames;
                 end
-    
+
                 % --- Apply text color styling to the 'ValidationStatus' column ---
                 % Find the column index for 'ValidationStatus'
-                colIdx = find(strcmp(Data.Properties.VariableNames, 'ValidationStatus'), 1);       
-                if ~isempty(colIdx) % Ensure the column exists       
+                colIdx = find(strcmp(Data.Properties.VariableNames, 'ValidationStatus'), 1);
+                if ~isempty(colIdx) % Ensure the column exists
                     % Apply styles row by row based on the ValidationStatus value
                     for row = 1:height(Data)
                         status = string(Data{row, colIdx}); % Read status as string
@@ -230,11 +246,11 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                         addStyle(app.UITablePlanTargets, style, "cell", [row, colIdx]);
                     end
                 end
-    
-                % Update also the table in the window
-                if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
-                    app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
-                end            
+
+                % Copy table content from PlannerMain to PlanTargetsApp
+                if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)
+                    app.GuiHelper.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);
+                end
             catch ME
                 app.msgex('showPlanTargets', ME)
             end
@@ -246,11 +262,11 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Adjust group of targets with adjustGroupStartTime()
             app.msglog('adjustGroupStartTime');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             % Create app
             if isempty(app.AdjustGroupStartTimeApp) || ~isvalid(app.AdjustGroupStartTimeApp)
-                app.AdjustGroupStartTimeApp = ultrasat.planner.gui.AdjustGroupStartTime(app.MainModule);                
+                app.AdjustGroupStartTimeApp = ultrasat.planner.gui.AdjustGroupStartTime(app.MainModule);
             end
 
             try
@@ -260,7 +276,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 groupItems = cellstr(string(uniqueGroups));
                 groupItems = ['All'; groupItems];
                 app.AdjustGroupStartTimeApp.GroupDropDown.Items = groupItems;
-    
+
                 % Enable/disable options according to the existance of Approved Targets list
                 if height(Planner.MissionApprovedPlan) == 0
                     app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'off';
@@ -269,7 +285,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                     app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'on';
                     app.AdjustGroupStartTimeApp.RelativeButton.Value = true;
                 end
-    
+
                 % Show app
                 if strcmp(app.showModal(app.AdjustGroupStartTimeApp), 'OK')
                     % Apply
@@ -283,7 +299,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                     elseif strcmp(app.AdjustGroupStartTimeApp.Mode, 'StartTime')
                         app.msglog('adjustGroupStartTime: NewStartTime');
                         app.MainModule.Planner.adjustGroupStartTime('GroupList', GroupList, 'NewStartTime', app.AdjustGroupStartTimeApp.StartTime);
-                    end                   
+                    end
                     app.showPlanAll();
                 end
             catch ME
@@ -294,11 +310,13 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function planTargetSelected(obj, app, Index)
             % Called on plan target selection (single click)
+            app.msglog(sprintf('Plan target selected: %d', Index));
+
             if ~app.hasPlanner(), return; end
             Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, Index);
             if ~isempty(Data)
                 app.msglog(sprintf('planTargetSelected: %d - %s', Index, Data.Name));
-                app.showOverriddenApprovedTargets(Index);
+                app.ApprovedTargetsHelper.showOverriddenApprovedTargets(app, Index);
             end
         end
 
@@ -308,22 +326,22 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             Index = app.UITablePlanTargets.Selection;
             if isempty(Index) || (Index < 1)
                 return
-            end            
+            end
 
             % Select the Unique-Target
             UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
-            app.UITableUniqueTargets.Selection = UniqueTargetIndex;            
+            app.UITableUniqueTargets.Selection = UniqueTargetIndex;
         end
 
-    
+
         function planRowDoubleClick(obj, app)
             % Called on plan target double click
             try
                 Index = app.UITablePlanTargets.Selection;
                 if isempty(Index) || (Index < 1)
                     return
-                end                        
-    
+                end
+
                 % Select the Unique-Target
                 UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
                 app.UITableUniqueTargets.Selection = UniqueTargetIndex;
@@ -331,24 +349,26 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.plotGraphs();
             catch ME
                 app.msgex('planRowDoubleClick', ME)
-            end                
+            end
         end
-       
+
 
         function showPlanTargetsWindow(obj, app)
             % Show separate window with Plan Targets table
             app.msglog('showPlanTargetsWindow');
             if ~app.hasPlanner(), return; end
 
-            % Create app
+            % Create and show PlanTargetsApp
             if isempty(app.PlanTargetsApp) || ~isvalid(app.PlanTargetsApp)
                 app.PlanTargetsApp = ultrasat.planner.gui.PlanTargets(app.MainModule);
             end
             app.PlanTargetsApp.UIFigure.Visible = 'on';
-            if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)            
-                app.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);            
+
+            % Copy table content from PlannerMain to PlanTargetsApp
+            if ~isempty(app.PlanTargetsApp) && isvalid(app.PlanTargetsApp)
+                app.GuiHelper.copyUITable(app.UITablePlanTargets, app.PlanTargetsApp.UITable);
             end
-        end               
+        end
 
     end
 end

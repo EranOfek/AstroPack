@@ -10,7 +10,7 @@
 classdef MissionApiClient < ultrasat.api.MissionApiBase
     % Client implementation of the MissionClientBase interface
     % Provides communication with the Mission API server
-    
+
     properties
         Client          % ultrasat.api.ClientBase instance for HTTP requests
         ApiUrl          % Base URL for API endpoints
@@ -27,25 +27,25 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             %
             % Returns:
             %   obj - Initialized MissionClient object
-            arguments          
-                Args.SubUrl = '/mission';  % planner_backend  
+            arguments
+                Args.SubUrl = '/mission';  % planner_backend
                 Args.ApiUrl = '';  % Will be fetched from environment if empty
                 Args.LogFileName = [];
             end
-            
+
             % Call parent constructor
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});
-            
+
             % Initialize API client
             obj.Client = ultrasat.api.ClientBase('SubUrl', Args.SubUrl);
-            
+
             % Set API URL if provided
             if ~isempty(Args.ApiUrl)
                 obj.ApiUrl = Args.ApiUrl;
                 obj.Client.BaseUrl = Args.ApiUrl;
             end
-        end        
+        end
 
         % -------------------------------------------------------------------
 
@@ -60,27 +60,27 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             %   response - Structure containing result
             %
             % Notes:
-            %   This method updates the ApprovedTargetsStartTime and 
+            %   This method updates the ApprovedTargetsStartTime and
             %   ApprovedTargetsEndTime properties.
             obj.msglog('getApprovedTargets: start_time=%s, end_time=%s', datestr(start_time), datestr(end_time));
-            
+
             % Format dates for API
             if isdatetime(start_time)
                 start_str = datestr(start_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 start_str = start_time;
             end
-            
+
             if isdatetime(end_time)
                 end_str = datestr(end_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 end_str = end_time;
             end
-            
+
             % Store the times
             obj.ApprovedTargetsStartTime = start_time;
             obj.ApprovedTargetsEndTime = end_time;
-            
+
             % Send request
             params = struct('start_time', start_str, 'end_time', end_str);
             response = obj.Client.postRequest('/get_approved_targets/', params);
@@ -97,29 +97,29 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing validation result
             obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
-            
+
             % Convert date/time fields to UTC
             Plan = obj.convertPlanTimesToUtc(Plan);
-            
+
             % Send request
             params = struct('plan', Plan);
             response = obj.Client.postRequest('/validate_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             % Ensure metadata.ValidationResponse exists as a cell array
             if ~isfield(obj.PlanData.metadata, 'ValidationResponse') || isempty(obj.PlanData.metadata.ValidationResponse)
                 obj.PlanData.metadata.ValidationResponse = {}; % Initialize as empty cell array
             elseif ~iscell(obj.PlanData.metadata.ValidationResponse)
                 obj.PlanData.metadata.ValidationResponse = {obj.PlanData.metadata.ValidationResponse}; % Convert to cell if needed
             end
-        
+
             % Insert the latest response at the beginning of the array (most recent first)
             obj.PlanData.metadata.ValidationResponse = [{response}, obj.PlanData.metadata.ValidationResponse];
-            
+
             obj.msglog('Validation status: %s', response.status);
-        end        
+        end
 
 
         function response = submitPlan(obj, Plan)
@@ -131,29 +131,29 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing submission result
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
-            
+
             % Convert date/time fields to UTC
             Plan = obj.convertPlanTimesToUtc(Plan);
-            
+
             % Send request
             params = struct('plan', Plan);
             response = obj.Client.postRequest('/submit_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             if response.ok
                 % Update status
                 obj.PlanData.status = 'submitted';
-                
+
                 % Add entry to history
                 obj.PlanData.addHistory(sprintf('plan submitted by %s', obj.PlanData.created_by));
-                
+
                 obj.msglog('Plan %d submitted successfully.', obj.PlanData.pk);
             else
                 obj.msglog('Plan submission failed: %s', response.message);
             end
-        end        
+        end
 
 
         function response = retractPlan(obj, Plan)
@@ -165,16 +165,16 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing retraction result
             obj.msglog('retractPlan: Not implemented yet');
-            
+
             % Send request
             params = struct('plan', Plan);
             response = obj.Client.postRequest('/retract_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end                
-        
-        
+        end
+
+
         function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Retrieves exposure data for specified healpix indices and time range.
             %
@@ -189,20 +189,20 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             %   response - Structure containing result
             obj.msglog('getExposure: table=%s, healpix_indices=%s, start=%s, end=%s, select_all=%d', ...
                        table_name, mat2str(healpix_indices), datestr(start_timestamp), datestr(end_timestamp), select_all);
-            
+
             % Format dates for API
             if isdatetime(start_timestamp)
                 start_str = datestr(start_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 start_str = start_timestamp;
             end
-            
+
             if isdatetime(end_timestamp)
                 end_str = datestr(end_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 end_str = end_timestamp;
             end
-            
+
             % Send request
             params = struct(...
                 'table_name', table_name, ...
@@ -211,14 +211,14 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
                 'end_timestamp', end_str, ...
                 'select_all', select_all ...
             );
-            
+
             response = obj.Client.postRequest('/get_exposure/', params);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
-        
+
         % =================================================================
         %                       Plans Table CRUD
-        % =================================================================        
+        % =================================================================
 
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
             % Retrieves a list of all observation plans from the server.
@@ -231,7 +231,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing result
             obj.msglog('getPlansList: Scanning for plans');
-            
+
             % Handle optional arguments
             if nargin < 2
                 start_timestamp = [];
@@ -242,27 +242,27 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             if nargin < 4
                 title_subtext = '';
             end
-            
+
             % Format dates for API if present
             if ~isempty(start_timestamp) && isdatetime(start_timestamp)
                 start_str = datestr(start_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 start_str = start_timestamp;
             end
-            
+
             if ~isempty(end_timestamp) && isdatetime(end_timestamp)
                 end_str = datestr(end_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             else
                 end_str = end_timestamp;
             end
-            
+
             % Send request
             params = struct(...
                 'start_timestamp', start_str, ...
                 'end_timestamp', end_str, ...
                 'title_subtext', title_subtext ...
             );
-            
+
             response = obj.Client.postRequest('/get_plans_list/', params);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
@@ -280,14 +280,14 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Notes:
             %   This method populates the obj.PlanData property.
             obj.msglog('loadPlan: Loading plan with pk=%d', plan_pk);
-            
+
             % Send request
             params = struct('plan_pk', plan_pk);
             response = obj.Client.postRequest('/load_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             % Populate PlanData if plan was returned
             if response.ok && isfield(response, 'plan')
                 obj.PlanData = ultrasat.api.PlanData.fromStruct(response.plan);
@@ -304,17 +304,17 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing result
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
-            
+
             % Update planData from planner if available
             obj.updateFromPlanner();
-            
+
             % Send request (empty params since PlanData is on server)
             params = struct();
             response = obj.Client.postRequest('/save_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             if response.ok
                 obj.msglog('Plan %d saved successfully.', obj.PlanData.pk);
             else
@@ -332,14 +332,14 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing result
             obj.msglog('deletePlan: Deleting plan with pk=%d', plan_pk);
-            
+
             % Send request
             params = struct('plan_pk', plan_pk);
             response = obj.Client.postRequest('/delete_plan/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             if response.ok
                 obj.msglog('Plan %d deleted successfully.', plan_pk);
             else
@@ -357,20 +357,20 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Returns:
             %   response - Structure containing result
             obj.msglog('getPlanStatus: Fetching status for plan with pk=%d', plan_pk);
-            
+
             % Send request
             params = struct('plan_pk', plan_pk);
             response = obj.Client.postRequest('/get_plan_status/', params);
-            
+
             % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-            
+
             if response.ok
                 obj.msglog('Plan status fetched successfully for pk=%d', plan_pk);
             else
                 obj.msglog('Failed to fetch plan status: %s', response.message);
             end
-        end             
+        end
 
         % =================================================================
         %                     Helper methods
@@ -388,10 +388,10 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
             % Notes:
             %   This method extracts specific fields needed for the submission API and
             %   performs necessary data type conversions.
-        
+
             % Initialize the output
             submitData = [];
-        
+
             % Loop through each row of the table
             for i = 1:height(Plan)
                 % Extract required fields and store in a struct
@@ -407,7 +407,7 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
                 submitData = [submitData; rowStruct];
             end
         end
-        
+
 
         function Plan = convertPlanTimesToUtc(obj, Plan)
             % Converts start_time and end_time fields of each plan entry to UTC.
@@ -425,19 +425,19 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
                 if isfield(Plan(i), 'start_time') && isdatetime(Plan(i).start_time)
                     Plan(i).start_time = datestr(Plan(i).start_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
                 end
-                
+
                 % Convert end_time if it exists and is a datetime
                 if isfield(Plan(i), 'end_time') && isdatetime(Plan(i).end_time)
                     Plan(i).end_time = datestr(Plan(i).end_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
                 end
-                
+
                 % Convert estimated_end_time if it exists and is a datetime
                 if isfield(Plan(i), 'estimated_end_time') && isdatetime(Plan(i).estimated_end_time)
                     Plan(i).estimated_end_time = datestr(Plan(i).estimated_end_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
                 end
             end
         end
-        
+
 
         function updateFromPlanner(obj)
             % Update obj.PlanData with data from uplanner, including targets list
@@ -456,8 +456,8 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
                 % only solution is to convert the array to cellarray
                 if numel(obj.PlanData.targets) == 1
                     obj.PlanData.targets = {obj.PlanData.targets};
-                end                
-            end           
+                end
+            end
         end
 
     end
