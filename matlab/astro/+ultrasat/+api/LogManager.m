@@ -3,7 +3,7 @@
 % File        : ultrasat.api.LogManager.m
 % Author      : Chen Tishler
 % Created     : 16/10/2025
-% Updated     : 16/10/2025
+% Updated     : 20/10/2025
 % Description : Global singleton to route log and error messages to GUI windows.
 %==========================================================================
 
@@ -32,6 +32,7 @@ classdef LogManager
             errorLoggerApp = ultrasat.api.LogManager.persistentErrorLoggerApp();
             if ~isempty(errorLoggerApp) && isvalid(errorLoggerApp)
                 errorLoggerApp.logMsg(message);
+
                 % Bring error window to front on error
                 errorLoggerApp.UIFigure.Visible = 'on';
                 figure(errorLoggerApp.UIFigure);
@@ -42,6 +43,8 @@ classdef LogManager
 
     methods (Static, Access = private)
         function result = persistentLoggerApp(value)
+            % Get (or set) the persistent 'staticLoggerApp'
+            % This is the pattern in matlab to have class static properties
             persistent staticLoggerApp
             if nargin > 0 && ~isempty(value)
                 staticLoggerApp = value;
@@ -51,6 +54,8 @@ classdef LogManager
 
         
         function result = persistentErrorLoggerApp(value)
+            % Get (or set) the persistent 'staticErrorLoggerApp'
+            % This is the pattern in matlab to have class static properties
             persistent staticErrorLoggerApp
             if nargin > 0 && ~isempty(value)
                 staticErrorLoggerApp = value;
