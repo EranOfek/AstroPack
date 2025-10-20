@@ -18,7 +18,7 @@ function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
     % Output : - DS9anlaysis object with the images loaded.
     %          - File names.
     % Author : Eran Ofek (2025 Sep) 
-    % Example: pipeline.last.disp.ds9_nightFieldCrop(2,3,[1 1 2025], 1101, 10)
+    % Example: D9=pipeline.last.disp.ds9_nightFieldCrop(2,3,[1 1 2025], 1101, 10)
 
     arguments
         Mount
@@ -65,6 +65,11 @@ function [D9,Files] = ds9_nightFieldCrop(Mount, Cam, Date, Field, Crop, Args)
             fprintf('Found %d files\n', numel(Files));
             
             AI = AstroImage.readProducts({Files{:}});
+            % sort by JD
+            JD = AI.julday;
+            [~,SI] = sort(JD);
+            AI = AI(SI);
+
             D9 = DS9analysis;
             D9.load(AI);
         end

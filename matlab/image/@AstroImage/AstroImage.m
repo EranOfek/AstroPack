@@ -1262,8 +1262,7 @@ classdef AstroImage < Component
                     mkdir(Path);
                 end
             end
-
-
+    
             Istat  = numel(Args.Status);
             Status = Args.Status;
             switch lower(Args.FileType)
@@ -1313,6 +1312,8 @@ classdef AstroImage < Component
                 otherwise
                     error('FileType %s is not yet supported',Args.FileType);
             end
+
+            %cd(PWD);
             
         end
         

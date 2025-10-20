@@ -1076,6 +1076,111 @@ classdef catsHTM
         end
         
     end
+
+    methods % build catsHTM catalogs
+        % additional functions:
+        % VO.prep.build_htm_catalog
+        % VO.prep.build_PS1_htm_cat
+        % VO.prep.prep_generic_htm
+        % ...
+
+        function buildCatFromTAP(Args)
+            %
+
+            arguments
+                Args.HTM       = [];
+                Args.HTM_Level = 7;
+                Args.CatName   = [];
+                
+                
+                Args.ColCell   = {};
+                Args.ColUnits  = {};
+
+                Args.ColRA     = 1;
+                Args.ColDec    = 2;
+
+                Args.SaveInd   = true;
+                Args.NfilesInHDF = 100;
+                Args.CheckExist  = true;
+
+            end
+            RAD = 180./pi;
+            ARCSEC_DEG = 3600;
+
+            RadiusHTM = (sqrt(2).*90./(2.^(Args.HTM_Level - 1)))./RAD;
+            Radius    = 0.00001./(RAD.*ARCSEC_DEF);
+
+
+            % build HTM
+            if (~isempty(Args.HTM) && ~isempty(Args.LevelHTM))
+                HTM      = InPar.HTM;
+                LevelHTM = InPar.LevelHTM;
+            else
+                [HTM,LevelHTM] = celestial.htm.htm_build(InPar.HTM_Level);
+            end
+
+            ListIndexHTM   = LevelHTM(InPar.HTM_Level).ptr;
+            Nhtm           = numel(ListIndexHTM);
+
+            Nsrc = nan(Nhtm,2);
+            for Ihtm=1:1:Nhtm
+                %Ihtm
+                % check if HTM mean Dec is in dec range
+                IndHTM = ListIndexHTM(Ihtm);
+                MeanRA  = mean(HTM(IndHTM).coo(:,1));
+                MeanDec = mean(HTM(IndHTM).coo(:,2));
+
+                % query TAP around MeanRA, MeanDec, RadiusHTM
+                % CatCC is a matrix with data
+                % Args.ColRA  = 1;
+                % Args.ColDec = 2;
+
+                
+                % select sources in HTM polygon
+                Flag  = celestial.htm.in_polysphere(CatCC(:,[Args.ColRA, Args.ColDec]),HTM(IndHTM).coo,2);
+                CatCC = CatCC(Flag,:);
+                % sort by dec
+                CatCC = sortrows(CatCC, Args.ColDec);
+                Nsrc(Ihtm,:) = [IndHTM, size(CatCC,1)];
+
+                % save data
+                if (Nsrc(Ihtm,2)>0)
+                    [FileName,DataName]=HDF5.get_file_var_from_htmid(Args.CatName,IndHTM,Args.NfilesInHDF);
+                    Exist = false;
+                    if (Args.CheckExist)
+                        try
+                            In = h5info(FileName);
+                            Exist = any(strcmp({In.Datasets.Name},DataName));
+                        end
+                    end
+                    %try
+                    if (~Exist)
+                        HDF5.save_cat(FileName,DataName,CatCC(Flag,:),InPar.ColDec,InPar.IndStep);
+                    end
+                    %catch
+                    %    fprintf('Failed save_cat: Ihtm=%d\n',Ihtm);
+                    %end
+                end
+       
+            end
+
+
+            % save HTM index file
+            if (Args.SaveInd)
+                IndFileName = sprintf('%s_htm.hdf5',Args.CatName);
+                delete(IndFileName);
+                Nsrc=HDF5.get_nsrc(Args.CatName);
+                HDF5.save_htm_ind(HTM,IndFileName,[],{},Nsrc)
+            
+                HDF5.save_cat_colcell(Args.CatName,Args.ColCell,Args.ColUnits);
+            end
+
+
+        end
+
+    end
+
+
     
     % Load and search HDF5/HTM files
     methods (Static)
