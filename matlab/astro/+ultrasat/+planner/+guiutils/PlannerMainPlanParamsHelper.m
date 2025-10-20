@@ -58,7 +58,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 try
                     % Do we need to call it? it is called from PlanParams's
                     % Save button @Todo
-                    app.applyPlanParams(ParamsApp);
+                    obj.applyPlanParams(app);
                 catch ME
                     app.msgex('showPlanParamsWindow', ME);
                 end
