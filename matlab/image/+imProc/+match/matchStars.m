@@ -161,8 +161,8 @@ function [Obj, Data, ColNames, ColUnits]=matchStars(Obj, Args)
 
 
     % Order has meaning! 
-    ColNames = ['GAIA_Dist', Args.ColRefMag, Args.ColRefColor, Args.ColRefInfo, 'GAIA_SumMag', 'GAIA_NmatchSmall', 'GAIA_NmatchLarge', 'unWISE_Dist', Args.ColCatIR, 'PS1_Dist', Args.ColCatPS1];
-    ColUnits = {'arcsec', 'mag', 'mag', cell(1, numel(Args.ColRefInfo)), 'mag', '', '', 'arcsec', numel(Args.ColCatIR), 'arcsec', numel(Args.ColCatPS1)};
+    ColNames = ['GAIA_Dist', Args.ColRefMag, Args.ColRefColor, Args.ColRefInfo,                     'GAIA_SumMag', 'GAIA_NmatchSmall', 'GAIA_NmatchLarge', 'unWISE_Dist', Args.ColCatIR,                    'PS1_Dist', Args.ColCatPS1];
+    ColUnits = ['arcsec',   'mag',           'mag',            repmat({''}, size(Args.ColRefInfo)), 'mag',         {''},                {''},              'arcsec',      repmat({''},size(Args.ColCatIR)), 'arcsec',   repmat({''},size(Args.ColCatPS1))];
 
     for Iobj=1:1:Nobj
         % for each element in the input object: AstroCatalog, AstroImage,
@@ -212,7 +212,7 @@ function [Obj, Data, ColNames, ColUnits]=matchStars(Obj, Args)
                 NearestMag(Isrc)    = TempMag(MinInd);
                 NearestColor(Isrc)  = TempColor(MinInd);
                 NearestInfo(Isrc,:) = TempInfo(MinInd,:);
-                NmatchSmall(Isrc)   = sum(ResInd(Iobj).Ind(Isrc).Dist<=Args.AssocRadius);
+                NmatchSmall(Isrc)   = sum(ResInd(Iobj).Ind(Isrc).Dist<=(Args.AssocRadius./ARCSEC_RAD));
                 NmatchLarge(Isrc)   = ResInd(Iobj).Ind(Isrc).Nmatch;
     
                 % weighted sum of mags
