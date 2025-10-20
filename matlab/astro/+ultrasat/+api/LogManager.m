@@ -9,7 +9,7 @@
 
 classdef LogManager
     % Global singleton to route log and error messages to GUI windows.
-    
+
     methods (Static)
         function registerLoggerApps(loggerApp, errorLoggerApp)
             % Register the logger and error logger apps once at startup
@@ -52,7 +52,7 @@ classdef LogManager
             result = staticLoggerApp;
         end
 
-        
+
         function result = persistentErrorLoggerApp(value)
             % Get (or set) the persistent 'staticErrorLoggerApp'
             % This is the pattern in matlab to have class static properties

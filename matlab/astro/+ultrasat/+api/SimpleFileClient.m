@@ -1,6 +1,6 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% Filename    : ultrasat.api.SimpleFileClient.m 
+% Filename    : ultrasat.api.SimpleFileClient.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 21/09/2025
@@ -122,7 +122,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             try
                 % Use performPostRequest (it handles URL + JSON)
                 resp = obj.performPostRequest(endpoint, payload);
-        
+
                 % Extract content from response (depending on FastAPI return type)
                 if isstruct(resp) && isfield(resp, "data")
                     content = resp.data;   % assumes FastAPI returns {"data": "..."}
@@ -216,18 +216,18 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 obj
                 relativeFilePath (1,:) char
             end
-            
+
             binaryData = uint8.empty(1,0); % Default empty response
             endpoint = 'files/read';
-            
+
             % Create a payload telling the server we want the file as Base64
             payload.path = obj.safePath([obj.BasePath, relativeFilePath]);
             payload.encoding = 'base64';
-            
+
             try
                 % The server should return a JSON struct: {"data": "base64_string"}
                 response = obj.performPostRequest(endpoint, payload);
-                
+
                 if isfield(response, 'data') && ~isempty(response.data)
                     % Use MATLAB's built-in Base64 decoder to convert the string
                     % back to raw bytes (uint8 array).
@@ -248,20 +248,20 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 relativeFilePath (1,:) char
                 binaryData (1,:) uint8 % Ensure data is a uint8 row vector
             end
-            
+
             success = false; % Default to failure
             endpoint = 'files/write';
-            
+
             try
                 % Use MATLAB's built-in Base64 encoder to convert the raw bytes
                 % into a string that can be safely sent in a JSON payload.
                 base64String = matlab.net.base64encode(binaryData);
-                
+
                 % Create the payload, including the data and the encoding flag
                 payload.path = obj.safePath([obj.BasePath, relativeFilePath]);
                 payload.data = base64String;
                 payload.encoding = 'base64';
-                
+
                 % Send the request. We only care about success, not the response body.
                 obj.performPostRequest(endpoint, payload);
                 success = true;
@@ -270,7 +270,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
         end
 
-     
+
         function result = nextAvailableFile(obj, folderPath, mask, zeroPad, minIndex, maxIndex)
             % Get the next available file in a folder.
             %   result = obj.nextAvailableFile(folderPath, mask, zeroPad, minIndex, maxIndex)
@@ -321,7 +321,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 result = false;
             end
         end
-    
+
     end
 
 
@@ -353,11 +353,11 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             %
             % Output:
             %   response - decoded response body (usually struct, char, or string)
-        
+
             response = [];
             try
                 fullUrl = obj.getFullUrl(endpoint);
-        
+
                 % --- Request preview (robust) ---
                 try
                     reqPreview = obj.previewDataForLog(payload);
@@ -366,46 +366,46 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 end
                 obj.msglog(sprintf('performPostRequest: POST %s → %s | Request preview: %s', ...
                     endpoint, fullUrl, reqPreview));
-        
+
                 % --- Build and send request ---
                 jsonPayload = jsonencode(payload);
                 headers = matlab.net.http.HeaderField('Content-Type', 'application/json');
                 body = matlab.net.http.io.StringProvider(jsonPayload);
                 req = matlab.net.http.RequestMessage('post', headers, body);
-        
+
                 resp = req.send(fullUrl);
-        
+
                 % --- Response preview (robust) ---
                 try
                     respPreview = obj.previewDataForLog(resp.Body.Data);
                 catch innerME
                     respPreview = sprintf('[response preview error: %s]', innerME.message);
                 end
-        
+
                 obj.msglog(sprintf('performPostRequest: Status: %s', string(resp.StatusCode)));
                 obj.msglog(sprintf('performPostRequest: Response preview: %s', respPreview));
-        
+
                 response = resp.Body.Data;
-        
+
             catch ME
                 obj.msglog(sprintf('performPostRequest: ERROR endpoint=%s | %s', endpoint, ME.message));
             end
         end
-        
+
 
         function response = performPostRequest0(obj, endpoint, payload)
             % A helper function for making JSON POST requests.
 
             fullUrl = obj.getFullUrl(endpoint);
-            contentTypeField = matlab.net.http.HeaderField('Content-Type', 'application/json');            
+            contentTypeField = matlab.net.http.HeaderField('Content-Type', 'application/json');
             jsonPayload = jsonencode(payload);
             body = matlab.net.http.io.StringProvider(jsonPayload);
 
             req = matlab.net.http.RequestMessage('post', contentTypeField, body);
-    
+
             % Send request
             resp = req.send(fullUrl);
-    
+
             % Display response
             disp(resp.Body.Data);
             response = resp.Body.Data;
@@ -413,13 +413,13 @@ classdef SimpleFileClient < ultrasat.api.Loggable
 
     end
 
-    
+
     methods (Access = private)
         function previewStr = previewDataForLog(obj, data)
             % previewDataForLog Create a short, safe preview string for logging.
-    
+
             maxLen = 200; % max preview length
-    
+
             try
                 if ischar(data) || isstring(data)
                     strData = char(data);
@@ -429,30 +429,30 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                     else
                         previewStr = strData;
                     end
-    
+
                 elseif isnumeric(data)
                     previewStr = sprintf('[numeric array %dx%d]', size(data,1), size(data,2));
-    
+
                 elseif isstruct(data)
                     fieldsList = strjoin(fieldnames(data), ', ');
                     previewStr = sprintf('[struct with fields: %s]', fieldsList);
-    
+
                 elseif iscell(data)
                     previewStr = sprintf('[cell array %dx%d]', size(data,1), size(data,2));
-    
+
                 elseif isempty(data)
                     previewStr = '[empty]';
-    
+
                 else
                     previewStr = sprintf('[%s]', class(data));
                 end
-    
+
             catch ME
                 previewStr = sprintf('[preview error: %s]', ME.message);
             end
         end
     end
-    
+
 
     methods (Static, Access = private)
         function safe_path = safePath(path)

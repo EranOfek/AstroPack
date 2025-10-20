@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   debug_ClientBase.m
 % Author: Chen Tishler
@@ -22,10 +22,10 @@ function debug_ClientBase()
     % Initialize ClientBase with FastAPI server URL
     client = ultrasat.api.ClientBase('BaseUrl', 'http://127.0.0.1:8299');
     client.ApiKey = [];
-    
+
     % Test addition endpoint
     debug_postRequest(client, '/add', 2.5, 2.5);
-    
+
     % Test multiplication endpoint
     debug_postRequest(client, '/multiply', 2, 2);
 end
@@ -40,21 +40,21 @@ function debug_postRequest(client, endpoint, a, b)
     % :param b: Second number.
 
     disp(['Testing ', endpoint, '...']);
-    
+
     % Ensure 'a' and 'b' are explicitly doubles
     a = double(a);
     b = double(b);
 
     % Create request payload
     params = struct('a', a, 'b', b);
-    
+
     % Send request
     response = client.postRequest(endpoint, params);
-    
+
     % Display response
     disp('Response:');
     disp(response);
-    
+
     % Validate response fields
     assert(isfield(response, 'result') && isa(response.result, 'double'), 'Error: result missing or incorrect type.');
     assert(isfield(response, 'status') && isa(response.status, 'char'), 'Error: status missing or incorrect type.');

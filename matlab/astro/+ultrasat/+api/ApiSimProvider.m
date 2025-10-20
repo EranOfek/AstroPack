@@ -61,7 +61,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             % Local mode - access local files directly
             if strcmp(obj.Mode, 'client')
                 backendTarget = config.server_url;
-                obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);             
+                obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget);
             else
                 backendTarget = getenv('SOC_PATH');
                 obj.FileClient = ultrasat.api.SimpleFileLocal(backendTarget);
@@ -69,14 +69,14 @@ classdef ApiSimProvider < ultrasat.api.Loggable
 
             return;
 
-            % Target is a URL, so use the remote client.            
+            % Target is a URL, so use the remote client.
             if startsWith(backendTarget, 'http://', 'IgnoreCase', true) || ...
-               startsWith(backendTarget, 'https://', 'IgnoreCase', true)                
+               startsWith(backendTarget, 'https://', 'IgnoreCase', true)
                 obj.msglog(sprintf('Initializing with remote backend at %s', backendTarget));
                 obj.FileClient = ultrasat.api.SimpleFileClient(backendTarget, basePath);
 
-            % Target is a local path, so use the local client.                
-            else                
+            % Target is a local path, so use the local client.
+            else
                 obj.msglog(sprintf('Initializing with local backend at %s', backendTarget));
 
                 useLocal = true;
@@ -188,31 +188,31 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 dataObject
                 variableName char
             end
-            
+
             success = false; % Default to failure
-            
+
             % Create a temporary file path.
             tempMatFile = [tempname, '.mat'];
-            
+
             % CRITICAL: Use onCleanup to guarantee the temp file is deleted,
             % even if an error occurs during the process.
             cleanupObj = onCleanup(@() delete(tempMatFile));
-            
+
             try
                 % The 'save' command saves variables, not direct objects. The
                 % standard, robust way to handle this is to put the object
                 % into a struct and use the '-struct' flag with 'save'.
                 tempStruct.(variableName) = dataObject;
                 save(tempMatFile, '-struct', 'tempStruct', variableName);
-                
+
                 % Read the raw bytes from the newly created temporary file
                 fid = fopen(tempMatFile, 'rb');
                 matBytes = fread(fid, inf, '*uint8')';
                 fclose(fid);
-                
+
                 % Now, use the existing binary write method to send the data.
                 success = obj.writeBinaryFile(relativeFilePath, matBytes);
-                
+
             catch ME
                 obj.msglog('Failed to save MAT object to "%s": %s', relativeFilePath, ME.message);
             end
@@ -230,35 +230,35 @@ classdef ApiSimProvider < ultrasat.api.Loggable
                 relativeFilePath char
                 variableName char
             end
-            
+
             loadedObject = [];
             success = false;
-            
+
             % Read the binary data from the provider (local or remote)
             matBytes = obj.readBinaryFile(relativeFilePath);
-            
+
             if isempty(matBytes)
                 obj.msglog('Failed to load MAT object: received no binary data from "%s".', relativeFilePath);
                 return;
             end
-            
+
             % Create a temporary file path and guarantee its deletion.
             tempMatFile = [tempname, '.mat'];
             cleanupObj = onCleanup(@() delete(tempMatFile));
-            
+
             try
                 % Write the received bytes to the temporary file
                 fid = fopen(tempMatFile, 'wb');
                 fwrite(fid, matBytes, 'uint8');
                 fclose(fid);
-                
+
                 % Load the variable from the temporary .mat file
                 loadedStruct = load(tempMatFile, variableName);
-                
+
                 % Extract the object from the loaded struct
                 loadedObject = loadedStruct.(variableName);
                 success = true;
-                
+
             catch ME
                 obj.msglog('Failed to load MAT object from "%s": %s', relativeFilePath, ME.message);
             end
@@ -293,7 +293,7 @@ classdef ApiSimProvider < ultrasat.api.Loggable
             result = obj.FileClient.nextAvailableFile(path, mask, zeroPad, minIndex, maxIndex);
         end
 
-        
+
         function result = deleteFile(obj, filePath)
             % Deletes a file from the server.
             %   Delegates the call to the underlying file client.

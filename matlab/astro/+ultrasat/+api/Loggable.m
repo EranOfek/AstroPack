@@ -81,7 +81,7 @@ classdef Loggable < handle
             NamespaceId = ultrasat.api.PathUtils.NamespaceId();
 
             % @TDO - This is the module name for the log file
-            moduleName = 'planner';  
+            moduleName = 'planner';
             fileName = 'planner';
 
             if isempty(NamespaceId)
@@ -110,7 +110,7 @@ classdef Loggable < handle
                     end
                     % Ensure the file is closed even if an error occurs
                     cleanup = onCleanup(@() fclose(fileID));
-                    
+
                     % Write the log entry followed by a newline character
                     fprintf(fileID, '%s\r\n', fullLogEntry);
                 catch ME
@@ -137,7 +137,7 @@ classdef Loggable < handle
         function msgex(obj, msg, ME, varargin)
             % Log exception with message
             obj.logException(ME, false, varargin{:});
-        end      
+        end
 
 
         function logException(Exception, IncludeStackTrace, varargin)
@@ -148,21 +148,21 @@ classdef Loggable < handle
             % :param Exception: The caught exception object (from `catch ME`).
             % :param IncludeStackTrace: Boolean (true/false) to include stack trace.
             % :param varargin: Additional formatted message arguments.
-        
+
             if nargin < 4
                 IncludeStackTrace = true; % Default: include stack trace
             end
-        
+
             % Generate timestamp
             dt = datetime('now', 'TimeZone', 'UTC');
             timestamp = datestr(dt, 'yyyy-mm-dd HH:MM:SS');
-        
+
             % Construct the base log message
             logMessage = sprintf(varargin{:});
-        
+
             % Exception details
             exceptionMsg = sprintf('EXCEPTION: %s | ID: %s', Exception.message, Exception.identifier);
-        
+
             % If stack trace is enabled, format it
             stackTrace = '';
             if IncludeStackTrace
@@ -171,7 +171,7 @@ classdef Loggable < handle
                         Exception.stack(i).name, Exception.stack(i).line, Exception.stack(i).file);
                 end
             end
-        
+
             % Construct log output
             if IncludeStackTrace
                 fullMessage = sprintf('%s - %s: %s\n%s\nSTACK TRACE:%s\n', ...
@@ -180,13 +180,13 @@ classdef Loggable < handle
                 fullMessage = sprintf('%s - %s: %s | %s', ...
                     timestamp, Prefix, logMessage, exceptionMsg);
             end
-        
+
             % Print to console
             fprintf('%s\n', fullMessage);
-        
+
             % Append to log file
             obj.msglog(fullMessage);
-        end       
+        end
 
 
         function basePath = resolveDefaultBasePath0(obj)
@@ -203,9 +203,9 @@ classdef Loggable < handle
             %
             %   Returns:
             %       basePath (char): The resolved, absolute path.
-        
+
             soc_env = getenv('SOC_PATH');
-        
+
             if ~isempty(soc_env)
                 % Use the path from the environment variable
                 basePath = fullfile(soc_env, 'sim', 'backend');
@@ -229,26 +229,26 @@ classdef Loggable < handle
 
         function checkErrorAndLogExtra(obj, logEntry, dt)
             % Checks if the log entry is error-related and writes to an extra error log file.
-    
+
             lowerMsg = lower(logEntry);
-    
+
             % Detect error/exception but ignore phrases like "no error"
             if startsWith(strtrim(lowerMsg), 'error') || ...
                 contains(lowerMsg, 'exception') || contains(lowerMsg, 'fail') || ...
                 contains(lowerMsg, 'trouble') || contains(lowerMsg, 'problem') || ...
                 (contains(lowerMsg, 'error') && ~contains(lowerMsg, 'no error'))
-    
+
                 NamespaceId = ultrasat.api.PathUtils.NamespaceId();
                 moduleName = 'planner';
                 fileName = 'planner_errors';
-    
+
                 if isempty(NamespaceId)
                     ErrorLogFileName = ultrasat.api.PathUtils.getGlobalLogFilename(moduleName, fileName, 'DT', dt);
                 else
                     ErrorLogFileName = ultrasat.api.PathUtils.getNamespaceLogFilename(moduleName, fileName, ...
                         'NamespaceId', NamespaceId, 'DT', dt);
                 end
-    
+
                 if ~isempty(ErrorLogFileName)
                     try
                         ErrorLogFileName = fullfile(obj.LogBasePath, ErrorLogFileName);
@@ -256,7 +256,7 @@ classdef Loggable < handle
                         if ~isfolder(logDir)
                             mkdir(logDir);
                         end
-    
+
                         fileID = fopen(ErrorLogFileName, 'a', 'n', 'UTF-8');
                         if fileID ~= -1
                             cleanup = onCleanup(@() fclose(fileID));
@@ -268,6 +268,6 @@ classdef Loggable < handle
                 end
             end
         end
-        
+
     end
 end

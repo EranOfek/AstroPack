@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   debug_EncodeUtils.m
 % Author: Chen Tishler
@@ -35,7 +35,7 @@ function debug_base64()
 
     % Validate original and decoded data
     assert(api.ModelBase.cmpstruct(sampleData, decoded), 'Base64 encoding-decoding failed!');
-    disp('[PASS] Base64 encoding-decoding validation successful.'); 
+    disp('[PASS] Base64 encoding-decoding validation successful.');
 end
 
 
@@ -55,7 +55,7 @@ function debug_compression()
 
     % Validate original and decompressed data
     assert(api.ModelBase.cmpstruct(sampleData, decompressed), '7z compression-decompression failed!');
-    disp('[PASS] 7z compression-decompression validation successful.');    
+    disp('[PASS] 7z compression-decompression validation successful.');
 end
 
 

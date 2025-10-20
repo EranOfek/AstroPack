@@ -6,14 +6,14 @@
 % Updated     : 21/09/2025
 % Description : Derived class for virtual time management.
 %==========================================================================
-    
+
 classdef VirtualTimeClient < ultrasat.api.ClientBase
     % VirtualTimeClient - Derived class for virtual time management.
-    
+
     properties
         ID = 'vtm1';  % Identifier for the Virtual Time Manager
     end
-    
+
     methods
         function obj = VirtualTimeClient(apiUrl, apiKey, timeout, id)
             % Constructor for VirtualTimeClient
@@ -21,8 +21,8 @@ classdef VirtualTimeClient < ultrasat.api.ClientBase
             if nargin > 3
                 obj.ID = id;
             end
-        end        
-        
+        end
+
         function success = start(obj, factor, base)
             % Start the virtual time manager simulation.
             if nargin < 2
@@ -35,14 +35,14 @@ classdef VirtualTimeClient < ultrasat.api.ClientBase
             response = obj.postRequest('/start/', params.Data);
             success = isfield(response, 'ok') && response.ok;
         end
-        
+
         function success = pause(obj)
             % Pause the virtual time manager simulation.
             params = ultrasat.api.VirtualTimeModels.PauseParams(obj.ID);
             response = obj.postRequest('/pause/', params.Data);
             success = isfield(response, 'ok') && response.ok;
         end
-        
+
         function state = getState(obj)
             % Get the current state as JSON text.
             params = struct('id', obj.ID);

@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   debug_ModelBase.m
 % Author: Chen Tishler
@@ -23,7 +23,7 @@ classdef debug_ModelBase_MyClass < handle
     end
 
 
-   methods(Access = public) 
+   methods(Access = public)
 
        function obj = debug_ModelBase_MyClass()
            obj.st1 = struct('A', 'aaa', 'B', 'bbb');

@@ -10,8 +10,8 @@
 classdef ClientBase < ultrasat.api.Loggable
     % ClientBase - Base class for interacting with REST API services.
     % https://chatgpt.com/c/6756dedd-4c2c-8012-adad-4772c6780623
-    % This class provides a standardized interface for communicating with 
-    % FastAPI backend services in the ULTRASAT project. It manages HTTP 
+    % This class provides a standardized interface for communicating with
+    % FastAPI backend services in the ULTRASAT project. It manages HTTP
     % requests, authentication, and API interactions.
     %
     % Key Features:
@@ -19,9 +19,9 @@ classdef ClientBase < ultrasat.api.Loggable
     % - Supports synchronous and asynchronous API requests.
     % - Handles file uploads with additional parameters.
     %
-    % This class is intended to be extended by specific API clients that 
+    % This class is intended to be extended by specific API clients that
     % interact with various FastAPI services.
-    
+
     properties
         BaseUrl             % Base URL of the API
         SubUrl              % Service-specific URL path
@@ -35,7 +35,7 @@ classdef ClientBase < ultrasat.api.Loggable
         function obj = ClientBase(Args)
             % Constructor for ClientBase
             %
-            % Initializes the API client with optional arguments, using 
+            % Initializes the API client with optional arguments, using
             % defaults from environment variables if not provided.
             %
             % :param Args.BaseUrl: Base URL of the API (default from ENV).
@@ -43,35 +43,35 @@ classdef ClientBase < ultrasat.api.Loggable
             % :param Args.ApiKey: API key for authentication (default from ENV).
             % :param Args.Timeout: Timeout in seconds (default 30).
             % :return: An instance of ClientBase.
-            
-            arguments          
-                Args.BaseUrl        = getenv('SOC_API_BASE');       
-                Args.SubUrl         = '';                          
-                Args.ApiKey         = getenv('SOC_API_KEY');           
+
+            arguments
+                Args.BaseUrl        = getenv('SOC_API_BASE');
+                Args.SubUrl         = '';
+                Args.ApiKey         = getenv('SOC_API_KEY');
                 Args.Timeout        = getenv('SOC_API_TIMEOUT');
                 Args.LogFileName
             end
-        
+
             if isempty(LogFileName)
-                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);  
+                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);
                 obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
             else
                 obj.LogFileName = LogFileName;
-            end 
+            end
 
             % Assign default timeout if environment variable is invalid
             if isempty(Args.Timeout)
-                Args.Timeout = 30; 
+                Args.Timeout = 30;
             else
                 Args.Timeout = str2double(Args.Timeout);
             end
-            
+
             % Assign properties
             obj.BaseUrl = Args.BaseUrl;
             obj.SubUrl = Args.SubUrl;
             obj.ApiKey = Args.ApiKey;
             obj.Timeout = Args.Timeout;
-            
+
             % Ensure SubUrl starts with `/` (but avoid `//`)
             if ~isempty(obj.SubUrl)
                 if obj.SubUrl(1) ~= '/'
@@ -91,17 +91,17 @@ classdef ClientBase < ultrasat.api.Loggable
             % :param endpoint: API endpoint path (appended to BaseUrl).
             % :param params: Struct containing request parameters.
             % :return: Response data as a struct.
-            
+
             import matlab.net.*
             import matlab.net.http.*
-            
+
             if endpoint(1) ~= '/'
                 endpoint = ['/', endpoint];
             end
             url = [obj.ApiUrl, endpoint];
 
             % Check if params is an instance of ModelBase or derived class
-            if isa(params, 'api.ModelBase')                
+            if isa(params, 'api.ModelBase')
                 params = params.Data;
             elseif ~isstruct(params)
                 error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.ModelBase.');
@@ -111,7 +111,7 @@ classdef ClientBase < ultrasat.api.Loggable
             cleanedData = ultrasat.api.ModelBase.removeEmptyFields(params);
             jsonData = ultrasat.api.ModelBase.struct2json(cleanedData);
             jsonData = jsondecode(jsonData);
-            
+
 
             % Create HTTP headers
             headers = [
@@ -128,7 +128,7 @@ classdef ClientBase < ultrasat.api.Loggable
 
             try
                 rawResponse = send(request, url, options);
-                
+
                 if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
                     respJson = jsonencode(rawResponse.Body.Data);
                     response = ultrasat.api.ModelBase.fromJson(respJson);  % rawResponse.Body.Data);
@@ -164,7 +164,7 @@ classdef ClientBase < ultrasat.api.Loggable
             url = [obj.ApiUrl, endpoint];
 
             % Check if params is an instance of ModelBase or derived class
-            if isa(params, 'api.ModelBase')                
+            if isa(params, 'api.ModelBase')
                 params = params.Data;
             elseif ~isstruct(params)
                 error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.ModelBase.');
@@ -200,20 +200,20 @@ classdef ClientBase < ultrasat.api.Loggable
             % :param url: Target API endpoint URL.
             % :param filePaths: Cell array of file paths to upload.
             % :param params: Struct of additional key-value parameters.
-            
+
             import matlab.net.*
             import matlab.net.http.*
             import matlab.net.http.io.*
-        
+
             % Create the MultipartFormProvider
             formProvider = MultipartFormProvider();
-        
+
             % Attach each file in the array of file paths
             for i = 1:numel(filePaths)
                 fieldName = sprintf('file%d', i);
                 formProvider.addPart(FormProvider(fieldName, filePaths{i}));
             end
-        
+
             % Add additional parameters if provided
             if nargin > 2 && ~isempty(params)
                 fieldNames = fieldnames(params);
@@ -221,16 +221,16 @@ classdef ClientBase < ultrasat.api.Loggable
                     formProvider.addPart(FormProvider(fieldNames{i}, params.(fieldNames{i})));
                 end
             end
-        
+
             % Create and send the HTTP request
             request = RequestMessage('POST', [], formProvider);
             response = request.send(url);
-        
+
             % Display response
             obj.msglog(sprintf('Response Status Code: %s', response.StatusCode));
             obj.msglog(sprintf('Response Body: %s', response.Body.Data));
         end
-        
+
     end
 
 end
