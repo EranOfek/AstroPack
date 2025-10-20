@@ -1,11 +1,13 @@
 function [Status,AFN] = saveProductImage(AI, FileName, Args)
-    % Save products in AstroImage object
+    % Save FITS products from an AstroImage object
     %   Optionaly save the: Image, Mask, PSF, Cat
     % Input  : - An AstroImage object.
     %          - Either a string/cell array of Nfile X Nprod
     %            Containing the file names per product.
     %            Or, an AstroFileName object from which the file names and
     %            paths will be generated.
+    %            If this is a file name, then the path is either embeded
+    %            and/or provided by the 'Path' argument.
     %          * ...,key,val,... ,
     %            'OutProduct' - A string/cell array of products to save in the AstroImage.
     %                   Options are:
@@ -61,8 +63,22 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
     %          - An updated AstroFileName object (if included in input).
     % Author : Eran Ofek (2025 Oct) 
     % Example: [Status,AFN]=imProc.io.saveProductImage(AI, AFN);
-    %          [Status,AFN]=imProc.io.saveProductImage(AI(1), 'MyFile.fits');
+    %
+    %          % Write a single Image product with user specified file name
     %          [Status,AFN]=imProc.io.saveProductImage(AI(1), 'MyFile.fits','OutProduct',"Image");
+    %          % Write a single PSF product with user specified file name
+    %          [Status,AFN]=imProc.io.saveProductImage(AI(1), 'MyPSF.fits','OutProduct','PSF');
+    %          % write a single PSF product using AstroFileName
+    %          AFN=AstroFileName; AFN.JD=2451545; AFN.julday2time;  
+    %          [Status,AFN]=imProc.io.saveProductImage(AI(1), AFN,'OutProduct','PSF','Path','/home/eran');
+    %          % or specifiy the path in the AstroFileName
+    %          AFN.Path = '/home/eran';
+    %          [Status,AFN]=imProc.io.saveProductImage(AI(1), AFN,'OutProduct','Cat');
+    %          % save multiple images and multiple data products
+    %          AFN=AstroFileName; AFN.JD=[2460000;2460001]; AFN.julday2time;  
+    %          [Status,AFN]=imProc.io.saveProductImage([AI;AI], AFN,'Path','/home/eran');
+    
+
 
     arguments
         AI
@@ -74,7 +90,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.BasePath                 = [];
         Args.BasePathRef              = [];
         Args.Path                     = [];
-        Args.AddSubDirKey             = 'SUBDIR';
+        Args.SubDirKey                = 'SUBDIR';
         Args.FileType                 = 'fits';  % If AstroFileName, use info
         
         Args.OverWrite logical        = false;
@@ -86,14 +102,18 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
 
-
-       
     end    
 
+    if ischar(Args.OutProduct)
+        Args.OutProduct = string(Args.OutProduct);
+    end
     Nprod = numel(Args.OutProduct);
  
     if isa(FileName, 'AstroFileName')
         %FileList = FileName.genProducts('OutProduct',Args.OutProduct, 'AddPath',false);
+        if isempty(Args.Path)
+            Args.Path = FileName.Path;
+        end
         [FileListImage,PathList,~,AFN]  = FileName.genFullPath('AddSubDir',Args.AddSubDir,...
                                                      'PathType',Args.PathType,...
                                                      'BasePath',Args.BasePath,...
@@ -101,13 +121,16 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
                                                      'Path',Args.Path,...
                                                      'CreateNewObj',true);
         Nim = numel(FileListImage);
-        FileList = string(Nim, Nprod);
+        FileList = strings(Nim, Nprod);
         for Iprod=1:1:Nprod
             FileList(:,Iprod) = FileName.genFile('Product',Args.OutProduct{Iprod});
         end
         FileType = AFN.FileType{1};
     else
         AFN = [];
+        if ischar(FileName)
+            FileName = string(FileName);
+        end
         if isvector(FileName)
             FileName = FileName(:);
         end
@@ -116,18 +139,21 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
             error('INput FileName contains only %d columns, while %d products were requested', NprodGiven, Nprod);
         end
         FileType = Args.FileType;
+        PathList = Args.Path;
+        FileList = FileName;
     end
 
-    if Args.AddSubDirKey && isa(AI, 'AstroImage') && isa(AFN, 'AstroFileName')
+    if Args.AddSubDir && isa(AI, 'AstroImage') && isa(AFN, 'AstroFileName')
         AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
     end
 
 
-    Nobj = numel(Obj);
+    Nobj = numel(AI);
     if Nim~=Nobj
         error('Numbder of images (%d) is not consistent with the number of file names (%d)', Nobj, Nim);
     end
 
+    Npath      = numel(PathList);
     Status     = {};
     ErrInd     = 0;
     DirCreated = false;
@@ -138,9 +164,17 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
             % Path: PathList{Iobj}
             % File FileList{Iobj, Iprod}
 
-            FileToSave = [PathList, FileList{Iobj, Iprod}];
-            Data = AI(Iobj).(Args.OutProduct{Iprod});
-            if isempty(Data)
+            Ipath = min(Iobj, Npath);
+            FileToSave = join([PathList(Ipath), filesep, FileList{Iobj, Iprod}],"",2);
+
+            if strcmp(Args.OutProduct{Iprod}, 'Cat')
+                Prop = 'CatData';
+            else
+                Prop = Args.OutProduct{Iprod};
+            end
+            if AI(Iobj).isemptyProperty(Prop)
+            % Data = AI(Iobj).(Args.OutProduct{Iprod});
+            % if isempty(Data)
                 % Image is empty
                 % Write error status
                 ErrInd = ErrInd + 1;

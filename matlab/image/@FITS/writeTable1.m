@@ -32,6 +32,9 @@ function Result = writeTable1(Table, FileName, Args)
     %            'HeaderHDUnum' - HDU number of the additional header.
     %                             Default is [] which will be 'HDUnum'+1
     %            'WriteTime'    - Add creation time to Header. Default is false.
+    %            'RelPathToAbsPath' - A logical indicating to9 extend
+    %                   relative path to abs path using: tools.os.relPath2absPath
+    %                   Default is false.
     %
     % Example: 
     %   AC = AstroTable({rand(10, 2)}, 'ColNames', {'RA','Dec'});      
@@ -55,10 +58,24 @@ function Result = writeTable1(Table, FileName, Args)
         Args.HeaderHDUnum   = [];
         Args.Header         = {};
         Args.WriteMethodTables = 'Standard';  % can be 'Standard' or 'MexHeader'
+        Args.RelPathToAbsPath  = false;
     end
     
     % sanify the file name so that it contain the absolute path
-    FileName = tools.os.relPath2absPath(FileName); 
+    if Args.RelPathToAbsPath
+        FileName = tools.os.relPath2absPath(FileName); 
+    end
+    if contains(FileName, filesep)
+        % File Name contains path
+        [Path, F1, F2] = fileparts(FileName);
+        FileName = strcat(F1,F2);
+        PWD      = pwd;
+        cd(Path);
+    else
+        PWD      = [];
+    end
+    FileName = char(FileName);
+
 
     % Try to convert Table to AstroTable
     if ~isa(Table, 'AstroTable') && ~isa(Table, 'AstroCatalog')
@@ -182,4 +199,8 @@ function Result = writeTable1(Table, FileName, Args)
     % Close FITS file
     matlab.io.fits.closeFile(Fptr);
     Result = (sign(Fptr) == 1);
+
+    if ~isempty(Path)
+        cd(PWD);
+    end
 end
