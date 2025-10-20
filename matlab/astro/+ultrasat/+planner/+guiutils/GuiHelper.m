@@ -9,7 +9,7 @@
 
 classdef GuiHelper < ultrasat.api.Loggable
     % Low level utilities for PlannerMain
-    
+
     methods
         function obj = GuiHelper()
             % Constructor
@@ -19,10 +19,10 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function color = getValidationStatusColor(obj, status)
             % Returns text color (RGB) based on the validation status
-        
+
             % Convert status to lowercase to ensure case insensitivity
             status = lower(string(status));
-        
+
             switch status
                 case ""  % Empty status (Default black)
                     color = [0, 0, 0]; % Black
@@ -40,10 +40,10 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function color = getValidationStatusBackgroundColor(obj, status)
             % Returns background color (RGB) for black text based on the validation status
-        
+
             % Convert status to lowercase to ensure case insensitivity
             status = lower(string(status));
-        
+
             switch status
                 case ""  % Empty status (Light yellowish background)
                     color = [1.00, 0.99, 0.82]; % Light pastel yellow
@@ -61,15 +61,15 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function style = getValidationStatusStyle(obj, status)
             % Returns the appropriate uistyle based on the validation status
-        
+
             % Get the corresponding text color
             color = obj.getValidationStatusColor(status);
-        
+
             % Create and return the style
             style = uistyle("FontColor", color);
-        end       
+        end
 
-        %------------------------------------------------------------------        
+        %------------------------------------------------------------------
 
         function setStatusField(obj, app, EditField, Status, StatusText)
             % Helper: Set the background color of the EditField based on the Status value.
@@ -86,7 +86,7 @@ classdef GuiHelper < ultrasat.api.Loggable
                 EditField.BackgroundColor = [0.8, 0.9, 0.8];
             elseif strcmp(Status, 'Warning')
                 % Light yellow for 'Warning'
-                EditField.BackgroundColor = [1.0, 1.0, 0.8];                
+                EditField.BackgroundColor = [1.0, 1.0, 0.8];
             elseif ~isempty(Status)
                 % Light red for non-empty status that is not 'OK'
                 EditField.BackgroundColor = [1, 0.8, 0.8];
@@ -134,7 +134,7 @@ classdef GuiHelper < ultrasat.api.Loggable
             end
         end
 
-        
+
         function Result = getFieldTitle(obj, Value)
             % Return trimmed title field value as char, empty if invalid
             try
@@ -151,7 +151,7 @@ classdef GuiHelper < ultrasat.api.Loggable
             end
         end
 
-        
+
         function Result = getFieldUniqueTargetName(obj, Value)
             % Return trimmed unique target name field as char, empty if invalid
             try
@@ -168,12 +168,12 @@ classdef GuiHelper < ultrasat.api.Loggable
             end
         end
 
-        %------------------------------------------------------------------        
-        
+        %------------------------------------------------------------------
+
         function Result = getFieldRA(obj, Value)
            % Return RA text field as double, NaN if invalid
            % @Todo - support Sexa
-           try                
+           try
                if isstring(Value) || ischar(Value)
                    Result = str2double(strtrim(char(Value)));
                elseif isnumeric(Value)
@@ -188,7 +188,7 @@ classdef GuiHelper < ultrasat.api.Loggable
            end
         end
 
- 
+
         function Result = getFieldDec(obj, Value)
             % Return Dec text field as double, NaN if invalid
             % @Todo - support Sexa
@@ -206,7 +206,7 @@ classdef GuiHelper < ultrasat.api.Loggable
                 Result = NaN;
             end
         end
-        
+
         %------------------------------------------------------------------
 
         function Result = getFieldDateTime(obj, Value)
@@ -224,14 +224,14 @@ classdef GuiHelper < ultrasat.api.Loggable
             %   - Tries ISO 8601 first (with microseconds), then 'yyyy-MM-dd HH:mm:ss'.
             %   - Handles char, string, datetime, and numeric gracefully.
             %   - Logs and returns empty datetime on any failure.
-        
+
             try
                 % Handle empty input
                 if isempty(Value)
                     Result = datetime([], 'TimeZone', 'UTC');
                     return;
                 end
-        
+
                 % If already datetime, just ensure it's in UTC
                 if isdatetime(Value)
                     if isempty(Value)
@@ -246,7 +246,7 @@ classdef GuiHelper < ultrasat.api.Loggable
                     end
                     return;
                 end
-        
+
                 % Convert string to char for consistent parsing
                 if isstring(Value)
                     Value = char(Value);
@@ -265,14 +265,14 @@ classdef GuiHelper < ultrasat.api.Loggable
                     Result = datetime([], 'TimeZone', 'UTC');
                     return;
                 end
-        
+
                 % Trim
                 strVal = strtrim(Value);
                 if isempty(strVal)
                     Result = datetime([], 'TimeZone', 'UTC');
                     return;
                 end
-        
+
                 % Try parsing ISO 8601 format
                 try
                     Result = datetime(strVal, ...
@@ -292,13 +292,13 @@ classdef GuiHelper < ultrasat.api.Loggable
                         return;
                     end
                 end
-        
+
             catch ME
                 obj.msglog(sprintf('getFieldDateTime: error processing input (%s): %s', class(Value), ME.message));
                 Result = datetime([], 'TimeZone', 'UTC');
             end
         end
-        
+
 
         function Result = getFieldDuration(obj, Value)
             % getFieldDuration Convert various textual/numeric duration inputs to a duration object.
@@ -320,14 +320,14 @@ classdef GuiHelper < ultrasat.api.Loggable
             % Notes:
             %   - Handles char, string, numeric gracefully.
             %   - Logs errors but never throws exceptions.
-        
+
             Result = [];
             try
                 % Handle empty input
                 if isempty(Value)
                     return;
                 end
-        
+
                 % Normalize to char
                 if isstring(Value)
                     Value = char(Value);
@@ -342,20 +342,20 @@ classdef GuiHelper < ultrasat.api.Loggable
                     obj.msglog(sprintf('getFieldDuration: unsupported input type %s', class(Value)));
                     return;
                 end
-        
+
                 % Trim whitespace
                 strValue = strtrim(Value);
                 if isempty(strValue)
                     return;
                 end
-        
+
                 % 1. Try converting to numeric first (e.g., '300')
                 numValue = str2double(strValue);
                 if ~isnan(numValue) && isfinite(numValue)
                     Result = seconds(numValue);
                     return;
                 end
-        
+
                 % 2. Try parsing as hh:mm:ss or dd:hh:mm:ss
                 try
                     d = duration(strValue);
@@ -366,14 +366,14 @@ classdef GuiHelper < ultrasat.api.Loggable
                 catch
                     % we'll try natural units next
                 end
-        
+
                 % 3. Try parsing natural language strings like "3 hr", "10 min", "3600 sec"
                 %    Also supports plural like 'hours', 'minutes', etc., and decimals like '1.5 hr'
                 tokens = regexp(lower(strValue), '^\s*([0-9]+(?:\.[0-9]+)?)\s*(hr|hrs|hour|hours|min|mins|minute|minutes|sec|secs|second|seconds)\s*$', 'tokens');
                 if ~isempty(tokens)
                     valNum = str2double(tokens{1}{1});
                     unitStr = tokens{1}{2};
-        
+
                     switch unitStr
                         case {'hr','hrs','hour','hours'}
                             Result = hours(valNum);
@@ -387,10 +387,10 @@ classdef GuiHelper < ultrasat.api.Loggable
                     end
                     return;
                 end
-        
+
                 % 4. If nothing matched
                 obj.msglog(sprintf('getFieldDuration: unrecognized duration format "%s"', strValue));
-        
+
             catch ME
                 obj.msglog(sprintf('getFieldDuration: error processing input (%s): %s', class(Value), ME.message));
                 Result = [];
@@ -413,7 +413,7 @@ classdef GuiHelper < ultrasat.api.Loggable
             app.Tile2CheckBox.Value = false;
             app.Tile3CheckBox.Value = false;
             app.Tile4CheckBox.Value = false;
-        
+
             % Update based on Tiles string
             Tiles = char(Tiles);
             for tile = Tiles
@@ -435,17 +435,17 @@ classdef GuiHelper < ultrasat.api.Loggable
             % Plan.Tiles(Index) = app.MainModule.getTilesFromCheckboxes(ParamsApp)
 
             Tiles = "";
-        
+
             if app.Tile1CheckBox.Value, Tiles = Tiles + "1"; end
             if app.Tile2CheckBox.Value, Tiles = Tiles + "2"; end
             if app.Tile3CheckBox.Value, Tiles = Tiles + "3"; end
             if app.Tile4CheckBox.Value, Tiles = Tiles + "4"; end
-        end      
+        end
 
         % =================================================================
         %
         % =================================================================
-       
+
         function name = extractNameFromDisplayString(obj, displayStr)
             % Extracts the "name" part from a display string in the format "name:title".
             %
@@ -460,38 +460,38 @@ classdef GuiHelper < ultrasat.api.Loggable
             % Notes:
             %   - Internally converts string inputs to char once, then works in char mode.
             %   - Logs and returns the input if anything unexpected happens.
-        
+
             name = '';
             try
                 if isempty(displayStr)
                     return;
                 end
-        
+
                 % Convert string scalar to char for consistent downstream behavior
                 if isstring(displayStr)
                     displayStr = char(displayStr);
                 end
-        
+
                 if ~ischar(displayStr)
                     obj.msglog(sprintf('extractNameFromDisplayString: unsupported type %s', class(displayStr)));
                     return;
                 end
-        
+
                 parts = strsplit(displayStr, ':');
-        
+
                 if numel(parts) >= 1
                     name = strtrim(parts{1});
                 else
                     name = strtrim(displayStr);
                 end
-        
+
             catch ME
                 obj.msglog(sprintf('extractNameFromDisplayString: error processing "%s": %s', displayStr, ME.message));
                 name = strtrim(displayStr);
             end
         end
-        
-        
+
+
         function titleStr = extractTitleFromDisplayString(obj, displayStr)
             % Extracts the "title" part from a display string in the format "name:title".
             %
@@ -506,37 +506,37 @@ classdef GuiHelper < ultrasat.api.Loggable
             % Notes:
             %   - Internally converts string inputs to char once, then works in char mode.
             %   - Logs and returns the input if anything unexpected happens.
-        
+
             titleStr = '';
             try
                 if isempty(displayStr)
                     return;
                 end
-        
+
                 % Convert string scalar to char for consistent downstream behavior
                 if isstring(displayStr)
                     displayStr = char(displayStr);
                 end
-        
+
                 if ~ischar(displayStr)
                     obj.msglog(sprintf('extractTitleFromDisplayString: unsupported type %s', class(displayStr)));
                     return;
                 end
-        
+
                 parts = strsplit(displayStr, ':');
-        
+
                 if numel(parts) >= 2
                     titleStr = strtrim(parts{2});
                 else
                     titleStr = strtrim(displayStr);
                 end
-        
+
             catch ME
                 obj.msglog(sprintf('extractTitleFromDisplayString: error processing "%s": %s', displayStr, ME.message));
                 titleStr = strtrim(displayStr);
             end
         end
-        
+
         % =================================================================
         %
         % =================================================================
@@ -572,26 +572,26 @@ classdef GuiHelper < ultrasat.api.Loggable
                 app.msglog(sprintf('showModal: %s - returned, Status=%s', appName, Status));
             else
                 Status = 'Cancel';  % Handle case where the user closed the app
-                app.msglog(sprintf('showModal: %s - closed via X button, Status=%s', appName, Status));                
+                app.msglog(sprintf('showModal: %s - closed via X button, Status=%s', appName, Status));
             end
         end
 
-        
+
         function copyUITable(obj, SourceUITable, TargetUITable)
             % Copies data, column names, editability settings, and styles from SourceUITable to TargetUITable
-            
+
             % Copy table data
             TargetUITable.Data = SourceUITable.Data;
-            
+
             % Copy column names
             TargetUITable.ColumnName = SourceUITable.ColumnName;
-            
+
             % Copy column editability settings
             TargetUITable.ColumnEditable = SourceUITable.ColumnEditable;
-            
+
             % Remove existing styles from TargetUITable
             removeStyle(TargetUITable);
-            
+
             % Retrieve styles from SourceUITable and reapply them to TargetUITable
             styles = get(SourceUITable, 'StyleConfigurations');
 
@@ -601,7 +601,7 @@ classdef GuiHelper < ultrasat.api.Loggable
             for i = 1:height(styles)
                 addStyle(TargetUITable, styles.Style(i), string(styles.Target(i)), styles.TargetIndex{i});
             end
-        end        
+        end
     end
 
 end

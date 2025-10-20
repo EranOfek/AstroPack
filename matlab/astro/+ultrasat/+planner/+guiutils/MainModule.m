@@ -5,7 +5,7 @@
 % Author:  Chen Tishler
 % Created: 07/01/2025
 % Updated: 28/01/2025
-% Title:   
+% Title:
 %==========================================================================
 % Debug:
 %   DM = ultrasat.planner.gui.MainModule()
@@ -13,7 +13,7 @@
 
 classdef MainModule < ultrasat.api.Loggable
     % This class serves like a DataModule in Delphi
-    
+
     properties
         ApiClient               % MissionApiClient/MissionApiSim instance
         UserClient              % UserManagerClient/UserManagerSim instance
@@ -25,18 +25,18 @@ classdef MainModule < ultrasat.api.Loggable
         UserName                % Current user
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
-        ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger        
+        ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger
         PlanType                % Current plan type: HCS, LCS, AllSS, DDT, TOO (= ultrasat.planner.uplanner.Type)
         Planner                 % instance of ultrasat.planner.uplanner
         PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
         AllowEdit               % False for read-only mode
 
         % Status
-        StatusText              % Status text for display        
+        StatusText              % Status text for display
         CurrentStatus           % 'OK', 'Error', 'Warning'
 
-        % 
-        Modified = false;       % True after data is being modified        
+        %
+        Modified = false;       % True after data is being modified
         AfterBuild = false;     %
         PlannerPath             %
         DebugPath               % Folder of debug files, such as saved .mat files
@@ -44,17 +44,17 @@ classdef MainModule < ultrasat.api.Loggable
         LogFileName             %
 
         % Helpers
-        AppUtils                % Utility functions        
+        AppUtils                % Utility functions
         TableHelper             % Utility functions for tables
         GuiHelper               % Utility functions for GUI
     end
-    
+
 
     methods
         function obj = MainModule(NamespaceId)
             % Constructor
             disp('app.MainModule');
-                       
+
             % Get namespace from O/S env
             % setenv('SOC_NAMESPACE_ID', 'OPER')
             % setenv('SOC_NAMESPACE_ID', 'SIM')
@@ -84,7 +84,7 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup ApiClient - CURRENTLY we use only Sim - with Local access 
+            % Setup ApiClient - CURRENTLY we use only Sim - with Local access
             % to JSON files or or remote access using simple_file_server.py
             UseSim = true;
             if UseSim
@@ -109,7 +109,7 @@ classdef MainModule < ultrasat.api.Loggable
                     obj.NamespaceDisplayList = response.display_list;
                 end
             end
-          
+
             % Create helper classes
             obj.TableHelper = ultrasat.planner.guiutils.TableHelper();
             obj.GuiHelper = ultrasat.planner.guiutils.GuiHelper();
@@ -153,7 +153,7 @@ classdef MainModule < ultrasat.api.Loggable
             obj.UserName = [];
             %obj.NamespaceId = [];
             Result = true;
-        end        
+        end
 
 
         function setPlanner(obj, Planner)
@@ -187,22 +187,22 @@ classdef MainModule < ultrasat.api.Loggable
         function Result = ra2Str(obj, Value)
             % Convert RA to string
             % @Todo - need to support sexa, etc.
-            if ~isempty(Value)            
-                Result = sprintf('%f', Value);           
+            if ~isempty(Value)
+                Result = sprintf('%f', Value);
             else
                 Result = '';
-            end                
+            end
         end
 
 
         function Result = dec2Str(obj, Value)
             % Convert Dec to string
-            % @Todo - need to support sexa, etc.            
-            if ~isempty(Value)            
+            % @Todo - need to support sexa, etc.
+            if ~isempty(Value)
                 Result = sprintf('%f', Value);
             else
                 Result = '';
-            end                
+            end
         end
 
         function Result = length2Str(obj, array)
@@ -216,14 +216,14 @@ classdef MainModule < ultrasat.api.Loggable
 
         function charArray = cell2Str(obj, cellArray)
             % Convert a cell array to a comma-separated character array
-            
+
             % Convert elements to strings
             strArray = cellfun(@num2str, cellArray, 'UniformOutput', false);
-            
+
             % Join elements with commas and convert to char array
             charArray = char(strjoin(strArray, ','));
         end
-        
+
 
         function Value = safeStr(obj, s)
             if isempty(s)
@@ -232,7 +232,7 @@ classdef MainModule < ultrasat.api.Loggable
                 Value = string(s);
             end
         end
- 
+
         % =================================================================
 
         function setModified(obj)
@@ -260,24 +260,24 @@ classdef MainModule < ultrasat.api.Loggable
 
             % Define the priority levels of each status
             StatusLevels = struct('OK', 1, 'Warning', 2, 'Error', 3);
-            
+
             % Ensure the new status is one of the allowed values, else treat it as 'Error'
             if ~isfield(StatusLevels, NewStatus)
                 NewStatus = 'Error'; % Treat any other status as 'Error'
             end
-            
+
             % If CurrentStatus is empty, default it to 'OK'
             if isempty(obj.CurrentStatus)
                 obj.CurrentStatus = 'OK';
             end
-            
+
             % Compare the levels and update only if NewStatus is more severe
             if StatusLevels.(NewStatus) > StatusLevels.(obj.CurrentStatus)
                 obj.CurrentStatus = NewStatus;
             end
-            
+
             NewText = sprintf('%s %s', ultrasat.api.ModelBase.nowUtcStr(), NewText);
-            
+
             % Append new text to StatusText
             if isempty(obj.StatusText)
                 obj.StatusText = NewText;
@@ -285,7 +285,7 @@ classdef MainModule < ultrasat.api.Loggable
                 obj.StatusText = sprintf('%s;  %s', obj.StatusText, NewText);
             end
         end
-       
+
         % =================================================================
         %
         % =================================================================
@@ -306,7 +306,7 @@ classdef MainModule < ultrasat.api.Loggable
             if ~isempty(obj.PlanData.planner)
                 obj.setPlanner(obj.PlanData.planner);
             end
-        end        
+        end
 
 
         function clearData(obj)
@@ -316,15 +316,15 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Planner = [];
             obj.PlanData = [];
             obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
-                       
+
             % Clear plan type and permissions
             obj.PlanType = [];
             obj.AllowEdit = [];
-        
+
             % Reset status properties
             obj.StatusText = [];
             obj.CurrentStatus = [];
-        
+
             % Reset modification tracking and debug paths
             obj.Modified = false;
             obj.AfterBuild = false;
@@ -333,32 +333,32 @@ classdef MainModule < ultrasat.api.Loggable
         % =================================================================
         %
         % =================================================================
-        
+
         function htmlStr = jsonToHtml(obj, jsonData)
             % Converts a JSON string or struct to HTML with syntax highlighting
-            
+
             % Convert struct to JSON if needed
             if isstruct(jsonData) || iscell(jsonData)
                 jsonData = jsonencode(jsonData, 'PrettyPrint', true);
             end
-        
+
             % Escape HTML special characters
             jsonData = strrep(jsonData, '&', '&amp;');
             jsonData = strrep(jsonData, '<', '&lt;');
             jsonData = strrep(jsonData, '>', '&gt;');
-        
+
             % Apply syntax highlighting
             jsonData = regexprep(jsonData, '"(.*?)"(\s*:\s*)', '<span style="color:blue;">"$1"</span>$2'); % Keys
             jsonData = regexprep(jsonData, '(:\s*)(\d+)', '$1<span style="color:green;">$2</span>'); % Numbers
             jsonData = regexprep(jsonData, '(:\s*)"(.*?)"', '$1<span style="color:maroon;">"$2"</span>'); % Strings
             jsonData = regexprep(jsonData, '(:\s*)(true|false|null)', '$1<span style="color:purple;">$2</span>'); % Boolean/Null
-        
+
             % Wrap in preformatted HTML block
             htmlStr = sprintf('<pre style="background:#f5f5f5; padding:10px; border:1px solid #ddd;">%s</pre>', jsonData);
         end
 
         % -------------------------------------------------------------------
-   
+
     end
 
 end

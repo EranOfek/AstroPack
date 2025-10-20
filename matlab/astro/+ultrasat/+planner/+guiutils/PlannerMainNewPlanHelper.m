@@ -24,7 +24,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
     %   - 'app' always refers to the PlannerMain instance.
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
-    
+
     methods
 
         function obj = PlannerMainNewPlanHelper()
@@ -32,11 +32,11 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'NewPlanHelper';
             obj.msglog('PlannerMainNewPlanHelper created successfully');
         end
-        
+
 
         function createNewPlan(obj, app)
             % Create new plan
-            app.msglog('createNewPlan');            
+            app.msglog('createNewPlan');
 
             if app.MainModule.Modified
                 if ~strcmp(app.AppUtils.askYesNo('Your changes are not saved. Do you want to discard them and create a new plan?', 'Save or discard'), 'Yes')
@@ -49,7 +49,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             % Create app
             if isempty(app.NewPlanApp) || ~isvalid(app.NewPlanApp)
-                app.NewPlanApp = ultrasat.planner.gui.NewPlan(app.MainModule);                
+                app.NewPlanApp = ultrasat.planner.gui.NewPlan(app.MainModule);
             end
 
             % Set PlannerName field value
@@ -82,7 +82,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             % Create new plan according to parameters in app.NewPlanApp
             PlanType = app.NewPlanApp.PlanType;
             app.msglog(sprintf('doCreateNewPlan: PlanType: %s', PlanType));
-            
+
             % Create new PlanData instance
             app.MainModule.createPlanData();
 
@@ -92,7 +92,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             elseif strcmp(PlanType, 'LCS')
                 obj.doCreateNewPlanLCS(app);
             elseif strcmp(PlanType, 'DDT')
-                obj.doCreateNewPlanDDT(app);                
+                obj.doCreateNewPlanDDT(app);
             elseif strcmp(PlanType, 'AllSS')
                 obj.doCreateNewPlanAllSS(app);
             elseif strcmp(PlanType, 'TOO')
@@ -107,7 +107,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             % Update GUI
             app.SaveButton.Enable = 'off';
-            if strcmp(PlanType, 'DDT')            
+            if strcmp(PlanType, 'DDT')
                 app.BuildButton.Text = 'Add';
             else
                 app.BuildButton.Text = 'Build';
@@ -129,7 +129,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             % Get logged-in user name, or user name entered in the dialog
             UserName = obj.getNewPlanUserName(app);
 
-            % Create new uplanner instance            
+            % Create new uplanner instance
             upHCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'HCS', 'BaseDataDir', app.MainModule.BaseDataDir);
             obj.setNewPlanDataFromCreateDialog(app, upHCS);
 
@@ -147,7 +147,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             % Get logged-in user name, or user name entered in the dialog
             UserName = obj.getNewPlanUserName(app);
-            
+
             % Create new uplanner instance
             upLCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'LCS', 'BaseDataDir', app.MainModule.BaseDataDir);
             obj.setNewPlanDataFromCreateDialog(app, upLCS);
@@ -165,9 +165,9 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanDDT started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = obj.getNewPlanUserName(app);            
+            UserName = obj.getNewPlanUserName(app);
 
-            % Create new uplanner instance            
+            % Create new uplanner instance
             upDDT = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'DDT', 'BaseDataDir', app.MainModule.BaseDataDir);
             obj.setNewPlanDataFromCreateDialog(app, upDDT);
 
@@ -184,11 +184,11 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanTOO started');
 
             % Get logged-in user name, or user name entered in the dialog
-            UserName = obj.getNewPlanUserName(app);            
+            UserName = obj.getNewPlanUserName(app);
 
-            % Create new uplanner instance            
+            % Create new uplanner instance
             upTOO = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'TOO', 'BaseDataDir', app.MainModule.BaseDataDir);
-            obj.setNewPlanDataFromCreateDialog(app, upHCS);            
+            obj.setNewPlanDataFromCreateDialog(app, upHCS);
 
             app.MainModule.setPlanner(upTOO);
             app.setModified('doCreateNewPlanDDT');
@@ -205,7 +205,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             % Get logged-in user name, or user name entered in the dialog
             UserName = obj.getNewPlanUserName(app);
 
-            % Create new uplanner instance            
+            % Create new uplanner instance
             upAllSS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'AllSS', 'BaseDataDir', app.MainModule.BaseDataDir);
             obj.setNewPlanDataFromCreateDialog(app, upHCS);
 
@@ -214,16 +214,16 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upLCS.mat', 'app.MainModule.Planner');
             app.msglog('doCreateNewPlanAllSS done');
-        end        
+        end
 
 
         function UserName = getNewPlanUserName(obj, app)
-            % Helper: Get logged-in user name, or user name entered in NewPlanApp dialog            
+            % Helper: Get logged-in user name, or user name entered in NewPlanApp dialog
             if app.SessionHelper.isLogin(app)
                 UserName = app.MainModule.UserName;
             else
                 UserName = app.NewPlanApp.PlannerNameEditField.Value;
-            end            
+            end
         end
 
 
@@ -231,11 +231,11 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             % Helper: Set planner data from the create dialog: PlanTitle, StartTime, EndTime
             PlanTitle = app.MainModule.GuiHelper.getFieldTitle( app.NewPlanApp.TitleEditField.Value );
             StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
-            EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );            
+            EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );
 
             Planner.Title = PlanTitle;
             Planner.StartTime = StartTime;
-            Planner.EndTime = EndTime;            
+            Planner.EndTime = EndTime;
         end
 
     end

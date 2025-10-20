@@ -24,9 +24,9 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
     %   - 'app' always refers to the PlannerMain instance.
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
-      
+
     methods
-        
+
         function obj = PlannerMainStatusHelper()
             % Constructor
             obj.LogPrefix = 'StatusHelper';
@@ -38,7 +38,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             % Helper:
             if app.hasPlanner()
                 % Only draft plans can be editted, otherwise read-only
-                if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft')                
+                if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft')
                     app.setReadOnly(true);
                 else
                     app.setReadOnly(false);
@@ -50,7 +50,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
         function setReadOnly(obj, app, ReadOnly)
             % Helper: Setc/clear read-only status of the current plan
-            app.AllowEdit = ~ReadOnly;            
+            app.AllowEdit = ~ReadOnly;
         end
 
 
@@ -59,14 +59,14 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             Result = ~app.AllowEdit;
         end
 
-        
+
         function Result = isReadOnlyMsg(obj, app)
             % Helper: Return true if currently in read-only mode, show popup message
             Result = ~app.AllowEdit;
             if Result
-                uialert(app.UIFigure, sprintf('Plan is read-only: %s', app.AllowEditMsg), 'Message', 'Icon', 'success');                            
+                uialert(app.UIFigure, sprintf('Plan is read-only: %s', app.AllowEditMsg), 'Message', 'Icon', 'success');
             end
-        end        
+        end
 
 
         function setModified(obj, app, logText)
@@ -88,7 +88,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             % Helper: Clear the Modified flag and status
             if app.MainModule.Modified
                 app.msglog('clearModified')
-            end            
+            end
             app.MainModule.clearModified();
             app.ModifiedLabel.Text = '';
             app.SaveButton.Enable = 'off';
@@ -151,12 +151,12 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
                 app.setStatusField(app.BuildShortStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);
                 app.setStatusField(app.ValidationShortStatusEditField, PlanData.metadata.ValidationStatus.Status, PlanData.metadata.ValidationStatus.Status);
                 app.setStatusField(app.SubmitShortStatusEditField, PlanData.metadata.SubmitStatus.Status, PlanData.metadata.SubmitStatus.Status);
-                
+
                 if strcmp(Planner.Status, 'submitted')
                     app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
                 else
                     app.setTopLabel('', [], []);
-                end            
+                end
 
             % Planner is empty, clear fields
             else
@@ -166,7 +166,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
                 app.setStatusField(app.BuildShortStatusEditField, '', '');
                 app.setStatusField(app.ValidationShortStatusEditField, '', '');
-                app.setStatusField(app.SubmitShortStatusEditField, '', '');                
+                app.setStatusField(app.SubmitShortStatusEditField, '', '');
 
                 app.setTopLabel('', [], []);
             end
@@ -192,9 +192,9 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
                 app.LabelTopStatus.Text = Text;
                 app.LabelTopStatus.FontColor = FontColor;
                 app.LabelTopStatus.BackgroundColor = BackgroundColor;
-                app.LabelTopStatus.Visible = true;                
+                app.LabelTopStatus.Visible = true;
             end
-        end        
+        end
 
     end
 end

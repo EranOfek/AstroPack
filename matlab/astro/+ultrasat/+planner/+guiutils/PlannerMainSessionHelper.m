@@ -26,7 +26,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
     %
 
     methods
-        
+
         function obj = PlannerMainSessionHelper()
             % Constructor
             obj.LogPrefix = 'SessionHelper';
@@ -48,12 +48,12 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
                 if ~strcmp(app.AppUtils.askYesNo('Note: you have an active plan, after connection the AstPlanner field will be set to the logged-in user name. Would you like to continue?', 'Confirmation'), 'Yes')
                     return;
                 end
-            end          
+            end
 
             % Create app
             if isempty(app.LoginApp) || ~isvalid(app.LoginApp)
                 app.LoginApp = ultrasat.planner.gui.Login(app.MainModule);
-            end            
+            end
             LoginStatus = app.showModal(app.LoginApp);
             app.msglog( sprintf('login uiwait returned: isempty: %d, isvalid: %d', isempty(app.LoginApp), isvalid(app.LoginApp)) );
 
@@ -66,7 +66,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
                     app.msglog(sprintf('Login: Setting AstPlanner field of open plan: %s, %s', app.MainModule.Planner.AstPlanner, app.MainModule.UserName));
                     app.MainModule.Planner.AstPlanner = app.MainModule.UserName;
                 end
-            end            
+            end
         end
 
 
@@ -85,8 +85,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
 
             app.MainModule.logout();
             obj.setLoginButtonStatus();
-            obj.setButtons();            
-        end        
+            obj.setButtons();
+        end
 
 
         function setLoginButtonStatus(obj, app)
@@ -99,15 +99,15 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
                 app.LoginButton.Text = 'Login';
                 app.LoginButton.BackgroundColor = [1.00, 1.00, 0.07];  % Yellow
                 app.LabelTopUser.Text = 'Please login';
-            end            
+            end
 
             % Namespace & Username
             if ~isempty(app.MainModule)
                 % Set Namespace label colors
                 app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
-                if strcmp(app.MainModule.NamespaceId, 'OPER') 
+                if strcmp(app.MainModule.NamespaceId, 'OPER')
                     app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
-                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];  
+                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
                 else
                     app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
                     app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.07];
@@ -128,7 +128,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             if ~Result
                 app.msglog('isLogin: not loggedin');
                 if Message
-                    uialert(app.UIFigure, 'Login to the server is required to proceed with this operation', 'Message', 'Icon', 'success');            
+                    uialert(app.UIFigure, 'Login to the server is required to proceed with this operation', 'Message', 'Icon', 'success');
                 end
             end
         end
@@ -137,11 +137,11 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         function Result = isAllowed(obj, app, Action)
             % Return true if specified action is allowed for current logged-in user
             % @TODO - To be replaced with checking permissions like Delphi code
-            Result = ~isempty(app.MainModule.UserName);            
+            Result = ~isempty(app.MainModule.UserName);
             if ~Result
                 app.msglog(sprintf('isAllowed: not allowed: %', Action));
-            end            
-        end 
+            end
+        end
 
 
         function setButtons(obj, app)
@@ -174,11 +174,11 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             % Create app windows if not already created
             if isempty(app.LoggerApp) || ~isvalid(app.LoggerApp)
                 app.LoggerApp = ultrasat.planner.gui.Logger(app.MainModule);
-            end            
+            end
 
             % Show the window
             app.LoggerApp.UIFigure.Visible = 'on';
-        end        
+        end
 
 
         function showErrorLogger(obj, app)
@@ -188,19 +188,19 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             % Create app windows if not already created
             if isempty(app.ErrorLogApp) || ~isvalid(app.ErrorLogApp)
                 app.ErrorLogApp = ultrasat.planner.gui.ErrorLogger(app.MainModule);
-            end            
-            
+            end
+
             % Show the window
             app.ErrorLogApp.UIFigure.Visible = 'on';
-        end                
-        
-        
+        end
+
+
         function exitPlanner(obj, app)
             % Exit the planner GUI
-            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');            
+            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');
             if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to exit the planner application?', 'Confirmation'), 'Yes')
                 return;
-            end          
+            end
 
             % Shut down the entire app
             app.delete();

@@ -9,7 +9,7 @@
 
 classdef AppUtils < handle
     % Low level utility functions for PlannerMain
-    
+
     properties
         MainModule              % Handle of MainModule instance
         App                     % Reference to PlannerMain
@@ -37,11 +37,11 @@ classdef AppUtils < handle
             end
 
             if isempty(obj.App.MsgBoxApp) || ~isvalid(obj.App.MsgBoxApp)
-                obj.App.MsgBoxApp = ultrasat.planner.gui.MsgBox(obj.MainModule);                
+                obj.App.MsgBoxApp = ultrasat.planner.gui.MsgBox(obj.MainModule);
             end
-            obj.App.MsgBoxApp.Msg = Msg;            
+            obj.App.MsgBoxApp.Msg = Msg;
             obj.App.MsgBoxApp.Title = Title;
-            obj.App.showModal(obj.App.MsgBoxApp);      
+            obj.App.showModal(obj.App.MsgBoxApp);
         end
 
 
@@ -49,16 +49,16 @@ classdef AppUtils < handle
             % Show popup window with error message and Ok button
             if nargin < 3
                 Title = 'Error'; % Default title
-            end                        
+            end
             obj.msgOk(Msg, Title);
-        end        
+        end
 
 
         function msgDebug(obj, Msg, Title)
             % Show debug message
             if nargin < 3
                 Title = 'Debug'; % Default title
-            end                        
+            end
             %obj.MsgBox(Msg, Title);
         end
 
@@ -67,7 +67,7 @@ classdef AppUtils < handle
             % Show modal dialog with Yes/No buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
-            end            
+            end
            Result = uiconfirm(obj.App.UIFigure, Msg, Title, ...
                 'Options', {'Yes', 'No'}, ...
                 'Icon', 'question', ...
@@ -80,48 +80,48 @@ classdef AppUtils < handle
             % Show modal dialog with Yes/No/Cancel buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
-            end        
+            end
             Result = uiconfirm(obj.App.UIFigure, Msg, Title, ...
                 'Options', {'Yes', 'No', 'Cancel'}, ...
                 'Icon', 'question', ...
                 'DefaultOption', 1, ...
-                'CancelOption', 3); % 'Cancel' is the default cancel option            
-        end        
+                'CancelOption', 3); % 'Cancel' is the default cancel option
+        end
 
 
         function Result = askSaveDiscard(obj, Msg, Title)
             % Show modal dialog with Save/Discard buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
-            end                        
+            end
             % Use modern UI confirmation
             Result = uiconfirm(obj.App.UIFigure, Msg, Title, ...
                 'Options', {'Save', 'Discard'}, ...
                 'Icon', 'warning', ...
                 'DefaultOption', 1, ...
-                'CancelOption', 2); % 'Discard' as the default cancel option            
-        end        
+                'CancelOption', 2); % 'Discard' as the default cancel option
+        end
 
 
         function Result = askSaveDiscardCancel(obj, Msg, Title)
             % Show modal dialog with Save/Discard/Cancel buttons
             if nargin < 3
                 Title = 'Confirmation'; % Default title
-            end                        
+            end
             % Use modern UI confirmation
             Result = uiconfirm(obj.App.UIFigure, Msg, Title, ...
                 'Options', {'Save', 'Discard', 'Cancel'}, ...
                 'Icon', 'warning', ...
                 'DefaultOption', 1, ...
-                'CancelOption', 3); % 'Cancel' is the cancel option            
-        end                
+                'CancelOption', 3); % 'Cancel' is the cancel option
+        end
 
 
         function center(obj, App)
             % Center the App window on the screen
             movegui(App.UIFigure, 'center');
         end
-        
-    end  
+
+    end
 
 end

@@ -24,9 +24,9 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
     %   - 'app' always refers to the PlannerMain instance.
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
-        
+
     methods
-        
+
         function obj = PlannerMainApprovedTargetsHelper()
             % Constructor
             obj.LogPrefix = 'ApprovedTargetsHelper';
@@ -50,7 +50,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             end
 
             % uplanner uses ApiClient class to send request to backend
-            app.showPleaseWait('Retreiving approved targets. This make take a while. Please wait...');            
+            app.showPleaseWait('Retreiving approved targets. This make take a while. Please wait...');
             try
                 app.MainModule.Planner.retrieveMissionApprovedPlan();
             catch ME
@@ -68,34 +68,34 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             app.msglog('showApprovedTargets');
             if ~app.hasPlanner()
                 app.UITableApprovedTargets.Data = [];
-                return; 
+                return;
             end
 
             % Set table properties
-            app.showPleaseWait('Updating approved targets display...');            
+            app.showPleaseWait('Updating approved targets display...');
             try
                 app.UITableApprovedTargets.SelectionType = "row";
-                app.UITableApprovedTargets.Multiselect = "off";            
+                app.UITableApprovedTargets.Multiselect = "off";
                 app.UITableApprovedTargets.RowName = "numbered";
-    
+
                 % Set table data from Planner
                 Data = app.MainModule.Planner.MissionApprovedPlan;
-                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);            
+                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
                 app.UITableApprovedTargets.Data = Data;
                 if ~isempty(Data)
                     app.UITableApprovedTargets.ColumnName = Data.Properties.VariableNames;
                 end
-    
+
                 % Update title above the table with current date
                 app.ApprovedTargetsPanel.Title = sprintf('Approved Targets: (%s - %s)  - Retrieved: %s', ...
                     ultrasat.api.ModelBase.datetimeStr(app.MainModule.ApiClient.ApprovedTargetsStartTime), ...
                     ultrasat.api.ModelBase.datetimeStr(app.MainModule.ApiClient.ApprovedTargetsEndTime), ...
                     ultrasat.api.ModelBase.datetimeStr(app.MainModule.Planner.RetrivedMissionTime));
-    
+
                 % Update the table content from PlannerMain to ApprovedTargetsApp
                 if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
                     app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
-                end            
+                end
             catch ME
                 app.msgex('showApprovedTargets', ME);
             end
@@ -114,10 +114,10 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
                 app.MainModule.Planner.clearMissionApprovedPlan();
 
                 % Refresh display
-                app.showPlanAll();  
+                app.showPlanAll();
             catch ME
                 app.msgex('clearApprovedTargets', ME);
-            end                                
+            end
         end
 
 
@@ -130,7 +130,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~isempty(Data)
                 app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
             end
-        end        
+        end
 
 
         function showOverriddenApprovedTargets(obj, app, PlanTargetIndex)
@@ -145,22 +145,22 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             end
 
             % Get list of overlap targets.
-            % Planner.Plan.OverlapTargets contains list of indexes of 
+            % Planner.Plan.OverlapTargets contains list of indexes of
             % overlapped targets, this is calculated by the Planner object.
             try
                 Targets = PlanTarget.OverlapTargets;
                 if ~isempty(Targets)
-    
+
                     % Mark the rows in light red color - [1, 0.6, 0.6]
                     Style = uistyle("BackgroundColor", [1, 0.6, 0.6]);
                     addStyle(app.UITableApprovedTarget, Style, "row", Targets);
-                
+
                     % Scroll table to the selected row
                     scroll(app.UITableApprovedTargets, "row", Targets(1));
                 end
             catch ME
                 app.msgex('showOverriddenApprovedTargets', ME);
-            end                                                
+            end
         end
 
 
@@ -179,7 +179,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
                 app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
             end
-        end                       
+        end
 
     end
 end

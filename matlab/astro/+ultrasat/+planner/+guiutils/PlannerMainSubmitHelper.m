@@ -26,7 +26,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
     %
 
     methods
-        
+
         function obj = PlannerMainSubmitHelper()
             % Constructor
             obj.LogPrefix = 'SubmitHelper';
@@ -41,10 +41,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
             % Validation is not allowed when plain is read-only
             if app.isReadOnlyMsg(), return; end
-            
+
             % Validation is not allowed when not logged-in
             if ~app.SessionHelper.isLogin('Message', true), return; end
-            
+
             % Ask user to confirm - currently not
             %if ~strcmp(app.AppUtils.askYesNo('Send plan with GCS Validator?', 'Confirm'), 'Yes')
             %    return;
@@ -64,7 +64,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
             % User will open the status window
             % app.showValidationStatusWindow();
-        end        
+        end
 
 
         function updateValidateStatus(obj, app)
@@ -80,10 +80,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             % Submit plan by sending it to Mission Control service
             % Debug: see files in D:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\sim
             app.msglog('submit');
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
 
             % Submit is not allowed when plain is read-only
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             % Submit is not allowed when not logged-in
             if ~app.SessionHelper.isLogin('Message', true), return; end
@@ -93,14 +93,14 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             if app.MainModule.Modified
                 if ~strcmp(app.AppUtils.askYesNo('The plan has been modified and not saved. You must save it before submitting. Do you want to save your changes?', 'Confirm'), 'Yes')
                     return;
-                end                
+                end
                 app.savePlan();
-            end            
+            end
 
             if ~strcmp(app.MainModule.Planner.Status, 'validated')
                 if ~strcmp(app.AppUtils.askYesNo('The plan is not validated, or validation was not successful. Are you sure you want to submit this plan?', 'Confirm'), 'Yes')
                     return;
-                end                
+                end
             end
 
             % Ask user for confirmation
@@ -117,14 +117,14 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.addHistory('submit');
                 app.savePlan();
 
-                % After submit the plan should become read-only.                
+                % After submit the plan should become read-only.
                 app.setReadOnly(true);
             catch ME
                 app.msgex('submit', ME);
             end
             app.closePleaseWait();
             app.updateStatus();
-        end        
+        end
 
 
         function showValidationStatusWindow(obj, app)
@@ -135,53 +135,53 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             % Create app
             if isempty(app.ValidationStatusApp) || ~isvalid(app.ValidationStatusApp)
                 app.ValidationStatusApp = ultrasat.planner.gui.ValidationStatus(app.MainModule);
-            end            
+            end
 
             try
                 % Retrieve validation history from metadata
-                ValidationHistory = app.MainModule.PlanData.metadata.ValidationResponse;        
+                ValidationHistory = app.MainModule.PlanData.metadata.ValidationResponse;
                 if isempty(ValidationHistory)
                     app.msglog('No validation history available.');
                     return;
                 end
-            
+
                 % Extract struct from cell array if needed, convert to struct array
                 if iscell(ValidationHistory)
                     ValidationHistory = [ValidationHistory{:}];
                 end
-    
+
                 % Setup table
                 app.ValidationStatusApp.UITable.SelectionType = "row";
-                app.ValidationStatusApp.UITable.Multiselect = "off";            
+                app.ValidationStatusApp.UITable.Multiselect = "off";
                 app.ValidationStatusApp.UITable.RowName = "numbered";
-    
+
                 app.ValidationStatusApp.UITableHistory.SelectionType = "row";
-                app.ValidationStatusApp.UITableHistory.Multiselect = "off";            
-                app.ValidationStatusApp.UITableHistory.RowName = "numbered";            
-    
-    
+                app.ValidationStatusApp.UITableHistory.Multiselect = "off";
+                app.ValidationStatusApp.UITableHistory.RowName = "numbered";
+
+
                 % Show latest validation response (first item in history)
                 Response = ValidationHistory(1);
                 app.showValidationResponse(Response);
-            
+
                 % Convert history to table (only keeping validation_time and status)
                 HistoryData = struct2table(ValidationHistory, 'AsArray', true);
                 HistoryData = HistoryData(:, {'validation_time', 'status'});
-            
+
                 % Assign history data to UITableHistory
                 app.ValidationStatusApp.UITableHistory.Data = HistoryData;
-            
+
                 % Set column names for UITableHistory
                 if ~isempty(HistoryData)
                     app.ValidationStatusApp.UITableHistory.ColumnName = HistoryData.Properties.VariableNames;
                 end
-    
+
                 app.showModal(app.ValidationStatusApp);
             catch ME
                 app.msgex('showValidationStatusWindow', ME)
-            end                                
+            end
         end
-        
+
 
         function validationHistorySelected(obj, app)
             % Updates the displayed validation response based on selected row in history
@@ -195,15 +195,15 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 end
 
                 % Ensure selection index is valid
-                selection = app.ValidationStatusApp.UITableHistory.Selection;                
+                selection = app.ValidationStatusApp.UITableHistory.Selection;
                 if isempty(ValidationHistory) || (selection < 1) || (selection > numel(ValidationHistory))
                     app.msglog('Invalid history selection.');
                     return;
                 end
-        
+
                 % Retrieve the selected validation response
                 Response = ValidationHistory(selection);
-        
+
                 % Update display
                 app.showValidationResponse(Response);
             catch ME
@@ -226,35 +226,35 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.ValidationStatusApp.TextArea.Value = ResponseText;
                 Html = app.MainModule.jsonToHtml(Response);
                 app.ValidationStatusApp.HTML.HTMLSource = Html;
-        
+
                 % Ensure targets exist in Response before converting to table
                 if isfield(Response, 'task') && isfield(Response.task, 'targets') && ~isempty(Response.task.targets)
                     Data = struct2table(Response.task.targets, 'AsArray', true);
                     app.ValidationStatusApp.UITable.Data = Data;
-        
+
                     % Update column names if data exists
                     if ~isempty(Data)
                         app.ValidationStatusApp.UITable.ColumnName = Data.Properties.VariableNames;
                     end
 
-                    colIdx = find(strcmp(Data.Properties.VariableNames, 'status'), 1);       
-                    if ~isempty(colIdx) % Ensure the column exists       
+                    colIdx = find(strcmp(Data.Properties.VariableNames, 'status'), 1);
+                    if ~isempty(colIdx) % Ensure the column exists
                         % Apply styles row by row based on the status value
                         for row = 1:height(Data)
                             status = string(Data{row, colIdx}); % Read status as string
                             style = app.MainModule.GuiHelper.getValidationStatusStyle(status);
                             addStyle(app.UITablePlanTargets, style, "cell", [row, colIdx]);
                         end
-                    end                    
+                    end
                 else
                     app.ValidationStatusApp.UITable.Data = [];
                 end
-        
+
             catch ME
                 app.msgex('showValidationResponse', ME);
             end
         end
-                
+
 
         function showSubmitStatusWindow(obj, app)
             % Show window with submit status
@@ -264,12 +264,12 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             % Create app
             if isempty(app.SubmitStatusApp) || ~isvalid(app.SubmitStatusApp)
                 app.SubmitStatusApp = ultrasat.planner.gui.SubmitStatus(app.MainModule);
-            end            
+            end
 
-            % Set fields and show the app            
+            % Set fields and show the app
             %app.SubmitStatusApp.setData(app.MainModule.SubmitStatus);
             app.showModal(app.SubmitStatusApp);
-        end        
+        end
 
     end
 end

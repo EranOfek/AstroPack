@@ -24,7 +24,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
     %   - 'app' always refers to the PlannerMain instance.
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
-        
+
     methods
 
         function obj = PlannerMainBuildHelper()
@@ -36,9 +36,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
         function build(obj, app)
             % Build plan according to plan type, calls doBuild...() below
-            app.msglog('build');            
+            app.msglog('build');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
             %
             app.MainModule.AfterBuild = height(app.MainModule.Planner.Plan) > 0;
@@ -65,7 +65,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     obj.doBuildTOO(app);
                 elseif strcmp(PlanType, 'AllSS')
                     obj.doBuildAllSS(app);
-                end                    
+                end
 
                 % Set AfterBuild=true for all plan types except DDT
                 if ~strcmp(PlanType, 'DDT') && ~isempty(app.MainModule.Planner.Plan)
@@ -82,7 +82,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Update display
             app.setModified('build');  % Move call to other place?
             app.updateStatus();
-            app.showPlanTargets();                                
+            app.showPlanTargets();
         end
 
 
@@ -96,7 +96,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Helper: Build HCS
             app.msglog('doBuildHCS started');
             if ~app.hasPlanner(), return; end
-            
+
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             if numel(SelectedRows) ~= 1
@@ -104,7 +104,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 return;
             end
 
-            upHCS = app.MainModule.Planner;            
+            upHCS = app.MainModule.Planner;
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
             obj.setBuildStatus('OK');
@@ -124,7 +124,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             upLCS.buildLCS('TargetList', SelectedRows);
-          
+
             app.addHistory('BuildLCS Ok');
             obj.setBuildStatus('OK');
             app.msglog('doBuildLCS done');
@@ -137,7 +137,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             upDDT = app.MainModule.Planner;
-            
+
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             if isempty(SelectedRows)
@@ -147,7 +147,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Create app
             if isempty(app.EnterStartTimeApp) || ~isvalid(app.EnterStartTimeApp)
                 app.EnterStartTimeApp = ultrasat.planner.gui.EnterStartTime(app.MainModule);
-            end            
+            end
 
             % Set start time field from the planner
             app.EnterStartTimeApp.GroupStartTimeEditField.Value = app.MainModule.DateTime2Str(app.MainModule.Planner.StartTime);
@@ -196,14 +196,14 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             try
                 upTOO = app.MainModule.Planner;
-    
+
                 Fields = upTOO.UniqTarg(1);
-                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', HCS_fields.Name);   
+                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', HCS_fields.Name);
                 %app.debugSave('upTOO.mat', upTOO);
 
             catch ME
                 app.msgex('doBuildTOO', ME);
-            end                
+            end
             app.msglog('doBuildTOO done');
         end
 
@@ -217,11 +217,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             catch ME
                 app.msgex('doBuildAllSS', ME);
-            end                
+            end
 
             app.msglog('doBuildAllSS done');
-        end        
-        
+        end
+
 
         function showBuildStatusWindow(obj, app)
             % Show window with last build status
@@ -244,27 +244,27 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-        
+
             try
                 % If only one row in the table, return index 1
                 if height(Data) == 1
                     Result = 1;
                     return;
                 end
-            
+
                 % Convert to string array for uniform processing
                 OrderColumn = string(Data.Order);
-            
+
                 % Identify non-empty rows (ignoring whitespace and empty strings)
                 trimmedOrder = strtrim(OrderColumn);
                 isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
-                
+
                 % If only one valid row with non-empty 'Order', return its index
                 if sum(isValid) == 1
                     Result = find(isValid);
                     return;
                 end
-            
+
                 % Handle case: all values are invalid or non-numeric
                 validNumbers = str2double(trimmedOrder(isValid));
                 if all(isnan(validNumbers))
@@ -272,19 +272,19 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     trimmedOrder = OrderColumn;
                     isValid = true(height(Data), 1);
                 end
-                
+
                 % Now safely convert all to numbers, keeping invalid as NaN
                 numericOrder = NaN(height(Data), 1);
                 numericOrder(isValid) = str2double(trimmedOrder(isValid));
-                
+
                 % Get non-empty rows and sort
                 nonEmptyRows = find(~isnan(numericOrder));
                 [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
-                Result = nonEmptyRows(sortedIdx)';          
+                Result = nonEmptyRows(sortedIdx)';
             catch ME
                 app.msgex('getUniqueTargetsIndexByOrderColumn', ME);
                 Result = 1;
-            end                                
+            end
         end
 
 
@@ -293,7 +293,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-            
+
             % If only one row in the table, return index 1
             if height(Data) == 1
                 Result = 1;
@@ -302,8 +302,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Check if all values in 'Order' column are empty and replace with row numbers if needed
             if all(cellfun(@(x) isempty(strtrim(x)), Data.Order)) || all(isnan(str2double(Data.Order)))
-                Data.Order = string(1:height(Data))'; 
-            end            
+                Data.Order = string(1:height(Data))';
+            end
 
             % Convert to cell array if necessary (handles both strings and chars)
             if iscell(Data.Order) || isstring(Data.Order)
@@ -313,17 +313,17 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Data.Order(~isValid) = NaN;  % Replace empty strings with NaN
                 Data.Order = str2double(Data.Order); % Convert valid numeric strings to doubles
             end
-        
+
             % Find non-empty (non-NaN) rows
             nonEmptyRows = find(~isnan(Data.Order));
-        
+
             % Sort by 'Order' column
             [~, sortedIdx] = sort(Data.Order(nonEmptyRows));
-        
+
             % Return sorted row indices
             Result = nonEmptyRows(sortedIdx);
             Result = Result';
         end
-        
+
     end
 end

@@ -24,9 +24,9 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
     %   - 'app' always refers to the PlannerMain instance.
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
-    
+
     methods
-        
+
         function obj = PlannerMainPlotHelper()
             % Constructor
             obj.LogPrefix = 'PlotHelper';
@@ -51,10 +51,10 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 % Plot Visibility
                 if app.VisibilityButton.Value
                     obj.plotVisibility();
-                end                
+                end
             catch ME
                 app.msgex('plotGraphs', ME);
-            end                
+            end
         end
 
 
@@ -77,11 +77,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             end
         end
 
-        
+
         function showSkyMapPlot(obj, app)
             % Update GUI plot with SkyMap
             app.msglog('showSkyMapPlot');
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
 
             % Future? @Todo @Yossi
             % Get index of selected item - Currently unused - @Yossi
@@ -99,10 +99,10 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 end
             catch ME
                 app.msgex('plotMapPlan', ME);
-            end   
+            end
         end
 
-       
+
         function showGraphsPlotWindow(obj, app)
             % Show stand-alone window with Graphs plot
             app.msglog('showGraphsPlotWindow');
@@ -110,21 +110,21 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
             % Create and show PlotGraphsApp
             if isempty(app.PlotGraphsApp) || ~isvalid(app.PlotGraphsApp)
-                app.PlotGraphsApp = ultrasat.planner.gui.PlotGraphs(app.MainModule);                
+                app.PlotGraphsApp = ultrasat.planner.gui.PlotGraphs(app.MainModule);
             end
-            app.PlotGraphsApp.UIFigure.Visible = 'on';            
+            app.PlotGraphsApp.UIFigure.Visible = 'on';
         end
 
-        
+
         function showSkyMapPlotWindow(obj, app)
             % Show stand-alone window with SkyMap plot, the user need to
-            % click the Update button in the embedded plot in this 
+            % click the Update button in the embedded plot in this
             app.msglog('showSkyMapPlotWindow');
             if ~app.hasPlanner(), return; end
 
             % Create and show PlotSkyMapApp
             if isempty(app.PlotSkyMapApp) || ~isvalid(app.PlotSkyMapApp)
-                app.PlotSkyMapApp = ultrasat.planner.gui.PlotSkyMap(app.MainModule);                
+                app.PlotSkyMapApp = ultrasat.planner.gui.PlotSkyMap(app.MainModule);
             end
             app.PlotSkyMapApp.UIFigure.Visible = 'on';
         end
@@ -132,10 +132,10 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
         function doPlotSkyMap(obj, app, AxesHandle)
             % Plot SkyMap on the specified Axes (embedded or stand-alone)
-            app.msglog('doPlotSkyMap');            
+            app.msglog('doPlotSkyMap');
             try
                 Planner = app.MainModule.Planner;
-                cla(AxesHandle, 'reset');                
+                cla(AxesHandle, 'reset');
                 Planner.plotMapPlan('AxesHandle', AxesHandle, ...
                     'disp_uniqTarg', app.PlotFlagUniqueCheckBox.Value, ...
                     'disp_plan',  app.PlotFlagPlanCheckBox.Value, ...
@@ -149,22 +149,22 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                     % 'cooSys', app.PlotCooSysDropDown.Value, ...
                     % 'plotTstart', app.MainModule.GuiHelper.getFieldDateTime(app.PlotStartTimeEditField.Value), ...
                     % 'plotTend', app.MainModule.GuiHelper.getFieldDateTime(app.PlotEndTimeEditField.Value) );
-        
+
                     % Currently not implemented:
-                    % In addition, there are 3 lists that can be set to select a subsample from 
+                    % In addition, there are 3 lists that can be set to select a subsample from
                     % the full sample: 'UniqTargInds', 'plan_rows', 'MissAprvPlan_rows'.
-                    % If they are empty (the default) will plot the entire UniqTarg list / Plan / MissionApprovedPlan.                
+                    % If they are empty (the default) will plot the entire UniqTarg list / Plan / MissionApprovedPlan.
             catch ME
                 app.msgex('doPlotSkyMap', ME);
-            end                   
+            end
         end
 
         % =================================================================
         %
-        % =================================================================        
+        % =================================================================
 
         function plotCalibObj(obj, app)
-            % Plot Calibration Objects graph of the currently selected Unique Target in GraphPlotUniqueTargetDropDown 
+            % Plot Calibration Objects graph of the currently selected Unique Target in GraphPlotUniqueTargetDropDown
 
             app.msglog('plotCalibObj');
             if ~app.hasPlanner(), return; end
@@ -202,12 +202,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 app.PlotCalibObjDropDown.Value = ObjValues{1};
 
                 % Update the plot embedded in this window
-                cla(app.AxesGraphsPlot, 'reset');                
+                cla(app.AxesGraphsPlot, 'reset');
                 Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
-                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');                
+                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
                     Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
@@ -215,29 +215,29 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             end
         end
 
-        
+
         function showCalibObjTable(obj, app)
             % showCalibObjTable  Open (or create) the CalibObjTable window and update its content.
             %
             % This function ensures the CalibObjTable window exists and is valid,
             % makes it visible, and populates it with UniqueTargetCalibObj data if available.
             % All errors are logged via app.msglog, never thrown.
-        
-            app.msglog('showCalibObjTable');            
+
+            app.msglog('showCalibObjTable');
             try
                 % Ensure the CalibObjTable app instance is valid
                 if isempty(app.CalibObjTableApp) || ~isvalid(app.CalibObjTableApp)
                     app.CalibObjTableApp = ultrasat.planner.gui.CalibObjTable(app.MainModule);
                 end
-        
+
                 % Make the figure visible if it exists
                 if ~isempty(app.CalibObjTableApp) && isvalid(app.CalibObjTableApp)
                     app.CalibObjTableApp.UIFigure.Visible = 'on';
-        
+
                     % Update the table data
                     if isprop(app.CalibObjTableApp, 'UITableData')
                         app.CalibObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-        
+
                         % Update column names if table is non-empty
                         if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
                             app.CalibObjTableApp.UITableData.ColumnName = ...
@@ -251,15 +251,15 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 else
                     app.msglog('showCalibObjTable: CalibObjTableApp is invalid and could not be created.');
                 end
-        
+
             catch ME
                 app.msglog(sprintf('showCalibObjTable: unexpected error - %s', ME.message));
             end
         end
-                
+
 
         function uniqueTargetSelectedInPlot(obj, app, UniqueTargetIndex)
-            % Currently unused 
+            % Currently unused
 
             app.msglog('uniqueTargetSelectedInPlot');
             if ~app.hasPlanner(), return; end
@@ -286,12 +286,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
             % Set the dropdown items to these values
             app.PlotCalibObjDropDown.Items = string(ObjValues);
-            app.PlotCalibObjDropDown.Value = ObjValues{1};            
+            app.PlotCalibObjDropDown.Value = ObjValues{1};
         end
 
 
         function plotCalibObjSub(obj, app)
-            % % Plot the selected calibration object (sub-component) in both embedded and standalone plot windows 
+            % % Plot the selected calibration object (sub-component) in both embedded and standalone plot windows
 
             % Called on selecting CalibObj in the drop-down next to the Graphs plot
             try
@@ -306,25 +306,25 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                     CalObjIndex = find(strcmp(app.UniqueTargetCalibObj.obj, Value));
 
                     % Update the plot embedded in this window
-                    cla(app.AxesGraphsPlot, 'reset');                
+                    cla(app.AxesGraphsPlot, 'reset');
                     app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.AxesGraphsPlot);
-    
+
                     % Update also the plot in the standalone window
                     if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
-                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');                
+                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
                         app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                     end
                 end
             catch ME
                 app.msgex('plotCalibObjSub', ME);
-            end                            
+            end
         end
 
 
         function plotVisibility(obj, app)
             % Plot Visibility graph of currently select Unique Target
 
-            if ~app.hasPlanner(), return; end    
+            if ~app.hasPlanner(), return; end
             Planner = app.MainModule.Planner;
 
             % Get index of selected unique target in the drop-down
@@ -338,18 +338,18 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
             try
                 % Update the plot embedded in this window
-                cla(app.AxesGraphsPlot, 'reset');                
+                cla(app.AxesGraphsPlot, 'reset');
                 Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp)
-                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');                
+                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
                     Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotVisibility', ME);
             end
-        end        
+        end
 
     end
 end
