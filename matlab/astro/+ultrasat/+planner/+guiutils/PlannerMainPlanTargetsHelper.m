@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlanTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Plan Targets Helper for Main Planner
 %==========================================================================
 
@@ -25,17 +25,17 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainPlanTargetsHelper()
             % Constructor
             obj.LogPrefix = 'PlanTargetsHelper';
-            obj.msglog('PlannerMainPlanTargetsHelper created successfully');
         end
 
 
         function editPlanTarget(obj, app)
             % Edit plan target by editPlanRow()
+
             app.msglog('editPlanTarget');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
@@ -46,7 +46,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 return
             end
 
-            % Create app
+            % Create PlanTargetParamsApp
             if isempty(app.PlanTargetParamsApp) || ~isvalid(app.PlanTargetParamsApp)
                 app.PlanTargetParamsApp = ultrasat.planner.gui.PlanTargetParams(app.MainModule);
             end
@@ -54,10 +54,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Set field values - Currently there are 23 fields for Plan Target
             ParamsApp = app.PlanTargetParamsApp;
             Plan = app.MainModule.Planner.Plan;
-            obj.setPlanTargetParamsFiels(app, Plan, Index, ParamsApp);
+            obj.setPlanTargetParamsFields(app, Plan, Index, ParamsApp);
             ParamsApp.setEditMode(false);
 
-            % Show app
+            % Show PlanTargetParamsApp and wait for user to click "Save" button
             if strcmp(app.showModal(app.PlanTargetParamsApp), 'Save')
                 try
                     % Apply the paramters from the dialog to the plan
@@ -73,9 +73,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
         end
 
 
-        function setPlanTargetParamsFiels(obj, app, Plan, Index, ParamsApp)
-            % Helper: Set field values - Currently there are 23 fields for Plan Target
-            app.msglog('setPlanTargetParamsFiels');
+        function setPlanTargetParamsFields(obj, app, Plan, Index, ParamsApp)
+            % Set field values - Currently there are 23 fields for Plan Target
+
+            app.msglog('setPlanTargetParamsFields');
 
             try
                 ParamsApp.PlanTargetIndexEditField.Value = int2str(Index);
@@ -123,13 +124,14 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 % Cell array field (convert to comma-separated string for display)
                 ParamsApp.OverlapTargetsEditField.Value = app.MainModule.cell2Str(Plan.OverlapTargets);
             catch ME
-                app.msgex('setPlanTargetParamsFiels', ME);
+                app.msgex('setPlanTargetParamsFields', ME);
             end
         end
 
 
         function applyPlanTargetParams(obj, app, Index, ParamsApp)
-            % Helper: Apply plan parameters from dialog to plan
+            % Apply plan parameters from dialog to plan
+
             app.msglog('applyPlanTargetParams');
             try
                 Plan = app.MainModule.Planner.Plan;
@@ -155,7 +157,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
                 %
                 if app.PlanParamsHelper.checkPlanSelfConsistency(app)
-                    app.msglog('applyPlanTargetParams successfully');
+                    app.msglog('applyPlanTargetParams: success');
                 end
             catch ME
                 app.msgex('applyPlanTargetParams', ME);
@@ -165,6 +167,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function deletePlanTarget(obj, app)
             % Delete plan target with delPlanRow()
+
             app.msglog('deletePlanTarget');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
@@ -195,6 +198,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function clearPlanTargets(obj, app)
             % Clear all plan targets with clearPlan()
+
             app.msglog('clearPlanTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
@@ -215,6 +219,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function showPlanTargets(obj, app)
             % Update the display of Plan Targets table
+
             app.msglog('showPlanTargets');
             if ~app.hasPlanner()
                 app.UITablePlanTargets.Data = [];
@@ -260,6 +265,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         function adjustGroupStartTime(obj, app)
             % Adjust group of targets with adjustGroupStartTime()
+
             app.msglog('adjustGroupStartTime');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
@@ -309,33 +315,50 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
 
         function planTargetSelected(obj, app, Index)
-            % Called on plan target selection (single click)
+            % Handle plan target selection (single click), called from UITable callback
+            % Called from UITable callback
+
             app.msglog(sprintf('Plan target selected: %d', Index));
-
-            if ~app.hasPlanner(), return; end
-            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, Index);
-            if ~isempty(Data)
-                app.msglog(sprintf('planTargetSelected: %d - %s', Index, Data.Name));
-                app.ApprovedTargetsHelper.showOverriddenApprovedTargets(app, Index);
+            if ~app.hasPlanner(), return; end            
+            try
+                Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, Index);
+                if ~isempty(Data)
+                    app.msglog(sprintf('planTargetSelected: %d - %s', Index, Data.Name));
+                    app.ApprovedTargetsHelper.showOverriddenApprovedTargets(app, Index);
+                end
+            catch ME
+                app.msgex('planTargetSelected', ME)
             end
         end
 
 
-        function planRowClick(obj, app)
-            % Called on plan target selection (single click)
-            Index = app.UITablePlanTargets.Selection;
-            if isempty(Index) || (Index < 1)
-                return
-            end
+        function planTargetClick(obj, app)
+            % Handle plan target single click - Select the corresponding Unique-Target
+            % Called from UITable callback
 
-            % Select the Unique-Target
-            UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
-            app.UITableUniqueTargets.Selection = UniqueTargetIndex;
+            app.msglog('planRowClick');
+            if ~app.hasPlanner(), return; end            
+            try
+                Index = app.UITablePlanTargets.Selection;
+                if isempty(Index) || (Index < 1)
+                    return
+                end
+
+                % Select the corresponding Unique-Target
+                UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
+                app.UITableUniqueTargets.Selection = UniqueTargetIndex;
+            catch ME
+                app.msgex('planRowClick', ME)
+            end
         end
 
 
-        function planRowDoubleClick(obj, app)
-            % Called on plan target double click
+        function planTargetDoubleClick(obj, app)
+            % Handle plan target double click - Select the corresponding Unique-Target and show graphs
+            % Called from UITable callback
+
+            app.msglog('planRowDoubleClick');
+            if ~app.hasPlanner(), return; end                        
             try
                 Index = app.UITablePlanTargets.Selection;
                 if isempty(Index) || (Index < 1)
@@ -345,7 +368,9 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 % Select the Unique-Target
                 UniqueTargetIndex = app.MainModule.Planner.Plan.UniqTargInd(Index);
                 app.UITableUniqueTargets.Selection = UniqueTargetIndex;
-                app.uniqueTargetDoubleClick();
+
+                % 'Double Click' on Unique-Target to plot its graphs
+                app.UniqueTargetsHelper.uniqueTargetDoubleClick(app, UniqueTargetIndex);
                 app.plotGraphs();
             catch ME
                 app.msgex('planRowDoubleClick', ME)
@@ -371,5 +396,12 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
         end
 
     end
-end
 
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
+end

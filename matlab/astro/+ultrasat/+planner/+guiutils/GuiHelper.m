@@ -3,22 +3,22 @@
 % File        : +planner/+guiutils/GuiHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Gui Helper for Main Planner
 %==========================================================================
 
 classdef GuiHelper < ultrasat.api.Loggable
     % Low level utilities for PlannerMain
 
-    methods
+    methods (Access = public)
         function obj = GuiHelper()
             % Constructor
-            obj.msglog('GuiHelper created successfully');
+            obj.LogPrefix = 'GuiHelper';
         end
 
 
         function color = getValidationStatusColor(obj, status)
-            % Returns text color (RGB) based on the validation status
+            % Returns text color (RGB) based on the validation status: "", "approved", "warning", "failed"
 
             % Convert status to lowercase to ensure case insensitivity
             status = lower(string(status));
@@ -39,7 +39,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
 
         function color = getValidationStatusBackgroundColor(obj, status)
-            % Returns background color (RGB) for black text based on the validation status
+            % Returns background color (RGB) for black text based on the validation status: "", "approved", "warning", "failed"
 
             % Convert status to lowercase to ensure case insensitivity
             status = lower(string(status));
@@ -72,8 +72,7 @@ classdef GuiHelper < ultrasat.api.Loggable
         %------------------------------------------------------------------
 
         function setStatusField(obj, app, EditField, Status, StatusText)
-            % Helper: Set the background color of the EditField based on the Status value.
-            % Valid values for Status: OK, Warning, Error, (empty)
+            % Set the background color of the EditField based on the Status value: "", "approved", "warning", "failed"
 
             if isempty(StatusText)
                 StatusText = '';
@@ -81,10 +80,11 @@ classdef GuiHelper < ultrasat.api.Loggable
             EditField.Value = StatusText;
 
             % Logic for background color
-            if strcmp(Status, 'OK')
+            Status = lower(string(Status));            
+            if strcmp(Status, 'ok')
                 % Light gray-green for 'OK'
                 EditField.BackgroundColor = [0.8, 0.9, 0.8];
-            elseif strcmp(Status, 'Warning')
+            elseif strcmp(Status, 'warning')
                 % Light yellow for 'Warning'
                 EditField.BackgroundColor = [1.0, 1.0, 0.8];
             elseif ~isempty(Status)
@@ -102,6 +102,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldText(obj, Value)
             % Return trimmed text field value as char, empty if invalid
+
             try
                 if isstring(Value), Value = char(Value); end
                 if ischar(Value)
@@ -119,6 +120,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldNum(obj, Value)
             % Return numeric field value as double, NaN if invalid
+
             try
                 if isnumeric(Value)
                     Result = Value;
@@ -137,6 +139,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldTitle(obj, Value)
             % Return trimmed title field value as char, empty if invalid
+
             try
                 if isstring(Value), Value = char(Value); end
                 if ischar(Value)
@@ -154,6 +157,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldUniqueTargetName(obj, Value)
             % Return trimmed unique target name field as char, empty if invalid
+
             try
                 if isstring(Value), Value = char(Value); end
                 if ischar(Value)
@@ -171,8 +175,8 @@ classdef GuiHelper < ultrasat.api.Loggable
         %------------------------------------------------------------------
 
         function Result = getFieldRA(obj, Value)
-           % Return RA text field as double, NaN if invalid
-           % @Todo - support Sexa
+           % Return RA text field as double, NaN if invalid - @Todo - support Sexa
+
            try
                if isstring(Value) || ischar(Value)
                    Result = str2double(strtrim(char(Value)));
@@ -190,8 +194,8 @@ classdef GuiHelper < ultrasat.api.Loggable
 
 
         function Result = getFieldDec(obj, Value)
-            % Return Dec text field as double, NaN if invalid
-            % @Todo - support Sexa
+            % Return Dec text field as double, NaN if invalid - @Todo - support Sexa
+
             try
                 if isstring(Value) || ischar(Value)
                     Result = str2double(strtrim(char(Value)));
@@ -210,7 +214,7 @@ classdef GuiHelper < ultrasat.api.Loggable
         %------------------------------------------------------------------
 
         function Result = getFieldDateTime(obj, Value)
-            % Return the value of a date-time text field as a datetime object.
+            % Return the value of a date-time text field as a datetime object in UTC timezone.
             %
             % Expected Input:
             %   Value - A character vector, string scalar, or datetime object.
@@ -301,7 +305,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
 
         function Result = getFieldDuration(obj, Value)
-            % getFieldDuration Convert various textual/numeric duration inputs to a duration object.
+            % Convert various textual/numeric duration inputs to a duration object.
             %
             % Expected Input:
             %   Value - A character vector, string scalar, or numeric value.
@@ -524,7 +528,6 @@ classdef GuiHelper < ultrasat.api.Loggable
                 end
 
                 parts = strsplit(displayStr, ':');
-
                 if numel(parts) >= 2
                     titleStr = strtrim(parts{2});
                 else
@@ -542,9 +545,8 @@ classdef GuiHelper < ultrasat.api.Loggable
         % =================================================================
 
         function Status = showModal(obj, app, FormApp)
-            % Helper: Show modal app window and return FormApp.Status
-            % Call FormApp.beforeShow() if such function exists in FormApp
-            % Note: FormApp should have 'Status' property
+            % Show modal app window and return FormApp.Status, call FormApp.beforeShow() if such function exists
+            % FormApp should have 'Status' property and optionally'beforeShow' method
             appName = class(FormApp);
             hasBeforeShow = ismethod(FormApp, 'beforeShow');
             app.msglog(sprintf('showModal: %s, hasBeforeShow: %d', appName, hasBeforeShow));
@@ -563,7 +565,11 @@ classdef GuiHelper < ultrasat.api.Loggable
             FormApp.UIFigure.CloseRequestFcn = @(src, event) app.handleCloseRequest(FormApp);
 
             % Show the app window as modal window
-            uiwait(FormApp.UIFigure);
+            try
+                uiwait(FormApp.UIFigure);
+            catch ME
+                app.msgex('showModal - uiwait', ME)
+            end                
 
             % Hide the app window and get its Status property
             if isvalid(FormApp)

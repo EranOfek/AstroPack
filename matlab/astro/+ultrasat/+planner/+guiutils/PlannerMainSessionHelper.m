@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainSessionHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Session Helper for Main Planner (Login, Logout, etc.)
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainSessionHelper()
             % Constructor
             obj.LogPrefix = 'SessionHelper';
-            obj.msglog('PlannerMainSessionHelper created successfully');
         end
 
 
@@ -45,7 +44,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
 
             % Check active planner user name
             if app.hasPlanner()
-                if ~strcmp(app.AppUtils.askYesNo('Note: you have an active plan, after connection the AstPlanner field will be set to the logged-in user name. Would you like to continue?', 'Confirmation'), 'Yes')
+                if ~strcmp(app.AppUtils.askYesNo('You currently have an active plan. After logging in, the planner will automatically set your name as the AstPlanner. Continue?', 'Confirmation'), 'Yes')
                     return;
                 end
             end
@@ -54,11 +53,17 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             if isempty(app.LoginApp) || ~isvalid(app.LoginApp)
                 app.LoginApp = ultrasat.planner.gui.Login(app.MainModule);
             end
-            LoginStatus = app.showModal(app.LoginApp);
-            app.msglog( sprintf('login uiwait returned: isempty: %d, isvalid: %d', isempty(app.LoginApp), isvalid(app.LoginApp)) );
 
-            obj.setLoginButtonStatus();
-            obj.setButtons();
+            % Show the login dialog, it will call MainModule.login() 
+            app.showModal(app.LoginApp);
+
+            % Dialog was canceled or failed
+            if isempty(app.MainModule.UserName)
+                app.msglog('Login canceled or failed.');
+            end
+            
+            obj.setLoginButtonStatus(app);
+            obj.setButtons(app);
 
             % Set AstPlanner to connected user
             if app.hasPlanner()
@@ -84,8 +89,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             end
 
             app.MainModule.logout();
-            obj.setLoginButtonStatus();
-            obj.setButtons();
+            obj.setLoginButtonStatus(app);
+            obj.setButtons(app);
         end
 
 
@@ -97,7 +102,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
                 app.LabelTopUser.Text = app.MainModule.UserName;
             else
                 app.LoginButton.Text = 'Login';
-                app.LoginButton.BackgroundColor = [1.00, 1.00, 0.07];  % Yellow
+                app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
                 app.LabelTopUser.Text = 'Please login';
             end
 
@@ -139,7 +144,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             % @TODO - To be replaced with checking permissions like Delphi code
             Result = ~isempty(app.MainModule.UserName);
             if ~Result
-                app.msglog(sprintf('isAllowed: not allowed: %', Action));
+                app.msglog(sprintf('isAllowed: not allowed: %s', Action));
             end
         end
 
@@ -147,7 +152,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         function setButtons(obj, app)
             % Enable/disable buttons and menu options based on current login status.
 
-            enable = app.isLogin();
+            enable = app.isLogin(app);
 
             % Apply to buttons
             %app.OpenButton.Enable = enable;
@@ -207,5 +212,13 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
     end
 
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
+    
 end
 

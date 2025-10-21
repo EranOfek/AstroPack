@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
@@ -25,26 +25,26 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainApprovedTargetsHelper()
             % Constructor
             obj.LogPrefix = 'ApprovedTargetsHelper';
-            obj.msglog('PlannerMainApprovedTargetsHelper created successfully');
         end
 
 
         function retrieveApprovedTargets(obj, app)
-            % Retreive the list of approved taregts from the backend
+            % Retreive the list of approved targets from the backend server
+
             % User must be connected to server and logged-in
             app.msglog('retrieveApprovedTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
 
             % If build has been already executed, make sure that user is
-            % aware of the meaning of this operaion
+            % aware of the meaning of this operation
             if app.MainModule.AfterBuild
-                if ~strcmp(app.AppUtils.askYesNo('Retreiving approved targets after build may result in inconsistent plan. Are you sure you want to retreive mission approved targets?', 'Confirm'), 'Yes')
+                if ~strcmp(app.AppUtils.askYesNo('Retrieving approved targets after build may result in inconsistent plan. Are you sure you want to retrieve mission approved targets?', 'Confirm'), 'Yes')
                     return;
                 end
             end
@@ -65,6 +65,8 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         function showApprovedTargets(obj, app)
             % Update the GUI of Approved Targets table
+
+            % Do nothing if Planner is not available
             app.msglog('showApprovedTargets');
             if ~app.hasPlanner()
                 app.UITableApprovedTargets.Data = [];
@@ -74,6 +76,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             % Set table properties
             app.showPleaseWait('Updating approved targets display...');
             try
+                % Set table properties to allow single row selection and no multi-selection
                 app.UITableApprovedTargets.SelectionType = "row";
                 app.UITableApprovedTargets.Multiselect = "off";
                 app.UITableApprovedTargets.RowName = "numbered";
@@ -105,12 +108,19 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         function clearApprovedTargets(obj, app)
             % Clear the list of approved targets
+
+            % Do nothing if Planner is not available
             app.msglog('clearApprovedTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
 
+            % Ask user confirmation
+            if ~strcmp(app.AppUtils.askYesNo('Clear all approved targets?', 'Confirm'), 'Yes')
+                return;
+            end
+            
             try
-                % Caller uPlanner to clear the list of approved targets
+                % Call uplanner to clear the list of approved targets
                 app.MainModule.Planner.clearMissionApprovedPlan();
 
                 % Refresh display
@@ -122,11 +132,14 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
 
         function approvedTargetSelected(obj, app, Index)
-            % Called on selecting (single click) approved target from table
+            % Handle approved target selection in table - Currently does NOTHING!!!
+            % Called from UITable callback
+
             app.msglog(sprintf('approvedTargetSelected: %d', Index));
             if ~app.hasPlanner(), return; end
 
-            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);
+            % Get the selected row as struct
+            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);            
             if ~isempty(Data)
                 app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
             end
@@ -134,11 +147,15 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
 
         function showOverriddenApprovedTargets(obj, app, PlanTargetIndex)
-            % Update the display with list of approved targets
-            app.msglog(sprintf('showOverriddenApprovedTargets: %d', PlanTargetIndex);
+            % Update the display with list of approved targets that are overridden by the given target
+
+            app.msglog(sprintf('showOverriddenApprovedTargets: %d', PlanTargetIndex));
             if ~app.hasPlanner(), return; end
 
+            % Show the list of approved targets
             app.showApprovedTargets();
+
+            % Get the selected target as struct
             PlanTarget = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, PlanTargetIndex);
             if isempty(PlanTarget)
                 return;
@@ -153,7 +170,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
                     % Mark the rows in light red color - [1, 0.6, 0.6]
                     Style = uistyle("BackgroundColor", [1, 0.6, 0.6]);
-                    addStyle(app.UITableApprovedTarget, Style, "row", Targets);
+                    addStyle(app.UITableApprovedTargets, Style, "row", Targets);
 
                     % Scroll table to the selected row
                     scroll(app.UITableApprovedTargets, "row", Targets(1));
@@ -166,6 +183,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         function showApprovedTargetsWindow(obj, app)
             % Show separate window with Approved Targets table
+            
             app.msglog('showApprovedTargetsWindow');
             if ~app.hasPlanner(), return; end
 
@@ -182,4 +200,12 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end

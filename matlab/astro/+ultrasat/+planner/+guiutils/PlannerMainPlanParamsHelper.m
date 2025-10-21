@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlanParamsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
@@ -25,23 +25,23 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainPlanParamsHelper()
             % Constructor
             obj.LogPrefix = 'PlanParamsHelper';
-            obj.msglog('PlannerMainPlanParamsHelper created successfully');
         end
 
 
         function showPlanParamsWindow(obj, app)
             % Show window with Plan Parameters
+
             app.msglog('showPlanParamsWindow');
             if ~app.hasPlanner(), return; end
 
             Planner = app.MainModule.Planner;
 
-            % Create app
+            % Create PlanParamsApp and show it
             if isempty(app.PlanParamsApp) || ~isvalid(app.PlanParamsApp)
                 app.PlanParamsApp = ultrasat.planner.gui.PlanParams(app.MainModule);
             end
@@ -49,26 +49,18 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             ParamsApp = app.PlanParamsApp;
 
             % Make the form read-only if plan is already built
-            app.MainModule.AfterBuild = height(Planner.Plan);
+            app.MainModule.AfterBuild = height(Planner.Plan) > 0;
             obj.setPlanParamsFields(app, ParamsApp);
 
             % Show app
             if strcmp(app.showModal(ParamsApp), 'Save')
-                % Apply the parameters
-                try
-                    % Do we need to call it? it is called from PlanParams's
-                    % Save button @Todo
-                    obj.applyPlanParams(app);
-                catch ME
-                    app.msgex('showPlanParamsWindow', ME);
-                end
+                % PlanParams.mlapp calls applyPlanParams from the 'Save' button
             end
         end
 
 
         function setPlanParamsFields(obj, app, ParamsApp)
-            % Helper: Set PlanParams app fields from current planner
-            % Called from showPlanParamsWindow
+            % Set PlanParams app fields from current planner, called from showPlanParamsWindow
 
             try
                 % Get the Planner instance from the main module
@@ -110,15 +102,18 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.TileReadTimeEditField.Value = num2str(seconds(Planner.FullTileReadTime));
                 ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));
 
-                % Assign LCSTab Parameters
+                % @TODO - Check with Yossi the duration fields and formats - @Yossi
+
+                % Assign LCSTab Parameters, note that DailyWindowStartTime is duration
                 ParamsApp.LcsDailyWindowStartTimeEditField.Value = char(Planner.DailyWindowStartTime);
                 ParamsApp.LcsDailyWindowMaxDurationEditField.Value = char(Planner.DailyWindowMaxDuration);
 
-                % Assign AllSkyTab Parameters
+                % Assign AllSkyTab Parameters, note that DailyWindowStartTime is duration
                 ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.DailyWindowStartTime);
                 ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
-                ParamsApp.AllSkyGalacticLatTresholdEditField.Value = Planner.AllSSHighLatThresh;
+                ParamsApp.AllSkyGalacticLatThresholdEditField.Value = Planner.AllSSHighLatThresh;
 
+                
                 % @Yossi @Todo ??
                 ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
                 ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.HighLatVisits;
@@ -161,8 +156,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
 
         function applyPlanParams(obj, app, ParamsApp)
-            % Helper: Apply plan parameters in current planner from PlanParams app
-            % Called from showPlanParamsWindow
+            % Apply plan parameters in current planner from PlanParams app, called from showPlanParamsWindow
+
             try
                 Planner = app.MainModule.Planner;
 
@@ -176,22 +171,26 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 Planner.DefEpochsPerVisit = ParamsApp.EpochsPerVisitEditField.Value;
                 Planner.Exptime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.ExposureEditField.Value);
 
-                % Apply per-type parameters
+                % Apply LCS parameters
                 if strcmp(Planner.Type, 'LCS')
                     Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowStartTimeEditField.Value);
                     Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowMaxDurationEditField.Value);
+
+                % Apply AllSky parameters
                 elseif strcmp(Planner.Type, 'AllSS')
                     Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.AllSkyDailyWindowStartTimeEditField.Value);
                     Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value);
-                    Planner.AllSSHighLatThresh = ParamsApp.AllSkyGalacticLatTresholdEditField.Value;
+                    Planner.AllSSHighLatThresh = ParamsApp.AllSkyGalacticLatThresholdEditField.Value;
                     Planner.LowLatVisits = ParamsApp.AllSkyLatVisitsEditField.Value;
 
                     % Future
                     %Planner.= ParamsApp.AllSkyLowLatVisitsEditField.Value;
                     %Planner.= ParamsApp.AllSkyHighGalacticLatDitherPatternDropDown.Value;
+
+                % Apply TOO parameters
                 elseif strcmp(Planner.Type, 'TOO')
                     Planner.TOOStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooStartTimeEditField.Value);
-                    Planner.TOOWindowDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooWindowMaxDurationEditField.Value);
+                    Planner.TOOWindowDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooWindowDurationEditField.Value);
                 end
 
                 % Apply check times
@@ -206,7 +205,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
 
         function setPlanStartEndTime(obj, app, StartTimeValue, EndTimeValue)
-            %
+            % Set Plan Start and End times in current planner
+
             app.msglog('setPlanStartEndTime')
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
@@ -225,7 +225,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
 
         function applyCheckTimes(obj, app, ParamsApp)
-            % Helper: Update Planner.CheckTimes with values from the edit fields
+            % Update Planner.CheckTimes with values from the edit fields
+
             % Note: Called from applyPlanParams() above
             % Note: REMOVED: Called from PlanParams.CheckTimesUpdateButtonPushed()
             app.msglog('applyCheckTimes')
@@ -250,6 +251,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
 
         function showPlanHistory(obj, app)
+            % Show Plan History window
+
             app.msglog('showPlanHistory');
             if ~app.hasPlanner(), return; end
 
@@ -277,7 +280,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
 
         function updatePlanParams(obj, app)
-            % Helper: Update fields in top panel of with window with values from Plan parameters
+            % Update fields in top panel of with window with values from Plan parameters
+
             app.msglog('updatePlanParams');
             if ~app.hasPlanner(), return; end
 
@@ -291,6 +295,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
                 app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
 
+                % Set editability of fields based on read-only status
                 if app.isReadOnly()
                     app.StartTimeEditField.Editable = "off";
                     app.EndTimeEditField.Editable = "off";
@@ -315,8 +320,10 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
         function Result = checkPlanSelfConsistency(obj, app)
             % Check plan for self consistency, update status display
+
             app.msglog('checkPlan')
             Result = false;
+            CheckStatus = false;
             try
                 % Perform the check
                 if height(app.MainModule.Planner.Plan) > 0
@@ -337,5 +344,13 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end
 

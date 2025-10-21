@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStatusHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 08/10/2025
+% Updated     : 21/10/2025
 % Description : Status Helper for Main Planner (Update, Clear, etc.)
 %==========================================================================
 
@@ -25,20 +25,22 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainStatusHelper()
             % Constructor
             obj.LogPrefix = 'StatusHelper';
-            obj.msglog('PlannerMainStatusHelper created successfully');
         end
 
 
         function applyPlanStatus(obj, app)
-            % Helper:
+            % 
+
             if app.hasPlanner()
+                PlanData = app.MainModule.PlanData;
+
                 % Only draft plans can be editted, otherwise read-only
-                if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft')
+                if ~strcmp(PlanData.status, '') && ~strcmp(PlanData.status, 'draft')
                     app.setReadOnly(true);
                 else
                     app.setReadOnly(false);
@@ -49,28 +51,30 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function setReadOnly(obj, app, ReadOnly)
-            % Helper: Setc/clear read-only status of the current plan
+            % Set/clear read-only status of the current plan
             app.AllowEdit = ~ReadOnly;
         end
 
 
         function Result = isReadOnly(obj, app)
-            % Helper: Return true if currently in read-only mode
+            % Return true if currently in read-only mode
+
             Result = ~app.AllowEdit;
         end
 
 
         function Result = isReadOnlyMsg(obj, app)
-            % Helper: Return true if currently in read-only mode, show popup message
+            % Return true if currently in read-only mode, show popup message
+
             Result = ~app.AllowEdit;
             if Result
-                uialert(app.UIFigure, sprintf('Plan is read-only: %s', app.AllowEditMsg), 'Message', 'Icon', 'success');
+                uialert(app.UIFigure, sprintf('Plan is read-only: %s', app.AllowEditMsg), 'Message', 'Icon', 'warning');
             end
         end
 
 
         function setModified(obj, app, logText)
-            % Helper: Mark the plan as modified (i.e. required to be saved/discarded)
+            % Mark the plan as modified (i.e. required to be saved/discarded)
             % if ~app.MainModule.Modified
                 if nargin < 2 || isempty(logText)
                     logText = '';
@@ -85,7 +89,8 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function clearModified(obj, app)
-            % Helper: Clear the Modified flag and status
+            % Clear the Modified flag and status
+
             if app.MainModule.Modified
                 app.msglog('clearModified')
             end
@@ -96,21 +101,16 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function Result = needSave(obj, app, AskSave)
-            % Helper: Check if current plan has been modified and need to be saved
+            % Check if current plan has been modified and need to be saved
+
             if app.MainModule.Modified
-                if AskSave
-                    if strcmp(app.AppUtils.askYesNo('Your changes are not saved. Save or discard?', 'Save or discard'), 'Yes')
-                        try
-                            app.savePlan();
-                        catch ME
-                            app.msgex('needSave', ME);
-                        end
-                        Result = true;
-                    else
-                        Result = true;
+                Result = true;
+                if AskSave && strcmp(app.AppUtils.askYesNo('Your changes are not saved. Save or discard?', 'Save or discard'), 'Yes')
+                    try
+                        app.savePlan();
+                    catch ME
+                        app.msgex('needSave', ME);
                     end
-                else
-                    Result = true;
                 end
             else
                 Result = false;
@@ -119,7 +119,8 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function setStatus(obj, app, Status, Text)
-            % Helper: Update the status panel with new status
+            % Update the status panel with new status
+
             app.msglog(sprintf('setStatus: %s - %s', Status, Text));
             app.MainModule.setStatus(Status, Text);
             app.updateStatus();
@@ -127,7 +128,8 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function setStatusEx(obj, app, Title, ME)
-            % Helper: Update the status panel with exception message
+            % Update the status panel with exception message
+
             app.MainModule.setStatus('Error', sprintf('%s - %s', Title, ME.message));
             app.updateStatus();
         end
@@ -136,6 +138,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
         function updateStatus(obj, app)
             % @Todo - ??
 
+            app.msglog('updateStatus');
             app.setStatusField(app.StatusTextArea, app.MainModule.CurrentStatus, app.MainModule.StatusText);
 
             PlanData = app.MainModule.PlanData;
@@ -175,17 +178,19 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
 
         function setStatusField(obj, app, EditField, Status, StatusText)
-            % Helper: Set the background color of the EditField based on the Status value.
+            % Set the background color of the EditField based on the Status value.
             % Valid values for Status: OK, Warning, Error, (empty)
+
             app.MainModule.GuiHelper.setStatusField(app, EditField, Status, StatusText);
         end
 
 
         function setTopLabel(obj, app, Text, FontColor, BackgroundColor)
-            % Helper: Set text and colors of LabelTopStatus (located just below the main toolbar)
+            % Set text and colors of LabelTopStatus (located just below the main toolbar)
             % Hide the label if Text is empty.
             % Colors: Font: Blue: [0.00,0.00,1.00], Background: Yellow: [1.00,1.00,0.07]
             % Example: app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07])
+
             if isempty(Text)
                 app.LabelTopStatus.Visible = false;
             else
@@ -197,4 +202,12 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end

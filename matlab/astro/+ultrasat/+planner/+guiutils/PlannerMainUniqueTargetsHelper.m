@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainUniqueTargetsHelper()
             % Constructor
             obj.LogPrefix = 'UniqueTargetsHelper';
-            obj.msglog('PlannerMainUniqueTargetsHelper created successfully');
         end
 
 
@@ -53,6 +52,11 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     RA = app.MainModule.GuiHelper.getFieldRA( app.AddUniqueTargetApp.RAEditField.Value );
                     Dec = app.MainModule.GuiHelper.getFieldDec( app.AddUniqueTargetApp.DecEditField.Value );
 
+                    if isnan(RA) || isnan(Dec)
+                        app.AppUtils.msgError('Invalid RA/Dec values.');
+                        return;
+                    end
+                    
                     % Add to Planner
                     app.MainModule.Planner.addUniqTargets(RA, Dec, 'Name', Name);
                     app.setModified('addUniqueTarget');
@@ -101,7 +105,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                             app.msglog('editUniqueTarget successfully');
                         end
                     catch ME
-                        app.msgex('editUniqeTarget', ME);
+                        app.msgex('editUniqueTarget', ME);
                     end
                     app.showPlanAll();
                 end
@@ -130,7 +134,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end
 
 
-        function deleteUniqueTarget(app)
+        function deleteUniqueTarget(obj, app)
             % Delete Unique-Target with delUniqTarg()
             app.msglog('deleteUniqueTarget');
             if ~app.hasPlanner(), return; end
@@ -143,7 +147,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             end
 
             % Ask user to confirm
-            Name = app.MainModule.Planner.UniqTarg(Index);
+            Name = app.MainModule.Planner.UniqTarg.Name(Index);
             if ~strcmp(app.AppUtils.askYesNo(sprintf('Delete selected unique target (%s)?', Name)), 'Yes')
                 return;
             end
@@ -205,7 +209,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     if ~isempty(FileName) && isfile(FileName)
                         Data = readtable(FileName);
                     elseif ~isempty(Text)
-                        Data = app.MainModule.loadTableFromCsvText(FileName);
+                        Data = app.MainModule.loadTableFromCsvText(Text);
                     end
 
                     % Add the loaded unique targets to planner
@@ -266,8 +270,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                         app.MainModule.Planner.saveUniqTargCooList(FileName);
 
                         % Update preferences
-                        app.Preferences.UniqueTargetsFolder = fileparts(app.SaveUniqueTargetsToFileApp.FileNameEditField.Value);
-                        app.savePreferences();
+                        if isfile(app.SaveUniqueTargetsToFileApp.FileNameEditField.Value)
+                            app.Preferences.UniqueTargetsFolder = fileparts(app.SaveUniqueTargetsToFileApp.FileNameEditField.Value);
+                            app.savePreferences();
+                        end
                     end
                 catch ME
                     app.msgex('saveUniqueTargetsToFile', ME);
@@ -296,16 +302,6 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end
 
 
-        function uniqueTargetSelected(obj, app, Index)
-            % Helper: Called on Unique Target selection in table - @Todo
-            app.msglog(sprintf('Unique target selected: %d', Index));
-            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.UniqTarg, Index);
-            if ~isempty(Data)
-                app.msglog(sprintf('uniqueTargetSelected done: %d - %s', Index, Data.Name));
-            end
-        end
-
-
         function showUniqueTargets(obj, app)
             % Helper: Update the Unique Targets GUI table with data from Planner
             % Update the display of Unique Targets table
@@ -322,6 +318,12 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
             % Add 'Order' column
             Data = app.MainModule.Planner.UniqTarg;
+            
+            if isempty(Data) || ~istable(Data)
+                app.UITableUniqueTargets.Data = [];
+                return;
+            end
+            
             Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
             Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
 
@@ -371,17 +373,45 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end
 
 
+        function uniqueTargetSelected(obj, app, Index)
+            % Handle Unique Target selection in table - @Todo - Currently does NOTHING!!!
+            % Called from UITable callback
+
+            app.msglog(sprintf('Unique target selected: %d', Index));
+            try
+                Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.UniqTarg, Index);
+                if ~isempty(Data)
+                    app.msglog(sprintf('uniqueTargetSelected done: %d - %s', Index, Data.Name));
+                end
+            catch ME
+                app.msgex('uniqueTargetSelected', ME)
+            end
+        end
+
+
         function uniqueTargetClick(obj, app)
-            % Called on Unique-Target selection (single click) in the table
-            Index = app.UITableUniqueTargets.Selection;
-            if isempty(Index) || (Index < 1)
-                return
+            % Handle Unique Target single click) in table - Currently does NOTHING!!!
+            % Called from UITable callback
+
+            app.msglog('uniqueTargetClick');
+            if ~app.hasPlanner(), return; end            
+            try
+                Index = app.UITableUniqueTargets.Selection;
+                if isempty(Index) || (Index < 1)
+                    return
+                end
+            catch ME
+                app.msgex('uniqueTargetClick', ME)
             end
         end
 
 
         function uniqueTargetDoubleClick(obj, app)
-            % Called on Unique-Target double-click in the table
+            % Handle Unique Target double click - Plot graphs of the selected Unique Target
+            % Called from UITable callback
+
+            app.msglog('uniqueTargetDoubleClick');
+            if ~app.hasPlanner(), return; end            
             try
                 % Get the selected unique targets
                 UniqueTargetIndex = app.UITableUniqueTargets.Selection;
@@ -419,6 +449,13 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             end
         end
 
+    end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
     end
 
 end

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainBuildHelper()
             % Constructor
             obj.LogPrefix = 'BuildHelper';
-            obj.msglog('PlannerMainBuildHelper created successfully');
         end
 
 
@@ -40,14 +39,15 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
 
-            %
+            % Set AfterBuild flag to true if plan is not empty
             app.MainModule.AfterBuild = height(app.MainModule.Planner.Plan) > 0;
             if app.MainModule.AfterBuild
-                if ~strcmp(app.AppUtils.askYesNo('Build was already executed, this will override you existing plan. Are you sure you want to execute build?', 'Confirm'), 'Yes')
+                if ~strcmp(app.AppUtils.askYesNo('Build was already executed, this will override your existing plan. Are you sure you want to execute build?', 'Confirm'), 'Yes')
                     return;
                 end
             end
 
+            % Show "Please Wait" dialog
             app.showPleaseWait('Building your plan. This may take a while. Please wait....');
             try
                 PlanType = app.MainModule.PlanType;
@@ -55,18 +55,16 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.updateStatus();
                 app.msglog(sprintf('build: PlanType: %s', PlanType));
 
-                if strcmp(PlanType, 'HCS')
-                    obj.doBuildHCS(app);
-                elseif strcmp(PlanType, 'LCS')
-                    obj.doBuildLCS(app);
-                elseif strcmp(PlanType, 'DDT')
-                    obj.doBuildDDT(app);
-                elseif strcmp(PlanType, 'TOO')
-                    obj.doBuildTOO(app);
-                elseif strcmp(PlanType, 'AllSS')
-                    obj.doBuildAllSS(app);
+                % Call the designated function according to PlanType
+                switch PlanType
+                    case 'HCS',  obj.doBuildHCS(app);
+                    case 'LCS',  obj.doBuildLCS(app);
+                    case 'DDT',  obj.doBuildDDT(app);
+                    case 'TOO',  obj.doBuildTOO(app);
+                    case 'AllSS', obj.doBuildAllSS(app);
+                    otherwise,   app.msglog(sprintf('build: Unknown PlanType "%s"', PlanType));
                 end
-
+             
                 % Set AfterBuild=true for all plan types except DDT
                 if ~strcmp(PlanType, 'DDT') && ~isempty(app.MainModule.Planner.Plan)
                     app.MainModule.AfterBuild = true;
@@ -80,20 +78,27 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.closePleaseWait();
 
             % Update display
-            app.setModified('build');  % Move call to other place?
+            app.setModified('build');
             app.updateStatus();
             app.showPlanTargets();
+            app.addHistory('Build completed');
         end
 
 
         function setBuildStatus(obj, app, Status)
             % Set build status in PlanData
+
+            if isempty(app.MainModule.PlanData)
+                app.msglog('Warning: setBuildStatus called before PlanData initialized.');
+                return;
+            end
+            
             app.MainModule.PlanData.setStatus('BuildStatus', Status);
         end
 
 
         function doBuildHCS(obj, app)
-            % Helper: Build HCS
+            % Build HCS
             app.msglog('doBuildHCS started');
             if ~app.hasPlanner(), return; end
 
@@ -108,14 +113,14 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
             obj.setBuildStatus('OK');
-            app.MainModule.setStatus('OK', 'Build: self consistency: OK');
+            app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
         end
 
 
         function doBuildLCS(obj, app)
-            % Helper: Build LCS
+            % Build LCS
             app.msglog('doBuildLCS started');
             if ~app.hasPlanner(), return; end
 
@@ -123,6 +128,12 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
+
+            if isempty(SelectedRows)
+                app.AppUtils.msgError('No targets selected for LCS build.');
+                return;
+            end
+            
             upLCS.buildLCS('TargetList', SelectedRows);
 
             app.addHistory('BuildLCS Ok');
@@ -132,7 +143,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function doBuildDDT(obj, app)
-            % Helper: Build DDT
+            % Build DDT
             app.msglog('doBuildDDT started');
             if ~app.hasPlanner(), return; end
 
@@ -144,7 +155,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 return;
             end
 
-            % Create app
+            % Create EnterStartTimeApp
             if isempty(app.EnterStartTimeApp) || ~isvalid(app.EnterStartTimeApp)
                 app.EnterStartTimeApp = ultrasat.planner.gui.EnterStartTime(app.MainModule);
             end
@@ -190,7 +201,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function doBuildTOO(app)
-            % Helper: Build TOO - @Todo @Yossi
+            % Build TOO - @Todo @Yossi
+            % @Todo: Implement actual TOO build logic (requires external trigger inputs)
+
             app.msglog('doBuildTOO started');
             if ~app.hasPlanner(), return; end
 
@@ -198,7 +211,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 upTOO = app.MainModule.Planner;
 
                 Fields = upTOO.UniqTarg(1);
-                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', HCS_fields.Name);
+                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', Fields.Name);
                 %app.debugSave('upTOO.mat', upTOO);
 
             catch ME
@@ -209,12 +222,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function doBuildAllSS(obj, app)
-            % Helper: Build AllSS - @Todo @Yossi
+            % Build AllSS - @Todo @Yossi
+            % @Todo: Implement actual build logic
+
             app.msglog('doBuildAllSS started');
             if ~app.hasPlanner(), return; end
 
             try
-
             catch ME
                 app.msgex('doBuildAllSS', ME);
             end
@@ -235,6 +249,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Set fields and show the app
             %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
+
+            % If you plan to add fields to BuildStatusApp, consider:
+            % so the modal always displays latest info.
+            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
+
             app.showModal(app.BuildStatusApp);
         end
 
@@ -289,6 +308,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function Result = getUniqueTargetsIndexByOrderColumn0(obj, app, Data)
+            % Deprecated version kept for reference. Use getUniqueTargetsIndexByOrderColumn().
+
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
@@ -326,4 +347,12 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end

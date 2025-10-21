@@ -1,15 +1,11 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/MainModule.m
-% Author:  Chen Tishler
-% Created: 07/01/2025
-% Updated: 28/01/2025
-% Title:
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/MainModule.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 21/10/2025
+% Description : Central class to hold common application data
 %==========================================================================
-% Debug:
-%   DM = ultrasat.planner.gui.MainModule()
-%
 
 classdef MainModule < ultrasat.api.Loggable
     % This class serves like a DataModule in Delphi
@@ -18,7 +14,7 @@ classdef MainModule < ultrasat.api.Loggable
         ApiClient               % MissionApiClient/MissionApiSim instance
         UserClient              % UserManagerClient/UserManagerSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
-        PreferencesFileName     %
+        PreferencesFileName     % Preferences file name
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
         NamespaceDisplay        % String as 'Id - Name'
         NamespaceDisplayList    % List of available namespaces other than OPER as 'Id - Name'
@@ -37,14 +33,14 @@ classdef MainModule < ultrasat.api.Loggable
 
         %
         Modified = false;       % True after data is being modified
-        AfterBuild = false;     %
-        PlannerPath             %
+        AfterBuild = false;     % True after build is completed
+        PlannerPath             % Path to Planner folder
         DebugPath               % Folder of debug files, such as saved .mat files
-        BaseDataDir             % uplanner constructor param
-        LogFileName             %
+        BaseDataDir             % uplanner constructor param - base data directory
+        LogFileName             % Log file name
 
         % Helpers
-        AppUtils                % Utility functions
+        AppUtils                % Utility functions, created in PlannerMain.mlapp
         TableHelper             % Utility functions for tables
         GuiHelper               % Utility functions for GUI
     end
@@ -53,12 +49,11 @@ classdef MainModule < ultrasat.api.Loggable
     methods
         function obj = MainModule(NamespaceId)
             % Constructor
-            disp('app.MainModule');
 
-            % Get namespace from O/S env
-            % setenv('SOC_NAMESPACE_ID', 'OPER')
-            % setenv('SOC_NAMESPACE_ID', 'SIM')
-            obj.NamespaceId = NamespaceId;  %getenv('SOC_NAMESPACE_ID');
+            obj.LogPrefix = 'MainModule';
+            
+            % Set NamespaceId, default is 'OPER'
+            obj.NamespaceId = NamespaceId;
             obj.NamespaceDisplay = '';
             if isempty(obj.NamespaceId)
                 obj.NamespaceId = 'OPER';
@@ -72,6 +67,7 @@ classdef MainModule < ultrasat.api.Loggable
                 obj.PlannerPath = fullfile(obj.BaseDataDir, 'PlannerGUI');
             end
 
+            % Create Planner folder if it does not exist
             if ~exist(obj.PlannerPath, 'dir')
                 mkdir(obj.PlannerPath);
             end
@@ -79,7 +75,7 @@ classdef MainModule < ultrasat.api.Loggable
             obj.LogFileName = fullfile(obj.PlannerPath, 'planner.log');
             obj.msglog('MainModule started');
 
-            % Load Preferences from file
+            % Load Preferences from local file 'preferences.json'
             obj.PreferencesFileName = fullfile(obj.PlannerPath, 'preferences.json');
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
@@ -99,7 +95,7 @@ classdef MainModule < ultrasat.api.Loggable
             end
 
             % Operational - When starting Planner from OPER, this is the
-            % only option for the user, otherwise get the namespace list
+            % only Namespace available for the user, otherwise get the namespace list
             % from the server
             if strcmp(obj.NamespaceId, 'OPER')
                 obj.NamespaceDisplay = 'OPERATIONAL';
@@ -121,11 +117,29 @@ classdef MainModule < ultrasat.api.Loggable
 
         function Result = login(obj, UserName, Password, Namespace)
             % Connect & login to server
+
+            Result = false;
+
+            % Clear UserName and NamespaceId
             obj.UserName = [];
             obj.NamespaceId = [];
-            Result = false;
             ANamespaceId = obj.GuiHelper.extractNameFromDisplayString(Namespace);
-            response = obj.UserClient.login(UserName, Password, ANamespaceId);
+
+            % Try to login
+            try
+              response = obj.UserClient.login(UserName, Password, ANamespaceId);
+            catch ME
+                obj.setStatus('Error', sprintf('Login failed: %s', ME.message));
+                return;
+            end
+
+            % Check if login was successful
+            if ~isstruct(response) || ~isfield(response, 'ok')
+                obj.setStatus('Error', 'Invalid login response');
+                return;
+            end
+
+            % If login was successful, set UserName, NamespaceId and NamespaceDisplay
             if response.ok
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
@@ -141,23 +155,31 @@ classdef MainModule < ultrasat.api.Loggable
 
         function Result = logout(obj)
             % Logout from server
+
+            % Do nothing if not logged in
             if isempty(obj.UserName)
                 Result = true;
                 return;
             end
+
             Result = false;
-            response = obj.UserClient.logout(obj.UserName);
+            try
+                response = obj.UserClient.logout(obj.UserName);
+            catch ME
+                obj.setStatus('Error', sprintf('Logout failed: %s', ME.message));
+                return;
+            end
 
             % Currently we do not check response.ok, so even if logout
             % failed (why?) we clear UserName, leave NamespaceId without change
             obj.UserName = [];
-            %obj.NamespaceId = [];
             Result = true;
         end
 
 
         function setPlanner(obj, Planner)
             % Set the current Planner object & type
+
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
@@ -175,6 +197,7 @@ classdef MainModule < ultrasat.api.Loggable
             end
         end
 
+
         function Result = num2Str(obj, Value)
             % Convert number to string
             if ~isempty(Value)
@@ -183,6 +206,7 @@ classdef MainModule < ultrasat.api.Loggable
                 Result = '';
             end
         end
+
 
         function Result = ra2Str(obj, Value)
             % Convert RA to string
@@ -205,6 +229,7 @@ classdef MainModule < ultrasat.api.Loggable
             end
         end
 
+
         function Result = length2Str(obj, array)
             % Convert array length to string as 'len: n'
             if ~isempty(array)
@@ -213,6 +238,7 @@ classdef MainModule < ultrasat.api.Loggable
                 Result = 'len: 0';
             end
         end
+
 
         function charArray = cell2Str(obj, cellArray)
             % Convert a cell array to a comma-separated character array
@@ -236,17 +262,19 @@ classdef MainModule < ultrasat.api.Loggable
         % =================================================================
 
         function setModified(obj)
-            % Set the Modified flag
+            % Set the Modified flag to true
             obj.Modified = true;
         end
 
+
         function clearModified(obj)
-            % Clear the Modified flag
+            % Clear the Modified flag to false
             obj.Modified = false;
         end
 
+
         function clearStatus(obj)
-            % Clear current status fields
+            % Clear current status fields: CurrentStatus and StatusText, and clear status of PlanData if it exists
             obj.CurrentStatus = [];
             obj.StatusText = [];
             if ~isempty(obj.PlanData)
@@ -291,14 +319,14 @@ classdef MainModule < ultrasat.api.Loggable
         % =================================================================
 
         function createPlanData(obj)
-            % Create new instance
+            % Create new instance of PlanData
             obj.PlanData = ultrasat.api.PlanData();
             obj.ApiClient.PlanData = obj.PlanData;
         end
 
 
         function setPlanData(obj, Data)
-            % Set PlanData
+            % Set PlanData to the given instance
             obj.PlanData = Data;
 
             % Link current instance to ApiClient

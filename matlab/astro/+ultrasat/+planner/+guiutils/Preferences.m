@@ -25,9 +25,11 @@ classdef Preferences < ultrasat.api.Loggable
 
     methods
         function obj = Preferences(FileName)
-            % Constructor for Preferences class.
+            % Constructor
+
+            obj.LogPrefix = 'Preferences';
+
             % Initializes the Preferences object with a file name for JSON storage.
-            obj.msglog('Preferences created successfully');
             obj.FileName = FileName;
         end
 

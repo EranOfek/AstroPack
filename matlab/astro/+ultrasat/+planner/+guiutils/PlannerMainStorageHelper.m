@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainStorageHelper()
             % Constructor
             obj.LogPrefix = 'StorageHelper';
-            obj.msglog('PlannerMainStorageHelper created successfully');
         end
 
 
@@ -39,9 +38,9 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             app.msglog('openPlan');
 
             % User is not connected, suggset to load plan from local file
-            if ~app.SessionHelper.isLogin()
+            if ~app.SessionHelper.isLogin(app)
                 if strcmp(app.AppUtils.askYesNo('You are not connected to the ULTRASAT DB, would you like to open a local file?', 'Open'), 'Yes')
-                    app.loadPlanFromFile();
+                    obj.loadPlanFromFile(app);
                 end
                 return;
             end
@@ -72,7 +71,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             end
             app.closePleaseWait();
 
-            if ~response.ok
+            if ~isfield(response, 'ok') || ~response.ok
                 app.AppUtils.msgError('ApiClient.getPlansList returned empty list');
                 return;
             end
@@ -105,8 +104,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 end
 
             end
-            app.clearModified();
-            app.SessionHelper.setButtons();
+            app.SessionHelper.setButtons(app);
         end
 
 
@@ -122,7 +120,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 elseif strcmp(Result, 'No')
                     app.setReadOnly(true);
                 else
-                    app.closePlan();
+                    obj.closePlan(app);
                     return;
                 end
 
@@ -141,7 +139,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % User is not connected to server, suggest saving to local file
-            if ~app.SessionHelper.isLogin()
+            if ~app.SessionHelper.isLogin(app)
                 if strcmp(app.AppUtils.askYesNo('You are not connected to the ULTRASAT DB, would you like to save to local file?', 'Save'), 'Yes')
                     app.savePlanToFile();
                 end
@@ -161,7 +159,6 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             end
 
             app.closePleaseWait();
-            app.clearModified();
             app.MainModule.setStatus('OK', 'Plan saved successfully.');
         end
 
@@ -259,6 +256,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             % Create app and set initial values from preferences
             if isempty(app.LoadPlanFromFileApp) || ~isvalid(app.LoadPlanFromFileApp)
                 app.LoadPlanFromFileApp = ultrasat.planner.gui.LoadPlanFromFile(app.MainModule);
+
+                % Set initial values from preferences
                 if ~isempty(app.Preferences.LocalPlanFolder)
                     app.LoadPlanFromFileApp.FileName = app.Preferences.LocalPlanFileName;
                     app.LoadPlanFromFileApp.Folder = app.Preferences.LocalPlanFolder;
@@ -270,6 +269,13 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             if strcmp(app.showModal(app.LoadPlanFromFileApp), 'Load')
                 try
                     FileName = app.LoadPlanFromFileApp.FileName;
+
+                    if ~isfile(FileName)
+                        app.AppUtils.msgError(sprintf('File not found: %s', FileName));
+                        return;
+                    end
+
+                    % Load plan from file
                     Data = load(FileName);
                     app.MainModule.setPlanData(Data.PlanData);
                     app.showPlanAll();
@@ -291,7 +297,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     return;
                 end
 
-                app.msglog(sprintf('loadPlanFromFile: Setting AstPlanner field of open plan: %s, %s', app.MainModule.Planner.AstPlanner, app.MainModule.User));
+                app.msglog(sprintf('loadPlanFromFile: Setting AstPlanner field of open plan: %s, %s', app.MainModule.Planner.AstPlanner, app.MainModule.UserName));
                 app.MainModule.Planner.AstPlanner = app.MainModule.UserName;
             end
         end
@@ -367,5 +373,13 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end
 

@@ -3,9 +3,10 @@
 % File        : +planner/+guiutils/PlannerMainSubmitHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Submit Helper for Main Planner (Submit & Validation)
 %==========================================================================
+% @TODO - Check again code review especially for submi()
 
 classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
     % Helper class for PlannerMain.mlapp
@@ -25,12 +26,11 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainSubmitHelper()
             % Constructor
             obj.LogPrefix = 'SubmitHelper';
-            obj.msglog('PlannerMainSubmitHelper created successfully');
         end
 
 
@@ -39,11 +39,11 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.msglog('validate');
             if ~app.hasPlanner(), return; end
 
-            % Validation is not allowed when plain is read-only
+            % Validation is not allowed when plan is read-only
             if app.isReadOnlyMsg(), return; end
 
             % Validation is not allowed when not logged-in
-            if ~app.SessionHelper.isLogin('Message', true), return; end
+            if ~app.SessionHelper.isLogin(app, true), return; end
 
             % Ask user to confirm - currently not
             %if ~strcmp(app.AppUtils.askYesNo('Send plan with GCS Validator?', 'Confirm'), 'Yes')
@@ -54,9 +54,11 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             try
                 app.MainModule.PlanData.addHistory('validation started');
                 app.MainModule.Planner.validate();
+                app.MainModule.PlanData.addHistory('validation end');
                 app.MainModule.PlanData.setStatus('ValidationStatus', 'OK');
             catch ME
                 app.msgex('validate', ME);
+                app.MainModule.PlanData.setStatus('ValidationStatus', 'Error');
             end
             app.closePleaseWait();
             app.updateStatus();
@@ -82,11 +84,11 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.msglog('submit');
             if ~app.hasPlanner(), return; end
 
-            % Submit is not allowed when plain is read-only
+            % Submit is not allowed when plan is read-only
             if app.isReadOnlyMsg(), return; end
 
             % Submit is not allowed when not logged-in
-            if ~app.SessionHelper.isLogin('Message', true), return; end
+            if ~app.SessionHelper.isLogin(app, true), return; end
 
             % Must save before submit, because backend need to access the
             % plan in the database.
@@ -162,7 +164,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
                 % Show latest validation response (first item in history)
                 Response = ValidationHistory(1);
-                app.showValidationResponse(Response);
+                obj.showValidationResponse(app, Response);
 
                 % Convert history to table (only keeping validation_time and status)
                 HistoryData = struct2table(ValidationHistory, 'AsArray', true);
@@ -205,7 +207,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 Response = ValidationHistory(selection);
 
                 % Update display
-                app.showValidationResponse(Response);
+                obj.showValidationResponse(app, Response);
             catch ME
                 app.msgex('validationHistorySelected', ME);
             end
@@ -272,4 +274,12 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainNewPlanHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Create New Plan - HCS, LCS, DDT, AllSS, TOO
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainNewPlanHelper()
             % Constructor
             obj.LogPrefix = 'NewPlanHelper';
-            obj.msglog('PlannerMainNewPlanHelper created successfully');
         end
 
 
@@ -38,21 +37,22 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             % Create new plan
             app.msglog('createNewPlan');
 
+            % Ask user confirmation if there are unsaved changes
             if app.MainModule.Modified
-                if ~strcmp(app.AppUtils.askYesNo('Your changes are not saved. Do you want to discard them and create a new plan?', 'Save or discard'), 'Yes')
+                if ~strcmp(app.AppUtils.askYesNo('Your changes are not saved. Do you want to discard the changes and create a new plan?', 'Confirm'), 'Yes')
                     return;
                 end
             end
 
-            % Close existing plan
+            % Close existing plan if any
             app.closePlan();
 
-            % Create app
+            % Create NewPlanApp
             if isempty(app.NewPlanApp) || ~isvalid(app.NewPlanApp)
                 app.NewPlanApp = ultrasat.planner.gui.NewPlan(app.MainModule);
             end
 
-            % Set PlannerName field value
+            % Set PlannerName field value, if logged in, use UserName, otherwise allow user to enter name
             if app.SessionHelper.isLogin(app)
                 app.NewPlanApp.PlannerNameEditField.Value = app.MainModule.UserName;
                 app.NewPlanApp.PlannerNameEditField.Enable = false;
@@ -61,10 +61,16 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
                 app.NewPlanApp.PlannerNameEditField.Enable = true;
             end
 
-            if ~strcmp(app.showModal(app.NewPlanApp), 'Create')
+            % Show NewPlanApp and wait for user to click "Create" button
+            try
+                result = app.showModal(app.NewPlanApp);
+            catch ME
+                app.msgex('createNewPlan - showModal', ME);
                 return;
             end
+            if ~strcmp(result, 'Create'), return; end
 
+            % Create new plan according to parameters in NewPlanApp
             app.msglog(sprintf('New plan type: %s ....', app.MainModule.PlanType));
             try
                 obj.doCreateNewPlan(app);
@@ -87,20 +93,16 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.MainModule.createPlanData();
 
             % Call the designated function according to PlanType
-            if strcmp(PlanType, 'HCS')
-                obj.doCreateNewPlanHCS(app);
-            elseif strcmp(PlanType, 'LCS')
-                obj.doCreateNewPlanLCS(app);
-            elseif strcmp(PlanType, 'DDT')
-                obj.doCreateNewPlanDDT(app);
-            elseif strcmp(PlanType, 'AllSS')
-                obj.doCreateNewPlanAllSS(app);
-            elseif strcmp(PlanType, 'TOO')
-                obj.doCreateNewPlanTOO(app);
-            else
-                app.msglog(sprintf('doCreateNewPlan: Unknown PlanType: %s', PlanType));
+            switch PlanType
+                case 'HCS',   obj.doCreateNewPlanHCS(app);
+                case 'LCS',   obj.doCreateNewPlanLCS(app);
+                case 'DDT',   obj.doCreateNewPlanDDT(app);
+                case 'AllSS', obj.doCreateNewPlanAllSS(app);
+                case 'TOO',   obj.doCreateNewPlanTOO(app);
+                otherwise
+                    app.msglog(sprintf('doCreateNewPlan: Unknown PlanType: %s', PlanType));
             end
-
+            
             % Update data and references
             app.MainModule.PlanData.planner = app.MainModule.Planner;
             app.MainModule.AfterBuild = false;
@@ -113,7 +115,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
                 app.BuildButton.Text = 'Build';
             end
 
-            %
+            % Set Modified flag to true and show UniqueTargets and PlanTargets
             app.setModified('doCreateNewPlan');
             app.showUniqueTargets();
             app.showPlanTargets();
@@ -174,7 +176,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.MainModule.setPlanner(upDDT);
             app.setModified('doCreateNewPlanDDT');
             app.PlanParamsHelper.updatePlanParams(app);
-            %app.debugSave('upDDT.mat', 'app.MainModule.Planner');
+            %app.debugSave('upDDT.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanDDT done');
         end
 
@@ -188,12 +190,12 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             % Create new uplanner instance
             upTOO = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'TOO', 'BaseDataDir', app.MainModule.BaseDataDir);
-            obj.setNewPlanDataFromCreateDialog(app, upHCS);
+            obj.setNewPlanDataFromCreateDialog(app, upTOO);
 
             app.MainModule.setPlanner(upTOO);
-            app.setModified('doCreateNewPlanDDT');
+            app.setModified('doCreateNewPlanTOO');
             app.PlanParamsHelper.updatePlanParams(app);
-            %app.debugSave('upTOO.mat', 'app.MainModule.Planner');
+            %app.debugSave('upTOO.mat', app.MainModule.Planner');
             app.msglog('doCreateNewPlanTOO done');
         end
 
@@ -207,36 +209,52 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
 
             % Create new uplanner instance
             upAllSS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'AllSS', 'BaseDataDir', app.MainModule.BaseDataDir);
-            obj.setNewPlanDataFromCreateDialog(app, upHCS);
+            obj.setNewPlanDataFromCreateDialog(app, upAllSS);
 
             app.MainModule.setPlanner(upAllSS);
-            app.setModified('doCreateNewPlanDDT');
+            app.setModified('doCreateNewPlanAllSS');
             app.PlanParamsHelper.updatePlanParams(app);
-            %app.debugSave('upLCS.mat', 'app.MainModule.Planner');
+            %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanAllSS done');
         end
 
 
         function UserName = getNewPlanUserName(obj, app)
-            % Helper: Get logged-in user name, or user name entered in NewPlanApp dialog
+            % Get logged-in user name, or user name entered in NewPlanApp dialog
             if app.SessionHelper.isLogin(app)
                 UserName = app.MainModule.UserName;
             else
-                UserName = app.NewPlanApp.PlannerNameEditField.Value;
+                UserName = strtrim(app.NewPlanApp.PlannerNameEditField.Value);
             end
         end
 
 
         function setNewPlanDataFromCreateDialog(obj, app, Planner)
-            % Helper: Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+
+            if isempty(app.NewPlanApp)
+                app.msglog('setNewPlanDataFromCreateDialog: NewPlanApp not initialized');
+                return;
+            end
+            
+            % Get PlanTitle, StartTime, EndTime from NewPlanApp dialog
             PlanTitle = app.MainModule.GuiHelper.getFieldTitle( app.NewPlanApp.TitleEditField.Value );
             StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
             EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );
 
+            % Set Planner data
             Planner.Title = PlanTitle;
             Planner.StartTime = StartTime;
             Planner.EndTime = EndTime;
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
 end

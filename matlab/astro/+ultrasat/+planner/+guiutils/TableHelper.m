@@ -3,19 +3,16 @@
 % File        : +planner/+guiutils/TableHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Table Helper for Main Planner
 %==========================================================================
-% Debug:
-%   DM = ultrasat.planner.gui.MainModule()
-%
 
 classdef TableHelper < ultrasat.api.Loggable
 
     methods
         function obj = TableHelper()
             % Constructor
-            obj.msglog('TableHelper created successfully');
+            obj.LogPrefix = 'TableHelper';
         end
 
         % =================================================================
@@ -52,12 +49,14 @@ classdef TableHelper < ultrasat.api.Loggable
                 fwrite(fid, CsvText);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: fwrite failed for file %s: %s', tempFile, ME.message));
+                return;
             end
 
             try
                 fclose(fid);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: fclose failed for file %s: %s', tempFile, ME.message));
+                return;
             end
 
             % Read the table from the temporary file
@@ -65,7 +64,6 @@ classdef TableHelper < ultrasat.api.Loggable
                 Result = readtable(tempFile);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: readtable failed for file %s: %s', tempFile, ME.message));
-                Result = table();  % fallback to empty table
             end
 
             % Cleanup temporary file

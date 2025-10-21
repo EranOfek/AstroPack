@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 20/10/2025
+% Updated     : 21/10/2025
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -25,12 +25,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
     %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
     %
 
-    methods
+    methods (Access = public)
 
         function obj = PlannerMainPlotHelper()
             % Constructor
             obj.LogPrefix = 'PlotHelper';
-            obj.msglog('PlannerMainPlotHelper created successfully');
         end
 
 
@@ -39,7 +38,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             try
                 % No planner object - just clear the graphs
                 if ~app.hasPlanner()
-                    obj.clearPlots();
+                    obj.clearPlots(app);
                     return;
                 end
 
@@ -98,7 +97,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                     obj.doPlotSkyMap(app, app.PlotSkyMapApp.AxesSkymapPlot);
                 end
             catch ME
-                app.msgex('plotMapPlan', ME);
+                app.msgex('showSkyMapPlot', ME);
             end
         end
 
@@ -352,5 +351,14 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         end
 
     end
+
+    % =====================================================================
+    %                           Helper Methods
+    % =====================================================================
+
+    methods (Access = private)
+    end
+
+    
 end
 
