@@ -9,6 +9,7 @@
 
 classdef PlannerMainBuildHelper < ultrasat.api.Loggable
     % Helper class for PlannerMain.mlapp
+    % Provides build logic (HCS/LCS/DDT/TOO/AllSS) for PlannerMain.mlapp.
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
     % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
@@ -32,6 +33,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'BuildHelper';
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================       
 
         function build(obj, app)
             % Build plan according to plan type, calls doBuild...() below
@@ -84,6 +88,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.addHistory('Build completed');
         end
 
+        % =================================================================
+        %                         DISPLAY / UPDATE        
+		% =================================================================        
 
         function setBuildStatus(obj, app, Status)
             % Set build status in PlanData
@@ -97,6 +104,38 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
 
+        function showBuildStatusWindow(obj, app)
+            % Show window with last build status
+            app.msglog('showBuildStatusWindow');
+            if ~app.hasPlanner(), return; end
+
+            % Create app
+            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
+                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
+            end
+
+            % Set fields and show the app
+            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
+
+            % If you plan to add fields to BuildStatusApp, consider:
+            % so the modal always displays latest info.
+            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
+
+            app.showModal(app.BuildStatusApp);
+        end
+
+    end
+		
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                     BUILD HELPERS BY PLAN TYPE
+        % =================================================================
+		        
         function doBuildHCS(obj, app)
             % Build HCS
             app.msglog('doBuildHCS started');
@@ -235,55 +274,37 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             app.msglog('doBuildAllSS done');
         end
-
-
-        function showBuildStatusWindow(obj, app)
-            % Show window with last build status
-            app.msglog('showBuildStatusWindow');
-            if ~app.hasPlanner(), return; end
-
-            % Create app
-            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
-                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
-            end
-
-            % Set fields and show the app
-            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
-
-            % If you plan to add fields to BuildStatusApp, consider:
-            % so the modal always displays latest info.
-            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
-
-            app.showModal(app.BuildStatusApp);
-        end
-
-
+              
+        % =================================================================
+        %                         UTILITY FUNCTIONS
+        % =================================================================
+    
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
             % Returns the row indices sorted by 'Order' column.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-
+    
             try
                 % If only one row in the table, return index 1
                 if height(Data) == 1
                     Result = 1;
                     return;
                 end
-
+    
                 % Convert to string array for uniform processing
                 OrderColumn = string(Data.Order);
-
+    
                 % Identify non-empty rows (ignoring whitespace and empty strings)
                 trimmedOrder = strtrim(OrderColumn);
                 isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
-
+    
                 % If only one valid row with non-empty 'Order', return its index
                 if sum(isValid) == 1
                     Result = find(isValid);
                     return;
                 end
-
+    
                 % Handle case: all values are invalid or non-numeric
                 validNumbers = str2double(trimmedOrder(isValid));
                 if all(isnan(validNumbers))
@@ -291,11 +312,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     trimmedOrder = OrderColumn;
                     isValid = true(height(Data), 1);
                 end
-
+    
                 % Now safely convert all to numbers, keeping invalid as NaN
                 numericOrder = NaN(height(Data), 1);
                 numericOrder(isValid) = str2double(trimmedOrder(isValid));
-
+    
                 % Get non-empty rows and sort
                 nonEmptyRows = find(~isnan(numericOrder));
                 [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
@@ -305,27 +326,27 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Result = 1;
             end
         end
-
-
+    
+    
         function Result = getUniqueTargetsIndexByOrderColumn0(obj, app, Data)
             % Deprecated version kept for reference. Use getUniqueTargetsIndexByOrderColumn().
-
+    
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-
+    
             % If only one row in the table, return index 1
             if height(Data) == 1
                 Result = 1;
                 return;
             end
-
+    
             % Check if all values in 'Order' column are empty and replace with row numbers if needed
             if all(cellfun(@(x) isempty(strtrim(x)), Data.Order)) || all(isnan(str2double(Data.Order)))
                 Data.Order = string(1:height(Data))';
             end
-
+    
             % Convert to cell array if necessary (handles both strings and chars)
             if iscell(Data.Order) || isstring(Data.Order)
                 % Trim whitespace and convert empty strings to NaN for filtering
@@ -334,25 +355,17 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Data.Order(~isValid) = NaN;  % Replace empty strings with NaN
                 Data.Order = str2double(Data.Order); % Convert valid numeric strings to doubles
             end
-
+    
             % Find non-empty (non-NaN) rows
             nonEmptyRows = find(~isnan(Data.Order));
-
+    
             % Sort by 'Order' column
             [~, sortedIdx] = sort(Data.Order(nonEmptyRows));
-
+    
             % Return sorted row indices
             Result = nonEmptyRows(sortedIdx);
             Result = Result';
         end
-
+    
     end
-
-    % =====================================================================
-    %                           Helper Methods
-    % =====================================================================
-
-    methods (Access = private)
-    end
-
 end

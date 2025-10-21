@@ -32,7 +32,10 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'NewPlanHelper';
         end
 
-
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
+		
         function createNewPlan(obj, app)
             % Create new plan
             app.msglog('createNewPlan');
@@ -82,6 +85,17 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.SessionHelper.setButtons(app);
         end
 
+    end
+		
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                    CREATE HELPERS BY PLAN TYPE
+        % =================================================================	
 
         function doCreateNewPlan(obj, app)
 
@@ -218,6 +232,9 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             app.msglog('doCreateNewPlanAllSS done');
         end
 
+        % =================================================================
+        %                         UTILITY HELPERS
+        % =================================================================        
 
         function UserName = getNewPlanUserName(obj, app)
             % Get logged-in user name, or user name entered in NewPlanApp dialog
@@ -248,13 +265,6 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             Planner.EndTime = EndTime;
         end
 
-    end
-
-    % =====================================================================
-    %                           Helper Methods
-    % =====================================================================
-
-    methods (Access = private)
     end
 
 end

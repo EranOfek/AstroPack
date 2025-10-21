@@ -33,6 +33,10 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
         end
 
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================	
+	
         function openPlan(obj, app)
             % Load plan from database, requires login and server connection
             app.msglog('openPlan');
@@ -375,7 +379,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)

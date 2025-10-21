@@ -33,7 +33,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'SubmitHelper';
         end
 
-
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
+		
         function validate(obj, app)
             % Validate plan by sending it to the Validation service
             app.msglog('validate');
@@ -128,6 +131,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.updateStatus();
         end
 
+	
+        % =================================================================
+        %                         DISPLAY / UPDATE        
+		% =================================================================                
 
         function showValidationStatusWindow(obj, app)
             % Show window with validation status
@@ -276,7 +283,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)

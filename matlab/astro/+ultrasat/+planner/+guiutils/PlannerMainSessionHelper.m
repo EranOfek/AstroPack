@@ -31,7 +31,10 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             % Constructor
             obj.LogPrefix = 'SessionHelper';
         end
-
+	
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================       
 
         function login(obj, app)
             % User login
@@ -94,33 +97,6 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
 
 
-        function setLoginButtonStatus(obj, app)
-            % Connect button
-            if ~isempty(app.MainModule.UserName)
-                app.LoginButton.Text = 'Connected';
-                app.LoginButton.BackgroundColor = [0.00, 1.00, 0.00];  % Green
-                app.LabelTopUser.Text = app.MainModule.UserName;
-            else
-                app.LoginButton.Text = 'Login';
-                app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
-                app.LabelTopUser.Text = 'Please login';
-            end
-
-            % Namespace & Username
-            if ~isempty(app.MainModule)
-                % Set Namespace label colors
-                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
-                if strcmp(app.MainModule.NamespaceId, 'OPER')
-                    app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
-                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
-                else
-                    app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
-                    app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.07];
-                end
-            end
-        end
-
-
         function Result = isLogin(obj, app, varargin)
             % Return true is user is loggned in, show popup message if Args.Message is true
             Message = false;
@@ -148,8 +124,23 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             end
         end
 
+        
+        function exitPlanner(obj, app)
+            % Exit the planner GUI
+            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');
+            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to exit the planner application?', 'Confirmation'), 'Yes')
+                return;
+            end
 
-        function setButtons(obj, app)
+            % Shut down the entire app
+            app.delete();
+        end
+ 	
+        % =================================================================
+        %                         DISPLAY / UPDATE        
+		% =================================================================        
+	        
+       function setButtons(obj, app)
             % Enable/disable buttons and menu options based on current login status.
 
             enable = app.isLogin(app);
@@ -170,7 +161,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.ValidateMenu.Enable = enable && app.hasPlanner();
             app.SubmitMenu.Enable = enable && app.hasPlanner();
         end
-
+        
 
         function showLogger(obj, app)
             % Show log window
@@ -199,26 +190,44 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.ErrorLogApp.UIFigure.Visible = 'on';
         end
 
-
-        function exitPlanner(obj, app)
-            % Exit the planner GUI
-            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');
-            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to exit the planner application?', 'Confirmation'), 'Yes')
-                return;
-            end
-
-            % Shut down the entire app
-            app.delete();
-        end
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)
-    end
 
+        % =================================================================
+        %                           HELPERS
+        % =================================================================        		
+		
+        function setLoginButtonStatus(obj, app)
+            % Connect button
+            if ~isempty(app.MainModule.UserName)
+                app.LoginButton.Text = 'Connected';
+                app.LoginButton.BackgroundColor = [0.00, 1.00, 0.00];  % Green
+                app.LabelTopUser.Text = app.MainModule.UserName;
+            else
+                app.LoginButton.Text = 'Login';
+                app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
+                app.LabelTopUser.Text = 'Please login';
+            end
+
+            % Namespace & Username
+            if ~isempty(app.MainModule)
+                % Set Namespace label colors
+                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
+                if strcmp(app.MainModule.NamespaceId, 'OPER')
+                    app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
+                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
+                else
+                    app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
+                    app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.07];
+                end
+            end
+        end
+        
+    end
     
 end
-

@@ -32,6 +32,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'UniqueTargetsHelper';
         end
 
+	
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================       
 
         function addUniqueTarget(obj, app)
             % Add Unique-Target with addUniqTargets()
@@ -111,25 +115,6 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 end
             catch ME
                 app.msgex('editUniqueTarget', ME);
-            end
-        end
-
-
-        function setUniqueTargetParamsFields(obj, app, UniqTarg, Index, ParamsApp)
-            % Helper: Set field values - Currently there are 9 fields for Unique Target
-            try
-                ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
-                ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
-                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
-                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
-                ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
-                ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
-                ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
-                ParamsApp.ExtSurveysEditField.Value = app.MainModule.length2Str( UniqTarg.ExtSurveys(Index) );
-                ParamsApp.FieldObjEditField.Value = app.MainModule.length2Str( UniqTarg.FieldObj(Index) );
-                ParamsApp.HealpixArrayEditField.Value = app.MainModule.length2Str( UniqTarg.HealpixArray(Index) );
-            catch ME
-                app.msgex('setUniqueTargetParamsFields', ME);
             end
         end
 
@@ -301,7 +286,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             app.showPlanAll();
         end
 
-
+        % =================================================================
+        %                         DISPLAY / UPDATE        
+		% =================================================================        
+	
         function showUniqueTargets(obj, app)
             % Helper: Update the Unique Targets GUI table with data from Planner
             % Update the display of Unique Targets table
@@ -373,6 +361,27 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end
 
 
+        function showUniqueTargetsWindow(obj, app)
+            % Show separate window with Unique Targets table
+            app.msglog('showUniqueTargetsWindow');
+            if ~app.hasPlanner(), return; end
+
+            % Create and show UniqueTargetsApp
+            if isempty(app.UniqueTargetsApp) || ~isvalid(app.UniqueTargetsApp)
+                app.UniqueTargetsApp = ultrasat.planner.gui.UniqueTargets(app.MainModule);
+            end
+            app.UniqueTargetsApp.UIFigure.Visible = 'on';
+
+            % Copy table content from PlannerMain to UniqueTargetsApp
+            if ~isempty(app.UniqueTargetsApp) && isvalid(app.UniqueTargetsApp)
+                app.GuiHelper.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
+            end
+        end
+
+        % =================================================================
+        %                           UI CALLBACKS
+        % =================================================================        
+
         function uniqueTargetSelected(obj, app, Index)
             % Handle Unique Target selection in table - @Todo - Currently does NOTHING!!!
             % Called from UITable callback
@@ -430,32 +439,38 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 app.msgex('uniqueTargetDoubleClick', ME)
             end
         end
-
-
-        function showUniqueTargetsWindow(obj, app)
-            % Show separate window with Unique Targets table
-            app.msglog('showUniqueTargetsWindow');
-            if ~app.hasPlanner(), return; end
-
-            % Create and show UniqueTargetsApp
-            if isempty(app.UniqueTargetsApp) || ~isvalid(app.UniqueTargetsApp)
-                app.UniqueTargetsApp = ultrasat.planner.gui.UniqueTargets(app.MainModule);
-            end
-            app.UniqueTargetsApp.UIFigure.Visible = 'on';
-
-            % Copy table content from PlannerMain to UniqueTargetsApp
-            if ~isempty(app.UniqueTargetsApp) && isvalid(app.UniqueTargetsApp)
-                app.GuiHelper.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
-            end
-        end
-
+        
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)
+
+
+        % =================================================================
+        %                            HELPERS
+		% =================================================================        
+		        
+        function setUniqueTargetParamsFields(obj, app, UniqTarg, Index, ParamsApp)
+            % Helper: Set field values - Currently there are 9 fields for Unique Target
+            try
+                ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
+                ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
+                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
+                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
+                ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
+                ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
+                ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
+                ParamsApp.ExtSurveysEditField.Value = app.MainModule.length2Str( UniqTarg.ExtSurveys(Index) );
+                ParamsApp.FieldObjEditField.Value = app.MainModule.length2Str( UniqTarg.FieldObj(Index) );
+                ParamsApp.HealpixArrayEditField.Value = app.MainModule.length2Str( UniqTarg.HealpixArray(Index) );
+            catch ME
+                app.msgex('setUniqueTargetParamsFields', ME);
+            end
+        end
+        
     end
 
 end

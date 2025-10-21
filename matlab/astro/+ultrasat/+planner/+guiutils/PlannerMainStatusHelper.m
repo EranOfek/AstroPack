@@ -32,6 +32,10 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'StatusHelper';
         end
 
+	
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function applyPlanStatus(obj, app)
             % 
@@ -204,7 +208,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)
