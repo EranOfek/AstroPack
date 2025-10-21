@@ -32,13 +32,13 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'StatusHelper';
         end
 
-	
+
         % =================================================================
         %                           CORE ACTIONS
         % =================================================================
 
         function applyPlanStatus(obj, app)
-            % 
+            %
 
             if app.hasPlanner()
                 PlanData = app.MainModule.PlanData;

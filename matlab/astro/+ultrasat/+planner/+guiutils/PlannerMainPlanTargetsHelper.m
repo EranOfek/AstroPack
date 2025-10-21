@@ -127,7 +127,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.showPlanAll();
         end
 
-        
+
         function adjustGroupStartTime(obj, app)
             % Adjust group of targets with adjustGroupStartTime()
 
@@ -177,10 +177,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.msgex('adjustGroupStartTime', ME)
             end
         end
-        
+
         % =================================================================
-        %                         DISPLAY / UPDATE        
-		% =================================================================                
+        %                         DISPLAY / UPDATE
+		% =================================================================
 
         function showPlanTargets(obj, app)
             % Update the display of Plan Targets table
@@ -247,14 +247,14 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           UI Callbacks
-        % =================================================================        
+        % =================================================================
 
         function planTargetSelected(obj, app, Index)
             % Handle plan target selection (single click), called from UITable callback
             % Called from UITable callback
 
             app.msglog(sprintf('Plan target selected: %d', Index));
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
             try
                 Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, Index);
                 if ~isempty(Data)
@@ -272,7 +272,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Called from UITable callback
 
             app.msglog('planRowClick');
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
             try
                 Index = app.UITablePlanTargets.Selection;
                 if isempty(Index) || (Index < 1)
@@ -293,7 +293,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Called from UITable callback
 
             app.msglog('planRowDoubleClick');
-            if ~app.hasPlanner(), return; end                        
+            if ~app.hasPlanner(), return; end
             try
                 Index = app.UITablePlanTargets.Selection;
                 if isempty(Index) || (Index < 1)
@@ -322,7 +322,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                         UTILITY HELPERS
-        % =================================================================        
+        % =================================================================
 
         function setPlanTargetParamsFields(obj, app, Plan, Index, ParamsApp)
             % Set field values - Currently there are 23 fields for Plan Target

@@ -35,8 +35,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           CORE ACTIONS
-        % =================================================================	
-	
+        % =================================================================
+
         function openPlan(obj, app)
             % Load plan from database, requires login and server connection
             app.msglog('openPlan');
@@ -184,7 +184,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             obj.doClosePlan(app);
             app.clearModified();
             app.setReadOnly(false);
-            app.SessionHelper.setButtons();
+            app.SessionHelper.setButtons(app);
         end
 
 
@@ -195,7 +195,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             app.showPlanAll();
             app.clearModified();
-            app.SessionHelper.setButtons();
+            app.SessionHelper.setButtons(app);
         end
 
 
@@ -293,7 +293,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     app.msgex('loadPlanFromFile', ME);
                 end
             end
-            app.SessionHelper.setButtons();
+            app.SessionHelper.setButtons(app);
 
             % Check active planner user name
             if ~isempty(app.MainModule.UserName) && ~strcmp(app.MainModule.Planner.AstPlanner, app.MainModule.UserName)

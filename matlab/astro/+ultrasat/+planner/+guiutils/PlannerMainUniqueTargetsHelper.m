@@ -32,10 +32,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'UniqueTargetsHelper';
         end
 
-	
+
         % =================================================================
         %                           CORE ACTIONS
-        % =================================================================       
+        % =================================================================
 
         function addUniqueTarget(obj, app)
             % Add Unique-Target with addUniqTargets()
@@ -60,13 +60,13 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                         app.AppUtils.msgError('Invalid RA/Dec values.');
                         return;
                     end
-                    
+
                     % Add to Planner
                     app.MainModule.Planner.addUniqTargets(RA, Dec, 'Name', Name);
                     app.setModified('addUniqueTarget');
 
                     % Refresh table
-                    app.showUniqueTargets();
+                    obj.showUniqueTargets(app);
                 catch ME
                     app.msgex('addUniqueTarget', ME);
                 end
@@ -201,7 +201,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     if ~isempty(Data)
                         app.MainModule.Planner.addUniqTargets(Data.RA, Data.Dec, 'Name', Data.Name);
                         app.setModified('loadUniqueTargetsFromFile');
-                        app.showUniqueTargets();
+                        obj.showUniqueTargets(app);
                         app.setStatus('OK', 'Unique targets loaded successfully');
 
                         % Update preferences
@@ -279,7 +279,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
             try
                 app.MainModule.Planner.clearUniqueTargets();
-                app.showUniqueTargets();
+                obj.showUniqueTargets(app);
             catch ME
                 app.msgex('clearUniqueTargets', ME)
             end
@@ -287,9 +287,9 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end
 
         % =================================================================
-        %                         DISPLAY / UPDATE        
-		% =================================================================        
-	
+        %                         DISPLAY / UPDATE
+		% =================================================================
+
         function showUniqueTargets(obj, app)
             % Helper: Update the Unique Targets GUI table with data from Planner
             % Update the display of Unique Targets table
@@ -306,12 +306,12 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
             % Add 'Order' column
             Data = app.MainModule.Planner.UniqTarg;
-            
+
             if isempty(Data) || ~istable(Data)
                 app.UITableUniqueTargets.Data = [];
                 return;
             end
-            
+
             Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
             Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
 
@@ -380,7 +380,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           UI CALLBACKS
-        % =================================================================        
+        % =================================================================
 
         function uniqueTargetSelected(obj, app, Index)
             % Handle Unique Target selection in table - @Todo - Currently does NOTHING!!!
@@ -403,7 +403,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Called from UITable callback
 
             app.msglog('uniqueTargetClick');
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
             try
                 Index = app.UITableUniqueTargets.Selection;
                 if isempty(Index) || (Index < 1)
@@ -420,7 +420,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Called from UITable callback
 
             app.msglog('uniqueTargetDoubleClick');
-            if ~app.hasPlanner(), return; end            
+            if ~app.hasPlanner(), return; end
             try
                 % Get the selected unique targets
                 UniqueTargetIndex = app.UITableUniqueTargets.Selection;
@@ -439,7 +439,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 app.msgex('uniqueTargetDoubleClick', ME)
             end
         end
-        
+
     end
 
     % =====================================================================
@@ -451,8 +451,8 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                            HELPERS
-		% =================================================================        
-		        
+		% =================================================================
+
         function setUniqueTargetParamsFields(obj, app, UniqTarg, Index, ParamsApp)
             % Helper: Set field values - Currently there are 9 fields for Unique Target
             try
@@ -470,7 +470,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 app.msgex('setUniqueTargetParamsFields', ME);
             end
         end
-        
+
     end
 
 end

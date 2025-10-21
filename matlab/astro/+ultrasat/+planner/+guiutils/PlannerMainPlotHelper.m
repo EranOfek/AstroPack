@@ -31,7 +31,27 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % Constructor
             obj.LogPrefix = 'PlotHelper';
         end
-		
+
+
+        function clearPlots(obj, app)
+            % Clear the SkyMap and Graphs plots, on this window and the standalone windows.
+            app.msglog('clearPlots');
+
+            % Clear the plot in the main window
+            cla(app.AxesSkymapPlot, 'reset');
+            cla(app.AxesGraphsPlot, 'reset');
+
+            % Clear the plot in the standalone PlotSkyMapApp window
+            if ~isempty(app.PlotSkyMapApp) && isvalid(app.PlotSkyMapApp)
+                cla(app.PlotSkyMapApp.AxesSkymapPlot, 'reset');
+            end
+
+            % Clear the plot in the standalone PlotGraphsApp window
+            if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+            end
+        end
+
         % =================================================================
         %                           SKY-MAP PLOTS
         % =================================================================
@@ -44,7 +64,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             if ~app.hasPlanner()
                 obj.clearPlots(app);
                 return;
-            end            
+            end
 
             % Future? @Todo @Yossi
             % Get index of selected item - Currently unused - @Yossi
@@ -77,11 +97,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 app.PlotSkyMapApp = ultrasat.planner.gui.PlotSkyMap(app.MainModule);
             end
             app.PlotSkyMapApp.UIFigure.Visible = 'on';
-        end       
+        end
 
         % =================================================================
         %                           GRAPHS PLOT
-        % =================================================================        
+        % =================================================================
 
         function plotGraphs(obj, app)
             % Plot CalibObj or Visibility according to selected radio button
@@ -281,7 +301,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 app.msgex('plotVisibility', ME);
             end
         end
-		
+
     end
 
     % =====================================================================
@@ -319,30 +339,10 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             end
         end
 
-
-        function clearPlots(obj, app)
-            % Clear the SkyMap and Graphs plots, on this window and the standalone windows.
-            app.msglog('clearPlots');
-
-            % Clear the plot in the main window
-            cla(app.AxesSkymapPlot, 'reset');
-            cla(app.AxesGraphsPlot, 'reset');
-
-            % Clear the plot in the standalone PlotSkyMapApp window
-            if ~isempty(app.PlotSkyMapApp) && isvalid(app.PlotSkyMapApp)
-                cla(app.PlotSkyMapApp.AxesSkymapPlot, 'reset');
-            end
-
-            % Clear the plot in the standalone PlotGraphsApp window
-            if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
-                cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-            end
-        end
-
         % =================================================================
         %                        CURRENTLY UNUSED
-        % =================================================================        
-	
+        % =================================================================
+
         function uniqueTargetSelectedInPlot(obj, app, UniqueTargetIndex)
             % Currently unused
 
@@ -373,8 +373,8 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             app.PlotCalibObjDropDown.Items = string(ObjValues);
             app.PlotCalibObjDropDown.Value = ObjValues{1};
         end
-        
+
     end
-    
+
 end
 

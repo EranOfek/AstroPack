@@ -36,7 +36,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
         % =================================================================
         %                           CORE ACTIONS
         % =================================================================
-		
+
         function validate(obj, app)
             % Validate plan by sending it to the Validation service
             app.msglog('validate');
@@ -131,10 +131,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.updateStatus();
         end
 
-	
+
         % =================================================================
-        %                         DISPLAY / UPDATE        
-		% =================================================================                
+        %                         DISPLAY / UPDATE
+		% =================================================================
 
         function showValidationStatusWindow(obj, app)
             % Show window with validation status

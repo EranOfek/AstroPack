@@ -34,7 +34,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           CORE ACTIONS
-        % =================================================================		
+        % =================================================================
 
         function showPlanParamsWindow(obj, app)
             % Show window with Plan Parameters
@@ -112,11 +112,11 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 app.MainModule.setStatus('Error', sprintf('self consistency: exception: %s', ME.message));
             end
         end
-	
+
         % =================================================================
-        %                         DISPLAY / UPDATE        
-		% =================================================================        
-       
+        %                         DISPLAY / UPDATE
+		% =================================================================
+
         function showPlanHistory(obj, app)
             % Show Plan History window
 
@@ -194,8 +194,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                         UTILITY HELPERS
-        % =================================================================        
-        
+        % =================================================================
+
         function setPlanParamsFields(obj, app, ParamsApp)
             % Set PlanParams app fields from current planner, called from showPlanParamsWindow
 
@@ -250,7 +250,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
                 ParamsApp.AllSkyGalacticLatThresholdEditField.Value = Planner.AllSSHighLatThresh;
 
-                
+
                 % @Yossi @Todo ??
                 ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
                 ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.HighLatVisits;
@@ -340,7 +340,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             end
         end
 
-        
+
         function setPlanStartEndTime(obj, app, StartTimeValue, EndTimeValue)
             % Set Plan Start and End times in current planner
 

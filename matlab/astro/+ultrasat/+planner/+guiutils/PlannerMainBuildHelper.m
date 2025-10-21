@@ -35,7 +35,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           CORE ACTIONS
-        % =================================================================       
+        % =================================================================
 
         function build(obj, app)
             % Build plan according to plan type, calls doBuild...() below
@@ -68,7 +68,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     case 'AllSS', obj.doBuildAllSS(app);
                     otherwise,   app.msglog(sprintf('build: Unknown PlanType "%s"', PlanType));
                 end
-             
+
                 % Set AfterBuild=true for all plan types except DDT
                 if ~strcmp(PlanType, 'DDT') && ~isempty(app.MainModule.Planner.Plan)
                     app.MainModule.AfterBuild = true;
@@ -84,13 +84,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Update display
             app.setModified('build');
             app.updateStatus();
-            app.showPlanTargets();
+            app.PlanTargetsHelper.showPlanTargets(app);
             app.addHistory('Build completed');
         end
 
         % =================================================================
-        %                         DISPLAY / UPDATE        
-		% =================================================================        
+        %                         DISPLAY / UPDATE
+		% =================================================================
 
         function setBuildStatus(obj, app, Status)
             % Set build status in PlanData
@@ -99,7 +99,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.msglog('Warning: setBuildStatus called before PlanData initialized.');
                 return;
             end
-            
+
             app.MainModule.PlanData.setStatus('BuildStatus', Status);
         end
 
@@ -125,7 +125,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
     end
-		
+
     % =====================================================================
     %                           PRIVATE METHODS
     % =====================================================================
@@ -135,7 +135,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         % =================================================================
         %                     BUILD HELPERS BY PLAN TYPE
         % =================================================================
-		        
+
         function doBuildHCS(obj, app)
             % Build HCS
             app.msglog('doBuildHCS started');
@@ -151,7 +151,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             upHCS = app.MainModule.Planner;
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
-            obj.setBuildStatus('OK');
+            obj.setBuildStatus(app, 'OK');
             app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
@@ -172,11 +172,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.AppUtils.msgError('No targets selected for LCS build.');
                 return;
             end
-            
+
             upLCS.buildLCS('TargetList', SelectedRows);
 
             app.addHistory('BuildLCS Ok');
-            obj.setBuildStatus('OK');
+            obj.setBuildStatus(app, 'OK');
             app.msglog('doBuildLCS done');
         end
 
@@ -274,37 +274,37 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             app.msglog('doBuildAllSS done');
         end
-              
+
         % =================================================================
         %                         UTILITY FUNCTIONS
         % =================================================================
-    
+
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
             % Returns the row indices sorted by 'Order' column.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-    
+
             try
                 % If only one row in the table, return index 1
                 if height(Data) == 1
                     Result = 1;
                     return;
                 end
-    
+
                 % Convert to string array for uniform processing
                 OrderColumn = string(Data.Order);
-    
+
                 % Identify non-empty rows (ignoring whitespace and empty strings)
                 trimmedOrder = strtrim(OrderColumn);
                 isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
-    
+
                 % If only one valid row with non-empty 'Order', return its index
                 if sum(isValid) == 1
                     Result = find(isValid);
                     return;
                 end
-    
+
                 % Handle case: all values are invalid or non-numeric
                 validNumbers = str2double(trimmedOrder(isValid));
                 if all(isnan(validNumbers))
@@ -312,11 +312,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     trimmedOrder = OrderColumn;
                     isValid = true(height(Data), 1);
                 end
-    
+
                 % Now safely convert all to numbers, keeping invalid as NaN
                 numericOrder = NaN(height(Data), 1);
                 numericOrder(isValid) = str2double(trimmedOrder(isValid));
-    
+
                 % Get non-empty rows and sort
                 nonEmptyRows = find(~isnan(numericOrder));
                 [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
@@ -326,27 +326,27 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Result = 1;
             end
         end
-    
-    
+
+
         function Result = getUniqueTargetsIndexByOrderColumn0(obj, app, Data)
             % Deprecated version kept for reference. Use getUniqueTargetsIndexByOrderColumn().
-    
+
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-    
+
             % If only one row in the table, return index 1
             if height(Data) == 1
                 Result = 1;
                 return;
             end
-    
+
             % Check if all values in 'Order' column are empty and replace with row numbers if needed
             if all(cellfun(@(x) isempty(strtrim(x)), Data.Order)) || all(isnan(str2double(Data.Order)))
                 Data.Order = string(1:height(Data))';
             end
-    
+
             % Convert to cell array if necessary (handles both strings and chars)
             if iscell(Data.Order) || isstring(Data.Order)
                 % Trim whitespace and convert empty strings to NaN for filtering
@@ -355,17 +355,17 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Data.Order(~isValid) = NaN;  % Replace empty strings with NaN
                 Data.Order = str2double(Data.Order); % Convert valid numeric strings to doubles
             end
-    
+
             % Find non-empty (non-NaN) rows
             nonEmptyRows = find(~isnan(Data.Order));
-    
+
             % Sort by 'Order' column
             [~, sortedIdx] = sort(Data.Order(nonEmptyRows));
-    
+
             % Return sorted row indices
             Result = nonEmptyRows(sortedIdx);
             Result = Result';
         end
-    
+
     end
 end

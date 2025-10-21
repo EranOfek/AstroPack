@@ -133,7 +133,7 @@ classdef AppUtils < ultrasat.api.Loggable
 
         function center(obj, App)
             % Center the App window on the screen
-            
+
             movegui(App.UIFigure, 'center');
         end
 

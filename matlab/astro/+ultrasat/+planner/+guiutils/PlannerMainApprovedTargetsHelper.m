@@ -78,7 +78,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~strcmp(app.AppUtils.askYesNo('Clear all approved targets?', 'Confirm'), 'Yes')
                 return;
             end
-            
+
             try
                 % Call uplanner to clear the list of approved targets
                 app.MainModule.Planner.clearMissionApprovedPlan();
@@ -92,7 +92,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                         DISPLAY / UPDATE
-        % =================================================================        
+        % =================================================================
 
         function showApprovedTargets(obj, app)
             % Update the GUI of Approved Targets table
@@ -135,11 +135,11 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             end
             app.closePleaseWait();
         end
-       
+
 
         function showApprovedTargetsWindow(obj, app)
             % Show separate window with Approved Targets table
-            
+
             app.msglog('showApprovedTargetsWindow');
             if ~app.hasPlanner(), return; end
 
@@ -192,7 +192,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
         % =================================================================
         %                           UI CALLBACKS
-        % =================================================================        
+        % =================================================================
 
         function approvedTargetSelected(obj, app, Index)
             % Handle approved target selection in table - Currently does NOTHING!!!
@@ -202,7 +202,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % Get the selected row as struct
-            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);            
+            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);
             if ~isempty(Data)
                 app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
             end
