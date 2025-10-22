@@ -9,19 +9,19 @@ classdef CompositeFun < Component
     %
     %   % Adding functions
     %   % Method 1: Auto-generate ArgNames (recommended)
-    %   Model.addFun('Aerosol scattering', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
-    %   Model.addFun('Ozone absorption', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300], 'FitPar', [false, false]);
+    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
+    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300], 'FitPar', [false, false]);
     %
     %   % Method 2: Explicit generateArgNames helper function
     %   OzoneArgNames = Model.generateArgNames(@astro.transmission.ozoneTransmission);
-    %   Model.addFun('Ozone absorption', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
+    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
     %                'Par', [45, 300], 'FitPar', [false, true]);
     %
     %   % Method 3: Manual ArgNames construction
     %   AerosolArgNames = struct('Name', {1, 2, 3}, ...
     %                           'Description', {'ZenithAngle_deg', 'TauAod500', 'AngstromExponent'}, ...
     %                           'Min', {0, 0.01, 0.5}, 'Max', {90, 0.5, 2.0});
-    %   Model.addFun('Aerosol scattering', @astro.transmission.aerosolTransmission, AerosolArgNames, ...
+    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, AerosolArgNames, ...
     %                'Par', [30, 0.05, 1.2], 'FitPar', [true, false, false]);
     %
     %   % Method 4: Direct function call for ArgNames

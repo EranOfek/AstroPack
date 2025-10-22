@@ -1215,6 +1215,10 @@ classdef FITS < handle
                 Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Mex', or 'ThreadedMex'
             end
             
+            if isstring(FileName)
+                FileName = char(FileName);
+            end
+            
             % sanify the file name so that it contains the absolute path
             if Args.SanifyPath
                 FileName = tools.os.relPath2absPath(FileName);

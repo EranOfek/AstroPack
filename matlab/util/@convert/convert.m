@@ -520,6 +520,58 @@ classdef convert
             
         end
         
+        function Val = pressure(In, Out, Val)
+            % Convert pressure units
+            % Input  : - Input units
+            %            'bar'|'mbar'|'mmhg'|'pa'|'atm'
+            %          - Output units.
+            %          - Value to convert.
+            %            Default is 1.
+            % Output : - Converted value.
+            % Author : Eran Ofek (Oct 2025)
+            % Example: convert.pressure('mmhg','mbar',1)
+
+            arguments
+                In
+                Out
+                Val = 1;
+            end
+
+            % convert to milli-bar
+            switch lower(In)
+                case 'bar'
+                    Conv = 1e-3;
+                case 'mbar'
+                    Conv = 1;
+                case 'mmhg'
+                    Conv = 1.33322;
+                case 'pa'
+                    Conv = 0.01;
+                case 'atm'
+                    Conv = 1013.25;
+                otherwise
+                    error('Unknown Pressure units');
+            end
+            Val = Val .* Conv;
+
+            % convert from millibar
+            switch lower(Out)
+                case 'bar'
+                    Conv = 1000;
+                case 'mbar'
+                    Conv = 1;
+                case 'mmhg'
+                    Conv = 1./1.33322;
+                case 'pa'
+                    Conv = 100;
+                case 'atm'
+                    Conv = 1./1013.25;
+                otherwise
+                    error('Unknown Pressure units');
+            end
+            Val = Val .* Conv;
+
+        end
         
         
         function Out=minusPi2Pi(In,Units)

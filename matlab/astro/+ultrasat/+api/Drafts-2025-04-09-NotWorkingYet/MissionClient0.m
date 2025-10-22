@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   ultrasat.MissionClient.m
 % Author: Chen Tishler
@@ -10,8 +10,8 @@
 
 
 classdef MissionClient < ultrasat.api.MissionClientBase
-    % 
-    
+    %
+
     properties
         Client          % api.ClientBase
     end
@@ -19,19 +19,19 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
     methods
         function obj = MissionClient(Args)
-            arguments          
-                Args.SubUrl = '/mission';  % planner_backend  
+            arguments
+                Args.SubUrl = '/mission';  % planner_backend
             end
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionClientBase(ArgsCell{:});
             obj.Client = api.ClientBase('SubUrl', Args.SubUrl);
-        end        
-        
+        end
+
 
         % -------------------------------------------------------------------
 
         function response = login(obj, UserName, Password)
-            % 
+            %
             obj.msglog('login: user=%s, password=%s - @TODO', UserName, Password);
             params = ultrasat.api.MissionModels.LoginParams(UserName, Password);
             response = obj.Client.postRequest('/login/', params.Data);
@@ -40,16 +40,16 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = logout(obj, UserName)
-            % 
+            %
             params = ultrasat.api.MissionModels.LogoutParams(UserName);
             response = obj.Client.postRequest('/logout/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end        
+        end
 
         % -------------------------------------------------------------------
 
         function response = getKeyValue(obj, Store, Key, Default)
-            % 
+            %
             obj.msglog('getKeyValue: store=%s, key=%s - @TODO', Store, Key);
             params = ultrasat.api.MissionApiModels.GetKeyValueParams(Store, Key, Default);
             response = obj.Client.postRequest('/get_key_value/', params.Data);
@@ -58,17 +58,17 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = setKeyValue(obj, Store, Key, Value)
-            % 
+            %
             obj.msglog('setKeyValue: store=%s, key=%s - @TODO', Store, Key);
             params = ultrasat.api.MissionApiModels.SetKeyValueParams(Store, Key, Value);
             response = obj.Client.postRequest('/set_key_value/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end        
+        end
 
         % -------------------------------------------------------------------
 
         function response = getApprovedTargets(obj, start_time, end_time)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/get_approved_targets/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -76,7 +76,7 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = validate(obj, Plan)  %Targets)
-            % 
+            %
             params = ultrasat.api.MissionModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/validate/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -84,13 +84,13 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = submit(obj, Plan)  % Targets)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/submit/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
-        
-        
+
+
         function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Select rows from the Sky Exposure Tracker table.
             % Params:
@@ -106,11 +106,11 @@ classdef MissionClient < ultrasat.api.MissionClientBase
             response = obj.Client.postRequest('/get_exposure', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
-        
+
         % -------------------------------------------------------------------
 
         function response = getPlansList(obj, Args)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/get_plans_list/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -118,7 +118,7 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = loadPlan(obj, PlanPk)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/load_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -126,7 +126,7 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = savePlan(obj, Args)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/save_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -134,7 +134,7 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = deletePlan(obj, Args)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetApprovedTargetsParams(start_time, end_time);
             response = obj.Client.postRequest('/delete_plan/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
@@ -142,11 +142,11 @@ classdef MissionClient < ultrasat.api.MissionClientBase
 
 
         function response = getPlanStatus(obj, Args)
-            % 
+            %
             params = ultrasat.api.MissionApiModels.GetPlanStatusParams(start_time, end_time);
             response = obj.Client.postRequest('/get_plan_status/', params.Data);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-        end             
+        end
 
         % -------------------------------------------------------------------
 

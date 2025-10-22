@@ -13,7 +13,7 @@ classdef ValidatorSim < handle
     %
     % This class handles the simulation of target validation, including random delays,
     % generating validation results, and storing validation history in a JSON database.
-    % It's designed for testing observation planning systems without connecting to 
+    % It's designed for testing observation planning systems without connecting to
     % actual validation services.
 
     properties
@@ -38,9 +38,9 @@ classdef ValidatorSim < handle
                 fid = fopen(obj.DbFilePath, 'w');
                 fwrite(fid, jsonencode(struct('validations', {}), 'PrettyPrint', true), 'char');
                 fclose(fid);
-            end            
+            end
         end
-        
+
 
         function Result = validateTargets(obj, targets)
             % Simulates external validation for a set of targets with random delay
@@ -53,7 +53,7 @@ classdef ValidatorSim < handle
 
             obj.msglog('Starting validation for %d targets...', numel(targets));
             pause(rand() * 0.5 + 2.5);  % Random delay between 0.5 to 3 seconds
-            
+
             % Create a new response struct and update the Response property
             obj.Response = obj.newResponse();
 
@@ -131,7 +131,7 @@ classdef ValidatorSim < handle
 
             logFilePath = obj.DbFilePath;
             logData = struct(); % Initialize as empty struct in case file doesn't exist
-            
+
             % Try to load existing log if file exists
             if exist(logFilePath, 'file') == 2
                 fid = fopen(logFilePath, 'r');
@@ -150,12 +150,12 @@ classdef ValidatorSim < handle
                     obj.msglog('Warning: Unable to open log file for reading.');
                 end
             end
-            
+
             % Ensure `validations` field exists in logData
             if ~isfield(logData, 'validations') || ~iscell(logData.validations)
                 logData.validations = {}; % Initialize as empty cell array
             end
-            
+
             % Assign serial number
             validationSerial = numel(logData.validations) + 1;
             validationEntry = struct(...
@@ -164,10 +164,10 @@ classdef ValidatorSim < handle
                 'input', targets, ...
                 'output', response ...
             );
-            
+
             % Append to log
             logData.validations{end+1} = validationEntry;
-            
+
             % Save updated log
             fid = fopen(logFilePath, 'w');
             if fid ~= -1
@@ -219,7 +219,7 @@ classdef ValidatorSim < handle
                     'details', 'Potential power issue during imaging.' ...
                 ) ...
             );
-        
+
             % Second sample target
             targets(2) = struct(...
                 'target_id', 'trg_20250302121000', ...
@@ -242,7 +242,7 @@ classdef ValidatorSim < handle
                     'details', 'Battery discharge detected.' ...
                 ) ...
             );
-        
+
             response = struct('start_time', '2025-05-28T00:00:00.0Z', ...
                 'target_count', 2, ...
                 'targets', targets);

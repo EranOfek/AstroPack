@@ -3,35 +3,55 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Build Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainBuildHelper < ultrasat.api.Loggable
-    
-    methods
+    % Helper class for PlannerMain.mlapp
+    % Provides build logic (HCS/LCS/DDT/TOO/AllSS) for PlannerMain.mlapp.
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
+    methods (Access = public)
 
         function obj = PlannerMainBuildHelper()
             % Constructor
             obj.LogPrefix = 'BuildHelper';
-            obj.msglog('PlannerMainBuildHelper created successfully');
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function build(obj, app)
             % Build plan according to plan type, calls doBuild...() below
-            app.msglog('build');            
+            app.msglog('build');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end            
+            if app.isReadOnlyMsg(), return; end
 
-            %
+            % Set AfterBuild flag to true if plan is not empty
             app.MainModule.AfterBuild = height(app.MainModule.Planner.Plan) > 0;
             if app.MainModule.AfterBuild
-                if ~strcmp(app.AppUtils.askYesNo('Build was already executed, this will override you existing plan. Are you sure you want to execute build?', 'Confirm'), 'Yes')
+                if ~strcmp(app.AppUtils.askYesNo('Build was already executed, this will override your existing plan. Are you sure you want to execute build?', 'Confirm'), 'Yes')
                     return;
                 end
             end
 
+            % Show "Please Wait" dialog
             app.showPleaseWait('Building your plan. This may take a while. Please wait....');
             try
                 PlanType = app.MainModule.PlanType;
@@ -39,17 +59,15 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.updateStatus();
                 app.msglog(sprintf('build: PlanType: %s', PlanType));
 
-                if strcmp(PlanType, 'HCS')
-                    obj.doBuildHCS(app);
-                elseif strcmp(PlanType, 'LCS')
-                    obj.doBuildLCS(app);
-                elseif strcmp(PlanType, 'DDT')
-                    obj.doBuildDDT(app);
-                elseif strcmp(PlanType, 'TOO')
-                    obj.doBuildTOO(app);
-                elseif strcmp(PlanType, 'AllSS')
-                    obj.doBuildAllSS(app);
-                end                    
+                % Call the designated function according to PlanType
+                switch PlanType
+                    case 'HCS',  obj.doBuildHCS(app);
+                    case 'LCS',  obj.doBuildLCS(app);
+                    case 'DDT',  obj.doBuildDDT(app);
+                    case 'TOO',  obj.doBuildTOO(app);
+                    case 'AllSS', obj.doBuildAllSS(app);
+                    otherwise,   app.msglog(sprintf('build: Unknown PlanType "%s"', PlanType));
+                end
 
                 % Set AfterBuild=true for all plan types except DDT
                 if ~strcmp(PlanType, 'DDT') && ~isempty(app.MainModule.Planner.Plan)
@@ -64,22 +82,65 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.closePleaseWait();
 
             % Update display
-            app.setModified('build');  % Move call to other place?
+            app.setModified('build');
             app.updateStatus();
-            app.showPlanTargets();                                
+            app.PlanTargetsHelper.showPlanTargets(app);
+            app.addHistory('Build completed');
         end
 
+        % =================================================================
+        %                         DISPLAY / UPDATE
+		% =================================================================
 
         function setBuildStatus(obj, app, Status)
+            % Set build status in PlanData
+
+            if isempty(app.MainModule.PlanData)
+                app.msglog('Warning: setBuildStatus called before PlanData initialized.');
+                return;
+            end
+
             app.MainModule.PlanData.setStatus('BuildStatus', Status);
         end
 
 
+        function showBuildStatusWindow(obj, app)
+            % Show window with last build status
+            app.msglog('showBuildStatusWindow');
+            if ~app.hasPlanner(), return; end
+
+            % Create app
+            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
+                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
+            end
+
+            % Set fields and show the app
+            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
+
+            % If you plan to add fields to BuildStatusApp, consider:
+            % so the modal always displays latest info.
+            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
+
+            app.showModal(app.BuildStatusApp);
+        end
+
+    end
+
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                     BUILD HELPERS BY PLAN TYPE
+        % =================================================================
+
         function doBuildHCS(obj, app)
-            % Helper: Build HCS
+            % Build HCS
             app.msglog('doBuildHCS started');
             if ~app.hasPlanner(), return; end
-            
+
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             if numel(SelectedRows) ~= 1
@@ -87,18 +148,18 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 return;
             end
 
-            upHCS = app.MainModule.Planner;            
+            upHCS = app.MainModule.Planner;
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
-            app.setBuildStatus('OK');
-            app.MainModule.setStatus('OK', 'Build: self consistency: OK');
+            obj.setBuildStatus(app, 'OK');
+            app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
         end
 
 
         function doBuildLCS(obj, app)
-            % Helper: Build LCS
+            % Build LCS
             app.msglog('doBuildLCS started');
             if ~app.hasPlanner(), return; end
 
@@ -106,32 +167,37 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
+
+            if isempty(SelectedRows)
+                app.AppUtils.msgError('No targets selected for LCS build.');
+                return;
+            end
+
             upLCS.buildLCS('TargetList', SelectedRows);
-          
+
             app.addHistory('BuildLCS Ok');
-            app.setBuildStatus('OK');
-            %app.debugSave('upLCS.mat', upLCS);
+            obj.setBuildStatus(app, 'OK');
             app.msglog('doBuildLCS done');
         end
 
 
         function doBuildDDT(obj, app)
-            % Helper: Build DDT
+            % Build DDT
             app.msglog('doBuildDDT started');
             if ~app.hasPlanner(), return; end
 
             upDDT = app.MainModule.Planner;
-            
+
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             if isempty(SelectedRows)
                 return;
             end
 
-            % Create app
+            % Create EnterStartTimeApp
             if isempty(app.EnterStartTimeApp) || ~isvalid(app.EnterStartTimeApp)
                 app.EnterStartTimeApp = ultrasat.planner.gui.EnterStartTime(app.MainModule);
-            end            
+            end
 
             % Set start time field from the planner
             app.EnterStartTimeApp.GroupStartTimeEditField.Value = app.MainModule.DateTime2Str(app.MainModule.Planner.StartTime);
@@ -174,81 +240,71 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
 
         function doBuildTOO(app)
-            % Helper: Build TOO - @Todo @Yossi
+            % Build TOO - @Todo @Yossi
+            % @Todo: Implement actual TOO build logic (requires external trigger inputs)
+
             app.msglog('doBuildTOO started');
             if ~app.hasPlanner(), return; end
 
             try
                 upTOO = app.MainModule.Planner;
-    
+
                 Fields = upTOO.UniqTarg(1);
-                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', HCS_fields.Name);   
+                upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', Fields.Name);
                 %app.debugSave('upTOO.mat', upTOO);
 
             catch ME
                 app.msgex('doBuildTOO', ME);
-            end                
+            end
             app.msglog('doBuildTOO done');
         end
 
 
         function doBuildAllSS(obj, app)
-            % Helper: Build AllSS - @Todo @Yossi
+            % Build AllSS - @Todo @Yossi
+            % @Todo: Implement actual build logic
+
             app.msglog('doBuildAllSS started');
             if ~app.hasPlanner(), return; end
 
             try
-
             catch ME
                 app.msgex('doBuildAllSS', ME);
-            end                
-
-            app.msglog('doBuildAllSS done');
-        end        
-        
-
-        function showBuildStatusWindow(obj, app)
-            % Show window with last build status
-            app.msglog('showBuildStatusWindow');
-            if ~app.hasPlanner(), return; end
-
-            % Create app
-            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
-                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
             end
 
-            % Set fields and show the app
-            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
-            app.showModal(app.BuildStatusApp);
+            app.msglog('doBuildAllSS done');
         end
 
+        % =================================================================
+        %                         UTILITY FUNCTIONS
+        % =================================================================
 
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
             % Returns the row indices sorted by 'Order' column.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-        
+
             try
                 % If only one row in the table, return index 1
                 if height(Data) == 1
                     Result = 1;
                     return;
                 end
-            
+
                 % Convert to string array for uniform processing
                 OrderColumn = string(Data.Order);
-            
+
                 % Identify non-empty rows (ignoring whitespace and empty strings)
                 trimmedOrder = strtrim(OrderColumn);
                 isValid = ~(trimmedOrder == "" | trimmedOrder == " ");
-                
+
                 % If only one valid row with non-empty 'Order', return its index
                 if sum(isValid) == 1
                     Result = find(isValid);
                     return;
                 end
-            
+
                 % Handle case: all values are invalid or non-numeric
                 validNumbers = str2double(trimmedOrder(isValid));
                 if all(isnan(validNumbers))
@@ -256,28 +312,30 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     trimmedOrder = OrderColumn;
                     isValid = true(height(Data), 1);
                 end
-                
+
                 % Now safely convert all to numbers, keeping invalid as NaN
                 numericOrder = NaN(height(Data), 1);
                 numericOrder(isValid) = str2double(trimmedOrder(isValid));
-                
+
                 % Get non-empty rows and sort
                 nonEmptyRows = find(~isnan(numericOrder));
                 [~, sortedIdx] = sort(numericOrder(nonEmptyRows));
-                Result = nonEmptyRows(sortedIdx)';          
+                Result = nonEmptyRows(sortedIdx)';
             catch ME
                 app.msgex('getUniqueTargetsIndexByOrderColumn', ME);
                 Result = 1;
-            end                                
+            end
         end
 
 
         function Result = getUniqueTargetsIndexByOrderColumn0(obj, app, Data)
+            % Deprecated version kept for reference. Use getUniqueTargetsIndexByOrderColumn().
+
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             % If only one row exists, returns 1.
             % If only one row has a non-empty 'Order' value, returns its index.
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
-            
+
             % If only one row in the table, return index 1
             if height(Data) == 1
                 Result = 1;
@@ -286,8 +344,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Check if all values in 'Order' column are empty and replace with row numbers if needed
             if all(cellfun(@(x) isempty(strtrim(x)), Data.Order)) || all(isnan(str2double(Data.Order)))
-                Data.Order = string(1:height(Data))'; 
-            end            
+                Data.Order = string(1:height(Data))';
+            end
 
             % Convert to cell array if necessary (handles both strings and chars)
             if iscell(Data.Order) || isstring(Data.Order)
@@ -297,17 +355,17 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Data.Order(~isValid) = NaN;  % Replace empty strings with NaN
                 Data.Order = str2double(Data.Order); % Convert valid numeric strings to doubles
             end
-        
+
             % Find non-empty (non-NaN) rows
             nonEmptyRows = find(~isnan(Data.Order));
-        
+
             % Sort by 'Order' column
             [~, sortedIdx] = sort(Data.Order(nonEmptyRows));
-        
+
             % Return sorted row indices
             Result = nonEmptyRows(sortedIdx);
             Result = Result';
         end
-        
+
     end
 end

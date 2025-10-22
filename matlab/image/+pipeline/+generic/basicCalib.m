@@ -1,6 +1,5 @@
 function [AI] = basicCalib(AI, CI, Args)
     % Basic calibration sub pipeline for dark, overscan, flat, fringing, and header JD fixing.
-    %   All tasks are wrapped in a try catch block.
     %     Performs the following steps:
     %       Optionally convert the images to single precision.
     %       Update and fix the JD to the mid JD of the image.
@@ -176,113 +175,113 @@ function [AI] = basicCalib(AI, CI, Args)
         Args.interpOverNanArgs cell         = {};
     end
 
-    try  
-        % Get images
-    
-        % number of images
-        Nim = numel(AI);
-    
-        % createNewObj
-        if Args.CreateNewObj
-            AI = AI.copy;
-        end
-    
-        % Convert 2 single (default is false)
-        % typically done by: pipeline.generic.prePrep
-        if Args.Convert2single
-            %AI.cast(Args.ImageClass);  % very slow
-    
-            for Iim=1:1:Nim
-                AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
-                %AI(Iim).Image = single(AI(Iim).Image);
-            end
-        end
-        
-        % set/check CalibImages
-        Cont = true;
-        if isempty(CI)
-            if isempty(Args.Dark) || isempty(Args.Flat)
-                % Dark and or Flat not supplied
-                Cont = false;
-            else
-                CI                      = CalibImages;
-                Args.CalibImages.Dark   = Args.Dark;
-                Args.CalibImages.Flat   = Args.Flat;
-                Args.CalibImages.Fringe = Args.Fringe;
-            end
-        else
-            if (isempty(CI.Dark.Image) && isempty(CI.Bias.Image)) || isempty(CI.Flat.Image)
-                % no bias/flat found
-                Cont = false;
-            end
-        end
-        % set error if no calib images
-        if ~Cont
-            % no bias/flat found
-            if isempty(Args.LogObj)
-                error('No Dark/Flat supplied');
-            else
-                Msg = sprintf('Dark/Flat not supplied');
-                Args.LogObj.writeMsg(Msg, LogLevel.Error);
-            end
-        end
-        
-    
-        % set/check JD in header
-        if Args.UpdateJD
-            [AI,JD,ExpTime,IsFixed]=imProc.header.fixJD(AI, 'CheckJD',Args.CheckJD,...
-                                                     'ExpTimeKey',Args.ExpTimeKey,...
-                                                     'DateObsKey',Args.DateObsKey);   
-            if IsFixed && ~isempty(Args.LogObj)
-                Msg = sprintf('JD in one/more headers was round - populated from %s keyword',Args.DateObsKey);
-                Args.LogObj.writeMsg(Msg, LogLevel.Warning);
-            end
-        else
-            JD      = nan(Nim,1);
-            ExpTime = nan(Nim,1);
-        end
-    
-        
-        % Note that InterpolateOverSaturated is false, because this is done
-        % later on in this function
-        % processImages is a method of the CalibImages class
-        % If NonLinCorr is empty, then will attempt taking it from the
-        % CalibImages object.
-        AI = CI.processImages(AI, ...
-                                  'CreateNewObj',Args.CreateNewObj,...
-                                  'SingleFilter',Args.SingleFilter,...
-                                  'BitDict',Args.BitDict,...
-                                  'InterpolateOverBadPix',Args.InterpolateOverBadPix,...
-                                  'BitNameBadPix',Args.BitNameBadPix,...
-                                  'BitNameInterpolated',Args.BitNameInterpolated,...
-                                  'MaskSaturated',Args.MaskSaturated,...
-                                  'maskSaturatedArgs',{},...
-                                  'debiasArgs',Args.debiasArgs,...
-                                  'SubtractOverscan',Args.SubtractOverscan,...
-                                  'OverScan',Args.OverScan,...
-                                  'FinalCrop',Args.FinalCrop,...
-                                  'MethodOverScan',Args.MethodOverScan,...
-                                  'NonLinCorr',Args.NonLinCorr,...
-                                  'NonLinCorrArgs',Args.NonLinCorrArgs,...
-                                  'deflatArgs',Args.deflatArgs,...
-                                  'CorrectFringing',Args.CorrectFringing,...
-                                  'MultiplyByGain',Args.MultiplyByGain);
-           
-        if ~isempty(Args.LogObj)
-            Msg = 'CalibImages/processImages (dark, flat,...) completed';
-            Args.LogObj.writeMsg(Msg, LogLevel.Info);
-        end
-    catch ME
-        % errors and log file
-        % allocate TableForDB:
-        AI         = AstroImage;
-        % write catch error:
-        if ~isempty(Args.LogObj)
-            Obj.writeLog(ME, LogLevel.Error);
-        else
-            ME
-            error('Failed on try catch');
+    % Get images
+
+    % number of images
+    Nim = numel(AI);
+
+    % createNewObj
+    if Args.CreateNewObj
+        AI = AI.copy;
+    end
+
+    % Convert 2 single (default is false)
+    % typically done by: pipeline.generic.prePrep
+    if Args.Convert2single
+        %AI.cast(Args.ImageClass);  % very slow
+
+        for Iim=1:1:Nim
+            AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
+            %AI(Iim).Image = single(AI(Iim).Image);
         end
     end
+    
+    % set/check CalibImages
+    Cont = true;
+    if isempty(CI)
+        if isempty(Args.Dark) || isempty(Args.Flat)
+            % Dark and or Flat not supplied
+            Cont = false;
+        else
+            CI                      = CalibImages;
+            Args.CalibImages.Dark   = Args.Dark;
+            Args.CalibImages.Flat   = Args.Flat;
+            Args.CalibImages.Fringe = Args.Fringe;
+        end
+    else
+        if (isempty(CI.Dark.Image) && isempty(CI.Bias.Image)) || isempty(CI.Flat.Image)
+            % no bias/flat found
+            Cont = false;
+        end
+    end
+    % set error if no calib images
+    if ~Cont
+        % no bias/flat found
+        if isempty(Args.LogObj)
+            error('No Dark/Flat supplied');
+        else
+            Msg = sprintf('Dark/Flat not supplied');
+            Args.LogObj.writeMsg(Msg, LogLevel.Error);
+        end
+    end
+    
+
+    % set/check JD in header
+    if Args.UpdateJD
+        [AI,JD,ExpTime,IsFixed]=imProc.header.fixJD(AI, 'CheckJD',Args.CheckJD,...
+                                                 'ExpTimeKey',Args.ExpTimeKey,...
+                                                 'DateObsKey',Args.DateObsKey);   
+        if IsFixed && ~isempty(Args.LogObj)
+            Msg = sprintf('JD in one/more headers was round - populated from %s keyword',Args.DateObsKey);
+            Args.LogObj.writeMsg(Msg, LogLevel.Warning);
+        end
+    else
+        JD      = nan(Nim,1);
+        ExpTime = nan(Nim,1);
+    end
+
+    
+    % Note that InterpolateOverSaturated is false, because this is done
+    % later on in this function
+    % processImages is a method of the CalibImages class
+    % If NonLinCorr is empty, then will attempt taking it from the
+    % CalibImages object.
+    AI = CI.processImages(AI, ...
+                              'CreateNewObj',Args.CreateNewObj,...
+                              'SingleFilter',Args.SingleFilter,...
+                              'BitDict',Args.BitDict,...
+                              'InterpolateOverBadPix',Args.InterpolateOverBadPix,...
+                              'BitNameBadPix',Args.BitNameBadPix,...
+                              'BitNameInterpolated',Args.BitNameInterpolated,...
+                              'MaskSaturated',Args.MaskSaturated,...
+                              'maskSaturatedArgs',{},...
+                              'debiasArgs',Args.debiasArgs,...
+                              'SubtractOverscan',Args.SubtractOverscan,...
+                              'OverScan',Args.OverScan,...
+                              'FinalCrop',Args.FinalCrop,...
+                              'MethodOverScan',Args.MethodOverScan,...
+                              'NonLinCorr',Args.NonLinCorr,...
+                              'NonLinCorrArgs',Args.NonLinCorrArgs,...
+                              'deflatArgs',Args.deflatArgs,...
+                              'CorrectFringing',Args.CorrectFringing,...
+                              'MultiplyByGain',Args.MultiplyByGain);
+       
+    if ~isempty(Args.LogObj)
+        Msg = 'CalibImages/processImages (dark, flat,...) completed';
+        Args.LogObj.writeMsg(Msg, LogLevel.Info);
+    end
+    
+    % catch ME
+    %     % errors and log file
+    %     % allocate TableForDB:
+    %     AI         = AstroImage;
+    %     % write catch error:
+    %     if ~isempty(Args.LogObj)
+    %         Obj.writeLog(ME, LogLevel.Error);
+    %     else
+    %         ME
+    %         error('Failed on try catch');
+    %     end
+    % end
 
 end

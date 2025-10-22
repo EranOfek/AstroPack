@@ -13,8 +13,8 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     %                     OR ArgNames structure if Lambda is empty
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Oct 2025)
-    % Examples:
-    %   % Basic usage:
+    % Example:
+    %   AbsData = astro.transmission.loadAbsorptionInterpolants();
     %   Lambda = linspace(300, 1100, 401)';
     %   ParamMatrix = [45, 300; 60, 280; 30, 320];  % Multiple parameter sets
     %   Result = astro.transmission.ozoneTransmission(Lambda, ParamMatrix);

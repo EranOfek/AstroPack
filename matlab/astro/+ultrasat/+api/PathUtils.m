@@ -21,7 +21,7 @@ classdef PathUtils < handle
             end
             val = basePath;
         end
-    
+
         function val = NamespaceId(newVal)
             persistent nsId
             if isempty(nsId)
@@ -92,7 +92,7 @@ classdef PathUtils < handle
             dt = ultrasat.api.PathUtils.resolveDateTime(options.DT);
             nsId = ultrasat.api.PathUtils.resolveNamespaceId(options.NamespaceId);
             dateSubFolder = datestr(dt, 'yyyy-mm-dd');
-            
+
             if isempty(subFolder)
                 folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'namespaces', nsId, moduleName, dateSubFolder), filesep];
             else
@@ -167,7 +167,7 @@ classdef PathUtils < handle
             end
             filePath = fullfile(folder, fileName);
         end
-        
+
         %% Log Filename Generation Methods
 
         function filePath = getGlobalLogFilename(moduleName, fileName, options)
@@ -196,7 +196,7 @@ classdef PathUtils < handle
             logSubPath = ultrasat.api.PathUtils.getLogSubfolderFilename(fileName, dt);
             filePath = fullfile(ultrasat.api.PathUtils.BasePath, 'log', 'namespaces', nsId, moduleName, logSubPath);
         end
-        
+
         %% Configuration Method
 
         function setBasePath(basePath)
@@ -218,25 +218,25 @@ classdef PathUtils < handle
                 Id (1,:) char
             end
             ultrasat.api.PathUtils.NamespaceId = Id;
-        end        
+        end
     end
 
 
     methods (Static, Access = private)
         % Internal helper methods
-        
+
         function subPath = getLogSubfolderFilename(fileName, dt)
             % Internal: Get the log subfolder filename.
             yearStr = datestr(dt, 'yyyy');
             monthStr = datestr(dt, 'mm');
-            
+
             baseName = [yearStr, '-', monthStr, '-', fileName];
             if ~endsWith(baseName, '.log', 'IgnoreCase', true)
                 baseName = [baseName, '.log'];
             end
             subPath = fullfile(yearStr, monthStr, baseName);
         end
-        
+
 
         function nsId = resolveNamespaceId(providedNsId)
             % Resolves the namespace ID based on provided, static, and default values.
@@ -249,7 +249,7 @@ classdef PathUtils < handle
             end
         end
 
-        
+
         function dt = resolveDateTime(providedDT)
             % Resolves the datetime object, using current UTC time if not provided.
             if isempty(providedDT)

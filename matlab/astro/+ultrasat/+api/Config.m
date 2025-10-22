@@ -5,7 +5,7 @@
 % Created     : 01/12/2024
 % Updated     : 21/09/2025
 % Description : Configuration class for the API.
-%========================================================================== 
+%==========================================================================
 
 classdef Config < handle
     %LOGGABLE A base class that provides logging to the console and a file.
@@ -14,10 +14,10 @@ classdef Config < handle
     %   both the MATLAB command window and a central log file.
 
      methods (Access = public)
-        function obj = Config()      
+        function obj = Config()
         end
      end
-     
+
 
      methods (Static)
 

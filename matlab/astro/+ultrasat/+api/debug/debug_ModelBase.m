@@ -1,5 +1,5 @@
 %==========================================================================
-% ULTRASAT 
+% ULTRASAT
 %
 % File:   debug_ModelBase.m
 % Author: Chen Tishler
@@ -23,33 +23,33 @@ function debug_ModelBase()
         'Timestamp', datetime('now'), ...
         'Nested', struct('Field1', [], 'Field2', 'NestedValue') ...
     );
-    
+
     % Display the initial sample data
     disp('Original Data:');
     disp(sampleData);
-    
+
     % Instantiate the ModelBase object
     model = ultrasat.api.ModelBase(sampleData);
-    
+
     % Show the model's data
     disp('Model Data:');
     model.show();
-    
+
     % Convert the model's data to JSON
     jsonStr = model.toJson();
     disp('JSON Representation of Model Data:');
     disp(jsonStr);
-    
+
     % Test the removeEmptyFields method
     cleanedData = ultrasat.api.ModelBase.removeEmptyFields(sampleData);
     disp('Cleaned Data (Empty Fields Removed):');
     disp(cleanedData);
-    
+
     % Test the isoFormat method with the current timestamp
     isoTimestamp = ultrasat.api.ModelBase.isoFormat(datetime('now'));
     disp('ISO Formatted Timestamp:');
     disp(isoTimestamp);
-    
+
     % Verify object data after manipulation
     disp('Updated Model Data after cleaning:');
     model.Data = cleanedData; % Update the model with cleaned data
@@ -60,7 +60,7 @@ end
 function debug_to_from_struct()
     % Create an instance of TestModel
     originalObj = ultrasat.api.debug_ModelBase_MyClass();
-    
+
     % Convert class to struct
     s = ultrasat.api.ModelBase.class2struct(originalObj);
     disp('Converted to struct:');
@@ -71,12 +71,12 @@ function debug_to_from_struct()
     reconstructedObj = ultrasat.api.ModelBase.struct2class(s, 'api.debug_ModelBase_MyClass');
     disp('Reconstructed object:');
     disp(reconstructedObj);
-    
+
     % Verify if the properties match
     assert(isequal(originalObj.id, reconstructedObj.id), 'ID does not match');
     assert(isequal(originalObj.name, reconstructedObj.name), 'Name does not match');
     assert(isequal(originalObj.values, reconstructedObj.values), 'Values do not match');
-    
+
     disp('Test Passed: Original and Reconstructed Objects Match!');
 
 end

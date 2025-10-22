@@ -1045,6 +1045,8 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'includeObsTime' - Bool on whether to retrieve observation
                               times from AD.New and add to catalog. Default is true.
+            Output : - The input object in which the CatData is populated
+                       with the found transients.
             Author : Ruslan Konno (Jan 2024)
             Example: AD.findTransients
             %}

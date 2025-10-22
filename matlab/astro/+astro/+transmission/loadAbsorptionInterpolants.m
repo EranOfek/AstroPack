@@ -14,13 +14,13 @@ function AbsData = loadAbsorptionInterpolants(Args)
     %              AbsData = astro.transmission.loadAbsorptionInterpolants();
     %              O3_values = AbsData.getInterpolated('O3UV', linspace(300, 400, 101)');
     %          (2) Direct uploading of selected interpolants:
-    %          load('/home/dana/matlab/data/transmission_fitter/Abs_O3UV.mat', 'Abs_O3UV'); 
+    %          load('~/matlab/data/spec/Atmosphere/Transmission/Abs_O3UV.mat', 'Abs_O3UV'); 
     %              Lambda = linspace(300, 400, 101)';
     %              Values = Abs_O3UV(Lambda);
 
     arguments
-        Args.DataPath string = '/home/dana/matlab/data/transmission_fitter/';
-        Args.Species cell = {'O3UV', 'O3IR', 'H2O', 'CO2', 'CH4', 'N2O', 'CO', 'NO2', 'NO', 'NO3', 'SO2I', 'SO2U', 'NH3', 'HNO2', 'HNO3', 'CH2O', 'BrO', 'ClNO', 'O2', 'O4', 'N2'};
+        Args.DataPath = "~/matlab/data/spec/Atmosphere/Transmission/";
+        Args.Species  = {'O3UV', 'O3IR', 'H2O', 'CO2', 'CH4', 'N2O', 'CO', 'NO2', 'NO', 'NO3', 'SO2I', 'SO2U', 'NH3', 'HNO2', 'HNO3', 'CH2O', 'BrO', 'ClNO', 'O2', 'O4', 'N2'};
         Args.Verbose logical = false;
     end
 

@@ -8,7 +8,7 @@ function debug_UserManagerSim()
     %   5. getKeyValue and setKeyValue methods
     %   6. load_json and save_json helper methods
     %   7. Error handling and edge cases
-    
+
     fprintf('============================================\n');
     fprintf('Starting comprehensive debug script for UserManagerSim class\n');
     fprintf('Time: %s\n', datestr(now));
@@ -23,37 +23,37 @@ function debug_UserManagerSim()
             return;
         end
         fprintf('  [SUCCESS] Constructor and initialization completed\n\n');
-        
+
         % --- Test 2: getNamespaceList Method ---
         fprintf('--- Test 2: getNamespaceList Method ---\n');
         test_getNamespaceList(userManager);
         fprintf('  [SUCCESS] getNamespaceList test completed\n\n');
-        
+
         % --- Test 3: Login Methods ---
         fprintf('--- Test 3: Login Methods ---\n');
         test_login_methods(userManager);
         fprintf('  [SUCCESS] Login methods test completed\n\n');
-        
+
         % --- Test 4: IsAllowed Permission Checking ---
         fprintf('--- Test 4: IsAllowed Permission Checking ---\n');
         test_IsAllowed_method(userManager);
         fprintf('  [SUCCESS] IsAllowed method test completed\n\n');
-        
+
         % --- Test 5: Key-Value Operations ---
         fprintf('--- Test 5: Key-Value Operations ---\n');
         test_keyvalue_operations(userManager);
         fprintf('  [SUCCESS] Key-value operations test completed\n\n');
-        
+
         % --- Test 6: JSON Helper Methods ---
         fprintf('--- Test 6: JSON Helper Methods ---\n');
         test_json_operations(userManager);
         fprintf('  [SUCCESS] JSON operations test completed\n\n');
-        
+
         % --- Test 7: Error Handling and Edge Cases ---
         fprintf('--- Test 7: Error Handling and Edge Cases ---\n');
         test_error_handling(userManager);
         fprintf('  [SUCCESS] Error handling test completed\n\n');
-        
+
         % --- Test 8: Logout Method ---
         fprintf('--- Test 8: Logout Method ---\n');
         test_logout_method(userManager);
@@ -62,7 +62,7 @@ function debug_UserManagerSim()
         fprintf('============================================\n');
         fprintf('All UserManagerSim tests completed successfully!\n');
         fprintf('============================================\n');
-        
+
     catch ME
         fprintf('\n[ERROR] Test suite failed with error:\n');
         fprintf('  Message: %s\n', ME.message);
@@ -82,7 +82,7 @@ function userManager = test_constructor()
     try
         fprintf('  Testing constructor...\n');
         userManager = ultrasat.api.UserManagerSim();
-        
+
         % Verify basic properties are set
         fprintf('  Verifying properties...\n');
         assert(~isempty(userManager.DbPath), 'DbPath should not be empty');
@@ -90,11 +90,11 @@ function userManager = test_constructor()
         assert(~isempty(userManager.ApiSimProvider), 'ApiSimProvider should be initialized');
         assert(strcmp(userManager.LogPrefix, 'UserManagerSim'), 'LogPrefix should be set correctly');
         assert(~isempty(userManager.DeviceId), 'DeviceId should be set');
-        
+
         fprintf('    [SUCCESS] Constructor test passed\n');
         fprintf('    DbPath: %s\n', userManager.DbPath);
         fprintf('    DeviceId: %s\n', userManager.DeviceId);
-        
+
     catch ME
         fprintf('    [FAIL] Constructor test failed: %s\n', ME.message);
         userManager = [];
@@ -106,13 +106,13 @@ function test_getNamespaceList(userManager)
     try
         fprintf('  Testing getNamespaceList...\n');
         response = userManager.getNamespaceList();
-        
+
         % Verify response structure
         assert(isfield(response, 'ok'), 'Response should have ok field');
         assert(isfield(response, 'status'), 'Response should have status field');
         assert(isfield(response, 'namespaces'), 'Response should have namespaces field');
         assert(isfield(response, 'display_list'), 'Response should have display_list field');
-        
+
         if response.ok
             fprintf('    [SUCCESS] getNamespaceList returned %d namespaces\n', length(response.namespaces));
             if ~isempty(response.namespaces)
@@ -121,7 +121,7 @@ function test_getNamespaceList(userManager)
         else
             fprintf('    [INFO] getNamespaceList returned error: %s\n', response.message);
         end
-        
+
     catch ME
         fprintf('    [FAIL] getNamespaceList test failed: %s\n', ME.message);
     end
@@ -131,7 +131,7 @@ function test_login_methods(userManager)
     % Test both login and login0 methods
     try
         fprintf('  Testing login method...\n');
-        
+
         % Test successful login
         loginResp = userManager.login('chen', '123', 'OPER');
         if loginResp.ok
@@ -142,7 +142,7 @@ function test_login_methods(userManager)
         else
             fprintf('    [FAIL] Login failed: %s\n', loginResp.message);
         end
-        
+
         % Test login0 method (if it exists and works)
         fprintf('  Testing login0 method...\n');
         try
@@ -155,7 +155,7 @@ function test_login_methods(userManager)
         catch ME
             fprintf('    [INFO] Login0 method not available or failed: %s\n', ME.message);
         end
-        
+
     catch ME
         fprintf('    [FAIL] Login methods test failed: %s\n', ME.message);
     end
@@ -165,30 +165,30 @@ function test_IsAllowed_method(userManager)
     % Test IsAllowed permission checking with different users and scenarios
     try
         fprintf('  Testing IsAllowed with admin user...\n');
-        
+
         % Test various permissions for admin user
         test_IsAllowed_single(userManager, 'MissionControl.Planner.Run', 'any_plan', true);
         test_IsAllowed_single(userManager, 'System.Namespace.Select', '', true);
         test_IsAllowed_single(userManager, 'ObservationPlanner.HCS.Open', 'hcs_plan_123', true);
-        
+
         % Test with different user (planner)
         fprintf('  Testing IsAllowed with planner user...\n');
         userManager.logout('chen');
         userManager.login('sasha', '123', 'default_namespace');
-        
+
         test_IsAllowed_single(userManager, 'ObservationPlanner.HCS.Open', 'hcs_plan_123', true);
         test_IsAllowed_single(userManager, 'ObservationPlanner.DDT.Commit', 'ddt_plan_456', true);
         test_IsAllowed_single(userManager, 'MissionControl.PlanReview.Commit', 'plan_789', false);
-        
+
         % Test with guest user
         fprintf('  Testing IsAllowed with guest user...\n');
         userManager.logout('sasha');
         userManager.login('guest', '123', 'default_namespace');
-        
+
         test_IsAllowed_single(userManager, 'MissionControl.Scheduler.Open', '', true);
         test_IsAllowed_single(userManager, 'MissionControl.PlanReview.Open', '', true);
         test_IsAllowed_single(userManager, 'MissionControl.PlanReview.Save', 'review_1', false);
-        
+
     catch ME
         fprintf('    [FAIL] IsAllowed method test failed: %s\n', ME.message);
     end
@@ -212,12 +212,12 @@ function test_keyvalue_operations(userManager)
     % Test getKeyValue and setKeyValue methods
     try
         fprintf('  Testing setKeyValue...\n');
-        
+
         % Test setting various key-value pairs
         testStores = {'test_store1', 'test_store2', 'config'};
         testKeys = {'key1', 'key2', 'setting1'};
         testValues = {'value1', 42, struct('nested', 'data')};
-        
+
         for i = 1:length(testStores)
             response = userManager.setKeyValue(testStores{i}, testKeys{i}, testValues{i});
             if response.ok
@@ -226,9 +226,9 @@ function test_keyvalue_operations(userManager)
                 fprintf('    [FAIL] Failed to set %s.%s: %s\n', testStores{i}, testKeys{i}, response.message);
             end
         end
-        
+
         fprintf('  Testing getKeyValue...\n');
-        
+
         % Test retrieving the values
         for i = 1:length(testStores)
             response = userManager.getKeyValue(testStores{i}, testKeys{i}, 'default_value');
@@ -238,7 +238,7 @@ function test_keyvalue_operations(userManager)
                 fprintf('    [FAIL] Failed to get %s.%s: %s\n', testStores{i}, testKeys{i}, response.message);
             end
         end
-        
+
         % Test getting non-existent key
         response = userManager.getKeyValue('nonexistent', 'key', 'default');
         if response.ok && strcmp(response.value, 'default')
@@ -246,7 +246,7 @@ function test_keyvalue_operations(userManager)
         else
             fprintf('    [FAIL] Non-existent key test failed\n');
         end
-        
+
     catch ME
         fprintf('    [FAIL] Key-value operations test failed: %s\n', ME.message);
     end
@@ -256,17 +256,17 @@ function test_json_operations(userManager)
     % Test load_json and save_json helper methods
     try
         fprintf('  Testing JSON operations...\n');
-        
+
         % Create test data
         testData = struct();
         testData.test_string = 'hello world';
         testData.test_number = 42;
         testData.test_array = [1, 2, 3, 4, 5];
         testData.test_struct = struct('nested', 'value', 'number', 123);
-        
+
         % Test file path
         testFile = fullfile(userManager.DbPath, 'test_json_operations.json');
-        
+
         % Test save_json
         fprintf('    Testing save_json...\n');
         userManager.save_json(testFile, testData);
@@ -275,7 +275,7 @@ function test_json_operations(userManager)
         else
             fprintf('    [FAIL] save_json did not create file\n');
         end
-        
+
         % Test load_json
         fprintf('    Testing load_json...\n');
         loadedData = userManager.load_json(testFile);
@@ -285,12 +285,12 @@ function test_json_operations(userManager)
         else
             fprintf('    [FAIL] load_json did not load data correctly\n');
         end
-        
+
         % Clean up test file
         if exist(testFile, 'file')
             delete(testFile);
         end
-        
+
     catch ME
         fprintf('    [FAIL] JSON operations test failed: %s\n', ME.message);
     end
@@ -300,7 +300,7 @@ function test_error_handling(userManager)
     % Test error handling and edge cases
     try
         fprintf('  Testing error handling...\n');
-        
+
         % Test IsAllowed without being logged in
         fprintf('    Testing IsAllowed without login...\n');
         userManager.logout('guest');
@@ -310,7 +310,7 @@ function test_error_handling(userManager)
         else
             fprintf('    [FAIL] IsAllowed should reject when not logged in\n');
         end
-        
+
         % Test login with invalid credentials
         fprintf('    Testing login with invalid credentials...\n');
         loginResp = userManager.login('nonexistent_user', 'wrong_password', 'OPER');
@@ -319,7 +319,7 @@ function test_error_handling(userManager)
         else
             fprintf('    [FAIL] Login should reject invalid credentials\n');
         end
-        
+
         % Test getKeyValue with non-existent store
         fprintf('    Testing getKeyValue with non-existent store...\n');
         response = userManager.getKeyValue('nonexistent_store', 'key', 'default');
@@ -328,7 +328,7 @@ function test_error_handling(userManager)
         else
             fprintf('    [FAIL] getKeyValue should return default for non-existent store\n');
         end
-        
+
     catch ME
         fprintf('    [FAIL] Error handling test failed: %s\n', ME.message);
     end
@@ -338,12 +338,12 @@ function test_logout_method(userManager)
     % Test logout method
     try
         fprintf('  Testing logout method...\n');
-        
+
         % First ensure we're logged in
         if ~userManager.IsLoggedIn
             userManager.login('chen', '123', 'OPER');
         end
-        
+
         % Test logout
         logoutResp = userManager.logout('chen');
         if logoutResp.ok && ~userManager.IsLoggedIn
@@ -351,7 +351,7 @@ function test_logout_method(userManager)
         else
             fprintf('    [FAIL] Logout failed or IsLoggedIn flag incorrect\n');
         end
-        
+
     catch ME
         fprintf('    [FAIL] Logout method test failed: %s\n', ME.message);
     end

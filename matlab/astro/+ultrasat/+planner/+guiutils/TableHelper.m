@@ -3,25 +3,22 @@
 % File        : +planner/+guiutils/TableHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 06/10/2025
+% Updated     : 21/10/2025
 % Description : Table Helper for Main Planner
 %==========================================================================
-% Debug:
-%   DM = ultrasat.planner.gui.MainModule()
-%
 
 classdef TableHelper < ultrasat.api.Loggable
-  
+
     methods
         function obj = TableHelper()
             % Constructor
-            obj.msglog('TableHelper created successfully');
+            obj.LogPrefix = 'TableHelper';
         end
 
         % =================================================================
         %                            Utilities
         % =================================================================
-   
+
         function Result = loadTableFromCsvText(obj, CsvText)
             % Read the table from the temporary file
             %
@@ -30,9 +27,9 @@ classdef TableHelper < ultrasat.api.Loggable
             % an empty table is returned instead of throwing an exception.
             %
             % Logs include details about file creation, writing, and reading steps.
-        
+
             Result = table();  % Default empty result
-        
+
             % Create a temporary file name
             try
                 tempFile = [tempname, '.csv'];
@@ -40,34 +37,35 @@ classdef TableHelper < ultrasat.api.Loggable
                 obj.msglog(sprintf('loadTableFromCsvText: tempname failed: %s', ME.message));
                 return;
             end
-        
+
             % Write CSV text to file
             fid = fopen(tempFile, 'w');
             if fid == -1
                 obj.msglog(sprintf('loadTableFromCsvText: failed to open temp file %s for writing', tempFile));
                 return;
             end
-        
+
             try
                 fwrite(fid, CsvText);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: fwrite failed for file %s: %s', tempFile, ME.message));
+                return;
             end
-        
+
             try
                 fclose(fid);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: fclose failed for file %s: %s', tempFile, ME.message));
+                return;
             end
-        
+
             % Read the table from the temporary file
             try
                 Result = readtable(tempFile);
             catch ME
                 obj.msglog(sprintf('loadTableFromCsvText: readtable failed for file %s: %s', tempFile, ME.message));
-                Result = table();  % fallback to empty table
             end
-        
+
             % Cleanup temporary file
             try
                 if exist(tempFile, 'file')
@@ -77,9 +75,9 @@ classdef TableHelper < ultrasat.api.Loggable
                 obj.msglog(sprintf('loadTableFromCsvText: failed to delete temp file %s: %s', tempFile, ME.message));
             end
         end
-        
+
         % =================================================================
-    
+
         function Result = getSortedRowNumbers(obj, Data)
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             %
@@ -95,23 +93,23 @@ classdef TableHelper < ultrasat.api.Loggable
             %   - The function never throws: if input is malformed or errors occur,
             %     they are logged and an empty array is returned.
             %   - Supports char-based or string-based content by converting to numeric.
-        
+
             Result = [];
-        
+
             try
                 % Check if 'Order' column exists
                 if ~isfield(Data, 'Order') && ~ismember('Order', Data.Properties.VariableNames)
                     obj.msglog('getSortedRowNumbers: missing ''Order'' column.');
                     return;
                 end
-        
+
                 orderCol = Data.Order;
-        
+
                 % Handle empty column
                 if isempty(orderCol)
                     return;
                 end
-        
+
                 % Case 1: numeric - use directly
                 if isnumeric(orderCol)
                     validIdx = find(~isnan(orderCol));
@@ -119,7 +117,7 @@ classdef TableHelper < ultrasat.api.Loggable
                     Result = validIdx(sortedIdx);
                     return;
                 end
-        
+
                 % Case 2: string or char - convert to numeric safely
                 if isstring(orderCol) || ischar(orderCol) || iscell(orderCol)
                     % Convert string scalars to cellstr if needed
@@ -129,11 +127,11 @@ classdef TableHelper < ultrasat.api.Loggable
                         % single char array (e.g., single row): wrap into cell
                         orderCol = {orderCol};
                     end
-        
+
                     % Trim and detect empty entries
                     trimmed = cellfun(@strtrim, orderCol, 'UniformOutput', false);
                     isEmpty = cellfun(@(x) isempty(x) || all(isspace(x)), trimmed);
-        
+
                     % Convert non-empty to numeric, empty to NaN
                     numericVals = nan(size(trimmed));
                     for i = 1:numel(trimmed)
@@ -145,27 +143,27 @@ classdef TableHelper < ultrasat.api.Loggable
                             numericVals(i) = numVal;
                         end
                     end
-        
+
                     % Filter out NaNs and sort
                     validIdx = find(~isnan(numericVals));
                     [~, sortedIdx] = sort(numericVals(validIdx));
                     Result = validIdx(sortedIdx);
                     return;
                 end
-        
+
                 % Case 3: anything else
                 obj.msglog(sprintf('getSortedRowNumbers: unsupported Order column type %s', class(orderCol)));
-        
+
             catch ME
                 obj.msglog(sprintf('getSortedRowNumbers: error %s', ME.message));
                 Result = [];
             end
         end
-        
+
         % =================================================================
         %
         % =================================================================
-    
+
         function tbl = convertTableDatetimeToString(obj, tbl)
             % Converts all datetime columns in a table to string format (yyyy-MM-dd HH:mm:ss)
             % Handles empty datetime (NaT) values correctly.
@@ -181,7 +179,7 @@ classdef TableHelper < ultrasat.api.Loggable
             %   - NaT values are converted to empty strings ("").
             %   - If conversion fails for a column or row, an error is logged and the
             %     original column is left unchanged.
-        
+
             try
                 % Get all variable (column) names
                 varNames = tbl.Properties.VariableNames;
@@ -189,11 +187,11 @@ classdef TableHelper < ultrasat.api.Loggable
                 obj.msglog(sprintf('convertTableDatetimeToString: failed to get VariableNames: %s', ME.message));
                 return;
             end
-        
+
             % Iterate through each column
             for i = 1:numel(varNames)
                 colName = varNames{i};
-        
+
                 try
                     % Check if the column contains datetime values
                     if isa(tbl.(colName), 'datetime')
@@ -204,9 +202,9 @@ classdef TableHelper < ultrasat.api.Loggable
                             obj.msglog(sprintf('convertTableDatetimeToString: failed to get height for column %s: %s', colName, ME.message));
                             continue;
                         end
-        
+
                         newCol = cell(nRows, 1);
-        
+
                         % Loop through all rows in the column
                         for j = 1:nRows
                             try
@@ -221,7 +219,7 @@ classdef TableHelper < ultrasat.api.Loggable
                                 newCol{j} = "";
                             end
                         end
-        
+
                         % Convert cell array to string array and assign back to table
                         try
                             tbl.(colName) = string(newCol);
@@ -245,18 +243,18 @@ classdef TableHelper < ultrasat.api.Loggable
             %
             % Example:
             %   Data = plansToTopLevelTable(response.plans);
-            %   app.OpenPlanApp.UITable.Data = Data;                
+            %   app.OpenPlanApp.UITable.Data = Data;
             %
             %   Robust version: logs errors, skips bad rows, never crashes
-        
+
             % Default return
             T = table();
-        
+
             % Empty input
             if isempty(plans)
                 return;
             end
-        
+
             try
                 % Support both cell array of structs and struct array
                 if iscell(plans)
@@ -286,10 +284,10 @@ classdef TableHelper < ultrasat.api.Loggable
                 obj.msglog(sprintf('plansToTopLevelTable: failed to collect fieldnames: %s', ME.message));
                 return;
             end
-        
+
             allFields = unique(allFields);
             S = repmat(struct(), n, 1);
-        
+
             % Extract values per row
             for i = 1:n
                 try
@@ -298,7 +296,7 @@ classdef TableHelper < ultrasat.api.Loggable
                         obj.msglog(sprintf('plansToTopLevelTable: Row %d skipped (not struct)', i));
                         continue;
                     end
-        
+
                     for f = 1:numel(allFields)
                         fld = allFields{f};
                         try
@@ -324,7 +322,7 @@ classdef TableHelper < ultrasat.api.Loggable
                     obj.msglog(sprintf('plansToTopLevelTable: failed to process row %d: %s', i, ME.message));
                 end
             end
-        
+
             % Convert to table
             try
                 T = struct2table(S, 'AsArray', true);
@@ -345,21 +343,21 @@ classdef TableHelper < ultrasat.api.Loggable
             %   Output: T          - table with only those columns in that order
             %
             % Logs and returns empty table if input is invalid or columns are missing.
-        
+
             T = table();
             try
                 if ~istable(Data)
                     obj.msglog('selectTableColumns: Data is not a table.');
                     return;
                 end
-        
+
                 % Normalize columnList to cell array of char
                 if isstring(columnList)
                     columnList = cellstr(columnList);
                 elseif ischar(columnList)
                     columnList = {columnList};
                 end
-        
+
                 existingCols = Data.Properties.VariableNames;
                 missing = setdiff(columnList, existingCols);
                 if ~isempty(missing)
@@ -367,7 +365,7 @@ classdef TableHelper < ultrasat.api.Loggable
                     % Keep only those that exist
                     columnList = intersect(columnList, existingCols, 'stable');
                 end
-        
+
                 if ~isempty(columnList)
                     T = Data(:, columnList);
                 end
@@ -376,7 +374,7 @@ classdef TableHelper < ultrasat.api.Loggable
                 T = table();
             end
         end
-        
+
     end
 
 end

@@ -9,8 +9,8 @@
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
 classdef MissionApiSim < ultrasat.api.MissionApiBase
-    % 
-    
+    %
+
     properties
         DbPath          % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
@@ -20,8 +20,8 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
     methods
         function obj = MissionApiSim(Args)
-            arguments          
-                Args.SubUrl         = '/mission';  % planner_backend  
+            arguments
+                Args.SubUrl         = '/mission';  % planner_backend
                 Args.LogFileName
             end
 
@@ -29,13 +29,13 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.MissionApiBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
             obj.msglog('MissionClientSim constructor started');
-            
+
             % Initialize the logger
             obj.LogPrefix = 'MissionApiSim';
 
             % Initialize the ApiSimProvider
             obj.ApiSimProvider = ultrasat.api.ApiSimProvider(Args.SubUrl);
-            
+
             % SOC_PATH must be defined in env
             soc_path = getenv('SOC_PATH');
             if soc_path == ""
@@ -59,10 +59,10 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % @TODO !!!!!!!!!!
             % obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
             obj.msglog('MissionClientSim constructor done');
-        end                
+        end
 
         % -------------------------------------------------------------------
-        
+
         function Result = getPlannerBasePath(obj)
             % Returns the base path for a given namespace's planner directory
             if isempty(ultrasat.api.PathUtils.NamespaceId)
@@ -74,7 +74,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 'planner', ...                  % module name
                 '', ...                         % subfolder (empty, top-level)
                 'NamespaceId', ultrasat.api.PathUtils.NamespaceId);% pass current namespace
-                    
+
             obj.msglog('getPlannerBasePath: %s', Result);
         end
 
@@ -84,10 +84,10 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             % Retrieves the list of approved targets within the given time range from a JSON file.
             try
                 if ~isdatetime(start_time)
-                    start_time = datetime(start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');                
+                    start_time = datetime(start_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
                 end
                 if ~isdatetime(end_time)
-                    end_time = datetime(end_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');                
+                    end_time = datetime(end_time, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC');
                 end
                 start_time.TimeZone = 'UTC';
                 end_time.TimeZone = 'UTC';
@@ -108,7 +108,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
 
                 response = struct();
-            
+
                 targets = obj.ApiSimProvider.readJsonFile(targetsFile);
                 if isempty(targets)
                     obj.msglog('No approved targets found in the specified time range.');
@@ -126,12 +126,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 for i = 1:numel(targets)
                     tStart = obj.parseIsoDatetime(targets(i).start_time);
                     tEnd = obj.parseIsoDatetime(targets(i).end_time);
-                    
+
                     if tStart >= start_time && tEnd <= end_time
                         filteredTargets = [filteredTargets; targets(i)];
                     end
                 end
-            
+
                 if isempty(filteredTargets)
                     obj.msglog('No approved targets found in the specified time range.');
                     response.status = 'ok';
@@ -152,24 +152,24 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             end
         end
 
-        % -----------------------------------------------------------------        
+        % -----------------------------------------------------------------
 
         function updateApprovedTargets(obj, targets, replace)
             % Update the approved_targets.json file by either replacing or merging targets.
             obj.msglog('updateApprovedTargets: targets: %d, replace=%d', numel(targets), replace);
             try
                 approvedTargetsFile = fullfile(obj.getPlannerBasePath(), 'approved_targets.json');
-                
+
                 % Read existing file
-                existingTargets = obj.ApiSimProvider.readJsonFile(approvedTargetsFile);           
-                
+                existingTargets = obj.ApiSimProvider.readJsonFile(approvedTargetsFile);
+
                 if replace
                     % Replace all existing targets
                     updatedTargets = targets;
                 else
                     % Merge new targets with existing ones
                     updatedTargets = existingTargets;
-                    
+
                     % Add new targets while preventing duplicates (based on `pk`)
                     existingPKs = [existingTargets.pk];
                     for i = 1:numel(targets)
@@ -178,7 +178,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         end
                     end
                 end
-            
+
                 % Add 'pk' field if not exist
                 for i = 1:numel(updatedTargets)
                     if ~isfield(updatedTargets(i), 'pk')
@@ -187,23 +187,23 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
                     if ~isfield(updatedTargets(i), 'target_id')
                         updatedTargets(i).target_id = 'TRG';
-                    end                
+                    end
                 end
 
                 % Sort targets by start_time
                 % [~, sortIdx] = sort(datetime({updatedTargets.start_time}, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z', 'TimeZone', 'UTC'));
                 % updatedTargets = updatedTargets(sortIdx);
-            
+
                 % Save back to JSON
                 obj.ApiSimProvider.writeJsonFile(approvedTargetsFile, updatedTargets);
-                
+
                 obj.msglog('Updated successfully: %s', approvedTargetsFile);
             catch ME
                 obj.msglog('Error updating approved targets: %s', ME.message);
             end
         end
-        
-        % -----------------------------------------------------------------        
+
+        % -----------------------------------------------------------------
 
         function response = validatePlan(obj, Plan)
             % Validates the observation plan using the ValidatorSim class.
@@ -218,7 +218,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     obj.msglog('Validation error: %s', ME.message);
                     response = obj.newResponse();
                     response.status = 'error';
-                    response.message = 'Validation failed due to an exception.';                
+                    response.message = 'Validation failed due to an exception.';
                 end
 
                 % Ensure metadata.ValidationResponse exists as a cell array
@@ -227,10 +227,10 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 elseif ~iscell(obj.PlanData.metadata.ValidationResponse)
                     obj.PlanData.metadata.ValidationResponse = {obj.PlanData.metadata.ValidationResponse}; % Convert to cell if needed
                 end
-            
+
                 % Insert the latest response at the beginning of the array (most recent first)
-                obj.PlanData.metadata.ValidationResponse = [{response}, obj.PlanData.metadata.ValidationResponse];           
-            
+                obj.PlanData.metadata.ValidationResponse = [{response}, obj.PlanData.metadata.ValidationResponse];
+
                 if isfield(response, 'task') && isfield(response, 'status')
                     obj.msglog('Validation status: %s', response.status);
                     response.ok = true;
@@ -256,21 +256,38 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
             try
+                % Allow submit only if not submitted yet, if cannot submit
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
+                    response.status = 'error';
+                    response.message = sprintf('Submit ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.ok = false;
+                    obj.msglog('Submit ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+					return;
+                end
+
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
-            
+
                 % Set targets from provided Plan array of structs
-                obj.PlanData.targets = Plan;  % Direct assignment, no conversion needed        
-            
+                obj.PlanData.targets = Plan;  % Direct assignment, no conversion needed
+
                 % Update status
                 obj.PlanData.status = 'submitted';
-            
+
                 % Add entry to history
                 obj.PlanData.addHistory(sprintf('plan submitted by %s', obj.PlanData.created_by));
-            
+
                 % Save updated plan data to JSON
+
+                % Change uplanner status to submitted otherwrite it will not
+                % be saved - @TODO --- Bad workaround but for now (19/10/2025)
+                %SavePlannerStatus = obj.PlanData.planner.Status;
+                %obj.PlanData.planner.Status = 'submitted';
                 obj.savePlan();
-            
+
+                % Restore status, it will be set again to submitted in uplanner.submit()
+                %obj.PlanData.planner.Status = SavePlannerStatus;
+
                 response.status = 'ok';
                 response.message = sprintf('Plan %d submitted successfully.', obj.PlanData.pk);
                 response.ok = true;
@@ -298,39 +315,39 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 response.message = 'Error retracting plan.';
                 response.ok = false;
             end
-        end                        
-        
+        end
+
         % -------------------------------------------------------------------
 
         function response = getExposure(obj, table_name, healpix_indices, start_timestamp, end_timestamp, select_all)
             % Retrieves exposure data from the specified JSON file (mapped from table_name).
             obj.msglog('getExposure: table=%s, healpix_indices=%s, start=%s, end=%s, select_all=%d', ...
                        table_name, mat2str(healpix_indices), datestr(start_timestamp), datestr(end_timestamp), select_all);
-        
+
             try
                 dbFile = fullfile(obj.getPlannerBasePath(), sprintf('%s.json', table_name));
-                response = struct();       
-        
+                response = struct();
+
                 fid = fopen(dbFile, 'r');
                 raw = fread(fid, inf, 'char');
                 fclose(fid);
                 data = jsondecode(char(raw'));
-            
+
                 filteredData = [];
                 startNum = datenum(start_timestamp);
                 endNum = datenum(end_timestamp);
-            
+
                 for i = 1:numel(data)
                     row = data(i);
                     tNums = arrayfun(@(x) datenum(x{1}, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), row.timestamps);
-            
+
                     if select_all || ...
                     ((isempty(healpix_indices) || ismember(row.healpix_index, healpix_indices)) && ...
                         any(tNums >= startNum & tNums <= endNum))
                         filteredData = [filteredData; row];
                     end
                 end
-            
+
                 if isempty(filteredData)
                     obj.msglog('No exposure data found for the given filters.');
                     response.status = 'ok';
@@ -360,15 +377,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
                 plansList = [];
-            
+
                 % Ensure timestamps are datetime objects
                 if ~isempty(start_timestamp) && ~isdatetime(start_timestamp)
                     start_timestamp = datetime(start_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
                 end
                 if ~isempty(end_timestamp) && ~isdatetime(end_timestamp)
                     end_timestamp = datetime(end_timestamp, 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z');
-                end            
-            
+                end
+
                 % Find all JSON files in the plans folder
                 jsonFiles = obj.ApiSimProvider.listFilesInFolder(plansFolder, '*.json');
                 for i = 1:numel(jsonFiles)
@@ -379,9 +396,9 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                             planNum = str2double(name);
                             if planNum > 9999
 
-                                % Skip if plan number exceeds 9999, 
+                                % Skip if plan number exceeds 9999,
                                 % NOTE: values above it are for Maintenance Plans (In the SIM version, to be modified in the Database version)
-                                continue;                         
+                                continue;
                             end
                         else
                             continue; % Skip files that do not match the pattern
@@ -390,7 +407,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         % Load the JSON file
                         fileName = fullfile(plansFolder, jsonFiles(i));  % .name);
                         planData = obj.ApiSimProvider.readJsonFile(fileName);
-            
+
                         % List only plans that are still pre-committed
                         % if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft') && ~strcmp(planData.status, 'submitted')
                         %    continue;
@@ -401,7 +418,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         (~isempty(end_timestamp) && planData.start_time > end_timestamp)
                             continue;
                         end
-                
+
                         % Apply title search if specified
                         if ~isempty(title_subtext) && ~contains(lower(planData.title), lower(title_subtext))
                             continue;
@@ -412,7 +429,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         obj.msglog('Error processing file %s: getting plans list: %s', jsonFiles(i), ME.message);
                     end
                 end
-            
+
                 response.status = 'ok';
                 response.plans = plansList;
                 response.ok = true;
@@ -424,18 +441,18 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 response.ok = false;
             end
         end
-        
-                
+
+
         function response = loadPlan(obj, plan_pk)
             % Loads a specific plan by its primary key (pk) into obj.PlanData.
             obj.msglog('loadPlan: Loading plan with pk=%d', plan_pk);
             try
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
-            
+
                 jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
                 matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
-            
+
                 % Load JSON data
                 text = obj.ApiSimProvider.readFile(jsonFile);
                 if isempty(text)
@@ -444,15 +461,15 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     response.message = 'Plan files not found.';
                     response.ok = false;
                     return;
-                end            
+                end
 
                 % Load MATLAB object (planner) from .mat file
                 loadedMat = obj.ApiSimProvider.loadMatObject(matFile, 'planner');
-            
+
                 % Populate obj.PlanData
                 obj.PlanData = ultrasat.api.PlanData.fromJson(text);
                 obj.PlanData.planner = loadedMat;  %.planner;
-            
+
                 response.status = 'ok';
                 response.message = sprintf('Plan %d loaded successfully.', plan_pk);
                 response.ok = true;
@@ -465,17 +482,29 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 response.ok = false;
             end
         end
-        
-        
+
+
         function response = savePlan(obj)
             % Saves the current PlanData instance to the DbPath folder as JSON and MAT files.
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
+
+                % Allow save only if not submitted yet, if cannot save
+                % @Todo - Need to fix this submit issue
+                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
+                    response.status = 'error';
+                    response.message = sprintf('Save ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.ok = false;
+                    obj.msglog('Error: savePlan ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+					return;
+                end
+
+                % Prepare to save the plan
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
 
                 obj.updateFromPlanner();
-                        
+
                 % Generate pk if not provided, as next file number (i.e '00003')
                 if isempty(obj.PlanData.pk)
                     NextAvailableFile = obj.ApiSimProvider.nextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
@@ -485,7 +514,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         obj.msglog('Generated new pk=%d for the plan.', obj.PlanData.pk);
                     end
                 end
-            
+
                 % Write JSON file without 'PlanData.planner' field, it will be
                 % stored separetly in .mat file (see below)
                 jsonFile = fullfile(plansFolder, sprintf('%05d.json', obj.PlanData.pk));
@@ -495,18 +524,18 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 % Convert datetime objects to iso format
                 planStruct = ultrasat.api.ModelBase.convertDatetimeToString(planStruct);
 
-                % Convert datetime objects to iso format                
+                % Convert datetime objects to iso format
                 if ~isempty(planStruct.targets)
-                    planStruct = ultrasat.api.ModelBase.convertDatetimeToString(planStruct.targets);
+                    planStruct.targets = ultrasat.api.ModelBase.convertDatetimeToString(planStruct.targets);
                 end
 
                 obj.ApiSimProvider.writeJsonFile(jsonFile, planStruct);
-            
+
                 % Write MATLAB object (planner) to .mat file
                 matFile = fullfile(plansFolder, sprintf('%05d.mat', obj.PlanData.pk));
                 planner = obj.PlanData.planner;  % Instance of ultrasat.uplanner
                 obj.ApiSimProvider.saveMatObject(matFile, planner, 'planner');
-            
+
                 response.status = 'ok';
                 response.message = sprintf('Plan %d saved successfully.', obj.PlanData.pk);
                 response.ok = true;
@@ -538,8 +567,8 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     % only solution is to convert the array to cellarray
                     if numel(obj.PlanData.targets) == 1
                         obj.PlanData.targets = {obj.PlanData.targets};
-                    end                
-                end            
+                    end
+                end
             catch ME
                 obj.msglog('Error updating from planner: %s', ME.message);
             end
@@ -552,13 +581,13 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             try
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
-            
+
                 jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
                 matFile = fullfile(plansFolder, sprintf('%05d.mat', plan_pk));
-            
+
                 obj.ApiSimProvider.deleteFile(jsonFile);
                 obj.ApiSimProvider.deleteFile(matFile);
-            
+
                 obj.msglog('Plan %d deleted successfully.', plan_pk);
                 response.status = 'ok';
                 response.message = sprintf('Plan %d deleted successfully.', plan_pk);
@@ -579,12 +608,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             try
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
-            
+
                 jsonFile = fullfile(plansFolder, sprintf('%05d.json', plan_pk));
-            
+
                 % Load the JSON plan file
                 planData = obj.ApiSimProvider.readJsonFile(jsonFile);
-            
+
                 % Extract relevant fields
                 response.status = 'ok';
                 response.data = struct(...
@@ -616,18 +645,18 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             %
             %   Returns datetime with TimeZone = 'UTC'.
             %   Returns NaT if parsing fails.
-        
+
             try
                 dt = NaT;
                 if isempty(str)
                     return;
                 end
-            
+
                 % Convert string type if needed
                 if isstring(str)
                     str = char(str);
                 end
-            
+
                 % Detect the suffix to choose the format
                 str = strtrim(str);
                 if endsWith(str, 'Z')
@@ -640,7 +669,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         'String does not match expected ISO 8601 formats: "%s"', str);
                     return;
                 end
-        
+
                 % Parse the datetime
                 dt = datetime(str, 'InputFormat', fmt, 'TimeZone', 'UTC');
             catch ME
@@ -648,6 +677,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     'Failed to parse datetime string "%s" with format "%s": %s', str, fmt, ME.message);
             end
         end
-        
+
     end
 end

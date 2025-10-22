@@ -9,8 +9,8 @@
 
 classdef MissionApiModels < ultrasat.api.ModelFactoryBase
     % MissionApiModels - Factory for creating Mission API calls models instances.
-    % This class 
-    
+    % This class
+
     properties (Constant)
         APPROVED_TARGETS = 'mission.sky_exposure_targets'       % Table for approved sky exposure targets
         RECEIVED_IMAGES  = 'mission.sky_exposure_images'        % Table for received sky exposure images
@@ -55,8 +55,8 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
 
             % Create and return the model instance
             model = ultrasat.api.ModelBase(data);
-        end        
-        
+        end
+
 
         function model = LogoutParams(UserName)
             % LogoutParams - Creates an instance of ModelBase with empty fields.
@@ -66,13 +66,13 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
 
             % Create and return the model instance
             model = ultrasat.api.ModelBase(data);
-        end        
+        end
 
-        % -------------------------------------------------------------------        
+        % -------------------------------------------------------------------
 
         function model = GetApprovedTargetsParams(start_time, end_time)
             % GetApprovedTargetsParams - Creates an instance of ModelBase for approved targets query parameters.
-            
+
             % Ensure datetime fields are converted to ISO 8601 format
             if nargin >= 1 && isa(start_time, 'datetime')
                 start_time = datestr(start_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
@@ -127,7 +127,7 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
             %   end_timestamp: Optional end timestamp
             %   select_all: Boolean for selecting all rows
             %   debug_print: Debugging information
-            
+
             if nargin < 6
                 debug_print = ''; % Default to empty if not provided
             end
@@ -140,7 +140,7 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
             if nargin >= 4 && isa(end_timestamp, 'datetime')
                 end_timestamp = datestr(end_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
             end
-            
+
             data = struct(...
                 'table_name', table_name, ...
                 'healpix_indices', healpix_indices, ...
@@ -188,7 +188,7 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
 
 
         function model = DeletePlanParamsPlanId
-            % DeletePlanParams - Creates an instance of ModelBase for delete plan request parameters.            
+            % DeletePlanParams - Creates an instance of ModelBase for delete plan request parameters.
             data = struct(...
                 'plan_id', PlanId ...
             );
@@ -208,5 +208,5 @@ classdef MissionApiModels < ultrasat.api.ModelFactoryBase
             model = ultrasat.api.ModelBase(data);
         end
 
-    end    
+    end
 end

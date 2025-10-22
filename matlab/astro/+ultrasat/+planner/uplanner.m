@@ -1512,11 +1512,18 @@ classdef uplanner < Component
             end            
 
             planStruct = Obj.planTable2struct;
-            % send struct plan to the Mission C&C.
-            Obj.Mclient.submitPlan(planStruct);
-            
-            Obj.Status    = 'submitted';
+
+            % send struct plan to the Mission C&C.            
+            % Must set status to 'submitted' before the call because submitPlan() 
+            % writes this status to the database/json
+            Obj.Status = 'submitted';
             Obj.SubmittedTime = datetime('now','TimeZone', 'UTC'); 
+            try
+                Obj.Mclient.submitPlan(planStruct);
+            catch ME
+                Obj.Status = 'draft';
+                error('Mclient.submitPlan failed: %s', ME.message);
+            end
         end
         %
         function planStruct = planTable2struct(Obj,Args)

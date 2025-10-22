@@ -29,7 +29,11 @@ Phi = convert.angular(Units,'rad',Phi);
 
 % solve:
 % sin(Alt)= sin(dec)*sin(phi) + cos(dec)*cos(phi)*cos(HA)
-HA = abs(acos((sin(Alt) - sin(Dec).*sin(Phi))./(cos(Dec).*cos(Phi))));
+HA = (acos((sin(Alt) - sin(Dec).*sin(Phi))./(cos(Dec).*cos(Phi))));
+
+FlagReal = imag(HA)==0;  % issue #743
+HA(FlagReal)  = abs(HA(FlagReal));
+HA(~FlagReal) = NaN;
 
 HA = convert.angular('rad',Units,HA);
 

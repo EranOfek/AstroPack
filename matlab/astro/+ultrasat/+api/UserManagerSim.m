@@ -18,7 +18,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
     %   response = userManager.login('chen', '123', 'OPER');
     %   response = userManager.IsAllowed('MissionControl.Planner.Run', 'any_plan', true);
     %   response = userManager.logout('chen');
-    
+
     properties
         DbPath          % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
@@ -31,7 +31,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             % Call the base class constructor with the Args
             % ArgsCell = namedargs2cell(Args);
             obj@ultrasat.api.UserManagerBase();
-            obj.msglog('UserManagerSim constructor started');           
+            obj.msglog('UserManagerSim constructor started');
 
             % Initialize the logger
             obj.LogPrefix = 'UserManagerSim';
@@ -51,7 +51,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             obj.DbPath = ultrasat.api.PathUtils.getGlobalDataFolder('users', '');
             obj.msglog('DbPath: %s', obj.DbPath);
 
-            
+
             if ~exist(obj.DbPath, 'dir')
                 mkdir(obj.DbPath);
                 mkdir(fullfile(obj.DbPath, 'plans'));
@@ -72,15 +72,15 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             % Create an instance of ValidatorSim
             obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
             obj.msglog('MissionClientSim constructor done');
-        end                
+        end
 
         % -------------------------------------------------------------------
-        
+
         function response = getNamespaceList(obj)
             % Returns the list of namespace_id values from namespaces.json
             obj.msglog('getNamespaceList: Getting list of namespaces');
 
-       
+
             try
                 % Use PathUtils to get the global data filename for namespaces.json
                 dbFile = ultrasat.api.PathUtils.getGlobalDataFilename('', '', 'namespaces.json');
@@ -101,7 +101,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.status = 'ok';
                 response.ok = true;
                 response.namespaces = list;
-                response.display_list = displayList;       
+                response.display_list = displayList;
             catch ME
                 obj.msglog('Error reading namespaces: %s', ME.message);
                 response.status = 'error';
@@ -117,17 +117,17 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         function response = login(obj, UserName, Password, Namespace)
             % Login using username, password and device ID
             % Loads users, roles, permissions and updates session
-               
+
             response = struct();
             obj.msglog('login: user=%s', UserName);
-        
+
             % Set DB paths
             usersFile       = fullfile(obj.DbPath, 'users.json');
             rolesFile       = fullfile(obj.DbPath, 'roles.json');
             permissionsFile = fullfile(obj.DbPath, 'permissions.json');
             sessionsFile    = fullfile(obj.DbPath, 'sessions.json');
             %currentUserFile = fullfile(obj.DbPath, 'current_user.json');
-        
+
             % Load users
             %if ~isfile(usersFile)
             %    obj.msglog('login: users.json not found');
@@ -140,7 +140,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             if isfield(users, 'users')
                 users = users.users;
             end
-        
+
             % Find user
             User = [];
             UserKeys = fieldnames(users);
@@ -151,7 +151,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     break;
                 end
             end
-        
+
             if isempty(User)
                 obj.msglog('login: invalid credentials for %s', UserName);
                 response.ok = false;
@@ -159,7 +159,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.message = 'Invalid username or password';
                 return;
             end
-        
+
             % Check is_active
             if isfield(User, 'is_active') && ~User.is_active
                 response.ok = false;
@@ -167,22 +167,22 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.message = 'User is not active';
                 return;
             end
-        
+
             % Load roles and permissions
             roles = obj.load_json(rolesFile);
             if isfield(roles, 'roles')
                 roles = roles.roles;
             end
-        
+
             permissions = obj.load_json(permissionsFile);
             if isfield(permissions, 'permissions')
                 permissions = permissions.permissions;
             end
-        
+
             % Create session ID
             loginTime = datetime('now', 'TimeZone', 'UTC');
             sessionId = sprintf('%s_%s_%s', obj.DeviceId, UserName, datestr(loginTime, 'yyyymmddTHHMMSS'));
-        
+
             % Load existing sessions
             if isfile(sessionsFile)
                 sessionsAll = load_json(sessionsFile);
@@ -193,7 +193,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 sessionsAll.sessions = struct();
             end
             sessions = sessionsAll.sessions;
-        
+
             % Add current session
             ThisSession = struct();
             ThisSession.device_id = obj.DeviceId;
@@ -203,9 +203,9 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             %sessions.(sessionId) = ThisSession;
             %sessionsAll.sessions = sessions;
 
-            % DO NOT update sessions (???) @TODO - Think 
+            % DO NOT update sessions (???) @TODO - Think
             % obj.save_json(sessionsFile, sessionsAll);
-        
+
             % Store in current_user.json
             % currentUser = struct( ...
             %     'user_id', UserName, ...
@@ -218,7 +218,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
 
             % Save to local computer (not server)
             % obj.save_json(currentUserFile, currentUser);
-        
+
             % Store in object
             obj.User = UserName;
             obj.SessionId = sessionId;
@@ -228,7 +228,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             obj.RolesData = roles;
             %obj.Sessions = sessionsAll;
             obj.IsLoggedIn = true;
-        
+
             response.ok = true;
             response.status = 'ok';
             response.message = 'Login successful';
@@ -241,11 +241,11 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
         function response = login0(obj, UserName, Password, Namespace)
             % Simulate login by checking credentials from users.json and updating current_user.json
             obj.msglog('login: user=%s, password=%s', UserName, Password);
-          
+
             usersFile = fullfile(obj.DbPath, 'users.json');
             currentUserFile = fullfile(obj.DbPath, 'current_user.json');
             response = struct();
-        
+
             if ~isfile(usersFile)
                 obj.msglog('login: Users file not found at %s', usersFile);
                 response.status = 'error';
@@ -253,13 +253,13 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.ok = false;
                 return;
             end
-        
+
             % Load users from JSON
             fid = fopen(usersFile, 'r');
             raw = fread(fid, inf, 'char');
             fclose(fid);
             users = jsondecode(char(raw'));
-        
+
             % Find user and verify password
             user = [];
             for i = 1:numel(users)
@@ -268,7 +268,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     break;
                 end
             end
-        
+
             if isempty(user)
                 obj.msglog('login: Invalid username or password for user=%s', UserName);
                 response.status = 'error';
@@ -278,13 +278,13 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 obj.msglog('login: User %s logged in successfully.', UserName);
                 response.status = 'ok';
                 response.user = user;
-        
+
                 % Update current_user.json
                 currentUser = struct('UserName', UserName, 'Role', user.Role, 'Namespace', Namespace);
                 fid = fopen(currentUserFile, 'w');
                 fwrite(fid, jsonencode(currentUser, 'PrettyPrint', true), 'char');
                 fclose(fid);
-        
+
                 response.ok = true;
             end
         end
@@ -292,9 +292,9 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
 
         function response = logout(obj, UserName)
             % Simulate logout by clearing current_user.json
-        
+
             % currentUserFile = fullfile(obj.DbPath, 'current_user.json');
-            % response = struct();        
+            % response = struct();
             % if ~isfile(currentUserFile)
             %     obj.msglog('logout: Current user file not found at %s', currentUserFile);
             %     response.status = 'error';
@@ -302,13 +302,13 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             %     response.ok = false;
             %     return;
             % end
-        
+
             % Load current user and verify
             % fid = fopen(currentUserFile, 'r');
             % raw = fread(fid, inf, 'char');
             % fclose(fid);
             % currentUser = jsondecode(char(raw'));
-            % 
+            %
             % if ~strcmp(currentUser.UserName, UserName)
             %     obj.msglog('logout: User %s is not currently logged in.', UserName);
             %     response.status = 'error';
@@ -316,16 +316,16 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
             %     response.ok = false;
             %     return;
             % end
-            % 
+            %
             % % Clear current user
             % fid = fopen(currentUserFile, 'w');
             % fwrite(fid, jsonencode(struct('UserName', '', 'Role', '', 'Namespace', ''), 'PrettyPrint', true), 'char');
             % fclose(fid);
-            % 
+            %
             obj.msglog('logout: User %s logged out successfully.', UserName);
             response.status = 'ok';
             response.ok = true;
-        end        
+        end
 
         % -------------------------------------------------------------------
 
@@ -373,7 +373,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 if ~isfield(obj.Roles, roleID)
                     continue; % Skip if role ID from user does not exist in roles db
                 end
-                
+
                 roleStruct = obj.Roles.(roleID);
                 permissions = roleStruct.permissions; % Cell array of permission IDs
 
@@ -391,12 +391,12 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     if ~isfield(obj.Permissions, permID)
                         continue; % Skip if perm ID does not exist in permissions db
                     end
-                    
+
                     permStruct = obj.Permissions.(permID);
                     if ~isfield(permStruct, 'actions') || ~isfield(permStruct.actions, Action)
                         continue; % Skip if this permission doesn't grant the requested Action
                     end
-                    
+
                     actionStruct = permStruct.actions.(Action);
 
                     % 3. Check parameter match (if required by the permission)
@@ -405,7 +405,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     if isfield(actionStruct, 'params')
                         requiredParams = actionStruct.params;
                         effectiveParams = obj.MergeParams(struct(), Params); % Assuming some base params might exist
-                        
+
                         if ~obj.MatchParams(requiredParams, effectiveParams)
                             continue; % Parameters do not match, so this rule does not apply.
                         end
@@ -414,7 +414,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     if ~isfield(actionStruct, 'items')
                         continue; % This action has no items, so it cannot match.
                     end
-                    
+
                     items = actionStruct.items; % Cell array of item masks
 
                     % 4. Check if the target Item matches any of the allowed item masks
@@ -430,7 +430,7 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                     end
                 end
             end
-            
+
             % If loops complete, no permission was found
             obj.Message = sprintf('Permission denied for action ''%s'' on item ''%s''.', Action, Item);
             isAllowed = false;
@@ -440,11 +440,11 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
 
         function response = getKeyValue(obj, Store, Key, Default)
             % Retrieves a value from the key-value database JSON file.
-            
+
             obj.msglog('getKeyValue: store=%s, key=%s', Store, Key);
             dbFile = fullfile(obj.DbPath, 'key_value_db.json');
             response = struct();
-        
+
             if ~isfile(dbFile)
                 obj.msglog('Database file not found, returning default value.');
                 response.value = Default;
@@ -452,10 +452,10 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.ok = true;
                 return;
             end
-        
+
             % Read and parse the JSON file
             db = obj.load_json(dbFile);
-        
+
             if isfield(db, Store) && isfield(db.(Store), Key)
                 response.value = db.(Store).(Key);
                 response.status = 'ok';
@@ -467,42 +467,42 @@ classdef UserManagerSim < ultrasat.api.UserManagerBase
                 response.ok = true;
             end
         end
-        
-        
+
+
         function response = setKeyValue(obj, Store, Key, Value)
             % Sets a value in the key-value database JSON file.
-            
+
             obj.msglog('setKeyValue: store=%s, key=%s, value=%s', Store, Key, Value);
             dbFile = fullfile(obj.DbPath, 'key_value_db.json');
             response = struct();
-        
+
             db = struct();
             db = obj.load_json(dbFile);
-        
+
             if ~isfield(db, Store)
                 db.(Store) = struct();
             end
             db.(Store).(Key) = Value;
-        
+
             % Write updated data to the JSON file
             obj.save_json(dbFile, db);
-        
+
             response.status = 'ok';
             response.ok = true;
             obj.msglog('Key-value pair saved successfully.');
         end
-    
+
         % -------------------------------------------------------------------
 
         function data = load_json(obj, path)
             data = obj.ApiSimProvider.readJsonFile(path);
         end
-        
+
         function save_json(obj, path, data)
             obj.ApiSimProvider.writeJsonFile(path, data);
         end
 
-        % -------------------------------------------------------------------        
+        % -------------------------------------------------------------------
 
     end
 end

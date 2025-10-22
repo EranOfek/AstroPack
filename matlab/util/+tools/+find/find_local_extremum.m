@@ -8,7 +8,9 @@ function Extram=find_local_extremum(X,Y,Deg)
 %              Deg is the degree of interpolation.
 % Input  : - Equally spaced (and asendingly sorted) X.
 %          - Y
-%          - Order (currently supports only 4th degree), default is 4.
+%          - Order (currently supports only 4th degree).
+%            Mex supports 2:5. Default is 4.
+%          - UseMex. Default is false.
 % Output : - List of all local extremums:
 %            values of [X, Y, 2nd derivative d^2Y/dX^2] in the points of 
 %            local extremums.
@@ -16,9 +18,11 @@ function Extram=find_local_extremum(X,Y,Deg)
 %     By : Eran O. Ofek                    May 2006
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % See also: interp_diff.m, find_local_zeros.m
-% Example: X=(1:1:100).'; Y=(X-10).^2; find_local_extremum(X,Y);
+% Example: X=(1:1:100).'; Y=(X-10).^2; tools.find.find_local_extremum(X,Y);
 % Reliable: 2
 %-----------------------------------------------------------------------------
+
+
 Check   = 'n';    % check if X is equally spaced and sorted...
 if (nargin==2)
    Deg = 4;

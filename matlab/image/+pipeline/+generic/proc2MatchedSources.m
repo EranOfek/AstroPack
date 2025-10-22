@@ -4,7 +4,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %   along one of the dimensions (See DimEpoch argument for details).
     %     Incluidng:
     %       Source matching using: MatchedSources/unifiedCatalogsIntoMatched
-    %       Perform and apply relative photometry using lcUtil.zpFit
+    %       Perform and apply relative photometry using lcUtil.relZPfit
     %       Optional steps: fitPolyHyp trends; proper-motion fit
     % Input  : - An AstroImage or AstroCatalog object with photometry and
     %            astrometry. Size may be Nepochs-by-Nfields or a vector.
@@ -45,14 +45,14 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   arguments forwarded to MatchedSources.unifiedCatalogsIntoMatched.
     %                   Default is {}.
     %
-    %            % Relative photometry (zero-point fit via lcUtil.zpFit)
+    %            % Relative photometry (zero-point fit via lcUtil.relZPfit)
     %            'RelPhot' - If true, perform relative photometry (ZP fit)
     %                   and optionally apply ZP to magnitude fields.
     %                   Default is false.
     %            'zp_meddiffArgs' - Cell array of arguments for the median-
-    %                   difference stage in lcUtil.zpFit. Default is {}.
+    %                   difference stage in lcUtil.relZPfit. Default is {}.
     %            'zp_lsqArgs' - Cell array of arguments for the least-squares
-    %                   stage in lcUtil.zpFit. Default is {}.
+    %                   stage in lcUtil.relZPfit. Default is {}.
     %            'MagCalibColName' - Magnitude column used for ZP fit.
     %                   Default is 'MAG_APER_3'.
     %            'MagCalibErrColName' - Magnitude error column used for ZP fit.
@@ -115,6 +115,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.fitMotionArgs     = {};
 
         Args.UseMex            = false;
+        %Args.LogObj            = [];
     end
 
 
@@ -187,7 +188,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
        
         % relative photometry
         if Args.RelPhot
-            [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zpFit(MatchedS(Ifields),...
+            [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.relZPfit(MatchedS(Ifields),...
                                                                Args.zp_meddiffArgs{:},...
                                                                Args.zp_lsqArgs{:},...
                                                                'MagField',Args.MagCalibColName,...

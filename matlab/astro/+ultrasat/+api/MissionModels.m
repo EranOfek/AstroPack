@@ -17,7 +17,7 @@ classdef MissionModels < ultrasat.api.ModelFactoryBase
 
         function model = newImagingTarget()
             % ImagingTarget - Creates an instance of ModelBase with empty fields.
-            
+
             % Define the data for the model with all fields set to []
             data = struct(...
                 'pk', [], ...
@@ -79,6 +79,6 @@ classdef MissionModels < ultrasat.api.ModelFactoryBase
                 error('Input must be a datetime object or a date-time string.');
             end
         end
-        
-    end    
+
+    end
 end
