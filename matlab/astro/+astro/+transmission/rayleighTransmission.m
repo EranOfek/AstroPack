@@ -1,27 +1,65 @@
 function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
-    % Rayleigh transmission of the Earth atmosphere 
+    % Rayleigh transmission of the Earth atmosphere
     % Input  : - Lambda (double array): Wavelength array in nm.
+    %            If GetArgNames flag is true, returns ArgNames structure for parameters.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
-    %            [ZenithAngle_deg, Pressure_mbar]. 
+    %            [ZenithAngle_deg, Pressure_mbar].
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
-    % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets).
+    %            'GetArgNames' - Return ArgNames structure instead of calculating. Default is false.
+    % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets)
+    %            OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
-    % Example: Lambda = linspace(300, 1100, 401)';
-    %          ParamMatrix = [45, 1013; 60, 950; 30, 1020];
-    %          Result = astro.transmission.rayleighTransmission(Lambda, ParamMatrix);
+    % Examples:
+    %   % Basic usage:
+    %   Lambda = linspace(300, 1100, 401)';
+    %   ParamMatrix = [45, 1013; 60, 950; 30, 1020];  % Multiple parameter sets
+    %   Result = astro.transmission.rayleighTransmission(Lambda, ParamMatrix);
+    %
+    %   % Get parameter information:
+    %   ArgNames = astro.transmission.rayleighTransmission('GetArgNames', true);
+    %   % Returns: struct with Name={1,2}, Description={'ZenithAngle_deg','Pressure_mbar'},
+    %   %          Min={0,800}, Max={90,1100}
+    %
+    %   % Usage with CompositeFun:
+    %   Model = astro.transmission.CompositeFun();
+    %   Model.addFun('Rayleigh scattering', @astro.transmission.rayleighTransmission, [], 'Par', [45, 1013]);
 
     arguments
-        Lambda      = linspace(300, 1100, 401)
-        ParamMatrix = [30, 965]               % [ZenithAngle_deg, Pressure_mbar]  
+        Lambda      = linspace(300, 1100, 401)'
+        ParamMatrix = [30, 965]               % [ZenithAngle_deg, Pressure_mbar]
         Args.AbsorptionData = []
         Args.Return = []
+        Args.UsePersistentCache logical = true   % Enable/disable persistent cache
+        Args.Tolerance = 1e-12                   % Parameter comparison tolerance
+        Args.GetArgNames logical = false         % Return ArgNames structure instead of calculating
+    end
+
+    % Return ArgNames structure if requested
+    if Args.GetArgNames
+        Result = struct('Name', {1, 2}, ...
+                       'Description', {'ZenithAngle_deg', 'Pressure_mbar'}, ...
+                       'Min', {0, 800}, ...
+                       'Max', {90, 1100});
+        return;
     end
 
     % Check for pre-computed results (external cache)
     if ~isempty(Args.Return)
         Result = Args.Return;
         return;
+    end
+
+    % Persistent cache 
+    persistent CachedResult CachedParams CachedLambda
+
+    if Args.UsePersistentCache && ~isempty(CachedResult)
+        % Check if parameters and wavelengths match within tolerance
+        if compareParams(Lambda, CachedLambda, Args.Tolerance) && ...
+           compareParams(ParamMatrix, CachedParams, Args.Tolerance)
+            Result = CachedResult;
+            return;
+        end
     end
 
     % Validate input dimensions
@@ -55,4 +93,20 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
         % Calculate transmission
         Result(:, i) = exp(-Am_rayleigh .* TauRayleigh);
     end
+
+    % Store in persistent cache if enabled
+    if Args.UsePersistentCache
+        CachedResult = Result;
+        CachedParams = ParamMatrix;
+        CachedLambda = Lambda;
+    end
+end
+
+function isSame = compareParams(ParamsCurrent, ParamsCached, Tolerance)
+    % Compare numerical parameters with tolerance
+    if nargin < 3
+        Tolerance = 1e-12;
+    end
+    isSame = isequal(size(ParamsCurrent), size(ParamsCached)) && ...
+             all(abs(ParamsCurrent(:) - ParamsCached(:)) < Tolerance);
 end
