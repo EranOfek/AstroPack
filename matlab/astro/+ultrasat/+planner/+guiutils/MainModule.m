@@ -51,7 +51,7 @@ classdef MainModule < ultrasat.api.Loggable
             % Constructor
 
             obj.LogPrefix = 'MainModule';
-            
+
             % Set NamespaceId, default is 'OPER'
             obj.NamespaceId = NamespaceId;
             obj.NamespaceDisplay = '';

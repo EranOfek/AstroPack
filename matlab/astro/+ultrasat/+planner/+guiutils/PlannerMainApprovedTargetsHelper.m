@@ -32,6 +32,9 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'ApprovedTargetsHelper';
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function retrieveApprovedTargets(obj, app)
             % Retreive the list of approved targets from the backend server
@@ -62,6 +65,34 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             obj.showApprovedTargets();
         end
 
+
+        function clearApprovedTargets(obj, app)
+            % Clear the list of approved targets
+
+            % Do nothing if Planner is not available
+            app.msglog('clearApprovedTargets');
+            if ~app.hasPlanner(), return; end
+            if app.isReadOnlyMsg(), return; end
+
+            % Ask user confirmation
+            if ~strcmp(app.AppUtils.askYesNo('Clear all approved targets?', 'Confirm'), 'Yes')
+                return;
+            end
+
+            try
+                % Call uplanner to clear the list of approved targets
+                app.MainModule.Planner.clearMissionApprovedPlan();
+
+                % Refresh display
+                app.showPlanAll();
+            catch ME
+                app.msgex('clearApprovedTargets', ME);
+            end
+        end
+
+        % =================================================================
+        %                         DISPLAY / UPDATE
+        % =================================================================
 
         function showApprovedTargets(obj, app)
             % Update the GUI of Approved Targets table
@@ -106,42 +137,21 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
         end
 
 
-        function clearApprovedTargets(obj, app)
-            % Clear the list of approved targets
+        function showApprovedTargetsWindow(obj, app)
+            % Show separate window with Approved Targets table
 
-            % Do nothing if Planner is not available
-            app.msglog('clearApprovedTargets');
-            if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
-
-            % Ask user confirmation
-            if ~strcmp(app.AppUtils.askYesNo('Clear all approved targets?', 'Confirm'), 'Yes')
-                return;
-            end
-            
-            try
-                % Call uplanner to clear the list of approved targets
-                app.MainModule.Planner.clearMissionApprovedPlan();
-
-                % Refresh display
-                app.showPlanAll();
-            catch ME
-                app.msgex('clearApprovedTargets', ME);
-            end
-        end
-
-
-        function approvedTargetSelected(obj, app, Index)
-            % Handle approved target selection in table - Currently does NOTHING!!!
-            % Called from UITable callback
-
-            app.msglog(sprintf('approvedTargetSelected: %d', Index));
+            app.msglog('showApprovedTargetsWindow');
             if ~app.hasPlanner(), return; end
 
-            % Get the selected row as struct
-            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);            
-            if ~isempty(Data)
-                app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
+            % Create and show ApprovedTargetsApp
+            if isempty(app.ApprovedTargetsApp) || ~isvalid(app.ApprovedTargetsApp)
+                app.ApprovedTargetsApp = ultrasat.planner.gui.ApprovedTargets(app.MainModule);
+            end
+            app.ApprovedTargetsApp.UIFigure.Visible = 'on';
+
+            % Copy table content from PlannerMain to ApprovedTargetsApp
+            if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
+                app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
             end
         end
 
@@ -180,29 +190,28 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             end
         end
 
+        % =================================================================
+        %                           UI CALLBACKS
+        % =================================================================
 
-        function showApprovedTargetsWindow(obj, app)
-            % Show separate window with Approved Targets table
-            
-            app.msglog('showApprovedTargetsWindow');
+        function approvedTargetSelected(obj, app, Index)
+            % Handle approved target selection in table - Currently does NOTHING!!!
+            % Called from UITable callback
+
+            app.msglog(sprintf('approvedTargetSelected: %d', Index));
             if ~app.hasPlanner(), return; end
 
-            % Create and show ApprovedTargetsApp
-            if isempty(app.ApprovedTargetsApp) || ~isvalid(app.ApprovedTargetsApp)
-                app.ApprovedTargetsApp = ultrasat.planner.gui.ApprovedTargets(app.MainModule);
-            end
-            app.ApprovedTargetsApp.UIFigure.Visible = 'on';
-
-            % Copy table content from PlannerMain to ApprovedTargetsApp
-            if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)
-                app.GuiHelper.copyUITable(app.UITableApprovedTargets, app.ApprovedTargetsApp.UITable);
+            % Get the selected row as struct
+            Data = app.getSelectedTableRowAsStruct(app.MainModule.Planner.MissionApprovedPlan, Index);
+            if ~isempty(Data)
+                app.msglog(sprintf('approvedTargetSelected: %d - %s', Index, Data.Name));
             end
         end
 
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)

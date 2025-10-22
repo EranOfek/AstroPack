@@ -32,6 +32,9 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'PlanParamsHelper';
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function showPlanParamsWindow(obj, app)
             % Show window with Plan Parameters
@@ -58,6 +61,140 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             end
         end
 
+
+        function applyCheckTimes(obj, app, ParamsApp)
+            % Update Planner.CheckTimes with values from the edit fields
+
+            % Note: Called from applyPlanParams() above
+            % Note: REMOVED: Called from PlanParams.CheckTimesUpdateButtonPushed()
+            app.msglog('applyCheckTimes')
+            if ~app.hasPlanner(), return; end
+            if app.isReadOnlyMsg(), return; end
+
+            app.showPleaseWait('Updating CheckTimes, this may take a while. Please wait...');
+            try
+                Planner = app.MainModule.Planner;
+                StartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckStartTimeEditField.Value);
+                EndTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckEndTimeEditField.Value);
+
+                % Call adjustCheckTimes() only if values have been changed
+                if StartTime ~= Planner.CheckTimes(1) || EndTime ~= Planner.CheckTimes(2)
+                    Planner.adjustCheckTimes(StartTime, EndTime);
+                end
+            catch ME
+                app.msgex('applyCheckTimes', ME);
+            end
+            app.closePleaseWait();
+        end
+
+
+        function Result = checkPlanSelfConsistency(obj, app)
+            % Check plan for self consistency, update status display
+
+            app.msglog('checkPlan')
+            Result = false;
+            CheckStatus = false;
+            try
+                % Perform the check
+                if height(app.MainModule.Planner.Plan) > 0
+                    CheckStatus = app.MainModule.Planner.planSelfConsistencyCheck();
+                end
+
+                % Update display with status
+                if CheckStatus
+                    app.MainModule.setStatus('OK', 'self consistency: OK');
+                    Result = true;
+                else
+                    app.MainModule.setStatus('Error', 'self consistency: issues found');
+                end
+            catch ME
+                app.msgex('planSelfConsistencyCheck failed', ME);
+                app.MainModule.setStatus('Error', sprintf('self consistency: exception: %s', ME.message));
+            end
+        end
+
+        % =================================================================
+        %                         DISPLAY / UPDATE
+		% =================================================================
+
+        function showPlanHistory(obj, app)
+            % Show Plan History window
+
+            app.msglog('showPlanHistory');
+            if ~app.hasPlanner(), return; end
+
+            % Create app
+            if isempty(app.PlanHistoryApp) || ~isvalid(app.PlanHistoryApp)
+                app.PlanHistoryApp = ultrasat.planner.gui.PlanHistory(app.MainModule);
+            end
+
+            % Todo - set the table
+            try
+                History = app.MainModule.PlanData.history;
+                Data = struct2table(History, 'AsArray', true);
+                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+                app.PlanHistoryApp.UITable.Data = Data;
+                if ~isempty(Data)
+                    app.PlanHistoryApp.UITable.ColumnName = Data.Properties.VariableNames;
+                end
+
+                % Show the history window
+                app.showModal(app.PlanHistoryApp);
+            catch ME
+                app.msgex('showPlanHistory', ME);
+            end
+        end
+
+
+        function updatePlanParams(obj, app)
+            % Update fields in top panel of with window with values from Plan parameters
+
+            app.msglog('updatePlanParams');
+            if ~app.hasPlanner(), return; end
+
+            try
+                % Set fields
+                Planner = app.MainModule.Planner;
+                app.PlanTypeEditField.Value = Planner.Type;
+                app.UserNameEditField.Value = Planner.AstPlanner;
+                app.PlanPkEditField.Value = num2str(Planner.Pk);
+                app.PlanTitleEditField.Value = Planner.Title;
+                app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
+                app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+
+                % Set editability of fields based on read-only status
+                if app.isReadOnly()
+                    app.StartTimeEditField.Editable = "off";
+                    app.EndTimeEditField.Editable = "off";
+                    app.PlanTitleEditField.Editable = "off";
+                else
+                    app.StartTimeEditField.Editable = "on";
+                    app.EndTimeEditField.Editable = "on";
+                    app.PlanTitleEditField.Editable = "on";
+                end
+
+                % Show message if plan was already submitted and cannot be modified
+                if strcmp(Planner.Status, 'submitted')
+                    app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
+                else
+                    app.setTopLabel('', [], []);
+                end
+            catch ME
+                app.msgex('updatePlanParams failed', ME);
+            end
+        end
+
+    end
+
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                         UTILITY HELPERS
+        % =================================================================
 
         function setPlanParamsFields(obj, app, ParamsApp)
             % Set PlanParams app fields from current planner, called from showPlanParamsWindow
@@ -113,7 +250,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
                 ParamsApp.AllSkyGalacticLatThresholdEditField.Value = Planner.AllSSHighLatThresh;
 
-                
+
                 % @Yossi @Todo ??
                 ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
                 ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.HighLatVisits;
@@ -223,133 +360,6 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             end
         end
 
-
-        function applyCheckTimes(obj, app, ParamsApp)
-            % Update Planner.CheckTimes with values from the edit fields
-
-            % Note: Called from applyPlanParams() above
-            % Note: REMOVED: Called from PlanParams.CheckTimesUpdateButtonPushed()
-            app.msglog('applyCheckTimes')
-            if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
-
-            app.showPleaseWait('Updating CheckTimes, this may take a while. Please wait...');
-            try
-                Planner = app.MainModule.Planner;
-                StartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckStartTimeEditField.Value);
-                EndTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckEndTimeEditField.Value);
-
-                % Call adjustCheckTimes() only if values have been changed
-                if StartTime ~= Planner.CheckTimes(1) || EndTime ~= Planner.CheckTimes(2)
-                    Planner.adjustCheckTimes(StartTime, EndTime);
-                end
-            catch ME
-                app.msgex('applyCheckTimes', ME);
-            end
-            app.closePleaseWait();
-        end
-
-
-        function showPlanHistory(obj, app)
-            % Show Plan History window
-
-            app.msglog('showPlanHistory');
-            if ~app.hasPlanner(), return; end
-
-            % Create app
-            if isempty(app.PlanHistoryApp) || ~isvalid(app.PlanHistoryApp)
-                app.PlanHistoryApp = ultrasat.planner.gui.PlanHistory(app.MainModule);
-            end
-
-            % Todo - set the table
-            try
-                History = app.MainModule.PlanData.history;
-                Data = struct2table(History, 'AsArray', true);
-                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-                app.PlanHistoryApp.UITable.Data = Data;
-                if ~isempty(Data)
-                    app.PlanHistoryApp.UITable.ColumnName = Data.Properties.VariableNames;
-                end
-
-                % Show the history window
-                app.showModal(app.PlanHistoryApp);
-            catch ME
-                app.msgex('showPlanHistory', ME);
-            end
-        end
-
-
-        function updatePlanParams(obj, app)
-            % Update fields in top panel of with window with values from Plan parameters
-
-            app.msglog('updatePlanParams');
-            if ~app.hasPlanner(), return; end
-
-            try
-                % Set fields
-                Planner = app.MainModule.Planner;
-                app.PlanTypeEditField.Value = Planner.Type;
-                app.UserNameEditField.Value = Planner.AstPlanner;
-                app.PlanPkEditField.Value = num2str(Planner.Pk);
-                app.PlanTitleEditField.Value = Planner.Title;
-                app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
-                app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
-
-                % Set editability of fields based on read-only status
-                if app.isReadOnly()
-                    app.StartTimeEditField.Editable = "off";
-                    app.EndTimeEditField.Editable = "off";
-                    app.PlanTitleEditField.Editable = "off";
-                else
-                    app.StartTimeEditField.Editable = "on";
-                    app.EndTimeEditField.Editable = "on";
-                    app.PlanTitleEditField.Editable = "on";
-                end
-
-                % Show message if plan was already submitted and cannot be modified
-                if strcmp(Planner.Status, 'submitted')
-                    app.setTopLabel('The plan was submitted and cannot be modified.', [0.00,0.00,1.00], [1.00,1.00,0.07]);
-                else
-                    app.setTopLabel('', [], []);
-                end
-            catch ME
-                app.msgex('updatePlanParams failed', ME);
-            end
-        end
-
-
-        function Result = checkPlanSelfConsistency(obj, app)
-            % Check plan for self consistency, update status display
-
-            app.msglog('checkPlan')
-            Result = false;
-            CheckStatus = false;
-            try
-                % Perform the check
-                if height(app.MainModule.Planner.Plan) > 0
-                    CheckStatus = app.MainModule.Planner.planSelfConsistencyCheck();
-                end
-
-                % Update display with status
-                if CheckStatus
-                    app.MainModule.setStatus('OK', 'self consistency: OK');
-                    Result = true;
-                else
-                    app.MainModule.setStatus('Error', 'self consistency: issues found');
-                end
-            catch ME
-                app.msgex('planSelfConsistencyCheck failed', ME);
-                app.MainModule.setStatus('Error', sprintf('self consistency: exception: %s', ME.message));
-            end
-        end
-
-    end
-
-    % =====================================================================
-    %                           Helper Methods
-    % =====================================================================
-
-    methods (Access = private)
     end
 
 end

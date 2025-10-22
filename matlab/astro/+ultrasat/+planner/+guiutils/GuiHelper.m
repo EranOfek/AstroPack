@@ -80,19 +80,19 @@ classdef GuiHelper < ultrasat.api.Loggable
             EditField.Value = StatusText;
 
             % Logic for background color
-            Status = lower(string(Status));            
+            Status = lower(string(Status));
             if strcmp(Status, 'ok')
-                % Light gray-green for 'OK'
-                EditField.BackgroundColor = [0.8, 0.9, 0.8];
+                % Light green for 'OK'
+                EditField.BackgroundColor = [0.56,1.00,0.56];
             elseif strcmp(Status, 'warning')
                 % Light yellow for 'Warning'
-                EditField.BackgroundColor = [1.0, 1.0, 0.8];
+                EditField.BackgroundColor = [0.99,0.99,0.38];
             elseif ~isempty(Status)
                 % Light red for non-empty status that is not 'OK'
                 EditField.BackgroundColor = [1, 0.8, 0.8];
             else
                 % Light gray for empty status
-                EditField.BackgroundColor = [0.9, 0.9, 0.9];
+                EditField.BackgroundColor = [0.94,0.94,0.94];
             end
         end
 
@@ -569,7 +569,7 @@ classdef GuiHelper < ultrasat.api.Loggable
                 uiwait(FormApp.UIFigure);
             catch ME
                 app.msgex('showModal - uiwait', ME)
-            end                
+            end
 
             % Hide the app window and get its Status property
             if isvalid(FormApp)

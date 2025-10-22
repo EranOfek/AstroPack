@@ -32,6 +32,9 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'SessionHelper';
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function login(obj, app)
             % User login
@@ -54,14 +57,14 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
                 app.LoginApp = ultrasat.planner.gui.Login(app.MainModule);
             end
 
-            % Show the login dialog, it will call MainModule.login() 
+            % Show the login dialog, it will call MainModule.login()
             app.showModal(app.LoginApp);
 
             % Dialog was canceled or failed
             if isempty(app.MainModule.UserName)
                 app.msglog('Login canceled or failed.');
             end
-            
+
             obj.setLoginButtonStatus(app);
             obj.setButtons(app);
 
@@ -94,33 +97,6 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
 
 
-        function setLoginButtonStatus(obj, app)
-            % Connect button
-            if ~isempty(app.MainModule.UserName)
-                app.LoginButton.Text = 'Connected';
-                app.LoginButton.BackgroundColor = [0.00, 1.00, 0.00];  % Green
-                app.LabelTopUser.Text = app.MainModule.UserName;
-            else
-                app.LoginButton.Text = 'Login';
-                app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
-                app.LabelTopUser.Text = 'Please login';
-            end
-
-            % Namespace & Username
-            if ~isempty(app.MainModule)
-                % Set Namespace label colors
-                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
-                if strcmp(app.MainModule.NamespaceId, 'OPER')
-                    app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
-                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
-                else
-                    app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
-                    app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.07];
-                end
-            end
-        end
-
-
         function Result = isLogin(obj, app, varargin)
             % Return true is user is loggned in, show popup message if Args.Message is true
             Message = false;
@@ -149,10 +125,25 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         end
 
 
-        function setButtons(obj, app)
+        function exitPlanner(obj, app)
+            % Exit the planner GUI
+            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');
+            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to exit the planner application?', 'Confirmation'), 'Yes')
+                return;
+            end
+
+            % Shut down the entire app
+            app.delete();
+        end
+
+        % =================================================================
+        %                         DISPLAY / UPDATE
+		% =================================================================
+
+       function setButtons(obj, app)
             % Enable/disable buttons and menu options based on current login status.
 
-            enable = app.isLogin(app);
+            enable = obj.isLogin(app);
 
             % Apply to buttons
             %app.OpenButton.Enable = enable;
@@ -169,6 +160,33 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.DuplicateMenu.Enable = app.hasPlanner();
             app.ValidateMenu.Enable = enable && app.hasPlanner();
             app.SubmitMenu.Enable = enable && app.hasPlanner();
+       end
+
+
+        function setLoginButtonStatus(obj, app)
+            % Connect button
+            if ~isempty(app.MainModule.UserName)
+                app.LoginButton.Text = 'Connected';
+                app.LoginButton.BackgroundColor = [0.95,1.00,0.95];  % Green
+                app.LabelTopUser.Text = app.MainModule.UserName;
+            else
+                app.LoginButton.Text = 'Login';
+                app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
+                app.LabelTopUser.Text = 'Please login';
+            end
+
+            % Namespace & Username
+            if ~isempty(app.MainModule)
+                % Set Namespace label colors
+                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
+                if strcmp(app.MainModule.NamespaceId, 'OPER')
+                    app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
+                    app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
+                else
+                    app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
+                    app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.55];
+                end
+            end
         end
 
 
@@ -199,26 +217,19 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.ErrorLogApp.UIFigure.Visible = 'on';
         end
 
-
-        function exitPlanner(obj, app)
-            % Exit the planner GUI
-            %answer = questdlg('Are you sure you want to exit the Observaion Planner?', 'Confirm exit', 'Yes', 'No', 'No');
-            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to exit the planner application?', 'Confirmation'), 'Yes')
-                return;
-            end
-
-            % Shut down the entire app
-            app.delete();
-        end
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)
+
+        % =================================================================
+        %                           HELPERS
+        % =================================================================
+
+
     end
 
-    
 end
-

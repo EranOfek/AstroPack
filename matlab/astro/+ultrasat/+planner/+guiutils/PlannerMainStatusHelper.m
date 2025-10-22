@@ -33,8 +33,12 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
         end
 
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
+
         function applyPlanStatus(obj, app)
-            % 
+            %
 
             if app.hasPlanner()
                 PlanData = app.MainModule.PlanData;
@@ -204,7 +208,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
     end
 
     % =====================================================================
-    %                           Helper Methods
+    %                           PRIVATE METHODS
     % =====================================================================
 
     methods (Access = private)

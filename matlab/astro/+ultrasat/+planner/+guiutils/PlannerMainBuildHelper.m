@@ -9,6 +9,7 @@
 
 classdef PlannerMainBuildHelper < ultrasat.api.Loggable
     % Helper class for PlannerMain.mlapp
+    % Provides build logic (HCS/LCS/DDT/TOO/AllSS) for PlannerMain.mlapp.
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
     % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
@@ -32,6 +33,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'BuildHelper';
         end
 
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
 
         function build(obj, app)
             % Build plan according to plan type, calls doBuild...() below
@@ -64,7 +68,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     case 'AllSS', obj.doBuildAllSS(app);
                     otherwise,   app.msglog(sprintf('build: Unknown PlanType "%s"', PlanType));
                 end
-             
+
                 % Set AfterBuild=true for all plan types except DDT
                 if ~strcmp(PlanType, 'DDT') && ~isempty(app.MainModule.Planner.Plan)
                     app.MainModule.AfterBuild = true;
@@ -80,10 +84,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Update display
             app.setModified('build');
             app.updateStatus();
-            app.showPlanTargets();
+            app.PlanTargetsHelper.showPlanTargets(app);
             app.addHistory('Build completed');
         end
 
+        % =================================================================
+        %                         DISPLAY / UPDATE
+		% =================================================================
 
         function setBuildStatus(obj, app, Status)
             % Set build status in PlanData
@@ -92,10 +99,42 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.msglog('Warning: setBuildStatus called before PlanData initialized.');
                 return;
             end
-            
+
             app.MainModule.PlanData.setStatus('BuildStatus', Status);
         end
 
+
+        function showBuildStatusWindow(obj, app)
+            % Show window with last build status
+            app.msglog('showBuildStatusWindow');
+            if ~app.hasPlanner(), return; end
+
+            % Create app
+            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
+                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
+            end
+
+            % Set fields and show the app
+            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
+
+            % If you plan to add fields to BuildStatusApp, consider:
+            % so the modal always displays latest info.
+            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
+
+            app.showModal(app.BuildStatusApp);
+        end
+
+    end
+
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                     BUILD HELPERS BY PLAN TYPE
+        % =================================================================
 
         function doBuildHCS(obj, app)
             % Build HCS
@@ -112,7 +151,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             upHCS = app.MainModule.Planner;
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
             app.addHistory('BuildHCS Ok');
-            obj.setBuildStatus('OK');
+            obj.setBuildStatus(app, 'OK');
             app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
@@ -133,11 +172,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 app.AppUtils.msgError('No targets selected for LCS build.');
                 return;
             end
-            
+
             upLCS.buildLCS('TargetList', SelectedRows);
 
             app.addHistory('BuildLCS Ok');
-            obj.setBuildStatus('OK');
+            obj.setBuildStatus(app, 'OK');
             app.msglog('doBuildLCS done');
         end
 
@@ -236,27 +275,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.msglog('doBuildAllSS done');
         end
 
-
-        function showBuildStatusWindow(obj, app)
-            % Show window with last build status
-            app.msglog('showBuildStatusWindow');
-            if ~app.hasPlanner(), return; end
-
-            % Create app
-            if isempty(app.BuildStatusApp) || ~isvalid(app.BuildStatusApp)
-                app.BuildStatusApp = ultrasat.planner.gui.BuildStatus(app.MainModule);
-            end
-
-            % Set fields and show the app
-            %app.BuildStatusApp.setData(app.MainModule.BuildStatus);
-
-            % If you plan to add fields to BuildStatusApp, consider:
-            % so the modal always displays latest info.
-            % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
-
-            app.showModal(app.BuildStatusApp);
-        end
-
+        % =================================================================
+        %                         UTILITY FUNCTIONS
+        % =================================================================
 
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
             % Returns the row indices sorted by 'Order' column.
@@ -347,12 +368,4 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
     end
-
-    % =====================================================================
-    %                           Helper Methods
-    % =====================================================================
-
-    methods (Access = private)
-    end
-
 end
