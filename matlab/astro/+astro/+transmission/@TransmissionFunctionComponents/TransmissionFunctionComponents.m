@@ -14,7 +14,7 @@ classdef TransmissionFunctionComponents < handle
     %   Model.getOptimizationInfo();
 
     properties 
-g        ParameterRegistry  % Central parameter definitions {name, defaultValue, functions}
+        ParameterRegistry  % Central parameter definitions {name, defaultValue, functions}
         CurrentDefaults    % Current default values (can be modified)
         Components         % Added components {funHandle, paramMatrix, options}
         ParamMapping       % Maps fitted parameters to components
