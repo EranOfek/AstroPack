@@ -47,6 +47,33 @@
 %   % collect all visible fields during some night:
 %   JD = 2451545; FracDay=(0.01:0.01:1); Nfd= numel(FracDay);
 %   Flag=false(1784,1);for Ifd=1:Nfd, Fnow=S.isVisible(JD+FracDay(Ifd)); Flag=Flag | Fnow; end
+%
+%   Setting fields:
+%{ 
+   S=telescope.Scheduler;
+   S.generateRegularGrid;
+   [~,MinHA1,MaxHA1,F]=S.setMinMaxHA1(40,2.5./24);
+   NightlyCadence = (abs(MinHA1).*2.*24 - 1)./3;
+   NightlyCadence(isnan(NightlyCadence)) = 1;
+   S.List.Catalog.MinAlt       = 40.*ones(S.Ntarget,1);
+   S.List.Catalog.NightCadence = NightlyCadence;
+   S.List.Catalog.NightCadenceRiseTime = 0.001.*ones(S.Ntarget,1);
+   S.List.Catalog.MaxNightN    = 3.*ones(S.Ntarget,1);
+   S.List.Catalog.MinHA1       = MinHA1;
+   S.List.Catalog.MaxHA1       = MaxHA1;
+   Flux=readtable('lastID_flux.csv');
+   FluxA = zeros(S.Ntarget,1);
+   FluxA(Flux.ID) = Flux.Bfluxtot;
+   Fgal = abs(S.GalLat)>30;
+   Fdec = S.Dec<-40;
+   Fsel1 = FluxA>0.2;
+   Fsel2 = FluxA>1;
+   S.List.Catalog.BasePriority(Fgal)  = S.List.Catalog.BasePriority(Fgal)+0.05;
+   S.List.Catalog.BasePriority(Fsel1) = S.List.Catalog.BasePriority(Fsel1)+0.05;
+   S.List.Catalog.BasePriority(Fsel2) = S.List.Catalog.BasePriority(Fsel2)+0.05;
+   S.List.Catalog.BasePriority(Fdec)  = 0;
+%}
+
 
 
 
@@ -2395,7 +2422,7 @@ classdef Scheduler < Component
                 Args.MountNum     = [];
                 Args.SelectMethod = 'minam'; %'mindist'; %'westward';
                 Args.IndPrev      = [];
-                Args.UseDistW     = false;
+                Args.UseDistW     = true;
             end
             RAD = 180./pi;
             
@@ -2406,7 +2433,7 @@ classdef Scheduler < Component
             W   = Obj.weight(JD);
             if Args.UseDistW
                 [~, PrevRA, PrevDec] = Obj.getPrevTarget(Args.MountNum);
-                if ~isempty(PrevRA) & ~isempty(PrevDec)
+                if ~isempty(PrevRA) && ~isempty(PrevDec)
                     WeightD = Obj.weightDist(PrevRA, PrevDec);
                     W       = W.*WeightD;
                 end
@@ -2609,7 +2636,7 @@ classdef Scheduler < Component
            
             arguments
                 Obj
-                Args.Init logical  = true;
+                Args.Init logical  = false;
                 Args.StartJD    = 2451545.0;
                 Args.StopJD     = 2451545.0+10;
                 Args.TimeStep   = 440./86400;
