@@ -43,7 +43,7 @@ function [Yi,SPoly,H,X0] = interp_diff(X, Y, Xi, Deg, Check)
         X = (1:N).';
     end
     if Check
-        if any(diff(X,2)~=0) || X(2)<=X(1)
+        if any(diff(X,1)==0) || X(2)<=X(1)
             error('X must be strictly ascending and equally spaced.');
         end
     end
