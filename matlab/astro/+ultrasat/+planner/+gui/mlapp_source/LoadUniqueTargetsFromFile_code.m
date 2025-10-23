@@ -139,7 +139,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.OKButton = uibutton(app.Panel, 'push');
             app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @OKButtonPushed, true);
             app.OKButton.FontWeight = 'bold';
-            app.OKButton.FontColor = [0 0.4471 0.7412];
+            app.OKButton.FontColor = [0 0 1];
             app.OKButton.Position = [345 9 85 39];
             app.OKButton.Text = 'OK';
 
@@ -177,7 +177,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.EnterfilenametoloadfromorpastetextbelowLabel = uilabel(app.UIFigure);
             app.EnterfilenametoloadfromorpastetextbelowLabel.FontWeight = 'bold';
             app.EnterfilenametoloadfromorpastetextbelowLabel.FontColor = [0 0 1];
-            app.EnterfilenametoloadfromorpastetextbelowLabel.Position = [19 642 546 22];
+            app.EnterfilenametoloadfromorpastetextbelowLabel.Position = [32 642 546 22];
             app.EnterfilenametoloadfromorpastetextbelowLabel.Text = 'Enter file name to load from, or paste text below, with the same format as the example below.';
 
             % Create Label
@@ -210,7 +210,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontWeight = 'bold';
             app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontColor = [0 0 1];
             app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Position = [87 75 816 22];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = 'MATLAB''s readtable() function expects uniform data types within each column, and it might misinterpret the file structure.';
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ' MATLAB''s readtable() function expects uniform data types within each column, and it might misinterpret the file structure.';
 
             % Create LoadButton
             app.LoadButton = uibutton(app.UIFigure, 'push');

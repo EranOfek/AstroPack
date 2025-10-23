@@ -55,7 +55,7 @@ classdef ApprovedTargets < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
-            app.Panel_2.BackgroundColor = [0.8588 0.9294 0.7608];
+            app.Panel_2.BackgroundColor = [0.851 0.9216 0.851];
             app.Panel_2.Position = [14 582 1065 30];
 
             % Create ApprovedTargetsLabel
@@ -63,7 +63,7 @@ classdef ApprovedTargets < matlab.apps.AppBase
             app.ApprovedTargetsLabel.HorizontalAlignment = 'center';
             app.ApprovedTargetsLabel.FontSize = 18;
             app.ApprovedTargetsLabel.FontWeight = 'bold';
-            app.ApprovedTargetsLabel.Position = [8 5 1049 24];
+            app.ApprovedTargetsLabel.Position = [8 5 1035 24];
             app.ApprovedTargetsLabel.Text = 'Approved Targets';
 
             % Create Panel_4

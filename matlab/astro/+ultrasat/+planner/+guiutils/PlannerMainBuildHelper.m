@@ -286,6 +286,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
 
             try
+                if isempty(Data)
+                    Result = 0;
+                    return;
+                end
+
                 % If only one row in the table, return index 1
                 if height(Data) == 1
                     Result = 1;

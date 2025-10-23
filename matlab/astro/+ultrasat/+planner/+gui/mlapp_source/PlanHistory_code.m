@@ -6,6 +6,7 @@ classdef PlanHistory < matlab.apps.AppBase
         Panel_4              matlab.ui.container.Panel
         UITable              matlab.ui.control.Table
         Panel_2              matlab.ui.container.Panel
+        HelpButton           matlab.ui.control.Button
         PlanHistoryLogLabel  matlab.ui.control.Label
     end
 
@@ -40,9 +41,14 @@ classdef PlanHistory < matlab.apps.AppBase
 
         end
 
-        % Callback function: not associated with a component
+        % Callback function
         function UITableSelectionChanged(app, event)
            
+        end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('plan_history');
         end
     end
 
@@ -70,6 +76,13 @@ classdef PlanHistory < matlab.apps.AppBase
             app.PlanHistoryLogLabel.FontWeight = 'bold';
             app.PlanHistoryLogLabel.Position = [8 1 802 33];
             app.PlanHistoryLogLabel.Text = 'Plan History & Log';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [728 3 64 27];
+            app.HelpButton.Text = 'Help';
 
             % Create Panel_4
             app.Panel_4 = uipanel(app.UIFigure);

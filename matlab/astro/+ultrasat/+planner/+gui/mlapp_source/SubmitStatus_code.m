@@ -5,9 +5,6 @@ classdef SubmitStatus < matlab.apps.AppBase
         UIFigure           matlab.ui.Figure
         Panel_2            matlab.ui.container.Panel
         SubmitStatusLabel  matlab.ui.control.Label
-        Panel              matlab.ui.container.Panel
-        CancelButton       matlab.ui.control.Button
-        SubmitButton       matlab.ui.control.Button
     end
 
     
@@ -24,18 +21,6 @@ classdef SubmitStatus < matlab.apps.AppBase
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
         end
-
-        % Button pushed function: SubmitButton
-        function SubmitButtonPushed(app, event)
-            app.Status = 'Submit';
-            uiresume(app.UIFigure);                        
-        end
-
-        % Button pushed function: CancelButton
-        function CancelButtonPushed(app, event)
-            app.Status = 'Cancel';
-            uiresume(app.UIFigure);                        
-        end
     end
 
     % Component initialization
@@ -46,32 +31,13 @@ classdef SubmitStatus < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Position = [100 100 624 479];
             app.UIFigure.Name = 'MATLAB App';
-
-            % Create Panel
-            app.Panel = uipanel(app.UIFigure);
-            app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [15 11 603 57];
-
-            % Create SubmitButton
-            app.SubmitButton = uibutton(app.Panel, 'push');
-            app.SubmitButton.ButtonPushedFcn = createCallbackFcn(app, @SubmitButtonPushed, true);
-            app.SubmitButton.FontWeight = 'bold';
-            app.SubmitButton.FontColor = [0 0.4471 0.7412];
-            app.SubmitButton.Position = [186 8 85 39];
-            app.SubmitButton.Text = 'Submit';
-
-            % Create CancelButton
-            app.CancelButton = uibutton(app.Panel, 'push');
-            app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [321 8 85 39];
-            app.CancelButton.Text = 'Cancel';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [15 435 599 37];
+            app.Panel_2.Position = [15 434 599 37];
 
             % Create SubmitStatusLabel
             app.SubmitStatusLabel = uilabel(app.Panel_2);

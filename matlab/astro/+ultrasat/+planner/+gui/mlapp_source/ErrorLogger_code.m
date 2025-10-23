@@ -7,6 +7,7 @@ classdef ErrorLogger < matlab.apps.AppBase
         TextArea        matlab.ui.control.TextArea
         Label           matlab.ui.control.Label
         Panel_2         matlab.ui.container.Panel
+        HelpButton      matlab.ui.control.Button
         ClearLogButton  matlab.ui.control.Button
         ObservationPlannerErrorsExceptionsLabel  matlab.ui.control.Label
     end
@@ -75,6 +76,11 @@ classdef ErrorLogger < matlab.apps.AppBase
             app.TextArea.Value = '';
             drawnow;  % ensures the UI updates immediately
         end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('error_log');
+        end
     end
 
     % Component initialization
@@ -109,6 +115,13 @@ classdef ErrorLogger < matlab.apps.AppBase
             app.ClearLogButton.Tooltip = {'Edit the selected target'};
             app.ClearLogButton.Position = [8 3 101 29];
             app.ClearLogButton.Text = 'Clear Log';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [836 4 64 26];
+            app.HelpButton.Text = 'Help';
 
             % Create Panel_3
             app.Panel_3 = uipanel(app.UIFigure);

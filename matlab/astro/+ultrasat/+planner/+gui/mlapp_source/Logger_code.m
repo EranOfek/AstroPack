@@ -91,7 +91,7 @@ classdef Logger < matlab.apps.AppBase
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
-            app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
+            app.Panel_2.BackgroundColor = [0.6706 0.902 1];
             app.Panel_2.Position = [7 562 925 36];
 
             % Create ObservationPlannerLogLabel
@@ -99,7 +99,7 @@ classdef Logger < matlab.apps.AppBase
             app.ObservationPlannerLogLabel.HorizontalAlignment = 'center';
             app.ObservationPlannerLogLabel.FontSize = 18;
             app.ObservationPlannerLogLabel.FontWeight = 'bold';
-            app.ObservationPlannerLogLabel.Position = [9 0 914 33];
+            app.ObservationPlannerLogLabel.Position = [9 0 893 33];
             app.ObservationPlannerLogLabel.Text = 'Observation Planner - Log';
 
             % Create ClearLogButton

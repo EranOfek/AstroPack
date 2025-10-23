@@ -145,7 +145,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             % User is not connected to server, suggest saving to local file
             if ~app.SessionHelper.isLogin(app)
                 if strcmp(app.AppUtils.askYesNo('You are not connected to the ULTRASAT DB, would you like to save to local file?', 'Save'), 'Yes')
-                    app.savePlanToFile();
+                    obj.savePlanToFile(app);
                 end
                 return;
             end

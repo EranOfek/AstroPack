@@ -60,7 +60,7 @@ classdef UniqueTargets < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
-            app.Panel_2.BackgroundColor = [0.9294 0.851 0.9804];
+            app.Panel_2.BackgroundColor = [0.8 0.749 0.851];
             app.Panel_2.Position = [14 599 1148 30];
 
             % Create UniqueTargetsLabel

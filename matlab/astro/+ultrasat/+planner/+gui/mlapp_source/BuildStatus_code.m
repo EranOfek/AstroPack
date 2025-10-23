@@ -16,9 +16,8 @@ classdef BuildStatus < matlab.apps.AppBase
         StartedEditField       matlab.ui.control.EditField
         StartedEditFieldLabel  matlab.ui.control.Label
         Panel_2                matlab.ui.container.Panel
+        HelpButton             matlab.ui.control.Button
         BuildStatusLabel       matlab.ui.control.Label
-        Panel                  matlab.ui.container.Panel
-        OKButton               matlab.ui.control.Button
     end
 
     
@@ -45,18 +44,9 @@ classdef BuildStatus < matlab.apps.AppBase
             app.MainModule = MainModule;
         end
 
-        % Button pushed function: OKButton
-        function OKButtonPushed(app, event)
-            app.Status = 'Cancel';
-            uiresume(app.UIFigure);
-        end
-
-        % Callback function
-        function ValidateButtonPushed(app, event)
-            
-            app.MainModule
-
-            %uiresume(app.UIFigure);            
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('build_status');
         end
     end
 
@@ -68,19 +58,8 @@ classdef BuildStatus < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 640 585];
+            app.UIFigure.Position = [100 100 641 526];
             app.UIFigure.Name = 'MATLAB App';
-
-            % Create Panel
-            app.Panel = uipanel(app.UIFigure);
-            app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [17 8 603 57];
-
-            % Create OKButton
-            app.OKButton = uibutton(app.Panel, 'push');
-            app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @OKButtonPushed, true);
-            app.OKButton.Position = [260 9 85 39];
-            app.OKButton.Text = 'OK';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
@@ -88,7 +67,7 @@ classdef BuildStatus < matlab.apps.AppBase
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
             app.Panel_2.FontWeight = 'bold';
             app.Panel_2.FontSize = 14;
-            app.Panel_2.Position = [8 544 625 33];
+            app.Panel_2.Position = [8 485 625 33];
 
             % Create BuildStatusLabel
             app.BuildStatusLabel = uilabel(app.Panel_2);
@@ -98,10 +77,17 @@ classdef BuildStatus < matlab.apps.AppBase
             app.BuildStatusLabel.Position = [8 5 606 22];
             app.BuildStatusLabel.Text = 'Build Status';
 
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [538 2 64 28];
+            app.HelpButton.Text = 'Help';
+
             % Create StatusPanel
             app.StatusPanel = uipanel(app.UIFigure);
             app.StatusPanel.Title = 'Status';
-            app.StatusPanel.Position = [11 392 619 142];
+            app.StatusPanel.Position = [11 333 619 142];
 
             % Create StartedEditFieldLabel
             app.StartedEditFieldLabel = uilabel(app.StatusPanel);
@@ -112,33 +98,33 @@ classdef BuildStatus < matlab.apps.AppBase
             % Create StartedEditField
             app.StartedEditField = uieditfield(app.StatusPanel, 'text');
             app.StartedEditField.Editable = 'off';
-            app.StartedEditField.Position = [79 85 174 22];
+            app.StartedEditField.Position = [81 85 174 22];
 
             % Create ElapsedEditFieldLabel
             app.ElapsedEditFieldLabel = uilabel(app.StatusPanel);
             app.ElapsedEditFieldLabel.HorizontalAlignment = 'right';
-            app.ElapsedEditFieldLabel.Position = [21 54 48 22];
+            app.ElapsedEditFieldLabel.Position = [17 48 48 22];
             app.ElapsedEditFieldLabel.Text = 'Elapsed';
 
             % Create ElapsedEditField
             app.ElapsedEditField = uieditfield(app.StatusPanel, 'text');
             app.ElapsedEditField.Editable = 'off';
-            app.ElapsedEditField.Position = [84 54 174 22];
+            app.ElapsedEditField.Position = [80 48 174 22];
 
             % Create StatusEditFieldLabel
             app.StatusEditFieldLabel = uilabel(app.StatusPanel);
             app.StatusEditFieldLabel.HorizontalAlignment = 'right';
-            app.StatusEditFieldLabel.Position = [31 13 39 22];
+            app.StatusEditFieldLabel.Position = [24 13 39 22];
             app.StatusEditFieldLabel.Text = 'Status';
 
             % Create StatusEditField
             app.StatusEditField = uieditfield(app.StatusPanel, 'text');
             app.StatusEditField.Editable = 'off';
-            app.StatusEditField.Position = [85 13 174 22];
+            app.StatusEditField.Position = [80 13 174 22];
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.UIFigure);
-            app.TabGroup.Position = [12 64 621 317];
+            app.TabGroup.Position = [12 14 621 308];
 
             % Create ValidationHTMLTab
             app.ValidationHTMLTab = uitab(app.TabGroup);
@@ -146,7 +132,7 @@ classdef BuildStatus < matlab.apps.AppBase
 
             % Create StatuHTML
             app.StatuHTML = uihtml(app.ValidationHTMLTab);
-            app.StatuHTML.Position = [13 12 597 269];
+            app.StatuHTML.Position = [13 13 597 259];
 
             % Create StatusTextTab
             app.StatusTextTab = uitab(app.TabGroup);
@@ -154,7 +140,7 @@ classdef BuildStatus < matlab.apps.AppBase
 
             % Create StatusTextArea
             app.StatusTextArea = uitextarea(app.StatusTextTab);
-            app.StatusTextArea.Position = [14 12 596 269];
+            app.StatusTextArea.Position = [14 3 596 269];
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

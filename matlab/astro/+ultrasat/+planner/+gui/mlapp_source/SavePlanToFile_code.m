@@ -114,14 +114,14 @@ classdef SavePlanToFile < matlab.apps.AppBase
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
-            app.SaveButton.FontColor = [0 0.4471 0.7412];
-            app.SaveButton.Position = [160 6 85 39];
+            app.SaveButton.FontColor = [0 0 1];
+            app.SaveButton.Position = [193 6 85 39];
             app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [325 6 85 39];
+            app.CancelButton.Position = [303 6 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create Panel_2

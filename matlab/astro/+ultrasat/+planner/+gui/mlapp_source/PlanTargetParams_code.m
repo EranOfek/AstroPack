@@ -191,22 +191,20 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
-            app.SaveButton.FontColor = [0 0.4471 0.7412];
+            app.SaveButton.FontColor = [0 0 1];
             app.SaveButton.Position = [394 9 85 39];
             app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [543 9 85 39];
+            app.CancelButton.Position = [507 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create EditButton
             app.EditButton = uibutton(app.Panel, 'push');
             app.EditButton.ButtonPushedFcn = createCallbackFcn(app, @EditButtonPushed, true);
-            app.EditButton.FontWeight = 'bold';
-            app.EditButton.FontColor = [0 0.4471 0.7412];
-            app.EditButton.Position = [244 9 85 39];
+            app.EditButton.Position = [276 9 85 39];
             app.EditButton.Text = 'Edit';
 
             % Create Panel_2

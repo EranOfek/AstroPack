@@ -144,7 +144,7 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
             app.OKButton = uibutton(app.Panel, 'push');
             app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.OKButton.FontWeight = 'bold';
-            app.OKButton.FontColor = [0 0.4471 0.7412];
+            app.OKButton.FontColor = [0 0 1];
             app.OKButton.Position = [107 9 85 39];
             app.OKButton.Text = 'OK';
 
@@ -231,8 +231,9 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
 
             % Create Label
             app.Label = uilabel(app.UIFigure);
+            app.Label.FontWeight = 'bold';
             app.Label.FontColor = [0 0 1];
-            app.Label.Position = [19 275 402 22];
+            app.Label.Position = [19 276 434 22];
             app.Label.Text = 'When selecting All Groups, only Relative and Shift options are applicable.';
 
             % Show the figure after all components are created

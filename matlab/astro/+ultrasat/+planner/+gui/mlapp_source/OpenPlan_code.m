@@ -193,7 +193,7 @@ classdef OpenPlan < matlab.apps.AppBase
             app.OpenButton = uibutton(app.Panel, 'push');
             app.OpenButton.ButtonPushedFcn = createCallbackFcn(app, @OpenButtonPushed, true);
             app.OpenButton.FontWeight = 'bold';
-            app.OpenButton.FontColor = [0 0.4471 0.7412];
+            app.OpenButton.FontColor = [0 0 1];
             app.OpenButton.Position = [355 9 85 39];
             app.OpenButton.Text = 'Open';
 

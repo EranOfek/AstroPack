@@ -73,6 +73,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             app.msglog('clearApprovedTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.MissionApprovedPlan) == 0, return; end
 
             % Ask user confirmation
             if ~strcmp(app.AppUtils.askYesNo('Clear all approved targets?', 'Confirm'), 'Yes')

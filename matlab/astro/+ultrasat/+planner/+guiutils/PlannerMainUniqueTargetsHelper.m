@@ -269,8 +269,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         function clearUniqueTargets(obj, app)
             % CLEAR ALL Unique-Targets with clearUniqueTargets()
+            app.msglog('clearUniqueTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.UniqTarg) == 0, return; end
 
             % Ask user to confirm, should we ask again???
             if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to delete ALL UNIQUE TARGETS ???', 'Delete all unique targets'), 'Yes')
@@ -434,7 +436,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 app.GraphPlotUniqueTargetDropDown.Value = Value;
 
                 % Plot the graphs of this unique target
-                app.plotGraphs();
+                app.PlotHelper.plotGraphs(app);
             catch ME
                 app.msgex('uniqueTargetDoubleClick', ME)
             end

@@ -51,6 +51,7 @@ classdef PlannerMain < matlab.apps.AppBase
         LogsHelpMenu                    matlab.ui.container.Menu
         AboutMenu                       matlab.ui.container.Menu
         PanelTopHeader                  matlab.ui.container.Panel
+        ConnectionStatusEditField       matlab.ui.control.EditField
         LabelTopTime                    matlab.ui.control.Label
         LabelTopUser                    matlab.ui.control.Label
         LabelTopNamespace               matlab.ui.control.Label
@@ -145,12 +146,10 @@ classdef PlannerMain < matlab.apps.AppBase
         UITableUniqueTargets            matlab.ui.control.Table
         PanelToolbar                    matlab.ui.container.Panel
         HelpButton                      matlab.ui.control.Button
-        GDriveCommentsButton            matlab.ui.control.Button
+        QACommentsButton                matlab.ui.control.Button
         RetractButton                   matlab.ui.control.Button
         DuplicateButton                 matlab.ui.control.Button
         ModifiedLabel                   matlab.ui.control.Label
-        ConnectionStatusEditField       matlab.ui.control.EditField
-        ConnectionStatusEditFieldLabel  matlab.ui.control.Label
         SNRCalcButton                   matlab.ui.control.Button
         LoginButton                     matlab.ui.control.Button
         ParamsButton                    matlab.ui.control.Button
@@ -221,6 +220,7 @@ classdef PlannerMain < matlab.apps.AppBase
         GuiHelper                               % = MainModule.GuiHelper
 
         % PlannerMain helpers
+        AppHelper                               % PlannerMainAppHelper                
         ApprovedTargetsHelper                   % PlannerMainApprovedTargetsHelper        
         BuildHelper                             % PlannerMainBuildHelper
         NewPlanHelper                           % PlannerMainNewPlanHelper        
@@ -273,6 +273,7 @@ classdef PlannerMain < matlab.apps.AppBase
             ultrasat.api.LogManager.registerLoggerApps(app.LoggerApp, app.ErrorLoggerApp);
 
             % Create helpers classes
+            app.AppHelper               = ultrasat.planner.guiutils.PlannerMainAppHelper();            
             app.ApprovedTargetsHelper   = ultrasat.planner.guiutils.PlannerMainApprovedTargetsHelper();
             app.BuildHelper             = ultrasat.planner.guiutils.PlannerMainBuildHelper();
             app.NewPlanHelper           = ultrasat.planner.guiutils.PlannerMainNewPlanHelper();
@@ -290,8 +291,8 @@ classdef PlannerMain < matlab.apps.AppBase
             start(app.TimerSec);
 
             % Set initial state for buttons and menus
-            app.SessionHelper.setLoginButtonStatus();
-            app.SessionHelper.setButtons();
+            app.SessionHelper.setLoginButtonStatus(app);
+            app.SessionHelper.setButtons(app);
 
             app.msglog('init done');
         end
@@ -329,11 +330,11 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanParamsHelper.updatePlanParams(app);
             app.UniqueTargetsHelper.showUniqueTargets(app);
             app.PlanTargetsHelper.showPlanTargets(app);
-            app.ApprovedTargetsHelper.showApprovedTargetsWindow(app);
+            app.ApprovedTargetsHelper.showApprovedTargets(app);
 
             % Clear plots
             if ~app.hasPlanner()
-                app.PlotHelper.clearPlots();
+                app.PlotHelper.clearPlots(app);
             end
         end        
     end
@@ -354,7 +355,8 @@ classdef PlannerMain < matlab.apps.AppBase
         function showHelp(app, item)
             % Open website in browser window, use system default browser (-browser)
             if isempty(item)
-                web('https://docs.google.com/document/d/e/2PACX-1vTQKjJmBjzmcSXwaIRsq3FviYYpsW-Of7fewwcavCErBG7Pg589j3viLrUmNIr-NM-EfRWfQI4n0PdE/pub', '-browser');
+                web('http://socsrv/soc/data/help/planner/planner.html', '-browser');
+                %web('https://docs.google.com/document/d/e/2PACX-1vTQKjJmBjzmcSXwaIRsq3FviYYpsW-Of7fewwcavCErBG7Pg589j3viLrUmNIr-NM-EfRWfQI4n0PdE/pub', '-browser');
             else
                 item = ['http://socsrv/soc/data/help/planner/', item, '.html'];
                 web(item, '-browser');
@@ -516,19 +518,19 @@ classdef PlannerMain < matlab.apps.AppBase
         end        
 
         function debugSave(app, FileName, Obj)
-            % Helper: Save the specified Obj to file in DebugPath
+            % Save the specified Obj to file in DebugPath
             FileName = fullfile(app.MainModule.DebugPath, FileName);
             app.msglog(sprintf('debugSave: %s', FileName));
             save(FileName, 'Obj')
         end
 
         function showPleaseWait(app, Message)
-            % Helper: Shows a spinner popup with 'Please Wait' message
+            % Shows a spinner popup with 'Please Wait' message
             app.PleaseWaitDlg = uiprogressdlg(app.UIFigure, 'Title', 'Please wait', 'Message', Message, 'Indeterminate', 'on');  
         end
 
         function closePleaseWait(app)
-            % Helper: Close the Please Wait popup message
+            % Close the Please Wait popup message
             if ~isempty(app.PleaseWaitDlg)
                 close(app.PleaseWaitDlg);
                 app.PleaseWaitDlg = [];
@@ -543,8 +545,17 @@ classdef PlannerMain < matlab.apps.AppBase
             end
         end
 
+        function result = hasPlannerMsg(app)
+            % Helper: Return true if there is active planner object
+            result = ~isempty(app.MainModule.Planner);
+            if ~result
+                app.MainModule.AppUtils.msgOk('No observation plan is currently open. Please open or create a plan first.', 'No Active Plan');
+                %app.msglog('hasPlanner: None');
+            end
+        end        
+
         function result = hasPlan(app)
-            % Helper: Return true if there is active planner object and
+            % Return true if there is active planner object and
             % plan targets list is not empty.
             result = ~isempty(app.MainModule.Planner) && (height(app.MainModule.Planner.Plan) > 0);
             if ~result
@@ -595,11 +606,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.NewPlanHelper.createNewPlan(app);
         end
 
-        % Callback function
-        function UniqueButtonPushed(app, event)
-
-        end
-
         % Menu selected function: ConnectLoginMenu
         function ConnectLoginMenuSelected(app, event)
             app.SessionHelper.login(app);
@@ -607,7 +613,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Menu selected function: DisconnectLogoutMenu
         function DisconnectLogoutMenuSelected(app, event)
-            app.SessopmHelper.logout(app);
+            app.SessionHelper.logout(app);
         end
 
         % Callback function
@@ -650,21 +656,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.SubmitHelper.submit(app);
         end
 
-        % Size changed function: ApprovedTargetsPanel
-        function ApprovedTargetsPanelSizeChanged(app, event)
-
-        end
-
-        % Size changed function: PlanPanel
-        function PlanPanelSizeChanged(app, event)
-
-        end
-
-        % Size changed function: UniqueTargetsPanel
-        function UniqueTargetsPanelSizeChanged(app, event)
-
-        end
-
         % Callback function
         function SkyMapButtonPushed(app, event)
             app.PlotHelper.showSkyMapPlot(app);
@@ -680,11 +671,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.showAboutWindow();
         end
 
-        % Callback function
-        function AddUniqueButtonPushed(app, event)
-
-        end
-
         % Button pushed function: AddUniqueTargetButton
         function AddUniqueTargetButtonPushed(app, event)
             app.UniqueTargetsHelper.addUniqueTarget(app);
@@ -697,14 +683,14 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Callback function
         function RefreshUniqueTargetsButtonPushed(app, event)
-            app.UniqueTargetsHelper.showUniqueTargets();
+            app.UniqueTargetsHelper.showUniqueTargets(app);
         end
 
         % Selection changed function: UITableUniqueTargets
         function UITableUniqueTargetsSelectionChanged(app, event)
             %app.UniqueTargetsIndices = event.Indices;
             selection = app.UITableUniqueTargets.Selection;
-            app.UniqueTargetHelper.uniqueTargetSelected(selection);
+            app.UniqueTargetsHelper.uniqueTargetSelected(app, selection);
         end
 
         % Button pushed function: SNRCalcButton
@@ -728,23 +714,8 @@ classdef PlannerMain < matlab.apps.AppBase
         end
 
         % Callback function
-        function NewMenuSelected2(app, event)
-
-        end
-
-        % Callback function
-        function OpenMenuSelected2(app, event)
-
-        end
-
-        % Callback function
         function SaveMenuSelected2(app, event)
             app.StorageHelper.savePlan(app);
-        end
-
-        % Callback function
-        function CloseMenu_2Selected(app, event)
-            %
         end
 
         % Callback function
@@ -827,11 +798,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanTargetsHelper.showPlanTargetsWindow(app);
         end
 
-        % Callback function
-        function NewButtonPushed2(app, event)
-           
-        end
-
         % Button pushed function: OpenButton
         function OpenButtonPushed(app, event)
             app.StorageHelper.openPlan(app);
@@ -857,11 +823,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.SubmitHelper.submit(app);
         end
 
-        % Callback function
-        function GetApprovedButtonPushed(app, event)
-           
-        end
-
         % Button pushed function: BuildButton
         function BuildButtonPushed(app, event)
             app.BuildHelper.build(app);
@@ -874,7 +835,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: LoginButton
         function LoginButtonPushed(app, event)
-            if app.SessionHelper.isLogin()
+            if app.SessionHelper.isLogin(app)
                 app.SessionHelper.logout(app);
             else
                 app.SessionHelper.login(app);
@@ -930,11 +891,6 @@ classdef PlannerMain < matlab.apps.AppBase
         end
 
         % Callback function
-        function CheckTimesUpdateButtonPushed(app, event)
-
-        end
-
-        % Callback function
         function PlotVisibilityButtonPushed(app, event)
             app.PlotHelper.plotVisibility(app);
         end
@@ -946,7 +902,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: UpdateSkyMapButton
         function UpdateSkyMapButtonPushed(app, event)
-            app.sPlotHelper.howSkyMapPlot(app);
+            app.PlotHelper.showSkyMapPlot(app);
         end
 
         % Button pushed function: RefreshApprovedTargetsButton_3
@@ -986,12 +942,12 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Clicked callback: UITablePlanTargets
         function UITablePlanTargetsClicked(app, event)
-            app.PlanTargetsHelper.planRowClick(app);
+            app.PlanTargetsHelper.planTargetClick(app);
         end
 
         % Double-clicked callback: UITablePlanTargets
         function UITablePlanTargetsDoubleClicked(app, event)
-            app.PlanTargetsHelper.planRowDoubleClick(app);
+            app.PlanTargetsHelper.planTargetDoubleClick(app);
         end
 
         % Button pushed function: BuildStatusButton
@@ -1079,8 +1035,8 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanTargetsHelper.deletePlanTarget(app);
         end
 
-        % Button pushed function: GDriveCommentsButton
-        function GDriveCommentsButtonPushed(app, event)
+        % Button pushed function: QACommentsButton
+        function QACommentsButtonPushed(app, event)
             app.showGDriveQA();
         end
 
@@ -1100,7 +1056,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: EditPlanTargetButton_4
         function EditPlanTargetButton_4Pushed(app, event)
-            app.UniqueTargetsHelper.DeleteUniqueTarget(ap);
+            app.UniqueTargetsHelper.deleteUniqueTarget(app);
         end
 
         % Menu selected function: ClearPlotsMenu
@@ -1121,11 +1077,6 @@ classdef PlannerMain < matlab.apps.AppBase
         % Button pushed function: ShowApprovedTargetsWindowButton
         function ShowApprovedTargetsWindowButtonPushed(app, event)
             app.ApprovedTargetsHelper.showApprovedTargetsWindow(app);
-        end
-
-        % Callback function
-        function StartTimeEditFieldValueChanged(app, event)
-
         end
 
         % Value changed function: EndTimeEditField
@@ -1195,7 +1146,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: GraphPlotUniqueTargetDropDown
         function GraphPlotUniqueTargetDropDownValueChanged(app, event)
-            app.PlotHelper.value = app.PlotHelper.plotCalibObj(app);            
+            app.PlotHelper.plotCalibObj(app);            
         end
     end
 
@@ -1440,8 +1391,6 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create NewButton
             app.NewButton = uibutton(app.PanelToolbar, 'push');
             app.NewButton.ButtonPushedFcn = createCallbackFcn(app, @NewButtonPushed, true);
-            app.NewButton.FontWeight = 'bold';
-            app.NewButton.FontColor = [0 0.4471 0.7412];
             app.NewButton.Tooltip = {'Create new observation plan'};
             app.NewButton.Position = [8 8 85 30];
             app.NewButton.Text = 'New';
@@ -1463,7 +1412,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create SubmitButton
             app.SubmitButton = uibutton(app.PanelToolbar, 'push');
             app.SubmitButton.ButtonPushedFcn = createCallbackFcn(app, @SubmitButtonPushed, true);
-            app.SubmitButton.BackgroundColor = [0 1 0];
+            app.SubmitButton.BackgroundColor = [0.651 0.9686 0.651];
             app.SubmitButton.FontWeight = 'bold';
             app.SubmitButton.Tooltip = {'Send plan to Mission Control for approval'};
             app.SubmitButton.Position = [651 8 85 30];
@@ -1473,7 +1422,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ValidateButton = uibutton(app.PanelToolbar, 'push');
             app.ValidateButton.ButtonPushedFcn = createCallbackFcn(app, @ValidateButtonPushed, true);
             app.ValidateButton.FontWeight = 'bold';
-            app.ValidateButton.FontColor = [0.6353 0.0784 0.1843];
+            app.ValidateButton.FontColor = [0 0 1];
             app.ValidateButton.Tooltip = {'Send plan for validation (may take up to 30 seconds)'};
             app.ValidateButton.Position = [550 8 85 30];
             app.ValidateButton.Text = 'Validate';
@@ -1482,13 +1431,13 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ParamsButton = uibutton(app.PanelToolbar, 'push');
             app.ParamsButton.ButtonPushedFcn = createCallbackFcn(app, @ParamsButtonPushed, true);
             app.ParamsButton.Tooltip = {'Show (and edit) observation plan parameters'};
-            app.ParamsButton.Position = [400 8 85 30];
+            app.ParamsButton.Position = [430 8 85 30];
             app.ParamsButton.Text = 'Params';
 
             % Create LoginButton
             app.LoginButton = uibutton(app.PanelToolbar, 'push');
             app.LoginButton.ButtonPushedFcn = createCallbackFcn(app, @LoginButtonPushed, true);
-            app.LoginButton.BackgroundColor = [1 1 0.0706];
+            app.LoginButton.BackgroundColor = [1 1 0.549];
             app.LoginButton.FontWeight = 'bold';
             app.LoginButton.Tooltip = {'Connect to server and login'};
             app.LoginButton.Position = [847 7 88 30];
@@ -1501,26 +1450,10 @@ classdef PlannerMain < matlab.apps.AppBase
             app.SNRCalcButton.Position = [1005 8 88 30];
             app.SNRCalcButton.Text = 'SNR Calc';
 
-            % Create ConnectionStatusEditFieldLabel
-            app.ConnectionStatusEditFieldLabel = uilabel(app.PanelToolbar);
-            app.ConnectionStatusEditFieldLabel.HorizontalAlignment = 'right';
-            app.ConnectionStatusEditFieldLabel.Position = [1105 14 103 22];
-            app.ConnectionStatusEditFieldLabel.Text = 'Connection Status';
-
-            % Create ConnectionStatusEditField
-            app.ConnectionStatusEditField = uieditfield(app.PanelToolbar, 'text');
-            app.ConnectionStatusEditField.Editable = 'off';
-            app.ConnectionStatusEditField.HorizontalAlignment = 'center';
-            app.ConnectionStatusEditField.FontWeight = 'bold';
-            app.ConnectionStatusEditField.BackgroundColor = [0 1 1];
-            app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
-            app.ConnectionStatusEditField.Position = [1223 7 124 29];
-            app.ConnectionStatusEditField.Value = 'Backend Simulator';
-
             % Create ModifiedLabel
             app.ModifiedLabel = uilabel(app.PanelToolbar);
             app.ModifiedLabel.Tooltip = {'Is current plan modified sience last saved?'};
-            app.ModifiedLabel.Position = [946 14 50 22];
+            app.ModifiedLabel.Position = [946 10 50 22];
             app.ModifiedLabel.Text = 'Modified';
 
             % Create DuplicateButton
@@ -1540,15 +1473,14 @@ classdef PlannerMain < matlab.apps.AppBase
             app.RetractButton.Position = [751 8 85 30];
             app.RetractButton.Text = 'Retract !!!';
 
-            % Create GDriveCommentsButton
-            app.GDriveCommentsButton = uibutton(app.PanelToolbar, 'push');
-            app.GDriveCommentsButton.ButtonPushedFcn = createCallbackFcn(app, @GDriveCommentsButtonPushed, true);
-            app.GDriveCommentsButton.BackgroundColor = [1 0 1];
-            app.GDriveCommentsButton.FontWeight = 'bold';
-            app.GDriveCommentsButton.FontColor = [1 1 0.0667];
-            app.GDriveCommentsButton.Tooltip = {'Open SNR Calculator web application in browser window'};
-            app.GDriveCommentsButton.Position = [1353 5 77 36];
-            app.GDriveCommentsButton.Text = {'GDrive'; 'Comments'};
+            % Create QACommentsButton
+            app.QACommentsButton = uibutton(app.PanelToolbar, 'push');
+            app.QACommentsButton.ButtonPushedFcn = createCallbackFcn(app, @QACommentsButtonPushed, true);
+            app.QACommentsButton.BackgroundColor = [0.9804 0.5882 0.9804];
+            app.QACommentsButton.FontWeight = 'bold';
+            app.QACommentsButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.QACommentsButton.Position = [1357 4 73 35];
+            app.QACommentsButton.Text = {'QA '; 'Comments'};
 
             % Create HelpButton
             app.HelpButton = uibutton(app.PanelToolbar, 'push');
@@ -1561,8 +1493,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UniqueTargetsPanel = uipanel(app.UIFigure);
             app.UniqueTargetsPanel.TitlePosition = 'centertop';
             app.UniqueTargetsPanel.Title = 'Unique Targets';
-            app.UniqueTargetsPanel.BackgroundColor = [0.9294 0.851 0.9804];
-            app.UniqueTargetsPanel.SizeChangedFcn = createCallbackFcn(app, @UniqueTargetsPanelSizeChanged, true);
+            app.UniqueTargetsPanel.BackgroundColor = [0.8 0.749 0.851];
             app.UniqueTargetsPanel.Position = [13 432 993 186];
 
             % Create UITableUniqueTargets
@@ -1584,7 +1515,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.AddUniqueTargetButton = uibutton(app.Panel_6, 'push');
             app.AddUniqueTargetButton.ButtonPushedFcn = createCallbackFcn(app, @AddUniqueTargetButtonPushed, true);
             app.AddUniqueTargetButton.FontWeight = 'bold';
-            app.AddUniqueTargetButton.FontColor = [0 0.4471 0.7412];
+            app.AddUniqueTargetButton.FontColor = [0 0 1];
             app.AddUniqueTargetButton.Tooltip = {'Add new unique target'};
             app.AddUniqueTargetButton.Position = [6 116 60 23];
             app.AddUniqueTargetButton.Text = 'Add';
@@ -1637,8 +1568,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanPanel = uipanel(app.UIFigure);
             app.PlanPanel.TitlePosition = 'centertop';
             app.PlanPanel.Title = 'Plan';
-            app.PlanPanel.BackgroundColor = [0.302 0.749 0.9294];
-            app.PlanPanel.SizeChangedFcn = createCallbackFcn(app, @PlanPanelSizeChanged, true);
+            app.PlanPanel.BackgroundColor = [0.749 0.851 0.949];
             app.PlanPanel.Position = [13 225 993 202];
 
             % Create UITablePlanTargets
@@ -1659,7 +1589,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.BuildButton = uibutton(app.Panel_4, 'push');
             app.BuildButton.ButtonPushedFcn = createCallbackFcn(app, @BuildButtonPushed, true);
             app.BuildButton.FontWeight = 'bold';
-            app.BuildButton.FontColor = [0 0.4471 0.7412];
+            app.BuildButton.FontColor = [0 0 1];
             app.BuildButton.Tooltip = {'Build plan (depends on plan type)'};
             app.BuildButton.Position = [6 145 60 22];
             app.BuildButton.Text = 'Build';
@@ -1669,7 +1599,6 @@ classdef PlannerMain < matlab.apps.AppBase
             app.CheckPlanTargetsButton.ButtonPushedFcn = createCallbackFcn(app, @CheckPlanTargetsButtonPushed, true);
             app.CheckPlanTargetsButton.FontSize = 11;
             app.CheckPlanTargetsButton.FontWeight = 'bold';
-            app.CheckPlanTargetsButton.FontColor = [0.851 0.3255 0.098];
             app.CheckPlanTargetsButton.Tooltip = {'Perform plan consistency check'};
             app.CheckPlanTargetsButton.Position = [6 35 60 22];
             app.CheckPlanTargetsButton.Text = 'Check';
@@ -1723,8 +1652,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ApprovedTargetsPanel.BorderColor = [0.4902 0.4902 0.4902];
             app.ApprovedTargetsPanel.TitlePosition = 'centertop';
             app.ApprovedTargetsPanel.Title = 'Approved Targets';
-            app.ApprovedTargetsPanel.BackgroundColor = [0.8588 0.9294 0.7608];
-            app.ApprovedTargetsPanel.SizeChangedFcn = createCallbackFcn(app, @ApprovedTargetsPanelSizeChanged, true);
+            app.ApprovedTargetsPanel.BackgroundColor = [0.851 0.9216 0.851];
             app.ApprovedTargetsPanel.Position = [12 69 994 150];
 
             % Create UITableApprovedTargets
@@ -1833,7 +1761,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UpdateSkyMapButton = uibutton(app.Panel_10, 'push');
             app.UpdateSkyMapButton.ButtonPushedFcn = createCallbackFcn(app, @UpdateSkyMapButtonPushed, true);
             app.UpdateSkyMapButton.FontWeight = 'bold';
-            app.UpdateSkyMapButton.FontColor = [0.4941 0.1843 0.5569];
+            app.UpdateSkyMapButton.FontColor = [0 0 1];
             app.UpdateSkyMapButton.Position = [17 15 56 23];
             app.UpdateSkyMapButton.Text = 'Plot!';
 
@@ -1911,23 +1839,28 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create ButtonGroup
             app.ButtonGroup = uibuttongroup(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
             app.ButtonGroup.SelectionChangedFcn = createCallbackFcn(app, @ButtonGroupSelectionChanged, true);
-            app.ButtonGroup.Position = [366 304 116 49];
+            app.ButtonGroup.ForegroundColor = [0 0 1];
+            app.ButtonGroup.Position = [366 304 122 49];
 
             % Create VisibilityButton
             app.VisibilityButton = uiradiobutton(app.ButtonGroup);
             app.VisibilityButton.Text = 'Visibility';
-            app.VisibilityButton.Position = [8 23 65 22];
+            app.VisibilityButton.FontWeight = 'bold';
+            app.VisibilityButton.FontColor = [0 0 1];
+            app.VisibilityButton.Position = [8 23 71 22];
             app.VisibilityButton.Value = true;
 
             % Create CalibrationStarButton
             app.CalibrationStarButton = uiradiobutton(app.ButtonGroup);
             app.CalibrationStarButton.Text = 'Calibration Star';
-            app.CalibrationStarButton.Position = [8 2 105 22];
+            app.CalibrationStarButton.FontWeight = 'bold';
+            app.CalibrationStarButton.FontColor = [0 0 1];
+            app.CalibrationStarButton.Position = [8 2 111 22];
 
             % Create OpenCalObjTableButton
             app.OpenCalObjTableButton = uibutton(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel, 'push');
             app.OpenCalObjTableButton.ButtonPushedFcn = createCallbackFcn(app, @OpenCalObjTableButtonPushed, true);
-            app.OpenCalObjTableButton.Position = [308 302 47 23];
+            app.OpenCalObjTableButton.Position = [305 302 54 23];
             app.OpenCalObjTableButton.Text = 'CalObj';
 
             % Create OpenGraphsPlotWindowButton
@@ -2049,7 +1982,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create StatusTextArea
             app.StatusTextArea = uitextarea(app.Panel_8);
             app.StatusTextArea.Editable = 'off';
-            app.StatusTextArea.BackgroundColor = [1 0.9882 0.8196];
+            app.StatusTextArea.BackgroundColor = [0.9412 0.9412 0.9412];
             app.StatusTextArea.Position = [78 13 833 40];
 
             % Create RefreshApprovedTargetsButton_2
@@ -2168,7 +2101,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LabelTopStatus.FontWeight = 'bold';
             app.LabelTopStatus.FontColor = [0 0 1];
             app.LabelTopStatus.Visible = 'off';
-            app.LabelTopStatus.Position = [373 7 498 22];
+            app.LabelTopStatus.Position = [344 8 498 22];
             app.LabelTopStatus.Text = 'The plan was submitted and cannot be modified.';
 
             % Create LabelTopNamespace
@@ -2178,12 +2111,13 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LabelTopNamespace.FontSize = 24;
             app.LabelTopNamespace.FontWeight = 'bold';
             app.LabelTopNamespace.FontColor = [1 1 1];
+            app.LabelTopNamespace.Visible = 'off';
             app.LabelTopNamespace.Position = [1057 2 272 32];
             app.LabelTopNamespace.Text = 'OPER';
 
             % Create LabelTopUser
             app.LabelTopUser = uilabel(app.PanelTopHeader);
-            app.LabelTopUser.BackgroundColor = [1 1 0.0667];
+            app.LabelTopUser.BackgroundColor = [1 1 0.549];
             app.LabelTopUser.HorizontalAlignment = 'center';
             app.LabelTopUser.FontSize = 24;
             app.LabelTopUser.FontWeight = 'bold';
@@ -2199,6 +2133,16 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LabelTopTime.FontWeight = 'bold';
             app.LabelTopTime.Position = [12 2 299 32];
             app.LabelTopTime.Text = 'UTC: 2025-01-01 00:00:00';
+
+            % Create ConnectionStatusEditField
+            app.ConnectionStatusEditField = uieditfield(app.PanelTopHeader, 'text');
+            app.ConnectionStatusEditField.Editable = 'off';
+            app.ConnectionStatusEditField.HorizontalAlignment = 'center';
+            app.ConnectionStatusEditField.FontWeight = 'bold';
+            app.ConnectionStatusEditField.BackgroundColor = [0 1 1];
+            app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
+            app.ConnectionStatusEditField.Position = [906 3 124 29];
+            app.ConnectionStatusEditField.Value = 'Backend Simulator';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

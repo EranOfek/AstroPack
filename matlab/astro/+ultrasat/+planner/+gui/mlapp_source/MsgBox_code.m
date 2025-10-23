@@ -89,14 +89,12 @@ classdef MsgBox < matlab.apps.AppBase
             % Create CloseButton
             app.CloseButton = uibutton(app.Panel, 'push');
             app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.FontWeight = 'bold';
-            app.CloseButton.FontColor = [0 0.4471 0.7412];
             app.CloseButton.Position = [183 9 85 39];
             app.CloseButton.Text = 'Close';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
-            app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
+            app.Panel_2.BackgroundColor = [0.7176 0.2745 1];
             app.Panel_2.Position = [9 307 460 37];
 
             % Create TitleLabel
@@ -104,7 +102,8 @@ classdef MsgBox < matlab.apps.AppBase
             app.TitleLabel.HorizontalAlignment = 'center';
             app.TitleLabel.FontSize = 18;
             app.TitleLabel.FontWeight = 'bold';
-            app.TitleLabel.Position = [7 1 454 33];
+            app.TitleLabel.FontColor = [1 1 1];
+            app.TitleLabel.Position = [7 1 453 33];
             app.TitleLabel.Text = 'Title';
 
             % Create TextAreaLabel

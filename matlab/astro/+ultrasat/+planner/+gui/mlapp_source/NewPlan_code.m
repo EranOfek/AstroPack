@@ -79,7 +79,7 @@ classdef NewPlan < matlab.apps.AppBase
 
             % Set default plan name using static class var counter 'NewPlanIndex'
             if isempty(app.NewPlanIndex)
-                app.NewlanIndex = 1; % Set to 0 if empty
+                app.NewPlanIndex = 1; % Set to 0 if empty
             else
                 app.NewPlanIndex = app.NewPlanIndex + 1; % Increment if not empty
             end
@@ -192,7 +192,7 @@ classdef NewPlan < matlab.apps.AppBase
             app.CreateButton = uibutton(app.Panel, 'push');
             app.CreateButton.ButtonPushedFcn = createCallbackFcn(app, @CreateButtonPushed, true);
             app.CreateButton.FontWeight = 'bold';
-            app.CreateButton.FontColor = [0 0.4471 0.7412];
+            app.CreateButton.FontColor = [0 0 1];
             app.CreateButton.Position = [169 8 85 39];
             app.CreateButton.Text = 'Create';
 

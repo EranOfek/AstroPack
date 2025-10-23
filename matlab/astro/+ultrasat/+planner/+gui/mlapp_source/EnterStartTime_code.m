@@ -12,7 +12,7 @@ classdef EnterStartTime < matlab.apps.AppBase
         EnterDDTStartTimeLabel        matlab.ui.control.Label
         Panel                         matlab.ui.container.Panel
         CancelButton                  matlab.ui.control.Button
-        OKButton                      matlab.ui.control.Button
+        SaveButton                    matlab.ui.control.Button
     end
 
     methods (Static)
@@ -46,7 +46,7 @@ classdef EnterStartTime < matlab.apps.AppBase
             app.MainModule = MainModule;
         end
 
-        % Button pushed function: OKButton
+        % Button pushed function: SaveButton
         function SaveButtonPushed(app, event)
             % Validates and stores the user-provided start time, 
             % resuming the UI on success.
@@ -99,18 +99,18 @@ classdef EnterStartTime < matlab.apps.AppBase
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
             app.Panel.Position = [14 12 556 57];
 
-            % Create OKButton
-            app.OKButton = uibutton(app.Panel, 'push');
-            app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
-            app.OKButton.FontWeight = 'bold';
-            app.OKButton.FontColor = [0 0.4471 0.7412];
-            app.OKButton.Position = [145 9 85 39];
-            app.OKButton.Text = 'OK';
+            % Create SaveButton
+            app.SaveButton = uibutton(app.Panel, 'push');
+            app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
+            app.SaveButton.FontWeight = 'bold';
+            app.SaveButton.FontColor = [0 0 1];
+            app.SaveButton.Position = [184 9 85 39];
+            app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [315 9 85 39];
+            app.CancelButton.Position = [305 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create Panel_2

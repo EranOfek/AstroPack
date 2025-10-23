@@ -117,20 +117,20 @@ classdef LoadPlanFromFile < matlab.apps.AppBase
             app.LoadButton = uibutton(app.Panel, 'push');
             app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButtonPushed, true);
             app.LoadButton.FontWeight = 'bold';
-            app.LoadButton.FontColor = [0 0.4471 0.7412];
-            app.LoadButton.Position = [135 9 85 39];
+            app.LoadButton.FontColor = [0 0 1];
+            app.LoadButton.Position = [150 9 85 39];
             app.LoadButton.Text = 'Load';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [233 9 85 39];
+            app.CancelButton.Position = [249 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.Panel, 'push');
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
-            app.HelpButton.Position = [330 9 85 39];
+            app.HelpButton.Position = [350 9 85 39];
             app.HelpButton.Text = 'Help';
 
             % Create Panel_2

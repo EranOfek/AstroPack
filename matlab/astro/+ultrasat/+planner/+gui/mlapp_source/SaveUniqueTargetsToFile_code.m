@@ -137,7 +137,7 @@ classdef SaveUniqueTargetsToFile < matlab.apps.AppBase
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
-            app.SaveButton.FontColor = [0 0.4471 0.7412];
+            app.SaveButton.FontColor = [0 0 1];
             app.SaveButton.Position = [299 9 85 39];
             app.SaveButton.Text = 'Save';
 

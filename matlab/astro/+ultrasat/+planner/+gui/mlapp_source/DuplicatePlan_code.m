@@ -72,19 +72,19 @@ classdef DuplicatePlan < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 497 338];
+            app.UIFigure.Position = [100 100 504 335];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [14 11 477 57];
+            app.Panel.Position = [14 8 477 57];
 
             % Create DuplicateButton
             app.DuplicateButton = uibutton(app.Panel, 'push');
             app.DuplicateButton.ButtonPushedFcn = createCallbackFcn(app, @DuplicateButtonPushed, true);
             app.DuplicateButton.FontWeight = 'bold';
-            app.DuplicateButton.FontColor = [0 0.4471 0.7412];
+            app.DuplicateButton.FontColor = [0 0 1];
             app.DuplicateButton.Position = [98 9 85 39];
             app.DuplicateButton.Text = 'Duplicate';
 
@@ -103,7 +103,7 @@ classdef DuplicatePlan < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [14 295 477 33];
+            app.Panel_2.Position = [14 292 477 33];
 
             % Create DuplicateCurrentObservingProgramLabel
             app.DuplicateCurrentObservingProgramLabel = uilabel(app.Panel_2);
@@ -116,7 +116,7 @@ classdef DuplicatePlan < matlab.apps.AppBase
             % Create Panel_3
             app.Panel_3 = uipanel(app.UIFigure);
             app.Panel_3.TitlePosition = 'centertop';
-            app.Panel_3.Position = [14 96 477 151];
+            app.Panel_3.Position = [14 93 477 151];
 
             % Create PlanTitleEditFieldLabel
             app.PlanTitleEditFieldLabel = uilabel(app.Panel_3);
@@ -143,8 +143,9 @@ classdef DuplicatePlan < matlab.apps.AppBase
 
             % Create Label
             app.Label = uilabel(app.UIFigure);
+            app.Label.FontWeight = 'bold';
             app.Label.FontColor = [0 0 1];
-            app.Label.Position = [14 263 453 22];
+            app.Label.Position = [14 260 485 22];
             app.Label.Text = 'Duplicate behaves as Save As operation, and will open the new plan in draft mode.';
 
             % Show the figure after all components are created

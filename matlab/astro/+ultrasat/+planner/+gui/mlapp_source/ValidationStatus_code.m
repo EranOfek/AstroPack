@@ -22,6 +22,7 @@ classdef ValidationStatus < matlab.apps.AppBase
         StartedEditField                matlab.ui.control.EditField
         StartedEditFieldLabel           matlab.ui.control.Label
         Panel_2                         matlab.ui.container.Panel
+        HelpButton                      matlab.ui.control.Button
         ValidationStatusHistoryLabel    matlab.ui.control.Label
     end
 
@@ -65,6 +66,11 @@ classdef ValidationStatus < matlab.apps.AppBase
         function UITableHistorySelectionChanged(app, event)
             app.MainModule.MainApp.SubmitHelper.validationHistorySelected(app.MainModule.MainApp);
         end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('validation_status');
+        end
     end
 
     % Component initialization
@@ -93,6 +99,13 @@ classdef ValidationStatus < matlab.apps.AppBase
             app.ValidationStatusHistoryLabel.FontWeight = 'bold';
             app.ValidationStatusHistoryLabel.Position = [8 1 1237 27];
             app.ValidationStatusHistoryLabel.Text = 'Validation Status & History';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [1138 0 64 28];
+            app.HelpButton.Text = 'Help';
 
             % Create Validation120250101121212Panel
             app.Validation120250101121212Panel = uipanel(app.UIFigure);

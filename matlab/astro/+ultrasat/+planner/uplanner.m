@@ -380,7 +380,7 @@ classdef uplanner < Component
                 error('StartTime is after EndTime');
             end
             if height(Obj.UniqTarg) < 1
-                error('HCS requires a unique target target');
+                error('HCS requires a unique target');
             end            
             if numel(Args.HCS_UniqTarg) ~=1
                 error('HCS requires one single target');

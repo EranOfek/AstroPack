@@ -2,10 +2,11 @@ classdef PlanTargets < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure  matlab.ui.Figure
-        Panel_4   matlab.ui.container.Panel
-        UITable   matlab.ui.control.Table
-        Panel_2   matlab.ui.container.Panel
+        UIFigure    matlab.ui.Figure
+        Panel_4     matlab.ui.container.Panel
+        UITable     matlab.ui.control.Table
+        Panel_2     matlab.ui.container.Panel
+        HelpButton  matlab.ui.control.Button
         PlanThistableisupdatedbytheBuildoperationLabel  matlab.ui.control.Label
     end
 
@@ -43,6 +44,11 @@ classdef PlanTargets < matlab.apps.AppBase
         function CloseButtonPushed2(app, event)
 
         end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('plan_targets');
+        end
     end
 
     % Component initialization
@@ -59,16 +65,23 @@ classdef PlanTargets < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
-            app.Panel_2.BackgroundColor = [0.302 0.749 0.9294];
-            app.Panel_2.Position = [14 578 1148 30];
+            app.Panel_2.BackgroundColor = [0.749 0.851 0.949];
+            app.Panel_2.Position = [14 578 1142 30];
 
             % Create PlanThistableisupdatedbytheBuildoperationLabel
             app.PlanThistableisupdatedbytheBuildoperationLabel = uilabel(app.Panel_2);
             app.PlanThistableisupdatedbytheBuildoperationLabel.HorizontalAlignment = 'center';
             app.PlanThistableisupdatedbytheBuildoperationLabel.FontSize = 18;
             app.PlanThistableisupdatedbytheBuildoperationLabel.FontWeight = 'bold';
-            app.PlanThistableisupdatedbytheBuildoperationLabel.Position = [14 1 1124 27];
+            app.PlanThistableisupdatedbytheBuildoperationLabel.Position = [14 1 1115 27];
             app.PlanThistableisupdatedbytheBuildoperationLabel.Text = 'Plan (This table is updated by the Build operation)';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [1044 1 64 28];
+            app.HelpButton.Text = 'Help';
 
             % Create Panel_4
             app.Panel_4 = uipanel(app.UIFigure);

@@ -61,7 +61,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             app.msglog('showSkyMapPlot');
 
             % No planner object - just clear
-            if ~app.hasPlanner()
+            if ~app.hasPlanner() || ~obj.hasData(app)
                 obj.clearPlots(app);
                 return;
             end
@@ -90,7 +90,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % Show stand-alone window with SkyMap plot, the user need to
             % click the Update button in the embedded plot in this
             app.msglog('showSkyMapPlotWindow');
-            if ~app.hasPlanner(), return; end
+            if ~app.hasPlanner() || ~obj.hasData(app), return; end
 
             % Create and show PlotSkyMapApp
             if isempty(app.PlotSkyMapApp) || ~isvalid(app.PlotSkyMapApp)
@@ -106,20 +106,20 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         function plotGraphs(obj, app)
             % Plot CalibObj or Visibility according to selected radio button
             try
-                % No planner object - just clear the graphs
-                if ~app.hasPlanner()
+                % No planner object - just clear the graphs                
+                if ~app.hasPlanner() || ~obj.hasData(app)
                     obj.clearPlots(app);
                     return;
                 end
 
                 % Plot CalibObj
                 if app.CalibrationStarButton.Value
-                    obj.plotCalibObj();
+                    obj.plotCalibObj(app);
                 end
 
                 % Plot Visibility
                 if app.VisibilityButton.Value
-                    obj.plotVisibility();
+                    obj.plotVisibility(app);
                 end
             catch ME
                 app.msgex('plotGraphs', ME);
@@ -130,7 +130,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         function showGraphsPlotWindow(obj, app)
             % Show stand-alone window with Graphs plot
             app.msglog('showGraphsPlotWindow');
-            if ~app.hasPlanner(), return; end
+            if ~app.hasPlanner() || ~obj.hasData(app), return; end
 
             % Create and show PlotGraphsApp
             if isempty(app.PlotGraphsApp) || ~isvalid(app.PlotGraphsApp)
@@ -147,7 +147,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % Plot Calibration Objects graph of the currently selected Unique Target in GraphPlotUniqueTargetDropDown
 
             app.msglog('plotCalibObj');
-            if ~app.hasPlanner(), return; end
+            if ~app.hasPlanner() || ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
 
             % Get index of selected unique target in the drop-down
@@ -204,6 +204,8 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % All errors are logged via app.msglog, never thrown.
 
             app.msglog('showCalibObjTable');
+            if ~obj.hasData(app), return; end
+
             try
                 % Ensure the CalibObjTable app instance is valid
                 if isempty(app.CalibObjTableApp) || ~isvalid(app.CalibObjTableApp)
@@ -240,8 +242,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
         function plotCalibObjSub(obj, app)
             % % Plot the selected calibration object (sub-component) in both embedded and standalone plot windows
-
             % Called on selecting CalibObj in the drop-down next to the Graphs plot
+
+            app.msglog('plotCalibObjSub');
+            if ~obj.hasData(app), return; end
+
             try
                 if ~isempty(app.MainModule.Planner)
                     UniqueTargetIndex = app.UITableUniqueTargets.Selection;
@@ -275,7 +280,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         function plotVisibility(obj, app)
             % Plot Visibility graph of currently select Unique Target
 
-            if ~app.hasPlanner(), return; end
+            if ~app.hasPlanner() || ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
 
             % Get index of selected unique target in the drop-down
@@ -337,6 +342,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             catch ME
                 app.msgex('doPlotSkyMap', ME);
             end
+        end
+
+
+        function Result = hasData(obj, app)
+            Result = app.hasPlanner() && (height(app.MainModule.Planner.UniqTarg) > 0) || (height(app.MainModule.Planner.Plan) > 0);
         end
 
         % =================================================================

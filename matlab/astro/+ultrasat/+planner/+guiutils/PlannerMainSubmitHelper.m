@@ -99,7 +99,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 if ~strcmp(app.AppUtils.askYesNo('The plan has been modified and not saved. You must save it before submitting. Do you want to save your changes?', 'Confirm'), 'Yes')
                     return;
                 end
-                app.savePlan();
+                app.StorageHelper.savePlan(app);
             end
 
             if ~strcmp(app.MainModule.Planner.Status, 'validated')
@@ -120,7 +120,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
 
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');
                 app.addHistory('submit');
-                app.savePlan();
+                app.StorageHelper.savePlan(app);
 
                 % After submit the plan should become read-only.
                 app.setReadOnly(true);

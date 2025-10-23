@@ -3,6 +3,7 @@ classdef Login < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                  matlab.ui.Figure
+        LabelWelcome_2            matlab.ui.control.Label
         Panel_3                   matlab.ui.container.Panel
         EnvironmentDropDown       matlab.ui.control.DropDown
         EnvironmentDropDownLabel  matlab.ui.control.Label
@@ -60,7 +61,7 @@ classdef Login < matlab.apps.AppBase
                app.EnvironmentDropDown.Items = items;
                 
                % Determine initial value or default to firt item in the list
-               if ismember(app.MainModule.NamespaceId, items)
+               if ~isempty(app.MainModule.NamespaceId) && ismember(app.MainModule.NamespaceId, items)
                    app.EnvironmentDropDown.Value = app.MainModule.NamespaceDisplay;                
                elseif ~isempty(items)
                     app.EnvironmentDropDown.Value = items(1);                
@@ -148,7 +149,7 @@ classdef Login < matlab.apps.AppBase
             app.LoginButton = uibutton(app.Panel, 'push');
             app.LoginButton.ButtonPushedFcn = createCallbackFcn(app, @LoginButtonPushed, true);
             app.LoginButton.FontWeight = 'bold';
-            app.LoginButton.FontColor = [0 0.4471 0.7412];
+            app.LoginButton.FontColor = [0 0 1];
             app.LoginButton.Position = [101 8 85 39];
             app.LoginButton.Text = 'Login';
 
@@ -180,11 +181,11 @@ classdef Login < matlab.apps.AppBase
             % Create LabelWelcome
             app.LabelWelcome = uilabel(app.UIFigure);
             app.LabelWelcome.WordWrap = 'on';
-            app.LabelWelcome.FontSize = 14;
+            app.LabelWelcome.FontSize = 16;
             app.LabelWelcome.FontWeight = 'bold';
             app.LabelWelcome.FontColor = [0 0 1];
-            app.LabelWelcome.Position = [27 263 454 43];
-            app.LabelWelcome.Text = {'Welcome to ULTRASAT Observation Planner GUI. '; 'Please login to the system using your user name and password.'};
+            app.LabelWelcome.Position = [27 296 454 22];
+            app.LabelWelcome.Text = 'Welcome to ULTRASAT Observation Planner GUI -:)';
 
             % Create Panel_3
             app.Panel_3 = uipanel(app.UIFigure);
@@ -215,15 +216,23 @@ classdef Login < matlab.apps.AppBase
             % Create EnvironmentDropDownLabel
             app.EnvironmentDropDownLabel = uilabel(app.Panel_3);
             app.EnvironmentDropDownLabel.HorizontalAlignment = 'right';
-            app.EnvironmentDropDownLabel.Position = [0 25 72 22];
+            app.EnvironmentDropDownLabel.Position = [1 23 72 22];
             app.EnvironmentDropDownLabel.Text = 'Environment';
 
             % Create EnvironmentDropDown
             app.EnvironmentDropDown = uidropdown(app.Panel_3);
             app.EnvironmentDropDown.Items = {};
             app.EnvironmentDropDown.BackgroundColor = [1 0.9882 0.8196];
-            app.EnvironmentDropDown.Position = [83 25 345 22];
+            app.EnvironmentDropDown.Position = [83 23 345 22];
             app.EnvironmentDropDown.Value = {};
+
+            % Create LabelWelcome_2
+            app.LabelWelcome_2 = uilabel(app.UIFigure);
+            app.LabelWelcome_2.WordWrap = 'on';
+            app.LabelWelcome_2.FontWeight = 'bold';
+            app.LabelWelcome_2.FontColor = [0 0 1];
+            app.LabelWelcome_2.Position = [27 257 454 22];
+            app.LabelWelcome_2.Text = 'Please login to the system using your user name and password.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

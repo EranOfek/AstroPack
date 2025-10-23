@@ -46,6 +46,7 @@ classdef AddUniqueTarget < matlab.apps.AppBase
             % Initialize the application, setting up the main module reference
             % and handling the auto-incrementing target index.            
             app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
         end
 
         % Button pushed function: AddButton
@@ -86,7 +87,7 @@ classdef AddUniqueTarget < matlab.apps.AppBase
             app.AddButton = uibutton(app.Panel, 'push');
             app.AddButton.ButtonPushedFcn = createCallbackFcn(app, @AddButtonPushed, true);
             app.AddButton.FontWeight = 'bold';
-            app.AddButton.FontColor = [0 0.4471 0.7412];
+            app.AddButton.FontColor = [0 0 1];
             app.AddButton.Position = [69 9 85 39];
             app.AddButton.Text = 'Add';
 

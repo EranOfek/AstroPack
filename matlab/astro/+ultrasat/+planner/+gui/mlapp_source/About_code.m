@@ -18,8 +18,6 @@ classdef About < matlab.apps.AppBase
         VersionEditFieldLabel    matlab.ui.control.Label
         Panel_2                  matlab.ui.container.Panel
         ULTRASATObservationPlannerLabel  matlab.ui.control.Label
-        Panel                    matlab.ui.container.Panel
-        CloseButton              matlab.ui.control.Button
     end
 
     methods (Static)
@@ -51,11 +49,6 @@ classdef About < matlab.apps.AppBase
             app.UIFigure.Name = 'About';
         end
 
-        % Button pushed function: CloseButton
-        function CloseButtonPushed(app, event)
-            uiresume(app.UIFigure);
-        end
-
         % Callback function: HyperlinkWebsite
         function HyperlinkWebsiteClicked(app, event)
             web(app.HyperlinkWebsite.Value);
@@ -78,26 +71,13 @@ classdef About < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 643 509];
+            app.UIFigure.Position = [100 100 643 441];
             app.UIFigure.Name = 'MATLAB App';
-
-            % Create Panel
-            app.Panel = uipanel(app.UIFigure);
-            app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [13 9 623 57];
-
-            % Create CloseButton
-            app.CloseButton = uibutton(app.Panel, 'push');
-            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.FontWeight = 'bold';
-            app.CloseButton.FontColor = [0 0.4471 0.7412];
-            app.CloseButton.Position = [268 9 85 39];
-            app.CloseButton.Text = 'Close';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [9 465 627 37];
+            app.Panel_2.Position = [9 397 627 37];
 
             % Create ULTRASATObservationPlannerLabel
             app.ULTRASATObservationPlannerLabel = uilabel(app.Panel_2);
@@ -110,7 +90,7 @@ classdef About < matlab.apps.AppBase
             % Create Panel_3
             app.Panel_3 = uipanel(app.UIFigure);
             app.Panel_3.TitlePosition = 'centertop';
-            app.Panel_3.Position = [9 77 362 379];
+            app.Panel_3.Position = [9 9 362 379];
 
             % Create VersionEditFieldLabel
             app.VersionEditFieldLabel = uilabel(app.Panel_3);
@@ -174,12 +154,12 @@ classdef About < matlab.apps.AppBase
 
             % Create Image
             app.Image = uiimage(app.UIFigure);
-            app.Image.Position = [381 65 255 334];
+            app.Image.Position = [381 -3 255 334];
             app.Image.ImageSource = fullfile(pathToMLAPP, 'images', 'PlannerLogo1.png');
 
             % Create Image2
             app.Image2 = uiimage(app.UIFigure);
-            app.Image2.Position = [323 398 371 58];
+            app.Image2.Position = [323 330 371 58];
             app.Image2.ImageSource = fullfile(pathToMLAPP, 'images', 'WisLogo1.png');
 
             % Show the figure after all components are created

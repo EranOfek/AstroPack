@@ -93,7 +93,7 @@ classdef PlanParams < matlab.apps.AppBase
         DailywindowstarttimeEditFieldLabel_2  matlab.ui.control.Label
         AllSkyLatVisitsEditField        matlab.ui.control.NumericEditField
         visitsLowGalacticLatLabel       matlab.ui.control.Label
-        AllSkyGalacticLatTresholdEditField  matlab.ui.control.NumericEditField
+        AllSkyGalacticLatThresholdEditField  matlab.ui.control.NumericEditField
         HighGalacticLatthresholdLabel   matlab.ui.control.Label
         TOOTab                          matlab.ui.container.Tab
         TooWindowDurationEditField      matlab.ui.control.EditField
@@ -225,7 +225,7 @@ classdef PlanParams < matlab.apps.AppBase
             % AllSky
             app.setEditable(app.AllSkyDailyWindowStartTimeEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyDailyWindowMaxDurationEditField, IsPlanEmpty);
-            app.setEditable(app.AllSkyGalacticLatTresholdEditField, IsPlanEmpty);
+            app.setEditable(app.AllSkyGalacticLatThresholdEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyLowLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyHighGalacticLatDitherPatternDropDown, IsPlanEmpty);
@@ -373,7 +373,7 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1320 716];
+            app.UIFigure.Position = [100 100 1322 716];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
@@ -384,6 +384,8 @@ classdef PlanParams < matlab.apps.AppBase
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
+            app.SaveButton.FontWeight = 'bold';
+            app.SaveButton.FontColor = [0 0 1];
             app.SaveButton.Position = [493 9 85 39];
             app.SaveButton.Text = 'Save';
 
@@ -403,21 +405,21 @@ classdef PlanParams < matlab.apps.AppBase
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [16 671 1301 33];
+            app.Panel_2.Position = [16 673 1301 33];
 
             % Create PlanParametersLabel
             app.PlanParametersLabel = uilabel(app.Panel_2);
             app.PlanParametersLabel.HorizontalAlignment = 'center';
             app.PlanParametersLabel.FontSize = 18;
             app.PlanParametersLabel.FontWeight = 'bold';
-            app.PlanParametersLabel.Position = [8 0 1284 33];
+            app.PlanParametersLabel.Position = [8 0 1275 33];
             app.PlanParametersLabel.Text = 'Plan Parameters';
 
             % Create PlanParametersPanel
             app.PlanParametersPanel = uipanel(app.UIFigure);
             app.PlanParametersPanel.TitlePosition = 'centertop';
             app.PlanParametersPanel.Title = 'Plan Parameters';
-            app.PlanParametersPanel.Position = [397 392 477 272];
+            app.PlanParametersPanel.Position = [397 392 496 272];
 
             % Create TitleEditFieldLabel
             app.TitleEditFieldLabel = uilabel(app.PlanParametersPanel);
@@ -507,15 +509,17 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create Label
             app.Label = uilabel(app.PlanParametersPanel);
+            app.Label.FontWeight = 'bold';
             app.Label.FontColor = [0 0 1];
-            app.Label.Position = [16 184 377 22];
-            app.Label.Text = 'These fields are editable only when plan table is empty (before build)';
+            app.Label.Position = [16 184 347 22];
+            app.Label.Text = 'Fields editable only when plan table is empty (before build)';
 
             % Create Label_3
             app.Label_3 = uilabel(app.PlanParametersPanel);
+            app.Label_3.FontWeight = 'bold';
             app.Label_3.FontColor = [0 0 1];
-            app.Label_3.Position = [16 101 448 22];
-            app.Label_3.Text = 'These fields are editable for non-DDT only when plan table is empty (before build)';
+            app.Label_3.Position = [14 100 430 22];
+            app.Label_3.Text = 'Fields editable for non-DDT - only when plan table is empty (before build)';
 
             % Create PkEditFieldLabel
             app.PkEditFieldLabel = uilabel(app.PlanParametersPanel);
@@ -540,6 +544,7 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create Label_5
             app.Label_5 = uilabel(app.HCSTab);
+            app.Label_5.FontWeight = 'bold';
             app.Label_5.FontColor = [0 0 1];
             app.Label_5.Position = [80 98 243 22];
             app.Label_5.Text = 'There are no additional fields for HCS';
@@ -576,6 +581,7 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create Label_6
             app.Label_6 = uilabel(app.DDTTab);
+            app.Label_6.FontWeight = 'bold';
             app.Label_6.FontColor = [0 0 1];
             app.Label_6.Position = [80 98 243 22];
             app.Label_6.Text = 'There are no additional fields for DDT';
@@ -590,9 +596,9 @@ classdef PlanParams < matlab.apps.AppBase
             app.HighGalacticLatthresholdLabel.Position = [57 108 121 22];
             app.HighGalacticLatthresholdLabel.Text = 'Galactic Lat threshold';
 
-            % Create AllSkyGalacticLatTresholdEditField
-            app.AllSkyGalacticLatTresholdEditField = uieditfield(app.AllSkyTab, 'numeric');
-            app.AllSkyGalacticLatTresholdEditField.Position = [193 108 100 22];
+            % Create AllSkyGalacticLatThresholdEditField
+            app.AllSkyGalacticLatThresholdEditField = uieditfield(app.AllSkyTab, 'numeric');
+            app.AllSkyGalacticLatThresholdEditField.Position = [193 108 100 22];
 
             % Create visitsLowGalacticLatLabel
             app.visitsLowGalacticLatLabel = uilabel(app.AllSkyTab);
@@ -685,7 +691,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.ConstantMissionParametersPanel.TitlePosition = 'centertop';
             app.ConstantMissionParametersPanel.Title = 'Constant Mission Parameters';
             app.ConstantMissionParametersPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.ConstantMissionParametersPanel.Position = [889 493 423 169];
+            app.ConstantMissionParametersPanel.Position = [903 494 410 169];
 
             % Create SlewBufferEditFieldLabel
             app.SlewBufferEditFieldLabel = uilabel(app.ConstantMissionParametersPanel);
@@ -747,14 +753,14 @@ classdef PlanParams < matlab.apps.AppBase
             % Create SystesmTimeZoneLabel
             app.SystesmTimeZoneLabel = uilabel(app.ConstantMissionParametersPanel);
             app.SystesmTimeZoneLabel.HorizontalAlignment = 'right';
-            app.SystesmTimeZoneLabel.Position = [15 14 102 22];
+            app.SystesmTimeZoneLabel.Position = [16 14 102 22];
             app.SystesmTimeZoneLabel.Text = 'System TimeZone';
 
             % Create TimeZoneEditField
             app.TimeZoneEditField = uieditfield(app.ConstantMissionParametersPanel, 'text');
             app.TimeZoneEditField.Editable = 'off';
             app.TimeZoneEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.TimeZoneEditField.Position = [132 14 50 22];
+            app.TimeZoneEditField.Position = [133 14 50 22];
             app.TimeZoneEditField.Value = 'UTC';
 
             % Create CheckParamsPanel
@@ -792,12 +798,12 @@ classdef PlanParams < matlab.apps.AppBase
             app.CheckTimesUpdateButton.ButtonPushedFcn = createCallbackFcn(app, @CheckTimesUpdateButtonPushed, true);
             app.CheckTimesUpdateButton.FontWeight = 'bold';
             app.CheckTimesUpdateButton.Visible = 'off';
-            app.CheckTimesUpdateButton.Position = [293 51 56 25];
+            app.CheckTimesUpdateButton.Position = [285 48 73 27];
             app.CheckTimesUpdateButton.Text = 'Update';
 
             % Create TabGroup2
             app.TabGroup2 = uitabgroup(app.UIFigure);
-            app.TabGroup2.Position = [397 204 477 181];
+            app.TabGroup2.Position = [397 204 496 181];
 
             % Create StatusTab
             app.StatusTab = uitab(app.TabGroup2);
@@ -904,7 +910,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.FoldersFilesPanel = uipanel(app.UIFigure);
             app.FoldersFilesPanel.Title = 'Folders & Files';
             app.FoldersFilesPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.FoldersFilesPanel.Position = [892 204 420 130];
+            app.FoldersFilesPanel.Position = [904 202 407 130];
 
             % Create BaseDataDirEditFieldLabel
             app.BaseDataDirEditFieldLabel = uilabel(app.FoldersFilesPanel);
@@ -940,7 +946,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.CalObjFileEditField = uieditfield(app.FoldersFilesPanel, 'text');
             app.CalObjFileEditField.Editable = 'off';
             app.CalObjFileEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.CalObjFileEditField.Position = [102 8 289 22];
+            app.CalObjFileEditField.Position = [100 8 289 22];
 
             % Create GeneralPanel
             app.GeneralPanel = uipanel(app.UIFigure);
@@ -1016,15 +1022,16 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create Label_4
             app.Label_4 = uilabel(app.UIFigure);
+            app.Label_4.FontWeight = 'bold';
             app.Label_4.FontColor = [0 0 1];
-            app.Label_4.Position = [21 436 377 22];
-            app.Label_4.Text = 'These fields are editable only when plan table is empty (before build)';
+            app.Label_4.Position = [21 436 347 22];
+            app.Label_4.Text = 'Fields editable only when plan table is empty (before build)';
 
             % Create MinimumDistanceFromPanel
             app.MinimumDistanceFromPanel = uipanel(app.UIFigure);
             app.MinimumDistanceFromPanel.Title = 'Minimum Distance From';
             app.MinimumDistanceFromPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.MinimumDistanceFromPanel.Position = [892 342 416 140];
+            app.MinimumDistanceFromPanel.Position = [904 342 407 140];
 
             % Create SunLabel
             app.SunLabel = uilabel(app.MinimumDistanceFromPanel);
@@ -1043,12 +1050,14 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create DuringObservationLabel
             app.DuringObservationLabel = uilabel(app.MinimumDistanceFromPanel);
-            app.DuringObservationLabel.Position = [46 99 108 22];
+            app.DuringObservationLabel.FontWeight = 'bold';
+            app.DuringObservationLabel.Position = [46 99 117 22];
             app.DuringObservationLabel.Text = 'During Observation';
 
             % Create DuringSlewLabel
             app.DuringSlewLabel = uilabel(app.MinimumDistanceFromPanel);
-            app.DuringSlewLabel.Position = [172 99 70 22];
+            app.DuringSlewLabel.FontWeight = 'bold';
+            app.DuringSlewLabel.Position = [172 99 74 22];
             app.DuringSlewLabel.Text = 'During Slew';
 
             % Create SunMinDistObsEditField
@@ -1090,8 +1099,8 @@ classdef PlanParams < matlab.apps.AppBase
             % Create ValidationResultPanel
             app.ValidationResultPanel = uipanel(app.UIFigure);
             app.ValidationResultPanel.Title = 'Validation Result';
-            app.ValidationResultPanel.BackgroundColor = [1 0.9961 0.8902];
-            app.ValidationResultPanel.Position = [403 77 470 117];
+            app.ValidationResultPanel.BackgroundColor = [0.9686 0.9686 0.9294];
+            app.ValidationResultPanel.Position = [398 77 494 117];
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

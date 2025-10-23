@@ -64,6 +64,8 @@ classdef UserPreferences < matlab.apps.AppBase
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
+            app.SaveButton.FontWeight = 'bold';
+            app.SaveButton.FontColor = [0 0 1];
             app.SaveButton.Position = [187 8 85 39];
             app.SaveButton.Text = 'Save';
 

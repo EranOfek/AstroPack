@@ -140,29 +140,114 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
         %                         DISPLAY / UPDATE
 		% =================================================================
 
-       function setButtons(obj, app)
-            % Enable/disable buttons and menu options based on current login status.
+   
+        function setButtons(obj, app)
+            % Enable/disable buttons and menu options based on login status and plan state.
+            %
+            % Login-dependent controls require a valid connection.
+            % Plan-dependent controls require an active loaded plan.
+        
+            isLoggedIn = obj.isLogin(app);
+            hasPlan    = app.hasPlanner();
+        
+            % === File Menu ===
+            app.NewMenu.Enable               = 'on';
+            app.OpenMenu.Enable              = 'on';
+            app.SaveMenu.Enable              = obj.bool2str(hasPlan);
+            app.DuplicateMenu.Enable         = obj.bool2str(hasPlan);
+            app.CloseMenu_2.Enable           = obj.bool2str(hasPlan);
+            app.DeleteMenu.Enable            = obj.bool2str(hasPlan);
+            app.SaveToLocalFileMenu.Enable   = obj.bool2str(hasPlan);
+            app.OpenFromLocalFileMenu.Enable = 'on'; % always allowed (local file)
+            app.ConnectLoginMenu.Enable      = obj.bool2str(~isLoggedIn);
+            app.DisconnectLogoutMenu.Enable  = obj.bool2str(isLoggedIn);
+            app.ExitPlannerMenu.Enable       = 'on';
+        
+            % === Targets Menu ===
+            app.AddUniqueTargetMenu.Enable        = obj.bool2str(hasPlan);
+            app.EditUniqueTargetMenu.Enable       = obj.bool2str(hasPlan);
+            app.DeleteUniqueTargetMenu.Enable     = obj.bool2str(hasPlan);
+            app.ClearAllUniqueTargetsMenu.Enable  = obj.bool2str(hasPlan);
+            app.ViewUniqueTargetsTableMenu.Enable = obj.bool2str(hasPlan);
+            app.SaveUniqueTargetsToFileMenu.Enable= obj.bool2str(hasPlan);
+            app.LoadUniqueTargetsFromFileMenu.Enable = obj.bool2str(hasPlan);
+        
+            % === Plan Menu ===
+            app.EditPlanTargetMenu.Enable        = obj.bool2str(hasPlan);
+            app.DeletePlanTargetMenu.Enable      = obj.bool2str(hasPlan);
+            app.ClearAllPlanTargetsMenu.Enable   = obj.bool2str(hasPlan);
+            app.ViewPlanTableMenu.Enable         = obj.bool2str(hasPlan);
+            app.ParamsMenu.Enable                = obj.bool2str(hasPlan);
+            app.PlanHistoryMenu.Enable           = obj.bool2str(hasPlan);
+            app.BuildMenu.Enable                 = obj.bool2str(hasPlan);
+            app.ValidateMenu.Enable              = obj.bool2str(isLoggedIn && hasPlan);
+            app.SubmitMenu.Enable                = obj.bool2str(isLoggedIn && hasPlan);
 
-            enable = obj.isLogin(app);
+            app.RefreshMenu.Enable               = obj.bool2str(hasPlan);        
+        
+            % === Plots Menu ===
+            app.ViewSkyMapPlotWindowMenu.Enable  = obj.bool2str(hasPlan);
+            app.ViewGraphsPlotWindowMenu.Enable  = obj.bool2str(hasPlan);
+            app.ClearPlotsMenu.Enable            = obj.bool2str(hasPlan);
+        
+            % === Toolbar Buttons ===
+            app.NewButton.Enable         = 'on';
+            app.OpenButton.Enable        = 'on';
+            app.SaveButton.Enable        = obj.bool2str(hasPlan);
+            app.DuplicateButton.Enable   = obj.bool2str(hasPlan);
+            app.ParamsButton.Enable      = obj.bool2str(hasPlan);
+            app.ValidateButton.Enable    = obj.bool2str(isLoggedIn && hasPlan);
+            app.SubmitButton.Enable      = obj.bool2str(isLoggedIn && hasPlan);
+            app.RetractButton.Enable     = obj.bool2str(isLoggedIn && hasPlan);
+            app.LoginButton.Enable       = obj.bool2str(~isLoggedIn);
+            app.SNRCalcButton.Enable     = 'on';
+            app.HelpButton.Enable        = 'on';
+            app.QACommentsButton.Enable  = obj.bool2str(hasPlan);
+        
+            % === Target Panels ===
+            app.AddUniqueTargetButton.Enable     = obj.bool2str(hasPlan);
+            app.EditUniqueTargetButton.Enable    = obj.bool2str(hasPlan);
+            app.LoadUniqueTargetsButton.Enable   = obj.bool2str(hasPlan); % Load Unique Targets
+            app.EditPlanTargetButton_4.Enable    = obj.bool2str(hasPlan); % Delete
+            app.EditPlanTargetButton_5.Enable    = obj.bool2str(hasPlan); % Clear All
+        
+            % === Plan Panel ===
+            app.BuildButton.Enable               = obj.bool2str(hasPlan);
+            app.CheckPlanTargetsButton.Enable    = obj.bool2str(hasPlan);
+            app.EditPlanTargetButton.Enable      = obj.bool2str(hasPlan);
+            app.EditPlanTargetButton_2.Enable    = obj.bool2str(hasPlan);
+            app.EditPlanTargetButton_3.Enable    = obj.bool2str(hasPlan);
+            app.EditPlanTargetButton_6.Enable    = obj.bool2str(hasPlan);
+        
+            % === Approved Targets Panel ===
+            app.RefreshApprovedTargetsButton.Enable   = obj.bool2str(hasPlan);
+            app.RefreshApprovedTargetsButton_3.Enable = obj.bool2str(hasPlan);
+        
+            % === Plots ===
+            app.UpdateSkyMapButton.Enable       = obj.bool2str(hasPlan);
+            app.PlotFlagUniqueCheckBox.Enable   = obj.bool2str(hasPlan);
+            app.PlotFlagPlanCheckBox.Enable     = obj.bool2str(hasPlan);
+            app.PlotFlagApprovedCheckBox.Enable = obj.bool2str(hasPlan);
+            app.PlotFlagCalibrationCheckBox.Enable = obj.bool2str(hasPlan);
+            app.PlotFlagExtinctionCheckBox.Enable  = obj.bool2str(hasPlan);
+        
+            % === Status tab ===
+            app.BuildStatusButton.Enable     = obj.bool2str(hasPlan);
+            app.ValidationStatusButton.Enable= obj.bool2str(hasPlan);
+            app.SubmitStatusButton.Enable    = obj.bool2str(hasPlan);        
+        end
+        
+        
+        function s = bool2str(obj, val)
+            % Convert logical to 'on'/'off' for Enable property
+            if val
+                s = 'on';
+            else
+                s = 'off';
+            end
+        end
 
-            % Apply to buttons
-            %app.OpenButton.Enable = enable;
-            app.SaveButton.Enable = app.hasPlanner();
-            app.ParamsButton.Enable = app.hasPlanner();
-            app.DuplicateButton.Enable = app.hasPlanner();
-            app.ValidateButton.Enable = enable && app.hasPlanner();
-            app.SubmitButton.Enable = enable && app.hasPlanner();
-
-            % Apply to menu
-            %app.OpenMenu.Enable = enable;
-            app.SaveMenu.Enable = app.hasPlanner();
-            app.ParamsButton.Enable = app.hasPlanner();
-            app.DuplicateMenu.Enable = app.hasPlanner();
-            app.ValidateMenu.Enable = enable && app.hasPlanner();
-            app.SubmitMenu.Enable = enable && app.hasPlanner();
-       end
-
-
+        
         function setLoginButtonStatus(obj, app)
             % Connect button
             if ~isempty(app.MainModule.UserName)
@@ -178,13 +263,17 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             % Namespace & Username
             if ~isempty(app.MainModule)
                 % Set Namespace label colors
-                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;
+                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;                
                 if strcmp(app.MainModule.NamespaceId, 'OPER')
                     app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
                     app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];
-                else
+                    app.LabelTopNamespace.Visible = 'on';
+                elseif ~isempty(app.MainModule.UserName)
                     app.LabelTopNamespace.FontColor = [0.00,0.00,0.00];  % Black on yellow
                     app.LabelTopNamespace.BackgroundColor = [1.00,1.00,0.55];
+                    app.LabelTopNamespace.Visible = 'on';
+                else
+                    app.LabelTopNamespace.Visible = 'off';
                 end
             end
         end

@@ -539,7 +539,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 response.status = 'ok';
                 response.message = sprintf('Plan %d saved successfully.', obj.PlanData.pk);
                 response.ok = true;
-                obj.msglog('Plan %d saved successfully.', obj.PlanData.pk);
+                obj.msglog(sprintf('Plan saved successfully, Pk=%d', obj.PlanData.pk));
             catch ME
                 obj.msglog('Error saving plan: %s', ME.message);
                 response.status = 'error';

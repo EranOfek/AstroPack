@@ -6,6 +6,7 @@ classdef CalibObjTable < matlab.apps.AppBase
         Panel_4            matlab.ui.container.Panel
         UITableData        matlab.ui.control.Table
         Panel_2            matlab.ui.container.Panel
+        HelpButton         matlab.ui.control.Button
         CalibObjectsLabel  matlab.ui.control.Label
     end
 
@@ -39,7 +40,7 @@ classdef CalibObjTable < matlab.apps.AppBase
             app.MainModule = MainModule;
         end
 
-        % Callback function: not associated with a component
+        % Callback function
         function CloseButtonPushed(app, event)
 
         end
@@ -47,6 +48,11 @@ classdef CalibObjTable < matlab.apps.AppBase
         % Selection changed function: UITableData
         function UITableDataSelectionChanged(app, event)
            
+        end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('calib_obj');
         end
     end
 
@@ -74,6 +80,13 @@ classdef CalibObjTable < matlab.apps.AppBase
             app.CalibObjectsLabel.FontWeight = 'bold';
             app.CalibObjectsLabel.Position = [8 1 1298 33];
             app.CalibObjectsLabel.Text = 'Calib Objects';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [1219 3 64 26];
+            app.HelpButton.Text = 'Help';
 
             % Create Panel_4
             app.Panel_4 = uipanel(app.UIFigure);

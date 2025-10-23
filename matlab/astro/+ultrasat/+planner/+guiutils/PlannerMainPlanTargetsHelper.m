@@ -113,6 +113,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.msglog('clearPlanTargets');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.Plan) == 0, return; end
 
             % Ask user confirmation
             if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to delete ALL TARGETS ???', 'Delete all targets'), 'Yes')
@@ -134,7 +135,8 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.msglog('adjustGroupStartTime');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
-
+            if height(app.MainModule.Planner.Plan) == 0, return; end
+            
             % Create app
             if isempty(app.AdjustGroupStartTimeApp) || ~isvalid(app.AdjustGroupStartTimeApp)
                 app.AdjustGroupStartTimeApp = ultrasat.planner.gui.AdjustGroupStartTime(app.MainModule);
@@ -292,7 +294,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             % Handle plan target double click - Select the corresponding Unique-Target and show graphs
             % Called from UITable callback
 
-            app.msglog('planRowDoubleClick');
+            app.msglog('planTargetDoubleClick');
             if ~app.hasPlanner(), return; end
             try
                 Index = app.UITablePlanTargets.Selection;
@@ -305,10 +307,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.UITableUniqueTargets.Selection = UniqueTargetIndex;
 
                 % 'Double Click' on Unique-Target to plot its graphs
-                app.UniqueTargetsHelper.uniqueTargetDoubleClick(app, UniqueTargetIndex);
-                app.plotGraphs();
+                app.UniqueTargetsHelper.uniqueTargetDoubleClick(app);
+                app.PlotHelper.plotGraphs(app);
             catch ME
-                app.msgex('planRowDoubleClick', ME)
+                app.msgex('planTargetDoubleClick', ME)
             end
         end
 

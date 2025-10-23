@@ -5,6 +5,7 @@ classdef PlotGraphs < matlab.apps.AppBase
         UIFigure         matlab.ui.Figure
         Label            matlab.ui.control.Label
         Panel_2          matlab.ui.container.Panel
+        HelpButton       matlab.ui.control.Button
         PlotGraphsLabel  matlab.ui.control.Label
         AxesGraphsPlot   matlab.ui.control.UIAxes
     end
@@ -39,6 +40,11 @@ classdef PlotGraphs < matlab.apps.AppBase
         function CloseButtonPushed(app, event)
  
         end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('graphs_plot');
+        end
     end
 
     % Component initialization
@@ -72,8 +78,15 @@ classdef PlotGraphs < matlab.apps.AppBase
             app.PlotGraphsLabel.HorizontalAlignment = 'center';
             app.PlotGraphsLabel.FontSize = 18;
             app.PlotGraphsLabel.FontWeight = 'bold';
-            app.PlotGraphsLabel.Position = [1 0 965 33];
+            app.PlotGraphsLabel.Position = [1 0 1197 33];
             app.PlotGraphsLabel.Text = 'Plot - Graphs';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel_2, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.HelpButton.Position = [1113 2 64 28];
+            app.HelpButton.Text = 'Help';
 
             % Create Label
             app.Label = uilabel(app.UIFigure);
