@@ -464,7 +464,7 @@ classdef Scheduler < Component
                 Units    = 'deg';
                 StepSize = 1;  % deg
             end
-            HA = (-180:StepSize:180).';
+            HA = (-180:StepSize:(180-StepSize)).';
             Dec = Dec(:).';
 
             [Az, Alt] = celestial.coo.hadec2azalt(HA,Dec,Lat,Units);
@@ -820,27 +820,41 @@ classdef Scheduler < Component
             end
         end
         
-        function ArcLength=getObsArcLength(Obj)
+        function ArcLength=getObsArcLength(Obj,MntNum)
             % Calculate the observability arc-length given Dec, Lat and Az/Alt constraints.
             %   The visibility arc-length is the length of the arc from
             %   horizon to horizon given the horizon Az/Alt constraints.
             %   The Alt constraints are taken per mount.
             % Input  : - self.
+            %          - Optional mount. If [], use mount number from list.
+            %            Default is [].
             % Output : - A column vector of arc-length [days].
             % Author : Eran Ofek (Oct 2025)
-            % Example: S=telescope.Scheduler;                    
+            % Example: S=telescope.Scheduler;  
+            %          S.getObsArcLength;
+
+            arguments
+                Obj
+                MntNum  = [];
+            end
 
             Lat = Obj.GeoPos(2);
 
             Nt = Obj.Ntarget;
             ArcLength = nan(Nt,1);
             for It=1:1:Nt
-                Mnt = Obj.List.Catalog.MountNum(It);
+                if isempty(MntNum)
+                    Mnt = Obj.List.Catalog.MountNum(It);
+                else
+                    Mnt = MntNum;
+                end
                 Dec = Obj.List.Catalog.Dec(It);
                 if isnan(Mnt)
                     ArcLength(It) = telescope.Scheduler.obsArcLength(Dec,Lat,Obj.AltConstraints)./360; % [days]
                 else
-                    ArcLength(It) = telescope.Scheduler.obsArcLength(Dec,Lat,Obj.MountAltConstraints(Mnt).Con)./360; % [days]
+                    TmpConst = Obj.MountAltConstraints(Mnt).Con;
+                    TmpConst(:,2) = max(TmpConst(:,2), Obj.List.Catalog.MinAlt(It));
+                    ArcLength(It) = telescope.Scheduler.obsArcLength(Dec,Lat,TmpConst)./360; % [days]
                 end
             end
         end
