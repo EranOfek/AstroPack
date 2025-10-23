@@ -231,6 +231,8 @@ classdef ForcedPhotServer < Component
 
             Obj = pipeline.last.pipes.ForcedPhotServer(Args.DB);
 
+            Toutput = Obj.DB.query('SELECT top 1 * FROM forcedphotsub_output');
+
             LoopInd = 0;
             RequestCounter = 0;
             TotNphot   = 0;
@@ -397,6 +399,14 @@ classdef ForcedPhotServer < Component
                                       
                                         % Tout=Obj.DB.query('SELECT * FROM forcedphotsub_output')
     
+                                        % remove columns in
+                                        % ForcedPhot.Catalog that are not
+                                        % in Toutput
+
+                                        if sum(~ismember(lower(ForcedPhot.Catalog.Properties.VariableNames), Toutput.Properties.VariableNames))>0
+                                            error('Columns mismatch');
+                                        end
+
                                         ErrorInsert = Obj.DB.insertCharDump(Obj.TableOutput, ForcedPhot.Catalog);
                                     else
                                         ErrorInsert = [];

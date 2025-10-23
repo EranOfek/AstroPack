@@ -1,5 +1,5 @@
 function AbsData = loadAbsorptionInterpolants(Args)
-    % Load pre-computed absorption interpolants from individual .mat files
+    % Load all pre-computed absorption interpolants from individual .mat files
     % Input  : * ...,key,val,...
     %            'DataPath' - Path to interpolant .mat files.
     %              Default is '/home/dana/matlab/data/transmission_fitter/'.
@@ -9,11 +9,14 @@ function AbsData = loadAbsorptionInterpolants(Args)
     % Output : - AbsData - Structure with getInterpolated method for compatibility.
     %            Usage: AbsData.getInterpolated('O3UV', Lambda)
     % Author : D. Kovaleva (Oct 2025)
-    % Example: (1) AbsData = astro.transmission.loadAbsorptionInterpolants();
-    %          O3_values = AbsData.getInterpolated('O3UV', linspace(300, 400, 101)');
-    %          (2) load('/home/dana/matlab/data/transmission_fitter/Abs_O3UV.mat', 'Abs_O3UV');
-    %          Lambda = linspace(300, 400, 101)';
-    %          Values = Abs_O3UV(Lambda);
+    % Example: (1) Bulk upload of all interpolants for molecular absorption
+    %              in atmosphere:
+    %              AbsData = astro.transmission.loadAbsorptionInterpolants();
+    %              O3_values = AbsData.getInterpolated('O3UV', linspace(300, 400, 101)');
+    %          (2) Direct uploading of selected interpolants:
+    %          load('~/matlab/data/spec/Atmosphere/Transmission/Abs_O3UV.mat', 'Abs_O3UV'); 
+    %              Lambda = linspace(300, 400, 101)';
+    %              Values = Abs_O3UV(Lambda);
 
     arguments
         Args.DataPath = "~/matlab/data/spec/Atmosphere/Transmission/";

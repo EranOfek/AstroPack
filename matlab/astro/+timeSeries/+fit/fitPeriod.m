@@ -19,6 +19,7 @@ function [Result,RefT0]=fitPeriod(LC, Freq, Args)
     %            .Freq - Frequency
     %            .Par  - Fitted parameters [sin(1...), cos(1...), sin(2...),... const] 
     %            .ParErr - Fitted error parameters.
+    %            .H      - The matrix of the fitted parameters times the time vector. Use it to calculate the model (Y = H*Par)
     %            .A      - Amplitudes (for each harmonic).
     %            .Phase  - Phases.
     %          - RefT0.
@@ -96,6 +97,7 @@ function [Result,RefT0]=fitPeriod(LC, Freq, Args)
         Result(Ifreq).Freq    = Freq(Ifreq);
         Result(Ifreq).Par     = Par;
         Result(Ifreq).ParErr  = ParErr;
+        Result(Ifreq).H       = H;        
         Result(Ifreq).A       = zeros(Nord,1);
         Result(Ifreq).Phase   = zeros(Nord,1);
         Result(Ifreq).Std     = Std;

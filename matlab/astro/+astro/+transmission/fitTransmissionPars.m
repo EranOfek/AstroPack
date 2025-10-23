@@ -5,8 +5,9 @@ function ModelPars = fitTransmissionPars(ModelPars, ObsData, StepNum, Args)
     %          - 
     %          * ...,key,val,... 
     % Output : - 
-    % Author : Dana Kovaleva (2025 Sep) 
+    % Author : A. Krassilschikov, D. Kovaleva (Oct 2025) 
     % Example: 
+
     arguments
         ModelPars
         ObsData
@@ -19,7 +20,7 @@ function ModelPars = fitTransmissionPars(ModelPars, ObsData, StepNum, Args)
     % -- mark thawed parameters
     % -- type and number of clippings (NClip)
     
-    MinimizerName   = ModelPars.OptimizationScenario{StepNum,42};
+    MinimizerName   = ModelPars.OptimizationScenario{StepNum,42}; % minimizer function-to-be: tools.math.fit.lsqNonLinWithFixed
     MinimizerHandle = str2funct(MinimizerName);
     
     % 2. Call the minimizer    
