@@ -220,6 +220,11 @@ classdef ModelBase
 
             % Handle structs (scalar or array)
             if isstruct(data)
+                % Handle empty struct arrays
+                if isempty(data)
+                    return
+                end                
+
                 % If struct array, loop over elements
                 if numel(data) > 1
                     for k = 1:numel(data)
