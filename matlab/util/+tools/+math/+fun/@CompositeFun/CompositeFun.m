@@ -1,19 +1,19 @@
-classdef CompositeFun < Component
+classdef CompositeFun < handle
     % CompositeFun - Composite function framework for transmission calculations
     % This class provides a unified interface for combining multiple transmission
     % functions (ozone, aerosol, Rayleigh, etc.) with parameter mapping and optimization support.
     %
     % Usage Example - Basic Setup:
     %   % Create composite function
-    %   Model = astro.transmission.CompositeFun();
+    %   Model = tools.math.fun.CompositeFun();
     %
     %   % Adding functions
-    %   % Method 1: Auto-generate ArgNames (recommended)
-    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
-    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300], 'FitPar', [false, false]);
-    %
-    %   % Method 2: Explicit generateArgNames helper function
-    %   OzoneArgNames = Model.generateArgNames(@astro.transmission.ozoneTransmission);
+    %   % Method 1: Auto-extract ArgNames from function handle(recommended)
+    %  
+    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [30, 300], 'FitPar', [false, false]);
+    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+    %   % Method 2: Explicit extractArgFuns helper function
+    %   OzoneArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
     %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
     %                'Par', [45, 300], 'FitPar', [false, true]);
     %
@@ -22,28 +22,51 @@ classdef CompositeFun < Component
     %                           'Description', {'ZenithAngle_deg', 'TauAod500', 'AngstromExponent'}, ...
     %                           'Min', {0, 0.01, 0.5}, 'Max', {90, 0.5, 2.0});
     %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, AerosolArgNames, ...
-    %                'Par', [30, 0.05, 1.2], 'FitPar', [true, false, false]);
+    %                'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
     %
     %   % Method 4: Direct function call for ArgNames
     %   OzoneArgNames = astro.transmission.ozoneTransmission('GetArgNames', true);
+    %
+    %   % Adding simple mathematical functions
+    %   % Sin function: y = A * sin(x + B)
+    %   SinArgNames = struct('Name', {1, 2}, 'Description', {'SinAmplitude', 'Phase'}, 'Min', {0, -pi}, 'Max', {10, pi});
+    %   Model.addFun('Sine function', @(x, par) par(1) * sin(x + par(2)), SinArgNames, 'Par', [1, 0], 'FitPar', [true, false]);
+    %
+    %   % Cos function: y = C * cos(D * x)
+    %   CosArgNames = struct('Name', {1, 2}, 'Description', {'CosAmplitude', 'Frequency'}, 'Min', {0, 0}, 'Max', {5, 10});
+    %   Model.addFun('Cosine function', @(x, par) par(1) * cos(par(2) * x), CosArgNames, 'Par', [2, 1], 'FitPar', [false, true]);
     %
     %   % After functions are added, can also get ArgNames from model
     %   ArgNames1 = Model.Funs(1).ArgNames;     % Same as OzoneArgNames
     %   ArgNames2 = Model.Funs(2).ArgNames;     % Same as AerosolArgNames
     %
+    %   % It is possible to add function(s) without setting parameter values (NaN by default),
+    %   % but fixed parameters (FitPar=false) must be set before calculations:
+    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
+    %   AllParams = Model.getAllParamStruct();  % Get parameter structure
+    %   % AllParams.Names shows parameter names and their global indices
+    %   AllParams.Values(1) = 30;   % Set ZenithAngle_deg (fixed parameter)
+    %   AllParams.Values(3) = 1.2;  % Set AngstromExponent (fixed parameter)
+    %   % Parameter 2 (TauAod500) will be fitted, so can remain NaN initially
+    %   Model.setAllParamStruct(AllParams);  % Apply the values 
+    %
     % Usage Example - Information Getters:
     %   % Get function summary
-    %   FunList = Model.getFunctionList();
-    %   fprintf('Added %d functions\n', length(FunList));
+    %   FunsNames = Model.namesFuns();
+    %   fprintf('Added %d functions\n', size(FunsNames, 1));
     %
     %   % Get parameter information
-    %   fprintf('Total parameters: %d\n', Model.getNumAllParam());
-    %   fprintf('Fitted parameters: %d\n', Model.getNumFittedParam());
+    %   fprintf('Total parameters: %d\n', Model.numAllParam());
+    %   fprintf('Fitted parameters: %d\n', Model.numFittedParam());
     %
-    %   AllNames = Model.getAllParamNames();
-    %   AllValues = Model.getAllParamValues();
-    %   FittedNames = Model.getFittedParamNames();
-    %   FittedInfo = Model.getFittedParamInfo();
+    %   AllNames = Model.namesAllParam();
+    %   AllValues = Model.valuesAllParam();
+    %   FittedNames = Model.namesFittedParam();
+    %   FittedInfo = Model.getFittedParamStruct();
+    %
+    %   % Get detailed function information
+    %   AllFuns = Model.allFunsStruct();    % Complete structure with all fields
+    %   FunsNames = Model.namesFuns();      % Cell array: {Name, Description}
     %
     % Usage Example - Dynamic Parameter Management:
     %   % Get current parameter structure
@@ -53,7 +76,7 @@ classdef CompositeFun < Component
     %   AllParams.Values(2) = 350;      % Change ozone value
     %   AllParams.FitPar(1) = false;    % Fix zenith angle
     %   AllParams.FitPar(3) = true;     % Fit aerosol parameter
-    %   Model = Model.setAllParamStruct(AllParams);
+    %   Model.setAllParamStruct(AllParams);  % Handle class - modifies in place
     %
     % Usage Example - Pre-calculation and Evaluation:
     %   % Define wavelength range
@@ -62,12 +85,24 @@ classdef CompositeFun < Component
     %   % Pre-calculate functions with fixed parameters (after setting fit flags)
     %   Model.preCalc(Lambda);
     %
-    %   % Evaluate with stored parameter values
-    %   Transmission = Model.evaluate(Lambda);
-    %
-    %   % Evaluate with new parameter values (overrides stored values)
+    %   % Method 1: Evaluate with all parameter values (direct input)
     %   NewAllValues = [45, 280, 0.08, 0.6];  % All parameters
-    %   Transmission = Model.evaluate(Lambda, NewAllValues);
+    %   Transmission = Model.evaluateAllParamInput(Lambda, NewAllValues);
+    %
+    %   % Method 2: Evaluate with only fitted parameters (fixed parameters pre-set)
+    %   % First set all fixed parameters using setAllParamStruct (if not
+    %   % set already)
+    %   AllParams = Model.getAllParamStruct();
+    %   AllParams(1).Value = 45;    % Set zenith angle (fixed)
+    %   AllParams(1).FitPar = false;
+    %   AllParams(2).Value = 280;   % Set ozone value (fixed)
+    %   AllParams(2).FitPar = false;
+    %   AllParams(3).FitPar = true; % Fit aerosol AOD
+    %   AllParams(4).FitPar = true; % Fit Angstrom exponent
+    %   Model.setAllParamStruct(AllParams);
+    %   % Now evaluate with only fitted parameters
+    %   FittedValues = [0.08, 0.6];  % Only fitted parameters
+    %   Transmission = Model.evaluate(Lambda, FittedValues);
     %
     % % Usage Example - Optimization Integration:
     % %   % Get current parameter structure with bounds
@@ -89,23 +124,31 @@ classdef CompositeFun < Component
     %   Constructor: CompositeFun() - Create composite function object
     %   addFun() - Add transmission function with parameters
     %   preCalc() - Pre-calculate functions with fixed parameters
-    %   evaluate() - Evaluate composite function with AllParams vector
+    %   evaluate() - Evaluate composite function 
+    %   evaluateAllParamInput() - Evaluate composite function with all-
+    %                             parameters input
+    %   checkParamConsistency() - Validate parameter consistency across functions
     %
     % Setters:
-    %   setAllParamStruct() - Update AllParams values and fit flags dynamically
+    %   setAllParamStruct() - Update AllParams (Model.Funs.Par, Model.Funs.FitPar)
     %
     % Getters:
-    %   getNumAllParam() - Total parameters (fitted + fixed)
-    %   getAllParamNames() - Names of all parameters
-    %   getAllParamValues() - Values of all parameters
-    %   getNumFittedParam() - Count of fitted parameters only
-    %   getFittedParamNames() - Names of fitted parameters only
-    %   getFunctionList() - Summary of added functions
-    %   getFittedParamInfo() - Comprehensive fitted parameter details
-    %   getAllParamStruct() - Get AllParams structure with Values and FitPar
+    %   numAllParam() - Count of all parameters (fitted + fixed)
+    %   namesAllParam() - Names of all parameters, cell array
+    %   valuesAllParam() - Values of all parameters, vector
+    %   numFittedParam() - Count of fitted parameters only
+    %   namesFittedParam() - Names of fitted parameters only, cell array
+    %   namesFuns() - Names and descriptions of added functions as cell array
+    %   allFunsStruct() - Complete Funs structure array
+    %   getFittedParamStruct() - Comprehensive fitted parameter details,
+    %                            structure array
+    %   getAllParamStruct() - Get AllParams structure array
     %
-    % See also: astro.transmission.ozoneTransmission, astro.transmission.aerosolTransmission,
-    %           astro.transmission.rayleighTransmission, astro.transmission.loadAbsorptionInterpolants
+    % Internal methods:
+    %   extractArgFuns() - Extract argument information from function handles
+    %   argMapping() - Map global parameters for newly added functions (builds from Funs structure)
+    %
+
 
     properties
         Funs        = struct('Name',[], 'Desc','', 'Handle',[], 'Par',[], 'FitPar',[], 'OptionalArgs',{}, ...
@@ -141,22 +184,17 @@ classdef CompositeFun < Component
                             %       all(FitPar==false).
 
         FunOperator = '*'
-        GlobalParamIndex = 1        % Next available global parameter index
-        GlobalParamNames = {}       % List of global parameter names
     end
-
 
     methods % Constructor
         function Obj = CompositeFun()
             % Constructor for CompositeFun
             % Input  : None
             % Output : - CompositeFun object.
-            % Example: Model = astro.transmission.CompositeFun();
+            % Example: Model = tools.math.fun.CompositeFun();
 
             % Initialize properties
             Obj.FunOperator = '*';
-            Obj.GlobalParamIndex = 1;
-            Obj.GlobalParamNames = {};
             Obj.Funs = [];
         end
     end
@@ -164,19 +202,38 @@ classdef CompositeFun < Component
     methods % setter/getters
 
         % All parameters (fitted + fixed)
-        function NumParams = getNumAllParam(Obj)
+        function NumParams = numAllParam(Obj)
             % Get total number of all global parameters (fitted + fixed)
+            % Computed on-demand from Funs.ArgMapping (single source of truth)
             % Output : - NumParams - Number of all global parameters.
-            NumParams = Obj.GlobalParamIndex - 1;
+            if isempty(Obj.Funs)
+                NumParams = 0;
+            else
+                NumParams = max([Obj.Funs.ArgMapping]);
+            end
         end
 
-        function ParamNames = getAllParamNames(Obj)
+        function ParamNames = namesAllParam(Obj)
             % Get list of all global parameter names (fitted + fixed)
+            % Built on-demand from Funs.ArgNames (single source of truth)
             % Output : - ParamNames - Cell array of all parameter names.
-            ParamNames = Obj.GlobalParamNames;
+            NumParams = Obj.numAllParam();
+            ParamNames = cell(NumParams, 1);
+
+            % Build names from Funs.ArgNames
+            for Ifun = 1:numel(Obj.Funs)
+                for Ipar = 1:length(Obj.Funs(Ifun).Par)
+                    GlobalIndex = Obj.Funs(Ifun).ArgMapping(Ipar);
+                    if ~isempty(Obj.Funs(Ifun).ArgNames) && length(Obj.Funs(Ifun).ArgNames) >= Ipar
+                        ParamNames{GlobalIndex} = Obj.Funs(Ifun).ArgNames(Ipar).Description;
+                    else
+                        ParamNames{GlobalIndex} = sprintf('Param_%d', GlobalIndex);
+                    end
+                end
+            end
         end
 
-        function ParamValues = getAllParamValues(Obj)
+        function ParamValues = valuesAllParam(Obj)
             % Get current parameter values for all parameters (fitted + fixed)
             % Output : - ParamValues - Column vector of all parameter values.
             AllParams = getAllParamStruct(Obj);
@@ -184,7 +241,7 @@ classdef CompositeFun < Component
         end
 
         % Fitted parameters only
-        function NumFittedParams = getNumFittedParam(Obj)
+        function NumFittedParams = numFittedParam(Obj)
             % Get total number of fitted parameters only
             % Output : - NumFittedParams - Number of parameters marked for fitting.
             if isempty(Obj.Funs)
@@ -196,15 +253,18 @@ classdef CompositeFun < Component
             NumFittedParams = sum(arrayfun(@(f) sum(f.FitPar), Obj.Funs));
         end
 
-        function FittedNames = getFittedParamNames(Obj)
+        function FittedNames = namesFittedParam(Obj)
             % Get list of fitted parameter names only
             % Output : - FittedNames - Cell array of fitted parameter names.
 
-            NumAllParams = Obj.GlobalParamIndex - 1;
+            NumAllParams = Obj.numAllParam();
             if NumAllParams == 0
                 FittedNames = {};
                 return;
             end
+
+            % Get all parameter names
+            AllNames = Obj.namesAllParam();
 
             % Create a logical mask for fitted parameters across all global parameters
             IsFitted = false(NumAllParams, 1);
@@ -222,32 +282,36 @@ classdef CompositeFun < Component
             end
 
             % Extract fitted parameter names directly
-            FittedNames = Obj.GlobalParamNames(IsFitted);
+            FittedNames = AllNames(IsFitted);
         end
 
         % Function information
-        function FunList = getFunctionList(Obj)
-            % Get summary of added functions
-            % Output : - FunList - Structure array with Name, Desc, NumParams, NumFittedParams.
+        function FunsNames = namesFuns(Obj)
+            % Get names and descriptions of added functions as cell array
+            % Output : - FunsNames - Cell array with columns: {Name, Description}.
             if isempty(Obj.Funs)
-                FunList = [];
+                FunsNames = {};
                 return;
             end
 
-            FunList = struct('Name', {}, 'Desc', {}, 'NumParams', {}, 'NumFittedParams', {});
+            FunsNames = cell(numel(Obj.Funs), 2);
             for Ifun = 1:numel(Obj.Funs)
-                FunList(Ifun).Name = Obj.Funs(Ifun).Name;
-                FunList(Ifun).Desc = Obj.Funs(Ifun).Desc;
-                FunList(Ifun).NumParams = length(Obj.Funs(Ifun).Par);
-                FunList(Ifun).NumFittedParams = sum(Obj.Funs(Ifun).FitPar);
+                FunsNames{Ifun, 1} = Obj.Funs(Ifun).Name;
+                FunsNames{Ifun, 2} = Obj.Funs(Ifun).Desc;
             end
         end
 
-        function FittedInfo = getFittedParamInfo(Obj)
+        function FunsStruct = allFunsStruct(Obj)
+            % Get complete Funs structure
+            % Output : - FunsStruct - Complete Funs structure array.
+            FunsStruct = Obj.Funs;
+        end
+
+        function FittedInfo = getFittedParamStruct(Obj)
             % Get comprehensive information about fitted parameters
             % Output : - FittedInfo - Structure with TotalFitted, FittedNames, FunctionMapping.
-            FittedInfo.TotalFitted = getNumFittedParam(Obj);
-            FittedInfo.FittedNames = getFittedParamNames(Obj);
+            FittedInfo.TotalFitted = numFittedParam(Obj);
+            FittedInfo.FittedNames = namesFittedParam(Obj);
 
             % Map which global parameter indices each function uses for fitted params
             FittedInfo.FunctionMapping = {};
@@ -259,6 +323,7 @@ classdef CompositeFun < Component
 
         function AllParamsStruct = getAllParamStruct(Obj)
             % Get complete parameter structure for optimization
+            % Built on-demand from Funs structure (single source of truth)
             % Output : - AllParamsStruct - Structure with Names, Values, FitPar, Min, Max.
             %
             % Example usage:
@@ -277,8 +342,8 @@ classdef CompositeFun < Component
             AllParamsStruct = struct();
 
             % Initialize arrays
-            NumAllParams = Obj.GlobalParamIndex - 1;
-            AllParamsStruct.Names = Obj.GlobalParamNames;
+            NumAllParams = Obj.numAllParam();
+            AllParamsStruct.Names = Obj.namesAllParam();
             AllParamsStruct.Values = zeros(NumAllParams, 1);
             AllParamsStruct.FitPar = false(NumAllParams, 1);
             AllParamsStruct.Min = -inf(NumAllParams, 1);  % Default: no lower bound
@@ -312,7 +377,7 @@ classdef CompositeFun < Component
             AllParamsStruct.NumFixed = sum(~AllParamsStruct.FitPar);
         end
 
-        function Obj = setAllParamStruct(Obj, AllParamsStruct)
+        function setAllParamStruct(Obj, AllParamsStruct)
             % Update all parameter values, FitPar flags, and bounds if provided
             % Input  : - self.
             %          - AllParamsStruct - Structure with Values and FitPar fields.
@@ -320,7 +385,7 @@ classdef CompositeFun < Component
             %                            FitPar: logical vector of fit flags
             %                            Min: (optional) vector of lower bounds
             %                            Max: (optional) vector of upper bounds
-            % Output : - Updated object.
+            % Output : - None (modifies object in-place - handle class).
             %
             % Example usage:
             %   AllParams = Model.getAllParamStruct();
@@ -328,14 +393,14 @@ classdef CompositeFun < Component
             %   AllParams.FitPar(3) = true; % Mark parameter for fitting
             %   AllParams.Min(2) = 200;     % Set lower bound
             %   AllParams.Max(2) = 500;     % Set upper bound
-            %   Model = Model.setAllParamStruct(AllParams);
+            %   Model.setAllParamStruct(AllParams);  % No assignment needed (handle class)
 
             % Validate input structure
             if ~isstruct(AllParamsStruct) || ~isfield(AllParamsStruct, 'Values') || ~isfield(AllParamsStruct, 'FitPar')
                 error('CompositeFun:setAllParamsStruct:InvalidInput', 'Input must be structure with Values and FitPar fields');
             end
 
-            NumAllParams = Obj.GlobalParamIndex - 1;
+            NumAllParams = Obj.numAllParam();
 
             % Validate sizes
             if length(AllParamsStruct.Values) ~= NumAllParams
@@ -388,17 +453,174 @@ classdef CompositeFun < Component
 
     methods % low level utilities
 
-        function ArgNames = generateArgNames(~, FunctionHandle)
-            % Auto-generate ArgNames structure from function handle
+        function checkParamConsistency(Obj)
+            % Check for parameter value inconsistencies across functions and NaN fixed parameters
+            % Validates that functions sharing the same global parameter have consistent values.
+            % Also provides reminders about fixed parameters (FitPar=false) that have NaN values.
+            % This is an optional validation method to help detect user configuration errors.
+            % Input  : - self.
+            % Output : - None (throws error if inconsistencies found, shows reminder for NaN fixed params).
+            %
+            % Example usage:
+            %   Model.checkParamConsistency();  % Optional validation before calculations
+
+            if isempty(Obj.Funs)
+                return;  % Nothing to check
+            end
+
+            % Build mapping of global parameter index to {function, local parameter index, value}
+            GlobalParamMap = containers.Map('KeyType', 'int32', 'ValueType', 'any');
+
+            for Ifun = 1:numel(Obj.Funs)
+                for Ipar = 1:length(Obj.Funs(Ifun).Par)
+                    GlobalIndex = Obj.Funs(Ifun).ArgMapping(Ipar);
+                    ParamValue = Obj.Funs(Ifun).Par(Ipar);
+                    if ~isempty(Obj.Funs(Ifun).ArgNames) && length(Obj.Funs(Ifun).ArgNames) >= Ipar
+                        ParamName = Obj.Funs(Ifun).ArgNames(Ipar).Description;
+                    else
+                        ParamName = sprintf('Param_%d', GlobalIndex);
+                    end
+
+                    if isKey(GlobalParamMap, GlobalIndex)
+                        % Parameter already seen - check for consistency
+                        ExistingEntries = GlobalParamMap(GlobalIndex);
+
+                        % Check if any existing value differs from current value
+                        for Ientry = 1:length(ExistingEntries)
+                            ExistingValue = ExistingEntries{Ientry}{3};
+                            % Check for NaN inconsistencies or numerical differences
+                            if isnan(ParamValue) ~= isnan(ExistingValue) || ...
+                               (~isnan(ParamValue) && ~isnan(ExistingValue) && abs(ParamValue - ExistingValue) > 1e-12)
+                                % Found inconsistency - display detailed information using fprintf
+                                fprintf('\n=== PARAMETER INCONSISTENCY DETECTED ===\n');
+                                fprintf('Global parameter %d (%s) has different values:\n', GlobalIndex, ParamName);
+
+                                % Display existing conflicting values
+                                for Jentry = 1:length(ExistingEntries)
+                                    ExistFun = ExistingEntries{Jentry}{1};
+                                    ExistVal = ExistingEntries{Jentry}{3};
+                                    if isnan(ExistVal)
+                                        fprintf('  Function %d (%s): NaN\n', ExistFun, Obj.Funs(ExistFun).Desc);
+                                    else
+                                        fprintf('  Function %d (%s): %.6g\n', ExistFun, Obj.Funs(ExistFun).Desc, ExistVal);
+                                    end
+                                end
+
+                                % Display current conflicting value
+                                if isnan(ParamValue)
+                                    fprintf('  Function %d (%s): NaN\n', Ifun, Obj.Funs(Ifun).Desc);
+                                else
+                                    fprintf('  Function %d (%s): %.6g\n', Ifun, Obj.Funs(Ifun).Desc, ParamValue);
+                                end
+
+                                % Display recipe to fix - prefer non-NaN value
+                                SuggestedValue = ExistingValue;
+                                if isnan(ExistingValue) && ~isnan(ParamValue)
+                                    SuggestedValue = ParamValue;
+                                end
+
+                                fprintf('\nRecipe to fix:\n');
+                                fprintf('  AllParams = Model.getAllParamStruct();\n');
+                                if isnan(SuggestedValue)
+                                    fprintf('  AllParams.Values(%d) = 45;  %% Set meaningful value (example)\n', GlobalIndex);
+                                else
+                                    fprintf('  AllParams.Values(%d) = %.6g;  %% Set consistent value\n', GlobalIndex, SuggestedValue);
+                                end
+                                fprintf('  Model.setAllParamStruct(AllParams);\n');
+                                fprintf('==========================================\n\n');
+
+                                % Throw a concise error
+                                error('CompositeFun:checkParamConsistency:Inconsistency', ...
+                                      'Parameter inconsistency detected for "%s". See details above.', ParamName);
+                            end
+                        end
+
+                        % Add current entry to existing list
+                        NewEntry = {Ifun, Ipar, ParamValue};
+                        ExistingEntries = [ExistingEntries, {NewEntry}];  % Concatenate instead of dynamic indexing
+                        GlobalParamMap(GlobalIndex) = ExistingEntries;
+                    else
+                        % First time seeing this global parameter
+                        GlobalParamMap(GlobalIndex) = {{Ifun, Ipar, ParamValue}};
+                    end
+                end
+            end
+
+            % Check for NaN fixed parameters (informational warning, not error)
+            % Use cell array to avoid size-changing warnings
+            NaNFixedParamsCell = {};
+            for Ifun = 1:numel(Obj.Funs)
+                for Ipar = 1:length(Obj.Funs(Ifun).Par)
+                    if ~Obj.Funs(Ifun).FitPar(Ipar) && isnan(Obj.Funs(Ifun).Par(Ipar))
+                        GlobalIndex = Obj.Funs(Ifun).ArgMapping(Ipar);
+                        if ~isempty(Obj.Funs(Ifun).ArgNames) && length(Obj.Funs(Ifun).ArgNames) >= Ipar
+                            ParamName = Obj.Funs(Ifun).ArgNames(Ipar).Description;
+                        else
+                            ParamName = sprintf('Param_%d', GlobalIndex);
+                        end
+                        NewEntry = {GlobalIndex, Ifun, Ipar, ParamName, Obj.Funs(Ifun).Desc};
+                        NaNFixedParamsCell = [NaNFixedParamsCell, {NewEntry}];
+                    end
+                end
+            end
+
+            % Convert to matrix if there are any NaN fixed params
+            if ~isempty(NaNFixedParamsCell)
+                NaNFixedParams = zeros(length(NaNFixedParamsCell), 3);
+                NaNFixedParamsNames = cell(length(NaNFixedParamsCell), 2);
+                for i = 1:length(NaNFixedParamsCell)
+                    NaNFixedParams(i,:) = [NaNFixedParamsCell{i}{1:3}];
+                    NaNFixedParamsNames{i,1} = NaNFixedParamsCell{i}{4};
+                    NaNFixedParamsNames{i,2} = NaNFixedParamsCell{i}{5};
+                end
+            else
+                NaNFixedParams = [];
+                NaNFixedParamsNames = {};
+            end
+
+            if ~isempty(NaNFixedParams)
+                fprintf('\n=== REMINDER: NaN FIXED PARAMETERS DETECTED ===\n');
+                fprintf('The following fixed parameters (FitPar=false) have NaN values:\n');
+                for i = 1:size(NaNFixedParams, 1)
+                    GlobalIndex = NaNFixedParams(i,1);
+                    FunIndex = NaNFixedParams(i,2);
+                    ParamName = NaNFixedParamsNames{i,1};
+                    FunDesc = NaNFixedParamsNames{i,2};
+                    fprintf('  Global parameter %d (%s) in function %d (%s)\n', GlobalIndex, ParamName, FunIndex, FunDesc);
+                end
+
+                fprintf('\nFixed parameters with NaN values cannot be used in calculations.\n');
+                fprintf('Recipe to set values:\n');
+                fprintf('  AllParams = Model.getAllParamStruct();\n');
+
+                % Show unique global indices to avoid duplicate settings
+                UniqueGlobalIndices = unique(NaNFixedParams(:,1));
+                for i = 1:length(UniqueGlobalIndices)
+                    GlobalIndex = UniqueGlobalIndices(i);
+                    % Find corresponding parameter name
+                    ParamRow = find(NaNFixedParams(:,1) == GlobalIndex, 1);
+                    ParamName = NaNFixedParamsNames{ParamRow,1};
+                    fprintf('  AllParams.Values(%d) = 45;  %% Set meaningful value for %s (example)\n', GlobalIndex, ParamName);
+                end
+
+                fprintf('  Model.setAllParamStruct(AllParams);\n');
+                fprintf('===============================================\n\n');
+            end
+
+            % If we reach here, no inconsistencies found
+        end
+
+        function ArgNames = extractArgFuns(~, FunctionHandle)
+            % Auto-extract ArgNames structure from function handle
             % Calls the transmission function with 'GetArgNames', true flag to obtain parameter information.
             % Input  : - self (not used, static-like method).
             %          - FunctionHandle - Function handle to transmission function that supports GetArgNames flag.
             % Output : - ArgNames - Structure array with Name, Description, Min, Max fields.
             %
             % Example usage:
-            %   ArgNames = Model.generateArgNames(@astro.transmission.ozoneTransmission);
-            %   ArgNames = Model.generateArgNames(@astro.transmission.aerosolTransmission);
-            %   ArgNames = Model.generateArgNames(@astro.transmission.rayleighTransmission);
+            %   ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
+            %   ArgNames = Model.extractArgFuns(@astro.transmission.aerosolTransmission);
+            %   ArgNames = Model.extractArgFuns(@astro.transmission.rayleighTransmission);
 
             try
                 % Call function with GetArgNames flag to get parameter info
@@ -417,8 +639,8 @@ classdef CompositeFun < Component
                 end
 
             catch ME
-                error('CompositeFun:generateArgNames:Failed', ...
-                      'Cannot generate ArgNames from function handle: %s', ME.message);
+                error('CompositeFun:extractArgFuns:Failed', ...
+                      'Cannot extract ArgNames from function handle: %s', ME.message);
             end
         end
 
@@ -426,7 +648,7 @@ classdef CompositeFun < Component
 
     methods % utilities
 
-        function Obj=addFun(Obj, Desc, Handle, ArgNames, varargin)
+        function addFun(Obj, Desc, Handle, ArgNames, varargin)
             % Add a function component to Funs
             % Input  : - self.
             %          - Desc - Description string (obligatory).
@@ -443,18 +665,18 @@ classdef CompositeFun < Component
             %            'FitPar' - Logical vector for fitting ParamMatrix elements (default all false).
             %            'OptionalArgs' - Cell array for transmission function's optional arguments.
             % Output : - Updated object.
-            % Example: Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]); % Auto-generate ArgNames
+            % Example: Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]); % Auto-extract ArgNames
             %          Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, ArgInfo, 'Par', []);
-            %          ArgNames = Model.generateArgNames(@astro.transmission.ozoneTransmission); % Explicit generation
+            %          ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission); % Explicit generation
 
             % Check obligatory inputs
             if nargin < 3
                 error('CompositeFun:addFun:MissingInputs', 'Desc and Handle are obligatory');
             end
 
-            % Auto-generate ArgNames if not provided
+            % Auto-extract ArgNames if not provided
             if nargin < 4 || isempty(ArgNames)
-                ArgNames = generateArgNames(Obj, Handle);
+                ArgNames = extractArgFuns(Obj, Handle);
             end
 
             % Parse optional key-value pairs
@@ -519,13 +741,14 @@ classdef CompositeFun < Component
             end
 
             % Update ArgMapping for the new function
-            Obj = argMapping(Obj);
+            argMapping(Obj);
         end
 
-        function Obj=argMapping(Obj)
-            % Map parameters of the last added function to global parameter list
+        function argMapping(Obj)
+            % Map parameters of the last added function to global parameter indices
+            % Builds global parameter mapping from existing Funs structure without redundant storage.
             % Input  : - self.
-            % Output : - Updated object with ArgMapping populated for last function.
+            % Output : - None (modifies object in-place - handle class).
 
             if isempty(Obj.Funs)
                 return;
@@ -535,13 +758,39 @@ classdef CompositeFun < Component
             CurrentFun = Obj.Funs(end);
             NumParams = length(CurrentFun.Par);
 
+            % Build current global parameter name list from existing functions
+            % Find maximum global index first to pre-allocate
+            MaxGlobalIndex = 0;
+            for Ifun = 1:(numel(Obj.Funs)-1)
+                if ~isempty(Obj.Funs(Ifun).ArgMapping)
+                    MaxGlobalIndex = max(MaxGlobalIndex, max(Obj.Funs(Ifun).ArgMapping));
+                end
+            end
+
+            % Pre-allocate GlobalParamNames
+            GlobalParamNames = cell(1, MaxGlobalIndex);
+            NextGlobalIndex = MaxGlobalIndex + 1;
+
+            % First, process all existing functions (except the last one) to build current state
+            for Ifun = 1:(numel(Obj.Funs)-1)
+                for Ipar = 1:length(Obj.Funs(Ifun).Par)
+                    ExistingGlobalIndex = Obj.Funs(Ifun).ArgMapping(Ipar);
+                    % Build parameter name from ArgNames
+                    if ~isempty(Obj.Funs(Ifun).ArgNames) && length(Obj.Funs(Ifun).ArgNames) >= Ipar
+                        ParamName = Obj.Funs(Ifun).ArgNames(Ipar).Description;
+                        GlobalParamNames{ExistingGlobalIndex} = ParamName;
+                    end
+                end
+            end
+
+            % Now process the last function's parameters
             for Ipar = 1:NumParams
                 % Validate ArgNames
                 if isempty(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:MissingArgNames', 'ArgNames is empty for function %d', CurrentFun.Name);
+                    error('CompositeFun:argMapping:MissingArgNames', 'ArgNames is empty for function %s', CurrentFun.Name);
                 end
                 if Ipar > length(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:ArgNamesMismatch', 'ArgNames has %d elements but Par has %d elements for function %d', ...
+                    error('CompositeFun:argMapping:ArgNamesMismatch', 'ArgNames has %d elements but Par has %d elements for function %s', ...
                           length(CurrentFun.ArgNames), NumParams, CurrentFun.Name);
                 end
 
@@ -549,13 +798,12 @@ classdef CompositeFun < Component
                 ParamName = CurrentFun.ArgNames(Ipar).Description;
 
                 % Check if parameter exists in global list
-                ExistingIndex = find(strcmp(Obj.GlobalParamNames, ParamName), 1);
+                ExistingIndex = find(strcmp(GlobalParamNames, ParamName), 1);
 
                 if isempty(ExistingIndex)
-                    % New parameter, add to global list
-                    Obj.GlobalParamNames{end+1} = ParamName;
-                    GlobalIndex = Obj.GlobalParamIndex;
-                    Obj.GlobalParamIndex = Obj.GlobalParamIndex + 1;
+                    % New parameter, assign next available index
+                    GlobalIndex = NextGlobalIndex;
+                    NextGlobalIndex = NextGlobalIndex + 1;
                 else
                     % Parameter exists, use existing index
                     GlobalIndex = ExistingIndex;
@@ -566,12 +814,12 @@ classdef CompositeFun < Component
             end
         end
 
-        function Obj=preCalc(Obj, X)
+        function preCalc(Obj, X)
             % Pre-calculate function values for functions with all fixed parameters
             % Uses only arguments-based caching (not persistent cache)
             % Input  : - self.
             %          - X - Input values (e.g., wavelengths).
-            % Output : - Updated object with PreCalc populated.
+            % Output : - None (modifies object in-place - handle class).
 
             if nargin < 2 || isempty(X)
                 return;
@@ -610,7 +858,7 @@ classdef CompositeFun < Component
     end
 
     methods % evaluation
-        function Y=evaluate(Obj, X, AllParams)
+        function Y=evaluateAllParamInput(Obj, X, AllParams)
             % Evaluate the composite function
             % Input  : - self.
             %          - X - Input values (e.g., wavelengths), column vector.
@@ -626,7 +874,7 @@ classdef CompositeFun < Component
 
             % Validate AllParams size if provided
             if ~isempty(AllParams)
-                ExpectedSize = Obj.GlobalParamIndex - 1;
+                ExpectedSize = Obj.numAllParam();
                 if size(AllParams, 2) ~= ExpectedSize
                     error('CompositeFun:evaluate:AllParamsSizeMismatch', ...
                           'AllParams has %d columns but %d expected', ...
@@ -676,6 +924,72 @@ classdef CompositeFun < Component
                     error('Composite function Operator: %s - not supported yet',Obj.FunOperator);
             end
 
+        end
+
+        function Y=evaluate(Obj, X, FittedParams)
+            % Evaluate the composite function using only fitted parameters
+            % Input  : - self.
+            %          - X - Input values (e.g., wavelengths), column vector.
+            %          - FittedParams - Fitted parameter matrix only.
+            %                          If vector: single parameter set.
+            %                          If matrix: each row is a parameter set.
+            %                          Fixed parameters are taken from stored Obj.Funs.Par values.
+            % Output : - Y - Output values matrix (wavelengths × parameter_sets).
+            %
+            % Note: Fixed parameters (FitPar=false) are taken directly from Obj.Funs.Par.
+            %       Only fitted parameters are provided as input.
+
+            % Validate FittedParams size
+            NumFittedParams = Obj.numFittedParam();
+            if size(FittedParams, 2) ~= NumFittedParams
+                error('CompositeFun:evaluate:FittedParamsSizeMismatch', ...
+                      'FittedParams has %d columns but %d fitted parameters expected', ...
+                      size(FittedParams, 2), NumFittedParams);
+            end
+
+            NumParamSets = size(FittedParams, 1);
+            Nfun = numel(Obj.Funs);
+
+            % Track fitted parameter usage across all functions
+            FittedParamIndex = 0;
+
+            switch Obj.FunOperator
+                case '*'
+                    Y = ones(length(X), NumParamSets);
+                    for Ifun=1:1:Nfun
+                        % Check if all parameters for this function are fixed and pre-calculated
+                        if ~isempty(Obj.Funs(Ifun).PreCalc) && all(~Obj.Funs(Ifun).FitPar)
+                            % Use pre-calculated values - replicate for all parameter sets
+                            Y = Y .* repmat(Obj.Funs(Ifun).PreCalc(:), 1, NumParamSets);
+                        else
+                            % Build parameter matrix for this function
+                            NumFunParams = length(Obj.Funs(Ifun).Par);
+                            ParMatrix = zeros(NumParamSets, NumFunParams);
+
+                            for Ipar = 1:NumFunParams
+                                if Obj.Funs(Ifun).FitPar(Ipar)
+                                    % This is a fitted parameter - take from FittedParams input
+                                    FittedParamIndex = FittedParamIndex + 1;
+                                    ParMatrix(:, Ipar) = FittedParams(:, FittedParamIndex);
+                                else
+                                    % This is a fixed parameter - take from stored Obj.Funs.Par
+                                    FixedValue = Obj.Funs(Ifun).Par(Ipar);
+                                    if isnan(FixedValue)
+                                        error('CompositeFun:evaluate:NaNFixedParameter', ...
+                                              'Fixed parameter %d in function %d (%s) has NaN value. Use setAllParamStruct() to set fixed parameters first.', ...
+                                              Ipar, Ifun, Obj.Funs(Ifun).Name);
+                                    end
+                                    ParMatrix(:, Ipar) = FixedValue;
+                                end
+                            end
+
+                            FunResult = Obj.Funs(Ifun).Handle(X, ParMatrix, Obj.Funs(Ifun).OptionalArgs{:});
+                            Y = Y .* FunResult;
+                        end
+                    end
+                otherwise
+                    error('Composite function Operator: %s - not supported yet',Obj.FunOperator);
+            end
         end
 
     end
