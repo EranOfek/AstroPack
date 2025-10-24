@@ -1296,7 +1296,7 @@ classdef AstroImage < Component
                             end
                         case {'Cat','CatData'}
                             if isempty(Obj.CatData.ColNames)
-                                stat = Istat + 1;
+                                Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
                             else
                                 FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
