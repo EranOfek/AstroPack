@@ -42,6 +42,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.msglog('build');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.UniqTarg) == 0, return; end
 
             % Set AfterBuild flag to true if plan is not empty
             app.MainModule.AfterBuild = height(app.MainModule.Planner.Plan) > 0;

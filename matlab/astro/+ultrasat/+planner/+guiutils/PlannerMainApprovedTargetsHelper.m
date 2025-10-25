@@ -164,7 +164,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % Show the list of approved targets
-            app.showApprovedTargets();
+            obj.showApprovedTargets();
 
             % Get the selected target as struct
             PlanTarget = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, PlanTargetIndex);

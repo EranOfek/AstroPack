@@ -72,6 +72,7 @@ classdef PlannerMain < matlab.apps.AppBase
         BuildTimeEditField              matlab.ui.control.EditField
         BuildEditFieldLabel             matlab.ui.control.Label
         Panel_8                         matlab.ui.container.Panel
+        RefreshApprovedTargetsButton_4  matlab.ui.control.Button
         RefreshApprovedTargetsButton_2  matlab.ui.control.Button
         StatusTextArea                  matlab.ui.control.TextArea
         StatusTextAreaLabel             matlab.ui.control.Label
@@ -240,6 +241,7 @@ classdef PlannerMain < matlab.apps.AppBase
     methods (Access = public)
         function init(app)
             % Called from startupFcn() on application startup
+            fprintf('============ STARTING ULTRASAT OBSERVATION PLANNER GUI ============\n')
 
             % Create MainModule that holds all common data
             app.UIFigure.Name = 'ULTRASAT Observation Planner';
@@ -876,7 +878,7 @@ classdef PlannerMain < matlab.apps.AppBase
         % Selection changed function: UITablePlanTargets
         function UITablePlanTargetsSelectionChanged(app, event)
             selection = app.UITablePlanTargets.Selection;
-            app.PlanTargetsHelper.PlanTargetSelected(app, selection);
+            app.PlanTargetsHelper.planTargetSelected(app, selection);
         end
 
         % Selection changed function: UITableApprovedTargets
@@ -1148,6 +1150,11 @@ classdef PlannerMain < matlab.apps.AppBase
         function GraphPlotUniqueTargetDropDownValueChanged(app, event)
             app.PlotHelper.plotCalibObj(app);            
         end
+
+        % Button pushed function: RefreshApprovedTargetsButton_4
+        function RefreshApprovedTargetsButton_4Pushed(app, event)
+            app.showLogger();
+        end
     end
 
     % Component initialization
@@ -1158,7 +1165,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1522 839];
+            app.UIFigure.Position = [100 100 1522 853];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create FileMenu
@@ -1386,7 +1393,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PanelToolbar = uipanel(app.UIFigure);
             app.PanelToolbar.BorderType = 'none';
             app.PanelToolbar.BackgroundColor = [0.8 0.8 0.8];
-            app.PanelToolbar.Position = [2 753 1513 42];
+            app.PanelToolbar.Position = [2 767 1513 42];
 
             % Create NewButton
             app.NewButton = uibutton(app.PanelToolbar, 'push');
@@ -1494,7 +1501,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UniqueTargetsPanel.TitlePosition = 'centertop';
             app.UniqueTargetsPanel.Title = 'Unique Targets';
             app.UniqueTargetsPanel.BackgroundColor = [0.8 0.749 0.851];
-            app.UniqueTargetsPanel.Position = [13 432 993 186];
+            app.UniqueTargetsPanel.Position = [13 446 993 186];
 
             % Create UITableUniqueTargets
             app.UITableUniqueTargets = uitable(app.UniqueTargetsPanel);
@@ -1569,7 +1576,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanPanel.TitlePosition = 'centertop';
             app.PlanPanel.Title = 'Plan';
             app.PlanPanel.BackgroundColor = [0.749 0.851 0.949];
-            app.PlanPanel.Position = [13 225 993 202];
+            app.PlanPanel.Position = [13 239 993 202];
 
             % Create UITablePlanTargets
             app.UITablePlanTargets = uitable(app.PlanPanel);
@@ -1653,7 +1660,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ApprovedTargetsPanel.TitlePosition = 'centertop';
             app.ApprovedTargetsPanel.Title = 'Approved Targets';
             app.ApprovedTargetsPanel.BackgroundColor = [0.851 0.9216 0.851];
-            app.ApprovedTargetsPanel.Position = [12 69 994 150];
+            app.ApprovedTargetsPanel.Position = [12 83 994 150];
 
             % Create UITableApprovedTargets
             app.UITableApprovedTargets = uitable(app.ApprovedTargetsPanel);
@@ -1704,7 +1711,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlotSkyMapCurrentlyshowsgeneralskymapPanel.TitlePosition = 'centertop';
             app.PlotSkyMapCurrentlyshowsgeneralskymapPanel.Title = 'Plot - Sky Map (Currently shows general skymap)';
             app.PlotSkyMapCurrentlyshowsgeneralskymapPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.PlotSkyMapCurrentlyshowsgeneralskymapPanel.Position = [1020 389 497 358];
+            app.PlotSkyMapCurrentlyshowsgeneralskymapPanel.Position = [1020 403 497 358];
 
             % Create AxesSkymapPlot
             app.AxesSkymapPlot = uiaxes(app.PlotSkyMapCurrentlyshowsgeneralskymapPanel);
@@ -1798,7 +1805,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.TitlePosition = 'centertop';
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Title = 'Plot - Graphs (Double Click Unique Target or Plan row)';
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.BackgroundColor = [0.902 0.902 0.902];
-            app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Position = [1020 2 497 381];
+            app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Position = [1020 16 497 381];
 
             % Create AxesGraphsPlot
             app.AxesGraphsPlot = uiaxes(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
@@ -1880,7 +1887,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.UIFigure);
-            app.TabGroup.Position = [13 624 504 123];
+            app.TabGroup.Position = [13 638 504 123];
 
             % Create PlanParamsTab
             app.PlanParamsTab = uitab(app.TabGroup);
@@ -1971,30 +1978,37 @@ classdef PlannerMain < matlab.apps.AppBase
             app.Panel_8 = uipanel(app.UIFigure);
             app.Panel_8.TitlePosition = 'centertop';
             app.Panel_8.BackgroundColor = [0.902 0.902 0.902];
-            app.Panel_8.Position = [13 2 989 61];
+            app.Panel_8.Position = [13 1 989 76];
 
             % Create StatusTextAreaLabel
             app.StatusTextAreaLabel = uilabel(app.Panel_8);
             app.StatusTextAreaLabel.HorizontalAlignment = 'right';
-            app.StatusTextAreaLabel.Position = [24 29 39 22];
+            app.StatusTextAreaLabel.Position = [24 44 39 22];
             app.StatusTextAreaLabel.Text = 'Status';
 
             % Create StatusTextArea
             app.StatusTextArea = uitextarea(app.Panel_8);
             app.StatusTextArea.Editable = 'off';
             app.StatusTextArea.BackgroundColor = [0.9412 0.9412 0.9412];
-            app.StatusTextArea.Position = [78 13 833 40];
+            app.StatusTextArea.Position = [78 15 833 53];
 
             % Create RefreshApprovedTargetsButton_2
             app.RefreshApprovedTargetsButton_2 = uibutton(app.Panel_8, 'push');
             app.RefreshApprovedTargetsButton_2.ButtonPushedFcn = createCallbackFcn(app, @RefreshApprovedTargetsButton_2Pushed, true);
             app.RefreshApprovedTargetsButton_2.FontSize = 11;
-            app.RefreshApprovedTargetsButton_2.Position = [927 28 52 25];
+            app.RefreshApprovedTargetsButton_2.Position = [927 43 52 25];
             app.RefreshApprovedTargetsButton_2.Text = 'Clear';
+
+            % Create RefreshApprovedTargetsButton_4
+            app.RefreshApprovedTargetsButton_4 = uibutton(app.Panel_8, 'push');
+            app.RefreshApprovedTargetsButton_4.ButtonPushedFcn = createCallbackFcn(app, @RefreshApprovedTargetsButton_4Pushed, true);
+            app.RefreshApprovedTargetsButton_4.FontSize = 11;
+            app.RefreshApprovedTargetsButton_4.Position = [928 10 52 25];
+            app.RefreshApprovedTargetsButton_4.Text = 'Log';
 
             % Create TabGroup2
             app.TabGroup2 = uitabgroup(app.UIFigure);
-            app.TabGroup2.Position = [530 625 475 123];
+            app.TabGroup2.Position = [530 639 475 123];
 
             % Create StatusTab
             app.StatusTab = uitab(app.TabGroup2);
@@ -2092,7 +2106,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create PanelTopHeader
             app.PanelTopHeader = uipanel(app.UIFigure);
             app.PanelTopHeader.BorderType = 'none';
-            app.PanelTopHeader.Position = [2 800 1513 38];
+            app.PanelTopHeader.Position = [2 814 1513 38];
 
             % Create LabelTopStatus
             app.LabelTopStatus = uilabel(app.PanelTopHeader);
