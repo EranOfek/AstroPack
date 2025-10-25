@@ -3,15 +3,15 @@ classdef CompositeFun < handle
     % This class provides a unified interface for combining multiple transmission
     % functions (ozone, aerosol, Rayleigh, etc.) with parameter mapping and optimization support.
     %
-    % Usage Example - Basic Setup:
+    % Example - Basic Setup:
     %   % Create composite function
     %   Model = tools.math.fun.CompositeFun();
     %
     %   % Adding functions
     %   % Method 1: Auto-extract ArgNames from function handle(recommended)
-    %  
     %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [30, 300], 'FitPar', [false, false]);
     %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+    %   
     %   % Method 2: Explicit extractArgFuns helper function
     %   OzoneArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
     %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
@@ -50,7 +50,7 @@ classdef CompositeFun < handle
     %   % Parameter 2 (TauAod500) will be fitted, so can remain NaN initially
     %   Model.setAllParamStruct(AllParams);  % Apply the values 
     %
-    % Usage Example - Information Getters:
+    % Example - Information Getters:
     %   % Get function summary
     %   FunsNames = Model.namesFuns();
     %   fprintf('Added %d functions\n', size(FunsNames, 1));
@@ -68,7 +68,7 @@ classdef CompositeFun < handle
     %   AllFuns = Model.allFunsStruct();    % Complete structure with all fields
     %   FunsNames = Model.namesFuns();      % Cell array: {Name, Description}
     %
-    % Usage Example - Dynamic Parameter Management:
+    % Example - Dynamic Parameter Management:
     %   % Get current parameter structure
     %   AllParams = Model.getAllParamStruct();
     %
@@ -78,7 +78,7 @@ classdef CompositeFun < handle
     %   AllParams.FitPar(3) = true;     % Fit aerosol parameter
     %   Model.setAllParamStruct(AllParams);  % Handle class - modifies in place
     %
-    % Usage Example - Pre-calculation and Evaluation:
+    % Example - Pre-calculation and Evaluation:
     %   % Define wavelength range
     %   Lambda = linspace(300, 1100, 401)';
     %
@@ -103,22 +103,6 @@ classdef CompositeFun < handle
     %   % Now evaluate with only fitted parameters
     %   FittedValues = [0.08, 0.6];  % Only fitted parameters
     %   Transmission = Model.evaluate(Lambda, FittedValues);
-    %
-    % % Usage Example - Optimization Integration:
-    % %   % Get current parameter structure with bounds
-    % %   CurrentParams = Model.getAllParamsStruct();
-    % %  FittedIndices = find(CurrentParams.FitPar);
-    % %  InitialGuess = CurrentParams.Values(FittedIndices);
-    % %  LowerBounds = CurrentParams.Min(FittedIndices);
-    % %  UpperBounds = CurrentParams.Max(FittedIndices);
-    % %
-    % %  % Define cost function for optimization
-    % %  CostFunction = @(fittedVals) optimizationCost(Model, Lambda, ...
-    % %                                  CurrentParams, FittedIndices, fittedVals, MeasuredData);
-    % %
-    % %  % Run optimization with bounds (minimizer adjusts only fitted parameters)
-    % %  OptimalFitted = fmincon(CostFunction, InitialGuess, [], [], [], [], ...
-    % %                         LowerBounds, UpperBounds);
     %
     % Methods:
     %   Constructor: CompositeFun() - Create composite function object
@@ -191,6 +175,7 @@ classdef CompositeFun < handle
             % Constructor for CompositeFun
             % Input  : None
             % Output : - CompositeFun object.
+            % Author : D. Kovaleva (Oct 2025)
             % Example: Model = tools.math.fun.CompositeFun();
 
             % Initialize properties
@@ -204,8 +189,10 @@ classdef CompositeFun < handle
         % All parameters (fitted + fixed)
         function NumParams = numAllParam(Obj)
             % Get total number of all global parameters (fitted + fixed)
-            % Computed on-demand from Funs.ArgMapping (single source of truth)
+            % Input  : - Obj - CompositeFun object.
             % Output : - NumParams - Number of all global parameters.
+            % Author : D. Kovaleva (Oct 2025)
+
             if isempty(Obj.Funs)
                 NumParams = 0;
             else
@@ -215,8 +202,10 @@ classdef CompositeFun < handle
 
         function ParamNames = namesAllParam(Obj)
             % Get list of all global parameter names (fitted + fixed)
-            % Built on-demand from Funs.ArgNames (single source of truth)
+            % Input  : - Obj - CompositeFun object.
             % Output : - ParamNames - Cell array of all parameter names.
+            % Author : D. Kovaleva (Oct 2025)
+
             NumParams = Obj.numAllParam();
             ParamNames = cell(NumParams, 1);
 
@@ -235,7 +224,10 @@ classdef CompositeFun < handle
 
         function ParamValues = valuesAllParam(Obj)
             % Get current parameter values for all parameters (fitted + fixed)
+            % Input  : - Obj - CompositeFun object.
             % Output : - ParamValues - Column vector of all parameter values.
+            % Author : D. Kovaleva (Oct 2025)
+
             AllParams = getAllParamStruct(Obj);
             ParamValues = AllParams.Values;
         end
@@ -243,7 +235,10 @@ classdef CompositeFun < handle
         % Fitted parameters only
         function NumFittedParams = numFittedParam(Obj)
             % Get total number of fitted parameters only
+            % Input  : - Obj - CompositeFun object.
             % Output : - NumFittedParams - Number of parameters marked for fitting.
+            % Author : D. Kovaleva (Oct 2025)
+
             if isempty(Obj.Funs)
                 NumFittedParams = 0;
                 return;
@@ -255,7 +250,9 @@ classdef CompositeFun < handle
 
         function FittedNames = namesFittedParam(Obj)
             % Get list of fitted parameter names only
+            % Input  : - Obj - CompositeFun object.
             % Output : - FittedNames - Cell array of fitted parameter names.
+            % Author : D. Kovaleva (Oct 2025)
 
             NumAllParams = Obj.numAllParam();
             if NumAllParams == 0
@@ -288,7 +285,10 @@ classdef CompositeFun < handle
         % Function information
         function FunsNames = namesFuns(Obj)
             % Get names and descriptions of added functions as cell array
+            % Input  : - Obj - CompositeFun object.
             % Output : - FunsNames - Cell array with columns: {Name, Description}.
+            % Author : D. Kovaleva (Oct 2025)
+
             if isempty(Obj.Funs)
                 FunsNames = {};
                 return;
@@ -302,14 +302,21 @@ classdef CompositeFun < handle
         end
 
         function FunsStruct = allFunsStruct(Obj)
-            % Get complete Funs structure
+            % Get complete Funs structure: Name, Desc, Handle, Par, FitPar,
+            %                              OptionalArgs, ArgNames, ArgMapping, Precalc
+            % Input  : - Obj - CompositeFun object.
             % Output : - FunsStruct - Complete Funs structure array.
+            % Author : D. Kovaleva (Oct 2025)
+
             FunsStruct = Obj.Funs;
         end
 
         function FittedInfo = getFittedParamStruct(Obj)
             % Get comprehensive information about fitted parameters
+            % Input  : - Obj - CompositeFun object.
             % Output : - FittedInfo - Structure with TotalFitted, FittedNames, FunctionMapping.
+            % Author : D. Kovaleva (Oct 2025)
+
             FittedInfo.TotalFitted = numFittedParam(Obj);
             FittedInfo.FittedNames = namesFittedParam(Obj);
 
@@ -323,10 +330,10 @@ classdef CompositeFun < handle
 
         function AllParamsStruct = getAllParamStruct(Obj)
             % Get complete parameter structure for optimization
-            % Built on-demand from Funs structure (single source of truth)
+            % Input  : - Obj - CompositeFun object.
             % Output : - AllParamsStruct - Structure with Names, Values, FitPar, Min, Max.
-            %
-            % Example usage:
+            % Author : D. Kovaleva (Oct 2025)
+            % Example:
             %   AllParams = Model.getAllParamStruct();
             %   % View bounds for optimization
             %   fprintf('Parameter bounds:\n');
@@ -379,21 +386,21 @@ classdef CompositeFun < handle
 
         function setAllParamStruct(Obj, AllParamsStruct)
             % Update all parameter values, FitPar flags, and bounds if provided
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             %          - AllParamsStruct - Structure with Values and FitPar fields.
             %                            Values: vector of parameter values
             %                            FitPar: logical vector of fit flags
             %                            Min: (optional) vector of lower bounds
             %                            Max: (optional) vector of upper bounds
             % Output : - None (modifies object in-place - handle class).
-            %
-            % Example usage:
+            % Author : D. Kovaleva (Oct 2025)
+            % Example:
             %   AllParams = Model.getAllParamStruct();
             %   AllParams.Values(2) = 350;  % Change parameter value
             %   AllParams.FitPar(3) = true; % Mark parameter for fitting
             %   AllParams.Min(2) = 200;     % Set lower bound
             %   AllParams.Max(2) = 500;     % Set upper bound
-            %   Model.setAllParamStruct(AllParams);  % No assignment needed (handle class)
+            %   Model.setAllParamStruct(AllParams);  
 
             % Validate input structure
             if ~isstruct(AllParamsStruct) || ~isfield(AllParamsStruct, 'Values') || ~isfield(AllParamsStruct, 'FitPar')
@@ -455,14 +462,10 @@ classdef CompositeFun < handle
 
         function checkParamConsistency(Obj)
             % Check for parameter value inconsistencies across functions and NaN fixed parameters
-            % Validates that functions sharing the same global parameter have consistent values.
-            % Also provides reminders about fixed parameters (FitPar=false) that have NaN values.
-            % This is an optional validation method to help detect user configuration errors.
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             % Output : - None (throws error if inconsistencies found, shows reminder for NaN fixed params).
-            %
-            % Example usage:
-            %   Model.checkParamConsistency();  % Optional validation before calculations
+            % Author : D. Kovaleva (Oct 2025)
+            % Example: Model.checkParamConsistency();  % Optional validation before calculations
 
             if isempty(Obj.Funs)
                 return;  % Nothing to check
@@ -612,16 +615,12 @@ classdef CompositeFun < handle
 
         function ArgNames = extractArgFuns(~, FunctionHandle)
             % Auto-extract ArgNames structure from function handle
-            % Calls the transmission function with 'GetArgNames', true flag to obtain parameter information.
-            % Input  : - self (not used, static-like method).
+            % Input  : - ~ - CompositeFun object (not used, static-like method).
             %          - FunctionHandle - Function handle to transmission function that supports GetArgNames flag.
             % Output : - ArgNames - Structure array with Name, Description, Min, Max fields.
-            %
-            % Example usage:
-            %   ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
-            %   ArgNames = Model.extractArgFuns(@astro.transmission.aerosolTransmission);
-            %   ArgNames = Model.extractArgFuns(@astro.transmission.rayleighTransmission);
-
+            % Author : D. Kovaleva (Oct 2025)
+            % Example: ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
+            
             try
                 % Call function with GetArgNames flag to get parameter info
                 ArgNames = FunctionHandle('GetArgNames', true);
@@ -650,23 +649,23 @@ classdef CompositeFun < handle
 
         function addFun(Obj, Desc, Handle, ArgNames, varargin)
             % Add a function component to Funs
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             %          - Desc - Description string (obligatory).
             %          - Handle - Function handle (obligatory).
-            %          * ...,key,val,... Optional arguments:
-            %          - ArgNames - Argument names structure array (optional) for ParamMatrix elements:
-            %            For each ParamMatrix element: .Name - consecutive number in ParamMatrix,
-            %                                        .Description - parameter name,
-            %                                        .Min - lower bound,
-            %                                        .Max - upper bound.
-            %            If not submitted, ArgNames will be uploaded from the function. 
+            %          - ArgNames - Argument names structure array (optional) for ParamMatrix elements.
+            %                     For each ParamMatrix element: .Name - consecutive number in ParamMatrix,
+            %                                                 .Description - parameter name,
+            %                                                 .Min - lower bound,
+            %                                                 .Max - upper bound.
+            %                     If not submitted, ArgNames will be uploaded from the function.
+            %          * ...,key,val,...
             %            'Par' - Parameter values for ParamMatrix (default from Handle).
             %                   Vector corresponding to one row of transmission function's ParamMatrix.
             %            'FitPar' - Logical vector for fitting ParamMatrix elements (default all false).
             %            'OptionalArgs' - Cell array for transmission function's optional arguments.
-            % Output : - Updated object.
-            % Example: Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]); % Auto-extract ArgNames
-            %          Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, ArgInfo, 'Par', []);
+            % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Oct 2025)
+            % Example: Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]);
             %          ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission); % Explicit generation
 
             % Check obligatory inputs
@@ -746,9 +745,9 @@ classdef CompositeFun < handle
 
         function argMapping(Obj)
             % Map parameters of the last added function to global parameter indices
-            % Builds global parameter mapping from existing Funs structure without redundant storage.
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Oct 2025)
 
             if isempty(Obj.Funs)
                 return;
@@ -816,10 +815,10 @@ classdef CompositeFun < handle
 
         function preCalc(Obj, X)
             % Pre-calculate function values for functions with all fixed parameters
-            % Uses only arguments-based caching (not persistent cache)
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             %          - X - Input values (e.g., wavelengths).
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Oct 2025)
 
             if nargin < 2 || isempty(X)
                 return;
@@ -860,13 +859,14 @@ classdef CompositeFun < handle
     methods % evaluation
         function Y=evaluateAllParamInput(Obj, X, AllParams)
             % Evaluate the composite function
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             %          - X - Input values (e.g., wavelengths), column vector.
             %          - AllParams - Full parameter matrix (optional).
             %                       If vector: single parameter set.
             %                       If matrix: each row is a parameter set.
             %                       If not provided, uses stored parameter values.
             % Output : - Y - Output values matrix (wavelengths × parameter_sets).
+            % Author : D. Kovaleva (Oct 2025)
 
             if nargin < 3
                 AllParams = [];
@@ -928,16 +928,14 @@ classdef CompositeFun < handle
 
         function Y=evaluate(Obj, X, FittedParams)
             % Evaluate the composite function using only fitted parameters
-            % Input  : - self.
+            % Input  : - Obj - CompositeFun object.
             %          - X - Input values (e.g., wavelengths), column vector.
             %          - FittedParams - Fitted parameter matrix only.
             %                          If vector: single parameter set.
             %                          If matrix: each row is a parameter set.
             %                          Fixed parameters are taken from stored Obj.Funs.Par values.
             % Output : - Y - Output values matrix (wavelengths × parameter_sets).
-            %
-            % Note: Fixed parameters (FitPar=false) are taken directly from Obj.Funs.Par.
-            %       Only fitted parameters are provided as input.
+            % Author : D. Kovaleva (Oct 2025)
 
             % Validate FittedParams size
             NumFittedParams = Obj.numFittedParam();
