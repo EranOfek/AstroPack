@@ -241,7 +241,6 @@ classdef PlannerMain < matlab.apps.AppBase
     methods (Access = public)
         function init(app)
             % Called from startupFcn() on application startup
-            fprintf('============ STARTING ULTRASAT OBSERVATION PLANNER GUI ============\n')
 
             % Create MainModule that holds all common data
             app.UIFigure.Name = 'ULTRASAT Observation Planner';
@@ -316,10 +315,6 @@ classdef PlannerMain < matlab.apps.AppBase
             Result = app.SessionHelper.isAllowed(app, Action);
         end 
 
-        function showErrorLogger(app)
-            % Show log window
-            app.SessionHelper.showErrorLogger(app);
-        end                
     end
 
     % =====================================================================
@@ -590,7 +585,8 @@ classdef PlannerMain < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, varargin)
             % This function is automaticalled called on application startup
-
+            fprintf('============ STARTING ULTRASAT OBSERVATION PLANNER GUI ============\n')
+            
             if ~isempty(varargin)
                 app.StartupNamespaceId = varargin{1};
                 fprintf('[startupFcn] NamespaceId specified: "%s"\n', app.StartupNamespaceId);
@@ -692,7 +688,9 @@ classdef PlannerMain < matlab.apps.AppBase
         function UITableUniqueTargetsSelectionChanged(app, event)
             %app.UniqueTargetsIndices = event.Indices;
             selection = app.UITableUniqueTargets.Selection;
-            app.UniqueTargetsHelper.uniqueTargetSelected(app, selection);
+            if ~isempty(selection)
+                app.UniqueTargetsHelper.uniqueTargetSelected(app, selection);
+            end
         end
 
         % Button pushed function: SNRCalcButton
@@ -878,13 +876,17 @@ classdef PlannerMain < matlab.apps.AppBase
         % Selection changed function: UITablePlanTargets
         function UITablePlanTargetsSelectionChanged(app, event)
             selection = app.UITablePlanTargets.Selection;
-            app.PlanTargetsHelper.planTargetSelected(app, selection);
+            if ~isempty(selection)
+                app.PlanTargetsHelper.planTargetSelected(app, selection);
+            end
         end
 
         % Selection changed function: UITableApprovedTargets
         function UITableApprovedTargetsSelectionChanged(app, event)
             selection = app.UITableApprovedTargets.Selection;
-            app.ApprovedTargetsHelper.approvedTargetSelected(app, selection);
+            if ~isempty(selection)
+                app.ApprovedTargetsHelper.approvedTargetSelected(app, selection);
+            end
         end
 
         % Button pushed function: DuplicateButton
@@ -1098,7 +1100,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: HelpUniqueTargetsWindowButton
         function HelpUniqueTargetsWindowButtonPushed(app, event)
-            app.showHelp('add_unique_target');
+            app.showHelp('unique_targets');
         end
 
         % Button pushed function: HelpUniqueTargetsWindowButton_2
@@ -1138,7 +1140,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Menu selected function: ErrorLogWindowMenu
         function ErrorLogWindowMenuSelected(app, event)
-            app.showErrorLogger();
+            app.SessionHelper.showErrorLogger(app);
         end
 
         % Menu selected function: LogsHelpMenu
@@ -2156,7 +2158,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ConnectionStatusEditField.BackgroundColor = [0 1 1];
             app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
             app.ConnectionStatusEditField.Position = [906 3 124 29];
-            app.ConnectionStatusEditField.Value = 'Backend Simulator';
+            app.ConnectionStatusEditField.Value = 'Backend JSON';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

@@ -85,7 +85,7 @@ classdef ErrorLogger < matlab.apps.AppBase
 
         % Button pushed function: ShowLogButton
         function ShowLogButtonPushed(app, event)
-            app.MainModule.MainApp.showLogger();
+            app.MainModule.MainApp.SessionHelper.showLogger(app.MainModule.MainApp);
         end
     end
 

@@ -233,6 +233,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 catch ME
                     app.msgex('addDDT2Plan', ME);
                 end
+			else
+				app.AppUtils.msgOk('Building DDT cancelled - Start time is required.');
             end
 
             %app.debugSave('upDDT.mat', upDDT);

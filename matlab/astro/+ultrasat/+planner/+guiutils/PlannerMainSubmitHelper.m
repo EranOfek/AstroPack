@@ -53,6 +53,10 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             %    return;
             %end
 
+            % Temporary for now
+            app.AppUtils.msgOk('Validation is not working yet, as IAI side is not ready yet. Artificially changing the status to validated for now.');            
+
+            % Start validation
             app.showPleaseWait('Validating your plan. This make take a while. Please wait...');
             try
                 app.MainModule.PlanData.addHistory('validation started');
