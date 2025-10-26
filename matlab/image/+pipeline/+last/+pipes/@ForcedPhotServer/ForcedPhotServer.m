@@ -396,6 +396,7 @@ classdef ForcedPhotServer < Component
                                         %       Index = {'INDEX ra_dec_index (ra, dec) TYPE minmax GRANULARITY 64', 'INDEX request_id_index request_id TYPE minmax GRANULARITY 32', 'INDEX user_id_index user_id TYPE minmax GRANULARITY 1','INDEX nside_partition_index nside_partition TYPE minmax GRANULARITY 16','INDEX nside_low_index nside_low TYPE minmax GRANULARITY 16','INDEX nside_high_index nside_high TYPE minmax GRANULARITY 16'}
                                         %       Obj.DB.createTable('forcedphotsub_output',ForcedPhot.Catalog, [], [], 'Index', Index,'OrderBy','request_id');
                                         %       [~,Error] = Obj.DB.query('DROP TABLE IF EXISTS forcedphotsub_output', 'IsExec',true)
+                                        %       [~,Error] = Obj.DB.query('ALTER TABLE forcedphotsub_output MODIFY COLUMN new_fieldid String;', 'IsExec',true)
                                       
                                         % Tout=Obj.DB.query('SELECT * FROM forcedphotsub_output')
     
