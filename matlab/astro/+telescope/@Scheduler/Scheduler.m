@@ -123,6 +123,7 @@ classdef Scheduler < Component
         % boost priority to ecliptic/galactic latitude
 
         UseRealTime logical = true;
+        
     end
     
     properties
@@ -218,6 +219,9 @@ classdef Scheduler < Component
                 end
             end
             
+            % give a Syslog name (is there an MsgLogger argument for doing
+            %  that directly in the property definition?
+            Obj.Logger.Syslog.ProgName = "target-scheduler";
         end
     end
     
@@ -1296,17 +1300,22 @@ classdef Scheduler < Component
             if isfile(Args.ToO_File)
                 try
                     S.loadTable(Args.ToO_File, 'merge_replace');
-                    delete(Args.ToO_File);
                     S.Logger.msgLog(LogLevel.Info,...
                         sprintf('New targets from %s have been ingested',...
                                  Args.ToO_File))
+                    % backup latest version of target list
+                    if ~isempty(Args.SaveTargetList)
+                        Tbl = S.List.Table;
+                        save('-v7.3',Args.SaveTargetList,'Tbl');
+                    end
+                    delete(Args.ToO_File);
                 catch
                     % delete the file anyway, otherwise the error is
                     %  repeated forever
                     delete(Args.ToO_File);
                     S.Logger.msgLog(LogLevel.Error,...
                       sprintf('file %s cannot be ingested, check format and permissions',...
-                      Args.ToO_File))
+                               Args.ToO_File))
                     S.Logger.msgLog(LogLevel.Info,...
                         sprintf('offending file %s removed',Args.ToO_File))
                 end
@@ -1319,7 +1328,12 @@ classdef Scheduler < Component
                     FieldToRemove = readtable(Args.ToO_RemoveFile, Opts);
                     FieldToRemove.Properties.VariableNames = {'FieldName'};
                     S = S.removeEntries(FieldToRemove.FieldName);
-    
+                    % backup latest version of target list
+                    if ~isempty(Args.SaveTargetList)
+                        Tbl = S.List.Table;
+                        save('-v7.3',Args.SaveTargetList,'Tbl');
+                    end
+                    
                     delete(Args.ToO_RemoveFile);
                 catch
                     % delete the file anyway, otherwise the error is

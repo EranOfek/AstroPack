@@ -20,7 +20,7 @@ function [Long,Lat]=cosined2coo(CD1,CD2,CD3, UseMex)
         CD1
         CD2
         CD3
-        UseMex = true;
+        UseMex = false;
     end
     
     if UseMex
