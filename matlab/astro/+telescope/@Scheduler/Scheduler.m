@@ -124,7 +124,6 @@ classdef Scheduler < Component
 
         UseRealTime logical = true;
         
-        Logger = MsgLogger;
     end
     
     properties
