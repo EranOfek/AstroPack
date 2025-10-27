@@ -3,6 +3,7 @@ classdef PlanParams < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                        matlab.ui.Figure
+        LabelTopStatus                  matlab.ui.control.Label
         ValidationResultPanel           matlab.ui.container.Panel
         MinimumDistanceFromPanel        matlab.ui.container.Panel
         MoonMinDistSlewEditField        matlab.ui.control.EditField
@@ -373,13 +374,13 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1322 716];
+            app.UIFigure.Position = [100 100 1323 768];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [16 11 1296 57];
+            app.Panel.Position = [16 19 1296 57];
 
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
@@ -405,7 +406,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [16 673 1301 33];
+            app.Panel_2.Position = [16 723 1301 33];
 
             % Create PlanParametersLabel
             app.PlanParametersLabel = uilabel(app.Panel_2);
@@ -419,7 +420,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.PlanParametersPanel = uipanel(app.UIFigure);
             app.PlanParametersPanel.TitlePosition = 'centertop';
             app.PlanParametersPanel.Title = 'Plan Parameters';
-            app.PlanParametersPanel.Position = [397 392 496 272];
+            app.PlanParametersPanel.Position = [397 400 496 272];
 
             % Create TitleEditFieldLabel
             app.TitleEditFieldLabel = uilabel(app.PlanParametersPanel);
@@ -536,7 +537,7 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.UIFigure);
-            app.TabGroup.Position = [16 204 370 230];
+            app.TabGroup.Position = [16 212 370 230];
 
             % Create HCSTab
             app.HCSTab = uitab(app.TabGroup);
@@ -691,7 +692,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.ConstantMissionParametersPanel.TitlePosition = 'centertop';
             app.ConstantMissionParametersPanel.Title = 'Constant Mission Parameters';
             app.ConstantMissionParametersPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.ConstantMissionParametersPanel.Position = [903 494 410 169];
+            app.ConstantMissionParametersPanel.Position = [903 502 410 169];
 
             % Create SlewBufferEditFieldLabel
             app.SlewBufferEditFieldLabel = uilabel(app.ConstantMissionParametersPanel);
@@ -767,7 +768,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.CheckParamsPanel = uipanel(app.UIFigure);
             app.CheckParamsPanel.Title = 'Check Params';
             app.CheckParamsPanel.BackgroundColor = [0.9137 0.9529 0.9686];
-            app.CheckParamsPanel.Position = [17 77 367 117];
+            app.CheckParamsPanel.Position = [17 85 367 117];
 
             % Create CheckStartTimeEditFieldLabel
             app.CheckStartTimeEditFieldLabel = uilabel(app.CheckParamsPanel);
@@ -803,7 +804,7 @@ classdef PlanParams < matlab.apps.AppBase
 
             % Create TabGroup2
             app.TabGroup2 = uitabgroup(app.UIFigure);
-            app.TabGroup2.Position = [397 204 496 181];
+            app.TabGroup2.Position = [397 212 496 181];
 
             % Create StatusTab
             app.StatusTab = uitab(app.TabGroup2);
@@ -910,7 +911,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.FoldersFilesPanel = uipanel(app.UIFigure);
             app.FoldersFilesPanel.Title = 'Folders & Files';
             app.FoldersFilesPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.FoldersFilesPanel.Position = [904 202 407 130];
+            app.FoldersFilesPanel.Position = [904 210 407 130];
 
             % Create BaseDataDirEditFieldLabel
             app.BaseDataDirEditFieldLabel = uilabel(app.FoldersFilesPanel);
@@ -951,7 +952,7 @@ classdef PlanParams < matlab.apps.AppBase
             % Create GeneralPanel
             app.GeneralPanel = uipanel(app.UIFigure);
             app.GeneralPanel.Title = 'General';
-            app.GeneralPanel.Position = [18 466 369 198];
+            app.GeneralPanel.Position = [18 474 369 198];
 
             % Create UniqueTargetsEditFieldLabel
             app.UniqueTargetsEditFieldLabel = uilabel(app.GeneralPanel);
@@ -1024,14 +1025,14 @@ classdef PlanParams < matlab.apps.AppBase
             app.Label_4 = uilabel(app.UIFigure);
             app.Label_4.FontWeight = 'bold';
             app.Label_4.FontColor = [0 0 1];
-            app.Label_4.Position = [21 436 347 22];
+            app.Label_4.Position = [21 444 347 22];
             app.Label_4.Text = 'Fields editable only when plan table is empty (before build)';
 
             % Create MinimumDistanceFromPanel
             app.MinimumDistanceFromPanel = uipanel(app.UIFigure);
             app.MinimumDistanceFromPanel.Title = 'Minimum Distance From';
             app.MinimumDistanceFromPanel.BackgroundColor = [0.8 0.8 0.8];
-            app.MinimumDistanceFromPanel.Position = [904 342 407 140];
+            app.MinimumDistanceFromPanel.Position = [904 350 407 140];
 
             % Create SunLabel
             app.SunLabel = uilabel(app.MinimumDistanceFromPanel);
@@ -1100,7 +1101,18 @@ classdef PlanParams < matlab.apps.AppBase
             app.ValidationResultPanel = uipanel(app.UIFigure);
             app.ValidationResultPanel.Title = 'Validation Result';
             app.ValidationResultPanel.BackgroundColor = [0.9686 0.9686 0.9294];
-            app.ValidationResultPanel.Position = [398 77 494 117];
+            app.ValidationResultPanel.Position = [398 85 494 117];
+
+            % Create LabelTopStatus
+            app.LabelTopStatus = uilabel(app.UIFigure);
+            app.LabelTopStatus.BackgroundColor = [1 1 0.549];
+            app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 13;
+            app.LabelTopStatus.FontWeight = 'bold';
+            app.LabelTopStatus.FontAngle = 'italic';
+            app.LabelTopStatus.FontColor = [0.102 0.102 0.4];
+            app.LabelTopStatus.Position = [17 686 1296 22];
+            app.LabelTopStatus.Text = 'Only selected parameters can be edited. Other values are automatically calculated or remain read-only.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

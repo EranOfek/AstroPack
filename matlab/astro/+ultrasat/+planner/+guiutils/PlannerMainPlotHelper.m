@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 26/10/2025
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -105,6 +105,8 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
         function plotGraphs(obj, app)
             % Plot CalibObj or Visibility according to selected radio button
+
+            app.msglog('plotGraphs');
             try
                 % No planner object - just clear the graphs                
                 if ~app.hasPlanner() || ~obj.hasData(app)
@@ -112,14 +114,15 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                     return;
                 end
 
-                % Plot CalibObj
+                % Plot CalibObj (Calibration Star)
                 if app.CalibrationStarButton.Value
                     obj.plotCalibObj(app);
-                end
 
                 % Plot Visibility
-                if app.VisibilityButton.Value
+                elseif app.VisibilityButton.Value
                     obj.plotVisibility(app);
+                else
+                    app.msglog('plotGraphs: No Calibration Star or Visibility target selected');
                 end
             catch ME
                 app.msgex('plotGraphs', ME);
@@ -248,25 +251,54 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             if ~obj.hasData(app), return; end
 
             try
-                if ~isempty(app.MainModule.Planner)
-                    UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-                    if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-                        return
+                % Update the plot embedded in this window
+                Value = app.PlotCalibObjDropDown.Value;
+                if isempty(Value) || strcmp(Value, '')
+                    app.msglog('plotCalibObjSub: No value in CalObj DropDown');
+                    return;
+                end
+                
+                % app.UniqueTargetCalibObj is table returned by Planner.showCalibObj()        
+                CalObjIndex = find(strcmp(app.UniqueTargetCalibObj.obj, Value));
+                if isempty(CalObjIndex)
+                    app.msglog('plotCalibObjSub: CalObj not found in UniqueTargetCalibObj (table returned by Planner.showCalibObj)');
+                    return;
+                end                
+
+                % Get index of selected unique target
+                UniqueTargetIndex = app.UITableUniqueTargets.Selection;
+
+                % No selection in the table
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                
+                    % If there is exactly one unique target, use it
+                    if height(app.MainModule.Planner.UniqTarg) == 1
+                        UniqueTargetIndex = 1;
+                
+                    % If multiple exist, determine index from dropdown selection
+                    elseif height(app.MainModule.Planner.UniqTarg) > 1
+                        UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, ...
+                                                        app.GraphPlotUniqueTargetDropDown.Items));
+                
+                        % If still not found, default to first
+                        if isempty(UniqueTargetIndex)
+                            UniqueTargetIndex = 1;
+                        end
+                
+                    % If no targets exist, just return
+                    else
+                        return;
                     end
+                end               
 
-                    % Update the plot embedded in this window
-                    Value = app.PlotCalibObjDropDown.Value;
-                    CalObjIndex = find(strcmp(app.UniqueTargetCalibObj.obj, Value));
+                % Update the plot embedded in this window
+                cla(app.AxesGraphsPlot, 'reset');
+                app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.AxesGraphsPlot);
 
-                    % Update the plot embedded in this window
-                    cla(app.AxesGraphsPlot, 'reset');
-                    app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.AxesGraphsPlot);
-
-                    % Update also the plot in the standalone window
-                    if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
-                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                        app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
-                    end
+                % Update also the plot in the standalone window
+                if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+                    app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotCalibObjSub', ME);

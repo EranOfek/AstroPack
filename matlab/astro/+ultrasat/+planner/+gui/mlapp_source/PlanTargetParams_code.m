@@ -3,6 +3,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                       matlab.ui.Figure
+        LabelTopStatus                 matlab.ui.control.Label
         PlanTargetIndexEditField       matlab.ui.control.EditField
         PlanTargetIndexEditFieldLabel  matlab.ui.control.Label
         UniqueTargetParamsPanel        matlab.ui.container.Panel
@@ -179,13 +180,13 @@ classdef PlanTargetParams < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 897 592];
+            app.UIFigure.Position = [100 100 901 631];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [11 9 880 57];
+            app.Panel.Position = [11 12 880 57];
 
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
@@ -204,13 +205,14 @@ classdef PlanTargetParams < matlab.apps.AppBase
             % Create EditButton
             app.EditButton = uibutton(app.Panel, 'push');
             app.EditButton.ButtonPushedFcn = createCallbackFcn(app, @EditButtonPushed, true);
+            app.EditButton.Tooltip = {'Enable editing of key plan-target parameters.'; 'Only selected fields (such as Exposure Time, Epochs per Visit, and Tiles) can be modified; other parameters remain read-only.'};
             app.EditButton.Position = [276 9 85 39];
             app.EditButton.Text = 'Edit';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [17 551 873 33];
+            app.Panel_2.Position = [17 590 873 33];
 
             % Create PlanTargetPropertiesLabel
             app.PlanTargetPropertiesLabel = uilabel(app.Panel_2);
@@ -224,7 +226,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.TimePanel = uipanel(app.UIFigure);
             app.TimePanel.TitlePosition = 'centertop';
             app.TimePanel.Title = 'Time';
-            app.TimePanel.Position = [24 82 348 248];
+            app.TimePanel.Position = [24 85 348 248];
 
             % Create StartTimeEditFieldLabel
             app.StartTimeEditFieldLabel = uilabel(app.TimePanel);
@@ -302,7 +304,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.DistancePanel = uipanel(app.UIFigure);
             app.DistancePanel.TitlePosition = 'centertop';
             app.DistancePanel.Title = 'Distance';
-            app.DistancePanel.Position = [391 103 212 225];
+            app.DistancePanel.Position = [391 106 212 225];
 
             % Create MoonDistEditFieldLabel
             app.MoonDistEditFieldLabel = uilabel(app.DistancePanel);
@@ -368,7 +370,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.OtherPanel = uipanel(app.UIFigure);
             app.OtherPanel.TitlePosition = 'centertop';
             app.OtherPanel.Title = 'Other';
-            app.OtherPanel.Position = [618 159 273 169];
+            app.OtherPanel.Position = [618 162 273 169];
 
             % Create ZodyEditFieldLabel
             app.ZodyEditFieldLabel = uilabel(app.OtherPanel);
@@ -409,7 +411,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
             % Create EditableParametersPanel
             app.EditableParametersPanel = uipanel(app.UIFigure);
             app.EditableParametersPanel.Title = 'Editable Parameters';
-            app.EditableParametersPanel.Position = [25 342 286 153];
+            app.EditableParametersPanel.Position = [25 345 286 153];
 
             % Create secondsLabel
             app.secondsLabel = uilabel(app.EditableParametersPanel);
@@ -469,7 +471,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.UniqueTargetParamsPanel = uipanel(app.UIFigure);
             app.UniqueTargetParamsPanel.Title = 'Unique Target Params';
             app.UniqueTargetParamsPanel.BackgroundColor = [0.902 0.902 0.902];
-            app.UniqueTargetParamsPanel.Position = [324 358 566 137];
+            app.UniqueTargetParamsPanel.Position = [324 361 566 137];
 
             % Create NameEditField_3Label
             app.NameEditField_3Label = uilabel(app.UniqueTargetParamsPanel);
@@ -546,14 +548,25 @@ classdef PlanTargetParams < matlab.apps.AppBase
             % Create PlanTargetIndexEditFieldLabel
             app.PlanTargetIndexEditFieldLabel = uilabel(app.UIFigure);
             app.PlanTargetIndexEditFieldLabel.HorizontalAlignment = 'right';
-            app.PlanTargetIndexEditFieldLabel.Position = [40 517 98 22];
+            app.PlanTargetIndexEditFieldLabel.Position = [40 515 98 22];
             app.PlanTargetIndexEditFieldLabel.Text = 'Plan Target Index';
 
             % Create PlanTargetIndexEditField
             app.PlanTargetIndexEditField = uieditfield(app.UIFigure, 'text');
             app.PlanTargetIndexEditField.Editable = 'off';
             app.PlanTargetIndexEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.PlanTargetIndexEditField.Position = [164 517 60 22];
+            app.PlanTargetIndexEditField.Position = [164 515 60 22];
+
+            % Create LabelTopStatus
+            app.LabelTopStatus = uilabel(app.UIFigure);
+            app.LabelTopStatus.BackgroundColor = [1 1 0.549];
+            app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 13;
+            app.LabelTopStatus.FontWeight = 'bold';
+            app.LabelTopStatus.FontAngle = 'italic';
+            app.LabelTopStatus.FontColor = [0.102 0.102 0.4];
+            app.LabelTopStatus.Position = [18 556 873 22];
+            app.LabelTopStatus.Text = 'Only selected parameters can be edited. Other values are automatically calculated or remain read-only.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

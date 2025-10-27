@@ -62,7 +62,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             app.closePleaseWait();
 
             % Update GUI with updated list of targets
-            obj.showApprovedTargets();
+            obj.showApprovedTargets(app);
         end
 
 
@@ -164,7 +164,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % Show the list of approved targets
-            app.showApprovedTargets();
+            obj.showApprovedTargets(app);
 
             % Get the selected target as struct
             PlanTarget = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, PlanTargetIndex);

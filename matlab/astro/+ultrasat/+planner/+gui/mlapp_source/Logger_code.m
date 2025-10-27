@@ -7,6 +7,7 @@ classdef Logger < matlab.apps.AppBase
         TextArea                    matlab.ui.control.TextArea
         Label                       matlab.ui.control.Label
         Panel_2                     matlab.ui.container.Panel
+        ErrorLogButton              matlab.ui.control.Button
         ClearLogButton              matlab.ui.control.Button
         ObservationPlannerLogLabel  matlab.ui.control.Label
     end
@@ -75,6 +76,11 @@ classdef Logger < matlab.apps.AppBase
             app.TextArea.Value = '';
             drawnow;  % ensures the UI updates immediately
         end
+
+        % Button pushed function: ErrorLogButton
+        function ErrorLogButtonPushed(app, event)
+            app.MainModule.MainApp.SessionHelper.showErrorLogger(app.MainModule.MainApp);
+        end
     end
 
     % Component initialization
@@ -108,6 +114,14 @@ classdef Logger < matlab.apps.AppBase
             app.ClearLogButton.Tooltip = {'Edit the selected target'};
             app.ClearLogButton.Position = [8 3 101 29];
             app.ClearLogButton.Text = 'Clear Log';
+
+            % Create ErrorLogButton
+            app.ErrorLogButton = uibutton(app.Panel_2, 'push');
+            app.ErrorLogButton.ButtonPushedFcn = createCallbackFcn(app, @ErrorLogButtonPushed, true);
+            app.ErrorLogButton.FontColor = [1 0 0];
+            app.ErrorLogButton.Tooltip = {'Edit the selected target'};
+            app.ErrorLogButton.Position = [121 3 101 29];
+            app.ErrorLogButton.Text = 'Error Log';
 
             % Create Panel_3
             app.Panel_3 = uipanel(app.UIFigure);

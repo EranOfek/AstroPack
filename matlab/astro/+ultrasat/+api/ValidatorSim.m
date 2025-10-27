@@ -51,8 +51,8 @@ classdef ValidatorSim < handle
             % Return:
             %   - Result Validation response struct with results for all targets
 
-            obj.msglog('Starting validation for %d targets...', numel(targets));
-            pause(rand() * 0.5 + 2.5);  % Random delay between 0.5 to 3 seconds
+            obj.msglog('Starting validation for %d targets...', numel(targets));            
+            pause(rand() * 0.5);  % + 2.5);  % Random delay between 0.5 to 3 seconds
 
             % Create a new response struct and update the Response property
             obj.Response = obj.newResponse();

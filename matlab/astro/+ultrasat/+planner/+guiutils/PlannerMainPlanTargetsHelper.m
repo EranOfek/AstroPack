@@ -42,6 +42,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.msglog('editPlanTarget');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.Plan) == 0, return; end
 
             % Get index of selectred plan target
             Index = app.UITablePlanTargets.Selection;
@@ -82,6 +83,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
             app.msglog('deletePlanTarget');
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
+            if height(app.MainModule.Planner.Plan) == 0, return; end
 
             Index = app.UITablePlanTargets.Selection;
             if isempty(Index) || (Index < 1)
@@ -254,7 +256,8 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
         function planTargetSelected(obj, app, Index)
             % Handle plan target selection (single click), called from UITable callback
             % Called from UITable callback
-
+            if isempty(Index), return; end
+            
             app.msglog(sprintf('Plan target selected: %d', Index));
             if ~app.hasPlanner(), return; end
             try

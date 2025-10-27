@@ -3,6 +3,7 @@ classdef UniqueTargetParams < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                     matlab.ui.Figure
+        LabelTopStatus               matlab.ui.control.Label
         UniqueTargetIndexEditField   matlab.ui.control.EditField
         UniqueTargetIndexEditFieldLabel  matlab.ui.control.Label
         ReadonlyParametersPanel      matlab.ui.container.Panel
@@ -91,52 +92,52 @@ classdef UniqueTargetParams < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 632 591];
+            app.UIFigure.Position = [100 100 714 616];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [10 14 618 54];
+            app.Panel.Position = [10 11 693 54];
 
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
             app.SaveButton.FontColor = [0 0 1];
-            app.SaveButton.Position = [178 8 85 39];
+            app.SaveButton.Position = [199 8 85 39];
             app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [283 8 85 39];
+            app.CancelButton.Position = [306 8 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.Panel, 'push');
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
-            app.HelpButton.Position = [387 8 85 39];
+            app.HelpButton.Position = [414 8 85 39];
             app.HelpButton.Text = 'Help';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [8 547 611 36];
+            app.Panel_2.Position = [8 572 695 36];
 
             % Create UniqueTargetPropertiesLabel
             app.UniqueTargetPropertiesLabel = uilabel(app.Panel_2);
             app.UniqueTargetPropertiesLabel.HorizontalAlignment = 'center';
             app.UniqueTargetPropertiesLabel.FontSize = 18;
             app.UniqueTargetPropertiesLabel.FontWeight = 'bold';
-            app.UniqueTargetPropertiesLabel.Position = [10 6 588 24];
+            app.UniqueTargetPropertiesLabel.Position = [10 6 676 24];
             app.UniqueTargetPropertiesLabel.Text = 'Unique Target Properties';
 
             % Create EditableParametersPanel
             app.EditableParametersPanel = uipanel(app.UIFigure);
             app.EditableParametersPanel.TitlePosition = 'centertop';
             app.EditableParametersPanel.Title = 'Editable Parameters';
-            app.EditableParametersPanel.Position = [13 355 612 139];
+            app.EditableParametersPanel.Position = [13 352 690 139];
 
             % Create NameEditFieldLabel
             app.NameEditFieldLabel = uilabel(app.EditableParametersPanel);
@@ -173,7 +174,7 @@ classdef UniqueTargetParams < matlab.apps.AppBase
             app.ReadonlyParametersPanel.TitlePosition = 'centertop';
             app.ReadonlyParametersPanel.Title = 'Read-only Parameters';
             app.ReadonlyParametersPanel.BackgroundColor = [0.902 0.902 0.902];
-            app.ReadonlyParametersPanel.Position = [13 75 611 269];
+            app.ReadonlyParametersPanel.Position = [13 72 690 269];
 
             % Create RefimagesIDsEditFieldLabel
             app.RefimagesIDsEditFieldLabel = uilabel(app.ReadonlyParametersPanel);
@@ -250,14 +251,25 @@ classdef UniqueTargetParams < matlab.apps.AppBase
             % Create UniqueTargetIndexEditFieldLabel
             app.UniqueTargetIndexEditFieldLabel = uilabel(app.UIFigure);
             app.UniqueTargetIndexEditFieldLabel.HorizontalAlignment = 'right';
-            app.UniqueTargetIndexEditFieldLabel.Position = [22 513 112 22];
+            app.UniqueTargetIndexEditFieldLabel.Position = [22 504 112 22];
             app.UniqueTargetIndexEditFieldLabel.Text = 'Unique Target Index';
 
             % Create UniqueTargetIndexEditField
             app.UniqueTargetIndexEditField = uieditfield(app.UIFigure, 'text');
             app.UniqueTargetIndexEditField.Editable = 'off';
             app.UniqueTargetIndexEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.UniqueTargetIndexEditField.Position = [160 513 60 22];
+            app.UniqueTargetIndexEditField.Position = [160 504 60 22];
+
+            % Create LabelTopStatus
+            app.LabelTopStatus = uilabel(app.UIFigure);
+            app.LabelTopStatus.BackgroundColor = [1 1 0.549];
+            app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 13;
+            app.LabelTopStatus.FontWeight = 'bold';
+            app.LabelTopStatus.FontAngle = 'italic';
+            app.LabelTopStatus.FontColor = [0.102 0.102 0.4];
+            app.LabelTopStatus.Position = [9 540 694 22];
+            app.LabelTopStatus.Text = 'Only selected parameters can be edited. Other values are automatically calculated or remain read-only.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

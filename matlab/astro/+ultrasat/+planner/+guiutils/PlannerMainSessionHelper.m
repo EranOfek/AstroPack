@@ -151,8 +151,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             hasPlan    = app.hasPlanner();
         
             % === File Menu ===
-            app.NewMenu.Enable               = 'on';
-            app.OpenMenu.Enable              = 'on';
+            app.NewMenu.Enable               = obj.bool2str(isLoggedIn);
+            app.OpenMenu.Enable              = obj.bool2str(isLoggedIn);
             app.SaveMenu.Enable              = obj.bool2str(hasPlan);
             app.DuplicateMenu.Enable         = obj.bool2str(hasPlan);
             app.CloseMenu_2.Enable           = obj.bool2str(hasPlan);
@@ -191,8 +191,8 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.ClearPlotsMenu.Enable            = obj.bool2str(hasPlan);
         
             % === Toolbar Buttons ===
-            app.NewButton.Enable         = 'on';
-            app.OpenButton.Enable        = 'on';
+            app.NewButton.Enable         = obj.bool2str(isLoggedIn);
+            app.OpenButton.Enable        = obj.bool2str(isLoggedIn);
             app.SaveButton.Enable        = obj.bool2str(hasPlan);
             app.DuplicateButton.Enable   = obj.bool2str(hasPlan);
             app.ParamsButton.Enable      = obj.bool2str(hasPlan);

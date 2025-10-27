@@ -11,7 +11,7 @@
 % - Obj.buildHCS(Args)             : Build a plan for a HCS field. 
 %                                    All relevant parameters should be set before calling this function
 %                                    (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) ==1)
-%                                    TODO: allow to select a target from UniqTarg
+%                                    Allows to select a target from UniqTarg 
 %
 % - Obj.buildLCS(Args)             : Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
 %                                    Fill in a daily window of observations and move to the next day. 
@@ -204,6 +204,10 @@ classdef uplanner < Component
         ObsSunDist           = 70;   % [deg]
         ObsMoonDist          = 34;   % [deg]
         ObsEarthDist         = 56;   % [deg]        
+
+        SlewSunDist          = 70;   % [deg]
+        SlewMoonDist         = 19.5; % [deg]
+        SlewEarthDist        = 19.5; % [deg]                
     end 
     % 
     methods  % Constructor
@@ -385,7 +389,6 @@ classdef uplanner < Component
             if numel(Args.HCS_UniqTarg) ~=1
                 error('HCS requires one single target');
             end
-
 
             % Calc number of exposures within the plan time 
             Nexposures = floor((Obj.EndTime-Obj.StartTime)/Obj.Exptime);
@@ -1759,9 +1762,17 @@ classdef uplanner < Component
             
             xlabel(ax,sprintf('JD-%.1f',Args.JD_offset)); 
             ylabel(ax,'Angular distance [deg]');
-            title(ax,sprintf('Visibility of UniqTarget #%d',UniqTargInd)); 
+
+            % Title with target name and index
+            TargetName = Obj.UniqTarg.Name;
+            if isempty(TargetName)
+                TargetName = 'UnnamedTarget';
+            end
+            title(ax, sprintf('Visibility of %s (UniqTarget #%d)', TargetName, UniqTargInd));            
+                        
+            % Legend
             legend(ax, 'Sun','Earth','Moon','Location','best');
-            hold(ax, 'off');  
+            hold(ax, 'off');
         end
         %
         function plotMapPlan(Obj,Args)

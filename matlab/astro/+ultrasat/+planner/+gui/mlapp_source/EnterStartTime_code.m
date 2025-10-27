@@ -3,6 +3,7 @@ classdef EnterStartTime < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                      matlab.ui.Figure
+        LabelTopStatus                matlab.ui.control.Label
         GroupEditField                matlab.ui.control.EditField
         GroupNumberLabel              matlab.ui.control.Label
         UITable                       matlab.ui.control.Table
@@ -44,6 +45,7 @@ classdef EnterStartTime < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
         end
 
         % Button pushed function: SaveButton
@@ -91,68 +93,79 @@ classdef EnterStartTime < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 578 587];
+            app.UIFigure.Position = [100 100 682 581];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [14 12 556 57];
+            app.Panel.Position = [14 6 656 57];
 
             % Create SaveButton
             app.SaveButton = uibutton(app.Panel, 'push');
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
             app.SaveButton.FontColor = [0 0 1];
-            app.SaveButton.Position = [184 9 85 39];
+            app.SaveButton.Position = [220 9 85 39];
             app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [305 9 85 39];
+            app.CancelButton.Position = [341 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [14 540 556 35];
+            app.Panel_2.Position = [14 534 656 35];
 
             % Create EnterDDTStartTimeLabel
             app.EnterDDTStartTimeLabel = uilabel(app.Panel_2);
             app.EnterDDTStartTimeLabel.HorizontalAlignment = 'center';
             app.EnterDDTStartTimeLabel.FontSize = 18;
             app.EnterDDTStartTimeLabel.FontWeight = 'bold';
-            app.EnterDDTStartTimeLabel.Position = [10 2 531 33];
+            app.EnterDDTStartTimeLabel.Position = [10 2 637 33];
             app.EnterDDTStartTimeLabel.Text = 'Enter DDT Start Time';
 
             % Create GroupStartTimeEditFieldLabel
             app.GroupStartTimeEditFieldLabel = uilabel(app.UIFigure);
             app.GroupStartTimeEditFieldLabel.HorizontalAlignment = 'right';
-            app.GroupStartTimeEditFieldLabel.Position = [32 490 96 22];
+            app.GroupStartTimeEditFieldLabel.Position = [32 463 96 22];
             app.GroupStartTimeEditFieldLabel.Text = 'Group Start Time';
 
             % Create GroupStartTimeEditField
             app.GroupStartTimeEditField = uieditfield(app.UIFigure, 'text');
-            app.GroupStartTimeEditField.Position = [143 490 229 22];
+            app.GroupStartTimeEditField.Position = [143 463 229 22];
 
             % Create UITable
             app.UITable = uitable(app.UIFigure);
             app.UITable.ColumnName = {'Column 1'; 'Column 2'; 'Column 3'; 'Column 4'};
             app.UITable.RowName = {};
-            app.UITable.Position = [14 80 556 338];
+            app.UITable.Position = [14 74 656 328];
 
             % Create GroupNumberLabel
             app.GroupNumberLabel = uilabel(app.UIFigure);
             app.GroupNumberLabel.HorizontalAlignment = 'right';
-            app.GroupNumberLabel.Position = [44 449 84 22];
+            app.GroupNumberLabel.Position = [44 422 84 22];
             app.GroupNumberLabel.Text = 'Group Number';
 
             % Create GroupEditField
             app.GroupEditField = uieditfield(app.UIFigure, 'text');
             app.GroupEditField.Editable = 'off';
             app.GroupEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.GroupEditField.Position = [143 449 72 22];
+            app.GroupEditField.Position = [143 422 72 22];
+
+            % Create LabelTopStatus
+            app.LabelTopStatus = uilabel(app.UIFigure);
+            app.LabelTopStatus.BackgroundColor = [1 1 0.549];
+            app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 13;
+            app.LabelTopStatus.FontWeight = 'bold';
+            app.LabelTopStatus.FontAngle = 'italic';
+            app.LabelTopStatus.FontColor = [0.102 0.102 0.4];
+            app.LabelTopStatus.Position = [15 503 655 22];
+            app.LabelTopStatus.Text = 'Enter a valid Group Start Time to build the DDT plan. Other fields are read-only and filled automatically.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

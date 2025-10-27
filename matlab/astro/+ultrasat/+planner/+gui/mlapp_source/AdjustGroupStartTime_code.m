@@ -132,13 +132,13 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 518 381];
+            app.UIFigure.Position = [100 100 517 388];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [10 17 501 57];
+            app.Panel.Position = [10 10 501 57];
 
             % Create OKButton
             app.OKButton = uibutton(app.Panel, 'push');
@@ -163,7 +163,7 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [10 340 501 33];
+            app.Panel_2.Position = [10 347 501 33];
 
             % Create AdjustGroupStartTimeLabel
             app.AdjustGroupStartTimeLabel = uilabel(app.Panel_2);
@@ -176,20 +176,20 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
             % Create GroupDropDownLabel
             app.GroupDropDownLabel = uilabel(app.UIFigure);
             app.GroupDropDownLabel.HorizontalAlignment = 'right';
-            app.GroupDropDownLabel.Position = [34 304 38 22];
+            app.GroupDropDownLabel.Position = [31 274 38 22];
             app.GroupDropDownLabel.Text = 'Group';
 
             % Create GroupDropDown
             app.GroupDropDown = uidropdown(app.UIFigure);
             app.GroupDropDown.Items = {'All', '1', '2', '3'};
             app.GroupDropDown.ValueChangedFcn = createCallbackFcn(app, @GroupDropDownValueChanged, true);
-            app.GroupDropDown.Position = [87 304 144 22];
+            app.GroupDropDown.Position = [84 274 144 22];
             app.GroupDropDown.Value = 'All';
 
             % Create AdjustButtonGroup
             app.AdjustButtonGroup = uibuttongroup(app.UIFigure);
             app.AdjustButtonGroup.Title = 'Adjust';
-            app.AdjustButtonGroup.Position = [19 90 492 180];
+            app.AdjustButtonGroup.Position = [19 80 492 180];
 
             % Create RelativeButton
             app.RelativeButton = uiradiobutton(app.AdjustButtonGroup);
@@ -231,9 +231,12 @@ classdef AdjustGroupStartTime < matlab.apps.AppBase
 
             % Create Label
             app.Label = uilabel(app.UIFigure);
+            app.Label.BackgroundColor = [1 1 0.549];
+            app.Label.HorizontalAlignment = 'center';
             app.Label.FontWeight = 'bold';
-            app.Label.FontColor = [0 0 1];
-            app.Label.Position = [19 276 434 22];
+            app.Label.FontAngle = 'italic';
+            app.Label.FontColor = [0.102 0.102 0.4];
+            app.Label.Position = [10 317 501 22];
             app.Label.Text = 'When selecting All Groups, only Relative and Shift options are applicable.';
 
             % Show the figure after all components are created

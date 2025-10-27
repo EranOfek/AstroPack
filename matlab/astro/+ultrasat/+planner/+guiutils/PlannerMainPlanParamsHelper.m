@@ -91,21 +91,24 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
         function Result = checkPlanSelfConsistency(obj, app)
             % Check plan for self consistency, update status display
 
-            app.msglog('checkPlan')
+            app.msglog('checkPlan')            
             Result = false;
+            if ~app.hasPlanner(), return; end
+            if height(app.MainModule.Planner.Plan) == 0, return; end            
+
             CheckStatus = false;
             try
                 % Perform the check
-                if height(app.MainModule.Planner.Plan) > 0
-                    CheckStatus = app.MainModule.Planner.planSelfConsistencyCheck();
-                end
+                [CheckStatus, BadPlanRow] = app.MainModule.Planner.planSelfConsistencyCheck();
 
                 % Update display with status
                 if CheckStatus
                     app.MainModule.setStatus('OK', 'self consistency: OK');
+                    app.AppUtils.msgOk('Self consistency check passed OK.');
                     Result = true;
                 else
-                    app.MainModule.setStatus('Error', 'self consistency: issues found');
+                    app.MainModule.setStatus('Error', 'self consistency: issues found, BadPlanRow=%d', BadPlanRow);
+                    app.AppUtils.msgError(sprintf('Self consistency check failed, row: %d.', BadPlanRow));
                 end
             catch ME
                 app.msgex('planSelfConsistencyCheck failed', ME);
@@ -279,9 +282,9 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.MoonMinDistObsEditField.Value = num2str(Planner.ObsMoonDist);
                 ParamsApp.EarthMinDistObsEditField.Value = num2str(Planner.ObsEarthDist);
 
-                ParamsApp.SunMinDistSlewEditField.Value = '@Todo';
-                ParamsApp.MoonMinDistSlewEditField.Value = '@Todo';
-                ParamsApp.EarthMinDistSlewEditField.Value = '@Todo';
+                ParamsApp.SunMinDistSlewEditField.Value = num2str(Planner.SlewSunDist);
+                ParamsApp.MoonMinDistSlewEditField.Value = num2str(Planner.SlewMoonDist);
+                ParamsApp.EarthMinDistSlewEditField.Value = num2str(Planner.SlewEarthDist);
 
                 % Assign Plan Buttons
                 ParamsApp.SaveButton.Enable = true;

@@ -165,65 +165,67 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             % Create FileNameEditFieldLabel
             app.FileNameEditFieldLabel = uilabel(app.UIFigure);
             app.FileNameEditFieldLabel.HorizontalAlignment = 'right';
-            app.FileNameEditFieldLabel.Position = [26 604 60 22];
+            app.FileNameEditFieldLabel.Position = [26 577 60 22];
             app.FileNameEditFieldLabel.Text = 'File Name';
 
             % Create FileNameEditField
             app.FileNameEditField = uieditfield(app.UIFigure, 'text');
-            app.FileNameEditField.Position = [101 604 512 22];
+            app.FileNameEditField.Position = [101 577 512 22];
             app.FileNameEditField.Value = 'C:/AstroPack/data/ULTRASAT/unique_targets.csv';
 
             % Create EnterfilenametoloadfromorpastetextbelowLabel
             app.EnterfilenametoloadfromorpastetextbelowLabel = uilabel(app.UIFigure);
             app.EnterfilenametoloadfromorpastetextbelowLabel.FontWeight = 'bold';
             app.EnterfilenametoloadfromorpastetextbelowLabel.FontColor = [0 0 1];
-            app.EnterfilenametoloadfromorpastetextbelowLabel.Position = [32 642 546 22];
+            app.EnterfilenametoloadfromorpastetextbelowLabel.Position = [32 615 546 22];
             app.EnterfilenametoloadfromorpastetextbelowLabel.Text = 'Enter file name to load from, or paste text below, with the same format as the example below.';
 
             % Create Label
             app.Label = uilabel(app.UIFigure);
             app.Label.HorizontalAlignment = 'right';
-            app.Label.Position = [82 521 25 22];
+            app.Label.Position = [82 508 25 22];
             app.Label.Text = '';
 
             % Create TextArea
             app.TextArea = uitextarea(app.UIFigure);
             app.TextArea.FontName = 'Monospaced';
-            app.TextArea.Position = [16 195 893 373];
+            app.TextArea.Position = [16 182 893 373];
 
             % Create ExampleTextAreaLabel
             app.ExampleTextAreaLabel = uilabel(app.UIFigure);
             app.ExampleTextAreaLabel.HorizontalAlignment = 'right';
-            app.ExampleTextAreaLabel.Position = [19 160 52 22];
+            app.ExampleTextAreaLabel.Position = [19 145 52 22];
             app.ExampleTextAreaLabel.Text = 'Example';
 
             % Create ExampleTextArea
             app.ExampleTextArea = uitextarea(app.UIFigure);
             app.ExampleTextArea.Editable = 'off';
             app.ExampleTextArea.BackgroundColor = [0.9412 0.9412 0.9412];
-            app.ExampleTextArea.Position = [86 102 817 82];
+            app.ExampleTextArea.Position = [86 87 817 82];
             app.ExampleTextArea.Value = {'RA,Dec,Name'; '321.46,-76.71,"Note: Numeric must start with text"'; '54.18,-86.81,"First"'; '247.89,-79.28,"Second"'; '321.46,-76.71,"The 12"'};
 
             % Create EnterfilenametoloadfromfileorpastetextbelowLabel_2
             app.EnterfilenametoloadfromfileorpastetextbelowLabel_2 = uilabel(app.UIFigure);
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.BackgroundColor = [1 1 0];
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.BackgroundColor = [1 1 0.549];
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.HorizontalAlignment = 'center';
             app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontWeight = 'bold';
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontColor = [0 0 1];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Position = [87 75 816 22];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ' MATLAB''s readtable() function expects uniform data types within each column, and it might misinterpret the file structure.';
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontAngle = 'italic';
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontColor = [0.102 0.102 0.4];
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Position = [11 650 898 22];
+            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = 'Note: MATLAB''s readtable function expects uniform data types within each column, and it might misinterpret the file structure.';
 
             % Create LoadButton
             app.LoadButton = uibutton(app.UIFigure, 'push');
             app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButtonPushed, true);
             app.LoadButton.FontWeight = 'bold';
             app.LoadButton.FontColor = [0 0.4471 0.7412];
-            app.LoadButton.Position = [769 599 85 33];
+            app.LoadButton.Position = [769 572 85 33];
             app.LoadButton.Text = 'Load';
 
             % Create BrowseButton
             app.BrowseButton = uibutton(app.UIFigure, 'push');
             app.BrowseButton.ButtonPushedFcn = createCallbackFcn(app, @BrowseButtonPushed, true);
-            app.BrowseButton.Position = [679 604 68 23];
+            app.BrowseButton.Position = [679 577 68 23];
             app.BrowseButton.Text = 'Browse...';
 
             % Show the figure after all components are created
