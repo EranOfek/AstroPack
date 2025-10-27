@@ -147,7 +147,7 @@ classdef NewPlan < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 633 368];
+            app.UIFigure.Position = [100 100 629 368];
             app.UIFigure.Name = 'MATLAB App';
             app.UIFigure.Resize = 'off';
 

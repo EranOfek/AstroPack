@@ -37,6 +37,7 @@ classdef About < matlab.apps.AppBase
 
     properties (Access = public)
         DataModule      % Reference to the main application module
+        Status          % Status of the operation ('Save' or 'Cancel')
     end
     
 
@@ -47,6 +48,7 @@ classdef About < matlab.apps.AppBase
         function startupFcn(app, DataModule)
             app.DataModule = DataModule;
             app.UIFigure.Name = 'About';
+            app.MainModule.AppUtils.center(app);
         end
 
         % Callback function: HyperlinkWebsite
@@ -73,6 +75,7 @@ classdef About < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 643 441];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
@@ -102,7 +105,7 @@ classdef About < matlab.apps.AppBase
             app.VersionEditField = uieditfield(app.Panel_3, 'text');
             app.VersionEditField.Editable = 'off';
             app.VersionEditField.Position = [90 332 249 22];
-            app.VersionEditField.Value = '0.1c';
+            app.VersionEditField.Value = '0.1d';
 
             % Create UpdatedEditFieldLabel
             app.UpdatedEditFieldLabel = uilabel(app.Panel_3);
@@ -114,7 +117,7 @@ classdef About < matlab.apps.AppBase
             app.UpdatedEditField = uieditfield(app.Panel_3, 'text');
             app.UpdatedEditField.Editable = 'off';
             app.UpdatedEditField.Position = [90 300 249 22];
-            app.UpdatedEditField.Value = '20/10/2025';
+            app.UpdatedEditField.Value = '27/10/2025';
 
             % Create DevelopersTextAreaLabel
             app.DevelopersTextAreaLabel = uilabel(app.Panel_3);

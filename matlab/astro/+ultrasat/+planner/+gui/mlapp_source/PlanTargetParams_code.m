@@ -65,6 +65,7 @@ classdef PlanTargetParams < matlab.apps.AppBase
         Panel_2                        matlab.ui.container.Panel
         PlanTargetPropertiesLabel      matlab.ui.control.Label
         Panel                          matlab.ui.container.Panel
+        HelpButton                     matlab.ui.control.Button
         EditButton                     matlab.ui.control.Button
         CancelButton                   matlab.ui.control.Button
         SaveButton                     matlab.ui.control.Button
@@ -170,6 +171,11 @@ classdef PlanTargetParams < matlab.apps.AppBase
             % - Allows modification of specific observation parameters.            
             app.setEditMode(true);
         end
+
+        % Button pushed function: HelpButton
+        function HelpButtonPushed(app, event)
+            app.MainModule.MainApp.showHelp('plan_target_params');
+        end
     end
 
     % Component initialization
@@ -193,13 +199,13 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.SaveButton.ButtonPushedFcn = createCallbackFcn(app, @SaveButtonPushed, true);
             app.SaveButton.FontWeight = 'bold';
             app.SaveButton.FontColor = [0 0 1];
-            app.SaveButton.Position = [394 9 85 39];
+            app.SaveButton.Position = [382 9 85 39];
             app.SaveButton.Text = 'Save';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [507 9 85 39];
+            app.CancelButton.Position = [483 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create EditButton
@@ -208,6 +214,12 @@ classdef PlanTargetParams < matlab.apps.AppBase
             app.EditButton.Tooltip = {'Enable editing of key plan-target parameters.'; 'Only selected fields (such as Exposure Time, Epochs per Visit, and Tiles) can be modified; other parameters remain read-only.'};
             app.EditButton.Position = [276 9 85 39];
             app.EditButton.Text = 'Edit';
+
+            % Create HelpButton
+            app.HelpButton = uibutton(app.Panel, 'push');
+            app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
+            app.HelpButton.Position = [585 9 85 39];
+            app.HelpButton.Text = 'Help';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);

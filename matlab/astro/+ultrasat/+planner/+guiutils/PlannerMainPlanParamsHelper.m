@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlanParamsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 27/10/2025
 % Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
@@ -74,12 +74,17 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             app.showPleaseWait('Updating CheckTimes, this may take a while. Please wait...');
             try
                 Planner = app.MainModule.Planner;
+
+                % Get start/end times from PlanParams.mlapp dialog
                 StartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckStartTimeEditField.Value);
                 EndTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.CheckEndTimeEditField.Value);
 
                 % Call adjustCheckTimes() only if values have been changed
                 if StartTime ~= Planner.CheckTimes(1) || EndTime ~= Planner.CheckTimes(2)
+                    app.msglog('applyCheckTimes: Adjusting CheckTimes');
                     Planner.adjustCheckTimes(StartTime, EndTime);
+                else
+                    app.msglog('applyCheckTimes: CheckTimes are the same');
                 end
             catch ME
                 app.msgex('applyCheckTimes', ME);
@@ -120,26 +125,46 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
         function applyPlanParams(obj, app, ParamsApp)
             % Apply plan parameters in current planner from PlanParams app, called from showPlanParamsWindow
 
+            app.msglog('applyPlanParams');
             try
                 Planner = app.MainModule.Planner;
+
+                % Plan Type
+                if strcmp(ParamsApp.PlanTypeDropDown.Enable, "on")
+                    NewType = char(ParamsApp.PlanTypeDropDown.Value);
+                    if ~strcmp(NewType, Planner.Type)
+                        app.msglog(sprintf('applyPlanParams: Changing Plan Type from %s to %s', Planner.Type, NewType));
+                        Planner.Type = NewType;
+                    end                    
+                end
 
                 % General parameters to all plan types
                 Planner.Title = ParamsApp.TitleEditField.Value;
 
                 % Start & End times
-                app.setPlanStartEndTime(ParamsApp.StartTimeEditField.Value, ParamsApp.EndTimeEditField.Value);
+                obj.setPlanStartEndTime(app, ParamsApp.StartTimeEditField.Value, ParamsApp.EndTimeEditField.Value);
 
                 % Other general parameters
                 Planner.DefEpochsPerVisit = ParamsApp.EpochsPerVisitEditField.Value;
                 Planner.Exptime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.ExposureEditField.Value);
 
+                % Apply HCS parameters
+                if strcmp(Planner.Type, 'HCS')
+                    app.msglog('applyPlanParams: Nothing to apply for HCS');
+
                 % Apply LCS parameters
-                if strcmp(Planner.Type, 'LCS')
+                elseif strcmp(Planner.Type, 'LCS')
+                    app.msglog('applyPlanParams: Applying LCS parameters');
                     Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowStartTimeEditField.Value);
                     Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowMaxDurationEditField.Value);
 
+                %% Apply DDT parameters
+                elseif strcmp(Planner.Type, 'DDT')
+                    app.msglog('applyPlanParams: Nothing to apply for DDT');
+
                 % Apply AllSky parameters
                 elseif strcmp(Planner.Type, 'AllSS')
+                    app.msglog('applyPlanParams: Applying AllSky parameters');
                     Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.AllSkyDailyWindowStartTimeEditField.Value);
                     Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value);
                     Planner.AllSSHighLatThresh = ParamsApp.AllSkyGalacticLatThresholdEditField.Value;
@@ -151,15 +176,20 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
                 % Apply TOO parameters
                 elseif strcmp(Planner.Type, 'TOO')
+                    app.msglog('applyPlanParams: Applying TOO parameters');
                     Planner.TOOStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooStartTimeEditField.Value);
                     Planner.TOOWindowDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooWindowDurationEditField.Value);
                 end
 
                 % Apply check times
-                app.applyCheckTimes(ParamsApp);
+                obj.applyCheckTimes(app, ParamsApp);
 
-                % @Future: Apply system constants from ParamsApp
+                % Apply system constants from ParamsApp
+                Planner.DefSlewBuffer = app.GuiHelper.getFieldDuration(ParamsApp.SlewBufferEditField.Value);                
+                Planner.FullTileReadTime = app.GuiHelper.getFieldDuration(ParamsApp.TileReadTimeEditField.Value);
+                Planner.Rfov = app.GuiHelper.getFieldNum(ParamsApp.FieldOfViewRadiusEditField.Value);                
 
+                % @Future: Apply more system constants from ParamsApp
             catch ME
                 app.msgex('applyPlanParams', ME);
             end
@@ -251,6 +281,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
         function setPlanParamsFields(obj, app, ParamsApp)
             % Set PlanParams app fields from current planner, called from showPlanParamsWindow
 
+            app.msglog('setPlanParamsFields');
             try
                 % Get the Planner instance from the main module
                 PlanData = app.MainModule.PlanData;
@@ -287,9 +318,9 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.CheckEndTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(2) );
 
                 % Assign System Parameters
-                ParamsApp.FieldOfViewRadiusEditField.Value = num2str(Planner.Rfov);
+                ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));                
                 ParamsApp.TileReadTimeEditField.Value = num2str(seconds(Planner.FullTileReadTime));
-                ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));
+                ParamsApp.FieldOfViewRadiusEditField.Value = num2str(Planner.Rfov);               
 
                 % @TODO - Check with Yossi the duration fields and formats - @Yossi
 
@@ -301,7 +332,6 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.DailyWindowStartTime);
                 ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = num2str(hours(Planner.DailyWindowMaxDuration));
                 ParamsApp.AllSkyGalacticLatThresholdEditField.Value = Planner.AllSSHighLatThresh;
-
 
                 % @Yossi @Todo ??
                 ParamsApp.AllSkyLatVisitsEditField.Value = Planner.LowLatVisits;
@@ -331,6 +361,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.MoonMinDistObsEditField.Value = num2str(Planner.ObsMoonDist);
                 ParamsApp.EarthMinDistObsEditField.Value = num2str(Planner.ObsEarthDist);
 
+                %
                 ParamsApp.SunMinDistSlewEditField.Value = num2str(Planner.SlewSunDist);
                 ParamsApp.MoonMinDistSlewEditField.Value = num2str(Planner.SlewMoonDist);
                 ParamsApp.EarthMinDistSlewEditField.Value = num2str(Planner.SlewEarthDist);
@@ -347,7 +378,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
         function setPlanStartEndTime(obj, app, StartTimeValue, EndTimeValue)
             % Set Plan Start and End times in current planner
 
-            app.msglog('setPlanStartEndTime')
+            app.msglog(sprintf('setPlanStartEndTime: StartTimeValue=%s, EndTimeValue=%s', StartTimeValue, EndTimeValue));
             if ~app.hasPlanner(), return; end
             if app.isReadOnlyMsg(), return; end
 

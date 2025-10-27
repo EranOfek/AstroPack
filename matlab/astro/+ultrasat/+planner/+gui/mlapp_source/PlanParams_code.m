@@ -165,6 +165,7 @@ classdef PlanParams < matlab.apps.AppBase
         Status          % Status of the plan modification ('Save' or 'Cancel')
         PlanType        % Current plan type (HCS, LCS, DDT, AllSky, TOO)
         ReadOnly        % Boolean flag indicating whether parameters are editable
+        AppUtils        %
     end
 
 
@@ -193,7 +194,7 @@ classdef PlanParams < matlab.apps.AppBase
             IsPlanEmpty = height(app.MainModule.Planner.Plan) == 0;            
 
             % Common fields
-            app.setEditable(app.PlanTypeDropDown, false);
+            app.PlanTypeDropDown.Enable = "off";
             app.setEditable(app.SlewBufferEditField, false);
             app.setEditable(app.TileReadTimeEditField, false);
             app.setEditable(app.FieldOfViewRadiusEditField, false);
@@ -293,6 +294,8 @@ classdef PlanParams < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
+            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, app);
         end
 
         % Button pushed function: BuildStatusButton
@@ -309,11 +312,12 @@ classdef PlanParams < matlab.apps.AppBase
         function ChangeButtonPushed(app, event)
             % Prompts the user for confirmation before allowing plan type modification.
             % If confirmed, enables editing of the PlanTypeDropDown field.                        
-            if ~strcmp(app.MainModule.AppUtils.askYesNo('Are you sure you want to modify the plan type?', 'Confirm'), 'Yes')
+            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to modify the Plan Type?', 'Confirm'), 'Yes')
                 return;
             end
 
-            app.setEditable(app.PlanTypeDropDown, true);
+            % Allow edit PlanType drop-down
+            app.PlanTypeDropDown.Enable = "on";
         end
 
         % Button pushed function: CheckTimesUpdateButton
@@ -345,7 +349,7 @@ classdef PlanParams < matlab.apps.AppBase
         function ChangeConstantsButtonPushed(app, event)
             % Prompts the user for confirmation before allowing edits to fundamental system constants.
             % If confirmed, enables editing of SlewBuffer, TileReadTime, and FieldOfViewRadius fields.                        
-            if ~strcmp(app.MainModule.AppUtils.askYesNo('These are fundimental system constants that are coordinated with IAA GCS and the camera designer. Are you sure you want to edit these values???', 'Confirm'), 'Yes')
+            if ~strcmp(app.AppUtils.askYesNo('These are fundimental system constants that are coordinated with IAA GCS and the camera designer. Are you sure you want to edit these values???', 'Confirm'), 'Yes')
                 return;
             end
             
@@ -376,6 +380,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 1323 768];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
@@ -1017,7 +1022,8 @@ classdef PlanParams < matlab.apps.AppBase
             % Create PlanTypeDropDown
             app.PlanTypeDropDown = uidropdown(app.GeneralPanel);
             app.PlanTypeDropDown.Items = {'HCS', 'LCS', 'DDT', 'AllSky', 'TOO'};
-            app.PlanTypeDropDown.BackgroundColor = [1 0.9882 0.8196];
+            app.PlanTypeDropDown.Enable = 'off';
+            app.PlanTypeDropDown.BackgroundColor = [1 1 1];
             app.PlanTypeDropDown.Position = [118 142 113 22];
             app.PlanTypeDropDown.Value = 'HCS';
 

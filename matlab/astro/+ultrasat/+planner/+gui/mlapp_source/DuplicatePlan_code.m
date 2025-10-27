@@ -44,6 +44,7 @@ classdef DuplicatePlan < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
         end
 
         % Button pushed function: DuplicateButton
@@ -74,6 +75,7 @@ classdef DuplicatePlan < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 504 335];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/AppUtils.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 27/10/2025
 % Description : App utils for PlannerMain
 %==========================================================================
 
@@ -17,12 +17,12 @@ classdef AppUtils < ultrasat.api.Loggable
 
 
     methods (Access = public)
-        function obj = AppUtils(AMainModule)
+        function obj = AppUtils(AMainModule, AApp)
             % Constructor
             obj.LogPrefix = 'AppUtils';
 
             obj.MainModule = AMainModule;
-            obj.App = obj.MainModule.MainApp;
+            obj.App = AApp;
         end
 
 
@@ -74,6 +74,9 @@ classdef AppUtils < ultrasat.api.Loggable
                 Title = 'Confirmation';
             end
 
+			drawnow;  % allow UI updates
+			figure(obj.App.UIFigure);  % ensure in front
+			
             Result = uiconfirm(obj.App.UIFigure, Msg, Title, ...
                 'Options', {'Yes', 'No'}, ...
                 'Icon', 'question', ...

@@ -38,6 +38,7 @@ classdef SaveUniqueTargetsToFile < matlab.apps.AppBase
         Status          % Status of the operation, e.g., 'Cancel' or 'Save'
         FileName        % Selected file name for loading targets
         Folder          % Default directory for file selection        
+        AppUtils        %
     end
 
 
@@ -47,6 +48,8 @@ classdef SaveUniqueTargetsToFile < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
+            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, app);
+            app.MainModule.AppUtils.center(app);
         end
 
         % Button pushed function: SaveButton

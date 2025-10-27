@@ -251,8 +251,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.GuiHelper = app.MainModule.GuiHelper;
 
             % Create AppUtils and set in MainModule
-            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule);
-            app.AppUtils.App = app;
+            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, app);
             app.MainModule.AppUtils = app.AppUtils;
 
             % Assign preferences loaded by MainModule
