@@ -1753,8 +1753,7 @@ classdef uplanner < Component
             xlim(ax,V.JD([1,end])-Args.JD_offset);
             if ~isempty(Args.TimeWindowJD)
                 xlim(ax,Args.TimeWindow-Args.JD_offset)
-            end
-            
+            end           
             
             % plot StartTime and EndTime            
             xline(ax,juliandate(Obj.StartTime)-Args.JD_offset,['-' Args.TimeColor],'Start Time');
@@ -1764,7 +1763,7 @@ classdef uplanner < Component
             ylabel(ax,'Angular distance [deg]');
 
             % Title with target name and index
-            TargetName = Obj.UniqTarg.Name;
+            TargetName = Obj.UniqTarg.Name(UniqTargInd);
             if isempty(TargetName)
                 TargetName = 'UnnamedTarget';
             end

@@ -116,6 +116,55 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             end
         end
 
+
+        function applyPlanParams(obj, app, ParamsApp)
+            % Apply plan parameters in current planner from PlanParams app, called from showPlanParamsWindow
+
+            try
+                Planner = app.MainModule.Planner;
+
+                % General parameters to all plan types
+                Planner.Title = ParamsApp.TitleEditField.Value;
+
+                % Start & End times
+                app.setPlanStartEndTime(ParamsApp.StartTimeEditField.Value, ParamsApp.EndTimeEditField.Value);
+
+                % Other general parameters
+                Planner.DefEpochsPerVisit = ParamsApp.EpochsPerVisitEditField.Value;
+                Planner.Exptime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.ExposureEditField.Value);
+
+                % Apply LCS parameters
+                if strcmp(Planner.Type, 'LCS')
+                    Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowStartTimeEditField.Value);
+                    Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowMaxDurationEditField.Value);
+
+                % Apply AllSky parameters
+                elseif strcmp(Planner.Type, 'AllSS')
+                    Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.AllSkyDailyWindowStartTimeEditField.Value);
+                    Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value);
+                    Planner.AllSSHighLatThresh = ParamsApp.AllSkyGalacticLatThresholdEditField.Value;
+                    Planner.LowLatVisits = ParamsApp.AllSkyLatVisitsEditField.Value;
+
+                    % Future
+                    %Planner.= ParamsApp.AllSkyLowLatVisitsEditField.Value;
+                    %Planner.= ParamsApp.AllSkyHighGalacticLatDitherPatternDropDown.Value;
+
+                % Apply TOO parameters
+                elseif strcmp(Planner.Type, 'TOO')
+                    Planner.TOOStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooStartTimeEditField.Value);
+                    Planner.TOOWindowDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooWindowDurationEditField.Value);
+                end
+
+                % Apply check times
+                app.applyCheckTimes(ParamsApp);
+
+                % @Future: Apply system constants from ParamsApp
+
+            catch ME
+                app.msgex('applyPlanParams', ME);
+            end
+        end
+        
         % =================================================================
         %                         DISPLAY / UPDATE
 		% =================================================================
@@ -291,55 +340,6 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.CancelButton.Enable = true;
             catch ME
                 app.msgex('setPlanParamsFields', ME);
-            end
-        end
-
-
-        function applyPlanParams(obj, app, ParamsApp)
-            % Apply plan parameters in current planner from PlanParams app, called from showPlanParamsWindow
-
-            try
-                Planner = app.MainModule.Planner;
-
-                % General parameters to all plan types
-                Planner.Title = ParamsApp.TitleEditField.Value;
-
-                % Start & End times
-                app.setPlanStartEndTime(ParamsApp.StartTimeEditField.Value, ParamsApp.EndTimeEditField.Value);
-
-                % Other general parameters
-                Planner.DefEpochsPerVisit = ParamsApp.EpochsPerVisitEditField.Value;
-                Planner.Exptime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.ExposureEditField.Value);
-
-                % Apply LCS parameters
-                if strcmp(Planner.Type, 'LCS')
-                    Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowStartTimeEditField.Value);
-                    Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.LcsDailyWindowMaxDurationEditField.Value);
-
-                % Apply AllSky parameters
-                elseif strcmp(Planner.Type, 'AllSS')
-                    Planner.DailyWindowStartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.AllSkyDailyWindowStartTimeEditField.Value);
-                    Planner.DailyWindowMaxDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value);
-                    Planner.AllSSHighLatThresh = ParamsApp.AllSkyGalacticLatThresholdEditField.Value;
-                    Planner.LowLatVisits = ParamsApp.AllSkyLatVisitsEditField.Value;
-
-                    % Future
-                    %Planner.= ParamsApp.AllSkyLowLatVisitsEditField.Value;
-                    %Planner.= ParamsApp.AllSkyHighGalacticLatDitherPatternDropDown.Value;
-
-                % Apply TOO parameters
-                elseif strcmp(Planner.Type, 'TOO')
-                    Planner.TOOStartTime = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooStartTimeEditField.Value);
-                    Planner.TOOWindowDuration = app.MainModule.GuiHelper.getFieldDuration(ParamsApp.TooWindowDurationEditField.Value);
-                end
-
-                % Apply check times
-                app.applyCheckTimes(ParamsApp);
-
-                % @Future: Apply system constants from ParamsApp
-
-            catch ME
-                app.msgex('applyPlanParams', ME);
             end
         end
 
