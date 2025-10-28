@@ -1468,11 +1468,15 @@ classdef Scheduler < Component
 
             % initialize scheduler
             S = telescope.Scheduler;
+            S.Logger.msgLog(LogLevel.Info, "Scheduler initialized");
             
             if isempty(Args.TargetList)
                 % generate regular grid
                 S.generateRegularGrid;
+                S.Logger.msgLog(LogLevel.Info, "list of targets generated, on a regular grid");
             else
+                S.Logger.msgLog(LogLevel.Info, ...
+                    sprintf("list of targets read from file %s",Args.TargetList));
                 S.loadTable(Args.TargetList,'replace');
             end
             
