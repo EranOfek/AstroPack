@@ -222,6 +222,8 @@ classdef Scheduler < Component
             % give a Syslog name (is there an MsgLogger argument for doing
             %  that directly in the property definition?
             Obj.Logger.Syslog.ProgName = "target-scheduler";
+
+            Obj.Logger.msgLog(LogLevel.Info, "Scheduler initialized");
         end
     end
     
@@ -1431,8 +1433,8 @@ classdef Scheduler < Component
         end
     end
 
-    methods (Static) % real time Scheduler demon
-        function S=demon(Args)
+    methods % real time Scheduler demon
+        function S=demon(S,Args)
             % Execute scheduler in listening mode
             %   This method executes the telescope.Scheduler in an infinite
             %   loop. In each loop, checks if a new ToO file exists, and if
@@ -1446,6 +1448,7 @@ classdef Scheduler < Component
             % Example: telescope.Scheduler.demon;
 
             arguments
+                S  = telescope.Scheduler;
                 Args.TargetList       = '~/Scheduler/TargetList.mat'; % current target list: file name or table, if [] then generate default LAST tiles
                 Args.SaveTargetList   = '~/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
                 Args.SetLastJD        = []; % if given than value will be inserted to LastJD
@@ -1465,26 +1468,36 @@ classdef Scheduler < Component
 
                 Args.CleanTargets  = false;
             end
-
-            % initialize scheduler
-            S = telescope.Scheduler;
             
             if isempty(Args.TargetList)
                 % generate regular grid
                 S.generateRegularGrid;
+                S.Logger.msgLog(LogLevel.Info, "list of targets generated, on a regular grid");
             else
+                try
+                S.Logger.msgLog(LogLevel.Info, ...
+                    sprintf("list of targets read from file %s",Args.TargetList));
                 S.loadTable(Args.TargetList,'replace');
+                catch nofile
+                    S.Logger.msgLog(LogLevel.Error, nofile.message)
+                end
             end
             
             % load mount obstruction files:
             PathMC = '~/Scheduler';  % modify to the scheduler dir...
             CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
-            S.populateMountAltConstraints(CMC,PathMC);
+            try
+                S.populateMountAltConstraints(CMC,PathMC);
+            catch
+                % i.e. file or path not found
+                S.Logger.msgLog(LogLevel.Warning, ...
+                    sprintf('mount obstructions file not found in %s',PathMC))
+            end
 
             if ~isempty(Args.SetLastJD)
                 S = insertColList(S, 'LastJD',Args.SetLastJD, []);
             end
-            
+
             % set global counters if passed by argument
             if ~isempty(Args.SetGlobalCounter)
                 S = insertColList(S, 'GlobalCounter',Args.SetGlobalCounter, []);
@@ -1531,6 +1544,9 @@ classdef Scheduler < Component
 
         end
     
+    end
+    
+    methods (Static) % ancillaries of real time Scheduler demon
         function [Units,JDs]=unitsAskingTargets(Args)
             % poll the Mailbox (here the Redis cache on localhost by
             % default), and return the number of the units which have asked
