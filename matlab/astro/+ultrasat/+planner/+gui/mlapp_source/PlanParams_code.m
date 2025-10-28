@@ -85,14 +85,14 @@ classdef PlanParams < matlab.apps.AppBase
         AllSkyTab                       matlab.ui.container.Tab
         AllSkyHighGalacticLatDitherPatternDropDown  matlab.ui.control.DropDown
         HighGalacticLatDitherPatternDropDownLabel  matlab.ui.control.Label
-        AllSkyLowLatVisitsEditField     matlab.ui.control.NumericEditField
+        AllSkyHighLatVisitsEditField    matlab.ui.control.NumericEditField
         visitsHighGalacticLatLabel      matlab.ui.control.Label
         degreesLabel                    matlab.ui.control.Label
         AllSkyDailyWindowMaxDurationEditField  matlab.ui.control.EditField
         DailywindowmaxdurationEditFieldLabel_2  matlab.ui.control.Label
         AllSkyDailyWindowStartTimeEditField  matlab.ui.control.EditField
         DailywindowstarttimeEditFieldLabel_2  matlab.ui.control.Label
-        AllSkyLatVisitsEditField        matlab.ui.control.NumericEditField
+        AllSkyLowLatVisitsEditField     matlab.ui.control.NumericEditField
         visitsLowGalacticLatLabel       matlab.ui.control.Label
         AllSkyGalacticLatThresholdEditField  matlab.ui.control.NumericEditField
         HighGalacticLatthresholdLabel   matlab.ui.control.Label
@@ -228,8 +228,8 @@ classdef PlanParams < matlab.apps.AppBase
             app.setEditable(app.AllSkyDailyWindowStartTimeEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyDailyWindowMaxDurationEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyGalacticLatThresholdEditField, IsPlanEmpty);
-            app.setEditable(app.AllSkyLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyLowLatVisitsEditField, IsPlanEmpty);
+            app.setEditable(app.AllSkyHighLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyHighGalacticLatDitherPatternDropDown, IsPlanEmpty);
             
             % TOO
@@ -337,9 +337,11 @@ classdef PlanParams < matlab.apps.AppBase
             % Apply the parameters
             try
                 % Call PlannerMain.ApplyPlanParams()
-                app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
-                app.Status = 'Save';
-                uiresume(app.UIFigure);                                        
+                Result = app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
+                if Result
+                    app.Status = 'Save';
+                    uiresume(app.UIFigure);                                        
+                end
             catch ME
                 app.MainModule.MainApp.msgex('SaveButtonPushed', ME);
             end                                
@@ -612,10 +614,10 @@ classdef PlanParams < matlab.apps.AppBase
             app.visitsLowGalacticLatLabel.Position = [38 77 141 22];
             app.visitsLowGalacticLatLabel.Text = '# visits - Low Galactic Lat';
 
-            % Create AllSkyLatVisitsEditField
-            app.AllSkyLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
-            app.AllSkyLatVisitsEditField.Position = [194 77 100 22];
-            app.AllSkyLatVisitsEditField.Value = 1;
+            % Create AllSkyLowLatVisitsEditField
+            app.AllSkyLowLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
+            app.AllSkyLowLatVisitsEditField.Position = [194 77 100 22];
+            app.AllSkyLowLatVisitsEditField.Value = 1;
 
             % Create DailywindowstarttimeEditFieldLabel_2
             app.DailywindowstarttimeEditFieldLabel_2 = uilabel(app.AllSkyTab);
@@ -650,9 +652,9 @@ classdef PlanParams < matlab.apps.AppBase
             app.visitsHighGalacticLatLabel.Position = [36 46 144 22];
             app.visitsHighGalacticLatLabel.Text = '# visits - High Galactic Lat';
 
-            % Create AllSkyLowLatVisitsEditField
-            app.AllSkyLowLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
-            app.AllSkyLowLatVisitsEditField.Position = [195 46 100 22];
+            % Create AllSkyHighLatVisitsEditField
+            app.AllSkyHighLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
+            app.AllSkyHighLatVisitsEditField.Position = [195 46 100 22];
 
             % Create HighGalacticLatDitherPatternDropDownLabel
             app.HighGalacticLatDitherPatternDropDownLabel = uilabel(app.AllSkyTab);

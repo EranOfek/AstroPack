@@ -197,6 +197,41 @@ classdef MainModule < ultrasat.api.Loggable
             end
         end
 
+        
+        function str = Duration2Str(obj, dur, showSeconds)
+            % Convert a duration value to string HH:MM or HH:MM:SS
+            % :param dur: duration value
+            % :param showSeconds: true for HH:MM:SS, false for HH:MM
+        
+            if nargin < 3
+                showSeconds = false;
+            end
+        
+            % Handle empty or invalid input
+            if isempty(dur) || ~isduration(dur)
+                str = '';
+                return;
+            end
+        
+            % Convert to total seconds
+            totalSeconds = seconds(dur);
+            if totalSeconds < 0
+                totalSeconds = 0;
+            end
+        
+            % Compute hours, minutes, seconds
+            hh = floor(totalSeconds / 3600);
+            mm = floor(mod(totalSeconds, 3600) / 60);
+            ss = floor(mod(totalSeconds, 60));
+        
+            if showSeconds
+                str = sprintf('%02d:%02d:%02d', hh, mm, ss);
+            else
+                str = sprintf('%02d:%02d', hh, mm);
+            end
+        end
+
+
 
         function Result = num2Str(obj, Value)
             % Convert number to string
