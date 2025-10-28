@@ -1939,6 +1939,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StartTimeEditField = uieditfield(app.PlanParamsTab, 'text');
             app.StartTimeEditField.ValueChangedFcn = createCallbackFcn(app, @StartTimeEditFieldValueChanged2, true);
             app.StartTimeEditField.Editable = 'off';
+            app.StartTimeEditField.BackgroundColor = [1 0.9882 0.8196];
             app.StartTimeEditField.Tooltip = {'Enter plan start time (i.e. 2024-12-04 00:00:00)'};
             app.StartTimeEditField.Position = [292 68 135 22];
 
@@ -1952,6 +1953,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.EndTimeEditField = uieditfield(app.PlanParamsTab, 'text');
             app.EndTimeEditField.ValueChangedFcn = createCallbackFcn(app, @EndTimeEditFieldValueChanged, true);
             app.EndTimeEditField.Editable = 'off';
+            app.EndTimeEditField.BackgroundColor = [1 0.9882 0.8196];
             app.EndTimeEditField.Position = [291 37 136 22];
 
             % Create HelpPlanParamsButton

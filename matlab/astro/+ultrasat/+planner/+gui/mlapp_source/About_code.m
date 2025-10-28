@@ -117,7 +117,7 @@ classdef About < matlab.apps.AppBase
             app.UpdatedEditField = uieditfield(app.Panel_3, 'text');
             app.UpdatedEditField.Editable = 'off';
             app.UpdatedEditField.Position = [90 300 249 22];
-            app.UpdatedEditField.Value = '27/10/2025';
+            app.UpdatedEditField.Value = '28/10/2025';
 
             % Create DevelopersTextAreaLabel
             app.DevelopersTextAreaLabel = uilabel(app.Panel_3);
@@ -157,8 +157,9 @@ classdef About < matlab.apps.AppBase
 
             % Create Image
             app.Image = uiimage(app.UIFigure);
-            app.Image.Position = [381 -3 255 334];
-            app.Image.ImageSource = fullfile(pathToMLAPP, 'images', 'PlannerLogo1.png');
+            app.Image.BackgroundColor = [0 0 0];
+            app.Image.Position = [381 9 255 322];
+            app.Image.ImageSource = fullfile(pathToMLAPP, 'images', 'PlannerLogo2.jpg');
 
             % Create Image2
             app.Image2 = uiimage(app.UIFigure);

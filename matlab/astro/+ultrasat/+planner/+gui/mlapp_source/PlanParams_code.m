@@ -337,9 +337,11 @@ classdef PlanParams < matlab.apps.AppBase
             % Apply the parameters
             try
                 % Call PlannerMain.ApplyPlanParams()
-                app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
-                app.Status = 'Save';
-                uiresume(app.UIFigure);                                        
+                Result = app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
+                if Result
+                    app.Status = 'Save';
+                    uiresume(app.UIFigure);                                        
+                end
             catch ME
                 app.MainModule.MainApp.msgex('SaveButtonPushed', ME);
             end                                
