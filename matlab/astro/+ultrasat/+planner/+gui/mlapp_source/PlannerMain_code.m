@@ -1084,12 +1084,12 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: EndTimeEditField
         function EndTimeEditFieldValueChanged(app, event)
-            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value);            
+            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value, app);
         end
 
         % Value changed function: StartTimeEditField
         function StartTimeEditFieldValueChanged2(app, event)
-            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value);
+            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value, app);
         end
 
         % Button pushed function: HelpButton

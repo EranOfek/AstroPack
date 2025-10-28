@@ -35,12 +35,12 @@ classdef AppUtils < ultrasat.api.Loggable
             end
 
             % Create and show MsgBoxApp
-            if isempty(obj.App.MsgBoxApp) || ~isvalid(obj.App.MsgBoxApp)
-                obj.App.MsgBoxApp = ultrasat.planner.gui.MsgBox(obj.MainModule);
+            if isempty(obj.MainModule.MainApp.MsgBoxApp) || ~isvalid(obj.MainModule.MainApp.MsgBoxApp)
+                obj.MainModule.MainApp.MsgBoxApp = ultrasat.planner.gui.MsgBox(obj.MainModule);
             end
-            obj.App.MsgBoxApp.Msg = Msg;
-            obj.App.MsgBoxApp.Title = Title;
-            obj.App.showModal(obj.App.MsgBoxApp);
+            obj.MainModule.MainApp.MsgBoxApp.Msg = Msg;
+            obj.MainModule.MainApp.MsgBoxApp.Title = Title;
+            obj.App.showModal(obj.MainModule.MainApp.MsgBoxApp);
         end
 
 
