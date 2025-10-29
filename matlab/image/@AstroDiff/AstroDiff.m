@@ -1410,10 +1410,12 @@ classdef AstroDiff < AstroImage
                 fprintf('Found match at distance %f"\n', Dist);
             end
 
-            MatchRow = Obj.CatData.selectRows(Match.Ind);
+            ClosestMatch = find(Match.Dist == min(Match.Dist));
+            ClosestMatchInd = Match.Ind(ClosestMatch);
+
+            MatchRow = Obj.CatData.selectRows(ClosestMatchInd);
 
             NCols = numel(MatchRow.ColNames);
-
             
             for ICol = 1:NCols
                 Col = MatchRow.ColNames{ICol};
