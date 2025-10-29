@@ -315,16 +315,16 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             if ~app.hasPlanner() || ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
 
-            % Get index of selected unique target in the drop-down
-            UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, app.GraphPlotUniqueTargetDropDown.Items));
-
-            % Get index of selected item
-            %UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-            %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-            %    return
-            %end
-
             try
+                % Get index of selected unique target in the drop-down
+                UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, app.GraphPlotUniqueTargetDropDown.Items));
+    
+                % Get index of selected item
+                %UniqueTargetIndex = app.UITableUniqueTargets.Selection;
+                %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                %    return
+                %end
+                
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
                 Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot);

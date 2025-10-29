@@ -85,14 +85,14 @@ classdef PlanParams < matlab.apps.AppBase
         AllSkyTab                       matlab.ui.container.Tab
         AllSkyHighGalacticLatDitherPatternDropDown  matlab.ui.control.DropDown
         HighGalacticLatDitherPatternDropDownLabel  matlab.ui.control.Label
-        AllSkyLowLatVisitsEditField     matlab.ui.control.NumericEditField
+        AllSkyHighLatVisitsEditField    matlab.ui.control.NumericEditField
         visitsHighGalacticLatLabel      matlab.ui.control.Label
         degreesLabel                    matlab.ui.control.Label
         AllSkyDailyWindowMaxDurationEditField  matlab.ui.control.EditField
         DailywindowmaxdurationEditFieldLabel_2  matlab.ui.control.Label
         AllSkyDailyWindowStartTimeEditField  matlab.ui.control.EditField
         DailywindowstarttimeEditFieldLabel_2  matlab.ui.control.Label
-        AllSkyLatVisitsEditField        matlab.ui.control.NumericEditField
+        AllSkyLowLatVisitsEditField     matlab.ui.control.NumericEditField
         visitsLowGalacticLatLabel       matlab.ui.control.Label
         AllSkyGalacticLatThresholdEditField  matlab.ui.control.NumericEditField
         HighGalacticLatthresholdLabel   matlab.ui.control.Label
@@ -165,6 +165,7 @@ classdef PlanParams < matlab.apps.AppBase
         Status          % Status of the plan modification ('Save' or 'Cancel')
         PlanType        % Current plan type (HCS, LCS, DDT, AllSky, TOO)
         ReadOnly        % Boolean flag indicating whether parameters are editable
+        AppUtils        %
     end
 
 
@@ -193,7 +194,7 @@ classdef PlanParams < matlab.apps.AppBase
             IsPlanEmpty = height(app.MainModule.Planner.Plan) == 0;            
 
             % Common fields
-            app.setEditable(app.PlanTypeDropDown, false);
+            app.PlanTypeDropDown.Enable = "off";
             app.setEditable(app.SlewBufferEditField, false);
             app.setEditable(app.TileReadTimeEditField, false);
             app.setEditable(app.FieldOfViewRadiusEditField, false);
@@ -227,8 +228,8 @@ classdef PlanParams < matlab.apps.AppBase
             app.setEditable(app.AllSkyDailyWindowStartTimeEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyDailyWindowMaxDurationEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyGalacticLatThresholdEditField, IsPlanEmpty);
-            app.setEditable(app.AllSkyLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyLowLatVisitsEditField, IsPlanEmpty);
+            app.setEditable(app.AllSkyHighLatVisitsEditField, IsPlanEmpty);
             app.setEditable(app.AllSkyHighGalacticLatDitherPatternDropDown, IsPlanEmpty);
             
             % TOO
@@ -293,6 +294,8 @@ classdef PlanParams < matlab.apps.AppBase
         % Code that executes after component creation
         function startupFcn(app, MainModule)
             app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
+            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, app);
         end
 
         % Button pushed function: BuildStatusButton
@@ -309,11 +312,12 @@ classdef PlanParams < matlab.apps.AppBase
         function ChangeButtonPushed(app, event)
             % Prompts the user for confirmation before allowing plan type modification.
             % If confirmed, enables editing of the PlanTypeDropDown field.                        
-            if ~strcmp(app.MainModule.AppUtils.askYesNo('Are you sure you want to modify the plan type?', 'Confirm'), 'Yes')
+            if ~strcmp(app.AppUtils.askYesNo('Are you sure you want to modify the Plan Type?', 'Confirm'), 'Yes')
                 return;
             end
 
-            app.setEditable(app.PlanTypeDropDown, true);
+            % Allow edit PlanType drop-down
+            app.PlanTypeDropDown.Enable = "on";
         end
 
         % Button pushed function: CheckTimesUpdateButton
@@ -333,9 +337,11 @@ classdef PlanParams < matlab.apps.AppBase
             % Apply the parameters
             try
                 % Call PlannerMain.ApplyPlanParams()
-                app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
-                app.Status = 'Save';
-                uiresume(app.UIFigure);                                        
+                Result = app.MainModule.MainApp.PlanParamsHelper.applyPlanParams(app.MainModule.MainApp, app);
+                if Result
+                    app.Status = 'Save';
+                    uiresume(app.UIFigure);                                        
+                end
             catch ME
                 app.MainModule.MainApp.msgex('SaveButtonPushed', ME);
             end                                
@@ -345,7 +351,7 @@ classdef PlanParams < matlab.apps.AppBase
         function ChangeConstantsButtonPushed(app, event)
             % Prompts the user for confirmation before allowing edits to fundamental system constants.
             % If confirmed, enables editing of SlewBuffer, TileReadTime, and FieldOfViewRadius fields.                        
-            if ~strcmp(app.MainModule.AppUtils.askYesNo('These are fundimental system constants that are coordinated with IAA GCS and the camera designer. Are you sure you want to edit these values???', 'Confirm'), 'Yes')
+            if ~strcmp(app.AppUtils.askYesNo('These are fundimental system constants that are coordinated with IAA GCS and the camera designer. Are you sure you want to edit these values???', 'Confirm'), 'Yes')
                 return;
             end
             
@@ -376,6 +382,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 1323 768];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
@@ -607,10 +614,10 @@ classdef PlanParams < matlab.apps.AppBase
             app.visitsLowGalacticLatLabel.Position = [38 77 141 22];
             app.visitsLowGalacticLatLabel.Text = '# visits - Low Galactic Lat';
 
-            % Create AllSkyLatVisitsEditField
-            app.AllSkyLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
-            app.AllSkyLatVisitsEditField.Position = [194 77 100 22];
-            app.AllSkyLatVisitsEditField.Value = 1;
+            % Create AllSkyLowLatVisitsEditField
+            app.AllSkyLowLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
+            app.AllSkyLowLatVisitsEditField.Position = [194 77 100 22];
+            app.AllSkyLowLatVisitsEditField.Value = 1;
 
             % Create DailywindowstarttimeEditFieldLabel_2
             app.DailywindowstarttimeEditFieldLabel_2 = uilabel(app.AllSkyTab);
@@ -645,9 +652,9 @@ classdef PlanParams < matlab.apps.AppBase
             app.visitsHighGalacticLatLabel.Position = [36 46 144 22];
             app.visitsHighGalacticLatLabel.Text = '# visits - High Galactic Lat';
 
-            % Create AllSkyLowLatVisitsEditField
-            app.AllSkyLowLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
-            app.AllSkyLowLatVisitsEditField.Position = [195 46 100 22];
+            % Create AllSkyHighLatVisitsEditField
+            app.AllSkyHighLatVisitsEditField = uieditfield(app.AllSkyTab, 'numeric');
+            app.AllSkyHighLatVisitsEditField.Position = [195 46 100 22];
 
             % Create HighGalacticLatDitherPatternDropDownLabel
             app.HighGalacticLatDitherPatternDropDownLabel = uilabel(app.AllSkyTab);
@@ -1017,7 +1024,8 @@ classdef PlanParams < matlab.apps.AppBase
             % Create PlanTypeDropDown
             app.PlanTypeDropDown = uidropdown(app.GeneralPanel);
             app.PlanTypeDropDown.Items = {'HCS', 'LCS', 'DDT', 'AllSky', 'TOO'};
-            app.PlanTypeDropDown.BackgroundColor = [1 0.9882 0.8196];
+            app.PlanTypeDropDown.Enable = 'off';
+            app.PlanTypeDropDown.BackgroundColor = [1 1 1];
             app.PlanTypeDropDown.Position = [118 142 113 22];
             app.PlanTypeDropDown.Value = 'HCS';
 

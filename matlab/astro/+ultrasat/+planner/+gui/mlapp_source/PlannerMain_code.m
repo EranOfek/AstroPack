@@ -251,8 +251,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.GuiHelper = app.MainModule.GuiHelper;
 
             % Create AppUtils and set in MainModule
-            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule);
-            app.AppUtils.App = app;
+            app.AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, app);
             app.MainModule.AppUtils = app.AppUtils;
 
             % Assign preferences loaded by MainModule
@@ -1085,12 +1084,12 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: EndTimeEditField
         function EndTimeEditFieldValueChanged(app, event)
-            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value);            
+            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value, app);
         end
 
         % Value changed function: StartTimeEditField
         function StartTimeEditFieldValueChanged2(app, event)
-            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value);
+            app.PlanParamsHelper.setPlanStartEndTime(app, app.StartTimeEditField.Value, app.EndTimeEditField.Value, app);
         end
 
         % Button pushed function: HelpButton
@@ -1940,6 +1939,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StartTimeEditField = uieditfield(app.PlanParamsTab, 'text');
             app.StartTimeEditField.ValueChangedFcn = createCallbackFcn(app, @StartTimeEditFieldValueChanged2, true);
             app.StartTimeEditField.Editable = 'off';
+            app.StartTimeEditField.BackgroundColor = [1 0.9882 0.8196];
             app.StartTimeEditField.Tooltip = {'Enter plan start time (i.e. 2024-12-04 00:00:00)'};
             app.StartTimeEditField.Position = [292 68 135 22];
 
@@ -1953,6 +1953,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.EndTimeEditField = uieditfield(app.PlanParamsTab, 'text');
             app.EndTimeEditField.ValueChangedFcn = createCallbackFcn(app, @EndTimeEditFieldValueChanged, true);
             app.EndTimeEditField.Editable = 'off';
+            app.EndTimeEditField.BackgroundColor = [1 0.9882 0.8196];
             app.EndTimeEditField.Position = [291 37 136 22];
 
             % Create HelpPlanParamsButton

@@ -77,6 +77,7 @@ classdef AddUniqueTarget < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 440 294];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);

@@ -32,6 +32,12 @@ classdef UserPreferences < matlab.apps.AppBase
     % Callbacks that handle component events
     methods (Access = private)
 
+        % Code that executes after component creation
+        function startupFcn(app, MainModule)
+            app.MainModule = MainModule;
+            app.MainModule.AppUtils.center(app);
+        end
+
         % Button pushed function: SaveButton
         function SaveButtonPushed(app, event)
             app.Status = 'Save';
@@ -55,6 +61,7 @@ classdef UserPreferences < matlab.apps.AppBase
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 627 461];
             app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Resize = 'off';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
@@ -116,13 +123,16 @@ classdef UserPreferences < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = UserPreferences
+        function app = UserPreferences(varargin)
 
             % Create UIFigure and components
             createComponents(app)
 
             % Register the app with App Designer
             registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
 
             if nargout == 0
                 clear app
