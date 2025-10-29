@@ -218,7 +218,11 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
                 ADc(Ipos).AlreadyReported = 1;
             end
     
-            PassingMatches = sum(MatchDB.flags_transient == 0) + 1;
+            % The second ( | ) condition is a bit adhoc, this is to reduce
+            % the amount of passing flucations near bright stars and on
+            % faint ghosts
+            PassingMatches = sum(MatchDB.flags_transient == 0 & ...
+                ((MatchDB.n_neigh < 1) | (MatchDB.score > 6.0))) + 1;
         else
             MatchJDs = [];
             PassingMatches = 1;
