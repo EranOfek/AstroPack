@@ -117,6 +117,9 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
         % Pre-allocate total optical depth for this parameter set
         Tau_total = zeros(NumWavelengths, 1);
 
+        % DEBUG: Track tau contributions
+        DEBUG_tau_contrib = struct();
+
         % Calculate airmass values using SMARTS model
         Airmasses = astro.transmission.airmassSMARTS(Z_);
         Am_o2 = Airmasses.o2;
@@ -159,17 +162,36 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             O2_abs = Args.AbsorptionData.getInterpolated('O2', Lambda);
             tau_o2 = O2_abs .* Abundance_o2 .* Am_o2;
             Tau_total = Tau_total + tau_o2;
+            DEBUG_tau_contrib.O2 = max(tau_o2);
         catch
             % Species not available, skip
+        end
+
+        % DEBUG: Check Tau_total after O2
+        if i == 1
+            fprintf('DEBUG: After O2, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
         end
 
         % 2. Methane (CH4)
         try
             Ch4_abs = Args.AbsorptionData.getInterpolated('CH4', Lambda);
+            if i == 1
+                fprintf('DEBUG: CH4_abs range: [%g, %g]\n', min(Ch4_abs), max(Ch4_abs));
+                fprintf('DEBUG: Abundance_ch4: %g, Am_ch4: %g\n', Abundance_ch4, Am_ch4);
+            end
             tau_ch4 = Ch4_abs .* Abundance_ch4 .* Am_ch4;
+            if i == 1
+                fprintf('DEBUG: tau_ch4 range: [%g, %g]\n', min(tau_ch4), max(tau_ch4));
+            end
             Tau_total = Tau_total + tau_ch4;
-        catch
-            % Species not available, skip
+            if i == 1
+                fprintf('DEBUG: After CH4, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+            DEBUG_tau_contrib.CH4 = max(tau_ch4);
+        catch ME
+            if i == 1
+                fprintf('DEBUG: CH4 failed: %s\n', ME.message);
+            end
         end
 
         % 3. Carbon Monoxide (CO)
@@ -177,6 +199,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Co_abs = Args.AbsorptionData.getInterpolated('CO', Lambda);
             tau_co = Co_abs .* Abundance_co .* Am_co;
             Tau_total = Tau_total + tau_co;
+            DEBUG_tau_contrib.CO = max(tau_co);
         catch
             % Species not available, skip
         end
@@ -186,6 +209,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             N2o_abs = Args.AbsorptionData.getInterpolated('N2O', Lambda);
             tau_n2o = N2o_abs .* Abundance_n2o .* Am_n2o;
             Tau_total = Tau_total + tau_n2o;
+            DEBUG_tau_contrib.N2O = max(tau_n2o);
         catch
             % Species not available, skip
         end
@@ -195,6 +219,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Co2_abs = Args.AbsorptionData.getInterpolated('CO2', Lambda);
             tau_co2 = Co2_abs .* Abundance_co2 .* Am_co2;
             Tau_total = Tau_total + tau_co2;
+            DEBUG_tau_contrib.CO2 = max(tau_co2);
         catch
             % Species not available, skip
         end
@@ -204,6 +229,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             N2_abs = Args.AbsorptionData.getInterpolated('N2', Lambda);
             tau_n2 = N2_abs .* Abundance_n2 .* Am_n2;
             Tau_total = Tau_total + tau_n2;
+            DEBUG_tau_contrib.N2 = max(tau_n2);
         catch
             % Species not available, skip
         end
@@ -213,6 +239,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             O4_abs = Args.AbsorptionData.getInterpolated('O4', Lambda) * 1e-46;
             tau_o4 = O4_abs .* Abundance_o4 .* Am_o4;
             Tau_total = Tau_total + tau_o4;
+            DEBUG_tau_contrib.O4 = max(tau_o4);
         catch
             % Species not available, skip
         end
@@ -228,8 +255,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Hno3_abundance = 1e-4 * 3.637 * (Pp0^0.12319);
             tau_hno3 = Hno3_abs .* Hno3_abundance .* Am_hno3;
             Tau_total = Tau_total + tau_hno3;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.HNO3 = max(tau_hno3);
+            if i == 1
+                fprintf('DEBUG: After HNO3, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: HNO3 failed: %s\n', ME.message);
+            end
         end
 
         % 2. Nitrogen Dioxide, NO2
@@ -238,8 +271,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             No2_abundance = 1e-4 * min(1.8599 + 0.18453 * Pp0, 41.771 * Pp0);
             tau_no2 = No2_abs .* No2_abundance .* Am_no2;
             Tau_total = Tau_total + tau_no2;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.NO2 = max(tau_no2);
+            if i == 1
+                fprintf('DEBUG: After NO2, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: NO2 failed: %s\n', ME.message);
+            end
         end
 
         % 3. Nitrogen Trioxide, NO3
@@ -248,8 +287,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             No3_abundance = 5e-5;
             tau_no3 = No3_abs .* No3_abundance .* Am_no3;
             Tau_total = Tau_total + tau_no3;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.NO3 = max(tau_no3);
+            if i == 1
+                fprintf('DEBUG: After NO3, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: NO3 failed: %s\n', ME.message);
+            end
         end
 
         % 4. Nitric Oxide, NO
@@ -258,8 +303,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             No_abundance = 1e-4 * min(0.74307 + 2.4015 * Pp0, 57.079 * Pp0);
             tau_no = No_abs .* No_abundance .* Am_no;
             Tau_total = Tau_total + tau_no;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.NO = max(tau_no);
+            if i == 1
+                fprintf('DEBUG: After NO, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: NO failed: %s\n', ME.message);
+            end
         end
 
         % 5. Sulfur Dioxide, SO2 (combination of SO2U and SO2I)
@@ -280,6 +331,10 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             So2_abundance = 1e-4 * 0.11133 * (Pp0^0.812) * exp(0.81319 + 3.0557 * (Pp0^2) - 1.578 * (Pp0^3));
             tau_so2 = So2_abs .* So2_abundance .* Am_so2;
             Tau_total = Tau_total + tau_so2;
+            DEBUG_tau_contrib.SO2 = max(tau_so2);
+            if i == 1
+                fprintf('DEBUG: After SO2, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
         end
 
         % 6. Ammonia, NH3
@@ -291,8 +346,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
                                    1.819 * (Log_pp0^3) - 0.65854 * (Log_pp0^4));
                 tau_nh3 = Nh3_abs .* Nh3_abundance .* Am_nh3;
                 Tau_total = Tau_total + tau_nh3;
-            catch
-                % Species not available, skip
+                DEBUG_tau_contrib.NH3 = max(tau_nh3);
+                if i == 1
+                    fprintf('DEBUG: After NH3, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+                end
+            catch ME
+                if i == 1
+                    fprintf('DEBUG: NH3 failed: %s\n', ME.message);
+                end
             end
         end
 
@@ -302,8 +363,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Bro_abundance = 2.5e-6;
             tau_bro = Bro_abs .* Bro_abundance .* Am_bro;
             Tau_total = Tau_total + tau_bro;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.BrO = max(tau_bro);
+            if i == 1
+                fprintf('DEBUG: After BrO, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: BrO failed: %s\n', ME.message);
+            end
         end
 
         % 8. Formaldehyde, CH2O
@@ -312,8 +379,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Ch2o_abundance = 3e-4;
             tau_ch2o = Ch2o_abs .* Ch2o_abundance .* Am_ch2o;
             Tau_total = Tau_total + tau_ch2o;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.CH2O = max(tau_ch2o);
+            if i == 1
+                fprintf('DEBUG: After CH2O, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: CH2O failed: %s\n', ME.message);
+            end
         end
 
         % 9. Nitrous Acid, HNO2
@@ -322,8 +395,14 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Hno2_abundance = 1e-4;
             tau_hno2 = Hno2_abs .* Hno2_abundance .* Am_hno2;
             Tau_total = Tau_total + tau_hno2;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.HNO2 = max(tau_hno2);
+            if i == 1
+                fprintf('DEBUG: After HNO2, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: HNO2 failed: %s\n', ME.message);
+            end
         end
 
         % 10. Chlorine Nitrate, ClNO3
@@ -332,8 +411,26 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
             Clno_abundance = 1.2e-4;
             tau_clno = Clno_abs .* Clno_abundance .* Am_clno;
             Tau_total = Tau_total + tau_clno;
-        catch
-            % Species not available, skip
+            DEBUG_tau_contrib.ClNO = max(tau_clno);
+            if i == 1
+                fprintf('DEBUG: After ClNO, Tau_total range: [%g, %g]\n', min(Tau_total), max(Tau_total));
+            end
+        catch ME
+            if i == 1
+                fprintf('DEBUG: ClNO failed: %s\n', ME.message);
+            end
+        end
+    
+        % DEBUG: Print tau contributions
+        if i == 1  % Only print for first parameter set
+            fprintf('\n=== DEBUG: Tau contributions (max values) ===\n');
+            fields = fieldnames(DEBUG_tau_contrib);
+            for j = 1:length(fields)
+                fprintf('  %s: %g\n', fields{j}, DEBUG_tau_contrib.(fields{j}));
+            end
+            fprintf('  Total Tau (max): %g\n', max(Tau_total));
+            fprintf('  Total Tau (min): %g\n', min(Tau_total));
+            fprintf('=============================================\n\n');
         end
 
         % Calculate transmission for this parameter set
