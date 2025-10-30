@@ -2915,9 +2915,12 @@ classdef Scheduler < Component
                 Obj.Logger.msgLog(LogLevel.Info,...
                     "purging targets with StopJD older than now");
                 FlagGood = Obj.List.Catalog.StopJD>JD;
+                Obj.Logger.msgLog(LogLevel.Info,...
+                    sprintf("%d total targets, %d can be dropped",...
+                            Obj.Ntarget,sum(~FlagGood)));
                 Obj.List.Catalog = Obj.List.Catalog(FlagGood,:);
                 Obj.Logger.msgLog(LogLevel.Info,...
-                   sprintf("there are now %d targets",S.Ntarget));
+                   sprintf("there are now %d targets",Obj.Ntarget));
             end
 
 
