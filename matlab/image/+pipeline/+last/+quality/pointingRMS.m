@@ -22,7 +22,7 @@ function [All, PerCam] = pointingRMS(Args)
     if isempty(Args.DB)
         Args.DB = db.Db;
         Args.DB.connect;
-        Args.useDB('last');
+        Args.DB.useDB('last');
     end
 
 
