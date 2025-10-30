@@ -6,7 +6,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     %            [ZenithAngle_deg, Temperature_C, Pressure_mbar].
     %          * ...,key,val,...
     %            'AbsorptionData' - Pre-loaded AbsorptionData object for fast interpolation.
-    %                              Default is [].
+    %                              lsDefault is [].
     %            'Return' - Pre-computed results for caching (external cache pattern).
     %                      Default is [].
     %            'UsePersistentCache' - Enable/disable persistent cache. Default is true.

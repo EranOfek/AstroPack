@@ -278,7 +278,7 @@ classdef CompositeFun < handle
                 end
             end
 
-            % Extract fitted parameter names directly
+            % Extract fitted parameter names 
             FittedNames = AllNames(IsFitted);
         end
 
@@ -333,13 +333,7 @@ classdef CompositeFun < handle
             % Input  : - Obj - CompositeFun object.
             % Output : - AllParamsStruct - Structure with Names, Values, FitPar, Min, Max.
             % Author : D. Kovaleva (Oct 2025)
-            % Example:
-            %   AllParams = Model.getAllParamStruct();
-            %   % View bounds for optimization
-            %   fprintf('Parameter bounds:\n');
-            %   for i = 1:length(AllParams.Names)
-            %       fprintf('  %s: [%.2f, %.2f]\n', AllParams.Names{i}, AllParams.Min(i), AllParams.Max(i));
-            %   end
+            % Example: AllParams = Model.getAllParamStruct();
             %   % Modify parameter values and fit flags as needed
             %   AllParams.Values(2) = 350;  % Change parameter value
             %   AllParams.FitPar(3) = true; % Mark parameter for fitting

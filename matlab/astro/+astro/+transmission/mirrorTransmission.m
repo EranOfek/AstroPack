@@ -1,18 +1,16 @@
-function Result = qeLegendre(Lambda, Args)
-    % Legendre polynomial model for perturbations to instrumental
-    % transmission optimized for LAST, Legendre coefficients from Ofek et al. (2023)
+function Result = mirrorTransmission(Lambda, Args)
+    % Mirror transmission using pre-computed polynomial function handle
     % Input  : - Lambda (double array): Wavelength array in nm.
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
     %            'GetArgNames' - Return ArgNames structure instead of calculating. Default is false.
-    % Output : - Result (double array): Exponential of Legendre polynomial expansion.
+    % Output : - Result (double array): Mirror transmission values (0-1).
     %            OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
-    % References: 1. Ofek et al. 2023, PASP 135, Issue 1054, id.124502.
-    %             2. Garrappa et al. 2025, A&A 699, A50.
+    % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: Lambda = linspace(300, 1100, 401)';
-    %          QE = telescope.Optics.qeLegendre(Lambda);
+    %          Trans = astro.transmission.mirrorTransmission(Lambda);
 
     arguments
         Lambda = linspace(300, 1100, 401)'
@@ -22,7 +20,7 @@ function Result = qeLegendre(Lambda, Args)
         Args.GetArgNames logical = false
     end
 
-    % Return ArgNames structure if requested (no parameters for Legendre QE)
+    % Return ArgNames structure if requested (no parameters for mirror)
     if Args.GetArgNames
         Result = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
         return;
@@ -44,24 +42,10 @@ function Result = qeLegendre(Lambda, Args)
         end
     end
 
-    % Legendre coefficients (constants from Ofek et al. 2023)
-    Li = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60];
-
-    % Rescale wavelength to [-1, 1]
-    Lam_rescaled = 2 * (Lambda - min(Lambda)) / (max(Lambda) - min(Lambda)) - 1;
-
-    % Calculate Legendre polynomials
-    N = length(Li);
-    M = numel(Lam_rescaled);
-    Leg = zeros(N, M);
-    for n = 0:N-1
-        Legn = legendre(n, Lam_rescaled);
-        Leg(n+1, :) = Legn(1, :);
-    end
-
-    % Calculate Legendre expansion and return exponential
-    Leg_expansion = Li * Leg;
-    Result = exp(Leg_expansion);
+    % Load and apply polynomial function handle
+    DataPath = fullfile(getenv('HOME'), 'matlab/data/spec/Telescope/LAST/Mirror_reflectance.mat');
+    LoadedData = load(DataPath, 'Mirror_reflectance');
+    Result = LoadedData.Mirror_reflectance(Lambda);
 
     % Store in persistent cache if enabled
     if Args.UsePersistentCache
