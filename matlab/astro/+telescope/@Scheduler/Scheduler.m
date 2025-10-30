@@ -2907,6 +2907,7 @@ classdef Scheduler < Component
             arguments
                 Obj
                 Args.CleanOld   = true;
+                Args.SaveTargetList   = '~/Scheduler/TargetList.mat';  % if empty, then do not save TargetList after update, otherwise path+file name to save
                 %Args.CleanOwner = {};
             end
 
@@ -2919,8 +2920,15 @@ classdef Scheduler < Component
                     sprintf("%d total targets, %d can be dropped",...
                             Obj.Ntarget,sum(~FlagGood)));
                 Obj.List.Catalog = Obj.List.Catalog(FlagGood,:);
+                % recalculate Ntarget
+                Obj.Ntarget = size(Obj.List.Catalog,1);
                 Obj.Logger.msgLog(LogLevel.Info,...
                    sprintf("there are now %d targets",Obj.Ntarget));
+                % backup latest version of target list
+                if ~isempty(Args.SaveTargetList)
+                    Tbl = S.List.Table;
+                    save('-v7.3',Args.SaveTargetList,'Tbl');
+                end
             end
 
 
