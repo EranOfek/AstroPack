@@ -51,23 +51,14 @@ function [Status] = sendTransientsAlert(ADc, Args)
     % Run loop on each transient cutout
     for Iadc = 1:Nadc
         Transient = ADc(Iadc);
-
-        PhotFlags = Transient.PhotCatData.getCol('FLAGS_TRANSIENT');
-        PassingTran = (PhotFlags == 0);
-        NumPassingTran = sum(PassingTran);
-
-        PhotScore = Transient.PhotCatData.getCol('SCORE');
-
+        
         % Report only if transient candidate has been detected at least
         % twice of with a > Args.SingeEpochThresh sigma significance 
         % within a single epoch
 
-        if NumPassingTran == 1 
-            SingleEpochScore = PhotScore(PassingTran);
-            if SingleEpochScore < Args.SingleEpochThresh
-                NadcNotReported = NadcNotReported + 1;
-                continue
-            end
+        if ~Transient.CatData.isColumn('Reported')
+            NadcNotReported = NadcNotReported + 1;
+            continue
         end
 
         TC = Transient.CatData;
