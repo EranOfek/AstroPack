@@ -484,6 +484,7 @@ classdef Scheduler < Component
     
     
     methods % getter for coordinates and positions
+        % X
         function varargout = azalt(Obj, JD)
             % Return targets Az/Alt/AirMass/ParAng
             % Input  : - Self.
@@ -508,6 +509,7 @@ classdef Scheduler < Component
             
         end
         
+        % X
         function [HA, LST] = halst(Obj, JD)
             % Return targets HA, LST
             % Input  : - Self.
@@ -534,6 +536,7 @@ classdef Scheduler < Component
            
         end
             
+        % X
         function [SunAz, SunAlt, DSunAz, DSunAlt, SunRA, SunDec, EqOfTime]=sun(Obj, JD)
             % Return Sun position and Az/Alt derivatives
             % Input  : - Self.
@@ -581,6 +584,7 @@ classdef Scheduler < Component
 
         end
         
+        % ->
         function Dist=sphere_dist(Obj, RA, Dec)
             % Angular distance to a given position
             % Input  : - Self.
@@ -602,6 +606,7 @@ classdef Scheduler < Component
             
         end
         
+        % X
         function [MoonRA, MoonDec]=moonEqCoo(Obj, JD)
             % Return Moon RA/Dec
             % Input  : - Self.
@@ -628,6 +633,7 @@ classdef Scheduler < Component
             MoonDec = MoonDec.*RAD;
         end
         
+        % X
         function [MoonAz, MoonAlt]=moonAzAlt(Obj, JD)
             % Return Moon Az/Alt
             % Input  : - Self.
@@ -655,6 +661,7 @@ classdef Scheduler < Component
             
         end
         
+        % X
         function [MoonIllum, MoonPhase]=moonIllum(Obj, JD)
             % Return Moon phase and illumination fraction
             % Input  : - Self.
@@ -681,6 +688,7 @@ classdef Scheduler < Component
             
         end
             
+        % X
         function MoonDist=moonDist(Obj, JD)
             % Calculate Moon distance for all targets 
             % Input  : - Self.
@@ -708,6 +716,7 @@ classdef Scheduler < Component
                         
         end
         
+        % X
         function SunDist=sunDist(Obj, JD)
             % Calculate Sun distance for all targets 
             % Input  : - Self.
@@ -735,6 +744,7 @@ classdef Scheduler < Component
                         
         end
          
+        % ->
         function [FlagCoo,FieldName] = cooInField(Obj, RA, Dec, Args)
             % Search for fields that contains a list of coordinates
             % Input  : - A celestial.targets object.
@@ -956,6 +966,7 @@ classdef Scheduler < Component
     end
     
     methods % load lists and tables
+        % ->
         function Obj=injectDefaultColumns(Obj)
             % Inject or replace the column in List with the default values
             % in the Defaults property.
@@ -981,6 +992,7 @@ classdef Scheduler < Component
 
         end
 
+        % ->
         function Obj=generateRegularGrid(Obj, Args)
             % Generate a regular grid of targets using tile_the_sky
             % Input  : - Self.
@@ -1029,6 +1041,7 @@ classdef Scheduler < Component
 
         end
         
+        % ->
         function Obj=loadTable(Obj, Data, Type)
             % Read file (mat, csv) or data, and merge it into an existing telescope.Scheduler object
             %
@@ -1147,6 +1160,7 @@ classdef Scheduler < Component
             
         end
         
+        % -> ObsScheduler
         function Obj=removeEntries(Obj, FN)
             % Remove entries by index or exact field name from scheduler
             % Input  : - self.
@@ -1174,6 +1188,7 @@ classdef Scheduler < Component
             end
         end
         
+        % -> ObsScheduler
         function Obj=populateMountAltConstraints(Obj, Data, Path)
             % populate MountAltConstraints
             % Input  : - self.
@@ -1231,6 +1246,7 @@ classdef Scheduler < Component
     end
 
     methods % write lists and tables
+        % -> ObsScheduler
         function save(Obj, FileName, OnlyTbl)
             % save the Targets object as a MAT file.
             % Input  : - A Targets object.
@@ -1670,6 +1686,7 @@ classdef Scheduler < Component
 
     
     methods  % setters to Data table
+        % X
         function Obj = insertColList(Obj, ColName, Val, Index)
             % set the value of specific column in List.
             % Input  : - celestial.Targets object.
@@ -1724,6 +1741,7 @@ classdef Scheduler < Component
             
         end
         
+        % ->
         function Result = selectRows(Obj, Rows, Args)
             % Select rows from scheduler target list.
             % Input  : - self.
@@ -1755,6 +1773,7 @@ classdef Scheduler < Component
     
     
     methods % visibility
+        % X
         function [SunSet, SunRise]=getSunSetRise(Obj, JD, Args)
             % Get Sun rise/set above some reference altitude
             % Input  : - self.
@@ -1799,6 +1818,7 @@ classdef Scheduler < Component
             SunRise = R0(I1+1,1);
         end
         
+        % ->
         function [Result, JD, MapAll]=mountConstraintsAnalaysis(Obj, Ind, JD, Args)
             % Analyze mount obscuration constraints for target visibility.
             % Input  : - self.
@@ -2217,6 +2237,7 @@ classdef Scheduler < Component
             
         end
             
+        % X
         function Result=timeSinceSunSet(Obj, JD)
             % Time (days) since last Sunset.
             % Input  : - self
