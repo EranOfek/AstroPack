@@ -1,4 +1,4 @@
-function Result = correctorTransmission(Lambda, Args)
+function Result = correctorTransmission(Lambda, unusedParam, Args)
     % Corrector transmission using pre-computed polynomial function handle
     % Input  : - Lambda (double array): Wavelength array in nm.
     %            If GetArgNames flag is true, returns ArgNames structure.
@@ -11,18 +11,22 @@ function Result = correctorTransmission(Lambda, Args)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: Lambda = linspace(300, 1100, 401)';
     %          Trans = astro.transmission.correctorTransmission(Lambda);
+    %          % Use with CompositeFun:
+    %          Model = tools.math.fun.CompositeFun();
+    %          Model.addFun('Corrector transmission', @astro.transmission.correctorTransmission, [], 'Par', [1], 'FitPar', [false]);
 
     arguments
         Lambda = linspace(300, 1100, 401)'
+        unusedParam = 1
         Args.Return = []
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
         Args.GetArgNames logical = false
     end
 
-    % Return ArgNames structure if requested (no parameters for corrector)
+    % Return ArgNames structure if requested (dummy unusedParam for the compatibility)
     if Args.GetArgNames
-        Result = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
+        Result = struct('Name', {1}, 'Description', {'unusedParam'}, 'Min', {1}, 'Max', {1});
         return;
     end
 

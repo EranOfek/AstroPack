@@ -1,6 +1,7 @@
-function Result = mirrorTransmission(Lambda, Args)
+function Result = mirrorTransmission(Lambda, unusedParam, Args)
     % Mirror transmission using pre-computed polynomial function handle
     % Input  : - Lambda (double array): Wavelength array in nm.
+    %          - unusedParam - Dummy parameter for CompositeFun compatibility.
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
@@ -11,18 +12,22 @@ function Result = mirrorTransmission(Lambda, Args)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: Lambda = linspace(300, 1100, 401)';
     %          Trans = astro.transmission.mirrorTransmission(Lambda);
+    %          % Use with CompositeFun:
+    %          Model = tools.math.fun.CompositeFun();
+    %          Model.addFun('Mirror transmission', @astro.transmission.mirrorTransmission, [], 'Par', [1], 'FitPar', [false]);
 
     arguments
         Lambda = linspace(300, 1100, 401)'
+        unusedParam = 1
         Args.Return = []
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
         Args.GetArgNames logical = false
     end
 
-    % Return ArgNames structure if requested (no parameters for mirror)
+    % Return ArgNames structure if requested (dummy parameter for CompositeFun compatibility)
     if Args.GetArgNames
-        Result = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
+        Result = struct('Name', {1}, 'Description', {'unusedParam'}, 'Min', {1}, 'Max', {1});
         return;
     end
 

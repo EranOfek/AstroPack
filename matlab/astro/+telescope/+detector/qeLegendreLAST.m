@@ -1,7 +1,8 @@
-function Result = qeLegendre(Lambda, Args)
+function Result = qeLegendreLAST(Lambda, unusedParam, Args)
     % Legendre polynomial model for perturbations to instrumental
     % transmission optimized for LAST, Legendre coefficients from Ofek et al. (2023)
     % Input  : - Lambda (double array): Wavelength array in nm.
+    %          - unusedParam - Dummy parameter for CompositeFun compatibility.
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
@@ -12,19 +13,23 @@ function Result = qeLegendre(Lambda, Args)
     % References: 1. Ofek et al. 2023, PASP 135, Issue 1054, id.124502.
     %             2. Garrappa et al. 2025, A&A 699, A50.
     % Example: Lambda = linspace(300, 1100, 401)';
-    %          QE = telescope.Optics.qeLegendre(Lambda);
+    %          QEpert = telescope.detector.qeLegendreLAST(Lambda);
+    %          % Use with CompositeFun:
+    %          Model = tools.math.fun.CompositeFun();
+    %          Model.addFun('QE Legendre', @telescope.detector.qeLegendreLAST, [], 'Par', [1], 'FitPar', [false]);
 
     arguments
         Lambda = linspace(300, 1100, 401)'
+        unusedParam = 1
         Args.Return = []
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
         Args.GetArgNames logical = false
     end
 
-    % Return ArgNames structure if requested (no parameters for Legendre QE)
+    % Return ArgNames structure if requested (dummy parameter for CompositeFun compatibility)
     if Args.GetArgNames
-        Result = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
+        Result = struct('Name', {1}, 'Description', {'unusedParam'}, 'Min', {1}, 'Max', {1});
         return;
     end
 
@@ -59,9 +64,9 @@ function Result = qeLegendre(Lambda, Args)
         Leg(n+1, :) = Legn(1, :);
     end
 
-    % Calculate Legendre expansion and return exponential
+    % Calculate Legendre expansion and return exponential (transposed to column vector)
     Leg_expansion = Li * Leg;
-    Result = exp(Leg_expansion);
+    Result = exp(Leg_expansion)';
 
     % Store in persistent cache if enabled
     if Args.UsePersistentCache
