@@ -434,6 +434,85 @@ classdef ObsScheduler < Base
 
         end
     
+        
+        function [Result, JD, MapAll]=mountConstraintsAnalaysis(Obj, Ind, JD, Args)
+            % Analyze mount obscuration constraints for target visibility.
+            % Input  : - self.
+            %          - Either target index in list or [RA Dec] in deg.
+            %          - UTC JD or [D M Y] of night or two elemnt vector with
+            %            start JD and stop JD in between to calculate the
+            %            visibility. If single time, then will calculate
+            %            visibility for the entire night.
+            %            Default is the current JD.
+            %          * ...,key,val,...
+            %            'Mount' - List of mounts for which to calculate
+            %                   visibility.
+            %                   Default is (1:1:12).'
+            %            'TimeStep' - Time step in which to calculate
+            %                   visibility [day]. Default is 5./1440
+            % Output : - A structure with the following fields:
+            %            .ObsTime - A vector of total visible time above
+            %                   AltMountConstraints tables. Entry per requested
+            %                   mount.
+            %            .BestObsTime - Longest observed time [day].
+            %            .BestMount - Index of best mount in Mount list.
+            %          - Vector of JD in which the visibility map was
+            %            calculated.
+            %          - Visibility map (JD, Mount) where NaN indicate not
+            %            visible and numbers are for the airmass.
+            % Author : Eran Ofek (Feb 2025)
+            % Example: CMC = tools.cell.sprintf2cell('MountConst%d.txt',(1:1:12)');
+            %          S.populateMountAltConstraints(CMC);
+            %          S.mountConstraintsAnalaysis
+            
+            arguments
+                Obj(1,1)
+                Ind
+                JD            = celestial.time.julday;
+                Args.Mount    = (1:1:12).';
+                Args.TimeStep = 5./1440;
+            end
+            RAD = 180./pi;
+            
+            if numel(Ind)==2
+                RA  = Ind(1);
+                Dec = Ind(2);
+            else
+                RA  = Obj.Table.RA(Ind);
+                Dec = Obj.Table.Dec(Ind);
+            end
+            
+            if numel(JD)>2
+                JD = celestial.time.julday(JD);
+            end
+            if numel(JD)==2
+                JD = (JD(1):Args.TimeStep:JD(2)).';
+            end
+            if numel(JD)==1
+                % calculate for entire night
+                [SunRise, SunSet] = Obj.sunRiseSet;
+                JD = (SunSet:Args.TimeStep:SunRise).';            
+            end
+            
+            [Az, Alt, AM] = celestial.coo.radec2azalt(JD, RA, Dec, 'GeoCoo',Obj.GeoPos, 'InUnits','deg');
+            
+            Nmnt = numel(Args.Mount);
+            Njd  = numel(JD);
+            MapAll = nan(Njd, Nmnt);
+            for Im=1:1:Nmnt
+                Imnt = Args.Mount(Im);
+                AzAltConst = Obj.MountAltLimit(Imnt).Con;
+                
+                % Alt constraints for given Az
+                InterpAlt      = interp1(AzAltConst(:,1), AzAltConst(:,2), Az);
+                FlagObservable = Alt>InterpAlt;
+                
+                MapAll(FlagObservable,Imnt) = AM(FlagObservable);
+            end
+            
+            Result.ObsTime   = sum(~isnan(MapAll)).*Args.TimeStep;
+            [Result.BestObsTime, Result.BestMount] = max(Result.ObsTime);
+        end
     end
 
     methods % Moon, Sun
@@ -742,6 +821,117 @@ classdef ObsScheduler < Base
 
 
         end
+    
+        
+        
+    
+    end
+
+
+    methods % search for fields
+        function [FlagCoo,FieldName] = cooInField(Obj, RA, Dec, Args)
+            % Search for fields that contains a list of coordinates
+            % Input  : - A celestial.targets object.
+            %          - J2000 RA [H M S] or [deg] or sexagesimal.
+            %          - J2000 Dec [Sign D M S] or [deg] or sexagesimal.
+            %          * ...,key,val,...
+            %            'HalfSize' - Half size of box to search around
+            %                   each field. Default is [2.1 3.2] (deg).
+            % Output : - A vector of logical indicating if the targets in
+            %            the celestial.targets object contains one or the RA/Dec.
+            %          - A string array of field names/IDs containin the
+            %            coordinates.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: S.cooInField(100,10);
+            %          find(S.cooInField(352.59,1.88))
+           
+            arguments
+                Obj
+                RA     
+                Dec    
+                Args.HalfSize   = [2.1 3.2];  % deg
+            end
+            
+            
+            
+            RAD = 180./pi;
+            
+            [RA, Dec] = telescope.Scheduler.radec2deg(RA, Dec);
+            
+            RA   = RA./RAD;
+            Dec  = Dec./RAD;
+            
+            HalfSize  = Args.HalfSize./RAD;
+            
+            Nsrc = Obj.Ntarget; %Obj.List.sizeCatalog;
+            FieldRA  = Obj.RA./RAD;
+            FieldDec = Obj.Dec./RAD;
+            FlagCoo  = false(Nsrc,1);
+            for Isrc=1:1:Nsrc
+                FlagCoo(Isrc) = celestial.coo.in_box(RA, Dec, [FieldRA(Isrc), FieldDec(Isrc)], HalfSize);
+            end
+
+            FieldName = Obj.List.Catalog.FieldName(FlagCoo);
+            
+        end
+
+    end
+
+    methods % edit and manipulate
+        function Obj=removeEntries(Obj, FN)
+            % Remove entries by index or exact field name from scheduler
+            % Input  : - self.
+            %          - A list of indices to reomve:
+            %            Either a string array (or cell array) of field
+            %            names, or a vector of logicals to remove, or a
+            %            vector of indices to remove.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Apr 2025)
+            % Example: S = telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          S.removeEntries(["1", "3"])
+
+            if iscell(FN) || isstring(FN)
+                [~,Igood] = setdiff(Obj.Table.FieldName, FN(:), 'rows','stable');
+                Obj.Table = Obj.Table(Igood,:);
+            else
+                % logical flag or index
+                if islogical(FN)
+                    Obj.Table = Obj.Table(~FN,:);
+                else
+                    IndKeep = tools.array.notIndexVector(size(Obj.Table,1), FN);
+                    Obj.Table = Obj.Table(IndKeep,:);
+                end
+            end
+        end
+
+        function Result = selectRows(Obj, Rows, Args)
+            % Select rows from scheduler target list.
+            % Input  : - self.
+            %          - Rows. Either vector of logicals, or vector of
+            %            indices.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - Updated self.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: S1=S.selectRows(1:2)
+           
+            arguments
+                Obj
+                Rows
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Result.Table = Result.Table(Rows,:);
+        end
+
     end
 
     methods % read and write
@@ -821,6 +1011,7 @@ classdef ObsScheduler < Base
 
         end
     end
+
 
     methods % plots
         
