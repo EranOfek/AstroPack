@@ -245,21 +245,31 @@ function fileProcessorCallback(FileName)
     end
     
     % Parse JSON from string to struct
-    io.msgLog(LogLevel.Info, 'JSON: %s', str);
-    item = jsondecode(str);
+    try
+        io.msgLog(LogLevel.Info, 'JSON: %s', str);
+        item = jsondecode(str);
+    catch Ex
+        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error parsing JSON from file %s: %s', FileName, Ex.message);
+        out = struct;
+        out.message = sprintf('MATLAB: Exception parsing JSON from file %s: %s', FileName, Ex.message);
+        out.result = -1;
+        out.json_text = '';
+        return;
+    end
    
     % Process the request
     try
         out = processItem(item);
     catch Ex
+        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error calling processItem: %s', Ex.message);
         out = struct;
         out.message = sprintf('MATLAB: Exception calling processItem: %s', Ex.message);        
         out.result = -1;           
     end
 
     % Write output JSON file
-    io.msgLog(LogLevel.Info, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);
     try
+        io.msgLog(LogLevel.Info, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);        
         out_json = jsonencode(out);
         fid = fopen(TmpFileName, 'wt');
         fprintf(fid, out_json);
