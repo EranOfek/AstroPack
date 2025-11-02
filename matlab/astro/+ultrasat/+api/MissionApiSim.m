@@ -127,7 +127,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     tStart = obj.parseIsoDatetime(targets(i).start_time);
                     tEnd = obj.parseIsoDatetime(targets(i).end_time);
 
-                    if tStart >= start_time && tEnd <= end_time
+                    if tStart <= end_time && tEnd >= start_time
                         filteredTargets = [filteredTargets; targets(i)];
                     end
                 end
@@ -636,7 +636,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
         function dt = parseIsoDatetime(obj, str)
             % @TODO - Move to common file - like +api/TimeUtils.m ?
-            
+
             % parseIsoDatetime  Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
             %
             %   dt = parseIsoDatetime(str)
