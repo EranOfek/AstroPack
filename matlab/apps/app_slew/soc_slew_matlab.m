@@ -199,6 +199,8 @@ function Result = processItem(item)
         % Call the Slew calculator, input is JSON text, output is struct            
         elseif strcmp(item.op, 'slew')            
             out = processSlewJson(item.json_text);
+        elseif strcmp(item.op, 'slew_batch')            
+            out = processSlewJsonBatch(item.json_text);            
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
