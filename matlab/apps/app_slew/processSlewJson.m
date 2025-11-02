@@ -48,8 +48,8 @@ function [Result, Message] = doProcessSlew(Params)
     %
     % Author : Chen Tishler (2025)
 
-    io.msgLog(LogLevel.Debug, 'doProcessSlew: started - Params:');
-    disp(Params);
+    %io.msgLog(LogLevel.Debug, 'doProcessSlew: started - Params:');
+    %disp(Params);
 
     try
         % Create helper (if class-based environment, else call directly)
@@ -60,14 +60,18 @@ function [Result, Message] = doProcessSlew(Params)
             Params.ra1, Params.dec1, Params.ra2, Params.dec2, ...
             'Units', 'deg', 'JD', jd);
 
-        % Truncate or round to 3 digits after decimal
+        % Truncate or round to 1 digits after decimal
         T_sec = round(T_sec, 1);
+
+        io.msgLog(LogLevel.Info, sprintf( ...
+            'doProcessSlew: calcSlew(ra1=%.3f, dec1=%.3f, ra2=%.3f, dec2=%.3f, JD=%.5f) -> SLEW=%.1f sec, direct=%d', ...
+            Params.ra1, Params.dec1, Params.ra2, Params.dec2, jd, T_sec, DirectSlewBool));
 
         Result = struct;
         Result.slew_time   = T_sec;
         Result.direct_slew = DirectSlewBool;
-        Message = 'doProcessSlew: success';
-        io.msgLog(LogLevel.Debug, sprintf('doProcessSlew: done - slew=%.2f sec, direct=%d', T_sec, DirectSlewBool));
+        Message = 'calcSlew: OK';
+        %io.msgLog(LogLevel.Debug, sprintf('doProcessSlew: done - slew=%.2f sec, direct=%d', T_sec, DirectSlewBool));
 
     catch ex
         Message = sprintf("doProcessSlew: error: identifier='%s', message='%s'", ex.identifier, ex.message);

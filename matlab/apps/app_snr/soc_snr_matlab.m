@@ -223,7 +223,7 @@ function fileProcessorCallback(FileName)
     % 
     
     % Log the start of the callback
-    io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', FileName);
+    io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', strrep(FileName, '\', '\\'));    
       
     % Set the temporary and output file names
     TmpFileName = strcat(FileName, '.out.tmp');
@@ -281,10 +281,10 @@ function fileProcessorCallback(FileName)
 
     % Rename final file to output extension
     try
-        io.msgLog(LogLevel.Info, 'Rename output %s -> %s', TmpFileName, OutFileName);
+        io.msgLog(LogLevel.Info, 'Rename output %s -> %s', strrep(TmpFileName, '\', '\\'), strrep(OutFileName, '\', '\\'));
         movefile(TmpFileName, OutFileName);
     catch Ex
-        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error renaming file %s -> %s: %s', TmpFileName, OutFileName, Ex.message);
+        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error renaming file %s -> %s: %s', strrep(TmpFileName, '\', '\\'), strrep(OutFileName, '\', '\\'), Ex.message);
         return;
     end
 end

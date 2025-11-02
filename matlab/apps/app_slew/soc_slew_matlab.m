@@ -127,8 +127,8 @@ function Result = mainLoop()
     global SOC_PATH;
 
     % Set the log level
-    MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
-    MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
+    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');
+    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
     
     % Log the start of the main loop
     io.msgLog(LogLevel.Test, 'Slew mainLoop started');
@@ -221,7 +221,7 @@ function fileProcessorCallback(FileName)
     % 
     
     % Log the start of the callback
-    io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', FileName);
+    io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', strrep(FileName, '\', '\\'));
       
     % Set the temporary and output file names
     TmpFileName = strcat(FileName, '.out.tmp');
@@ -244,7 +244,7 @@ function fileProcessorCallback(FileName)
     
     % Parse JSON from string to struct
     try
-        io.msgLog(LogLevel.Info, 'JSON: %s', str);
+        io.msgLog(LogLevel.Debug, 'JSON: %s', str);
         item = jsondecode(str);
     catch Ex
         io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error parsing JSON from file %s: %s', FileName, Ex.message);
@@ -267,7 +267,7 @@ function fileProcessorCallback(FileName)
 
     % Write output JSON file
     try
-        io.msgLog(LogLevel.Info, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);        
+        io.msgLog(LogLevel.Debug, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);        
         out_json = jsonencode(out);
         fid = fopen(TmpFileName, 'wt');
         fprintf(fid, out_json);
@@ -279,10 +279,13 @@ function fileProcessorCallback(FileName)
 
     % Rename final file to output extension
     try
-        io.msgLog(LogLevel.Info, 'Rename output %s -> %s', TmpFileName, OutFileName);
+        io.msgLog(LogLevel.Debug, 'Rename output %s -> %s', strrep(TmpFileName, '\', '\\'), strrep(OutFileName, '\', '\\'));
         movefile(TmpFileName, OutFileName);
     catch Ex
-        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error renaming file %s -> %s: %s', TmpFileName, OutFileName, Ex.message);
+        io.msgLog(LogLevel.Error, 'FileProcessorCallback: Error renaming file %s -> %s: %s', strrep(TmpFileName, '\', '\\'), strrep(OutFileName, '\', '\\'), Ex.message);
         return;
     end
+
+    % Final log
+    io.msgLog(LogLevel.Info, 'FileProcessorCallback done: %s', strrep(FileName, '\', '\\'));
 end
