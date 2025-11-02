@@ -362,6 +362,11 @@ classdef GuiHelper < ultrasat.api.Loggable
 
                 % 2. Try parsing as hh:mm:ss or dd:hh:mm:ss
                 try
+                    % If input looks like hh:mm (no seconds), append ":00"
+                    if ~isempty(regexp(strValue, '^\d{1,2}:\d{2}$', 'once'))
+                        strValue = [strValue ':00'];
+                    end
+                    
                     d = duration(strValue);
                     if isduration(d) && ~isempty(d)
                         Result = d;
