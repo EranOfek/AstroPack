@@ -265,6 +265,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButtonPushed, true);
             app.LoadButton.FontWeight = 'bold';
             app.LoadButton.FontColor = [0 0 1];
+            app.LoadButton.Tooltip = {'Load the contents of the selected CSV file into the text box below. You may review or edit the text before clicking OK to apply the data.'};
             app.LoadButton.Position = [769 572 85 33];
             app.LoadButton.Text = 'Load';
 
@@ -279,6 +280,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.HighCadenceFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @HighCadenceFieldsButtonPushed, true);
             app.HighCadenceFieldsButton.FontWeight = 'bold';
             app.HighCadenceFieldsButton.FontColor = [0 0 1];
+            app.HighCadenceFieldsButton.Tooltip = {'Load predefined High Cadence fields from file (data/HCS_fields.txt)'};
             app.HighCadenceFieldsButton.Position = [716 144 160 25];
             app.HighCadenceFieldsButton.Text = 'High Cadence Fields';
 
@@ -287,6 +289,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.LowCadenceFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @LowCadenceFieldsButtonPushed, true);
             app.LowCadenceFieldsButton.FontWeight = 'bold';
             app.LowCadenceFieldsButton.FontColor = [0 0 1];
+            app.LowCadenceFieldsButton.Tooltip = {'Load predefined Low Cadence fields from file (data/LCS_grid.txt)'};
             app.LowCadenceFieldsButton.Position = [717 112 160 26];
             app.LowCadenceFieldsButton.Text = 'Low Cadence Fields';
 
@@ -295,6 +298,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.AllSSFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @AllSSFieldsButtonPushed, true);
             app.AllSSFieldsButton.FontWeight = 'bold';
             app.AllSSFieldsButton.FontColor = [0 0 1];
+            app.AllSSFieldsButton.Tooltip = {'Load predefined AllSky fields from file (data/AllSS_grid_361.txt)'};
             app.AllSSFieldsButton.Position = [716 81 160 26];
             app.AllSSFieldsButton.Text = 'AllSS Fields';
 

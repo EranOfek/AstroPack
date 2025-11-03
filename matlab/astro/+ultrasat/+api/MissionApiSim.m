@@ -12,7 +12,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
     %
 
     properties
-        DbPath          % Path to simulator data files
+        LocalDbPath     % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
         ApiSimProvider  % instance of ultrasat.api.ApiSimProvider()
     end
@@ -43,21 +43,29 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 error('SOC_PATH environment variable is not defined, on Linux set it to ~/soc, on Windows set it to c:\\soc');
             end
 
+            % -------------------------- NOT USED - Files are stored only on the server
             % Master files path from the git repo: use sim/ subfolder under current folder, there should be a .gitignore file
-            currentFile = mfilename('fullpath');
-            currentFolder = fileparts(currentFile);
-            masterPath = fullfile(currentFolder, 'sim_master');
-
+            % currentFile = mfilename('fullpath');
+            % currentFolder = fileparts(currentFile);
+            % masterPath = fullfile(currentFolder, 'sim_master');
+            %
             % Copy master files if first run % @TODO
             %if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
             %    obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
             %    obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
             %    copyfile(masterPath, obj.DbPath);
             %end
+            % -------------------------- 
+
+            % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
+            obj.LocalDbPath = fullfile(soc_path, 'temp', 'planner_sim');
+            obj.msglog('LocalDbPath: %s', obj.LocalDbPath);
+            if ~exist(obj.LocalDbPath, 'dir')
+                mkdir(obj.LocalDbPath);
+            end
 
             % Create an instance of ValidatorSim
-            % @TODO !!!!!!!!!!
-            % obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
+            obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.LocalDbPath, 'validator.json'), obj.LogFileName);
             obj.msglog('MissionClientSim constructor done');
         end
 
@@ -68,7 +76,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             if isempty(ultrasat.api.PathUtils.NamespaceId)
                 error('NamespaceId must be set in the object to get the base path.');
             end
-            %Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
 
             Result = ultrasat.api.PathUtils.getNamespaceDataFolder( ...
                 'planner', ...                  % module name
@@ -215,7 +222,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 try
                     response = obj.Validator.validateTargets(Plan);
                 catch ME
-                    obj.msglog('Validation error: %s', ME.message);
+                    obj.msglog('ValidatorSim.validateTargets error: %s', ME.message);
                     response = obj.newResponse();
                     response.status = 'error';
                     response.message = 'Validation failed due to an exception.';
@@ -371,7 +378,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         % -------------------------------------------------------------------
 
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
-            % Returns a list of existing plans from JSON files in the DbPath folder.
+            % Returns a list of existing plans from JSON files
             obj.msglog('getPlansList: Scanning for plans in %s', obj.getPlannerBasePath());
             try
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
@@ -485,7 +492,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
 
         function response = savePlan(obj)
-            % Saves the current PlanData instance to the DbPath folder as JSON and MAT files.
+            % Saves the current PlanData instance as JSON and MAT files.
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
 

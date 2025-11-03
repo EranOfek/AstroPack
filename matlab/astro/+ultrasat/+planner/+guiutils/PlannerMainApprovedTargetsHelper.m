@@ -112,6 +112,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
                 app.UITableApprovedTargets.SelectionType = "row";
                 app.UITableApprovedTargets.Multiselect = "off";
                 app.UITableApprovedTargets.RowName = "numbered";
+                app.UITableApprovedTargets.ColumnSortable = true;
 
                 % Set table data from Planner
                 Data = app.MainModule.Planner.MissionApprovedPlan;

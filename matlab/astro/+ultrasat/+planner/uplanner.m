@@ -1128,8 +1128,16 @@ classdef uplanner < Component
                 Args.timingPrecision = seconds(0.01);
             end
             
-            tmpPlan = Obj.Plan;
-            
+            % Initialize outputs
+            CheckStatus = false;
+            badPlanRow = [];
+
+            % Plan is empty, nothing to check
+            if isempty(Obj.Plan)                
+                return
+            end
+
+            tmpPlan = Obj.Plan;            
             tmpPlan = sortrows(tmpPlan,'Tstart');
             
             % Validate that Obj.Start time and the first start time in the plan agree

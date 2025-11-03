@@ -600,6 +600,9 @@ classdef GuiHelper < ultrasat.api.Loggable
             % Copy column editability settings
             TargetUITable.ColumnEditable = SourceUITable.ColumnEditable;
 
+            % Copy column sorting settings
+            TargetUITable.ColumnSortable = SourceUITable.ColumnSortable;
+
             % Remove existing styles from TargetUITable
             removeStyle(TargetUITable);
 
