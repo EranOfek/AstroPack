@@ -305,7 +305,7 @@ classdef PlanParams < matlab.apps.AppBase
 
         % Button pushed function: ValidationStatusButton
         function ValidationStatusButtonPushed(app, event)
-            app.MainModule.MainApp.SubmitHelper.showValidationStatusWindow(app.MainModule.MainApp);
+            app.MainModule.MainApp.ValidationHelper.showValidationStatusWindow(app.MainModule.MainApp);
         end
 
         % Button pushed function: ChangeButton
