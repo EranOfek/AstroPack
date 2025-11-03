@@ -305,6 +305,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             app.UITableUniqueTargets.SelectionType = "row";
             app.UITableUniqueTargets.Multiselect = "off";
             app.UITableUniqueTargets.RowName = "numbered";
+            app.UITableUniqueTargets.ColumnSortable = true;
 
             % Add 'Order' column
             Data = app.MainModule.Planner.UniqTarg;

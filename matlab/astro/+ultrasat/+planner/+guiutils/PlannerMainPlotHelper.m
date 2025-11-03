@@ -222,6 +222,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                     % Update the table data
                     if isprop(app.CalibObjTableApp, 'UITableData')
                         app.CalibObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+                        app.CalibObjTableApp.UITableData.ColumnSortable = true;
 
                         % Update column names if table is non-empty
                         if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)

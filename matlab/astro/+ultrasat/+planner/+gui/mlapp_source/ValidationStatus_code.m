@@ -64,7 +64,7 @@ classdef ValidationStatus < matlab.apps.AppBase
 
         % Selection changed function: UITableHistory
         function UITableHistorySelectionChanged(app, event)
-            app.MainModule.MainApp.SubmitHelper.validationHistorySelected(app.MainModule.MainApp);
+            app.MainModule.MainApp.ValidationHelper.validationHistorySelected(app.MainModule.MainApp);
         end
 
         % Button pushed function: HelpButton

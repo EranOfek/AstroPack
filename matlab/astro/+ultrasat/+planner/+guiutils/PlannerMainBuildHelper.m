@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 03/11/2025
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -145,7 +145,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
             if numel(SelectedRows) ~= 1
-                app.AppUtils.msgError('HCS requires single unique target');
+                app.AppUtils.msgError('HCS requires single unique target, if there are multiple unique targets, select one by putting 1 in its Order column.');
                 return;
             end
 

@@ -2,7 +2,7 @@ function AbsData = loadAbsorptionInterpolants(Args)
     % Load all pre-computed absorption interpolants from individual .mat files
     % Input  : * ...,key,val,...
     %            'DataPath' - Path to interpolant .mat files.
-    %              Default is '/home/dana/matlab/data/transmission_fitter/'.
+    %              Default is '/home/dana/matlab/data/spec/Atmosphere/Transmission/'.
     %            'Species' - Cell array of species to load.
     %              Default is all species.
     %            'Verbose' - Display loading progress. Default is false.
@@ -14,7 +14,7 @@ function AbsData = loadAbsorptionInterpolants(Args)
     %              AbsData = astro.transmission.loadAbsorptionInterpolants();
     %              O3_values = AbsData.getInterpolated('O3UV', linspace(300, 400, 101)');
     %          (2) Direct uploading of selected interpolants:
-    %          load('~/matlab/data/spec/Atmosphere/Transmission/Abs_O3UV.mat', 'Abs_O3UV'); 
+    %          load('~/matlab/data/spec/Atmosphere/Transmission/Abs_O3UV.mat', 'Abs_O3UV');
     %              Lambda = linspace(300, 400, 101)';
     %              Values = Abs_O3UV(Lambda);
 
@@ -84,6 +84,9 @@ function AbsData = loadAbsorptionInterpolants(Args)
     % Add getInterpolated as a function handle that accesses the interpolants
     AbsData.getInterpolated = @(Species, Lambda) interpolateSpecies(Abs_Interpolants, Species, Lambda);
 
+    % Add method to get full H2O coefficient structure for complex calculations
+    AbsData.getH2OCoefficients = @(Lambda) getH2OAllCoefficients(Abs_Interpolants, Lambda);
+
     % Also store the interpolants directly for direct access if needed
     AbsData.Interpolants = Abs_Interpolants;
 end
@@ -96,6 +99,66 @@ function Values = interpolateSpecies(Interpolants, Species, Lambda)
               Species, strjoin(AvailableSpecies, ', '));  % DEBUGGING
     end
 
-    % Call the interpolant
-    Values = Interpolants.(Species)(Lambda);
+    % Handle H2O compound interpolant structure
+    if strcmp(Species, 'H2O') && isstruct(Interpolants.(Species))
+        % For H2O, return the basic absorption coefficient by default
+        % Full coefficient access available via direct structure access
+        Values = Interpolants.(Species).absorption(Lambda);
+    else
+        % For other species, use standard single interpolant
+        Values = Interpolants.(Species)(Lambda);
+    end
+end
+
+function H2O_Data = getH2OAllCoefficients(Interpolants, Lambda)
+    % Get all H2O coefficients interpolated to Lambda wavelengths
+    % Input  : - Interpolants - Structure containing H2O compound interpolants
+    %          - Lambda - Wavelength array for interpolation
+    % Output : - H2O_Data - Structure with all interpolated coefficients
+
+    if ~isfield(Interpolants, 'H2O')
+        error('H2O interpolants not available');
+    end
+
+    if ~isstruct(Interpolants.H2O)
+        error('H2O interpolants not in compound format. Regenerate interpolants with updated createAbsorptionInterpolants.');
+    end
+
+    H2O_Interp = Interpolants.H2O;
+    H2O_Data = struct();
+
+    % Interpolate all coefficient arrays to Lambda
+    H2O_Data.wavelength = Lambda(:);  % Ensure column vector
+    H2O_Data.absorption = H2O_Interp.absorption(Lambda);
+    H2O_Data.band = H2O_Interp.band(Lambda);
+
+    % Water vapor fitting coefficients
+    H2O_Data.ifitw = H2O_Interp.ifitw(Lambda);
+    H2O_Data.bwa0 = H2O_Interp.bwa0(Lambda);
+    H2O_Data.bwa1 = H2O_Interp.bwa1(Lambda);
+    H2O_Data.bwa2 = H2O_Interp.bwa2(Lambda);
+
+    % Airmass fitting coefficients
+    H2O_Data.ifitm = H2O_Interp.ifitm(Lambda);
+    H2O_Data.bma0 = H2O_Interp.bma0(Lambda);
+    H2O_Data.bma1 = H2O_Interp.bma1(Lambda);
+    H2O_Data.bma2 = H2O_Interp.bma2(Lambda);
+
+    % Combined water-airmass fitting coefficients
+    H2O_Data.ifitmw = H2O_Interp.ifitmw(Lambda);
+    H2O_Data.bmwa0 = H2O_Interp.bmwa0(Lambda);
+    H2O_Data.bmwa1 = H2O_Interp.bmwa1(Lambda);
+    H2O_Data.bmwa2 = H2O_Interp.bmwa2(Lambda);
+
+    % Pressure fitting coefficients
+    H2O_Data.bpa1 = H2O_Interp.bpa1(Lambda);
+    H2O_Data.bpa2 = H2O_Interp.bpa2(Lambda);
+
+    % Ensure all arrays are column vectors for consistency
+    Fields = fieldnames(H2O_Data);
+    for i = 1:length(Fields)
+        if isnumeric(H2O_Data.(Fields{i}))
+            H2O_Data.(Fields{i}) = H2O_Data.(Fields{i})(:);
+        end
+    end
 end

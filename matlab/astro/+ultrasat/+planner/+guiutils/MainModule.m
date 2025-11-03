@@ -184,6 +184,9 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
             Planner.Mclient = obj.ApiClient;
+
+            % Override BaseDataDir to allow Linux/Windows compatibility
+            Planner.BaseDataDir = obj.MainModule.BaseDataDir;
         end
 
         % =================================================================

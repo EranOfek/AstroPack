@@ -10,7 +10,7 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
     % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets)
     %            OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
-    % Examples:
+    % Example: 
     %   % Basic usage:
     %   Lambda = linspace(300, 1100, 401)';
     %   ParamMatrix = [45, 1013; 60, 950; 30, 1020];  % Multiple parameter sets

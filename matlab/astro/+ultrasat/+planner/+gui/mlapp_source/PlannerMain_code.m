@@ -232,6 +232,7 @@ classdef PlannerMain < matlab.apps.AppBase
         StatusHelper                            % PlannerMainStatusHelper
         StorageHelper                           % PlannerMainStorageHelper                
         SubmitHelper                            % PlannerMainSubmitHelper
+        ValidationHelper                        % PlannerMainValidationHelper        
         UniqueTargetsHelper                     % PlannerMainUniqueTargetsHelper                       
     end
 
@@ -284,6 +285,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StatusHelper            = ultrasat.planner.guiutils.PlannerMainStatusHelper();                        
             app.PlotHelper              = ultrasat.planner.guiutils.PlannerMainPlotHelper();
             app.SubmitHelper            = ultrasat.planner.guiutils.PlannerMainSubmitHelper();                        
+            app.ValidationHelper        = ultrasat.planner.guiutils.PlannerMainValidationHelper();
             app.UniqueTargetsHelper     = ultrasat.planner.guiutils.PlannerMainUniqueTargetsHelper();
 
             % Create one second timer
@@ -378,12 +380,12 @@ classdef PlannerMain < matlab.apps.AppBase
 
         function validate(app)
             % Validate plan by sending it to the Validation service
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end        
 
         function updateValidateStatus(app)
             % Update the validation status field
-            app.SubmitHelper.updateValidateStatus(app);
+            app.ValidationHelper.updateValidateStatus(app);
         end
 
         function submit(app)
@@ -645,7 +647,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Callback function
         function ValidateMenuSelected(app, event)
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end
 
         % Callback function
@@ -814,7 +816,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: ValidateButton
         function ValidateButtonPushed(app, event)
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end
 
         % Button pushed function: SubmitButton
@@ -960,7 +962,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: ValidationStatusButton
         function ValidationStatusButtonPushed(app, event)
-            app.SubmitHelper.showValidationStatusWindow(app);
+            app.ValidationHelper.showValidationStatusWindow(app);
         end
 
         % Button pushed function: SubmitStatusButton

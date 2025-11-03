@@ -12,7 +12,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
     %
 
     properties
-        DbPath          % Path to simulator data files
+        LocalDbPath     % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
         ApiSimProvider  % instance of ultrasat.api.ApiSimProvider()
     end
@@ -43,21 +43,29 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 error('SOC_PATH environment variable is not defined, on Linux set it to ~/soc, on Windows set it to c:\\soc');
             end
 
+            % -------------------------- NOT USED - Files are stored only on the server
             % Master files path from the git repo: use sim/ subfolder under current folder, there should be a .gitignore file
-            currentFile = mfilename('fullpath');
-            currentFolder = fileparts(currentFile);
-            masterPath = fullfile(currentFolder, 'sim_master');
-
+            % currentFile = mfilename('fullpath');
+            % currentFolder = fileparts(currentFile);
+            % masterPath = fullfile(currentFolder, 'sim_master');
+            %
             % Copy master files if first run % @TODO
             %if ~exist(obj.DbPath, 'dir') || isempty(dir(fullfile(obj.DbPath, '*.json')))
             %    obj.msglog('DbPath does not exist, creating it from master files: %s', masterPath);
             %    obj.msglog('First run: copying default simulator files to:\n%s\n', obj.DbPath);
             %    copyfile(masterPath, obj.DbPath);
             %end
+            % -------------------------- 
+
+            % Target writable data path, on Linux it is ~/soc/sim/backend/planner, on Windows it is c:\soc\sim\backend\planner
+            obj.LocalDbPath = fullfile(soc_path, 'temp', 'planner_sim');
+            obj.msglog('LocalDbPath: %s', obj.LocalDbPath);
+            if ~exist(obj.LocalDbPath, 'dir')
+                mkdir(obj.LocalDbPath);
+            end
 
             % Create an instance of ValidatorSim
-            % @TODO !!!!!!!!!!
-            % obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.DbPath, 'validator.json'), obj.LogFileName);
+            obj.Validator = ultrasat.api.ValidatorSim(fullfile(obj.LocalDbPath, 'validator.json'), obj.LogFileName);
             obj.msglog('MissionClientSim constructor done');
         end
 
@@ -68,7 +76,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             if isempty(ultrasat.api.PathUtils.NamespaceId)
                 error('NamespaceId must be set in the object to get the base path.');
             end
-            %Result = fullfile(obj.DbPath, 'namespaces', obj.NamespaceId, 'planner');
 
             Result = ultrasat.api.PathUtils.getNamespaceDataFolder( ...
                 'planner', ...                  % module name
@@ -127,7 +134,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     tStart = obj.parseIsoDatetime(targets(i).start_time);
                     tEnd = obj.parseIsoDatetime(targets(i).end_time);
 
-                    if tStart >= start_time && tEnd <= end_time
+                    if tStart <= end_time && tEnd >= start_time
                         filteredTargets = [filteredTargets; targets(i)];
                     end
                 end
@@ -215,7 +222,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 try
                     response = obj.Validator.validateTargets(Plan);
                 catch ME
-                    obj.msglog('Validation error: %s', ME.message);
+                    obj.msglog('ValidatorSim.validateTargets error: %s', ME.message);
                     response = obj.newResponse();
                     response.status = 'error';
                     response.message = 'Validation failed due to an exception.';
@@ -371,7 +378,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         % -------------------------------------------------------------------
 
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
-            % Returns a list of existing plans from JSON files in the DbPath folder.
+            % Returns a list of existing plans from JSON files
             obj.msglog('getPlansList: Scanning for plans in %s', obj.getPlannerBasePath());
             try
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
@@ -485,7 +492,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
 
         function response = savePlan(obj)
-            % Saves the current PlanData instance to the DbPath folder as JSON and MAT files.
+            % Saves the current PlanData instance as JSON and MAT files.
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
 
@@ -635,46 +642,67 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
 
         function dt = parseIsoDatetime(obj, str)
+            % @TODO - Move to common file - like +api/TimeUtils.m ?
+
             % parseIsoDatetime  Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
             %
             %   dt = parseIsoDatetime(str)
             %
             %   Supports:
+            %       2025-01-01T00:00:00Z
+            %       2025-01-01T00:00:00.000Z
             %       2025-01-01T00:00:00.000000Z
-            %       2025-01-01T00:00:00.000000+00:00
+            %       2025-01-01T00:00:00+00:00
+            %       2025-01-01T00:00:00.000+00:00
             %
             %   Returns datetime with TimeZone = 'UTC'.
             %   Returns NaT if parsing fails.
-
+        
+            dt = NaT;
+        
             try
-                dt = NaT;
                 if isempty(str)
                     return;
                 end
-
+        
                 % Convert string type if needed
                 if isstring(str)
                     str = char(str);
                 end
-
-                % Detect the suffix to choose the format
+        
                 str = strtrim(str);
-                if endsWith(str, 'Z')
-                    fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''';
-                elseif ~isempty(regexp(str, '[\+\-]\d\d:\d\d$', 'once'))
-                    % Matches +00:00 or -05:30 etc. at the end
-                    fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX';
-                else
+        
+                % List of acceptable input formats (from most to least precise)
+                fmts = { ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', ...
+                    'yyyy-MM-dd''T''HH:mm:ssXXX' ...
+                };
+        
+                % Try each format until one works
+                for i = 1:numel(fmts)
+                    try
+                        dt = datetime(str, 'InputFormat', fmts{i}, 'TimeZone', 'UTC');
+                        if ~isnat(dt)
+                            return;
+                        end
+                    catch
+                        % continue trying
+                    end
+                end
+        
+                % If still NaT, issue a warning
+                if isnat(dt)
                     warning('parseIsoDatetime:UnknownFormat', ...
                         'String does not match expected ISO 8601 formats: "%s"', str);
-                    return;
                 end
-
-                % Parse the datetime
-                dt = datetime(str, 'InputFormat', fmt, 'TimeZone', 'UTC');
+        
             catch ME
                 warning('parseIsoDatetime:Failed', ...
-                    'Failed to parse datetime string "%s" with format "%s": %s', str, fmt, ME.message);
+                    'Failed to parse datetime string "%s": %s', str, ME.message);
             end
         end
 

@@ -49,6 +49,7 @@ classdef PlanData < handle
     methods
         function obj = PlanData()
             obj.create_time = ultrasat.api.ModelBase.nowUtc();
+			obj.update_time = obj.create_time;
             obj.metadata = obj.newMetadata();
         end
 

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 03/11/2025
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
@@ -153,6 +153,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             % Call backend to save the plan in database
             app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
+                % Set update_time
+                app.MainModule.PlanData.update_time = ultrasat.api.ModelBase.nowUtc();
                 app.MainModule.ApiClient.savePlan();
                 app.clearModified();
 

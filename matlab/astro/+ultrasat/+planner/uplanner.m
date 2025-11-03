@@ -1128,8 +1128,16 @@ classdef uplanner < Component
                 Args.timingPrecision = seconds(0.01);
             end
             
-            tmpPlan = Obj.Plan;
-            
+            % Initialize outputs
+            CheckStatus = false;
+            badPlanRow = [];
+
+            % Plan is empty, nothing to check
+            if isempty(Obj.Plan)                
+                return
+            end
+
+            tmpPlan = Obj.Plan;            
             tmpPlan = sortrows(tmpPlan,'Tstart');
             
             % Validate that Obj.Start time and the first start time in the plan agree
@@ -1883,17 +1891,71 @@ classdef uplanner < Component
         end
 
 
-        function dt = parseIsoDatetime(Obj, str)
-            % Convert JSON date/time string to datetime object
-            if endsWith(str, 'Z')
-                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''';
-            else
-                fmt = 'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX';
+        function dt = parseIsoDatetime(obj, str)
+            % parseIsoDatetime  Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
+            %
+            %   dt = parseIsoDatetime(str)
+            %
+            %   Supports:
+            %       2025-01-01T00:00:00Z
+            %       2025-01-01T00:00:00.000Z
+            %       2025-01-01T00:00:00.000000Z
+            %       2025-01-01T00:00:00+00:00
+            %       2025-01-01T00:00:00.000+00:00
+            %
+            %   Returns datetime with TimeZone = 'UTC'.
+            %   Returns NaT if parsing fails.
+        
+            dt = NaT;
+        
+            try
+                if isempty(str)
+                    return;
+                end
+        
+                % Convert string type if needed
+                if isstring(str)
+                    str = char(str);
+                end
+        
+                str = strtrim(str);
+        
+                % List of acceptable input formats (from most to least precise)
+                fmts = { ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss''Z''', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX', ...
+                    'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', ...
+                    'yyyy-MM-dd''T''HH:mm:ssXXX' ...
+                };
+        
+                % Try each format until one works
+                for i = 1:numel(fmts)
+                    try
+                        dt = datetime(str, 'InputFormat', fmts{i}, 'TimeZone', 'UTC');
+                        if ~isnat(dt)
+                            return;
+                        end
+                    catch
+                        % continue trying
+                    end
+                end
+        
+                % If still NaT, issue a warning
+                if isnat(dt)
+                    warning('parseIsoDatetime:UnknownFormat', ...
+                        'String does not match expected ISO 8601 formats: "%s"', str);
+                end
+        
+            catch ME
+                warning('parseIsoDatetime:Failed', ...
+                    'Failed to parse datetime string "%s": %s', str, ME.message);
             end
-            dt = datetime(str, 'InputFormat', fmt, 'TimeZone', Obj.SysTimeZone);
         end
         
     end
+    
     % 
     methods (Static)  % static methods
         %
