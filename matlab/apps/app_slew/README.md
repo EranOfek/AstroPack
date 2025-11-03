@@ -1,2 +1,0 @@
-# SlewCalc Application
-
