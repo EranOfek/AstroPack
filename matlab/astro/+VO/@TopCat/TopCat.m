@@ -35,6 +35,13 @@
 % Simbad name resolver:
 % Q="SELECT b.main_id, b.ra, b.dec FROM ident AS i JOIN basic AS b ON i.oidref=b.oid WHERE i.id = 'M 31'"
 % T=Tap.query(Q, 'TapName','SIMBAD TAP')
+%
+% Example for cone search:
+% SELECT * FROM swiftmastr WHERE 1 = CONTAINS( POINT('ICRS', RA, Dec), CIRCLE('ICRS', {RAdeg}, {Decdeg}, {SRdeg}) )
+%Q = 'SELECT TOP 10 * FROM swiftmastr';
+%T1 = VO.TopCat.queryStilts(Q, ...
+%     'TapUrl','https://heasarc.gsfc.nasa.gov/xamin/vo/tap', ...
+%     'Ofmt','csv','TimeoutSec',120);
 
 
 classdef TopCat < Base
