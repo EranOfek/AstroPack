@@ -146,7 +146,7 @@ function Result = mainLoop()
     fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
-    fp.WatchdogFileName = 'slew_matlab_watchdog.txt';
+    fp.WatchdogFileName = 'soc_slew_matlab_watchdog.txt';
     fp.WatchdogInterval = 10;
     %fp.MaxRunTime = hours(8);
 
