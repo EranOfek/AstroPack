@@ -1,5 +1,11 @@
 %==========================================================================
-% Author: Chen Tishler, Created: 02/11/2025, Updated: 02/11/2025
+% Project     : ULTRASAT SOC
+% Filename    : soc_slew_matlab.py
+% Author      : Chen Tishler
+% Created     : 02/11/2025
+% Modified    : 04/11/2025
+% Description : MATLAB service to calculate slew time between targets
+%==========================================================================
 %
 % MATLAB R2023a is required.
 %
@@ -27,7 +33,7 @@ function soc_slew_matlab()
     global SOC_PATH;
 
     % Set logfile name
-	fprintf('soc_slew_matlab started, V1.00 (02/11/2025)\n');
+	fprintf('soc_slew_matlab started, V1.00 (04/11/2025)\n');
     LogFile.getSingleton('FileName', 'soc_slew_matlab');
             
     % Print some info
@@ -129,12 +135,12 @@ function Result = mainLoop()
     % Set the log level
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
-    
-    % Log the start of the main loop
-    io.msgLog(LogLevel.Test, 'Slew mainLoop started');
 
     % Set the input path
     InputPath = fullfile(SOC_PATH, 'slew', 'input');
+
+    % Log the start of the main loop
+    io.msgLog(LogLevel.Info, '=========== Slew mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
 
     % Create the FileProcessor object
     fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
@@ -142,7 +148,7 @@ function Result = mainLoop()
     fp.EnableDelete = true;
     fp.WatchdogFileName = 'slew_matlab_watchdog.txt';
     fp.WatchdogInterval = 10;
-    fp.MaxRunTime = hours(8);
+    %fp.MaxRunTime = hours(8);
 
     % Input loop will call FileProcessorCallback (below) for each input
     % file found in the folder

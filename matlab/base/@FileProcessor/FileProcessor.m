@@ -1,3 +1,11 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : FileProcessor.m
+% Author      : Chen Tishler
+% Created     : 02/11/2021
+% Modified    : 04/11/2025
+% Description : 
+%==========================================================================
 
 classdef FileProcessor < Component
     % FileProcessor is file handling class designed for automated processing of files
