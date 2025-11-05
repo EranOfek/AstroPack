@@ -253,28 +253,31 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
     
-    if isa(Obj, 'AstroImage')
-        % can read RA/Dec from Header if AstroImage
-        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    end
-    
-    
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
-    % make sure Tran is a new copy, otherwise may overwrite other Tran
-    Args.Tran = Args.Tran.copy;
+    Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
     
-    % get EpochOut
-    if isempty(Args.EpochOut)
-        if isa(Obj, 'AstroImage')
-            Args.EpochOut = julday(Obj);
-            if any(isnan(Args.EpochOut))
-                Args.EpochOut = [];
-            end
-        end
-    end
+    % if isa(Obj, 'AstroImage')
+    %     % can read RA/Dec from Header if AstroImage
+    %     [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % else
+    %     [Args.RA, Args.Dec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % end
+    % 
+    % 
+    % %
+    % % make sure Tran is a new copy, otherwise may overwrite other Tran
+    % Args.Tran = Args.Tran.copy;
+    % 
+    % % get EpochOut
+    % if isempty(Args.EpochOut)
+    %     if isa(Obj, 'AstroImage')
+    %         Args.EpochOut = julday(Obj);
+    %         if any(isnan(Args.EpochOut))
+    %             Args.EpochOut = [];
+    %         end
+    %     end
+    % end
     
     % ### END OF COMMON BLOCK
     
@@ -299,15 +302,27 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     end
     NastCat = numel(Args.CatName);
     
-    % allocate Result
-    Result = struct('ParWCS',cell(Nobj,1),...
+    % allocate Result (same as astrometryCore)
+    Result = struct('ImageCenterXY',cell(Nobj,1),...
+                    'Nsolutions',cell(Nobj,1),...
+                    'ResPattern',cell(Nobj,1),...
+                    'ErrorOnMean',cell(Nobj,1),...
+                    'BestInd',cell(Nobj,1),...
+                    'WCS',cell(Nobj,1),...
+                    'ParWCS',cell(Nobj,1),...
                     'Tran',cell(Nobj,1),...
                     'ResFit',cell(Nobj,1),...
-                    'WCS',cell(Nobj,1));
+                    'Origin',cell(Nobj,1),...
+                    'Success',cell(Nobj,1));
+    % Result = struct('ParWCS',cell(Nobj,1),...
+    %                 'Tran',cell(Nobj,1),...
+    %                 'ResFit',cell(Nobj,1),...
+    %                 'WCS',cell(Nobj,1));
     
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
+        Result(Iobj).Origin = 'astrometryRefine';
         
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData;
@@ -476,7 +491,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
             if Nmatches<Args.MinNmatches
                 % bad 
+                Result(Iobj).Success = false;
             else
+                Result(Iobj).Success = true;
                 
                 [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
                 [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
@@ -517,7 +534,13 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
                 % create an AstroWCS object
                 %KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
+                if isempty(Args.EpochOut)
+                    WCS.EPOCH = Obj(Iobj).julday();
+                else
+                    WCS.EPOCH = Args.EpochOut;
+                end
                 Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
+
 
                 % add RA/Dec to the catalog
                 %if nargout>1

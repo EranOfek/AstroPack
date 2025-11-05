@@ -34,6 +34,11 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     %                   distance, then will use nearest OtherWCS as is,
     %                   without transforming.
     %                   Default is 0.5 pix.
+    %            'JD' - Scalar JD, corresponding to the epoch of the main image
+    %                   (i.e., for which CCDSEC is specified).
+    %                   If not empty, then will choose from OtherAW only
+    %                   EPOCHs which are nearest to this JD.
+    %                   Default is [].
     %
     % Output : - An "initial guess" AstroWCS objet for the CCDSEC, which is
     %            nearest to one of the OtherWCS.
@@ -53,7 +58,20 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
         Args.SubCenter              = [];
         Args.SucessAW               = [];
         Args.ThresholdIdenticalWCS  = 0.5;  % pix
+        Args.JD                     = [];
     end
+
+    if ~isempty(Args.JD)
+        OtherJD = [OtherAW.EPOCH].';
+        UniqueOtherJD = unique(OtherJD);
+        [~,IminJD] = min(abs(UniqueOtherJD - Args.JD));
+
+        % Select only 'Other' which are nearest in EPOCH to JD:
+        Flag        = abs(OtherJD(IminJD) - OtherJD)<(100.*eps);
+        OtherAW     = OtherAW(Flag);
+        OtherCCDSEC = OtherCCDSEC(Flag,:);
+    end
+
 
     Naw = numel(OtherAW);
     if isempty(Args.OtherSubCenter)
