@@ -281,7 +281,7 @@ classdef ForcedPhotServer < Component
                 % Obj.DB.insertCharDump('forcedphot_requests',table(11, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end'}))
                 % Obj.DB.insertCharDump('forcedphot_requests',table(12, 0, 260.86351, 48.59987, 2460673.879583907, 2460873.879583907, "1578", 1, 1, 2, 14, 1, 100, 'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','fieldid','nodenumb', 'mountnum', 'camnum', 'cropid','loadnew','n_epoch_max'}))
                 %
-                % 
+                % Obj.DB.insertCharDump('forcedphot_requests',table(41, 0, 259.986968222, 24.9316258228, 2460910.42501, 2460977.994858142, 200, 0, 1,1,'VariableNames',{'request_id','user_id','ra','dec','jd_start','jd_end','n_epoch_max', 'useexistingref', 'resub', 'loadnew'})) % 2025vaw
                 %
                 % INSERT INTO forcedphot_requests (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, nodenumb, mountnum, camnum, cropid, loadnew) VALUES  ( 2, 0, 262.728240000000028, 66.6899499999999961, 2460000, 2470000, '1718', 1, 1, 3, 14, 1 )
                 % user_id: 0 - tests, 1 - last pipe, 2 - cast, 3 - webaccess

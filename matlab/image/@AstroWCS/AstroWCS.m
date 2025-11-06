@@ -65,6 +65,7 @@ classdef AstroWCS < Component
         LONPOLE      double = 180;          % Native Longitude of the Celestial Pole. Default for Zenithal projection
         LATPOLE      double = 0;            % Native Latitude of the Celestial Pole
         EQUINOX      double = 2000.0;       % EQUINOX
+        EPOCH        double                 % EPOCH (JD)
         CRPIX(1,:)   double = [0 0];        % Reference pixel
         CRVAL(1,:)   double = [1 1];        % World coordinate of reference pixel
         CD           double = [1 0;0 1];    % Linear projection matrix
@@ -1368,6 +1369,9 @@ classdef AstroWCS < Component
             %            'read2axes' - Flag to read ONLY first 2 axis. Can
             %                          be used to ignore 3rd and up axis.
             %                          Default is false.
+            %            'KeyJD' - Header keyword containing MidJD that
+            %                   will populate the EPOCH property.
+            %                   Default is 'MIDJD'.
             % Output : - AstroWCS object.
             % Author : Yossi Shvartzvald (December 2021)
             % Example:
@@ -1376,6 +1380,7 @@ classdef AstroWCS < Component
             arguments
                 AH
                 Args.read2axes     =  false;
+                Args.KeyJD         = 'MIDJD';
             end
             
             Nobj   = numel(AH);
@@ -1386,8 +1391,9 @@ classdef AstroWCS < Component
                     warning('Can not generate WCS because header is empty');
                 else
                     % Read all single val parmeters
-                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
-                    
+                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE', Args.KeyJD});
+                    Result(Iobj).EPOCH = KeyValStruct.(Args.KeyJD);  % populate the Epoch
+
                     % if WCSAXES is not available use NAXIS as default
                     Result(Iobj).NAXIS = KeyValStruct.NAXIS;
                     Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;

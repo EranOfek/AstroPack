@@ -3,12 +3,12 @@
 % Filename    : ultrasat.api.ValidatorSim.m
 % Author      : Chen Tishler
 % Created     : 17/02/2025
-% Updated     : 21/09/2025
+% Updated     : 03/11/2025
 % Description : Simulator implementation of the ValidatorBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
-classdef ValidatorSim < handle
+classdef ValidatorSim < ultrasat.api.Loggable
     % ValidatorSim - Simulates an external validation system for observation targets
     %
     % This class handles the simulation of target validation, including random delays,
@@ -29,6 +29,8 @@ classdef ValidatorSim < handle
             % Arguments:
             %   - DbFilePath Path to JSON file for storing validation history
             %   - LogFileName Path to log file for messages
+
+            obj.LogPrefix = 'ValidationHelper';
 
             obj.DbFilePath = DbFilePath;
             obj.LogFileName = LogFileName;
@@ -86,7 +88,7 @@ classdef ValidatorSim < handle
         function task = newResponseTask(obj, targets, target_results)
             % Creates the task struct for the response
             task = struct(...
-                'task_id', sprintf('tsk_%s', datestr(api.ModelBase.nowUtc, 'yyyymmddHHMMSS')), ...
+                'task_id', sprintf('tsk_%s', datestr(ultrasat.api.ModelBase.nowUtc, 'yyyymmddHHMMSS')), ...
                 'start_time', datestr(targets(1).start_time, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'estimated_end_time', datestr(targets(end).start_time + seconds(5), 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'task_type', 'validation', ...
@@ -113,7 +115,7 @@ classdef ValidatorSim < handle
                 warn = false;
                 if warn
                     targets(i).warning = struct(...
-                        'time', datestr(api.ModelBase.nowUtc, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
+                        'time', datestr(ultrasat.api.ModelBase.nowUtc, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                         'duration', '100', ...
                         'type', 'NegativePowerBalance', ...
                         'details', 'Potential power issue during imaging.' ...
@@ -185,12 +187,6 @@ classdef ValidatorSim < handle
             statuses = {'approved', 'not_approved', 'approved_warning'};
             status = statuses{randi(3)};
             obj.msglog('Random status generated: %s', status);
-        end
-
-
-        function msglog(obj, varargin)
-            % Logs a formatted message to the log file
-            ultrasat.api.ApiUtils.msglog(obj.LogFileName, 'ValidatorSim', varargin{:});
         end
     end
 

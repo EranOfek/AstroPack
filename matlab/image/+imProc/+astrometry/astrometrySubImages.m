@@ -1,4 +1,4 @@
-function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
+function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
     % Solve astrometry for sub images of a single contigious image
     %       The solution is done by executing astrometryCore for a limited
     %       number of sub images, and astrometryRefine for all the rest,
@@ -214,9 +214,9 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             else
             
                 ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
-                ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
-                ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
-                ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
+                % ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
+                % ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
+                % ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
 
                 % check qulity of solution
                 Sucess(Iim) = ResultFit(Iim).WCS.Success;
@@ -285,7 +285,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                     end
                 end
                 
-                [ResultRefineFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
+                [ResultFit(Iim), ResultObj(Iim), AstrometricCat(Iim)] = imProc.astrometry.astrometryRefine(ResultObj(Iim),...
                                                                                                            'WCS',RefWCS, ...
                                                                                                            'IncludeDistortions',false,...
                                                                                                            'Tran',Args.Tran,...
@@ -296,13 +296,13 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                            'CooUnits','deg',...
                                                                                                            'EpochOut',Args.EpochOut,...
                                                                                                            'CatName',CatName,...  
-                                                                                                           Args.astrometryCoreArgs{:});
+                                                                                                           Args.astrometryRefineArgs{:});
                 %
                 %ResultRefineFit(Iim).WCS.populateSuccess;
-                if isempty(ResultRefineFit(Iim).WCS)
+                if isempty(ResultFit(Iim).WCS)
                     Sucess(Iim) = false;
                 else
-                    Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+                    Sucess(Iim) = ResultFit(Iim).WCS.Success;
                 end
             end
                                                                                                       
@@ -336,10 +336,10 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                 % populate the WCS in the AstroImage
                 %ResultObj(Iim).WCS = ResultFit(Iim).WCS;
 
-                ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
-                ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
-                ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit; % RMS errors are measured in [deg]
-                ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
+                % ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
+                % ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
+                % ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit; % RMS errors are measured in [deg]
+                % ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
                 
                 %Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
                 Sucess(Iim) = true; %ResultFit(Iim).WCS.Success;

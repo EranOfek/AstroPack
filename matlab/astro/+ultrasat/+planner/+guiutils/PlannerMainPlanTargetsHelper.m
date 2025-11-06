@@ -200,6 +200,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.UITablePlanTargets.SelectionType = "row";
                 app.UITablePlanTargets.Multiselect = "off";
                 app.UITablePlanTargets.RowName = "numbered";
+                app.UITablePlanTargets.ColumnSortable = true;
 
                 Data = app.MainModule.Planner.Plan;
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);

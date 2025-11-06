@@ -842,6 +842,41 @@ classdef constant
               
         end % constant.a function
         
+        function [Const,Units,Error,Form]=kB(System)
+            % The k_B constant
+            % Package: @constant
+            % Description: Return the value of the a
+            %              k_B constant.
+            % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
+            % Output : - The value of the constant
+            %          - Units
+            %          - Relative Error
+            %          - Formula
+            
+            if (nargin==0)
+                System = true;
+            else
+                if strcmp(System,'SI')
+                    System = false;
+                else
+                    System = true;
+                end
+            end
+            if (System)
+                % cgs
+                Const = 1.380649e-16;
+                Units = 'cm^2 g s^-2 K^-1';
+            else
+                % SI
+                Const = 1.380649e-23;
+                Units  = 'm^2 kg s^-2 K^-1';
+            end
+            Error = 0;
+            Form  = ''; %%'8 * pi^5 * kB^4/(15*h^3*c^3)';
+              
+        end % constant.a function
+
+
         function [Const,Units,Error,Form]=sigmaT(System)
             % Thompson cross-section constant
             % Package: @constant

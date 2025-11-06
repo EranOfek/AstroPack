@@ -184,6 +184,12 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Planner = Planner;
             obj.PlanType = Planner.Type;
             Planner.Mclient = obj.ApiClient;
+
+            % Override BaseDataDir to allow Linux/Windows compatibility
+            if ~strcmp(Planner.BaseDataDir, obj.BaseDataDir) 
+                obj.msglog(sprintf('setPlanner: updating BaseDataDir to match current O/S: %s', obj.BaseDataDir));
+                Planner.BaseDataDir = obj.BaseDataDir;
+            end
         end
 
         % =================================================================

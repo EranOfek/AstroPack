@@ -2,23 +2,26 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
-        UIFigure                matlab.ui.Figure
-        BrowseButton            matlab.ui.control.Button
-        LoadButton              matlab.ui.control.Button
+        UIFigure                 matlab.ui.Figure
+        AllSSFieldsButton        matlab.ui.control.Button
+        LowCadenceFieldsButton   matlab.ui.control.Button
+        HighCadenceFieldsButton  matlab.ui.control.Button
+        BrowseButton             matlab.ui.control.Button
+        LoadButton               matlab.ui.control.Button
         EnterfilenametoloadfromfileorpastetextbelowLabel_2  matlab.ui.control.Label
-        ExampleTextArea         matlab.ui.control.TextArea
-        ExampleTextAreaLabel    matlab.ui.control.Label
-        TextArea                matlab.ui.control.TextArea
-        Label                   matlab.ui.control.Label
+        ExampleTextArea          matlab.ui.control.TextArea
+        ExampleTextAreaLabel     matlab.ui.control.Label
+        TextArea                 matlab.ui.control.TextArea
+        Label                    matlab.ui.control.Label
         EnterfilenametoloadfromorpastetextbelowLabel  matlab.ui.control.Label
-        FileNameEditField       matlab.ui.control.EditField
-        FileNameEditFieldLabel  matlab.ui.control.Label
-        Panel_2                 matlab.ui.container.Panel
+        FileNameEditField        matlab.ui.control.EditField
+        FileNameEditFieldLabel   matlab.ui.control.Label
+        Panel_2                  matlab.ui.container.Panel
         LoadUniqueTargetsListFromCSVFileLabel  matlab.ui.control.Label
-        Panel                   matlab.ui.container.Panel
-        HelpButton              matlab.ui.control.Button
-        OKButton                matlab.ui.control.Button
-        CancelButton            matlab.ui.control.Button
+        Panel                    matlab.ui.container.Panel
+        HelpButton               matlab.ui.control.Button
+        OKButton                 matlab.ui.control.Button
+        CancelButton             matlab.ui.control.Button
     end
 
     methods (Static)
@@ -43,6 +46,34 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
         FileName            % Selected file name for loading targets
         Folder              % Default directory for file selection
         Text                % Loaded text content from the file or manual input
+    end
+    
+    
+    methods (Access = private)
+        
+        function loadDataFile(app, FName)
+            % loadDataFile  Load text file from +planner/data/ folder relative to this app.
+        
+            % Get base path of current app (inside +planner/+gui)
+            basePath = fileparts(mfilename('fullpath'));
+        
+            % Build full path to data file
+            fullPath = fullfile(basePath, '..', 'data', FName);
+        
+            % Resolve relative path
+            fullPath = char(fullPath);
+        
+            % Check existence
+            if ~isfile(fullPath)
+                warning('Data file not found: %s', fullPath);
+                return;
+            end
+        
+            % Read file content
+            AText = fileread(fullPath);
+            app.TextArea.Value = cellstr(AText);
+            app.Text = AText;            
+        end
     end   
 
     % Callbacks that handle component events
@@ -110,6 +141,21 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
         % Button pushed function: HelpButton
         function HelpButtonPushed(app, event)
             app.MainModule.MainApp.showHelp('load_unique_targets_from_file');
+        end
+
+        % Button pushed function: HighCadenceFieldsButton
+        function HighCadenceFieldsButtonPushed(app, event)
+             app.loadDataFile('HCS_fields.txt');
+        end
+
+        % Button pushed function: LowCadenceFieldsButton
+        function LowCadenceFieldsButtonPushed(app, event)
+            app.loadDataFile('LCS_grid.txt');
+        end
+
+        % Button pushed function: AllSSFieldsButton
+        function AllSSFieldsButtonPushed(app, event)
+            app.loadDataFile('AllSS_grid_361.txt');
         end
     end
 
@@ -201,7 +247,7 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.ExampleTextArea = uitextarea(app.UIFigure);
             app.ExampleTextArea.Editable = 'off';
             app.ExampleTextArea.BackgroundColor = [0.9412 0.9412 0.9412];
-            app.ExampleTextArea.Position = [86 87 817 82];
+            app.ExampleTextArea.Position = [86 81 603 88];
             app.ExampleTextArea.Value = {'RA,Dec,Name'; '321.46,-76.71,"Note: Numeric must start with text"'; '54.18,-86.81,"First"'; '247.89,-79.28,"Second"'; '321.46,-76.71,"The 12"'};
 
             % Create EnterfilenametoloadfromfileorpastetextbelowLabel_2
@@ -218,7 +264,8 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.LoadButton = uibutton(app.UIFigure, 'push');
             app.LoadButton.ButtonPushedFcn = createCallbackFcn(app, @LoadButtonPushed, true);
             app.LoadButton.FontWeight = 'bold';
-            app.LoadButton.FontColor = [0 0.4471 0.7412];
+            app.LoadButton.FontColor = [0 0 1];
+            app.LoadButton.Tooltip = {'Load the contents of the selected CSV file into the text box below. You may review or edit the text before clicking OK to apply the data.'};
             app.LoadButton.Position = [769 572 85 33];
             app.LoadButton.Text = 'Load';
 
@@ -227,6 +274,33 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
             app.BrowseButton.ButtonPushedFcn = createCallbackFcn(app, @BrowseButtonPushed, true);
             app.BrowseButton.Position = [679 577 68 23];
             app.BrowseButton.Text = 'Browse...';
+
+            % Create HighCadenceFieldsButton
+            app.HighCadenceFieldsButton = uibutton(app.UIFigure, 'push');
+            app.HighCadenceFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @HighCadenceFieldsButtonPushed, true);
+            app.HighCadenceFieldsButton.FontWeight = 'bold';
+            app.HighCadenceFieldsButton.FontColor = [0 0 1];
+            app.HighCadenceFieldsButton.Tooltip = {'Load predefined High Cadence fields from file (data/HCS_fields.txt)'};
+            app.HighCadenceFieldsButton.Position = [716 144 160 25];
+            app.HighCadenceFieldsButton.Text = 'High Cadence Fields';
+
+            % Create LowCadenceFieldsButton
+            app.LowCadenceFieldsButton = uibutton(app.UIFigure, 'push');
+            app.LowCadenceFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @LowCadenceFieldsButtonPushed, true);
+            app.LowCadenceFieldsButton.FontWeight = 'bold';
+            app.LowCadenceFieldsButton.FontColor = [0 0 1];
+            app.LowCadenceFieldsButton.Tooltip = {'Load predefined Low Cadence fields from file (data/LCS_grid.txt)'};
+            app.LowCadenceFieldsButton.Position = [717 112 160 26];
+            app.LowCadenceFieldsButton.Text = 'Low Cadence Fields';
+
+            % Create AllSSFieldsButton
+            app.AllSSFieldsButton = uibutton(app.UIFigure, 'push');
+            app.AllSSFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @AllSSFieldsButtonPushed, true);
+            app.AllSSFieldsButton.FontWeight = 'bold';
+            app.AllSSFieldsButton.FontColor = [0 0 1];
+            app.AllSSFieldsButton.Tooltip = {'Load predefined AllSky fields from file (data/AllSS_grid_361.txt)'};
+            app.AllSSFieldsButton.Position = [716 81 160 26];
+            app.AllSSFieldsButton.Text = 'AllSS Fields';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
