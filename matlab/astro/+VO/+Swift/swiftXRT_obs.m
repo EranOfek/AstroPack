@@ -5,13 +5,17 @@ function [T,DataURL]=swiftXRT_obs(RAdeg, Decdeg, SearchRadiusDeg, Args)
     %   This version uses the VO Cone endpoint by default (returns VOTable TABLEDATA),
     %   which is reliable across deployments and avoids VOTable BINARY/BINARY2 parsing.
     %
-    % Input  : - J2000 RA [deg].
-    %          - J2000 Dec [deg].
+    % Input  : - J2000 RA [deg]. See celestial.convert.cooResolve for
+    %            options.
+    %          - J2000 Dec [deg]. Default is [].
     %          - Search radius [deg]. Default is 1.
     %          * ...,key,val,...
+    %            'cooResolveArgs' - A cell array of additional argumnets to
+    %                   pass to celestial.convert.cooResolve.
+    %                   Default is {}.
     %            'UseTap' - A logical indicating if to use Tap.
     %                   If false use: VO.Swift.swiftXRT_obs_API
-    %                   Default is true.
+    %                   Default is false.
     %            'MaxRows' - double, default 0 (unlimited)
     %                    Maximum number of rows to return (0 = no server-side limit).
     %            'Timeout' - double > 0, default 120
@@ -52,10 +56,11 @@ function [T,DataURL]=swiftXRT_obs(RAdeg, Decdeg, SearchRadiusDeg, Args)
 
 
     arguments
-        RAdeg                 (1,1) double
-        Decdeg                (1,1) double
+        RAdeg                 
+        Decdeg                = [];
         SearchRadiusDeg       (1,1) double {mustBePositive} = 1;
-        Args.UseTap           = true;
+        Args.CooResolveArgs   = {};
+        Args.UseTap           = false;
         Args.MaxRows          (1,1) double {mustBeNonnegative} = 0
         Args.Timeout          (1,1) double {mustBePositive} = 120
         Args.RequireXRT       (1,1) logical = true
@@ -63,6 +68,9 @@ function [T,DataURL]=swiftXRT_obs(RAdeg, Decdeg, SearchRadiusDeg, Args)
 
         Args.AddPathXRT  = true;
     end
+
+    [RA, Dec]=celestial.convert.cooResolve(RAdeg, Decdeg);
+
 
     if Args.UseTap
     
@@ -83,74 +91,8 @@ function [T,DataURL]=swiftXRT_obs(RAdeg, Decdeg, SearchRadiusDeg, Args)
 
 
     if nargout>1
-        Nt = size(T,1);
-        DataURL = strings(Nt,1);
-        for It=1:1:Nt
-            Row   = T(It,:);                                % your selected line
-            Obsid = string(Row.obsid);                     % or string(row.ObsID_str)
-            %St    = datetime(string(Row.start_time),'InputFormat','yyyy-MM-dd''T''HH:mm:ss','TimeZone','UTC');
-            St = local_to_datetime(Row.start_time);   % robust ISO/MJD/JD → datetime(UTC)
-    
-            Yyyy_mm = sprintf('%04d_%02d', year(St), month(St));
-            
-            S3    = "s3://nasa-heasarc/swift/data/obs/" + Yyyy_mm + "/" + Obsid + "/";
-            DataURL(It) = "https://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/" + Yyyy_mm + "/" + Obsid + "/";
-            %disp(S3), disp(DataURL)
-        end
-
-        if Args.AddPathXRT
-            DataURL = DataURL + "xrt/event";
-        end
-    end
+        DataURL = VO.Swift.swiftXRT_table2link(T, Args.AddPathXRT);
+    end       
 
 end
 
-
-function Dt = local_to_datetime(V)
-% Robust converter: ISO string(s) or JD/MJD number(s) → datetime(UTC)
-    if isa(V,'datetime')
-        Dt = V; 
-        if isempty(Dt.TimeZone), Dt.TimeZone = 'UTC'; end
-        return
-    end
-
-    if isstring(V) || ischar(V)
-        S = string(V);
-        % Try ISO-8601 with milliseconds, then seconds
-        try
-            Dt = datetime(S,'InputFormat','yyyy-MM-dd''T''HH:mm:ss.SSS','TimeZone','UTC');
-            return
-        catch, end
-        try
-            Dt = datetime(S,'InputFormat','yyyy-MM-dd''T''HH:mm:ss','TimeZone','UTC');
-            return
-        catch, end
-        % Maybe numeric-in-string (JD/MJD)
-        D = str2double(S);
-        if all(~isnan(D))
-            Dt = local_from_mjd_or_jd(D);
-            return
-        end
-        % Fallback
-        Dt = NaT(size(S)); Dt.TimeZone = 'UTC';
-        return
-    end
-
-    if isnumeric(V)
-        Dt = local_from_mjd_or_jd(V);
-        return
-    end
-
-    % Final fallback
-    Dt = NaT(size(V)); Dt.TimeZone = 'UTC';
-end
-
-function Dt = local_from_mjd_or_jd(X)
-% Accepts scalar or array. Treat values > 2.4e6 as JD, else MJD.
-    Epoch = datetime(1858,11,17,'TimeZone','UTC');  % MJD epoch
-    X = double(X);
-    IsJD = X > 2400000;                % JD if huge; else MJD
-    MJD = X; 
-    MJD(IsJD) = X(IsJD) - 2400000.5;   % JD → MJD
-    Dt = Epoch + days(MJD);
-end
