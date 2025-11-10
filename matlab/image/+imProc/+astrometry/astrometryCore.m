@@ -25,7 +25,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   array) to query around the requested coordinates,
     %                   or an AstroCatalog object containing such a
     %                   catalaog.
-    %                   Default is 'GAIAEDR3'.
+    %                   Default is 'GAIADR3'.
     %            'CatOrigin' - Catalog origin (relevant if CatName is a
     %                   char array).
     %                   Default is 'catsHTM'.
@@ -245,27 +245,28 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
-    
-    if isa(Obj, 'AstroImage')
-        % can read RA/Dec from Header if AstroImage
-        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    end
-        
-    
-    % make sure Tran is a new copy, otherwise may overwrite other Tran
-    Args.Tran = Args.Tran.copy;
-    
-    % get EpochOut
-    if isempty(Args.EpochOut)
-        if isa(Obj, 'AstroImage')
-            Args.EpochOut = julday(Obj);
-            if any(isnan(Args.EpochOut))
-                Args.EpochOut = [];
-            end
-        end
-    end
+    Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
+
+    % if isa(Obj, 'AstroImage')
+    %     % can read RA/Dec from Header if AstroImage
+    %     [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % else
+    %     [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % end
+    % 
+    % 
+    % % make sure Tran is a new copy, otherwise may overwrite other Tran
+    % Args.Tran = Args.Tran.copy;
+    % 
+    % % get EpochOut
+    % if isempty(Args.EpochOut)
+    %     if isa(Obj, 'AstroImage')
+    %         Args.EpochOut = julday(Obj);
+    %         if any(isnan(Args.EpochOut))
+    %             Args.EpochOut = [];
+    %         end
+    %     end
+    % end
     
     % ### END OF COMMON BLOCK
 
@@ -330,16 +331,19 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     Nobj = numel(Obj);
     
-    % allocate Result
-    Result = struct('ImageCenterXY',cell(Nobj,1),...
-                    'Nsolutions',cell(Nobj,1),...
-                    'ResPattern',cell(Nobj,1),...
-                    'ErrorOnMean',cell(Nobj,1),...
-                    'BestInd',cell(Nobj,1),...
-                    'WCS',cell(Nobj,1),...
-                    'ParWCS',cell(Nobj,1),...
-                    'Tran',cell(Nobj,1),...
-                    'ResFit',cell(Nobj,1));
+    % allocate Result (same as astrometryRefine)
+    Result = imProc.astrometry.defResultFit(Nobj);
+    % Result = struct('ImageCenterXY',cell(Nobj,1),...
+    %                 'Nsolutions',cell(Nobj,1),...
+    %                 'ResPattern',cell(Nobj,1),...
+    %                 'ErrorOnMean',cell(Nobj,1),...
+    %                 'BestInd',cell(Nobj,1),...
+    %                 'WCS',cell(Nobj,1),...
+    %                 'ParWCS',cell(Nobj,1),...
+    %                 'Tran',cell(Nobj,1),...
+    %                 'ResFit',cell(Nobj,1),...
+    %                 'Origin',cell(Nobj,1),...
+    %                 'Success',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         % filter astrometric catalog
@@ -531,7 +535,11 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             StructWCS = Result(Iobj).ParWCS(Ibest);
             KeyValWCS = namedargs2cell(StructWCS);
             Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Ibest), KeyValWCS{:});
-            
+            if isempty(Args.EpochOut)
+                Result(Iobj).WCS.EPOCH = Obj(Iobj).julday();
+            else
+                Result(Iobj).WCS.EPOCH = Args.EpochOut;
+            end
             
             Result(Iobj).WCS.ResFit   = Result(Iobj).ResFit(Ibest);
             Result(Iobj).WCS          = populateSucess(Result(Iobj).WCS, 'TestNbin',Args.TestNbin,...
@@ -539,7 +547,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                          'RegionalMaxWithNoSrc',Args.RegionalMaxWithNoSrc,...
                                                                          'MaxErrorOnMean',Args.MaxErrorOnMean);
 
-                        
+            Result(Iobj).Success     =  Result(Iobj).WCS.Success;
+            Result(Iobj).Origin      = 'astrometryCore';
             
                                                               
             % add RA/Dec to the catalog and update Header

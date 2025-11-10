@@ -34,6 +34,11 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     %                   distance, then will use nearest OtherWCS as is,
     %                   without transforming.
     %                   Default is 0.5 pix.
+    %            'JD' - Scalar JD, corresponding to the epoch of the main image
+    %                   (i.e., for which CCDSEC is specified).
+    %                   If not empty, then will choose from OtherAW only
+    %                   EPOCHs which are nearest to this JD.
+    %                   Default is [].
     %
     % Output : - An "initial guess" AstroWCS objet for the CCDSEC, which is
     %            nearest to one of the OtherWCS.
@@ -53,14 +58,27 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
         Args.SubCenter              = [];
         Args.SucessAW               = [];
         Args.ThresholdIdenticalWCS  = 0.5;  % pix
+        Args.JD                     = [];
     end
+
+    if ~isempty(Args.JD)
+        OtherJD = [OtherAW.EPOCH].';
+        UniqueOtherJD = unique(OtherJD);
+        [~,IminJD] = min(abs(UniqueOtherJD - Args.JD));
+
+        % Select only 'Other' which are nearest in EPOCH to JD:
+        Flag        = abs(OtherJD(IminJD) - OtherJD)<(100.*eps);
+        OtherAW     = OtherAW(Flag);
+        OtherCCDSEC = OtherCCDSEC(Flag,:);
+    end
+
 
     Naw = numel(OtherAW);
     if isempty(Args.OtherSubCenter)
-        Args.OtherSubCenter = [OtherCCDSEC(:,1)+OtherCCDSEC(:,2)), OtherCCDSEC(:,3)+OtherCCSEC(:,4)].*0.5;
+        Args.OtherSubCenter = [(OtherCCDSEC(:,1)+OtherCCDSEC(:,2)), (OtherCCDSEC(:,3)+OtherCCDSEC(:,4))].*0.5;
     end
     if isempty(Args.SubCenter)
-        Args.SubCenter = [CCDSEC(:,1)+CCDSEC(:,2)), CCDSEC(:,3)+CCSEC(:,4)].*0.5;
+        Args.SubCenter = [(CCDSEC(:,1)+CCDSEC(:,2)), (CCDSEC(:,3)+CCDSEC(:,4))].*0.5;
     end
 
     if ~isa(OtherAW, 'AstroWCS')
@@ -77,12 +95,13 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     if isempty(Args.SucessAW)
         Args.SucessAW = false(Naw,1);
         for Iaw=1:1:Naw
-            Args.SucessAW(Iim) = AW(Iaw).Success;
+            Args.SucessAW(Iaw) = AW(Iaw).Success;
         end
     end
     IsucessAW = find(Args.SucessAW); % FS
 
     Dist2SubCenter    = (Args.OtherSubCenter(IsucessAW,1) - Args.SubCenter(:,1).').^2 + (Args.OtherSubCenter(IsucessAW,2) - Args.SubCenter(:,2).').^2;
+    %Dist2SubCenter(triu(Dist2SubCenter,1)==0)=Inf;
     [MinDist2,IndMin] = min(Dist2SubCenter,[],'all','linear');
     [MinI,MinJ]       = imUtil.image.ind2sub_fast(size(Dist2SubCenter), IndMin);
     %FS                = find(Sucess);   % FS
@@ -90,8 +109,9 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     % index of image from which to take the WCS solution
     Iref    = IsucessAW(MinI); 
     % Index of image to solve
-    Iim     = InotSucessAW(MinJ);
-            
+    Iim     = InotSucessAW(MinJ);  % looks like a BUG
+    %Iim = MinJ;
+
     % new copy of WCS 
     Result = AW(Iref).copy;
     % check if need to shift solution, or can we use existing solution as is
@@ -103,7 +123,7 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
         ShiftX = CCDSEC(Iim,1) - OtherCCDSEC(Iref,1);
         ShiftY = CCDSEC(Iim,3) - OtherCCDSEC(Iref,3);
         % add shift to CRPIX - why??????
-        Result.CRPIX = RefWCS.CRPIX - [ShiftX, ShiftY];
+        Result.CRPIX = AW(Iref).CRPIX - [ShiftX, ShiftY];
     end
 
 

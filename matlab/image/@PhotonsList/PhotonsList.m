@@ -73,18 +73,22 @@ classdef PhotonsList < Component
     end
     
     methods % constructor
-        function Obj = PhotonsList(List)
+        function Obj = PhotonsList(List, Args)
             % PhotonsList constructor
             % Input  : - If empty, return a single enpty PhotonsList
             %            object.
             %            If a char array or a cell of char arrays, then
             %            will read each photon events file into a
             %            PhotonsList object.
+            %          * ...,key,val,...
+            %            'Conv2LC' - Convert column names to lower case.
+            %                   Default is true.
             % Output : - A PhotonsList object.
             % Author : Eran Ofek (Apr 2023)
             
             arguments
                 List   = [];
+                Args.Conv2LC = true;
             end
             
             if isempty(List)
@@ -98,6 +102,10 @@ classdef PhotonsList < Component
                 Nlist = numel(List);
                 for Iobj=1:1:Nlist
                     Obj(Iobj) = PhotonsList.readPhotonsList1(List{Iobj});
+                    % convert column names to lower case
+                    if Args.Conv2LC
+                        Obj(Iobj).Events.ColNames = lower(Obj(Iobj).Events.ColNames);
+                    end
                 end
             end
             
@@ -236,7 +244,7 @@ classdef PhotonsList < Component
                 case 'chandra'
                     % Chandra
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',11,'Num2',12);
-                case 'xrt'
+                case {'xrt','swift'}
                     % Swift-XRT
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
                 otherwise
