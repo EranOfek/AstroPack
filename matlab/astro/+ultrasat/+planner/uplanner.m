@@ -241,7 +241,7 @@ classdef uplanner < Component
             Obj.StartTime.TimeZone = Obj.SysTimeZone;
             Obj.EndTime.TimeZone   = Obj.SysTimeZone;
             %
-            Obj.CheckTimes = ultrasat.planner.uplanner.getDefaultCheckTimes();
+            Obj.CheckTimes = Obj.getDefaultCheckTimes();
             Obj.CheckTimes.TimeZone = Obj.SysTimeZone;
             %
             Obj.Plan = table('Size',[Obj.N_planTargets,numel(Obj.Plan_DefVarNames)],'VariableNames', Obj.Plan_DefVarNames,...
@@ -1899,66 +1899,8 @@ classdef uplanner < Component
 
 
         function dt = parseIsoDatetime(obj, str)
-            % parseIsoDatetime  Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
-            %
-            %   dt = parseIsoDatetime(str)
-            %
-            %   Supports:
-            %       2025-01-01T00:00:00Z
-            %       2025-01-01T00:00:00.000Z
-            %       2025-01-01T00:00:00.000000Z
-            %       2025-01-01T00:00:00+00:00
-            %       2025-01-01T00:00:00.000+00:00
-            %
-            %   Returns datetime with TimeZone = 'UTC'.
-            %   Returns NaT if parsing fails.
-        
-            dt = NaT;
-        
-            try
-                if isempty(str)
-                    return;
-                end
-        
-                % Convert string type if needed
-                if isstring(str)
-                    str = char(str);
-                end
-        
-                str = strtrim(str);
-        
-                % List of acceptable input formats (from most to least precise)
-                fmts = { ...
-                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSS''Z''', ...
-                    'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''', ...
-                    'yyyy-MM-dd''T''HH:mm:ss''Z''', ...
-                    'yyyy-MM-dd''T''HH:mm:ss.SSSSSSXXX', ...
-                    'yyyy-MM-dd''T''HH:mm:ss.SSSXXX', ...
-                    'yyyy-MM-dd''T''HH:mm:ssXXX' ...
-                };
-        
-                % Try each format until one works
-                for i = 1:numel(fmts)
-                    try
-                        dt = datetime(str, 'InputFormat', fmts{i}, 'TimeZone', 'UTC');
-                        if ~isnat(dt)
-                            return;
-                        end
-                    catch
-                        % continue trying
-                    end
-                end
-        
-                % If still NaT, issue a warning
-                if isnat(dt)
-                    warning('parseIsoDatetime:UnknownFormat', ...
-                        'String does not match expected ISO 8601 formats: "%s"', str);
-                end
-        
-            catch ME
-                warning('parseIsoDatetime:Failed', ...
-                    'Failed to parse datetime string "%s": %s', str, ME.message);
-            end
+            % Parse ISO 8601 datetime strings with 'Z' or timezone offsets.            
+            dt = ultrasat.api.parseIsoDateTime(str);
         end
         
         %
@@ -1966,11 +1908,12 @@ classdef uplanner < Component
            % Get the default Check times. TODO - update if needed - 
            % Yossi, please calculate from start/end times
            
-           % CheckTimes = datetime({'2028-01-01 00:00:00','2028-07-01 00:00:00'});
-           
-           T1 = dateshift(datetime('now'),'start','month'); 
-           T2 = T1+calmonths(7); 
-           CheckTimes = [T1,T2];
+           % 
+           CheckTimes = datetime({'2028-01-01 00:00:00', '2031-01-01 00:00:00'});
+
+           %T1 = dateshift(datetime('now'),'start','month'); 
+           %T2 = T1+calmonths(7); 
+           %CheckTimes = [T1,T2];
         end
     end
 

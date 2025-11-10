@@ -176,7 +176,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldRA(obj, Value)
            % Return RA text field as double, NaN if invalid - @Todo - support Sexa
-
+           % Valid range: 0–360 degrees.
            try
                if isstring(Value) || ischar(Value)
                    Result = str2double(strtrim(char(Value)));
@@ -186,6 +186,16 @@ classdef GuiHelper < ultrasat.api.Loggable
                    obj.msglog(sprintf('getFieldRA: unsupported type %s', class(Value)));
                    Result = NaN;
                end
+
+                % Validate numeric result
+                if isnan(Result) || Result < 0 || Result > 360
+                    ME = MException('uplanner:getFieldRA:OutOfRange', ...
+                        sprintf('Invalid RA value %.3f — must be between 0 and 360 degrees.', Result));
+                    %AppUtils = ultrasat.planner.guiutils.AppUtils(obj.MainModule, obj.ParamsApp);
+                    AppUtils = obj.MainModule.MainApp.AppUtils;
+                    AppUtils.msgError(ME.message, 'getFieldRA');
+                    Result = NaN;
+                end
            catch ME
                obj.msglog(sprintf('getFieldRA: error %s', ME.message));
                Result = NaN;
@@ -195,7 +205,7 @@ classdef GuiHelper < ultrasat.api.Loggable
 
         function Result = getFieldDec(obj, Value)
             % Return Dec text field as double, NaN if invalid - @Todo - support Sexa
-
+            % Valid range: –90 to +90 degrees.
             try
                 if isstring(Value) || ischar(Value)
                     Result = str2double(strtrim(char(Value)));
@@ -205,6 +215,16 @@ classdef GuiHelper < ultrasat.api.Loggable
                     obj.msglog(sprintf('getFieldDec: unsupported type %s', class(Value)));
                     Result = NaN;
                 end
+
+                % Validate numeric result
+                if isnan(Result) || Result < -90 || Result > 90
+                    ME = MException('uplanner:getFieldDec:OutOfRange', ...
+                        sprintf('Invalid Dec value %.3f — must be between –90 and +90 degrees.', Result));
+                    %AppUtils = ultrasat.planner.guiutils.AppUtils(obj.MainModule, obj.ParamsApp);
+                    AppUtils = obj.MainModule.MainApp.AppUtils;
+                    AppUtils.msgError(ME.message, 'getFieldDec');
+                    Result = NaN;
+                end                
             catch ME
                 obj.msglog(sprintf('getFieldDec: error %s', ME.message));
                 Result = NaN;

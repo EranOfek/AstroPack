@@ -202,7 +202,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.Loggable
             app.LoginButton.Enable       = obj.bool2str(~isLoggedIn);
             app.SNRCalcButton.Enable     = 'on';
             app.HelpButton.Enable        = 'on';
-            app.QACommentsButton.Enable  = obj.bool2str(hasPlan);
+            app.QAButton.Enable          = 'on';
         
             % === Target Panels ===
             app.AddUniqueTargetButton.Enable     = obj.bool2str(hasPlan);

@@ -147,7 +147,7 @@ classdef PlannerMain < matlab.apps.AppBase
         UITableUniqueTargets            matlab.ui.control.Table
         PanelToolbar                    matlab.ui.container.Panel
         HelpButton                      matlab.ui.control.Button
-        QACommentsButton                matlab.ui.control.Button
+        QAButton                        matlab.ui.control.Button
         RetractButton                   matlab.ui.control.Button
         DuplicateButton                 matlab.ui.control.Button
         ModifiedLabel                   matlab.ui.control.Label
@@ -363,7 +363,8 @@ classdef PlannerMain < matlab.apps.AppBase
 
         function showGDriveQA(app)
             % Open website in browser window, use system default browser (-browser)
-            web('https://docs.google.com/document/d/1iXs3Z5SHNnA8vUEf557DT3qIo9_rqELBp_WYg2vrYi0/edit?usp=sharing', '-browser');
+            web('https://docs.google.com/document/d/1rq6T1yOe_HB_Exww29YYcbgDvO3x1dg1gQCQtCrk9Y8/edit?usp=sharing', '-browser');
+            % web('https://docs.google.com/document/d/1iXs3Z5SHNnA8vUEf557DT3qIo9_rqELBp_WYg2vrYi0/edit?usp=sharing', '-browser');
         end        
 
         function showSnrCalculator(app)
@@ -1040,8 +1041,8 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanTargetsHelper.deletePlanTarget(app);
         end
 
-        % Button pushed function: QACommentsButton
-        function QACommentsButtonPushed(app, event)
+        % Button pushed function: QAButton
+        function QAButtonPushed(app, event)
             app.showGDriveQA();
         end
 
@@ -1483,14 +1484,15 @@ classdef PlannerMain < matlab.apps.AppBase
             app.RetractButton.Position = [751 8 85 30];
             app.RetractButton.Text = 'Retract !!!';
 
-            % Create QACommentsButton
-            app.QACommentsButton = uibutton(app.PanelToolbar, 'push');
-            app.QACommentsButton.ButtonPushedFcn = createCallbackFcn(app, @QACommentsButtonPushed, true);
-            app.QACommentsButton.BackgroundColor = [0.9804 0.5882 0.9804];
-            app.QACommentsButton.FontWeight = 'bold';
-            app.QACommentsButton.Tooltip = {'Open SNR Calculator web application in browser window'};
-            app.QACommentsButton.Position = [1357 4 73 35];
-            app.QACommentsButton.Text = {'QA '; 'Comments'};
+            % Create QAButton
+            app.QAButton = uibutton(app.PanelToolbar, 'push');
+            app.QAButton.ButtonPushedFcn = createCallbackFcn(app, @QAButtonPushed, true);
+            app.QAButton.BackgroundColor = [0.0588 1 1];
+            app.QAButton.FontSize = 16;
+            app.QAButton.FontWeight = 'bold';
+            app.QAButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.QAButton.Position = [1356 8 73 29];
+            app.QAButton.Text = 'QA ';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.PanelToolbar, 'push');
@@ -2158,7 +2160,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ConnectionStatusEditField.Editable = 'off';
             app.ConnectionStatusEditField.HorizontalAlignment = 'center';
             app.ConnectionStatusEditField.FontWeight = 'bold';
-            app.ConnectionStatusEditField.BackgroundColor = [0 1 1];
+            app.ConnectionStatusEditField.BackgroundColor = [0.8 0.8 0.8];
             app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
             app.ConnectionStatusEditField.Position = [906 3 124 29];
             app.ConnectionStatusEditField.Value = 'Backend JSON';
