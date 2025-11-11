@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainSubmitHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Submit Helper for Main Planner
 %==========================================================================
 % @TODO - Check again code review especially for submi()
@@ -44,7 +44,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % Submit is not allowed when plan is read-only
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % Submit is not allowed when not logged-in
             if ~app.SessionHelper.isLogin(app, true), return; end
@@ -58,7 +58,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.StorageHelper.savePlan(app);
             end
 
-            if ~strcmp(app.MainModule.Planner.Status, 'validated')
+            if ~app.MainModule.Planner.Validated
                 if ~strcmp(app.AppUtils.askYesNo('The plan is not validated, or validation was not successful. Are you sure you want to submit this plan?', 'Confirm'), 'Yes')
                     return;
                 end
@@ -72,21 +72,15 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.showPleaseWait('Submitting your plan. This may take a while. Please wait...');
             try
                 % Send submit request to backend, uplanner.submit() calls MissionClient.submitPlan().
+                app.addHistory('submit');                
                 app.MainModule.Planner.submit();
-
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');
-                app.addHistory('submit');
-                app.StorageHelper.savePlan(app);
-
-                % After submit the plan should become read-only.
-                app.setReadOnly(true);
             catch ME
                 app.msgex('submit', ME);
             end
             app.closePleaseWait();
             app.updateStatus();
         end
-
 
         % =================================================================
         %                         DISPLAY / UPDATE

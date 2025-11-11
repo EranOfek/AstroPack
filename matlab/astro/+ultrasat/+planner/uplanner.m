@@ -72,7 +72,7 @@
 % - Obj.adjustCheckTimes(CheckStartTime,CheckEndTime)       : Set Obj.CheckTimes and then calls Obj.updateTargetVisibility and Obj.retrieveMissionApprovedPlan
 %
 % - Obj.schedule                                            : Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
-% - Obj.validate(Args)                                      : TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+% - Obj.validate(Args)                                      : TODO - send plan to the validator. In addition, set Obj.Validated true/false, and Obj.ValidatedTime to 'now'
 % - Obj.clearValidationData                                 : Clears valiation data from Plan table, delete the ValidationTime and ValidationResponse and change status back to draft
 % - Obj.submit(Args)                                        : TODO - submit plan to the Mission C&C. In addition, set Obj.Status to 'submitted' and Obj.SubmittedTime to 'now'
 %
@@ -168,9 +168,10 @@ classdef uplanner < Component
         ScheduledTime           datetime    % date or empty
         ValidatedTime           datetime    % date or empty
         SubmittedTime           datetime    % date or empty
-        Status                  char        = 'draft';
-
-        ValidationResponse  struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
+        Status                  char        = 'draft';      % 'draft', 'submitted'
+        Editable                logical     = true;         %
+        Validated               logical     = false;        % Validation result
+        ValidationResponse      struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
         
         AstPlanner              char        % name of the Astronomer-Planner
         Mclient                             % API client - MissionClient / MissionClientSim
@@ -1448,12 +1449,15 @@ classdef uplanner < Component
         end
         %
         function validate(Obj,Args)
-            % TODO - send plan to the validator. In addition, set Obj.Status to 'validated' and Obj.ValidatedTime to 'now'
+            % TODO - send plan to the validator. In addition, set Obj.Validated and Obj.ValidatedTime to 'now'
             arguments
                 Obj
                 Args.checkSelfConsistency       = true;
             end
             
+            % Clear validation status
+            Obj.Validated = false;
+
             if Args.checkSelfConsistency  % Check self consistency of plan before sending to validation
                 CheckStatus = Obj.planSelfConsistencyCheck;
                 if ~CheckStatus
@@ -1482,8 +1486,9 @@ classdef uplanner < Component
                     Obj.Plan.ValidationWarning{i} = targets(i).warning;
                 end
             end
-                        
-            Obj.Status    = 'validated';
+                                    
+            % Done
+            Obj.Validated = true;
             Obj.ValidatedTime = datetime('now','TimeZone', 'UTC');     
         end        
         %
@@ -1500,6 +1505,7 @@ classdef uplanner < Component
             Obj.ValidationResponse = [];      
 
             Obj.Status    = 'draft';
+            Obj.Validated = false;
             Obj.ValidatedTime = NaT;     
         end        
         %
@@ -1914,6 +1920,13 @@ classdef uplanner < Component
            %T1 = dateshift(datetime('now'),'start','month'); 
            %T2 = T1+calmonths(7); 
            %CheckTimes = [T1,T2];
+        end
+
+        %
+        function Result = isEditable(Obj)
+            % Allow editing the plan only while still draft, after submit
+            % no further modifications are allowed.
+            Result = strcmp(Obj.Status, 'draft') && Obj.Editable;
         end
     end
 

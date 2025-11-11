@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainNewPlanHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Create New Plan - HCS, LCS, DDT, AllSS, TOO
 %==========================================================================
 
@@ -74,7 +74,6 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.Loggable
             if ~strcmp(result, 'Create'), return; end
 
             % Create new plan according to parameters in NewPlanApp
-            app.msglog(sprintf('New plan type: %s ....', app.MainModule.PlanType));
             try
                 obj.doCreateNewPlan(app);
             catch ME

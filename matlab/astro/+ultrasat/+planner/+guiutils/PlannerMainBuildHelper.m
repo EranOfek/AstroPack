@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 03/11/2025
+% Updated     : 11/11/2025
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -41,7 +41,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Build plan according to plan type, calls doBuild...() below
             app.msglog('build');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.UniqTarg) == 0, return; end
 
             % Set AfterBuild flag to true if plan is not empty
@@ -55,7 +55,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Show "Please Wait" dialog
             app.showPleaseWait('Building your plan. This may take a while. Please wait....');
             try
-                PlanType = app.MainModule.PlanType;
+                PlanType = app.MainModule.Planner.Type;
                 app.MainModule.clearStatus();
                 app.updateStatus();
                 app.msglog(sprintf('build: PlanType: %s', PlanType));

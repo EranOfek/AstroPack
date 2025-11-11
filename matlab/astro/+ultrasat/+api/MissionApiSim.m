@@ -3,7 +3,7 @@
 % Filename    : ultrasat.api.MissionApiSim.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 16/10/2025
+% Updated     : 11/11/2025
 % Description : Simulator implementation of the MissionApiBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
@@ -278,7 +278,9 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 % Set targets from provided Plan array of structs
                 obj.PlanData.targets = Plan;  % Direct assignment, no conversion needed
 
-                % Update status
+                % UGLY but currently required: @TODO - Fix or clarify !!
+				% Update status here to allow calling savePlan() below to save it
+				% with status 'submitted', otherwise it will save it as 'draft'
                 obj.PlanData.status = 'submitted';
 
                 % Add entry to history
@@ -290,7 +292,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 % be saved - @TODO --- Bad workaround but for now (19/10/2025)
                 %SavePlannerStatus = obj.PlanData.planner.Status;
                 %obj.PlanData.planner.Status = 'submitted';
-                obj.savePlan();
+                obj.savePlan('forceSave', true);
 
                 % Restore status, it will be set again to submitted in uplanner.submit()
                 %obj.PlanData.planner.Status = SavePlannerStatus;
@@ -301,7 +303,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 obj.msglog('Plan %d submitted successfully and updated in JSON file.', obj.PlanData.pk);
 
                 % Simulator version: replace exsiting Approved Targets by the targets of this plan
-                obj.updateApprovedTargets(Plan, true);
+                % obj.updateApprovedTargets(Plan, true);
             catch ME
                 obj.msglog('Error submitting plan: %s', ME.message);
                 response.status = 'error';
@@ -415,11 +417,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         fileName = fullfile(plansFolder, jsonFiles(i));  % .name);
                         planData = obj.ApiSimProvider.readJsonFile(fileName);
 
-                        % List only plans that are still pre-committed
-                        % if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft') && ~strcmp(planData.status, 'submitted')
-                        %    continue;
-                        % end
-
                         % Apply time filter if specified
                         if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
                         (~isempty(end_timestamp) && planData.start_time > end_timestamp)
@@ -491,18 +488,21 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
         end
 
 
-        function response = savePlan(obj)
+        function response = savePlan(obj, Args)
             % Saves the current PlanData instance as JSON and MAT files.
+            arguments
+                obj
+                Args.forceSave (1,1) logical = false
+            end            
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
 
-                % Allow save only if not submitted yet, if cannot save
-                % @Todo - Need to fix this submit issue
-                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
+                % Allow save only if allowed
+                if ~Args.forceSave && ~obj.PlanData.planner.isEditable()
                     response.status = 'error';
-                    response.message = sprintf('Save ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.message = sprintf('Save ignored for non-draft plan: %d - Status: %s', obj.PlanData.planner.Pk, obj.PlanData.planner.Status);
                     response.ok = false;
-                    obj.msglog('Error: savePlan ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+                    obj.msglog('Error: savePlan ignored for non-draft plan: %d - Status: %s', obj.PlanData.planner.Pk, obj.PlanData.planner.Status);
 					return;
                 end
 
@@ -514,6 +514,7 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
 
                 % Generate pk if not provided, as next file number (i.e '00003')
                 if isempty(obj.PlanData.pk)
+                    obj.msglog('savePlan: Pk is empty, obtaining new pk');
                     NextAvailableFile = obj.ApiSimProvider.nextAvailableFile(plansFolder, '*.json', 5, 0, 9999);
                     if ~isempty(NextAvailableFile)
                         obj.PlanData.pk = NextAvailableFile.index;
@@ -536,11 +537,14 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                     planStruct.targets = ultrasat.api.ModelBase.convertDatetimeToString(planStruct.targets);
                 end
 
+                % Save JSON file
+                obj.msglog('savePlan: writing json file: %s', jsonFile);
                 obj.ApiSimProvider.writeJsonFile(jsonFile, planStruct);
 
                 % Write MATLAB object (planner) to .mat file
                 matFile = fullfile(plansFolder, sprintf('%05d.mat', obj.PlanData.pk));
                 planner = obj.PlanData.planner;  % Instance of ultrasat.uplanner
+                obj.msglog('savePlan: writing mat file: %s', matFile);                
                 obj.ApiSimProvider.saveMatObject(matFile, planner, 'planner');
 
                 response.status = 'ok';
