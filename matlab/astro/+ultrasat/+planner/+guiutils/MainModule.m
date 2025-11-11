@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/MainModule.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Central class to hold common application data
 %==========================================================================
 
@@ -22,10 +22,8 @@ classdef MainModule < ultrasat.api.Loggable
         MainApp                 % AppDesigner main window - ultrasat.planner.gui.PlannerMain
         LoggerApp               % ultrasat.planner.gui.Logger
         ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger
-        PlanType                % Current plan type: HCS, LCS, AllSS, DDT, TOO (= ultrasat.planner.uplanner.Type)
         Planner                 % instance of ultrasat.planner.uplanner
         PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
-        AllowEdit               % False for read-only mode
 
         % Status
         StatusText              % Status text for display
@@ -182,7 +180,6 @@ classdef MainModule < ultrasat.api.Loggable
 
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
-            obj.PlanType = Planner.Type;
             Planner.Mclient = obj.ApiClient;
 
             % Override BaseDataDir to allow Linux/Windows compatibility
@@ -385,10 +382,6 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Planner = [];
             obj.PlanData = [];
             obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
-
-            % Clear plan type and permissions
-            obj.PlanType = [];
-            obj.AllowEdit = [];
 
             % Reset status properties
             obj.StatusText = [];
