@@ -244,6 +244,10 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create MainModule that holds all common data
             app.UIFigure.Name = 'ULTRASAT Observation Planner';
 
+            % 
+            app.checkMatlabVersion();
+            app.checkSocPath();
+
             % Create MainModule that holds all common data and link objects
             app.MainModule = ultrasat.planner.guiutils.MainModule(app.StartupNamespaceId);
             app.MainModule.MainApp = app;
@@ -295,6 +299,39 @@ classdef PlannerMain < matlab.apps.AppBase
             app.SessionHelper.setButtons(app);
 
             app.msglog('init done');
+        end
+
+
+        function checkMatlabVersion(app)
+            % Required version
+            v = ver('MATLAB');            
+            isOK = strcmp(v.Release, '(R2023a)');
+        
+            if ~isOK
+                % Blocking popup
+                uialert(app.UIFigure, sprintf(['This ULTRASAT Planner has only been tested with MATLAB R2023a.\n' ...
+                             'Your version is: %s\n\n' ...
+                             'Please use MATLAB R2023a for guaranteed compatibility.'], v.Release), ...
+                             'MATLAB Version Not Supported');
+            end
+        end
+
+
+        function checkSocPath(app)
+            % Set default SOC_PATH if not exist
+            soc_path = getenv('SOC_PATH');
+            if ~isempty(soc_path)
+                fprintf('PlannerMain: SOC_PATH = %s\n', soc_path);
+            else
+                if ispc
+                    soc_path = 'c:/soc';
+                else
+                    soc_path = '~/soc';
+                end
+                setenv('SOC_PATH', soc_path);
+                uialert(app.UIFigure, sprintf('SOC_PATH not found in env, setting to default: %s\n', soc_path), ...
+                    'SOC_PATH not found in env');
+            end               
         end
 
 
@@ -2106,10 +2143,11 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LabelTopStatus = uilabel(app.PanelTopHeader);
             app.LabelTopStatus.BackgroundColor = [1 1 0.0667];
             app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 16;
             app.LabelTopStatus.FontWeight = 'bold';
             app.LabelTopStatus.FontColor = [0 0 1];
             app.LabelTopStatus.Visible = 'off';
-            app.LabelTopStatus.Position = [344 8 498 22];
+            app.LabelTopStatus.Position = [344 3 498 30];
             app.LabelTopStatus.Text = 'The plan was submitted and cannot be modified.';
 
             % Create LabelTopNamespace

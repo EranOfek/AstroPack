@@ -65,7 +65,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             % Return true if currently in read-only mode, show popup message
 
             Result = obj.isEditable(app);
-            if Result
+            if ~Result
 			    Msg = 'Cannot edit plan with status submitted';
                 uialert(app.UIFigure, sprintf('Plan is read-only: %s', Msg), 'Message', 'Icon', 'warning');
             end

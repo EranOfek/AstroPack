@@ -169,8 +169,8 @@ classdef uplanner < Component
         ValidatedTime           datetime    % date or empty
         SubmittedTime           datetime    % date or empty
         Status                  char        = 'draft';      % 'draft', 'submitted'
-        Editable                bool        = true;         %
-        Validated               bool        = false;        % Validation result
+        Editable                logical     = true;         %
+        Validated               logical     = false;        % Validation result
         ValidationResponse      struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
         
         AstPlanner              char        % name of the Astronomer-Planner

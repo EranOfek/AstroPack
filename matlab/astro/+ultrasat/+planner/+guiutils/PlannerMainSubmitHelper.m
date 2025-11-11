@@ -58,7 +58,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.StorageHelper.savePlan(app);
             end
 
-            if ~strcmp(app.MainModule.Planner.Status, 'validated')
+            if ~app.MainModule.Planner.Validated
                 if ~strcmp(app.AppUtils.askYesNo('The plan is not validated, or validation was not successful. Are you sure you want to submit this plan?', 'Confirm'), 'Yes')
                     return;
                 end
@@ -72,18 +72,15 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             app.showPleaseWait('Submitting your plan. This may take a while. Please wait...');
             try
                 % Send submit request to backend, uplanner.submit() calls MissionClient.submitPlan().
+                app.addHistory('submit');                
                 app.MainModule.Planner.submit();
-
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');
-                app.addHistory('submit');
-                app.StorageHelper.savePlan(app);
             catch ME
                 app.msgex('submit', ME);
             end
             app.closePleaseWait();
             app.updateStatus();
         end
-
 
         % =================================================================
         %                         DISPLAY / UPDATE
