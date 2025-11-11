@@ -3,7 +3,7 @@
 % Filename    : ultrasat.api.MissionApiSim.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 16/10/2025
+% Updated     : 11/11/2025
 % Description : Simulator implementation of the MissionApiBase interface.
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
@@ -278,7 +278,9 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                 % Set targets from provided Plan array of structs
                 obj.PlanData.targets = Plan;  % Direct assignment, no conversion needed
 
-                % Update status
+                % UGLY but currently required: @TODO - Fix or clarify !!
+				% Update status here to allow calling savePlan() below to save it
+				% with status 'submitted', otherwise it will save it as 'draft'
                 obj.PlanData.status = 'submitted';
 
                 % Add entry to history
@@ -415,11 +417,6 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
                         fileName = fullfile(plansFolder, jsonFiles(i));  % .name);
                         planData = obj.ApiSimProvider.readJsonFile(fileName);
 
-                        % List only plans that are still pre-committed
-                        % if ~strcmp(planData.status, '') && ~strcmp(planData.status, 'draft') && ~strcmp(planData.status, 'submitted')
-                        %    continue;
-                        % end
-
                         % Apply time filter if specified
                         if (~isempty(start_timestamp) && planData.end_time < start_timestamp) || ...
                         (~isempty(end_timestamp) && planData.start_time > end_timestamp)
@@ -496,13 +493,12 @@ classdef MissionApiSim < ultrasat.api.MissionApiBase
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
             try
 
-                % Allow save only if not submitted yet, if cannot save
-                % @Todo - Need to fix this submit issue
-                if ~isempty(obj.PlanData.planner.Status) && ~strcmp(obj.PlanData.planner.Status, 'draft') && ~strcmp(obj.PlanData.planner.Status, 'submitted')
+                % Allow save only if allowed
+                if ~obj.PlanData.planner.isEditable()
                     response.status = 'error';
-                    response.message = sprintf('Save ignored for non-draft plan: %d.', obj.PlanData.planner.Pk);
+                    response.message = sprintf('Save ignored for non-draft plan: %d - Status: %s', obj.PlanData.planner.Pk, obj.PlanData.planner.Status);
                     response.ok = false;
-                    obj.msglog('Error: savePlan ignored for non-draft plan: %d', obj.PlanData.planner.Pk);
+                    obj.msglog('Error: savePlan ignored for non-draft plan: %d - Status: %s', obj.PlanData.planner.Pk, obj.PlanData.planner.Status);
 					return;
                 end
 
