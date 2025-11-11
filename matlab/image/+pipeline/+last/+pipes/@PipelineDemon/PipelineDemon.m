@@ -2336,7 +2336,54 @@ classdef PipelineDemon < Component
             cd(PWD);
 
         end
-        
+
+
+        function pipelineI(Obj, RawImageList, Args)
+            %
+
+            arguments
+                Obj
+                RawImageList
+                Args
+            end
+
+            % load images and check quality
+            pipeline.generic.readAndQualify
+            
+            % basic calibration (bias, flat,...) 
+            pipeline.generic.basicCalib
+
+            % search for stars in all images
+
+            % solve astrometry of all images
+            imProc.astrometry.astrometryVisitSubImage
+
+            % match external
+            pipeline.generic.matchExternal
+
+            % photometric calibration
+
+            % merge catalogs
+
+            % save products
+
+            % coadd images
+
+            % coadd: search stars
+
+            % coadd: solve astrometry
+
+            % coadd: match external
+            pipeline.generic.matchExternal
+
+            % coadd: photometric calibration
+
+            % save products
+
+            % write status
+            
+
+        end
 
 
 

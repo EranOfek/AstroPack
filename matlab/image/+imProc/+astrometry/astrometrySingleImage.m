@@ -18,8 +18,6 @@ function [ResultFit, AI, CatName] = astrometrySingleImage(AI, Args)
     %                   or an AstroCatalog object containing such a
     %                   catalaog.
     %                   Default is 'GAIADR3'.
-    %            'SortByTime' - A logical indicating if to sort the vector
-    %                   of images bt time. Default is false.
     %            'CreateNewObject' - A logical indicating if to create a
     %                   new copy of the AstroImage handle object.
     %                   Default is false.
@@ -31,6 +29,10 @@ function [ResultFit, AI, CatName] = astrometrySingleImage(AI, Args)
     %                   I.e., if given astrometryRefine will be attempted
     %                   on the first image.
     %                   Default is [].
+    %            'RA' - Optional J2000 R.A. [deg]. If given and InitWCS is
+    %                   empty, then will use it. Default is [].
+    %            'Dec' - Optional J2000 Dec. [deg]. If given and InitWCS is
+    %                   empty, then will use it. Default is [].
     %            'SkipSolved' - If true, then skip images with WCS in which
     %                   Success is true. Default is true.
     %           
@@ -92,10 +94,12 @@ function [ResultFit, AI, CatName] = astrometrySingleImage(AI, Args)
         Args.Scale                  = 1.25;  % [arcsec/pix]
         Args.Tran                   = Tran2D('poly3');
         Args.CatName                = 'GAIADR3';
-        Args.SortByTime             = false;
+        %Args.SortByTime             = false;
         Args.CreateNewObj           = false;
         Args.JD                     = [];  % JD of images - read from header if not given
         Args.InitWCS                = [];
+        Args.RA                     = [];  % deg
+        Args.Dec                    = [];  % deg
         Args.SkipSolved             = true;
 
 
@@ -138,30 +142,37 @@ function [ResultFit, AI, CatName] = astrometrySingleImage(AI, Args)
         Args.RefRangeMag = Args.RefRangeMag + Diff;
     end
     
-    if isempty(Args.InitWCS)
-        InitWCS = AstroWCS([1,1]);
-
-        % get approximate coordinates for field center
-        [RA, Dec] = getCoo(AI(1).HeaderData);
-        RA        = RA  + Args.CooOffset(1);
-        Dec       = Dec + Args.CooOffset(2);
-        
+    if ~isempty(Args.RA) && ~isempty(Args.Dec)
+        RA        = Args.RA  + Args.CooOffset(1);
+        Dec       = Args.Dec + Args.CooOffset(2);
+        InitWCS   = Args.InitWCS;
     else
-        InitWCS = Args.InitWCS;
+        if isempty(Args.InitWCS)
+            InitWCS = AstroWCS([1,1]);
+        
+            % get approximate coordinates for field center
+            [RA, Dec] = getCoo(AI(1).HeaderData);
+            RA        = RA  + Args.CooOffset(1);
+            Dec       = Dec + Args.CooOffset(2);
+                   
+        else
+            InitWCS = Args.InitWCS;
 
-        RA  = InitWCS.CRVAL(1);
-        Dec = InitWCS.CRVAL(2);
-
+            RA  = InitWCS.CRVAL(1);
+            Dec = InitWCS.CRVAL(2);
+        end
     end
     CatName = Args.CatName;
 
     Success = false;
 
+    Nai = 1;
+    ResultFit        = imProc.astrometry.defResultFit(Nai);
+
     if Args.SkipSolved && ~isempty(AI.WCS) && AI.WCS.Success
         % skip image - already solved
-        Nai = 1;
-        ResultFit     = imProc.astrometry.defResultFit(Nai, 'known');
-        ResultFit.WCS = AI.WCS;
+        ResultFit.WCS    = AI.WCS;
+        ResultFit.Origin = 'known';
 
         % ResultFit = struct('ImageCenterXY',cell(Nai,1),...
         %             'Nsolutions',cell(Nai,1),...

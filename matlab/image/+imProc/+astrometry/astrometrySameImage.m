@@ -36,6 +36,10 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
     %                   I.e., if given astrometryRefine will be attempted
     %                   on the first image.
     %                   Default is [].
+    %            'RA' - Optional J2000 R.A. [deg]. If given and InitWCS is
+    %                   empty, then will use it. Default is [].
+    %            'Dec' - Optional J2000 Dec. [deg]. If given and InitWCS is
+    %                   empty, then will use it. Default is [].
     %            'SkipSolved' - If true, then skip images with WCS in which
     %                   Success is true. Default is true.
     %           
@@ -100,6 +104,8 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
         Args.CreateNewObj           = false;
         Args.JD                     = [];  % JD of images - read from header if not given
         Args.InitWCS                = [];
+        Args.RA                     = [];
+        Args.Dec                    = [];
         Args.SkipSolved             = true;
 
 
@@ -157,21 +163,27 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
             
 
 
-    if isempty(Args.InitWCS)
-        InitWCS = AstroWCS([1,1]);
-
-        % get approximate coordinates for field center
-        [RA, Dec] = getCoo(AI(1).HeaderData);
-        RA        = RA  + Args.CooOffset(1);
-        Dec       = Dec + Args.CooOffset(2);
-        
+    if ~isempty(Args.RA) && ~isempty(Args.Dec)
+        RA  = Args.RA  + Args.CooOffset(1);
+        Dec = Args.Dec + Args.CooOffset(2);
     else
-        InitWCS = Args.InitWCS;
-
-        RA  = InitWCS.CRVAL(1);
-        Dec = InitWCS.CRVAL(2);
-
+        if isempty(Args.InitWCS)
+            InitWCS = AstroWCS([1,1]);
+    
+            % get approximate coordinates for field center
+            [RA, Dec] = getCoo(AI(1).HeaderData);
+            RA        = RA  + Args.CooOffset(1);
+            Dec       = Dec + Args.CooOffset(2);
+            
+        else
+            InitWCS = Args.InitWCS;
+    
+            RA  = InitWCS.CRVAL(1);
+            Dec = InitWCS.CRVAL(2);
+    
+        end
     end
+
     CatName = Args.CatName;
     ResultFit = imProc.astrometry.defResultFit(Nai);
     % ResultFit = struct('ImageCenterXY',cell(Nai,1),...
@@ -190,11 +202,38 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
 
     Success  = false(Nai,1);
     for Iai=1:1:Nai
-       
-        CellArgs = namedargs2cell(Args); % must be inside the loop because of INitWCS updates...
+        
+        %CellArgs = namedargs2cell(Args); % must be inside the loop because of INitWCS updates...
 
-        [ResultFit(Iai), AI(Iai), CatName] = imProc.astrometry.astrometrySingleImage(AI(Iai), CellArgs{:});
+        [ResultFit(Iai), AI(Iai), CatName] = imProc.astrometry.astrometrySingleImage(AI(Iai), 'Scale',Args.Scale,...
+                                                                                                'Tran',Args.Tran,...
+                                                                                                'CatName',Args.CatName,...
+                                                                                                'CreateNewObj',false,...
+                                                                                                'JD',JD,...
+                                                                                                'InitWCS',InitWCS,...
+                                                                                                'RA',RA,...
+                                                                                                'Dec',Dec,...
+                                                                                                'SkipSolved',Args.SkipSolved,...
+                                                                                                'FunRefineSearchRadiusNsrc',Args.FunRefineSearchRadiusNsrc,...
+                                                                                                'CooOffset',Args.CooOffset,...
+                                                                                                'CooUnits',Args.CooUnits,...
+                                                                                                'CatRadius',Args.CatRadius,...
+                                                                                                'RangeX',Args.RangeX,...
+                                                                                                'RangeY',Args.RangeY,...
+                                                                                                'StepX',Args.StepX,...
+                                                                                                'StepY',Args.StepY,...
+                                                                                                'Flip',Args.Flip,...
+                                                                                                'RefRangeMag',Args.RefRangeMag,...
+                                                                                                'SearchRadius',Args.SearchRadius,...
+                                                                                                'FilterSigma',Args.FilterSigma,...
+                                                                                                'KeyExpTime',Args.KeyExpTime,...
+                                                                                                'RefRangeMagExpTimeFun',Args.RefRangeMagExpTimeFun,...
+                                                                                                'astrometryCoreArgs',Args.astrometryCoreArgs,...
+                                                                                                'astrometryRefineArgs',Args.astrometryRefineArgs);
 
+
+        %
+    
         if Iai==1
             % Update CatName
             Args.CatName = CatName;

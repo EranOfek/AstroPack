@@ -10,6 +10,8 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     %            is required. The function whill look for the line in
     %            CCDSEC which is neareast to OtherCCDSEC with known WCS,
     %            and remap the OtherWCS to that of the selected CCDSEC.
+    %            Be careful CCDSEC should contains only CCDSEC that require
+    %            solution (i.e., have no solution yet!).
     %          - (OtherAW) An array of AstroWCS of other CCDSECs in the same image.
     %            Alternatively, an array of AstroImage object containing
     %            AstroWCS.
@@ -93,10 +95,11 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     end
 
     if isempty(Args.SucessAW)
-        Args.SucessAW = false(Naw,1);
-        for Iaw=1:1:Naw
-            Args.SucessAW(Iaw) = AW(Iaw).Success;
-        end
+        Args.SucessAW = [AW.Success];
+        %Args.SucessAW = false(Naw,1);
+        %for Iaw=1:1:Naw
+        %    Args.SucessAW(Iaw) = AW(Iaw).Success;
+        %end
     end
     IsucessAW = find(Args.SucessAW); % FS
 
@@ -105,12 +108,12 @@ function [Result, Iim, Iref] = remapWCS(CCDSEC, OtherAW, OtherCCDSEC, Args)
     [MinDist2,IndMin] = min(Dist2SubCenter,[],'all','linear');
     [MinI,MinJ]       = imUtil.image.ind2sub_fast(size(Dist2SubCenter), IndMin);
     %FS                = find(Sucess);   % FS
-    InotSucessAW      = find(~Args.SucessAW);  % FNS
+    %InotSucessAW      = find(~Args.SucessAW);  % FNS
     % index of image from which to take the WCS solution
     Iref    = IsucessAW(MinI); 
     % Index of image to solve
-    Iim     = InotSucessAW(MinJ);  % looks like a BUG
-    %Iim = MinJ;
+    %Iim     = InotSucessAW(MinJ);  % looks like a BUG
+    Iim = MinJ;
 
     % new copy of WCS 
     Result = AW(Iref).copy;

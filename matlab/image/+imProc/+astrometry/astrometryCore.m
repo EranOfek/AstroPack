@@ -332,7 +332,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     Nobj = numel(Obj);
     
     % allocate Result (same as astrometryRefine)
-    Result = imProc.astrometry.defResultFit(Nobj);
+    Result = imProc.astrometry.defResultFit([Nobj,1]);
     % Result = struct('ImageCenterXY',cell(Nobj,1),...
     %                 'Nsolutions',cell(Nobj,1),...
     %                 'ResPattern',cell(Nobj,1),...
@@ -431,6 +431,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
 
         if Result(Iobj).Nsolutions==0
             % no solution found
+            Result(Iobj).WCS = AstroWCS;
             Result(Iobj).WCS.Success = false;
             
         else

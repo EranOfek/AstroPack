@@ -303,7 +303,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     NastCat = numel(Args.CatName);
     
     % allocate Result (same as astrometryCore)
-    Result = imProc.astrometry.defResultFit(Nobj);
+    Result = imProc.astrometry.defResultFit([Nobj,1]);
     % Result = struct('ImageCenterXY',cell(Nobj,1),...
     %                 'Nsolutions',cell(Nobj,1),...
     %                 'ResPattern',cell(Nobj,1),...
@@ -492,6 +492,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
             if Nmatches<Args.MinNmatches
                 % bad 
+                Result(Iobj).WCS = AstroWCS;
                 Result(Iobj).Success = false;
             else
                 Result(Iobj).Success = true;
