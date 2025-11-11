@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 03/11/2025
+% Updated     : 11/11/2025
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
@@ -122,13 +122,11 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 if strcmp(Result, 'Yes')
                     app.duplicatePlan();
                 elseif strcmp(Result, 'No')
-                    app.setReadOnly(true);
+                    PlanData.planner.Editable = false;
                 else
                     obj.closePlan(app);
                     return;
                 end
-
-                %app.msglog(sprintf('doOpenPlan: Setting AstPlanner field of open plan: %s, %s', app.MainModule.Planner.AstPlanner, app.MainModule.UserName));
             end
 
             app.MainModule.setPlanData(PlanData);
@@ -185,7 +183,6 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
 
             obj.doClosePlan(app);
             app.clearModified();
-            app.setReadOnly(false);
             app.SessionHelper.setButtons(app);
         end
 

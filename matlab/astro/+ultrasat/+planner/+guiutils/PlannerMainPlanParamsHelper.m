@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlanParamsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 28/10/2025
+% Updated     : 11/11/2025
 % Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
@@ -73,7 +73,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             app.msglog('applyCheckTimes');
             Result = false;
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             app.showPleaseWait('Updating CheckTimes, this may take a while. Please wait...');
             AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, ParamsApp);            
@@ -240,10 +240,10 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
 
                 % Set editability of fields based on read-only status
-                if app.isReadOnly()
-                    app.PlanTitleEditField.Editable = "off";
-                else
+                if app.isEditable()
                     app.PlanTitleEditField.Editable = "on";
+                else
+                    app.PlanTitleEditField.Editable = "off";
                 end
 
                 % Show message if plan was already submitted and cannot be modified
@@ -371,7 +371,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             app.msglog(sprintf('setPlanStartEndTime: StartTimeValue=%s, EndTimeValue=%s', StartTimeValue, EndTimeValue));
             Result = false;
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, ParamsApp);            
             try

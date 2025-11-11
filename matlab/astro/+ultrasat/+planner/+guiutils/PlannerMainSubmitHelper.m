@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainSubmitHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Submit Helper for Main Planner
 %==========================================================================
 % @TODO - Check again code review especially for submi()
@@ -44,7 +44,7 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
             if ~app.hasPlanner(), return; end
 
             % Submit is not allowed when plan is read-only
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % Submit is not allowed when not logged-in
             if ~app.SessionHelper.isLogin(app, true), return; end
@@ -77,9 +77,6 @@ classdef PlannerMainSubmitHelper < ultrasat.api.Loggable
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');
                 app.addHistory('submit');
                 app.StorageHelper.savePlan(app);
-
-                % After submit the plan should become read-only.
-                app.setReadOnly(true);
             catch ME
                 app.msgex('submit', ME);
             end
