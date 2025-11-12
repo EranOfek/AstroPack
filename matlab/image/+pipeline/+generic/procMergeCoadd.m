@@ -307,11 +307,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                 Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
                 GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
                 GlobalMotion.StdX     = std(GlobalMotion.ResidX);
-                GlobalMotion.RateX    = Par(1)./SEC_DAY;
+                GlobalMotion.RateX    = Par(1)./SEC_DAY;       % pix/sec
                 Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
                 GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
                 GlobalMotion.StdY     = std(GlobalMotion.ResidY);
-                GlobalMotion.RateY    = Par(1)./SEC_DAY;
+                GlobalMotion.RateY    = Par(1)./SEC_DAY;  % pix/sec
 
                 Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
                 Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});

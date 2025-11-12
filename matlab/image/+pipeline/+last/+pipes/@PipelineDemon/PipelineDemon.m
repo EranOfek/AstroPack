@@ -2348,7 +2348,7 @@ classdef PipelineDemon < Component
             end
 
             % load images and check quality
-            pipeline.generic.readAndQualify
+            pipeline.generic.prePrep
             
             % basic calibration (bias, flat,...) 
             pipeline.generic.basicCalib
@@ -2358,20 +2358,27 @@ classdef PipelineDemon < Component
             % solve astrometry of all images
             imProc.astrometry.astrometryVisitSubImage
 
+            % forced photometry
+
             % match external
             pipeline.generic.matchExternal
 
             % photometric calibration
 
             % merge catalogs
+            pipeline.generic.proc2MatchedSources
 
             % save products
+            imProc.io.saveProductImage
+            NEEDED: 
 
             % coadd images
+            NEEDED updates: pipeline.generic.procCoadd
 
             % coadd: search stars
 
             % coadd: solve astrometry
+            imProc.astrometry.astrometryAllSubImage
 
             % coadd: match external
             pipeline.generic.matchExternal

@@ -58,7 +58,8 @@ function [Summary] = fwhm(Args)
                 Elon =  T.med_a./T.med_b;
 
                 Ilin = find(Args.CropIdVec(Icrop)==Args.CropMap(:));
-                [Y,X] = ind2sub(size(Args.CropMap),Ilin);
+                [Y,X] = ind2sub(size(Args.CropMap ...
+                    ),Ilin);
 
 
                 Summary.MedianTable(K,:) = [Args.MountNumVec(Imnt), Args.CamNumVec(Icam), Args.CropIdVec(Icrop),...
