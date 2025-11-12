@@ -2947,7 +2947,7 @@ classdef Scheduler < Component
                    sprintf("there are now %d targets",Obj.Ntarget));
                 % backup latest version of target list
                 if ~isempty(Args.SaveTargetList)
-                    Tbl = S.List.Table;
+                    Tbl = Obj.List.Table;
                     save('-v7.3',Args.SaveTargetList,'Tbl');
                 end
             end
