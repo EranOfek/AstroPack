@@ -275,3 +275,11 @@ Items:
         Size                 : 17219944
         SearchFile           : ''
         Description          : 'TopCat Stilts https://www.star.bris.ac.uk/~mbt/stilts/?utm_source=chatgpt.com'
+
+    SwiftXRTcaldb:
+        DataName             : 'SwiftXRTcaldb'
+        SubDir               : 'caldb/Swift/XRT'
+        URL                  : ['https://heasarc.gsfc.nasa.gov/FTP/caldb/data/swift/xrt/goodfiles_swift_xrt.tar.Z']
+        Size                 : 17219944
+        SearchFile           : ''
+        Description          : 'Swift-XRT CalDB: https://heasarc.gsfc.nasa.gov/docs/heasarc/caldb/swift/'
