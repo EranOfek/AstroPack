@@ -272,25 +272,37 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             %     'a'
             % end
             
-            error('Need to update - copy from procMergedCoadd')
+             if Args.UseShift
+                
+                if Args.UseInterp2
+                    RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+                                                                    Args.interp2affineArgs{:});
+                else
 
-            if isempty(Args.MatchedS)
-                Igood = find(FlagGood, 1, 'first');
 
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(Igood, Ifields).WCS,...
-                                                     'TransWCS',false,...
+                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                                                     'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
+                end
 
             else
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
-                                                     'TransWCS',false,...
+                % Use WCS:
+                if Args.UseInterp2
+                    RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+                                                                 Args.interp2wcsArgs{:});
+                else
+                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+                                                     'TransWCS',true,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
-
+                end
             end
+
+
 
             % use sigma clipping...
             % 1. NOTE that the mean image is returned so that the effective gain
@@ -302,6 +314,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
 
+
+            % In some cases the first image of the stack is rejected, so
+            % the 'DATEOBS' in the resulting Coadd may be not the same 
+            % in all the subimages. Here we correct it taking the date from the first Proc image:
+            Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
 
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
@@ -400,11 +417,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     end
     
     % match Coadd catalog against MergedCat
-    if ~isempty(Args.MergedCat)
-        [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, Args.MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
-    end
+    [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
     
-       
+    % adding known minor planets
+    % FFU
+    if Args.SelectKnownAsteroid
+        [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
+    else
+        OnlyMP = [];
+    end
 
 
 end
