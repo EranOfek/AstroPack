@@ -262,6 +262,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
 
         % Generate New and Ref filenames properly
+        FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
         NewName = FN.genFile;
         RefName = FNrref.genFile;
         

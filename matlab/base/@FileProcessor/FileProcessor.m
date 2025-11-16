@@ -1,3 +1,11 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : FileProcessor.m
+% Author      : Chen Tishler
+% Created     : 02/11/2021
+% Modified    : 04/11/2025
+% Description : 
+%==========================================================================
 
 classdef FileProcessor < Component
     % FileProcessor is file handling class designed for automated processing of files
@@ -146,7 +154,7 @@ classdef FileProcessor < Component
                 Args.MaxProcessTime = Inf;  % Default is to run indefinitely
             end
             
-            Obj.msgLog(LogLevel.Debug, 'inputLoop: %s', Obj.InputPath);                            
+            Obj.msgLog(LogLevel.Debug, 'inputLoop: %s', strrep(Obj.InputPath, '\', '\\'));                            
             startTime = tic;
             while true
                  % Check if the processing time has exceeded the maximum allowed time
@@ -172,13 +180,13 @@ classdef FileProcessor < Component
                             
                         % Process single file
                         FileName = fullfile(List(i).folder, FName);
-                        Obj.msgLog(LogLevel.Verbose, 'process: %s', FileName);
+                        Obj.msgLog(LogLevel.Verbose, 'process: %s', strrep(FileName, '\', '\\'));
                         
                         % This calls the derived function processFileImpl()
                         try
                             Obj.processFile(FileName);
                         catch Ex
-                            Obj.msgLog(LogLevel.Error, 'exception in processFile: %s', ProcessedFileName);
+                            Obj.msgLog(LogLevel.Error, 'exception in processFile: %s', strrep(ProcessedFileName, '\', '\\'));
                         end
                                            
                         % Move file to 'processed' folder
@@ -186,14 +194,14 @@ classdef FileProcessor < Component
                             if ~isempty(Obj.ProcessedPath)
                                 if isfile(FileName)
                                     ProcessedFileName = fullfile(Obj.ProcessedPath, FName);
-                                    Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', ProcessedFileName);                            
+                                    Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', strrep(ProcessedFileName, '\', '\\'));                            
                                     movefile(FileName, ProcessedFileName, 'f');                           
                                 end
                             else
                                 % Delete or rename to '~'...
                                 if Obj.DeleteProcessed
                                     if isfile(FileName)
-                                        Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                                                                    
+                                        Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', strrep(FileName, '\', '\\'));                                                                    
                                         delete(FileName);
                                     end
                                 else
@@ -204,14 +212,14 @@ classdef FileProcessor < Component
                                 end
                             end
                         catch Ex
-                            Obj.msgLog(LogLevel.Error, 'exception trying to move file: %s', ProcessedFileName);
+                            Obj.msgLog(LogLevel.Error, 'exception trying to move file: %s', strrep(ProcessedFileName, '\', '\\'));
                             try
                                 if isfile(FileName)
-                                    Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
+                                    Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', strrep(FileName, '\', '\\'));                            
                                     delete(FileName);                                
                                 end
                             catch Ex
-                                Obj.msgLog(LogLevel.Error, 'Failed to delete file: %s', FileName);                            
+                                Obj.msgLog(LogLevel.Error, 'Failed to delete file: %s', strrep(ProcessedFileName, '\', '\\'));                            
                             end
                         end
                     end
@@ -255,7 +263,7 @@ classdef FileProcessor < Component
         function processFile(Obj, FileName)
             % Process single input file, this is just a wrapper around the
             % derived processFileImpl() or callback ProcessFileFunc
-            Obj.msgLog(LogLevel.Verbose, 'Processing input file: %s', FileName);
+            Obj.msgLog(LogLevel.Verbose, 'Processing input file: %s', strrep(FileName, '\', '\\'));
             
             % Call handler in derived class
             try

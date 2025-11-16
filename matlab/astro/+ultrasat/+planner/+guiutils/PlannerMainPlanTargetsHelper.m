@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlanTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Plan Targets Helper for Main Planner
 %==========================================================================
 
@@ -41,7 +41,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             app.msglog('editPlanTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.Plan) == 0, return; end
 
             % Get index of selectred plan target
@@ -82,7 +82,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             app.msglog('deletePlanTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.Plan) == 0, return; end
 
             Index = app.UITablePlanTargets.Selection;
@@ -114,7 +114,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             app.msglog('clearPlanTargets');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.Plan) == 0, return; end
 
             % Ask user confirmation
@@ -136,7 +136,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
 
             app.msglog('adjustGroupStartTime');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.Plan) == 0, return; end
             
             % Create app
@@ -200,6 +200,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 app.UITablePlanTargets.SelectionType = "row";
                 app.UITablePlanTargets.Multiselect = "off";
                 app.UITablePlanTargets.RowName = "numbered";
+                app.UITablePlanTargets.ColumnSortable = true;
 
                 Data = app.MainModule.Planner.Plan;
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);

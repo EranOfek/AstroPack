@@ -213,6 +213,12 @@ classdef Installer < Component
                     io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
                     untar(F(I).name);
                 end
+                F = dir('*.tar.Z');
+                for I=1:1:numel(F)
+                    io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
+                    system('uncompress *.Z');
+                    untar(F(I).name);
+                end
                 F = dir('*.zip');
                 for I=1:1:numel(F)
                     io.msgLog(LogLevel.Info, 'unzip: %s in %s', F(I).name, pwd);
@@ -222,6 +228,7 @@ classdef Installer < Component
                         !rmdir specs_513_fits;
                     end
                 end
+
                 
                 % Delete original archives                
                 try

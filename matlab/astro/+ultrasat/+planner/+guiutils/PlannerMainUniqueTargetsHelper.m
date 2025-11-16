@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
@@ -41,7 +41,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Add Unique-Target with addUniqTargets()
             app.msglog('addUniqueTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % Create AddUniqueTargetApp
             if isempty(app.AddUniqueTargetApp) || ~isvalid(app.AddUniqueTargetApp)
@@ -78,7 +78,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Edit Unique-Target with editUniqTarg()
             app.msglog('editUniqueTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             try
                 % Get index of selected Unique Target
@@ -123,7 +123,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Delete Unique-Target with delUniqTarg()
             app.msglog('deleteUniqueTarget');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % Get index of selected Unique Target
             Index = app.UITableUniqueTargets.Selection;
@@ -165,7 +165,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % ask user for file name or paste the text.
             app.msglog('loadUniqueTargetsFromFile');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % Create app and set initial values from preferences
             if isempty(app.LoadUniqueTargetsFromFileApp) || ~isvalid(app.LoadUniqueTargetsFromFileApp)
@@ -271,7 +271,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % CLEAR ALL Unique-Targets with clearUniqueTargets()
             app.msglog('clearUniqueTargets');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.UniqTarg) == 0, return; end
 
             % Ask user to confirm, should we ask again???
@@ -305,6 +305,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             app.UITableUniqueTargets.SelectionType = "row";
             app.UITableUniqueTargets.Multiselect = "off";
             app.UITableUniqueTargets.RowName = "numbered";
+            app.UITableUniqueTargets.ColumnSortable = true;
 
             % Add 'Order' column
             Data = app.MainModule.Planner.UniqTarg;

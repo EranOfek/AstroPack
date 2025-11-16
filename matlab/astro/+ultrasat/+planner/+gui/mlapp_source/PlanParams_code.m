@@ -305,7 +305,7 @@ classdef PlanParams < matlab.apps.AppBase
 
         % Button pushed function: ValidationStatusButton
         function ValidationStatusButtonPushed(app, event)
-            app.MainModule.MainApp.SubmitHelper.showValidationStatusWindow(app.MainModule.MainApp);
+            app.MainModule.MainApp.ValidationHelper.showValidationStatusWindow(app.MainModule.MainApp);
         end
 
         % Button pushed function: ChangeButton
@@ -755,6 +755,7 @@ classdef PlanParams < matlab.apps.AppBase
             % Create ChangeConstantsButton
             app.ChangeConstantsButton = uibutton(app.ConstantMissionParametersPanel, 'push');
             app.ChangeConstantsButton.ButtonPushedFcn = createCallbackFcn(app, @ChangeConstantsButtonPushed, true);
+            app.ChangeConstantsButton.Tooltip = {'Click to enable editing these parameters.'};
             app.ChangeConstantsButton.Position = [302 113 85 27];
             app.ChangeConstantsButton.Text = 'Change';
 
@@ -806,6 +807,7 @@ classdef PlanParams < matlab.apps.AppBase
             app.CheckTimesUpdateButton.ButtonPushedFcn = createCallbackFcn(app, @CheckTimesUpdateButtonPushed, true);
             app.CheckTimesUpdateButton.FontWeight = 'bold';
             app.CheckTimesUpdateButton.Visible = 'off';
+            app.CheckTimesUpdateButton.Tooltip = {'Apply the Check times to the planner, this will trigger fetching Approved Targets from the server.'};
             app.CheckTimesUpdateButton.Position = [285 48 73 27];
             app.CheckTimesUpdateButton.Text = 'Update';
 
@@ -1012,6 +1014,7 @@ classdef PlanParams < matlab.apps.AppBase
             % Create ChangeButton
             app.ChangeButton = uibutton(app.GeneralPanel, 'push');
             app.ChangeButton.ButtonPushedFcn = createCallbackFcn(app, @ChangeButtonPushed, true);
+            app.ChangeButton.Tooltip = {'Click to enable modifying the plan type, use with care!'};
             app.ChangeButton.Position = [261 140 85 27];
             app.ChangeButton.Text = 'Change';
 

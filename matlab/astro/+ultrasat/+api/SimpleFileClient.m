@@ -364,7 +364,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 catch innerME
                     reqPreview = sprintf('[request preview error: %s]', innerME.message);
                 end
-                obj.msglog(sprintf('performPostRequest: POST %s → %s | Request preview: %s', ...
+                obj.msglog(sprintf('performPostRequest: POST %s -> %s | Request preview: %s', ...
                     endpoint, fullUrl, reqPreview));
 
                 % --- Build and send request ---

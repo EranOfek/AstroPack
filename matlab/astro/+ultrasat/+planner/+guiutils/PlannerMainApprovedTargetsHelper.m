@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
@@ -42,7 +42,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             % User must be connected to server and logged-in
             app.msglog('retrieveApprovedTargets');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
 
             % If build has been already executed, make sure that user is
             % aware of the meaning of this operation
@@ -72,7 +72,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
             % Do nothing if Planner is not available
             app.msglog('clearApprovedTargets');
             if ~app.hasPlanner(), return; end
-            if app.isReadOnlyMsg(), return; end
+            if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.MissionApprovedPlan) == 0, return; end
 
             % Ask user confirmation
@@ -112,6 +112,7 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
                 app.UITableApprovedTargets.SelectionType = "row";
                 app.UITableApprovedTargets.Multiselect = "off";
                 app.UITableApprovedTargets.RowName = "numbered";
+                app.UITableApprovedTargets.ColumnSortable = true;
 
                 % Set table data from Planner
                 Data = app.MainModule.Planner.MissionApprovedPlan;

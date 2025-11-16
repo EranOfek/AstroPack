@@ -136,7 +136,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         end
         [Nim, NprodGiven] = size(FileName);
         if Nprod~=NprodGiven
-            error('INput FileName contains only %d columns, while %d products were requested', NprodGiven, Nprod);
+            error('Input FileName contains only %d columns, while %d products were requested', NprodGiven, Nprod);
         end
         FileType = Args.FileType;
         PathList = Args.Path;

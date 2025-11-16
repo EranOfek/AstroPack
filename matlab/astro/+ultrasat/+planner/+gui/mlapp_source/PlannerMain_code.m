@@ -147,7 +147,7 @@ classdef PlannerMain < matlab.apps.AppBase
         UITableUniqueTargets            matlab.ui.control.Table
         PanelToolbar                    matlab.ui.container.Panel
         HelpButton                      matlab.ui.control.Button
-        QACommentsButton                matlab.ui.control.Button
+        QAButton                        matlab.ui.control.Button
         RetractButton                   matlab.ui.control.Button
         DuplicateButton                 matlab.ui.control.Button
         ModifiedLabel                   matlab.ui.control.Label
@@ -210,8 +210,6 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % =================================================================
         % Data
-        AllowEdit                               % = ~ReadOnly
-        AllowEditMsg = 'Cannot edit plan with status submitted'
         Preferences                             % Refrence to app.MainModule.Preferences
         UniqueTargetCalibObj                    % Table returned by Planner.showCalibObj()        
         StartupNamespaceId                      %
@@ -232,6 +230,7 @@ classdef PlannerMain < matlab.apps.AppBase
         StatusHelper                            % PlannerMainStatusHelper
         StorageHelper                           % PlannerMainStorageHelper                
         SubmitHelper                            % PlannerMainSubmitHelper
+        ValidationHelper                        % PlannerMainValidationHelper        
         UniqueTargetsHelper                     % PlannerMainUniqueTargetsHelper                       
     end
 
@@ -244,6 +243,10 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create MainModule that holds all common data
             app.UIFigure.Name = 'ULTRASAT Observation Planner';
+
+            % 
+            app.checkMatlabVersion();
+            app.checkSocPath();
 
             % Create MainModule that holds all common data and link objects
             app.MainModule = ultrasat.planner.guiutils.MainModule(app.StartupNamespaceId);
@@ -284,6 +287,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StatusHelper            = ultrasat.planner.guiutils.PlannerMainStatusHelper();                        
             app.PlotHelper              = ultrasat.planner.guiutils.PlannerMainPlotHelper();
             app.SubmitHelper            = ultrasat.planner.guiutils.PlannerMainSubmitHelper();                        
+            app.ValidationHelper        = ultrasat.planner.guiutils.PlannerMainValidationHelper();
             app.UniqueTargetsHelper     = ultrasat.planner.guiutils.PlannerMainUniqueTargetsHelper();
 
             % Create one second timer
@@ -295,6 +299,39 @@ classdef PlannerMain < matlab.apps.AppBase
             app.SessionHelper.setButtons(app);
 
             app.msglog('init done');
+        end
+
+
+        function checkMatlabVersion(app)
+            % Required version
+            v = ver('MATLAB');            
+            isOK = strcmp(v.Release, '(R2023a)');
+        
+            if ~isOK
+                % Blocking popup
+                uialert(app.UIFigure, sprintf(['This ULTRASAT Planner has only been tested with MATLAB R2023a.\n' ...
+                             'Your version is: %s\n\n' ...
+                             'Please use MATLAB R2023a for guaranteed compatibility.'], v.Release), ...
+                             'MATLAB Version Not Supported');
+            end
+        end
+
+
+        function checkSocPath(app)
+            % Set default SOC_PATH if not exist
+            soc_path = getenv('SOC_PATH');
+            if ~isempty(soc_path)
+                fprintf('PlannerMain: SOC_PATH = %s\n', soc_path);
+            else
+                if ispc
+                    soc_path = 'c:/soc';
+                else
+                    soc_path = '~/soc';
+                end
+                setenv('SOC_PATH', soc_path);
+                uialert(app.UIFigure, sprintf('SOC_PATH not found in env, setting to default: %s\n', soc_path), ...
+                    'SOC_PATH not found in env');
+            end               
         end
 
 
@@ -361,7 +398,8 @@ classdef PlannerMain < matlab.apps.AppBase
 
         function showGDriveQA(app)
             % Open website in browser window, use system default browser (-browser)
-            web('https://docs.google.com/document/d/1iXs3Z5SHNnA8vUEf557DT3qIo9_rqELBp_WYg2vrYi0/edit?usp=sharing', '-browser');
+            web('https://docs.google.com/document/d/1rq6T1yOe_HB_Exww29YYcbgDvO3x1dg1gQCQtCrk9Y8/edit?usp=sharing', '-browser');
+            % web('https://docs.google.com/document/d/1iXs3Z5SHNnA8vUEf557DT3qIo9_rqELBp_WYg2vrYi0/edit?usp=sharing', '-browser');
         end        
 
         function showSnrCalculator(app)
@@ -378,12 +416,12 @@ classdef PlannerMain < matlab.apps.AppBase
 
         function validate(app)
             % Validate plan by sending it to the Validation service
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end        
 
         function updateValidateStatus(app)
             % Update the validation status field
-            app.SubmitHelper.updateValidateStatus(app);
+            app.ValidationHelper.updateValidateStatus(app);
         end
 
         function submit(app)
@@ -404,43 +442,35 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StatusHelper.applyPlanStatus(app);
         end
 
-        function setReadOnly(app, ReadOnly)
-            % Helper: Setc/clear read-only status of the current plan
-            app.StatusHelper.setReadOnly(app, ReadOnly);
+        function setEditable(app, Editable)
+            app.StatusHelper.setEditable(app, Editable);
         end
 
-        function Result = isReadOnly(app)
-            % Helper: Return true if currently in read-only mode
-            Result = app.StatusHelper.isReadOnly(app);
+        function Result = isEditable(app)
+            Result = app.StatusHelper.isEditable(app);
         end
         
-        function Result = isReadOnlyMsg(app)
-            % Helper: Return true if currently in read-only mode, show popup message
-            Result = app.StatusHelper.isReadOnlyMsg(app);
+        function Result = isEditableMsg(app)
+            Result = app.StatusHelper.isEditableMsg(app);
         end        
 
         function setModified(app, logText)
-            % Helper: Mark the plan as modified (i.e. required to be saved/discarded)
             app.StatusHelper.setModified(app, logText);
         end
 
         function clearModified(app)
-            % Helper: Clear the Modified flag and status
             app.StatusHelper.clearModified(app);
         end
 
         function Result = needSave(app, AskSave)
-            % Helper: Check if current plan has been modified and need to be saved
             Result = app.StatusHelper.needSave(app, AskSave);
         end
 
         function setStatus(app, Status, Text)
-            % Helper: Update the status panel with new status
             app.StatusHelper.setStatus(app, Status, Text);
         end
 
         function setStatusEx(app, Title, ME)
-            % Helper: Update the status panel with exception message
             app.StatusHelper.setStatusEx(app, Title, ME);
         end
 
@@ -449,13 +479,10 @@ classdef PlannerMain < matlab.apps.AppBase
         end
 
         function setStatusField(app, EditField, Status, StatusText)
-            % Helper: Set the background color of the EditField based on the Status value.
-            % Valid values for Status: OK, Warning, Error, (empty)
             app.StatusHelper.setStatusField(app, EditField, Status, StatusText);
         end
 
         function setTopLabel(app, Text, FontColor, BackgroundColor)
-            % Helper: Set text and colors of LabelTopStatus (located just below the main toolbar)
             app.StatusHelper.setTopLabel(app, Text, FontColor, BackgroundColor);
         end        
     end
@@ -645,7 +672,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Callback function
         function ValidateMenuSelected(app, event)
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end
 
         % Callback function
@@ -814,7 +841,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: ValidateButton
         function ValidateButtonPushed(app, event)
-            app.SubmitHelper.validate(app);
+            app.ValidationHelper.validate(app);
         end
 
         % Button pushed function: SubmitButton
@@ -960,7 +987,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: ValidationStatusButton
         function ValidationStatusButtonPushed(app, event)
-            app.SubmitHelper.showValidationStatusWindow(app);
+            app.ValidationHelper.showValidationStatusWindow(app);
         end
 
         % Button pushed function: SubmitStatusButton
@@ -1038,8 +1065,8 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlanTargetsHelper.deletePlanTarget(app);
         end
 
-        % Button pushed function: QACommentsButton
-        function QACommentsButtonPushed(app, event)
+        % Button pushed function: QAButton
+        function QAButtonPushed(app, event)
             app.showGDriveQA();
         end
 
@@ -1481,14 +1508,15 @@ classdef PlannerMain < matlab.apps.AppBase
             app.RetractButton.Position = [751 8 85 30];
             app.RetractButton.Text = 'Retract !!!';
 
-            % Create QACommentsButton
-            app.QACommentsButton = uibutton(app.PanelToolbar, 'push');
-            app.QACommentsButton.ButtonPushedFcn = createCallbackFcn(app, @QACommentsButtonPushed, true);
-            app.QACommentsButton.BackgroundColor = [0.9804 0.5882 0.9804];
-            app.QACommentsButton.FontWeight = 'bold';
-            app.QACommentsButton.Tooltip = {'Open SNR Calculator web application in browser window'};
-            app.QACommentsButton.Position = [1357 4 73 35];
-            app.QACommentsButton.Text = {'QA '; 'Comments'};
+            % Create QAButton
+            app.QAButton = uibutton(app.PanelToolbar, 'push');
+            app.QAButton.ButtonPushedFcn = createCallbackFcn(app, @QAButtonPushed, true);
+            app.QAButton.BackgroundColor = [0.0588 1 1];
+            app.QAButton.FontSize = 16;
+            app.QAButton.FontWeight = 'bold';
+            app.QAButton.Tooltip = {'Open SNR Calculator web application in browser window'};
+            app.QAButton.Position = [1356 8 73 29];
+            app.QAButton.Text = 'QA ';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.PanelToolbar, 'push');
@@ -2115,10 +2143,11 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LabelTopStatus = uilabel(app.PanelTopHeader);
             app.LabelTopStatus.BackgroundColor = [1 1 0.0667];
             app.LabelTopStatus.HorizontalAlignment = 'center';
+            app.LabelTopStatus.FontSize = 16;
             app.LabelTopStatus.FontWeight = 'bold';
             app.LabelTopStatus.FontColor = [0 0 1];
             app.LabelTopStatus.Visible = 'off';
-            app.LabelTopStatus.Position = [344 8 498 22];
+            app.LabelTopStatus.Position = [344 3 498 30];
             app.LabelTopStatus.Text = 'The plan was submitted and cannot be modified.';
 
             % Create LabelTopNamespace
@@ -2156,7 +2185,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ConnectionStatusEditField.Editable = 'off';
             app.ConnectionStatusEditField.HorizontalAlignment = 'center';
             app.ConnectionStatusEditField.FontWeight = 'bold';
-            app.ConnectionStatusEditField.BackgroundColor = [0 1 1];
+            app.ConnectionStatusEditField.BackgroundColor = [0.8 0.8 0.8];
             app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
             app.ConnectionStatusEditField.Position = [906 3 124 29];
             app.ConnectionStatusEditField.Value = 'Backend JSON';

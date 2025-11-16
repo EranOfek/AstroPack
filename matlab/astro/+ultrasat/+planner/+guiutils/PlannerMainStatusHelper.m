@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStatusHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 11/11/2025
 % Description : Status Helper for Main Planner (Update, Clear, etc.)
 %==========================================================================
 
@@ -54,25 +54,20 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
         end
 
 
-        function setReadOnly(obj, app, ReadOnly)
-            % Set/clear read-only status of the current plan
-            app.AllowEdit = ~ReadOnly;
+        function Result = isEditable(obj, app)
+            % Return true if plan can be modified
+
+            Result = ~isempty(app.MainModule.Planner) && app.MainModule.Planner.isEditable();
         end
 
 
-        function Result = isReadOnly(obj, app)
-            % Return true if currently in read-only mode
-
-            Result = ~app.AllowEdit;
-        end
-
-
-        function Result = isReadOnlyMsg(obj, app)
+        function Result = isEditableMsg(obj, app)
             % Return true if currently in read-only mode, show popup message
 
-            Result = ~app.AllowEdit;
-            if Result
-                uialert(app.UIFigure, sprintf('Plan is read-only: %s', app.AllowEditMsg), 'Message', 'Icon', 'warning');
+            Result = obj.isEditable(app);
+            if ~Result
+			    Msg = 'Cannot edit plan with status submitted';
+                uialert(app.UIFigure, sprintf('Plan is read-only: %s', Msg), 'Message', 'Icon', 'warning');
             end
         end
 

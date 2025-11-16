@@ -78,24 +78,24 @@ classdef MsgBox < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 479 351];
+            app.UIFigure.Position = [100 100 829 347];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel
             app.Panel = uipanel(app.UIFigure);
             app.Panel.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel.Position = [17 14 452 57];
+            app.Panel.Position = [17 10 803 57];
 
             % Create CloseButton
             app.CloseButton = uibutton(app.Panel, 'push');
             app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
-            app.CloseButton.Position = [183 9 85 39];
+            app.CloseButton.Position = [358 9 85 39];
             app.CloseButton.Text = 'Close';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BackgroundColor = [0.7176 0.2745 1];
-            app.Panel_2.Position = [9 307 460 37];
+            app.Panel_2.Position = [9 303 811 37];
 
             % Create TitleLabel
             app.TitleLabel = uilabel(app.Panel_2);
@@ -103,20 +103,21 @@ classdef MsgBox < matlab.apps.AppBase
             app.TitleLabel.FontSize = 18;
             app.TitleLabel.FontWeight = 'bold';
             app.TitleLabel.FontColor = [1 1 1];
-            app.TitleLabel.Position = [7 1 453 33];
+            app.TitleLabel.Position = [7 1 805 33];
             app.TitleLabel.Text = 'Title';
 
             % Create TextAreaLabel
             app.TextAreaLabel = uilabel(app.UIFigure);
             app.TextAreaLabel.HorizontalAlignment = 'right';
-            app.TextAreaLabel.Position = [41 266 25 22];
+            app.TextAreaLabel.FontSize = 16;
+            app.TextAreaLabel.Position = [41 262 25 22];
             app.TextAreaLabel.Text = '';
 
             % Create TextArea
             app.TextArea = uitextarea(app.UIFigure);
             app.TextArea.Editable = 'off';
-            app.TextArea.FontSize = 18;
-            app.TextArea.Position = [16 82 453 208];
+            app.TextArea.FontSize = 16;
+            app.TextArea.Position = [16 78 804 208];
             app.TextArea.Value = {'Message'};
 
             % Show the figure after all components are created
