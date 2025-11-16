@@ -2370,7 +2370,7 @@ classdef PipelineDemon < Component
 
             % save products
             imProc.io.saveProductImage
-            NEEDED: 
+            imProc.io.saveProductMatchedSources
 
             % coadd images
             NEEDED updates: pipeline.generic.procCoadd
@@ -2386,6 +2386,7 @@ classdef PipelineDemon < Component
             % coadd: photometric calibration
 
             % save products
+            imProc.io.saveProductImage
 
             % write status
             

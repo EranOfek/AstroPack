@@ -1,10 +1,13 @@
 function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Fit polar align axis shift to tracking errors (drift method).
+    % Input  : - HA [deg]
+    %          - Dec [deg]
+    %          - RA tracking error drift [deg/day]
+    %          - Dec tracking error drift [deg/day]
     %          * ...,key,val,... 
-    % Output : - 
+    %            See code for options.
+    % Output : - A structure array with solution per iteration.
+    %            The last entry is for the best high resolution fit.
     % Author : Eran Ofek (2025 Nov) 
     % Example: R=celestial.polarAlign.polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta);
     %          I=1;surface(R(I).DAz, R(I).DAlt, log10(R(I).Chi2)'); shading interp; colorbar

@@ -1,10 +1,9 @@
 function [Summary,PerMnt] = polarAlignStatus(Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
-    %          * ...,key,val,... 
-    % Output : - 
+    % Fit polar alignment shift to drift data collected during LAST visits.
+    % Input  : * ...,key,val,...
+    %            See code for options.
+    % Output : - Summary poer camera
+    %          - Summary per mount [Mny, DeltaAz, DeltaAlt]
     % Author : Eran Ofek (2025 Nov) 
     % Example: [S,PerMnt]=pipeline.last.quality.polarAlignStatus('DB',DB);
 
@@ -15,11 +14,12 @@ function [Summary,PerMnt] = polarAlignStatus(Args)
         Args.MountNumVec       = (1:10);   % mounts to check
         Args.CamNumVec         = (1:4);    % cam to check
         Args.CropIdVec         = (1:24);
-        Args.MaxFWHM           = 5;
-        Args.MaxAirmass        = 3;
+        Args.MaxFWHM           = 4;
+        Args.MaxAirmass        = 1.5;
         Args.RangeJD           = [celestial.time.julday([1 6 2025]), celestial.time.julday([1 10 2025])];   % JD range to check
         
     end
+
     ARCSEC_DEG = 3600;
 
     if isempty(Args.DB)
@@ -34,7 +34,7 @@ function [Summary,PerMnt] = polarAlignStatus(Args)
     Nmnt = numel(Args.MountNumVec);
     Ncam = numel(Args.CamNumVec);
 
-    ColNames = {'mountnum','camnum','BestDAz','BestDAlt'};
+    ColNames = {'mountnum','camnum','BestDAz','BestDAlt', 'MedianAbsGM_Alpha','MedianAbsGM_Delta'};
     %[CellEmpty{1:numel(ColNames)}]=deal([]);
     %Summary.MedianTable = table(CellEmpty{:}, 'VariableNames',ColNames);
     Summary = zeros(Nmnt.*Ncam, numel(ColNames));
@@ -51,7 +51,7 @@ function [Summary,PerMnt] = polarAlignStatus(Args)
             RateDelta = T.gm_ratey.*Args.Scale.*86400./3600;
 
             R=celestial.polarAlign.polarAlign_fitDrift(T.m_ha, T.m_dec, RateAlpha, RateDelta);
-            Summary(K,:) = [Args.MountNumVec(Imnt), Args.CamNumVec(Icam), R(end).BestDAz, R(end).BestDAlt];
+            Summary(K,:) = [Args.MountNumVec(Imnt), Args.CamNumVec(Icam), R(end).BestDAz, R(end).BestDAlt, median(RateAlpha,1,'omitnan'), median(RateDelta,1,'omitnan')];
             
         end
 
