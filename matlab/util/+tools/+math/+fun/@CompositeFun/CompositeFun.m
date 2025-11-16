@@ -1,7 +1,7 @@
 classdef CompositeFun < handle
     % CompositeFun - Composite function framework for transmission calculations
-    % This class provides a unified interface for combining multiple transmission
-    % functions (ozone, aerosol, Rayleigh, etc.) with parameter mapping and optimization support.
+    % This class provides a unified interface for combining multiple functions 
+    % with parameter mapping and optimization support.
     %
     % Example - Basic Setup:
     %   % Create composite function
@@ -863,18 +863,18 @@ classdef CompositeFun < handle
             % Author : D. Kovaleva (Oct 2025)
 
             if nargin < 3
-                AllPars = [];
+                AllPar = [];
             end
 
-            % Validate AllPars size if provided
-            if ~isempty(AllPars)
+            % Validate AllPar size if provided
+            if ~isempty(AllPar)
                 ExpectedSize = Obj.numAllPar();
-                if size(AllPars, 2) ~= ExpectedSize
-                    error('CompositeFun:evaluate:AllParsSizeMismatch', ...
-                          'AllPars has %d columns but %d expected', ...
-                          size(AllPars, 2), ExpectedSize);
+                if size(AllPar, 2) ~= ExpectedSize
+                    error('CompositeFun:evaluate:AllParSizeMismatch', ...
+                          'AllPar has %d columns but %d expected', ...
+                          size(AllPar, 2), ExpectedSize);
                 end
-                NumParamSets = size(AllPars, 1);
+                NumParamSets = size(AllPar, 1);
             else
                 NumParamSets = 1;
             end
@@ -892,12 +892,12 @@ classdef CompositeFun < handle
                             Y = Y .* repmat(Obj.Funs(Ifun).PreCalc(:), 1, NumParamSets);
                         else
                             % Build parameter matrix for this function
-                            if ~isempty(AllPars)
-                                % Extract parameters for this function from AllPars matrix
+                            if ~isempty(AllPar)
+                                % Extract parameters for this function from AllPar matrix
                                 ParMatrix = zeros(NumParamSets, length(Obj.Funs(Ifun).Par));
                                 for Ipar = 1:length(Obj.Funs(Ifun).Par)
                                     AllIndex = Obj.Funs(Ifun).ArgMapping(Ipar);
-                                    ParMatrix(:, Ipar) = AllPars(:, AllIndex);
+                                    ParMatrix(:, Ipar) = AllPar(:, AllIndex);
                                 end
                             else
                                 % Use stored parameter values - single parameter set

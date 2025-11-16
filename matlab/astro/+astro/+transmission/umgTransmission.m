@@ -21,7 +21,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     %          Lambda = linspace(300, 1100, 401)';
     %          ParamMatrix = [45, 15, 1013; 60, 25, 950; 30, 5, 1020];  % Multiple parameter sets
     %          Result = astro.transmission.umgTransmission(Lambda, ParamMatrix);
-    %          AbsData = astro.transmission.loadAbsorptionInterpolants();
+    %          AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
     %          Result = astro.transmission.umgTransmission(Lambda, ParamMatrix, 'AbsorptionData', AbsData);
     %
     %          % Get parameter information:
@@ -96,7 +96,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
 
     % Create or validate AbsorptionData object
     if isempty(Args.AbsorptionData)
-        Args.AbsorptionData = astro.transmission.loadAbsorptionInterpolants();
+        Args.AbsorptionData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
     end
 
     % Initialize result matrix
@@ -151,7 +151,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     
         % =========================================================================
         % UNIFORMLY MIXED GASES PROCESSING
-        % Using interpolants from loadAbsorptionInterpolants
+        % Using interpolants from loadAbsorptionInterpolantsSMARTS
         % =========================================================================
 
         % 1. Oxygen (O2)
