@@ -118,7 +118,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
             CheckStatus = false;
             try
                 % Perform the check
-                [CheckStatus, BadPlanRow] = app.MainModule.Planner.planSelfConsistencyCheck();
+                [CheckStatus, BadPlanRow, BadPlanRowIndex, Message] = app.MainModule.Planner.planSelfConsistencyCheck();
 
                 % Update display with status
                 if CheckStatus
@@ -126,8 +126,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                     app.AppUtils.msgOk('Self consistency check passed OK.');
                     Result = true;
                 else
-                    app.MainModule.setStatus('Error', 'self consistency: issues found, BadPlanRow=%d', BadPlanRow);
-                    app.AppUtils.msgError(sprintf('Self consistency check failed, row: %d.', BadPlanRow));
+                    app.MainModule.setStatus('Error', sprintf('self consistency: issues found, BadPlanRow: %d, Message: %s', BadPlanRowIndex, Message));
+                    app.AppUtils.msgError(sprintf('Self consistency check failed, BadPlanRow: %d, Message: %s', BadPlanRowIndex, Message));
                 end
             catch ME
                 app.msgex('planSelfConsistencyCheck failed', ME);

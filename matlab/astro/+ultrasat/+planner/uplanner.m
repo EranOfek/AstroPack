@@ -1121,7 +1121,7 @@ classdef uplanner < Component
             Obj.RetrivedMissionTime = datetime([],[],[]);
         end    
         %
-        function [CheckStatus,badPlanRow] = planSelfConsistencyCheck(Obj,Args)
+        function [CheckStatus,badPlanRow,badPlanRowIndex,Message] = planSelfConsistencyCheck(Obj,Args)
             % Verify that the plan schedule is self consistent
             arguments
                 Obj
@@ -1131,6 +1131,8 @@ classdef uplanner < Component
             % Initialize outputs
             CheckStatus = false;
             badPlanRow = [];
+            badPlanRowIndex = 0;
+            Message = '';
 
             % Plan is empty, nothing to check
             if isempty(Obj.Plan)                
@@ -1142,9 +1144,11 @@ classdef uplanner < Component
             
             % Validate that Obj.Start time and the first start time in the plan agree
             if abs(Obj.StartTime-tmpPlan.Tstart(1))>Args.timingPrecision
-                fprintf('Bad Start Time of Entire Object\n');
+                Message = 'Bad Start Time of Entire Object';
+                fprintf('%s\n', Message);
                 CheckStatus = false;
                 badPlanRow = tmpPlan(1,:);
+                badPlanRowIndex = 1;
                 return
             end
             
@@ -1158,10 +1162,11 @@ classdef uplanner < Component
                     tmpTstart = currTend + tmpSlewTimeBefore;                    
  
                     if (tmpPlan.Tstart(Plan_row)-tmpTstart)<-Args.timingPrecision
-
-                        fprintf('Bad timing between rows\n');
+                        Message = 'Bad timing between rows';
+                        fprintf('%s\n', Message);
                         CheckStatus = false;
                         badPlanRow = tmpPlan(Plan_row,:);
+                        badPlanRowIndex = Plan_row;
                         return               
                     end                    
                 end
@@ -1177,9 +1182,11 @@ classdef uplanner < Component
                    abs(tmpPlan.JDstart(Plan_row)-tmpJDstart)>seconds(Args.timingPrecision)/3600/24  || ...
                    abs(tmpPlan.JDend(Plan_row)-tmpJDend)>seconds(Args.timingPrecision)/3600/24
                     
-                    fprintf('Bad timing within row\n');
+                    Message = 'Bad timing within row';
+                    fprintf('%s\n', Message);
                     CheckStatus = false;
                     badPlanRow = tmpPlan(Plan_row,:);
+                    badPlanRowIndex = Plan_row;
                     return               
                 end
 
@@ -1188,14 +1195,17 @@ classdef uplanner < Component
             
             % Validate that Obj.Start time and the first start time in the plan agree
             if abs(Obj.EndTime-currTend)>Args.timingPrecision
-                fprintf('Bad End Time of Entire Object\n');
+                Message = 'Bad End Time of Entire Object';
+                fprintf('%s\n', Message);
                 CheckStatus = false;
                 badPlanRow = tmpPlan(end,:);
+                badPlanRowIndex = height(tmpPlan);
                 return
             end            
             
             CheckStatus = true;
             badPlanRow = [];
+            badPlanRowIndex = 0;
         end
         %
         function adjustGroupStartTime(Obj,Args)
