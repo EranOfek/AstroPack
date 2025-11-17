@@ -1,5 +1,5 @@
 function ModelPars = fitTransmissionPars(ModelPars, ObsData, StepNum, Args)
-    % fit model parameters parameters to data 
+    % fit model parameters to data 
     %     Optional detailed description
     % Input  : - 
     %          - 

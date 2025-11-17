@@ -1,0 +1,253 @@
+# LAST Absolute Photometric Calibration Configuration
+# Transmission-based calibration using Gaia XP spectra
+# Default values from transmissionFast.inputConfig()
+# Reference: Garrappa et al. 2025, A&A 699, A50
+
+# Transmission function components (added to CompositeFun in this order)
+# All FitPar initially false - optimization stages control fitting
+TransmissionFunctions:
+
+    - name: Normalization
+      handle: '@(Lambda, Norm) Norm * ones(size(Lambda))'
+      handletype: anonymous
+      params:
+          - 0.3
+      paraminfo:
+          - name: Norm
+            description: 'Normalization factor'
+            min: 0.01
+            max: 10.0
+
+    - name: Rayleigh
+      handle: '@astro.transmission.rayleighTransmission'
+      handletype: named
+      params:
+          - 30.0
+          - 965
+      paraminfo:
+          - name: ZenithAngle_deg
+            description: 'Zenith angle [deg]'
+            min: 0
+            max: 90
+          - name: Pressure_mbar
+            description: 'Atmospheric pressure [mbar]'
+            min: 500
+            max: 1100
+
+    - name: Water
+      handle: '@astro.transmission.waterTransmission'
+      handletype: named
+      params:
+          - 30.0
+          - 1.0
+          - 965
+      paraminfo:
+          - name: ZenithAngle_deg
+            description: 'Zenith angle [deg]'
+            min: 0
+            max: 90
+          - name: PWV_cm
+            description: 'Precipitable water vapor [cm]'
+            min: 0.1
+            max: 10.0
+          - name: Pressure_mbar
+            description: 'Atmospheric pressure [mbar]'
+            min: 500
+            max: 1100
+
+    - name: Aerosol
+      handle: '@astro.transmission.aerosolTransmission'
+      handletype: named
+      params:
+          - 30.0
+          - 0.084
+          - 0.6
+      paraminfo:
+          - name: ZenithAngle_deg
+            description: 'Zenith angle [deg]'
+            min: 0
+            max: 90
+          - name: TauAod500
+            description: 'AOD at 500 nm'
+            min: 0.01
+            max: 1.0
+          - name: AngstromExp
+            description: 'Angstrom exponent'
+            min: 0.0001
+            max: 5.0
+
+    - name: QE
+      handle: '@telescope.detector.qeSkewedGaussianLAST'
+      handletype: named
+      params:
+          - 328.1936
+          - 570.973
+          - 139.77
+          - -0.1517
+      paraminfo:
+          - name: Amplitude
+            description: 'QE amplitude'
+            min: 0.0
+            max: 1000.0
+          - name: Center_nm
+            description: 'QE center wavelength [nm]'
+            min: 400
+            max: 700
+          - name: Sigma_nm
+            description: 'QE width [nm]'
+            min: 50
+            max: 300
+          - name: Gamma
+            description: 'Skewness parameter'
+            min: -5.0
+            max: 5.0
+
+    - name: QELegendre
+      handle: '@telescope.detector.qeLegendreLAST'
+      handletype: named
+      params:
+          - 1
+      paraminfo:
+          - name: unusedParam
+            description: 'Unused parameter'
+            min: 0
+            max: 2
+
+    - name: MirrorTransmission
+      handle: '@telescope.optics.mirrorReflectanceLAST'
+      handletype: named
+      params:
+          - 1
+      paraminfo:
+          - name: unusedParam
+            description: 'Unused parameter'
+            min: 0
+            max: 2
+
+    - name: CorrectorTransmission
+      handle: '@telescope.optics.correctorTransmissionLAST'
+      handletype: named
+      params:
+          - 1
+      paraminfo:
+          - name: unusedParam
+            description: 'Unused parameter'
+            min: 0
+            max: 2
+
+# Field correction parameters (spatial, not wavelength-dependent)
+# Applied additively in magnitude space after flux integration
+FieldCorrectionParams:
+    values:
+        - 0.0  # kx0
+        - 0.0  # kx
+        - 0.0  # kx2
+        - 0.0  # kx3
+        - 0.0  # kx4
+        - 0.0  # ky
+        - 0.0  # ky2
+        - 0.0  # ky3
+        - 0.0  # ky4
+        - 0.0  # kxy
+    paraminfo:
+        - name: kx0
+          description: 'X constant term'
+          min: -10.0
+          max: 10.0
+        - name: kx
+          description: 'X linear term'
+          min: -10.0
+          max: 10.0
+        - name: kx2
+          description: 'X quadratic term'
+          min: -10.0
+          max: 10.0
+        - name: kx3
+          description: 'X cubic term'
+          min: -10.0
+          max: 10.0
+        - name: kx4
+          description: 'X quartic term'
+          min: -10.0
+          max: 10.0
+        - name: ky
+          description: 'Y linear term'
+          min: -10.0
+          max: 10.0
+        - name: ky2
+          description: 'Y quadratic term'
+          min: -10.0
+          max: 10.0
+        - name: ky3
+          description: 'Y cubic term'
+          min: -10.0
+          max: 10.0
+        - name: ky4
+          description: 'Y quartic term'
+          min: -10.0
+          max: 10.0
+        - name: kxy
+          description: 'XY cross term'
+          min: -10.0
+          max: 10.0
+
+# Optimization sequence (5 stages - Adapted/Advanced profile from inputConfig)
+OptimizationSequence:
+
+    - stagename: NormOnly_Initial
+      method: nonlinear
+      freeparams: [[Normalization, Norm]]
+      sigmaclip: true
+      sigmathresh: 3.0
+      sigmaiter: 3
+      description: Initial normalization with outlier removal
+
+    - stagename: NormAndCenter
+      method: nonlinear
+      freeparams: [[Normalization, Norm], [QE, Center_nm]]
+      sigmaclip: true
+      sigmathresh: 3.0
+      sigmaiter: 3
+      description: Optimize normalization and QE center
+
+    - stagename: FieldCorrection_Adapted
+      method: linear
+      freeparams: []  # Empty - optimizes all 10 field correction parameters
+      sigmaclip: true
+      sigmathresh: 2.0
+      sigmaiter: 3
+      regularization: 1.0e-6
+      description: Field corrections using linear least squares
+
+    - stagename: Normalization_Refined
+      method: nonlinear
+      freeparams: [[Normalization, Norm]]
+      sigmaclip: false
+      sigmathresh: 3.0
+      sigmaiter: 0
+      description: Refine normalization after field corrections
+
+    - stagename: Atmospheric
+      method: nonlinear
+      freeparams: [[Water, PWV_cm], [Aerosol, TauAod500]]
+      sigmaclip: false
+      sigmathresh: 3.0
+      sigmaiter: 0
+      description: Optimize water vapor and aerosol
+
+# Wavelength integration settings
+WavelengthRange_nm: [300, 1100]
+GaiaXPRange_nm: [336, 1020]
+GaiaXPNumPoints: 343
+
+# Atmospheric parameters (not from image header)
+DefaultPressure_mbar: 965
+
+# Calibrator selection
+SearchRadius_arcsec: 1.0
+MagRange: [12, 16]
+FluxColName: FLUX_APER_3
+
+# General settings
+MagSystem: AB
+InstrumentalZP: 25 

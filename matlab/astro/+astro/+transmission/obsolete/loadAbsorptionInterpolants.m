@@ -24,6 +24,21 @@ function AbsData = loadAbsorptionInterpolants(Args)
         Args.Verbose logical = false;
     end
 
+    % Persistent cache to avoid reloading files
+    persistent CachedAbsData CachedDataPath CachedSpecies
+
+    % Check if we can return cached data
+    if ~isempty(CachedAbsData)
+        % Check if request matches cache (same DataPath and Species)
+        if isequal(CachedDataPath, Args.DataPath) && isequal(CachedSpecies, Args.Species)
+            if Args.Verbose
+                fprintf('Returning cached absorption interpolants (%d species)\n', length(fieldnames(CachedAbsData.Interpolants)));
+            end
+            AbsData = CachedAbsData;
+            return;
+        end
+    end
+
     % Initialize structure to hold interpolants
     Abs_Interpolants = struct();
 
@@ -89,6 +104,11 @@ function AbsData = loadAbsorptionInterpolants(Args)
 
     % Also store the interpolants directly for direct access if needed
     AbsData.Interpolants = Abs_Interpolants;
+
+    % Cache the result for future calls
+    CachedAbsData = AbsData;
+    CachedDataPath = Args.DataPath;
+    CachedSpecies = Args.Species;
 end
 
 function Values = interpolateSpecies(Interpolants, Species, Lambda)

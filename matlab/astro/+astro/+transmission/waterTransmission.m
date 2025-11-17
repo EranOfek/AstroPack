@@ -22,7 +22,7 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
     %          Lambda = linspace(300, 1100, 401)';
     %          ParamMatrix = [45, 1.0, 1013; 60, 3.0, 950; 30, 1.5, 1020];  % Multiple parameter sets
     %          Result = astro.transmission.waterTransmission(Lambda, ParamMatrix);
-    %          AbsData = astro.transmission.loadAbsorptionInterpolants();
+    %          AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
     %          Result = astro.transmission.waterTransmission(Lambda, ParamMatrix, 'AbsorptionData', AbsData);
     %
     %          % Get parameter information:
@@ -76,7 +76,7 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
 
     % Create or validate AbsorptionData object
     if isempty(Args.AbsorptionData)
-        Args.AbsorptionData = astro.transmission.loadAbsorptionInterpolants();
+        Args.AbsorptionData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
     end
 
     % Extract parameters
