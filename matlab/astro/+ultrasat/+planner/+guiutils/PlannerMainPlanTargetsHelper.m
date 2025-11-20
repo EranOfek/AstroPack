@@ -396,7 +396,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 % Get editable parameters and apply - Currently there are 3 editable paramters
                 ExpTime = seconds(ParamsApp.ExposureTimeEditField.Value);
                 Nexposures = ParamsApp.EpochsPerVisitEditField.Value;
-                Tiles = app.MainModule.getTilesFromCheckboxes(ParamsApp);
+                Tiles = app.GuiHelper.getTilesFromCheckboxes(ParamsApp);
 
                 % Send editPlanRow() only the modified values
                 if ExpTime == Plan.ExpTime(Index)

@@ -86,8 +86,8 @@ classdef NewPlan < matlab.apps.AppBase
 
             % Set default values for fields? here or by caller?
             app.TitleEditField.Value = sprintf('MyPlan_%d', app.NewPlanIndex);
-            app.StartTimeEditField.Value = '2028-01-01 12:00:00';
-            app.EndTimeEditField.Value = '2028-07-01 12:00:00';
+            app.StartTimeEditField.Value = '2028-01-01 00:00:00';
+            app.EndTimeEditField.Value = '2028-07-01 00:00:00';
         end
 
         % Button pushed function: CancelButton
