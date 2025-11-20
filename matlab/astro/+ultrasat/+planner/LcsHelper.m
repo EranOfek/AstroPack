@@ -1,6 +1,8 @@
+% uplanner helper class for LCS - create it from uplanner buildLCS etc.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % List of functions:
-% - ultrasat.LcsHelper.uplanner(Args): Constructor
+% - ultrasat.LcsHelper.LcsHelper(Args): Constructor
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -29,7 +31,7 @@ classdef LcsHelper < Component
             % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
                 Args.UPlanner               %
-                Args.Param = 0;             % plan type: HCS, LCS, AllSS, DDT, TOO  
+                Args.Param = 0;             % 
             end
 
             %          
@@ -41,7 +43,8 @@ classdef LcsHelper < Component
 
     %
     methods % Building the plan
-        %
+
+        % === Modify, add functions, etc. ===
         function buildLcs(Obj, Args)
             % Build a plan for a HCS field, using a single selected UniqTarget 
             % All relevant parameters should be set before calling this function
@@ -55,8 +58,16 @@ classdef LcsHelper < Component
     end
 
 
-    methods % unitTest, Debug      
-        function Result = unitTest(Obj)
+    methods (Static) % unitTest, Debug
+
+        % === Write here unit test of the class ===
+        function Result = unitTest()
+
+            % From uplanner.unitTest() etc
+            upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+
+            % ...
+
             Result = true;
         end
 
