@@ -20,12 +20,21 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     %                   Default is 0.
     %            'DY' - Like 'DX', but for the Y coordinates.
     %                   Default is 0.
-    %            'ShiftMethod' -
+    %            'ShiftMethod' - PSF shift method.
+    %                   Default is 'fft'.
+    %            'SupressPSF' - A function handle that will be used to
+    %                   supress the PSF edges. If empty, then skip.
+    %                   Default is @imUtil.kernel2.cosbell
+    %            'SupressPSFArgs' - Arguments to pass to the SupressPSF
+    %                   function. Default is [5 8].
+    %            'NormPSF' - A logical indicating if to normalize the PSF
+    %                   to 1. Default is true.
+    %            See additional arguments for ds9 region files in the code.
     %            
     % Output : - The original image after subtraction of the sources.
     %          - The image of the subtracted sources (i.e., model) with
     %            zero background.
-    % Author : Alexander + Eran Ofek (2025 Oct) 
+    % Author : Alexander K. + Eran Ofek (2025 Oct) 
     % Example: [SubIm, SrcIm] = imUtil.sources.subtractSources(Image)
 
     arguments

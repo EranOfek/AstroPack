@@ -23,7 +23,7 @@ function [Result] = binaryAGN_selfLensingLC(Args)
         Args.Dl        = 1e9; % pc
 
         Args.ImpactPar  = 0;
-        Args.BetaVec    = (0:0.1:1)';  % [src rad units]
+        Args.BetaVec    = (0:0.05:2)';  % [src rad units]
         Args.Nsim       = 1e6;
     end
     
@@ -51,7 +51,7 @@ function [Result] = binaryAGN_selfLensingLC(Args)
     FunLimbMatrix(IsN,2) = 0;
 
     % set LensRad to Rs
-    Rs   = 2.*constant.G.*Args.M./(constant.c.^2);
+    Rs   = 2.*constant.G.*Ags.M./(constant.c.^2);
 
     % the two BH have the same mass:
     Beta = sqrt(Args.ImpactPar.^2 + Args.BetaVec.^2);
