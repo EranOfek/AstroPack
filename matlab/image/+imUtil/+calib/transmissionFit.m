@@ -37,7 +37,6 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
     % Author : D. Kovaleva (Nov 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: % Example 1: Using YAML configuration
-    %          YAMLConfig = '~/matlab/AstroPack/config/CalibPhotAB.yml';
     %          Lambda = linspace(336, 1020, 343)';
     %          Spec = cell(3, 2);
     %          Spec{1,1} = (5e-17) ./ (Lambda / 400).^2;  % Blue star
@@ -49,12 +48,13 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
     %          Flux = [1.2e5; 8.5e4; 6.3e4];  % Observed photons
     %          FluxErr = [5e3; 4e2; 3e2];
     %          X = [500; 1000; 1500];  % Pixel coordinates
-    %          Y = [500; 1000; 1500]; 
+    %          Y = [500; 1000; 1500];
     %          %% In the pipeline, [Spec, Flux, FluxErr, X, Y] come from
-    %          %% upper-level wrapper function 
+    %          %% upper-level wrapper function
     %          PolyCheb = @(X, Y, FP) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], FP);
+    %          YAMLPath = '~/matlab/AstroPack/config/CalibPhotAB.yml';
     %          [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
-    %              Lambda, Spec, Flux, FluxErr, X, Y, PolyCheb, 'YAMLConfig', YAMLConfig);
+    %              Lambda, Spec, Flux, FluxErr, X, Y, PolyCheb, 'YAMLConfig', YAMLPath);
     %
     %          % Example 2: Without YAML - explicit 2-stage optimization
     %          % Prepare data
@@ -71,15 +71,15 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
     %          X = [500; 1000; 1500];  % Pixel coordinates
     %          Y = [500; 1000; 1500];
     %          PolyCheb = @(X, Y, FP) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], FP);
-    %          % Define transmission functions specification
-    %          TransFunSpec = cell(2, 1);
-    %          TransFunSpec{1} = struct('name', 'Ozone', ...
+    %          % Define transmission functions list
+    %          TransFunList = cell(2, 1);
+    %          TransFunList{1} = struct('name', 'Ozone', ...
     %              'handle', '@astro.transmission.ozoneTransmission', ...
     %              'handletype', 'named', ...
     %              'params', [30, 300], ...
     %              'paraminfo', {{struct('name', 'ZenithAngle_deg', 'min', 0, 'max', 90), ...
     %                             struct('name', 'DobsonUnits', 'min', 200, 'max', 400)}});
-    %          TransFunSpec{2} = struct('name', 'Aerosol', ...
+    %          TransFunList{2} = struct('name', 'Aerosol', ...
     %              'handle', '@astro.transmission.aerosolTransmission', ...
     %              'handletype', 'named', ...
     %              'params', [30, 0.05, 1.2], ...
@@ -104,7 +104,7 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
     %          % Run fitting
     %          [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
     %              Lambda, Spec, Flux, FluxErr, X, Y, PolyCheb, ...
-    %              'TransmissionFunctions', TransFunSpec, 'OptimizationSequence', OptSeq);
+    %              'TransmissionFunctions', TransFunList, 'OptimizationSequence', OptSeq);
 
     arguments
         Lambda double               % Wavelength grid [N_lambda x 1]
@@ -151,9 +151,9 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
 
         % TransmissionFunctions is optional - user may pass pre-built Model
         if ~isempty(Args.TransmissionFunctions)
-            TransFunSpec = Args.TransmissionFunctions;
+            TransFunList = Args.TransmissionFunctions;
         else
-            TransFunSpec = [];  % Will skip model building
+            TransFunList = [];  % Will skip model building
         end
         Pressure_mbar = Args.DefaultPressure_mbar;
 
@@ -173,7 +173,7 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
         end
         
         YAMLConfig = loadYAMLConfig(YAMLPath, Args.Verbose);
-        TransFunSpec = YAMLConfig.TransmissionFunctions;
+        TransFunList = YAMLConfig.TransmissionFunctions;
         OptSequence = YAMLConfig.OptimizationSequence;
 
         if isfield(YAMLConfig, 'DefaultPressure_mbar')
@@ -191,7 +191,7 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, Flux, Flu
         fprintf('Building transmission model (CompositeFun)...\n');
     end
 
-    Model = buildTransmissionModel(TransFunSpec, Args.Airmass, Args.Temperature, ...
+    Model = buildTransmissionModel(TransFunList, Args.Airmass, Args.Temperature, ...
                                     Pressure_mbar, Args.Verbose);
 
     NumStages = length(OptSequence);
@@ -395,24 +395,24 @@ end
 %  HELPER FUNCTION: Build Transmission Model
 %  ========================================================================
 
-function Model = buildTransmissionModel(TransFunSpec, Airmass, Temperature, Pressure_mbar, Verbose)
+function Model = buildTransmissionModel(TransFunList, Airmass, Temperature, Pressure_mbar, Verbose)
     % Build CompositeFun and inject metadata using CompositeFun's parameter mapping
 
     % Create CompositeFun object
     Model = tools.math.fun.CompositeFun();
 
-    NumFunctions = length(TransFunSpec);
+    NumFunctions = length(TransFunList);
 
     % Add all transmission functions
     for i = 1:NumFunctions
-        FunSpec = TransFunSpec{i};
+        FunDef = TransFunList{i};
 
-        % Extract function specification
-        FunName = FunSpec.name;
-        HandleStr = FunSpec.handle;
-        HandleType = FunSpec.handletype;
-        Params = FunSpec.params;
-        ParamInfo = FunSpec.paraminfo;
+        % Extract function definition
+        FunName = FunDef.name;
+        HandleStr = FunDef.handle;
+        HandleType = FunDef.handletype;
+        Params = FunDef.params;
+        ParamInfo = FunDef.paraminfo;
 
         % Ensure Params is numeric array
         if iscell(Params)
