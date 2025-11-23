@@ -46,7 +46,7 @@ function [Result, SubModel] = subtractSources(Obj, Args)
     %          - An AstroImage object containing the subtracted model from
     %            each image.
     % Author : Eran Ofek (2025 Nov) 
-    % Example: [AI] = imUtil.sources.subtractSources(AI)
+    % Example: [AI] = imProc.sources.subtractSources(AI)
 
 
     arguments
@@ -86,16 +86,29 @@ function [Result, SubModel] = subtractSources(Obj, Args)
         else
             PSF = Args.PSF;
         end
+        Npsf = numel(PSF);
 
         % get X, Y, PSF_Index of sources
         if isempty(Args.XYFP)
-            [X, Y, Flux, PSF_Index] = getCol(Obj(Iobj).CatData, {Args.ColX, Args.ColY, Args.ColFlux, Args.ColPSFInd});
-            if any(isnan(PSF_Index))
-                PSF_Index = ones(size(X));
+            if Npsf>1 && Result(Iobj).CatData.isColumn(Args.ColPSFInd)
+                [ColsData] = getCol(Result(Iobj).CatData, {Args.ColX, Args.ColY, Args.ColFlux, Args.ColPSFInd});
+                X          = ColsData(:,1);
+                Y          = ColsData(:,2);
+                Flux       = ColsData(:,3);
+                PSF_Index  = ColsData(:,4);
+                if any(isnan(PSF_Index))
+                    PSF_Index = ones(size(X));
+                end
+            else
+                [ColsData] = getCol(Result(Iobj).CatData, {Args.ColX, Args.ColY, Args.ColFlux});
+                X          = ColsData(:,1);
+                Y          = ColsData(:,2);
+                Flux       = ColsData(:,3);
+                PSF_Index  = ones(size(X));
             end
         end
 
-        Npsf = numel(PSF);
+        
         SubIm = Result(Iobj).ImageData.Image;
         for Ipsf=1:1:Npsf
             IndPSF = find(PSF_Index==Ipsf);

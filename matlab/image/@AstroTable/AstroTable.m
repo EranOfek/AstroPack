@@ -862,7 +862,7 @@ classdef AstroTable < Component
             %            AstroTable object.
             %            Default is false.
             %          * ...,key,val,...
-            %            ' UseDict' - unsupported
+            %            'UseDict' - unsupported
             %            'SelectRows' - A vector of indices or logicals of
             %                   rows to select. If NaN, select all rows.
             %                   Default is NaN.

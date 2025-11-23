@@ -76,12 +76,12 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
 
     if ~Args.IsShiftedPSF
         % User supplied numeric DX,DY,Flux,X,Y 
-        if isscalr(Args.DX) && Args.DX==0 && isscalar(Args.DY) && Args.DY==0
+        if isscalar(Args.DX) && Args.DX==0 && isscalar(Args.DY) && Args.DY==0
             % X and Y contains non-rounded coordinates
             % Shift PSF to such the stamp center will be in the rounded
             % position
-            RoundX = round(X);
-            RoundY = round(Y);
+            RoundX = round(Args.X);
+            RoundY = round(Args.Y);
             DX     = Args.X - RoundX;
             DY     = Args.Y - RoundY;
         else
@@ -120,7 +120,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     % 2. subtract the source image from the current image
     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [RoundY RoundX], Flux, ...
                                                                         'Recenter', false, 'PositivePSF',true);
-    SizeImage = size(AI(Iobj).ImageData.Image);
+    SizeImage = size(Image);
     % Can we avoid the permute? may be expensive?
     SourceImage             = imUtil.art.addSources(repmat(0,SizeImage), permute(CubePSF,[2,1,3]),XY,...
                                                                         'Oversample',[], 'Subtract',false);           
