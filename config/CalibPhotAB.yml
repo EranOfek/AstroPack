@@ -183,7 +183,7 @@ FieldCorrectionParams:
           min: -10.0
           max: 10.0
         - name: ky4
-          description: 'Y quartic term'
+          description: 'Y quadratic term'
           min: -10.0
           max: 10.0
         - name: kxy
@@ -191,7 +191,7 @@ FieldCorrectionParams:
           min: -10.0
           max: 10.0
 
-# Optimization sequence (5 stages - Adapted/Advanced profile from inputConfig)
+# Optimization sequence (5 stages - Garrappa et al. 2025)
 OptimizationSequence:
 
     - stagename: NormOnly_Initial
@@ -250,4 +250,4 @@ FluxColName: FLUX_APER_3
 
 # General settings
 MagSystem: AB
-InstrumentalZP: 25 
+

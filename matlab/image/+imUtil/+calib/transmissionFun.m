@@ -1,5 +1,6 @@
-function [Cost, Residuals, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, FluxErr, X, Y, TransParams, TransFun, PolyCheb, Args)
-    % Calculate cost function for transmission-based photometric calibration
+function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, FluxErr, X, Y, TransParams, TransFun, PolyCheb, Args)
+    % Transmission-based photometric calibration: calculation of cost
+    % function
     % Input  : - Lambda - Wavelength grid [N_lambda x 1] in nm
     %          - Spec - Gaia XP spectra cell array {N_calib x 2}
     %                   Column 1: Flux values [N_GaiaWvl x 1]
@@ -26,10 +27,10 @@ function [Cost, Residuals, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     %                   Default is pi * (0.1397)^2.
     %            'Verbose' - Enable verbose output.
     %                   Default is false.
-    % Output : - Cost - Sum of squared residuals (scalar)
-    %          - Residuals - Magnitude differences [N_calib x 1]
+    % Output : - Residuals - Magnitude differences [N_calib x 1]
+    %          - Cost - Sum of squared residuals (scalar)
     %          - PredictedFlux - Predicted flux in photons [N_calib x 1]
-    % Author : D. Kovaleva (Dec 2025)
+    % Author : D. Kovaleva (Nov 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: % Create transmission model
     %          Model = tools.math.fun.CompositeFun();
@@ -53,7 +54,7 @@ function [Cost, Residuals, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     %          Y = [500; 1000; 1500];
     %          PolyCheb = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
     %          FieldParams = zeros(1, 10);
-    %          [Cost, Res, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, Flux, FluxErr, ...
+    %          [Res, Cost, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, Flux, FluxErr, ...
     %              X, Y, TransParams, Model, PolyCheb, 'FieldParams', FieldParams);
 
     arguments
