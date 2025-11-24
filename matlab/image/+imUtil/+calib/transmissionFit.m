@@ -4,32 +4,32 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     % position-dependent polynomial to correct for zero-point variations. The fit is done by comparing the instrumental fluxes of
     % stars in the image to the synthetic photometry of the stars given their spectrum and the transmission function which have free parameters. 
     % Based on Garrappa et al. 2025, A&A 699, A50.
-    % Input: wavelength range of observations, externally calibrated [Gaia DR3]
-    % spectra for the sources in the image, observational fluxes for these
-    % same sources, (X,Y) positions for these same sources in the image, PolyCheb - 
-    % the form for position-dependent polynomial to correct for zero-point variations. 
     %
     % Input  : - Lambda - Wavelength grid for integration range in nm
     %          - Spec - Gaia XP spectra matrix [N_GaiaWvl x N_calib]
     %                   Each column is the flux spectrum for one calibrator
     %          - SpecErr - Gaia XP spectra errors matrix [N_GaiaWvl x N_calib]
     %                   Each column is the flux error spectrum (currently unused)
-    %          - Flux - Observed flux for calibrators
-    %          - FluxErr - Observed flux errors for calibrators
+    %          - Flux - Observed flux for calibrators (vector of N_calib
+    %                    values)
+    %          - FluxErr - Observed flux errors for calibrators (vector of
+    %                       N_calib values
     %          - X - Source X coordinates for calibrators
     %          - Y - Source Y coordinates for calibrators
-    %          - PolyCheb - Field correction function handle @(X, Y, FieldParams) 
+    %          - PolyCheb - Handle @(X, Y, FieldParams) for the position-dependent 
+    %                       polynomial to correct for zero-point variations. 
+    %
     %          * ...,key,val,...
     %            'TransmissionFunctions' - Explicit specification for the
     %                                      basic components of composite transmission function
     %                                      (astro.transmission.* for atmospheric transmission,
     %                                      telescope.detector.* and telescope.optics.* for
-    %                                      instrumental transmission). Will be used to compile transmission model 
+    %                                      instrumental transmission). Will be used to compile transmission model
     %                                      in form of tools.math.fun.CompositeFun object).
-    %                                      Cell array with function specifications. Default is [].
-    %            'OptimizationSequence' -  Explicit optimization sequence (number of stages, free parameters to 
-    %                                      each stage, sigma clipping yes/no, number of iterations.
-    %                                      Default is [].
+    %                                      Struct array with function specifications. Default is [].
+    %            'OptimizationSequence' -  Explicit optimization sequence (number of stages, free parameters to
+    %                                      each stage, sigma clipping yes/no, number of iterations).
+    %                                      Struct array with optimization stage specifications. Default is [].
     %            'GaiaWavelength' - Gaia XP wavelength grid, in nm. Default is linspace(336, 1020, 343)'.
     %            'YAMLConfig' - YAML configuration structure or path to YAML file describing 'TransmissionFunctions',
     %                                     'OptimizationSequence'.
@@ -77,49 +77,57 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %          X = [500; 1000; 1500];  % Pixel coordinates
     %          Y = [500; 1000; 1500];
     %          PolyCheb = @(X, Y, FP) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], FP);
-    %          % Define transmission functions list
-    %          TransFunList = cell(2, 1);
-    %          TransFunList{1} = struct('name', 'Ozone', ...
-    %              'handle', '@astro.transmission.ozoneTransmission', ...
-    %              'handletype', 'named', ...
-    %              'params', [30, 300], ...
-    %              'paraminfo', {{struct('name', 'ZenithAngle_deg', 'min', 0, 'max', 90), ...
-    %                             struct('name', 'DobsonUnits', 'min', 200, 'max', 400)}});
-    %          TransFunList{2} = struct('name', 'Aerosol', ...
-    %              'handle', '@astro.transmission.aerosolTransmission', ...
-    %              'handletype', 'named', ...
-    %              'params', [30, 0.05, 1.2], ...
-    %              'paraminfo', {{struct('name', 'ZenithAngle_deg', 'min', 0, 'max', 90), ...
-    %                             struct('name', 'TauAod500', 'min', 0.0, 'max', 0.5), ...
-    %                             struct('name', 'Alpha', 'min', 0.5, 'max', 2.5)}});
-    %          % Define 2-stage optimization sequence
-    %          OptSeq = cell(2, 1);
-    %          OptSeq{1}.stagename = 'AerosolOpt';
-    %          OptSeq{1}.freeparams = {{'Aerosol', 'TauAod500'}};  % Cell array of one [FuncName, ParamName] pair
-    %          OptSeq{1}.sigmaclip = true;
-    %          OptSeq{1}.sigmathresh = 3.0;
-    %          OptSeq{1}.sigmaiter = 3;
-    %          OptSeq{1}.description = 'Optimize aerosol optical depth';
-    %          OptSeq{2}.stagename = 'FieldCorr';
-    %          OptSeq{2}.freeparams = {};  % Empty for field correction
-    %          OptSeq{2}.sigmaclip = true;
-    %          OptSeq{2}.sigmathresh = 2.0;
-    %          OptSeq{2}.sigmaiter = 2;
-    %          OptSeq{2}.regularization = 1e-6;
-    %          OptSeq{2}.description = 'Field correction (always linear)';
+    %          % Define transmission functions as struct array
+    %          TransFunList(1).name = 'Ozone';
+    %          TransFunList(1).handle = '@astro.transmission.ozoneTransmission';
+    %          TransFunList(1).handletype = 'named';
+    %          TransFunList(1).params = [30, 300];
+    %          TransFunList(1).paraminfo(1).name = 'ZenithAngle_deg';
+    %          TransFunList(1).paraminfo(1).min = 0;
+    %          TransFunList(1).paraminfo(1).max = 90;
+    %          TransFunList(1).paraminfo(2).name = 'DobsonUnits';
+    %          TransFunList(1).paraminfo(2).min = 200;
+    %          TransFunList(1).paraminfo(2).max = 400;
+    %          TransFunList(2).name = 'Aerosol';
+    %          TransFunList(2).handle = '@astro.transmission.aerosolTransmission';
+    %          TransFunList(2).handletype = 'named';
+    %          TransFunList(2).params = [30, 0.05, 1.2];
+    %          TransFunList(2).paraminfo(1).name = 'ZenithAngle_deg';
+    %          TransFunList(2).paraminfo(1).min = 0;
+    %          TransFunList(2).paraminfo(1).max = 90;
+    %          TransFunList(2).paraminfo(2).name = 'TauAod500';
+    %          TransFunList(2).paraminfo(2).min = 0.0;
+    %          TransFunList(2).paraminfo(2).max = 0.5;
+    %          TransFunList(2).paraminfo(3).name = 'Alpha';
+    %          TransFunList(2).paraminfo(3).min = 0.5;
+    %          TransFunList(2).paraminfo(3).max = 2.5;
+    %          % Define 2-stage optimization sequence as struct array
+    %          OptSeq(1).stagename = 'AerosolOpt';
+    %          OptSeq(1).freeparams = {{'Aerosol', 'TauAod500'}};  % Cell array of one [FuncName, ParamName] pair
+    %          OptSeq(1).sigmaclip = true;
+    %          OptSeq(1).sigmathresh = 3.0;
+    %          OptSeq(1).sigmaiter = 3;
+    %          OptSeq(1).description = 'Optimize aerosol optical depth';
+    %          OptSeq(2).stagename = 'FieldCorr';
+    %          OptSeq(2).freeparams = {};  % Empty for field correction
+    %          OptSeq(2).sigmaclip = true;
+    %          OptSeq(2).sigmathresh = 2.0;
+    %          OptSeq(2).sigmaiter = 2;
+    %          OptSeq(2).regularization = 1e-6;
+    %          OptSeq(2).description = 'Field correction (always linear)';
     %          % Run fitting
     %          [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
     %              Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, PolyCheb, ...
     %              'TransmissionFunctions', TransFunList, 'OptimizationSequence', OptSeq);
 
     arguments
-        Lambda                      % Wavelength grid [N_lambda x 1]
+        Lambda                      % Wavelength vector
         Spec                        % Gaia XP spectra matrix [N_GaiaWvl x N_calib]
         SpecErr                     % Gaia XP spectra errors [N_GaiaWvl x N_calib]
-        Flux                        % Observed LAST flux [N_calib x 1]
-        FluxErr                     % Observed flux errors [N_calib x 1]
-        X                           % X coordinates [N_calib x 1]
-        Y                           % Y coordinates [N_calib x 1]
+        Flux                        % Observed flux: vector of N_calib fluxes
+        FluxErr                     % Observed flux errors: vector of N_calib flux errors
+        X                           % X coordinates: vector of N_calib elements
+        Y                           % Y coordinates: vector of N_calib elements
         PolyCheb function_handle    % Field correction function handle
         Args.TransmissionFunctions = []  % Explicit transmission functions (optional)
         Args.OptimizationSequence = []  % Explicit optimization sequence (optional)
@@ -176,8 +184,19 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         end
         
         YAMLConfig = loadYAMLConfig(YAMLPath, Args.Verbose);
-        TransFunList = YAMLConfig.TransmissionFunctions;
-        OptSequence = YAMLConfig.OptimizationSequence;
+
+        % Convert YAML cell arrays to struct arrays
+        if iscell(YAMLConfig.TransmissionFunctions)
+            TransFunList = [YAMLConfig.TransmissionFunctions{:}];
+        else
+            TransFunList = YAMLConfig.TransmissionFunctions;
+        end
+
+        if iscell(YAMLConfig.OptimizationSequence)
+            OptSequence = [YAMLConfig.OptimizationSequence{:}];
+        else
+            OptSequence = YAMLConfig.OptimizationSequence;
+        end
 
         if isfield(YAMLConfig, 'DefaultPressure_mbar')
             Pressure_mbar = YAMLConfig.DefaultPressure_mbar;
@@ -194,8 +213,9 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         fprintf('Building transmission model (CompositeFun)...\n');
     end
 
-    Model = imUtil.calib.transmissionModel(TransFunList, Args.Airmass, Args.Temperature, ...
-                                            Pressure_mbar, 'Verbose', Args.Verbose);
+    Model = imUtil.calib.transmissionModel(TransFunList, ...
+        'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
+        'Pressure_mbar', Pressure_mbar, 'Verbose', Args.Verbose);
 
     NumStages = length(OptSequence);
 
@@ -289,7 +309,7 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     Results = cell(NumStages, 1);
 
     for IStage = 1:NumStages
-        Stage = OptSequence{IStage};
+        Stage = OptSequence(IStage);
 
         StageName = Stage.stagename;
         FreeParamsStage = Stage.freeparams;
@@ -572,17 +592,6 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
     FreeParamIndices, SigmaClip, SigmaThresh, SigmaIter, Args)
     % Optimize transmission parameters using nonlinear least squares (lsqNonLinWithFixed)
 
-    % Create cost function wrapper that only varies free parameters
-    FixedMask = true(size(TransParams));
-    FixedMask(FreeParamIndices) = false;
-    FixedValues = TransParams;
-
-    % Nested function to reconstruct full parameter vector
-    function FullParams = updateFullParams(Fixed, Free, Indices)
-        FullParams = Fixed;
-        FullParams(Indices) = Free;
-    end
-
     % Optimization loop (with or without sigma clipping)
     CurrentSpec = Spec;
     CurrentSpecErr = SpecErr;
@@ -591,7 +600,6 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
     CurrentX = X;
     CurrentY = Y;
     CurrentTransParams = TransParams;
-    FreeParams = CurrentTransParams(FreeParamIndices);
 
     % Set number of iterations: 1 if no sigma clipping, SigmaIter otherwise
     NumIterations = 1;
@@ -634,8 +642,6 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
             'Ub', AllPar.Max, ...
             'Opts', Opts);
 
-        FreeParams = CurrentTransParams(FreeParamIndices);
-
         % Calculate residuals
         [Residuals, ~, ~] = imUtil.calib.transmissionFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
             CurrentX, CurrentY, CurrentTransParams, Model, PolyCheb, ...
@@ -665,12 +671,9 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
         end
     end
 
-    % Update full parameter vector
-    CurrentTransParams(FreeParamIndices) = FreeParams;
-
     % Final cost and residuals
     [Residuals, Cost, ~] = imUtil.calib.transmissionFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-        CurrentX, CurrentY, updateFullParams(FixedValues, FreeParams, FreeParamIndices), Model, PolyCheb, ...
+        CurrentX, CurrentY, CurrentTransParams, Model, PolyCheb, ...
         'FieldParams', FieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
         'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
         'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
@@ -701,4 +704,3 @@ function [ClippedData, NumOutliers] = applySigmaClipping(Spec, SpecErr, Flux, Fl
     ClippedData.X = X(GoodMask);
     ClippedData.Y = Y(GoodMask);
 end
-

@@ -15,7 +15,7 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, SpecEr
     %          - FluxErr - Observed flux errors [N_calib x 1] (currently unused)
     %          - X - Source X coordinates [N_calib x 1]
     %          - Y - Source Y coordinates [N_calib x 1]
-    %          - TransParams - Transmission parameter values vector (REQUIRED)
+    %          - TransParams - Transmission parameter values vector 
     %          - TransFun - CompositeFun object (for structure/evaluation)
     %          - PolyCheb - Function handle @(X, Y, FieldParams) for field correction
     %          * ...,key,val,...
