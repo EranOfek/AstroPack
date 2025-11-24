@@ -1,10 +1,16 @@
-function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, FluxErr, X, Y, TransParams, TransFun, PolyCheb, Args)
-    % Transmission-based photometric calibration: calculation of cost
-    % function
+function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, TransParams, TransFun, PolyCheb, Args)
+    % Transmission-based photometric calibration: calculates cost
+    % function for optimization by imUtil.calib.transmissionFit. Function is comparing 
+    % the instrumental fluxes of stars in the image to the synthetic photometry of the stars 
+    % given their spectrum and the composite wavelength-dependent transmission function 
+    % which has free parameters with addition of position-dependent
+    % polynomial to account for ZP variations across the field.
+    %
     % Input  : - Lambda - Wavelength grid [N_lambda x 1] in nm
-    %          - Spec - Gaia XP spectra cell array {N_calib x 2}
-    %                   Column 1: Flux values [N_GaiaWvl x 1]
-    %                   Column 2: Flux errors [N_GaiaWvl x 1]
+    %          - Spec - Gaia XP spectra matrix [N_GaiaWvl x N_calib]
+    %                   Each column is the flux spectrum for one calibrator
+    %          - SpecErr - Gaia XP spectra errors matrix [N_GaiaWvl x N_calib]
+    %                   Each column is the flux error spectrum (currently unused)
     %          - Flux - Observed LAST flux [N_calib x 1]
     %          - FluxErr - Observed flux errors [N_calib x 1] (currently unused)
     %          - X - Source X coordinates [N_calib x 1]
@@ -21,7 +27,7 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     %                   Default is 1.2.
     %            'Temperature' - Temperature [C].
     %                   Default is 15.
-    %            'ExpTime' - Exposure time [s].
+    %            'Time' - Exposure time [s].
     %                   Default is 20.
     %            'Aperture_area_m2' - Telescope aperture area [m^2].
     %                   Default is pi * (0.1397)^2.
@@ -41,30 +47,28 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     %          TransParams = [30, 300, 0.05, 1.2];  % All parameter values
     %          % Create test data (3 calibrators with realistic Gaia-like spectra)
     %          Lambda = linspace(336, 1020, 343)';
-    %          Spec = cell(3, 2);
-    %          Spec{1,1} = (5e-17) ./ (Lambda / 400).^2;  % Blue star
-    %          Spec{1,2} = 0.05 * Spec{1,1};
-    %          Spec{2,1} = (3e-17) ./ (Lambda / 550).^0.5;  % Solar-type star
-    %          Spec{2,2} = 0.05 * Spec{2,1};
-    %          Spec{3,1} = (2e-17) * (Lambda / 700).^1.5;  % Red star
-    %          Spec{3,2} = 0.05 * Spec{3,1};
-    %          Flux = [1.2e5; 8.5e4; 6.3e4];  % Observed photons
+    %          Spec = [(5e-17) ./ (Lambda / 400).^2, ...      % Blue star
+    %                  (3e-17) ./ (Lambda / 550).^0.5, ...    % Solar-type star
+    %                  (2e-17) * (Lambda / 700).^1.5];        % Red star [343 x 3]
+    %          SpecErr = 0.05 * Spec;  % 5% errors
+    %          Flux = [5.1e4; 7.5e4; 6.3e4];  % Observed photons
     %          FluxErr = [5e3; 4e2; 3e2];
     %          X = [500; 1000; 1500];  % Pixel coordinates
     %          Y = [500; 1000; 1500];
     %          PolyCheb = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
     %          FieldParams = zeros(1, 10);
-    %          [Res, Cost, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, Flux, FluxErr, ...
-    %              X, Y, TransParams, Model, PolyCheb, 'FieldParams', FieldParams);
+    %          [Res, Cost, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, SpecErr, ...
+    %              Flux, FluxErr, X, Y, TransParams, Model, PolyCheb, 'FieldParams', FieldParams);
 
     arguments
-        Lambda double               % Wavelength grid [N_lambda x 1]
-        Spec cell                   % Gaia XP spectra {N_calib x 2}
-        Flux double                 % Observed LAST flux [N_calib x 1]
-        FluxErr double              % Observed flux errors [N_calib x 1]
-        X double                    % X coordinates [N_calib x 1]
-        Y double                    % Y coordinates [N_calib x 1]
-        TransParams double          % Transmission parameter values
+        Lambda                      % Wavelength grid [N_lambda x 1]
+        Spec                        % Gaia XP spectra matrix [N_GaiaWvl x N_calib]
+        SpecErr                     % Gaia XP spectra errors [N_GaiaWvl x N_calib]
+        Flux                        % Observed LAST flux [N_calib x 1]
+        FluxErr                       % Observed flux errors [N_calib x 1]
+        X                          % X coordinates [N_calib x 1]
+        Y                           % Y coordinates [N_calib x 1]
+        TransParams                   % Transmission parameter values
         TransFun                    % CompositeFun object
         PolyCheb function_handle    % Field correction function handle
         Args.FieldParams = zeros(1, 10)  % Field correction parameters
@@ -85,8 +89,8 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
         error('TransFun must be a tools.math.fun.CompositeFun object');
     end
 
-    % Check number of calibrators
-    NumCalibrators = size(Spec, 1);
+    % Check number of calibrators (Spec is [N_GaiaWvl x N_calib])
+    NumCalibrators = size(Spec, 2);
     if NumCalibrators == 0
         error('No calibrators in Spec');
     end
@@ -98,6 +102,9 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     end
     if length(X) ~= NumCalibrators || length(Y) ~= NumCalibrators
         error('X, Y size must match number of calibrators (%d)', NumCalibrators);
+    end
+    if size(SpecErr, 1) ~= size(Spec, 1) || size(SpecErr, 2) ~= size(Spec, 2)
+        error('SpecErr dimensions must match Spec dimensions');
     end
 
     % Validate parameter values
@@ -178,13 +185,9 @@ function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, Flux, 
     % EXTRACT GAIA SPECTRA FOR INTEGRATION RANGE
     % ----------------------------------------------------------------
 
-    % Extract all Gaia fluxes from cell array into matrix
-    % Spec is {N_calib x 2} where column 1 contains flux vectors [NumGaia x 1]
-    % Assume column vectors as input (no dimension checking)
-    GaiaFluxMatrix_Full = cell2mat(Spec(:, 1)');  % [NumGaia x NumCalibrators]
-
+    % Spec is already a matrix [N_GaiaWvl x N_calib]
     % Extract only the wavelengths within integration range
-    GaiaFluxMatrix = GaiaFluxMatrix_Full(GaiaInRange, :);  % [NumIntegrationPoints x NumCalibrators]
+    GaiaFluxMatrix = Spec(GaiaInRange, :);  % [NumIntegrationPoints x NumCalibrators]
 
     % ----------------------------------------------------------------
     % APPLY TRANSMISSION AND INTEGRATE
