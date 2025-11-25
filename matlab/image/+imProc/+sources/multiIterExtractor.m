@@ -1,4 +1,4 @@
-function [Result, SourceLess] = multiIterExtractor(Obj, Args)
+function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     % One line description
     %     Optional detailed description
     % Input  : - 
@@ -15,7 +15,7 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
         Args.ExcludeEmpty              = true;
 
         % background
-        Args.backVarArgs               = {'Block',[]};
+        Args.backVarArgs               = {'Block',[128 128]};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
         % background and variance measurement:
@@ -23,16 +23,18 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
 
         % measure PSF
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
-        Args.populatePSFArgs cell      = {'CropByQuantile',false}; % {'CropByQuantile',true,'Quantile',0.5}
-        Args.ThresholdPSF              = 30;
-        Args.RangeSN                   = [50 1000];
+        Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',2}; % {'CropByQuantile',true,'Quantile',0.5}
+        Args.RadiusPSF                 = 12;
+        Args.Annulus                   = [10 12];
+        Args.ThresholdPSF              = 100;
+        Args.RangeSN                   = [100 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1 1.2]}; %{[0.1;1.0;1.5]};  
+        Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
         
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
 
         Args.psfFitPhotArgs            = {};
-        Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8], 'Norm', true};
+        Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
 
         Args.MomRadius                 = [4 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         
@@ -112,13 +114,16 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
     if any(FlagPSF)
         [Result(FlagPSF)] = imProc.psf.populatePSF(Result(FlagPSF),...
                                                    Args.populatePSFArgs{:},...
+                                                   'RadiusPSF',Args.RadiusPSF,...
+                                                   'Annulus',Args.Annulus,...
                                                    'ThresholdPSF',Args.ThresholdPSF,...
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
                                                    'InitPsfArgs',Args.InitPsfArgs,...
                                                    'RePopulatePSF',true);
     end
-    
+    FWHM = Result.PSFData.fwhm;
+
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
     FlagPopCat = Result.sizeCatalog>0;
@@ -139,9 +144,11 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
         AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj 
         AI.CatData      = [];
         Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards 
-        SourceImage     = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % source image after each iteration
+        
+        SizeImage       = size(AI.ImageData.Image);
+        SourceImage     = repmat(0,SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
         if nargout>1
-            SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
+            SubtractedImage = repmat(0, SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
         end
 
         for Iiter=1:1:Niter     
@@ -153,7 +160,7 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
             if Args.FindWithEmpiricalPSF                   
                 %??????????????????????????????????????????????
                 % treat also delta+extended!
-                
+
                 PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection                 
                 PSFTemplate(:,:,2) = AI.PSF; % the empirical PSF 
                 AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
@@ -191,7 +198,9 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
             if Args.UsePSFInterpolant
                 ShiftedPSF = imUtil.trans.shift_interp(AI.SPFData.Data, Res.DX, Res.DY, 'Norm',true);
             else
-                ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, Args.suppressEdgesArgs{:});
+                ShiftedPSF = Res.ShiftedPSF;
+                % already done in PSF construction
+                %ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, Args.suppressEdgesArgs{:}); 
             end            
     
             % subtract the newly found and measured sources:
@@ -200,9 +209,10 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
             [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                         'Recenter', false,'PositivePSF',true);
            
-            SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),permute(CubePSF,[2,1,3]),XY,...
+            SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0, SizeImage), permute(CubePSF,[2,1,3]),XY,...
                                                                         'Oversample',[],'Subtract',false);                                                                                          
             Subtracted                   = AI.Image - SourceImage(:,:,Iiter);  
+            
             
             % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
             %if Args.RemoveMasked
@@ -233,8 +243,17 @@ function [Result, SourceLess] = multiIterExtractor(Obj, Args)
             end
             
             % add local variance from the sources revealed at all the previous iterations
-            AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);                 
-             
+            % This is not enough - for bright stars the PSF is more
+            % extended and the star edges are not subtracted
+            AI.VarData.Image  = AI.VarData.Image  + Args.RedNoiseFactor   .* sum(SourceImage,3);  
+            GK = imUtil.kernel2.gauss(FWHM);
+            AI.Var  = conv2(AI.Var, GK, 'same'); 
+            LK=imUtil.kernel2.lorentzian(3,[31 31]);
+
+            EdgesVarMap = repmat(0, SizeImage);
+            LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
+            EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3.^1.3;
+            AI.Var = AI.Var + conv2(EdgesVarMap, LK, 'same');
 
             % write region files with extracted objects 
             if Args.WriteDs9Regions
