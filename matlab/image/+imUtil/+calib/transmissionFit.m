@@ -103,13 +103,14 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %          TransFunList(2).paraminfo(3).max = 2.5;
     %          % Define 2-stage optimization sequence as struct array
     %          OptSeq(1).stagename = 'AerosolOpt';
-    %          OptSeq(1).freeparams = {{'Aerosol', 'TauAod500'}};  % Cell array of one [FuncName, ParamName] pair
+    %          OptSeq(1).freeparams(1).function = 'Aerosol';
+    %          OptSeq(1).freeparams(1).parameter = 'TauAod500';
     %          OptSeq(1).sigmaclip = true;
     %          OptSeq(1).sigmathresh = 3.0;
     %          OptSeq(1).sigmaiter = 3;
     %          OptSeq(1).description = 'Optimize aerosol optical depth';
     %          OptSeq(2).stagename = 'FieldCorr';
-    %          OptSeq(2).freeparams = {};  % Empty for field correction
+    %          OptSeq(2).freeparams = [];  % Empty for field correction
     %          OptSeq(2).sigmaclip = true;
     %          OptSeq(2).sigmathresh = 2.0;
     %          OptSeq(2).sigmaiter = 2;
@@ -187,15 +188,64 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
 
         % Convert YAML cell arrays to struct arrays
         if iscell(YAMLConfig.TransmissionFunctions)
-            TransFunList = [YAMLConfig.TransmissionFunctions{:}];
+            % Convert cell array to struct array
+            NumFunctions = length(YAMLConfig.TransmissionFunctions);
+            TransFunList = struct([]);
+            for I = 1:NumFunctions
+                Func = YAMLConfig.TransmissionFunctions{I};
+                TransFunList(I).name = Func.name;
+                TransFunList(I).handle = Func.handle;
+                TransFunList(I).handletype = Func.handletype;
+                TransFunList(I).params = Func.params;
+                TransFunList(I).paraminfo = Func.paraminfo;
+            end
         else
             TransFunList = YAMLConfig.TransmissionFunctions;
         end
 
         if iscell(YAMLConfig.OptimizationSequence)
-            OptSequence = [YAMLConfig.OptimizationSequence{:}];
+            % Convert cell array to struct array, handling inconsistent fields
+            NumStages = length(YAMLConfig.OptimizationSequence);
+            OptSequence = struct([]);
+            for I = 1:NumStages
+                Stage = YAMLConfig.OptimizationSequence{I};
+                % Copy all fields from YAML stage
+                OptSequence(I).stagename = Stage.stagename;
+                OptSequence(I).method = Stage.method;
+                OptSequence(I).freeparams = Stage.freeparams;
+                OptSequence(I).sigmaclip = Stage.sigmaclip;
+                OptSequence(I).sigmathresh = Stage.sigmathresh;
+                OptSequence(I).sigmaiter = Stage.sigmaiter;
+                OptSequence(I).description = Stage.description;
+                % Add regularization if present, otherwise default to 0
+                if isfield(Stage, 'regularization')
+                    OptSequence(I).regularization = Stage.regularization;
+                else
+                    OptSequence(I).regularization = 0;
+                end
+            end
         else
             OptSequence = YAMLConfig.OptimizationSequence;
+        end
+
+        % Convert freeparams from YAML cell array format to struct array
+        for I = 1:length(OptSequence)
+            if isfield(OptSequence(I), 'freeparams') && iscell(OptSequence(I).freeparams)
+                FreeParamsCell = OptSequence(I).freeparams;
+                if ~isempty(FreeParamsCell)
+                    % Convert cell array of pairs to struct array
+                    FreeParamsStruct = struct([]);
+                    for J = 1:length(FreeParamsCell)
+                        ParamPair = FreeParamsCell{J};
+                        FreeParamsStruct(J).function = ParamPair{1};
+                        FreeParamsStruct(J).parameter = ParamPair{2};
+                    end
+                    OptSequence(I).freeparams = FreeParamsStruct;
+                else
+                    % Empty cell array becomes empty struct array
+                    OptSequence(I).freeparams = [];
+                end
+            end
         end
 
         if isfield(YAMLConfig, 'DefaultPressure_mbar')
@@ -314,16 +364,16 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         StageName = Stage.stagename;
         FreeParamsStage = Stage.freeparams;
 
-        % FreeParamsStage should be a cell array of pairs: {{'Func1', 'Param1'}, {'Func2', 'Param2'}}
-        % Or empty {} for field correction
-  
+        % FreeParamsStage should be a struct array with fields: .function, .parameter
+        % Or empty [] for field correction
+
         SigmaClip = Stage.sigmaclip;
         SigmaThresh = Stage.sigmathresh;
         SigmaIter = Stage.sigmaiter;
 
         % Detect field correction stage (empty freeparams) - always linear
         % Transmission parameter stages are always nonlinear
-        IsFieldCorrectionStage = isempty(FreeParamsStage) || (iscell(FreeParamsStage) && isempty([FreeParamsStage{:}]));
+        IsFieldCorrectionStage = isempty(FreeParamsStage);
 
         % Extract regularization parameter if present (for field correction)
         if isfield(Stage, 'regularization')
@@ -375,9 +425,8 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
 
             % Set FitPar for parameters specified in this stage
             for I = 1:length(FreeParamsStage)
-                ParamPair = FreeParamsStage{I};
-                FunctionName = ParamPair{1};
-                ParameterName = ParamPair{2};
+                FunctionName = FreeParamsStage(I).function;
+                ParameterName = FreeParamsStage(I).parameter;
                 Idx = find(strcmp(AllPar.Names, ParameterName), 1);
                 if isempty(Idx)
                     fprintf('ERROR: Parameter "%s" (from function "%s") not found\n', ParameterName, FunctionName);

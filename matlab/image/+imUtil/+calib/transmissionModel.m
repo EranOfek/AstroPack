@@ -13,7 +13,7 @@ function Model = transmissionModel(TransFunList, Args)
     %                   .paraminfo - Struct array of parameter info with fields:
     %                                .name, .min, .max
     %          * ...,key,val,...
-    %            'Airmass' - Atmospheric airmass (>= 1.0). If provided, metadata injection is performed.
+    %            'Airmass' - Atmospheric airmass (>= 1.0). Used for metadata injection.
     %                   Default is [].
     %            'Temperature' - Temperature [C]. Used for metadata injection.
     %                   Default is [].
