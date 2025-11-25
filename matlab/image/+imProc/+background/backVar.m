@@ -133,10 +133,10 @@ function [Result] = backVar(Obj, Args)
                                                  'Block',Args.Block,...
                                                  'Overlap',Args.Overlap,...
                                                  'CCDSEC',Args.CCDSEC,...
-                                                 'ExtendFull',Args.ExtendFul);
+                                                 'ExtendFull',Args.ExtendFull);
             % store
             Result(Iobj).BackData.Image = Back;
-            Result(Iobj).BackData.Image = Var;
+            Result(Iobj).VarData.Image  = Var;
     
             % subtract
             if Args.SubBack
