@@ -1,296 +1,226 @@
-function [Residuals, Cost, PredictedFlux] = transmissionFun(Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, TransParams, TransFun, PolyCheb, Args)
-    % Transmission-based photometric calibration: calculates cost
-    % function for optimization by imUtil.calib.transmissionFit. Function is comparing 
-    % the instrumental fluxes of stars in the image to the synthetic photometry of the stars 
-    % given their spectrum and the composite wavelength-dependent transmission function 
-    % which has free parameters with addition of position-dependent
-    % polynomial to account for ZP variations across the field.
+function Transmission = transmissionFun(Lambda, TransFun, Args)
+    % Calculate total transmission over wavelength grid and (optionally) positional grid.
+    % This function evaluates the transmission model over a wavelength grid,
+    % optionally including spatial field corrections. It returns either
+    % a 1D transmission vector or a 2D transmission matrix [] if positions are provided.
     %
-    % Input  : - Lambda - Wavelength grid [N_lambda x 1] in nm
-    %          - Spec - Gaia XP spectra matrix [N_GaiaWvl x N_calib]
-    %                   Each column is the flux spectrum for one calibrator
-    %          - SpecErr - Gaia XP spectra errors matrix [N_GaiaWvl x N_calib]
-    %                   Each column is the flux error spectrum (currently unused)
-    %          - Flux - Observed LAST flux [N_calib x 1]
-    %          - FluxErr - Observed flux errors [N_calib x 1] (currently unused)
-    %          - X - Source X coordinates [N_calib x 1]
-    %          - Y - Source Y coordinates [N_calib x 1]
-    %          - TransParams - Transmission parameter values vector 
-    %          - TransFun - CompositeFun object (for structure/evaluation)
-    %          - PolyCheb - Function handle @(X, Y, FieldParams) for field correction
+    % Input  : - Lambda - vector of wavelengths, in nm.
+    %          - TransFun - CompositeFun object containing transmission model
+    %                   (atmospheric + instrumental transmission functions).
     %          * ...,key,val,...
-    %            'FieldParams' - Field correction parameters [1 x 10].
+    %            'TransParams' - vector of N_params transmission parameter values.
+    %                   If provided, overrides parameters from TransFun.
+    %                   Default is [].
+    %            'X' - vector of X coordinates of N_sources in pixels.
+    %                   If provided with Y and PolyFieldCorr, the function calculates 2D transmission.
+    %                   Default is [].
+    %            'Y' - vector of Y coordinates of N_sources in pixels.
+    %                   If provided with X and PolyFieldCorr, the function calculates 2D transmission.
+    %                   Default is [].
+    %            'PolyFieldCorr' - Field correction function handle.
+    %                   Signature: FieldCorrectionMag = PolyFieldCorr(X, Y, FieldParams)
+    %                   Returns magnitude correction (additive in mag space).
+    %                   Default is [].
+    %            'FieldParams' - vector of field correction polynomial coefficients.
     %                   Default is zeros(1, 10).
-    %            'GaiaWavelength' - Gaia XP wavelength grid [N_gaia x 1] nm.
-    %                   Default is linspace(336, 1020, 343)'.
-    %            'Airmass' - Atmospheric airmass.
-    %                   Default is 1.2.
-    %            'Temperature' - Temperature [C].
-    %                   Default is 15.
-    %            'Time' - Exposure time [s].
-    %                   Default is 20.
-    %            'Aperture_area_m2' - Telescope aperture area [m^2].
-    %                   Default is pi * (0.1397)^2.
     %            'Verbose' - Enable verbose output.
     %                   Default is false.
-    % Output : - Residuals - Magnitude differences [N_calib x 1]
-    %          - Cost - Sum of squared residuals (scalar)
-    %          - PredictedFlux - Predicted flux in photons [N_calib x 1]
+    % Output : - Transmission - Transmission values:
+    %                   1D mode (no X/Y): [N_lambda x 1] column vector
+    %                   2D mode (with X/Y): [N_sources x N_lambda] matrix
+    %                   where Transmission(i,j) is transmission for source i at wavelength j
     % Author : D. Kovaleva (Nov 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
-    % Example: % Create transmission model
-    %          Model = tools.math.fun.CompositeFun();
-    %          Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], ...
-    %                       'Par', [30, 300], 'FitPar', [false, false]);
-    %          Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, [], ...
-    %                       'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
-    %          TransParams = [30, 300, 0.05, 1.2];  % All parameter values
-    %          % Create test data (3 calibrators with realistic Gaia-like spectra)
-    %          Lambda = linspace(336, 1020, 343)';
-    %          Spec = [(5e-17) ./ (Lambda / 400).^2, ...      % Blue star
-    %                  (3e-17) ./ (Lambda / 550).^0.5, ...    % Solar-type star
-    %                  (2e-17) * (Lambda / 700).^1.5];        % Red star [343 x 3]
-    %          SpecErr = 0.05 * Spec;  % 5% errors
-    %          Flux = [5.1e4; 7.5e4; 6.3e4];  % Observed photons
-    %          FluxErr = [5e3; 4e2; 3e2];
-    %          X = [500; 1000; 1500];  % Pixel coordinates
+    % Example: % 1D mode: transmission over wavelength grid only
+    % Define transmission functions 
+    % TransFunList(1).name = 'Ozone';
+    % TransFunList(1).handle = '@astro.transmission.ozoneTransmission';
+    % TransFunList(1).handletype = 'named';
+    % TransFunList(1).params = [30, 300];
+    % TransFunList(1).paraminfo(1).name = 'ZenithAngle_deg';
+    % TransFunList(1).paraminfo(1).min = 0;
+    % TransFunList(1).paraminfo(1).max = 90;
+    % TransFunList(1).paraminfo(2).name = 'DobsonUnits';
+    % TransFunList(1).paraminfo(2).min = 200;
+    % TransFunList(1).paraminfo(2).max = 400;
+    % TransFunList(2).name = 'Aerosol';
+    % TransFunList(2).handle = '@astro.transmission.aerosolTransmission';
+    % TransFunList(2).handletype = 'named';
+    % TransFunList(2).params = [30, 0.05, 1.2];
+    % TransFunList(2).paraminfo(1).name = 'ZenithAngle_deg';
+    % TransFunList(2).paraminfo(1).min = 0;
+    % TransFunList(2).paraminfo(1).max = 90;
+    % TransFunList(2).paraminfo(2).name = 'TauAod500';
+    % TransFunList(2).paraminfo(2).min = 0.0;
+    % TransFunList(2).paraminfo(2).max = 0.5;
+    % TransFunList(2).paraminfo(3).name = 'Alpha';
+    % TransFunList(2).paraminfo(3).min = 0.5;
+    % TransFunList(2).paraminfo(3).max = 2.5;
+    % Build model with metadata injection
+    % Model = imUtil.calib.transmissionModel(TransFunList, ...
+    %    'Airmass', 1.2, 'Temperature', 15, 'Pressure_mbar', 965);
+    %          Lambda = linspace(400, 900, 100)';
+    %          Transmission = imUtil.calib.transmissionFun(Lambda, TransFun);
+    %     % 2D mode: transmission over wavelength and positions
+    %          X = [500; 1000; 1500];
     %          Y = [500; 1000; 1500];
-    %          PolyCheb = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
-    %          FieldParams = zeros(1, 10);
-    %          [Res, Cost, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, SpecErr, ...
-    %              Flux, FluxErr, X, Y, TransParams, Model, PolyCheb, 'FieldParams', FieldParams);
-
+    %          PolyFieldCorr = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
+    %          FieldParams = [0.000129522473, 0.000862727726, 0.001387635303, -0.000271156095, -0.002494055579, 0.000862727726, 0.001387635304, -0.000271156095, -0.002494055580, 0.000758578889];
+    %          Transmission = imUtil.calib.transmissionFun(Lambda, TransFun, ...
+    %              'X', X, 'Y', Y, 'PolyFieldCorr', PolyFieldCorr, 'FieldParams', FieldParams);
+    
     arguments
         Lambda                      % Wavelength grid [N_lambda x 1]
-        Spec                        % Gaia XP spectra matrix [N_GaiaWvl x N_calib]
-        SpecErr                     % Gaia XP spectra errors [N_GaiaWvl x N_calib]
-        Flux                        % Observed LAST flux [N_calib x 1]
-        FluxErr                       % Observed flux errors [N_calib x 1]
-        X                          % X coordinates [N_calib x 1]
-        Y                           % Y coordinates [N_calib x 1]
-        TransParams                   % Transmission parameter values
         TransFun                    % CompositeFun object
-        PolyCheb function_handle    % Field correction function handle
+        Args.TransParams = []       % Transmission parameter values (optional)
+        Args.X = []                 % X coordinates [N_sources x 1]
+        Args.Y = []                 % Y coordinates [N_sources x 1]
+        Args.PolyFieldCorr = []     % Field correction function handle
         Args.FieldParams = zeros(1, 10)  % Field correction parameters
-        Args.GaiaWavelength = linspace(336, 1020, 343)'  % Gaia XP grid
-        Args.Airmass = 1.2          % Atmospheric airmass
-        Args.Temperature = 15       % Temperature [C]
-        Args.ExpTime = 20           % Exposure time [s]
-        Args.Aperture_area_m2 = pi * (0.1397)^2  % Telescope aperture [m^2]
         Args.Verbose logical = false
     end
 
     % ====================================================================
-    % STEP 1: VALIDATE INPUTS
+    % STEP 1: VALIDATE INPUTS AND ENSURE COLUMN VECTORS
     % ====================================================================
 
-    % Validate TransFun
-    if ~isa(TransFun, 'tools.math.fun.CompositeFun')
-        error('TransFun must be a tools.math.fun.CompositeFun object');
+    % Ensure Lambda is column vector
+    Lambda = Lambda(:);
+    N_lambda = length(Lambda);
+
+    % Ensure X, Y are column vectors if provided
+    if ~isempty(Args.X)
+        Args.X = Args.X(:);
+    end
+    if ~isempty(Args.Y)
+        Args.Y = Args.Y(:);
     end
 
-    % Check number of calibrators (Spec is [N_GaiaWvl x N_calib])
-    NumCalibrators = size(Spec, 2);
-    if NumCalibrators == 0
-        error('No calibrators in Spec');
+    % ====================================================================
+    % STEP 2: EXTRACT OR USE PROVIDED TRANSMISSION PARAMETERS
+    % ====================================================================
+
+    if isempty(Args.TransParams)
+        % Extract from TransFun
+        TransParams = TransFun.valuesAllPar();
+    else
+        TransParams = Args.TransParams;
     end
 
-    % Validate dimensions
-    if length(Flux) ~= NumCalibrators
-        error('Flux size (%d) does not match number of calibrators (%d)', ...
-              length(Flux), NumCalibrators);
-    end
-    if length(X) ~= NumCalibrators || length(Y) ~= NumCalibrators
-        error('X, Y size must match number of calibrators (%d)', NumCalibrators);
-    end
-    if size(SpecErr, 1) ~= size(Spec, 1) || size(SpecErr, 2) ~= size(Spec, 2)
-        error('SpecErr dimensions must match Spec dimensions');
-    end
-
-    % Validate parameter values
-    if any(isnan(TransParams))
-        error('TransParams contains NaN. Check parameter initialization.');
-    end
-
-    % Validate Lambda
-    if isempty(Lambda) || ~isvector(Lambda)
-        error('Lambda must be a non-empty vector');
-    end
-    Lambda = Lambda(:);  % Ensure column vector
-
-    % Validate GaiaWavelength
-    if isempty(Args.GaiaWavelength)
-        Args.GaiaWavelength = linspace(336, 1020, 343)';
-    end
-    Args.GaiaWavelength = Args.GaiaWavelength(:);  % Ensure column vector
+    % Ensure row vector
+    TransParams = TransParams(:)';
 
     if Args.Verbose
-        fprintf('=== TRANSMISSION COST FUNCTION ===\n');
-        fprintf('Number of calibrators: %d\n', NumCalibrators);
-        fprintf('Airmass: %.3f\n', Args.Airmass);
-        fprintf('Temperature: %.1f C\n', Args.Temperature);
-        fprintf('Wavelength grid: %.0f - %.0f nm (%d points)\n', ...
-                Lambda(1), Lambda(end), length(Lambda));
-        fprintf('Gaia XP range: %.0f - %.0f nm (%d points)\n', ...
-                Args.GaiaWavelength(1), Args.GaiaWavelength(end), length(Args.GaiaWavelength));
+        fprintf('=== TRANSMISSION CALCULATION ===\n');
+        fprintf('Wavelength range: %.1f - %.1f nm (%d points)\n', ...
+                Lambda(1), Lambda(end), N_lambda);
+        fprintf('Number of transmission parameters: %d\n', length(TransParams));
     end
 
     % ====================================================================
-    % STEP 2: APPLY TRANSMISSION TO GAIA SPECTRA 
+    % STEP 3: EVALUATE BASE TRANSMISSION (ATMOSPHERIC + INSTRUMENTAL)
     % ====================================================================
+
+    % Evaluate transmission on Lambda grid
+    Transmission_base = TransFun.evaluateAllParInput(Lambda, TransParams);
+
+    % Ensure column vector
+    Transmission_base = Transmission_base(:);
 
     if Args.Verbose
-        fprintf('Applying transmission function to %d spectra...\n', NumCalibrators);
-    end
-
-    % ----------------------------------------------------------------
-    % DETERMINE INTEGRATION RANGE ON GAIA GRID
-    % ----------------------------------------------------------------
-
-    % Lambda defines the integration range [Lambda_min, Lambda_max]
-    Lambda_min = min(Lambda);
-    Lambda_max = max(Lambda);
-
-    % Find subset of Gaia wavelength grid within Lambda range
-    GaiaInRange = (Args.GaiaWavelength >= Lambda_min) & (Args.GaiaWavelength <= Lambda_max);
-    GaiaWvl_Integration = Args.GaiaWavelength(GaiaInRange);
-    NumIntegrationPoints = length(GaiaWvl_Integration);
-
-    if NumIntegrationPoints == 0
-        error('No Gaia wavelengths within Lambda range [%.1f, %.1f] nm', Lambda_min, Lambda_max);
-    end
-
-    if Args.Verbose
-        fprintf('Integration range: %.1f - %.1f nm (%d Gaia grid points)\n', ...
-                GaiaWvl_Integration(1), GaiaWvl_Integration(end), NumIntegrationPoints);
-    end
-
-    % ----------------------------------------------------------------
-    % INTERPOLATE TRANSMISSION ONTO GAIA INTEGRATION GRID
-    % ----------------------------------------------------------------
-
-    % Evaluate transmission on Lambda grid (arbitrary grid)
-    Transmission_Lambda = TransFun.evaluateAllParInput(Lambda, TransParams(:)');
-
-    % Interpolate transmission onto Gaia integration grid
-    % Use linear interpolation (Gaia grid is always within or equal to Lambda range)
-    Transmission_Gaia = interp1(Lambda, Transmission_Lambda, GaiaWvl_Integration, 'linear');
-
-    if Args.Verbose
-        fprintf('Transmission range: %.4f - %.4f (mean: %.4f)\n', ...
-                min(Transmission_Gaia), max(Transmission_Gaia), mean(Transmission_Gaia));
-    end
-
-    % ----------------------------------------------------------------
-    % EXTRACT GAIA SPECTRA FOR INTEGRATION RANGE
-    % ----------------------------------------------------------------
-
-    % Spec is already a matrix [N_GaiaWvl x N_calib]
-    % Extract only the wavelengths within integration range
-    GaiaFluxMatrix = Spec(GaiaInRange, :);  % [NumIntegrationPoints x NumCalibrators]
-
-    % ----------------------------------------------------------------
-    % APPLY TRANSMISSION AND INTEGRATE
-    % ----------------------------------------------------------------
-
-    % Apply transmission to all spectra (implicit broadcasting)
-    % Transmission_Gaia is [NumIntegrationPoints x 1], broadcasts to all calibrators
-    TransmittedSpectra = GaiaFluxMatrix .* Transmission_Gaia;  % [NumIntegrationPoints x NumCalibrators]
-
-    % ====================================================================
-    % STEP 3: INTEGRATE TRANSMITTED FLUX OVER GAIA GRID
-    % ====================================================================
-
-    if Args.Verbose
-        fprintf('Integrating transmitted flux over Gaia wavelength grid...\n');
-    end
-
-    % Transpose for integration: [NumCalibrators x NumIntegrationPoints]
-    TransmittedSpectraT = TransmittedSpectra';
-
-    % Calculate integrand: Flux * Lambda
-    Integrand = TransmittedSpectraT .* GaiaWvl_Integration(:)';
-
-    % Integrate over wavelength dimension using Gaia grid
-    GaiaWvl_Row = GaiaWvl_Integration(:)';
-    A_vector = tools.math.integral.trapzmat(GaiaWvl_Row, Integrand, 2);
-    A_vector = A_vector(:);  % Ensure column vector
-
-    % ====================================================================
-    % STEP 4: CONVERT INTEGRATED FLUX TO PHOTONS
-    % ====================================================================
-
-    % Physical constants
-    H = constant.h('SI');      % Planck constant [J·s]
-    C = constant.c('SI');      % Speed of light [m/s]
-    B = H * C * 1e9;           % H*C with nm to m conversion
-
-    % Get telescope parameters
-    Dt = Args.ExpTime;         % Exposure time [s]
-    Ageom = Args.Aperture_area_m2;  % Aperture area [m^2]
-
-    % Convert to photons
-    PredictedFlux = Dt * Ageom * A_vector / B;
-
-    if Args.Verbose
-        fprintf('Photon conversion: Dt=%.1f s, Ageom=%.4f m^2, B=%.4e\n', Dt, Ageom, B);
-        fprintf('Predicted flux (photons) range: %.2e - %.2e\n', ...
-                min(PredictedFlux), max(PredictedFlux));
-        fprintf('Predicted flux (photons) mean: %.2e\n', mean(PredictedFlux));
+        fprintf('Base transmission range: %.4f - %.4f (mean: %.4f)\n', ...
+                min(Transmission_base), max(Transmission_base), mean(Transmission_base));
     end
 
     % ====================================================================
-    % STEP 5: CALCULATE MAGNITUDE DIFFERENCES
+    % STEP 4: CHECK IF FIELD CORRECTION IS REQUESTED
     % ====================================================================
 
-    % Ensure Flux is column vector
-    Flux = Flux(:);
+    % Field correction requires all three: X, Y, and PolyFieldCorr
+    ApplyFieldCorrection = ~isempty(Args.X) && ~isempty(Args.Y) && ~isempty(Args.PolyFieldCorr);
 
-    % Calculate magnitude difference
-    DiffMag = 2.5 * log10(PredictedFlux ./ Flux);
+    if ~ApplyFieldCorrection
+        % ================================================================
+        % 1D MODE: RETURN BASE TRANSMISSION (NO FIELD CORRECTION)
+        % ================================================================
 
-    % ====================================================================
-    % STEP 6: APPLY FIELD CORRECTION
-    % ====================================================================
-
-    % Check if field correction parameters are non-zero
-    if any(Args.FieldParams ~= 0)
-        if Args.Verbose
-            fprintf('Applying field corrections...\n');
-        end
-
-        % Apply field correction using provided function handle
-        FieldCorrectionMag = PolyCheb(X, Y, Args.FieldParams);
-
-        % Ensure column vector
-        FieldCorrectionMag = FieldCorrectionMag(:);
-
-        % Add field correction to magnitude difference (additive in magnitude space)
-        DiffMag = DiffMag + FieldCorrectionMag;
+        Transmission = Transmission_base;
 
         if Args.Verbose
-            fprintf('Field correction range: %.4f - %.4f mag\n', ...
-                    min(FieldCorrectionMag), max(FieldCorrectionMag));
+            fprintf('Mode: 1D (no field correction)\n');
+            fprintf('Output size: [%d x 1]\n', N_lambda);
+            fprintf('=== TRANSMISSION COMPLETE ===\n');
         end
+
+        return;
     end
 
     % ====================================================================
-    % STEP 7: CALCULATE COST AND RESIDUALS
+    % 2D MODE: APPLY FIELD CORRECTION TO CREATE POSITION-DEPENDENT TRANSMISSION
     % ====================================================================
 
-    % Residuals are the magnitude differences
-    Residuals = DiffMag;
+    N_sources = length(Args.X);
 
-    % Cost is sum of squared residuals
-    Cost = sum(Residuals.^2);
-
-    % Calculate RMS for reporting
-    RMS = sqrt(Cost / length(Residuals));
+    % Validate X and Y have same length
+    if length(Args.Y) ~= N_sources
+        error('X and Y must have the same length (X: %d, Y: %d)', N_sources, length(Args.Y));
+    end
 
     if Args.Verbose
-        fprintf('Residuals: mean=%.4f mag, std=%.4f mag, RMS=%.4f mag\n', ...
-                mean(Residuals), std(Residuals), RMS);
-        fprintf('Cost: %.4e\n', Cost);
-        fprintf('=== transmissionFun COMPLETE ===\n\n');
+        fprintf('Mode: 2D (with field correction)\n');
+        fprintf('Number of sources: %d\n', N_sources);
+        fprintf('Field parameters: %d\n', length(Args.FieldParams));
+    end
+
+    % ====================================================================
+    % STEP 5: CALCULATE FIELD CORRECTION FOR EACH SOURCE
+    % ====================================================================
+
+    % Calculate field correction in magnitude space [N_sources x 1]
+    FieldCorrectionMag = Args.PolyFieldCorr(Args.X, Args.Y, Args.FieldParams);
+    FieldCorrectionMag = FieldCorrectionMag(:);
+
+    if Args.Verbose
+        fprintf('Field correction (mag) range: %.4f - %.4f mag\n', ...
+                min(FieldCorrectionMag), max(FieldCorrectionMag));
+    end
+
+    % ====================================================================
+    % STEP 6: CONVERT FIELD CORRECTION TO TRANSMISSION SPACE
+    % ====================================================================
+
+    % In magnitude space: mag_corrected = mag + FieldCorrectionMag
+    % In flux space: flux_corrected = flux * 10^(-0.4 * FieldCorrectionMag)
+    % In transmission space: transmission_corrected = transmission_base * 10^(-0.4 * FieldCorrectionMag)
+
+    FieldCorrectionTransmission = 10.^(-0.4 * FieldCorrectionMag);  % [N_sources x 1]
+
+    if Args.Verbose
+        fprintf('Field correction (transmission) range: %.4f - %.4f\n', ...
+                min(FieldCorrectionTransmission), max(FieldCorrectionTransmission));
+    end
+
+    % ====================================================================
+    % STEP 7: BUILD 2D TRANSMISSION MATRIX
+    % ====================================================================
+
+    % Transmission_base is [N_lambda x 1]
+    % FieldCorrectionTransmission is [N_sources x 1]
+    % We want output: [N_sources x N_lambda]
+    %   Transmission(i, j) = Transmission_base(j) * FieldCorrectionTransmission(i)
+
+    % Replicate base transmission for all sources: [N_sources x N_lambda]
+    Transmission_base_replicated = repmat(Transmission_base', N_sources, 1);
+
+    % Replicate field correction for all wavelengths: [N_sources x N_lambda]
+    FieldCorrectionTransmission_replicated = repmat(FieldCorrectionTransmission, 1, N_lambda);
+
+    % Apply field correction (element-wise multiplication)
+    Transmission = Transmission_base_replicated .* FieldCorrectionTransmission_replicated;
+
+    if Args.Verbose
+        fprintf('Output size: [%d x %d] (sources x wavelengths)\n', N_sources, N_lambda);
+        fprintf('Total transmission range: %.4f - %.4f\n', min(Transmission(:)), max(Transmission(:)));
+        fprintf('=== TRANSMISSION COMPLETE ===\n');
     end
 end

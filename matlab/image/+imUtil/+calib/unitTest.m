@@ -27,7 +27,7 @@ function Answer=unitTest
 
     Answer = true;
 
-    % testing: transmissionModel - transmissionFun - transmissionFit
+    % testing: transmissionModel - transmissionCostFun - transmissionFit
     % testing: imUtil.calib.transmissionModel
    
     % Define transmission functions as struct array
@@ -59,7 +59,7 @@ function Answer=unitTest
         'Airmass', 1.2, 'Temperature', 15, 'Pressure_mbar', 965);
 
 
-    % testing: imUtil.calib.transmissionFun
+    % testing: imUtil.calib.transmissionCostFun
     % Reuse the Model and test data from transmissionModel test
 
     % Get parameter values from Model
@@ -74,10 +74,16 @@ function Answer=unitTest
     FluxErr = [5e3; 4e2; 3e2];
     X = [500; 1000; 1500];  % Pixel coordinates
     Y = [500; 1000; 1500];
-    PolyCheb = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
+    PolyFieldCorr = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
     FieldParams = zeros(1, 10);
-    [Res, Cost, Pred] = imUtil.calib.transmissionFun(Lambda, Spec, SpecErr, ...
-        Flux, FluxErr, X, Y, TransParams, Model, PolyCheb, 'FieldParams', FieldParams);
+    % Option 1: Pass TransParams explicitly
+    [Res, Cost, Pred] = imUtil.calib.transmissionCostFun(Lambda, Spec, SpecErr, ...
+        Flux, FluxErr, Model, 'TransParams', TransParams, 'X', X, 'Y', Y, ...
+        'PolyFieldCorr', PolyFieldCorr, 'FieldParams', FieldParams);
+    % Option 2: Use parameters from Model (extracted automatically)
+    % [Res, Cost, Pred] = imUtil.calib.transmissionCostFun(Lambda, Spec, SpecErr, ...
+    %     Flux, FluxErr, Model, 'X', X, 'Y', Y, 'PolyFieldCorr', PolyFieldCorr, ...
+    %     'FieldParams', FieldParams);
 
 
 
@@ -101,6 +107,28 @@ function Answer=unitTest
     OptSeq(2).description = 'Field correction (always linear)';
     % Run fitting
     [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
-        Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, PolyCheb, ...
+        Lambda, Spec, SpecErr, Flux, FluxErr, 'X', X, 'Y', Y, ...
+        'PolyFieldCorr', PolyFieldCorr, ...
         'TransmissionFunctions', TransFunList, 'OptimizationSequence', OptSeq);
+    
+ % Final transmission parameters:
+ % [1] ZenithAngle_deg: 33.557310
+ % [2] DobsonUnits: 300.000000
+ % [3] TauAod500: 0.005454
+ % [4] Alpha: 1.200000
+
+%Final field correction parameters:
+%  [1] kx0: 0.000129522473
+%  [2] kx: 0.000862727726
+%  [3] kx2: 0.001387635303
+%  [4] kx3: -0.000271156095
+%  [5] kx4: -0.002494055579
+%  [6] ky: 0.000862727726
+%  [7] ky2: 0.001387635304
+%  [8] ky3: -0.000271156095
+%  [9] ky4: -0.002494055580
+%  [10] kxy: 0.000758578889
+
+%Final calibrators: 2
+%Final RMS: 0.0000 mag   
 end
