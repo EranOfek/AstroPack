@@ -122,6 +122,7 @@ classdef AstroImage < Component
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
         PSF
+        Table
         %WCS
     end
     
@@ -129,7 +130,7 @@ classdef AstroImage < Component
         % Data
         %ImageData(1,1) NoisyImage
         
-        Table     = [];
+        
         
         ImageData(1,1) SciImage              %= SciImage;
         BackData(1,1) BackImage              %= BackImage;
@@ -144,6 +145,7 @@ classdef AstroImage < Component
         
         Trace   % A SpecTrace object: spectral trace and wave solutions 
     end
+
     
     properties (Hidden)
         PropagateErr(1,1) logical          = false;
@@ -806,13 +808,16 @@ classdef AstroImage < Component
             % Get Catdata.Catalog in table format
             % To update set it to []
            
-            if isempty(Obj.Table)
-                Data = array2table(Obj.CatData.Catalog);
-                Data.Properties.VariableNames = Obj.CatData.ColNames;
-                Obj.Table = Data;
-            else
-                Data = Obj.Table;
-            end
+            Data = array2table(Obj.CatData.Catalog);
+            Data.Properties.VariableNames = Obj.CatData.ColNames;
+
+            % if isempty(Obj.Table)
+            %     Data = array2table(Obj.CatData.Catalog);
+            %     Data.Properties.VariableNames = Obj.CatData.ColNames;
+            %     Obj.Table = Data;
+            % else
+            %     Data = Obj.Table;
+            % end
         end
         
         function Data = get.Image(Obj)

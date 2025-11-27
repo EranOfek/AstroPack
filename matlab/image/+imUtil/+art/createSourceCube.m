@@ -73,7 +73,7 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     end        
     
     % eliminate negative PSF edges 
-    if Args.PositivePSF
+    if Args.PositivePSF && ~isempty(Args.FunEdge)
         if iscell(PSF)
             M = cellfun(@size, PSF, 'UniformOutput', false);
             for Isrc = 1:Nsrc

@@ -24,8 +24,10 @@ function [Result] = binaryAGN_selfLensingLC(Args)
 
         Args.ImpactPar  = 0;
         Args.BetaVec    = (0:0.05:2)';  % [src rad units]
+        Args.Time       = [];
         Args.Nsim       = 1e6;
     end
+    
     
 
     [IntegratedSpec, Wave, VecR, T, Ibb] = astro.spec.accretionDiskSpec('M',Args.M,...
@@ -38,9 +40,15 @@ function [Result] = binaryAGN_selfLensingLC(Args)
                                                                             'Nstep',Args.Nstep,...
                                                                             'Wave',Args.Wave);
 
+    
     % two MBH with the same mass:
     K=celestial.Kepler.kepler3law(2.* Args.M.*constant.SunM, 'a', Args.Sep); %3600);
     Dls = K.a./constant.pc;
+
+    if ~isempty(Args.Time)
+        Args.BetaVec = Args.Time .* K.v.*86400.*365.25 ./max(VecR);
+    end
+
 
     % accretion disk profile - face on
     FluxAsFunRadius = sum(Ibb, 1);
@@ -51,7 +59,7 @@ function [Result] = binaryAGN_selfLensingLC(Args)
     FunLimbMatrix(IsN,2) = 0;
 
     % set LensRad to Rs
-    Rs   = 2.*constant.G.*Ags.M./(constant.c.^2);
+    Rs   = 2.*constant.G.*Args.M./(constant.c.^2);
 
     % the two BH have the same mass:
     Beta = sqrt(Args.ImpactPar.^2 + Args.BetaVec.^2);
@@ -59,7 +67,10 @@ function [Result] = binaryAGN_selfLensingLC(Args)
                                                             'FunLimb', FunLimbMatrix, 'LensRad',Rs, 'Algo','2d','Nsim',Args.Nsim);
 
     % Impact par to time
-    Time = Args.BetaVec.*max(VecR)./K.v./(86400.*365.25);  % [yr]
+    Time = Args.BetaVec.*max(VecR)./(K.v.*86400.*365.25);  % [yr]
+
+    
+
     %plot(Time, TM)
     %hold on;
 
