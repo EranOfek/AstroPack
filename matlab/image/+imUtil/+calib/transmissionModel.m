@@ -1,5 +1,6 @@
 function Model = transmissionModel(TransFunList, Args)
-    % Build tools.math.fun.CompositeFun transmission model from basic function
+    % Builds transmission model object from basic transmission functions.
+    % Builds tools.math.fun.CompositeFun transmission model from basic function
     % specification list (astro.transmission.* for atmospheric
     % transmission, telescope.detector.* and telescope.optics.* for instrumental transmission). 
     % Uses class tools.math.fun.CompositeFun.
@@ -14,11 +15,11 @@ function Model = transmissionModel(TransFunList, Args)
     %                                .name, .min, .max
     %          * ...,key,val,...
     %            'Airmass' - Atmospheric airmass (>= 1.0). Used for metadata injection.
-    %                   Default is [].
+    %                   From observations.
     %            'Temperature' - Temperature [C]. Used for metadata injection.
-    %                   Default is [].
+    %                   From observations.
     %            'Pressure_mbar' - Atmospheric pressure [mbar]. Used for metadata injection.
-    %                   Default is [].
+    %                   Default is 965.
     %            'Verbose' - Enable verbose output.
     %                   Default is false.
     % Output : - Model - CompositeFun object with all transmission
@@ -58,9 +59,9 @@ function Model = transmissionModel(TransFunList, Args)
 
     arguments
         TransFunList struct
-        Args.Airmass = []       % Optional: from observations
-        Args.Temperature = []   % Optional: from observations
-        Args.Pressure_mbar = [] % Optional: from observations
+        Args.Airmass = 1.2       % From observations
+        Args.Temperature = 15   % From observations
+        Args.Pressure_mbar = 965 % Now default, later: from observations
         Args.Verbose logical = false
     end
 
