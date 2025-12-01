@@ -26,7 +26,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
     Nwave   = 91; WavePSF = linspace(2000,11000,Nwave);                
     
     % load the matlab object with the ULTRASAT properties: 
-    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_UP'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');   
+    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_Properties'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     io.files.load1(UP_db,'UP');
     
     % read the chosen PSF database from a .mat file
