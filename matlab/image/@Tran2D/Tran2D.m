@@ -776,8 +776,8 @@ classdef Tran2D < Base
             Result.ParY     = ParY;
             Result.ErrParX  = ErrParX;
             Result.ErrParY  = ErrParY;
-            Result.ResidX   = X - Hx.*ParX;
-            Result.ResidY   = Y - Hy.*ParY;
+            Result.ResidX   = X - Hx*ParX;
+            Result.ResidY   = Y - Hy*ParY;
             Result.RmsX     = std(Result.ResidX);
             Result.RmsY     = std(Result.ResidY);
             
