@@ -86,7 +86,18 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % cleaning of the subtracted image:        
         Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
-                              
+
+        Args.RedoUpIter = [1];
+
+        Args.mexCutout = true;
+
+        Args.ColFlux           = 'FLUX_APER';
+        Args.ColFluxErr        = 'FLUXERR_APER';
+        Args.ColMag            = 'MAG_APER';
+        Args.ColMagErr         = 'MAGERR_APER'
+        Args.ZP                = 25;
+
+
         % miscellaneous:
         Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
         Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
@@ -326,7 +337,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 LinIndex = imUtil.image.sub2ind_fast(SizeImage, ColData(:,2), ColData(:,1));
                 %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
                 %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
-                ScatteredLightFrac = 0.05;
+                ScatteredLightFrac = 0.03;
                 EdgesVarMap(LinIndex) = ColData(:,3).*ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5));
                 %AI.Back(AI.Image>5000) = 5000;
                 ConvBright = conv2(EdgesVarMap, LK, 'same');
@@ -348,29 +359,58 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         end % end of iterations  
 
-        Args.RedoUpIter = [];
+        
         if ~isempty(Args.RedoUpIter)
             if Niter<=Args.RedoUpIter
                 error('Niter is <= RedoUpIter - does not make sense');
             end
             % yet another iteration for the bright sources only
-            SubImageFaint = Result(Iobj).ImageData.Image - SourceImage(:,:,(Args.RedoUpIter+1):end) - Result(Iobj).BackData.Image;
+            SubImageFaint = Result(Iobj).ImageData.Image - sum(SourceImage(:,:,(Args.RedoUpIter+1):end),3) - Result(Iobj).BackData.Image;
             
+            % merge the Catalogs
+            CatBright = Cat(1:Args.RedoUpIter).merge;
+            CatFaint  = Cat((Args.RedoUpIter+1):end).merge;
+            % do aper phot only on bright stars
+            BrightXY = CatBright.getXY;
+
+            % See alos:
+            % R=imProc.sources.aperPhot(AI);
+
             % perform only aperture photometry on brightest sources
-            %[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(SubImageFaint, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
-            
-            %ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.AnnulusRadius);
+            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
+            ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
 
             % insert aper phot data to catalog of Cat(1:Args.RedoUpIter)
-            
+             
+            Naper      = numel(Args.AperRadius);
+            ColFlux    = tools.cell.cellNumericSuffix(Args.ColFlux, (1:Naper));
+            ColFluxErr = tools.cell.cellNumericSuffix(Args.ColFluxErr, (1:Naper));
+            ColMag     = tools.cell.cellNumericSuffix(Args.ColMag, (1:Naper));
+            ColMagErr  = tools.cell.cellNumericSuffix(Args.ColMagErr, (1:Naper));
+            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr];
+            %[C1{1:Naper.*2}] = deal('');
+            %[C2{1:Naper.*2}] = deal('mag');
+            %ColUnits         = [C1, C2];
 
+            
+            FluxMagData = [ResAperBright.AperPhot,...
+                           ResAperBright.AperPhotErr,...
+                           convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP)),...
+                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot];
+             
+            CatBright.replaceCol(FluxMagData, ColsToAdd);
+            
+            Result(Iobj).CatData.Catalog = [CatBright.Catalog; CatFaint.Catalog];
+            Result(Iobj).CatData.ColNames = CatBright.ColNames;
+        else
+            % merge the catalogs of objects extracted at all the iterations
+            Result(Iobj).CatData = merge(Cat);
         end
 
 
 
 
-        % merge the catalogs of objects extracted at all the iterations
-        Result(Iobj).CatData = merge(Cat);
+        
 
         % Cleaning:
         % remove sources on edge
