@@ -140,6 +140,7 @@ arguments
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
     Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    Args.Method                                        = 'prod'; % 'devel' 
     
     Args.UseMex logical                                = false;
 end
@@ -451,6 +452,11 @@ if nargout>1
         MatYcen = MatY - reshape(RelY1,1,1,Nsrc);
         MatR2   = MatXcen.^2 + MatYcen.^2;
     %end
+    
+    if strcmpi(Args.Method,'prod')
+        WInt1 = WInt;
+        Norm1 = Norm;
+    end
     
     M2.X2 = squeeze(sum(WInt1.*MatXcen.^2,[1 2])).*Norm1;
     M2.Y2 = squeeze(sum(WInt1.*MatYcen.^2,[1 2])).*Norm1;
