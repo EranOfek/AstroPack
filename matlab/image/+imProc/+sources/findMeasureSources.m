@@ -103,6 +103,8 @@ function Result = findMeasureSources(Obj, Args)
     %                   Default is 3.
     %            'FlasgPos' - The column index in which to add the Flags
     %                   column. Default is Inf.
+    %            'BitDict' - BitDictionary object.
+    %                   Default is BitDictionary('BitMask.Image.Default').
     %            'ColNameFlags' - The column name of Flags to add to the
     %                   catalog. 
     %                   This will be added only of the MaskData is
@@ -185,7 +187,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.ColNamesXsec                  = 'XPEAK';
         Args.ColNamesYsec                  = 'YPEAK';
         Args.FlagsType                     = @double;
-            
+        
+        Args.BitDict                       = BitDictionary('BitMask.Image.Default');
+
         Args.CreateNewObj logical          = false;
         
         % hidden
@@ -260,7 +264,7 @@ function Result = findMeasureSources(Obj, Args)
             % remove bad sources
             % works only for Gaussian PSF
             if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
-                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), Args.maskCR_Args{:});
+                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), 'BitDict',Args.BitDict, Args.maskCR_Args{:});
             end
             if Args.FlagDiffXY
                 Result(Iobj) = imProc.mask.xpeak_x1_diff(Result(Iobj), Args.maskDiffXY_Args{:});

@@ -28,6 +28,8 @@ function [Result,FlagGood] = maskCR(Obj, Args)
     %                   Default is true.
     %            'RemoveFromCat' - If true, then remove CR sources from
     %                   catalog. Default is true.
+    %            'BitDict' - BitDictionary object.
+    %                   Default is BitDictionary('BitMask.Image.Default').
     %            'CreateNewObj' - If true, then will create a new copy of
     %                   the AstroImage object. Default is false.
     %
@@ -50,6 +52,8 @@ function [Result,FlagGood] = maskCR(Obj, Args)
 
         Args.SetMask logical         = true;
         Args.RemoveFromCat logical   = true;
+
+        Args.BitDict                 = BitDictionary('BitMask.Image.Default');
 
         Args.CreateNewObj logical    = false;
        
@@ -85,7 +89,7 @@ function [Result,FlagGood] = maskCR(Obj, Args)
                     Find = imUtil.image.sub2ind_fast(Obj(Iobj).sizeImage, Y(IndFlag), X(IndFlag));
                     %FlagImage(Find) = true;
                     %Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagImage, Args.BitNameCR, 1);
-                    Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Find, Args.BitNameCR, 1);
+                    Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Find, Args.BitNameCR, 1, 'DefBitDict',Args.BitDict);
                 end
             otherwise
                 error('Unknown AlgoCR option');
