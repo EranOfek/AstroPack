@@ -252,6 +252,8 @@ else
 end
 Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
+WInt1 = WInt; % keep it for the 2nd moment calculation
+Norm1 = Norm; 
 
 if Args.MaxIter==-1
     % No first moment
@@ -290,7 +292,7 @@ else
         MatR2      = MatXcen.^2 + MatYcen.^2;
         %MatR       = sqrt(MatR2);
         
-        % apply Gaussian weight to the new centeral matrix
+        % apply Gaussian weight to the new central matrix
         if ~Args.WindowOnlyOnLastIter
             if isa(Args.WeightFun,'function_handle')
                 % WeightFun is a function handle
@@ -331,7 +333,7 @@ else
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
-
+        
         if Args.UseMex
             DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
             DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
@@ -450,9 +452,9 @@ if nargout>1
         MatR2   = MatXcen.^2 + MatYcen.^2;
     %end
     
-    M2.X2 = squeeze(sum(WInt.*MatXcen.^2,[1 2])).*Norm;
-    M2.Y2 = squeeze(sum(WInt.*MatYcen.^2,[1 2])).*Norm;
-    M2.XY = squeeze(sum(WInt.*MatXcen.*MatYcen,[1 2])).*Norm;
+    M2.X2 = squeeze(sum(WInt1.*MatXcen.^2,[1 2])).*Norm1;
+    M2.Y2 = squeeze(sum(WInt1.*MatYcen.^2,[1 2])).*Norm1;
+    M2.XY = squeeze(sum(WInt1.*MatXcen.*MatYcen,[1 2])).*Norm1;
     
     if nargout>2
         Args.UseAperPhotCube = true;
