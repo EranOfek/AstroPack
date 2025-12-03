@@ -18,6 +18,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % pre subtraction treatment
         Args.ExcludeEmpty              = true;
 
+        Args.BitDict                   = BitDictionary('BitMask.Image.Default');
+
         % background
         Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
@@ -64,7 +66,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
-        Args.Threshold                 = [100 30 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations   
+        Args.Threshold                 = [500 50 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations   
         Args.ColCell cell              = {'XPEAK','YPEAK',...
                                         'X1', 'Y1',...
                                         'X2','Y2','XY',...
@@ -158,7 +160,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
     FlagPopCat = Result.sizeCatalog>0;
-    Result(FlagPopCat).deleteProp('CatData');
+    if any(FlagPopCat)
+        Result(FlagPopCat).deleteProp('CatData');
+    end
     
     % Define AstroImage of subtracted sources
     if nargout>1
@@ -230,7 +234,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'Psf',PSFTemplate,...
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell);
+                                                          'ColCell',Args.ColCell,...
+                                                          'BitDict',Args.BitDict);
                
                 ColSN = 'SN_2';            
                 %clear PSFTemplate
@@ -241,7 +246,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'PsfFunPar',Args.PsfFunPar,...
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell);
+                                                          'ColCell',Args.ColCell,...
+                                                          'BitDict',Args.BitDict);
                 ColSN = 'SN_2';
             end                         
             
