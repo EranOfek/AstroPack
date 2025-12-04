@@ -1,12 +1,19 @@
-% function [X1, Y1, sigma_xx, sigma_yy, sigma_xy] = moment2dev(I, X0, Y0, R, sigma_g, Args)
 function [M1, M2] = moment2dev(I, X0, Y0, Args)
     % moments of an image
     %     Optional detailed description
     % Input  : - a 2D image matrix 
-    %          - 
+    %          - X0 initial guess of the centroid
+    %          - Y0 initial guess of the centroid
     %          * ...,key,val,... 
-    % Output : - 
-    % Author : Eran Ofek (2025 Dec) 
+    % Output : - first moment structure:
+    %          .X
+    %          .Y
+    %          .Niter
+    %          - second moment structure:
+    %          .X2
+    %          .Y2
+    %          .XY 
+    % Author : A.M. Krassilchtchikov (2025 Dec) 
     % Example: 
 
     arguments
@@ -15,68 +22,68 @@ function [M1, M2] = moment2dev(I, X0, Y0, Args)
         Y0
         Args.R                 = 8;
         Args.SigmaG            = 4;
-        Args.MaxIter           = 10;
+        Args.MaxIter           = 30;
         Args.Precision         = 1e-6;        
     end
+    
+    [M, N] = size(I);
+    [Xg, Yg] = meshgrid(1:N, 1:M);
 
-    [m, n] = size(I);
-    [xg, yg] = meshgrid(1:n, 1:m);
+    % Define a circular mask and restrict all the operations to the fixed aperture
+    Dx0 = Xg - X0;
+    Dy0 = Yg - Y0;
+    Mask = (Dx0.^2 + Dy0.^2) <= Args.R^2;
+    Iwin = I .* Mask;
 
-    % ----- Define circular mask only once -----
-    dx0 = xg - X0;
-    dy0 = yg - Y0;
-    mask = (dx0.^2 + dy0.^2) <= Args.R^2;
-
-    % Restrict all operations to fixed aperture
-    Iwin = I .* mask;
-
-    % ----- ITERATIVE CENTROID REFINEMENT -----
+    % Find the first moment iteratively
     Xc = X0;
     Yc = Y0;
 
-    for k = 1:Args.MaxIter
+    for Iter = 1:Args.MaxIter
 
-        dx = xg - Xc;
-        dy = yg - Yc;
+        Dx = Xg - Xc;
+        Dy = Yg - Yc;
 
-        % Gaussian weights centered on current estimate
-        W = exp(-(dx.^2 + dy.^2) / (2 * Args.SigmaG^2));
+        % Gaussian weights centered on the current estimate
+        W = exp(-(Dx.^2 + Dy.^2) / (2 * Args.SigmaG^2));
 
-        % Use both image and Gaussian as weights
+        % Use both the image and the Gaussian as weights
         IW = Iwin .* W;
 
         M0 = sum(IW(:));
         if M0 == 0
-            error('Zero total weight (image may be empty inside R).');
+            error('Zero total weight: the image may be empty inside R.');
         end
-
-        newX = sum(xg(:) .* IW(:)) / M0;
-        newY = sum(yg(:) .* IW(:)) / M0;
+        
+        NewX = sum(Xg(:) .* IW(:)) / M0;
+        NewY = sum(Yg(:) .* IW(:)) / M0;
 
         % Check convergence
-        if hypot(newX - Xc, newY - Yc) < Args.Precision
-            Xc = newX;
-            Yc = newY;
+        if hypot(NewX - Xc, NewY - Yc) < Args.Precision
+            Xc = NewX;
+            Yc = NewY;
             break;
         end
 
-        Xc = newX;
-        Yc = newY;
+        Xc = NewX;
+        Yc = NewY;
     end
 
     M1.X = Xc;
     M1.Y = Yc;
+    M1.Niter = Iter;
 
-    % ----- SECOND MOMENTS -----
-    dx = xg - M1.X;
-    dy = yg - M1.Y;
+    % calculate the second moments relative to the found centroid: 
+    
+    Dx = Xg - M1.X;
+    Dy = Yg - M1.Y;
 
-    % Use the same mask (inside R) and no Gaussian weights for the 2nd moments:
+    % use the same mask (inside R) and no Gaussian weights for the 2nd moments:
     J = Iwin;
 
     M0 = sum(J(:));
 
-    M2.X2 = sum((dx(:).^2) .* J(:)) / M0;
-    M2.Y2 = sum((dy(:).^2) .* J(:)) / M0;
-    M2.XY = sum((dx(:).*dy(:)) .* J(:)) / M0;
+    M2.X2 = sum((Dx(:).^2) .* J(:)) / M0;
+    M2.Y2 = sum((Dy(:).^2) .* J(:)) / M0;
+    M2.XY = sum((Dx(:).*Dy(:)) .* J(:)) / M0;
 end
