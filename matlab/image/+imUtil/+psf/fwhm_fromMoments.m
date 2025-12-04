@@ -73,7 +73,7 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
 
     FlagStars = Result.SN(:,2)>Result.SN(:,1) | Result.SN(:,3)>Result.SN(:,1);
 
-    [M1,M2,~] = imUtil.image.moment2dev(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
+    [M1,M2] = imUtil.image.moment2dev(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
 
     SQ  = sqrt((M2.X2 - M2.Y2).^2 + 4.*M2.XY.^2);
     XY2 = M2.X2 + M2.Y2;
