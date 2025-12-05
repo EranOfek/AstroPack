@@ -2,8 +2,8 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
     % moments of an image
     %     Optional detailed description
     % Input  : - a 2D image matrix 
-    %          - X0 initial guess of the centroid
-    %          - Y0 initial guess of the centroid
+    %          - X0 initial guess of the centroid (may be a vector of positions)
+    %          - Y0 initial guess of the centroid (may be a vector of positions) 
     %          * ...,key,val,... 
     %          'MomRadius'- Radius around position in which to calculate the
     %                        moments. Recomended ~1.7 FWHM. Default is 8.
@@ -12,6 +12,8 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
     %          'MaxIter' - maximal number of iterations for M1
     %          'Precision' - precision of M1.X and M1.Y position
     %          'SubtractBack' - whether to measure and subtract the background 
+    %                          (Default is true)
+    %          'WeightedM2' - whether to multiply the Image by additional gaussian weight for M2 calculation
     %                          (Default is true)
     % Output : - first moment structure:
     %          .X
@@ -37,10 +39,13 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
         Args.MaxIter           = 30;
         Args.Precision         = 1e-4;   
         Args.SubtractBack      = 'true';
+        Args.WeightedM2        = 'true';
     end
     %
-    [M, N] = size(Image);
+    [M, N]   = size(Image);
     [Xg, Yg] = meshgrid(1:N, 1:M);
+    
+    Nsrc = numel(X0);
     
     % Measure and subtract a global background if requested
     if Args.SubtractBack
@@ -48,9 +53,9 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
         Image = Image - Back;
     end
 
-    % Define a circular mask and cut the image outside it 
-    Dx0 = Xg - X0;
-    Dy0 = Yg - Y0;
+    % Define a circular mask and cut the image outside it     
+    Dx0 = Xg - reshape(X0, 1, 1, Nsrc);
+    Dy0 = Yg - reshape(Y0, 1, 1, Nsrc);
     Mask = (Dx0.^2 + Dy0.^2) <= Args.MomRadius^2;
     Iwin = Image .* Mask;
 
@@ -59,31 +64,41 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
     Yc = Y0;
 
     for Iter = 1:Args.MaxIter
-        Dx = Xg - Xc;
-        Dy = Yg - Yc;
+        
+        Dx = Xg - reshape(Xc,1,1,Nsrc);
+        Dy = Yg - reshape(Yc,1,1,Nsrc);
 
-        % Gaussian weights centered on the current estimate
         W = exp(-(Dx.^2 + Dy.^2) / (2 * Args.SigmaG^2));
-
-        % Use both the image and the Gaussian as weights
         IW = Iwin .* W;
 
-        M0 = sum(IW(:));
-        if M0 == 0
-            error('Zero total weight: the image may be empty inside R.');
-        end
-        
-        NewX = sum(Xg(:) .* IW(:)) / M0;
-        NewY = sum(Yg(:) .* IW(:)) / M0;
+        M0 = squeeze(sum(sum(IW,1),2));   % 1×Nsrc
 
+        NewX = squeeze(sum(sum(IW .* Xg,1),2)) ./ M0;
+        NewY = squeeze(sum(sum(IW .* Yg,1),2)) ./ M0;
+        
+%         M0 = sum(IW(:));              
+%         NewX = sum(Xg(:) .* IW(:)) / M0;
+%         NewY = sum(Yg(:) .* IW(:)) / M0;
+    
         % Check convergence
-        if hypot(NewX - Xc, NewY - Yc) < Args.Precision
-            Xc = NewX;
-            Yc = NewY;
-            break;
-        end
+
+        d = hypot(NewX - Xc, NewY - Yc);
+
         Xc = NewX;
         Yc = NewY;
+
+        if all(d < Args.Precision)
+            break;
+        end
+        
+%         if hypot(NewX - Xc, NewY - Yc) < Args.Precision
+%             Xc = NewX;
+%             Yc = NewY;
+%             break;
+%         end
+%         Xc = NewX;
+%         Yc = NewY;
+%                 
     end
 
     M1.X = Xc;
@@ -91,17 +106,29 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
     M1.Niter = Iter;
 
     % calculate the second moments relative to the found centroid: 
-    Dx = Xg - M1.X;
-    Dy = Yg - M1.Y;
+%     Dx = Xg - M1.X;
+%     Dy = Yg - M1.Y;
+%     
+    Dx = Xg - reshape(Xc,1,1,Nsrc);
+    Dy = Yg - reshape(Yc,1,1,Nsrc);
 
     % use the same mask (inside MomRadius) with or w/o weights for the 2nd moments:    
-    W = exp(-(Dx.^2 + Dy.^2) / (2 * Args.SigmaG^2));
-%     J = Iwin; 
-    J = Iwin.*W;
+    J = Iwin; 
+    
+    if Args.WeightedM2
+        W = exp(-(Dx.^2 + Dy.^2) / (2 * Args.SigmaG^2));
+        J = J.*W;
+    end
 
-    M0 = sum(J(:));
+    M0 = squeeze(sum(sum(J,1),2));
 
-    M2.X2 = sum((Dx(:).^2) .* J(:)) / M0;
-    M2.Y2 = sum((Dy(:).^2) .* J(:)) / M0;
-    M2.XY = sum((Dx(:).*Dy(:)) .* J(:)) / M0;
+    M2.X2 = squeeze(sum(sum(J .* (Dx.^2),1),2)) ./ M0;
+    M2.Y2 = squeeze(sum(sum(J .* (Dy.^2),1),2)) ./ M0;
+    M2.XY = squeeze(sum(sum(J .* (Dx.*Dy),1),2)) ./ M0;
+    
+%     M0 = sum(J(:));
+% 
+%     M2.X2 = sum((Dx(:).^2) .* J(:)) / M0;
+%     M2.Y2 = sum((Dy(:).^2) .* J(:)) / M0;
+%     M2.XY = sum((Dx(:).*Dy(:)) .* J(:)) / M0;
 end
