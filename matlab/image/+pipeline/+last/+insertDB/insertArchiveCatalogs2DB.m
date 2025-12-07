@@ -39,7 +39,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         Args.DbTable= 'proc_src';         
         Args.ColNameID = 'id_proc_src';
         
-        Args.RemoteUser = 'samar';
+        Args.RemoteUser = 'euclid';
     end    
     % create a DB object and connect
     DB          = db.Db;
