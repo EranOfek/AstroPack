@@ -42,7 +42,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         Args.KeyID     = 'id_visit_im';
         Args.ColNameID = 'id_visit_src';
         
-        Args.RemoteUser = 'samar';
+        Args.RemoteUser = 'euclid';
     end    
     % create a DB object and connect
     DB          = db.Db;
