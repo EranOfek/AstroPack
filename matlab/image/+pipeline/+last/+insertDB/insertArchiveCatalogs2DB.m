@@ -81,7 +81,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         end
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the proc catalog DB");
+            Injected = contains(fileread('.status'), "injected into the proc catalog DB") ...
+                | contains(fileread('.status'), "not injectable into the proc catalog DB due to broken data files");
         catch
             cd(Dir);
             fprintf(FIDnostatus,'%s \n',DataDir);
