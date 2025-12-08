@@ -71,7 +71,7 @@ function startup(Args)
         Args.EnvVar_CatsHTMPath          = 'ASTROPACK_CATSHTM_PATH';
         Args.EnvVar_ConfigPath           = 'ASTROPACK_CONFIG_PATH';
         
-        Args.UpdateTime logical          = true;
+        Args.UpdateTime logical          = false;
     end
     
     PWD = pwd;
