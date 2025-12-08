@@ -36,18 +36,19 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
 
      % Run Mextractor and extract results
      %AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);
-    [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
-                            'SaveSourcelessImage',true,...
-                            'FindWithEmpiricalPSF',false,...
-                            'BackPar',{'SubSizeXY',[]},...  %global bck
-                            'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds                            
-                            'UseOriginalPSF',false,... % false  
-                            'UsePSFInterpolant',false,... % false
-                            'FitRadius',[3 3 3 3 3],...
-                            'Verbose',true);  
-                        
+%     [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
+%                             'SaveSourcelessImage',true,...
+%                             'FindWithEmpiricalPSF',false,...
+%                             'BackPar',{'SubSizeXY',[]},...  %global bck
+%                             'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds                            
+%                             'UseOriginalPSF',false,... % false  
+%                             'UsePSFInterpolant',false,... % false
+%                             'FitRadius',[3 3 3 3 3],...
+%                             'Verbose',true);  
                             %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...    
-
+                                  
+     [AI_PSF, SourceLess]=imProc.sources.multiIterExtractor(AI);                   
+     
     ZPoffset = zeros(numel(AI_PSF),1); 
     for i = 1:numel(AI_PSF)
         ZPoffset(i) = 25-AI_PSF(i).HeaderData.Key.PH_ZP ;
