@@ -19,6 +19,10 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         Args.BadFlags = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'}; % Change to NaN all data points associated with these flags.
         Args.Det_frac    = 0.85% Allow for 15% no detections per source.
         Args.Radius      = 1;
+        Args.NewVersion  = false;
+        Args.ExternalPSF = false;
+        Args.UseOriginalPSF = false;
+        Args.FitRadius   = 3;
     end
 
     if isempty(Args.AI)
@@ -29,26 +33,42 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         end
     else
         AI = Args.AI;
-    end
+    end       
     
     % Extract results from defult pipeline
     mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius,[]);
-
-     % Run Mextractor and extract results
-     %AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);
-%     [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
-%                             'SaveSourcelessImage',true,...
-%                             'FindWithEmpiricalPSF',false,...
-%                             'BackPar',{'SubSizeXY',[]},...  %global bck
-%                             'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds                            
-%                             'UseOriginalPSF',false,... % false  
-%                             'UsePSFInterpolant',false,... % false
-%                             'FitRadius',[3 3 3 3 3],...
-%                             'Verbose',true);  
-                            %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...    
-                                  
-     [AI_PSF, SourceLess]=imProc.sources.multiIterExtractor(AI);                   
-     
+    
+    % Extract and employ another PSF:
+    if Args.ExternalPSF
+        D = db.Db; D.User='last_user'; D.Password='***'; D.useDB('last');
+        T=D.query("select * from visit_images where camnum=4 and mountnum=4 and diryear=2024 and dirmon=7 and dirday=1 and fieldid='AT2024lhs' and cropid=9");
+        AIextrag=pipeline.last.queryDB.loadProducts(T,'coadd','Image+','table2pathArgs',{'BasePath','/bigdata2/projects/last/data/'});
+        % artificially change the PSF attached to the analysed AI:
+        AI.PSFData = AIextrag(1).PSFData;
+        Args.UseOriginalPSF = true;
+    end
+    
+    % Run Mextractor and extract results
+    %AI_PSF = imProc.sources.mextractor(AI.createNewObj(1),'Verbose',Args.VerboseMPSF);
+    
+    if Args.NewVersion
+        [AI_PSF, SourceLess]=imProc.sources.multiIterExtractor(AI,'CreateNewObj',true,...
+            'Threshold',[1000 300 100 30 10 5],...
+            'FitRadius',Args.FitRadius,...
+            'UseOriginalPSF',Args.UseOriginalPSF);
+    else
+        [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...
+            'SaveSourcelessImage',true,...
+            'FindWithEmpiricalPSF',false,...
+            'BackPar',{'SubSizeXY',[]},...  %global bck
+            'Threshold',[300 100 30 10 5],...  % [300 100 30 10 5] more SNR thrsholds
+            'UseOriginalPSF',false,... % false
+            'UsePSFInterpolant',false,... % false
+            'FitRadius',[3 3 3 3 3],...
+            'Verbose',true);
+        %'populatePSFArgs',{'CropByQuantile',true,'Quantile',0.1},...
+    end
+    
     ZPoffset = zeros(numel(AI_PSF),1); 
     for i = 1:numel(AI_PSF)
         ZPoffset(i) = 25-AI_PSF(i).HeaderData.Key.PH_ZP ;
@@ -102,7 +122,7 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         end
         
         if Args.SavePlots
-            saveas(gcf,'Shift.fig');
+            saveas(gcf,'RMS.fig');
         end
     end
 
