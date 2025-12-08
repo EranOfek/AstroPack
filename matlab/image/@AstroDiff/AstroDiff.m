@@ -1326,8 +1326,6 @@ classdef AstroDiff < AstroImage
 
                         ADc(IndC).CatData = Obj(Iobj).CatData.selectRows(...
                            XY(:,1) == XY(Ixy,1) & XY(:,2) == XY(Ixy,2) );
-                        ADc(IndC).Table = Obj(Iobj).Table(...
-                            XY(:,1) == XY(Ixy,1) & XY(:,2) == XY(Ixy,2),:);
                     end
                     
                     if Args.CropNew
