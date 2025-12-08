@@ -63,12 +63,14 @@ function [M1, M2] = moment2dev(Image, X0, Y0, Args)
     Xc = X0;
     Yc = Y0;
 
+    InvTwoSig2 = 1/(2 * Args.SigmaG^2);
+    
     for Iter = 1:Args.MaxIter
         
         Dx = Xg - reshape(Xc,1,1,Nsrc);
         Dy = Yg - reshape(Yc,1,1,Nsrc);
 
-        W = exp(-(Dx.^2 + Dy.^2) / (2 * Args.SigmaG^2));
+        W = exp(-(Dx.^2 + Dy.^2).*InvTwoSig2);
         IW = Iwin .* W;
 
         M0 = squeeze(sum(sum(IW,1),2));   % 1×Nsrc
