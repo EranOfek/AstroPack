@@ -36,11 +36,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
         % PSF fitting
-        Args.MomRadius                 = [6 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
+        Args.MomRadius                 = [6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         Args.psfFitPhotArgs            = {};
         Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
         Args.UsePSFInterpolant         = false;
-        Args.FitRadius                 = [3 3 3 3 3];% PSF fit radius at each iteration
+        Args.FitRadius                 = [3];% PSF fit radius at each iteration
+        Args.MaxIter                   = 8;
 
         % source cleaning and mask
         Args.RemoveEdgeDist            = 0;  % NaN for non removal
@@ -77,6 +78,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         Args.mexCutout = true;
 
+        Args.ColPsfFlux        = 'FLUX_PSF';
+        Args.ColPsfFluxErr     = 'FLUXERR_PSF';
+        Args.ColPsfMag         = 'MAG_PSF';
+        Args.ColPsfMagErr      = 'MAGERR_PSF';
         Args.ColFlux           = 'FLUX_APER';
         Args.ColFluxErr        = 'FLUXERR_APER';
         Args.ColMag            = 'MAG_APER';
@@ -94,15 +99,15 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     end
     
     % check consistency
-    if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
-        error('The length of Args.Threshold does must comply with that of Args.MomRadius');
-    end
+    % if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
+    %     error('The length of Args.Threshold does must comply with that of Args.MomRadius');
+    % end
     Niter = numel(Args.Threshold);
     Nobj  = numel(Obj);
 
     % repair some parameters if needed: 
-    Args.MomRadius = Args.MomRadius.*ones(Niter,1);
-    Args.FitRadius = Args.FitRadius.*ones(Niter,1);
+    Args.MomRadius = Args.MomRadius(:).*ones(Niter,1);
+    Args.FitRadius = Args.FitRadius(:).*ones(Niter,1);
     
     % create a new object if requested  
     if Args.CreateNewObj
@@ -226,7 +231,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
                                                           'ColCell',Args.ColCell,...
                                                           'BitDict',Args.BitDict,...
-                                                          'JD',JD);
+                                                          'JD',JD,...
+                                                          'ZP',Args.ZP);
                
                 ColSN = 'SN_2';            
                 %clear PSFTemplate
@@ -239,7 +245,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
                                                           'ColCell',Args.ColCell,...
                                                           'BitDict',Args.BitDict,...
-                                                          'JD',JD);
+                                                          'JD',JD,...
+                                                          'ZP',Args.ZP);
                 ColSN = 'SN_2';
             end                         
             
@@ -259,7 +266,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end
             
             % PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
 
             
             % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
@@ -378,6 +385,15 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
             ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
 
+            PsfHalfSize = (size(Result(Iobj).PSFData.Data,1)-1)./2;
+            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), PsfHalfSize, 'mexCutout',Args.mexCutout, 'Circle',false);
+            ResPsfBright  = imUtil.sources.psfPhotCube(Cube, 'FitRadius',Args.FitRadius(1),...
+                                                               'PSF',Result(Iobj).PSFData.Data,...
+                                                               'MaxIter',Args.MaxIter,...
+                                                               'ZP',Args.ZP,...
+                                                               Args.psfFitPhotArgs{:});
+
+
             % insert aper phot data to catalog of Cat(1:Args.RedoUpIter)
              
             Naper      = numel(Args.AperRadius);
@@ -385,16 +401,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             ColFluxErr = tools.cell.cellNumericSuffix(Args.ColFluxErr, (1:Naper));
             ColMag     = tools.cell.cellNumericSuffix(Args.ColMag, (1:Naper));
             ColMagErr  = tools.cell.cellNumericSuffix(Args.ColMagErr, (1:Naper));
-            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr];
+
+            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr, Args.ColPsfFlux, Args.ColPsfMag, Args.ColPsfMagErr];
             %[C1{1:Naper.*2}] = deal('');
             %[C2{1:Naper.*2}] = deal('mag');
             %ColUnits         = [C1, C2];
 
-            
             FluxMagData = [ResAperBright.AperPhot,...
                            ResAperBright.AperPhotErr,...
                            convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP)),...
-                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot];
+                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot,...
+                           ResPsfBright.Flux,...
+                           convert.luptitude(ResPsfBright.Flux, 10.^(0.4.*Args.ZP)),...
+                           1.086./ResPsfBright.SNm];
+            % update also Chi2?
              
             CatBright.replaceCol(FluxMagData, ColsToAdd);
             
