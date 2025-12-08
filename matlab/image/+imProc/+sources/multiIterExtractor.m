@@ -49,7 +49,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.maskCR_Args cell          = {};
         Args.FlagDiffXY logical        = true;
         Args.maskDiffXY_Args cell      = {};
-        
+        Args.AddBackNoise              = true;
+
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
@@ -82,10 +83,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ColPsfFluxErr     = 'FLUXERR_PSF';
         Args.ColPsfMag         = 'MAG_PSF';
         Args.ColPsfMagErr      = 'MAGERR_PSF';
+        Args.ColPsfSN          = 'SN';
+        Args.ColPsfChi2        = 'PSF_CHI2DOF';
         Args.ColFlux           = 'FLUX_APER';
         Args.ColFluxErr        = 'FLUXERR_APER';
         Args.ColMag            = 'MAG_APER';
         Args.ColMagErr         = 'MAGERR_APER'
+        
         Args.ZP                = 25;
 
 
@@ -152,6 +156,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RePopulatePSF',true);
     end
     
+
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
     FlagPopCat = Result.sizeCatalog>0;
@@ -170,12 +175,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     end
 
     % find and measure sources using multi-iteration PSF fitting    
+    FWHM = nan(Nobj,1);
     for Iobj=1:1:Nobj
         if Args.Verbose
             fprintf('Image %d of %d \n',Iobj,Nobj);
         end    
         %Result(Iobj).Table = [];
-        %FWHM = Result(Iobj).PSFData.fwhm;
+        FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
 
         % PSFTemplate = Args.InitPsf(Args.InitPsfArgs{:});
         % PSFTemplate = repmat(single(0), )
@@ -325,25 +331,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % add local variance from the sources revealed at all the previous iterations
             % This is not enough - for bright stars the PSF is more
             % extended and the star edges are not subtracted
-            Nimages = 20;
+            Nimages = 10;
             AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./Nimages;
             AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
 
-            if Iiter==1
+            if Iiter==1 && Args.AddBackNoise
                 % Add noise/back around bright sources
                 %GK = imUtil.kernel2.gauss(FWHM);
                 %AI.Var  = conv2(AI.Var, GK, 'same'); 
                 LK = imUtil.kernel2.lorentzian(4,[101 101]);
-                CK = imUtil.kernel2.circ(7,[15 15]);
+                CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
                 CK = CK./max(CK,[],'all');
                 EdgesVarMap = repmat(single(0), SizeImage);
                 ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
                 LinIndex = imUtil.image.sub2ind_fast(SizeImage, ColData(:,2), ColData(:,1));
                 %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
                 %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
-                ScatteredLightFrac = 0.03;
-                EdgesVarMap(LinIndex) = ColData(:,3).*ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5));
+                ScatteredLightFrac = 0.05;
+                MinFluxFlag = ColData(:,3)>1e5;
+                EdgesVarMap(LinIndex) = ColData(:,3).*ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
                 %AI.Back(AI.Image>5000) = 5000;
                 ConvBright = conv2(EdgesVarMap, LK, 'same');
                 ConvCore   = conv2(EdgesVarMap, CK, 'same')./ScatteredLightFrac;
@@ -402,7 +409,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             ColMag     = tools.cell.cellNumericSuffix(Args.ColMag, (1:Naper));
             ColMagErr  = tools.cell.cellNumericSuffix(Args.ColMagErr, (1:Naper));
 
-            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr, Args.ColPsfFlux, Args.ColPsfMag, Args.ColPsfMagErr];
+            % order of elements in ColsToAdd and FluxMagData must be
+            % consistent!
+            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr, Args.ColPsfFlux, Args.ColPsfMag, Args.ColPsfMagErr, Args.ColPsfSN, Args.ColPsfChi2];
             %[C1{1:Naper.*2}] = deal('');
             %[C2{1:Naper.*2}] = deal('mag');
             %ColUnits         = [C1, C2];
@@ -413,7 +422,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                            1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot,...
                            ResPsfBright.Flux,...
                            convert.luptitude(ResPsfBright.Flux, 10.^(0.4.*Args.ZP)),...
-                           1.086./ResPsfBright.SNm];
+                           1.086./ResPsfBright.SNm,...
+                           ResPsfBright.SNm,...
+                           ResPsfBright.Chi2./ResPsfBright.Dof];
+
+
             % update also Chi2?
              
             CatBright.replaceCol(FluxMagData, ColsToAdd);
