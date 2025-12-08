@@ -2696,7 +2696,7 @@ classdef DemonLAST < Component
                 %Args.RunAsService logical  = false;
                 
                 Args.Backup                           = true; % Backup data to WIS
-                Args.RunInstaller                     = false;
+                Args.RunInstaller                     = true;
             end
             RAD = 180./pi;
             

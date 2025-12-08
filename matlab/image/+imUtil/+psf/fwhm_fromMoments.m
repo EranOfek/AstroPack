@@ -10,7 +10,7 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     %            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
     %                   argument is provided, then run this program on centeral
     %                   image with this half size. Default is [].
-    %            'MinSN' - Minimum S/N to use. DEfault is 30.
+    %            'MinSN' - Minimum S/N to use. Default is 30.
     %            'PsfFun' - A function handle to generate PSF or a cube of
     %                   PSFs.
     %                   Default is @imUtil.kernel2.gauss.
