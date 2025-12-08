@@ -134,7 +134,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
     % if the catalog is not removed, it may conflict with the new ones 
     if Args.DeleteInputCatalog
         Result.deleteProp('CatData');
-        Result.deleteProp('Table');  % NOT NEEDED!
+%         Result.deleteProp('Table');  % NOT NEEDED!
     end    
                                                       
     % find and measure sources using multi-iteration PSF fitting    
