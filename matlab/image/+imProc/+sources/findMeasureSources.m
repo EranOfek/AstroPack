@@ -81,6 +81,8 @@ function Result = findMeasureSources(Obj, Args)
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
     %            'ZP' - ZP for magnitude. Default is 25.
+    %            'JD' - An array of JD of the images. If empty, then get
+    %                   from header. Default is [].
     %            'ColCell' - A cell array of column names to generate in the
     %                   output.
     %                   Default is
@@ -156,6 +158,7 @@ function Result = findMeasureSources(Obj, Args)
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
         Args.ZP                            = 25;
+        Args.JD                            = [];
         
         Args.ReCalcBack logical            = false;
         Args.BackPar cell                  = {};
@@ -216,7 +219,12 @@ function Result = findMeasureSources(Obj, Args)
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    VecJD = Obj.julday; 
+    if isempty(Args.JD)
+        VecJD = Obj.julday; 
+    else
+        VecJD = Args.JD;
+    end
+    
     Nobj  = numel(Obj);
     %Iobj
     for Iobj=1:1:Nobj

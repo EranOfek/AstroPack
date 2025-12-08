@@ -11,24 +11,18 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     arguments
         Obj AstroImage
 
-
-
-
-
         % pre subtraction treatment
         Args.ExcludeEmpty              = true;
-
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
+        Args.JD                        = [];
+        Args.KeyJD                     = [];
 
-        % background
+        % background and variance measurement:
         Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
-        % background and variance measurement:
-        Args.ReCalcBack logical        = true; % remeasure background at every iteration   
-
-        
         % measure PSF
+        Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',2}; % {'CropByQuantile',true,'Quantile',0.5}
         Args.RadiusPSF                 = 12;
@@ -40,28 +34,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
-    
-        Args.RemoveEdgeDist            = 0;  % NaN for non removal
-
-        Args.FlagCR logical                = true;
-        Args.maskCR_Args cell              = {};
-        Args.FlagDiffXY logical            = true;
-        Args.maskDiffXY_Args cell          = {};
         
-        
-        Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
-
+        % PSF fitting
+        Args.MomRadius                 = [6 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         Args.psfFitPhotArgs            = {};
         Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
-
-        Args.MomRadius                 = [6 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
-        
-        Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
-                
-        % PSF measurement:
-        
-                
         Args.UsePSFInterpolant         = false;
+        Args.FitRadius                 = [3 3 3 3 3];% PSF fit radius at each iteration
+
+        % source cleaning and mask
+        Args.RemoveEdgeDist            = 0;  % NaN for non removal
+        Args.FlagCR logical            = true;
+        Args.maskCR_Args cell          = {};
+        Args.FlagDiffXY logical        = true;
+        Args.maskDiffXY_Args cell      = {};
         
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
@@ -74,10 +60,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                         'BACK_ANNULUS', 'STD_ANNULUS', ...
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
-        % source PSF fitting:
-        Args.FitRadius                 = [3 3 3 3 3];% PSF fit radius at each iteration
         
-        Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
+        
         
         % Column names
         Args.ColRA                     = 'RA';
@@ -131,6 +115,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     if Args.ExcludeEmpty
         FlagEmptyImage = Result.isemptyProperty('Image');
         Result         = Result(~FlagEmptyImage);
+    end
+
+    if isempty(Args.JD)
+        JD = Result.julday('KeyJD',Args.KeyJD);
+    else
+        JD = Args.JD;
     end
     
     % measure background and variance if it is missing or if the object is new
@@ -235,7 +225,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
                                                           'ColCell',Args.ColCell,...
-                                                          'BitDict',Args.BitDict);
+                                                          'BitDict',Args.BitDict,...
+                                                          'JD',JD);
                
                 ColSN = 'SN_2';            
                 %clear PSFTemplate
@@ -247,7 +238,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
                                                           'ColCell',Args.ColCell,...
-                                                          'BitDict',Args.BitDict);
+                                                          'BitDict',Args.BitDict,...
+                                                          'JD',JD);
                 ColSN = 'SN_2';
             end                         
             
