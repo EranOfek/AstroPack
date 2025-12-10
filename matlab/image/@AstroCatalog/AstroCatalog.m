@@ -58,7 +58,13 @@ classdef AstroCatalog < AstroTable
             % construct AstroTable
             AT   = AstroTable(varargin{:});
             
-            FN   = fieldnames(AT);
+            %FN   = fieldnames(AT);
+
+            MC = metaclass(AT);
+            NonDep  = ~[MC.PropertyList.Dependent];
+            AllProp = {MC.PropertyList.Name};
+            FN      = AllProp(NonDep);
+
             Nfn  = numel(FN);
             Nobj = numel(AT);
             for Iobj=1:1:Nobj

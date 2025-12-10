@@ -11,22 +11,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     arguments
         Obj AstroImage
 
-
-
-
-
         % pre subtraction treatment
         Args.ExcludeEmpty              = true;
+        Args.BitDict                   = BitDictionary('BitMask.Image.Default');
+        Args.JD                        = [];
+        Args.KeyJD                     = [];
+        Args.KeyGain                   = 'GAIN';
+        Args.KeyNcoadd                 = 'NCOADD';
 
-        % background
+        % background and variance measurement:
         Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
-        % background and variance measurement:
-        Args.ReCalcBack logical        = true; % remeasure background at every iteration   
-
-        
         % measure PSF
+        Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',2}; % {'CropByQuantile',true,'Quantile',0.5}
         Args.RadiusPSF                 = 12;
@@ -38,33 +36,27 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
-    
-        Args.RemoveEdgeDist            = 0;  % NaN for non removal
-
-        Args.FlagCR logical                = true;
-        Args.maskCR_Args cell              = {};
-        Args.FlagDiffXY logical            = true;
-        Args.maskDiffXY_Args cell          = {};
         
-        
-        Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
-
+        % PSF fitting
+        Args.MomRadius                 = [4];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         Args.psfFitPhotArgs            = {};
         Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
-
-        Args.MomRadius                 = [6 6 6 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
-        
-        Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
-                
-        % PSF measurement:
-        
-                
         Args.UsePSFInterpolant         = false;
-        
+        Args.FitRadius                 = [3];% PSF fit radius at each iteration
+        Args.MaxIter                   = 8;
+
+        % source cleaning and mask
+        Args.RemoveEdgeDist            = 0;  % NaN for non removal
+        Args.FlagCR logical            = true;
+        Args.maskCR_Args cell          = {};
+        Args.FlagDiffXY logical        = true;
+        Args.maskDiffXY_Args cell      = {};
+        Args.AddBackNoise              = true;
+
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
-        Args.Threshold                 = [100 30 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations   
+        Args.Threshold                 = [500 50 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations   
         Args.ColCell cell              = {'XPEAK','YPEAK',...
                                         'X1', 'Y1',...
                                         'X2','Y2','XY',...
@@ -72,10 +64,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                         'BACK_ANNULUS', 'STD_ANNULUS', ...
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
-        % source PSF fitting:
-        Args.FitRadius                 = [3 3 3 3 3];% PSF fit radius at each iteration
         
-        Args.ReCalcPSF logical         = false;  % do not remeasure PSF at every iteration      
+        
         
         % Column names
         Args.ColRA                     = 'RA';
@@ -86,7 +76,27 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % cleaning of the subtracted image:        
         Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
-                              
+
+        Args.RedoUpIter = [1];
+
+        Args.mexCutout = true;
+
+        Args.ColPsfFlux        = 'FLUX_PSF';
+        Args.ColPsfFluxErr     = 'FLUXERR_PSF';
+        Args.ColPsfMag         = 'MAG_PSF';
+        Args.ColPsfMagErr      = 'MAGERR_PSF';
+        Args.ColPsfSN          = 'SN';
+        Args.ColPsfChi2        = 'PSF_CHI2DOF';
+        Args.ColFlux           = 'FLUX_APER';
+        Args.ColFluxErr        = 'FLUXERR_APER';
+        Args.ColMag            = 'MAG_APER';
+        Args.ColMagErr         = 'MAGERR_APER'
+        
+        Args.ZP                = 25;
+
+        % Bright stars increase back/var
+        Args.ScatteredLightFrac = 0.05;
+
         % miscellaneous:
         Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
         Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
@@ -97,15 +107,15 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     end
     
     % check consistency
-    if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
-        error('The length of Args.Threshold does must comply with that of Args.MomRadius');
-    end
+    % if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
+    %     error('The length of Args.Threshold does must comply with that of Args.MomRadius');
+    % end
     Niter = numel(Args.Threshold);
     Nobj  = numel(Obj);
 
     % repair some parameters if needed: 
-    Args.MomRadius = Args.MomRadius.*ones(Niter,1);
-    Args.FitRadius = Args.FitRadius.*ones(Niter,1);
+    Args.MomRadius = Args.MomRadius(:).*ones(Niter,1);
+    Args.FitRadius = Args.FitRadius(:).*ones(Niter,1);
     
     % create a new object if requested  
     if Args.CreateNewObj
@@ -118,6 +128,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     if Args.ExcludeEmpty
         FlagEmptyImage = Result.isemptyProperty('Image');
         Result         = Result(~FlagEmptyImage);
+    end
+
+    if isempty(Args.JD)
+        JD = Result.julday('KeyJD',Args.KeyJD);
+    else
+        JD = Args.JD;
     end
     
     % measure background and variance if it is missing or if the object is new
@@ -144,10 +160,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RePopulatePSF',true);
     end
     
+
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
     FlagPopCat = Result.sizeCatalog>0;
-    Result(FlagPopCat).deleteProp('CatData');
+    if any(FlagPopCat)
+        Result(FlagPopCat).deleteProp('CatData');
+    end
     
     % Define AstroImage of subtracted sources
     if nargout>1
@@ -159,13 +178,30 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         SourceLess = AstroImage(size(Result));   
     end
 
+    % get GAIN and NCOADD
+    Keys = Result.getStructKey({Args.KeyGain, Args.KeyNcoadd});
+
     % find and measure sources using multi-iteration PSF fitting    
+    FWHM = nan(Nobj,1);
     for Iobj=1:1:Nobj
         if Args.Verbose
             fprintf('Image %d of %d \n',Iobj,Nobj);
         end    
         %Result(Iobj).Table = [];
-        %FWHM = Result(Iobj).PSFData.fwhm;
+        FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
+
+        if isnan(Keys(Iobj).(Args.KeyGain))
+            Gain = 1;
+        else
+            Gain = Keys(Iobj).(Args.KeyGain);
+        end
+        if isnan(Keys(Iobj).(Args.KeyNcoadd))
+            Ncoadd = 1;
+        else
+            Ncoadd = Keys(Iobj).(Args.KeyNcoadd);
+        end
+        
+
 
         % PSFTemplate = Args.InitPsf(Args.InitPsfArgs{:});
         % PSFTemplate = repmat(single(0), )
@@ -219,7 +255,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'Psf',PSFTemplate,...
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell);
+                                                          'ColCell',Args.ColCell,...
+                                                          'BitDict',Args.BitDict,...
+                                                          'JD',JD,...
+                                                          'ZP',Args.ZP);
                
                 ColSN = 'SN_2';            
                 %clear PSFTemplate
@@ -230,7 +269,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'PsfFunPar',Args.PsfFunPar,...
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell);
+                                                          'ColCell',Args.ColCell,...
+                                                          'BitDict',Args.BitDict,...
+                                                          'JD',JD,...
+                                                          'ZP',Args.ZP);
                 ColSN = 'SN_2';
             end                         
             
@@ -250,7 +292,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end
             
             % PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
 
             
             % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
@@ -309,29 +351,29 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % add local variance from the sources revealed at all the previous iterations
             % This is not enough - for bright stars the PSF is more
             % extended and the star edges are not subtracted
-            Nimages = 20;
-            AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./Nimages;
+            AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
             AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
 
-            if Iiter==1
+            if Iiter==1 && Args.AddBackNoise
                 % Add noise/back around bright sources
                 %GK = imUtil.kernel2.gauss(FWHM);
                 %AI.Var  = conv2(AI.Var, GK, 'same'); 
                 LK = imUtil.kernel2.lorentzian(4,[101 101]);
-                CK = imUtil.kernel2.circ(7,[15 15]);
+                CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
                 CK = CK./max(CK,[],'all');
                 EdgesVarMap = repmat(single(0), SizeImage);
                 ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
                 LinIndex = imUtil.image.sub2ind_fast(SizeImage, ColData(:,2), ColData(:,1));
                 %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
                 %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
-                ScatteredLightFrac = 0.05;
-                EdgesVarMap(LinIndex) = ColData(:,3).*ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5));
+                
+                MinFluxFlag = ColData(:,3)>1e5;
+                EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
                 %AI.Back(AI.Image>5000) = 5000;
                 ConvBright = conv2(EdgesVarMap, LK, 'same');
-                ConvCore   = conv2(EdgesVarMap, CK, 'same')./ScatteredLightFrac;
-                AI.VarData.Image  = AI.VarData.Image  + ConvBright./Nimages + ConvCore;
+                ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
+                AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
                 AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
             end
             
@@ -348,29 +390,77 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         end % end of iterations  
 
-        Args.RedoUpIter = [];
+        
         if ~isempty(Args.RedoUpIter)
             if Niter<=Args.RedoUpIter
                 error('Niter is <= RedoUpIter - does not make sense');
             end
             % yet another iteration for the bright sources only
-            SubImageFaint = Result(Iobj).ImageData.Image - SourceImage(:,:,(Args.RedoUpIter+1):end) - Result(Iobj).BackData.Image;
+            SubImageFaint = Result(Iobj).ImageData.Image - sum(SourceImage(:,:,(Args.RedoUpIter+1):end),3) - Result(Iobj).BackData.Image;
             
+            % merge the Catalogs
+            CatBright = Cat(1:Args.RedoUpIter).merge;
+            CatFaint  = Cat((Args.RedoUpIter+1):end).merge;
+            % do aper phot only on bright stars
+            BrightXY = CatBright.getXY;
+
+            % See alos:
+            % R=imProc.sources.aperPhot(AI);
+
             % perform only aperture photometry on brightest sources
-            %[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(SubImageFaint, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
-            
-            %ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.AnnulusRadius);
+            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
+            ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
+
+            PsfHalfSize = (size(Result(Iobj).PSFData.Data,1)-1)./2;
+            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), PsfHalfSize, 'mexCutout',Args.mexCutout, 'Circle',false);
+            ResPsfBright  = imUtil.sources.psfPhotCube(Cube, 'FitRadius',Args.FitRadius(1),...
+                                                               'PSF',Result(Iobj).PSFData.Data,...
+                                                               'MaxIter',Args.MaxIter,...
+                                                               'ZP',Args.ZP,...
+                                                               Args.psfFitPhotArgs{:});
+
 
             % insert aper phot data to catalog of Cat(1:Args.RedoUpIter)
-            
+             
+            Naper      = numel(Args.AperRadius);
+            ColFlux    = tools.cell.cellNumericSuffix(Args.ColFlux, (1:Naper));
+            ColFluxErr = tools.cell.cellNumericSuffix(Args.ColFluxErr, (1:Naper));
+            ColMag     = tools.cell.cellNumericSuffix(Args.ColMag, (1:Naper));
+            ColMagErr  = tools.cell.cellNumericSuffix(Args.ColMagErr, (1:Naper));
 
+            % order of elements in ColsToAdd and FluxMagData must be
+            % consistent!
+            ColsToAdd  = [ColFlux, ColFluxErr, ColMag, ColMagErr, Args.ColPsfFlux, Args.ColPsfMag, Args.ColPsfMagErr, Args.ColPsfSN, Args.ColPsfChi2];
+            %[C1{1:Naper.*2}] = deal('');
+            %[C2{1:Naper.*2}] = deal('mag');
+            %ColUnits         = [C1, C2];
+
+            FluxMagData = [ResAperBright.AperPhot,...
+                           ResAperBright.AperPhotErr,...
+                           convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP)),...
+                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot,...
+                           ResPsfBright.Flux,...
+                           convert.luptitude(ResPsfBright.Flux, 10.^(0.4.*Args.ZP)),...
+                           1.086./ResPsfBright.SNm,...
+                           ResPsfBright.SNm,...
+                           ResPsfBright.Chi2./ResPsfBright.Dof];
+
+
+            % update also Chi2?
+             
+            CatBright.replaceCol(FluxMagData, ColsToAdd);
+            
+            Result(Iobj).CatData.Catalog = [CatBright.Catalog; CatFaint.Catalog];
+            Result(Iobj).CatData.ColNames = CatBright.ColNames;
+        else
+            % merge the catalogs of objects extracted at all the iterations
+            Result(Iobj).CatData = merge(Cat);
         end
 
 
 
 
-        % merge the catalogs of objects extracted at all the iterations
-        Result(Iobj).CatData = merge(Cat);
+        
 
         % Cleaning:
         % remove sources on edge

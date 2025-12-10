@@ -42,7 +42,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         Args.KeyID     = 'id_visit_im';
         Args.ColNameID = 'id_visit_src';
         
-        Args.RemoteUser = 'samar';
+        Args.RemoteUser = 'euclid';
     end    
     % create a DB object and connect
     DB          = db.Db;
@@ -72,11 +72,12 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for IDir = 1:Ndir
+    for IDir = 46:Ndir
         DataDir = strcat(Dirs(IDir).folder,'/',Dirs(IDir).name);         
         cd(DataDir);    
         try
-            Injected = contains(fileread('.status'), "injected into the visit catalog DB");
+            Injected = contains(fileread('.status'), "injected into the visit catalog DB")...
+                | contains(fileread('.status'), "not injectable into the visit catalog DB due to broken data files");
         catch
             cd(Dir);
             fprintf(FIDnostatus,'%s \n',DataDir);

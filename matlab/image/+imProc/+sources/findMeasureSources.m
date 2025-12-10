@@ -81,6 +81,8 @@ function Result = findMeasureSources(Obj, Args)
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
     %            'ZP' - ZP for magnitude. Default is 25.
+    %            'JD' - An array of JD of the images. If empty, then get
+    %                   from header. Default is [].
     %            'ColCell' - A cell array of column names to generate in the
     %                   output.
     %                   Default is
@@ -103,6 +105,8 @@ function Result = findMeasureSources(Obj, Args)
     %                   Default is 3.
     %            'FlasgPos' - The column index in which to add the Flags
     %                   column. Default is Inf.
+    %            'BitDict' - BitDictionary object.
+    %                   Default is BitDictionary('BitMask.Image.Default').
     %            'ColNameFlags' - The column name of Flags to add to the
     %                   catalog. 
     %                   This will be added only of the MaskData is
@@ -154,6 +158,7 @@ function Result = findMeasureSources(Obj, Args)
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
         Args.ZP                            = 25;
+        Args.JD                            = [];
         
         Args.ReCalcBack logical            = false;
         Args.BackPar cell                  = {};
@@ -185,7 +190,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.ColNamesXsec                  = 'XPEAK';
         Args.ColNamesYsec                  = 'YPEAK';
         Args.FlagsType                     = @double;
-            
+        
+        Args.BitDict                       = BitDictionary('BitMask.Image.Default');
+
         Args.CreateNewObj logical          = false;
         
         % hidden
@@ -212,7 +219,12 @@ function Result = findMeasureSources(Obj, Args)
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    VecJD = Obj.julday; 
+    if isempty(Args.JD)
+        VecJD = Obj.julday; 
+    else
+        VecJD = Args.JD;
+    end
+    
     Nobj  = numel(Obj);
     %Iobj
     for Iobj=1:1:Nobj
@@ -260,7 +272,7 @@ function Result = findMeasureSources(Obj, Args)
             % remove bad sources
             % works only for Gaussian PSF
             if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
-                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), Args.maskCR_Args{:});
+                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), 'BitDict',Args.BitDict, Args.maskCR_Args{:});
             end
             if Args.FlagDiffXY
                 Result(Iobj) = imProc.mask.xpeak_x1_diff(Result(Iobj), Args.maskDiffXY_Args{:});

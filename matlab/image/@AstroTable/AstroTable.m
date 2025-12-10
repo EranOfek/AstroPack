@@ -66,13 +66,20 @@ classdef AstroTable < Component
     
     properties (SetAccess = public)
         Catalog                                                = [];
-        Table                                                  = [];
+        %Table                                                  = [];
         ColNames cell                                          = {};
         ColUnits cell                                          = {};
         ColDesc cell                                           = {};
         SortByCol                                              = [];
         IsSorted(1,1) logical                                  = false;
     end
+
+    % FFU: make Table a Dependent property!
+    properties (Dependent)
+        Table
+    end
+   
+
 
     properties (Hidden)
         Reference
@@ -253,12 +260,12 @@ classdef AstroTable < Component
             end
         end
 
-        function Result=set.Table(Obj,Data)
-            % setter for dependent property Table
-
-            % currently do nothing
-            
-        end
+        % function Result=set.Table(Obj,Data)
+        %     % setter for dependent property Table
+        % 
+        %     % currently do nothing
+        % 
+        % end
 
         function set.Catalog(Obj, Data)
             % setter for catalog - set also column names and units if table
