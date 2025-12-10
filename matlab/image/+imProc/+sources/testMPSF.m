@@ -39,12 +39,13 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
     mms_base = merge_n_ZPcoo(AI,Args.mergeBy,Args.BadFlags,Args.Det_frac,Args.Radius,[]);
     
     % Extract and employ another PSF:
-    if Args.ExternalPSF
-        D = db.Db; D.User='last_user'; D.Password='***'; D.useDB('last');
+    if Args.ExternalPSF        
+        Configuration.getSingleton().loadFile('~/.astropack/Passwords.yml'); 
+        PM = PasswordsManager; D = db.Db; D.User ='default'; D.Password = PM.search('last').Pass; D.useDB('last');
         T=D.query("select * from visit_images where camnum=4 and mountnum=4 and diryear=2024 and dirmon=7 and dirday=1 and fieldid='AT2024lhs' and cropid=9");
         AIextrag=pipeline.last.queryDB.loadProducts(T,'coadd','Image+','table2pathArgs',{'BasePath','/bigdata2/projects/last/data/'});
         % artificially change the PSF attached to the analysed AI:
-        AI.PSFData = AIextrag(1).PSFData;
+        [AI.PSFData] = deal(AIextrag(1).PSFData);
         Args.UseOriginalPSF = true;
     end
     
