@@ -16,6 +16,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
+        Args.KeyGain                   = 'GAIN';
+        Args.KeyNcoadd                 = 'NCOADD';
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
@@ -36,7 +38,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
         % PSF fitting
-        Args.MomRadius                 = [6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
+        Args.MomRadius                 = [4];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         Args.psfFitPhotArgs            = {};
         Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
         Args.UsePSFInterpolant         = false;
@@ -92,6 +94,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         
         Args.ZP                = 25;
 
+        % Bright stars increase back/var
+        Args.ScatteredLightFrac = 0.05;
 
         % miscellaneous:
         Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
@@ -174,6 +178,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         SourceLess = AstroImage(size(Result));   
     end
 
+    % get GAIN and NCOADD
+    Keys = Result.getStructKey({Args.KeyGain, Args.KeyNcoadd});
+
     % find and measure sources using multi-iteration PSF fitting    
     FWHM = nan(Nobj,1);
     for Iobj=1:1:Nobj
@@ -182,6 +189,19 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         end    
         %Result(Iobj).Table = [];
         FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
+
+        if isnan(Keys(Iobj).(Args.KeyGain))
+            Gain = 1;
+        else
+            Gain = Keys(Iobj).(Args.KeyGain);
+        end
+        if isnan(Keys(Iobj).(Args.KeyNcoadd))
+            Ncoadd = 1;
+        else
+            Ncoadd = Keys(Iobj).(Args.KeyNcoadd);
+        end
+        
+
 
         % PSFTemplate = Args.InitPsf(Args.InitPsfArgs{:});
         % PSFTemplate = repmat(single(0), )
@@ -331,8 +351,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % add local variance from the sources revealed at all the previous iterations
             % This is not enough - for bright stars the PSF is more
             % extended and the star edges are not subtracted
-            Nimages = 10;
-            AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./Nimages;
+            AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
             AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
 
@@ -348,13 +367,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 LinIndex = imUtil.image.sub2ind_fast(SizeImage, ColData(:,2), ColData(:,1));
                 %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
                 %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
-                ScatteredLightFrac = 0.05;
+                
                 MinFluxFlag = ColData(:,3)>1e5;
-                EdgesVarMap(LinIndex) = ColData(:,3).*ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
+                EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
                 %AI.Back(AI.Image>5000) = 5000;
                 ConvBright = conv2(EdgesVarMap, LK, 'same');
-                ConvCore   = conv2(EdgesVarMap, CK, 'same')./ScatteredLightFrac;
-                AI.VarData.Image  = AI.VarData.Image  + ConvBright./Nimages + ConvCore;
+                ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
+                AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
                 AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
             end
             
