@@ -101,9 +101,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % currently not employed:
 %         Args.NoiseDark    logical = true;    % Dark count noise  
 %         Args.NoiseSky     logical = true;    % Sky background 
-%         Args.NoisePoisson logical = true;    % Poisson noise
 %         Args.NoiseReadout logical = true;    % Read-out noise
 %                                              % (see details in imUtil.art.noise)
+        Args.NoisePoisson   logical = true;    % Poisson noise
                                              
         Args.Inj             = 'direct';     % source injection method can be either 'FFTshift' or 'direct'
         
@@ -709,15 +709,20 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
     SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
     
-    if Exposure < 300   % for short exposures one should use the true Poisson distribution
-        ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);
-        ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-    else                % for longer exposures the noise level is already quite high, so 
-                        % we can use a faster normal distribution instead of the Poisson
-        ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);
-        ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+    if Args.NoisePoisson        
+        if Exposure < 300   % for short exposures one should use the true Poisson distribution
+            ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);
+            ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
+        else                % for longer exposures the noise level is already quite high, so
+            % we can use a faster normal distribution instead of the Poisson
+            ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);
+            ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+        end        
+    else
+        ImageSrcNoise = SrcAndNoise;
+        ImageBkg      = NoiseLevel;
     end
-                                 
+                                         
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                             
