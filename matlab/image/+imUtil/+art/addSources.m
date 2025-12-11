@@ -23,7 +23,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         XY              = [];
         Args.ImSize     = []; 
         Args.Subtract   = false;
-        Args.Oversample = [];
+        Args.Oversample = 1;
         Args.Method     = [];
     end 
     % check if imUtil.art.createSourceCube has been used to produce the whole-pixel coordinates of the PSFs  
@@ -31,10 +31,16 @@ function Image = addSources(Image, SrcPSF, XY, Args)
 %         
 %     end
     % if requested, call the old function of Noam Segev:
-    if strcmpi(Args.Method,'ns') 
-        Flux = repmat(1.0,1,size(SrcPSF,3));   
+    if strcmpi(Args.Method,'ns')      
+        [N, ~, Nsrc] = size(SrcPSF);
+        M = round(N/Args.Oversample);    
+        SrcPSF1 = zeros(M, M, Nsrc);
+        for Isrc = 1:Nsrc
+            SrcPSF1(:, :, Isrc) = (Args.Oversample^2).*imresize(SrcPSF(:, :, Isrc), 1./Args.Oversample);
+        end              
+        Flux = repmat(1.0,1,Nsrc);   
         Cat = [XY(:,1) XY(:,2) Flux'];
-        Image = injectSources_NS(Image,Cat,SrcPSF,'RecenterPSF',false);
+        Image = injectSources_NS(Image,Cat,SrcPSF1,'RecenterPSF',false);
         return
     end
     % if the PSF is yet not to scale, call the old directInjectSources function:
