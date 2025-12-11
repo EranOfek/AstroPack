@@ -10,6 +10,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     %          'Subtract' - whether to add or subtract the source images 
     %          'Oversample' - oversampling of the PSF stamps (1 value or a vector)
     %          'Method' - 'NS' -- use the old function of Noam Segev 
+    %          'ShiftInterp' - if true, use interpolation instead of FFT shift
     % Output : - an image with injected source PSFs  
     % Author : A.M. Krassilchtchikov (2024 May) 
     % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
@@ -25,6 +26,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         Args.Subtract   = false;
         Args.Oversample = 1;
         Args.Method     = [];
+        Args.ShiftInterp = false; 
     end 
     % check if imUtil.art.createSourceCube has been used to produce the whole-pixel coordinates of the PSFs  
 %     if isempty(XY)
@@ -39,8 +41,8 @@ function Image = addSources(Image, SrcPSF, XY, Args)
             SrcPSF1(:, :, Isrc) = (Args.Oversample^2).*imresize(SrcPSF(:, :, Isrc), 1./Args.Oversample);
         end              
         Flux = repmat(1.0,1,Nsrc);   
-        Cat = [XY(:,1) XY(:,2) Flux'];
-        Image = injectSources_NS(Image,Cat,SrcPSF1,'RecenterPSF',false);
+        Cat = [XY(:,2) XY(:,1) Flux'];
+        Image = injectSources_NS(Image,Cat,SrcPSF1,'RecenterPSF',false,'ShiftInterp',Args.ShiftInterp);
         return
     end
     % if the PSF is yet not to scale, call the old directInjectSources function:
@@ -244,6 +246,7 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
     %             'RecenterPSF' - a logical indicating if to set the center
     %                   of the PSF by the first moment instead of the central pixel. 
     %                   Default is false.
+    %             'ShiftInterp' - use interpolation instead of FFT-shift 
     %
     % Output : - An image with the injected sources (matrix).
     % Author : Noam Segev (Jan 2023)
@@ -257,6 +260,7 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
         Cat;
         PSFin;
         Args.RecenterPSF = false;
+        Args.ShiftInterp = false;
     end
 
     if numel(Image)==2     % Assume the output is imagesize
@@ -301,7 +305,11 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
             VecX= Xind_vec-Xcenter;
             VecY= Yind_vec-Ycenter;
             [matx,maty]= meshgrid(VecX,VecY);
-            PSF_shifted = imUtil.trans.shift_fft(PSF,DX,DY);
+            if Args.ShiftInterp
+                PSF_shifted = imUtil.trans.shift_interp(PSF,DX,DY);
+            else
+                PSF_shifted = imUtil.trans.shift_fft(PSF,DX,DY);
+            end
         end
 
         Xind = matx+ Xround(i);
