@@ -25,7 +25,8 @@ function [ShiftedImage] = shift_interp(Image, DX, DY, Args)
 
 
     F = griddedInterpolant(Image, Args.InterpMethod, 'previous');
-    [Ny, Nx, NumSrc] = size(Image);
+    [Ny, Nx] = size(Image);
+    NumSrc   = size(DX,1);
     [X, Y] = meshgrid((1:Nx),(1:Ny));
     ShiftedImage = repmat(0,Ny,Nx,NumSrc);
     for Isrc = 1:NumSrc
