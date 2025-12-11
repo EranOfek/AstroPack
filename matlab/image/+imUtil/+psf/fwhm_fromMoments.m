@@ -10,7 +10,7 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     %            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
     %                   argument is provided, then run this program on centeral
     %                   image with this half size. Default is [].
-    %            'MinSN' - Minimum S/N to use. DEfault is 30.
+    %            'MinSN' - Minimum S/N to use. Default is 30.
     %            'PsfFun' - A function handle to generate PSF or a cube of
     %                   PSFs.
     %                   Default is @imUtil.kernel2.gauss.
@@ -73,7 +73,7 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
 
     FlagStars = Result.SN(:,2)>Result.SN(:,1) | Result.SN(:,3)>Result.SN(:,1);
 
-    [M1,M2,Aper] = imUtil.image.moment2(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
+    [M1,M2] = imUtil.image.moment2(Image, Result.XPEAK(FlagStars), Result.YPEAK(FlagStars), 'MomRadius',Args.MomRadius);
 
     SQ  = sqrt((M2.X2 - M2.Y2).^2 + 4.*M2.XY.^2);
     XY2 = M2.X2 + M2.Y2;

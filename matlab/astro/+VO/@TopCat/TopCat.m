@@ -42,6 +42,10 @@
 %T1 = VO.TopCat.queryStilts(Q, ...
 %     'TapUrl','https://heasarc.gsfc.nasa.gov/xamin/vo/tap', ...
 %     'Ofmt','csv','TimeoutSec',120);
+%
+% SDSS cone search
+
+
 
 
 classdef TopCat < Base
@@ -186,7 +190,7 @@ classdef TopCat < Base
             end
 
             if isempty(Args.TapUrl)
-                Obj.selectTapServer;
+                %Obj.selectTapServer;
                 Args.TapUrl = Obj.TapUrl;
             end
 
@@ -203,9 +207,9 @@ classdef TopCat < Base
 
             switch lower(Args.Method)
                 case 'java'
-                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Obj.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
                 case 'http'
-                    T = VO.TopCat.queryHttp(Query, 'TapUrl',Obj.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                    T = VO.TopCat.queryHttp(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
                 otherwise
                     error('Unknown Method option');
             end

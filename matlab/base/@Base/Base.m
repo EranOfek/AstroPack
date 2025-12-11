@@ -201,8 +201,8 @@ classdef Base < matlab.mixin.Copyable
             % Author: A.M. Krassilchtchikov (Jan 2024)
             % Example: AI(1:2) = AstroImage;
             %          AI.isemptyProperty('Image')
-            Result = false(length(Obj),1);
-            for Iobj = 1:length(Obj)
+            Result = false(size(Obj));
+            for Iobj = 1:numel(Obj)
                 if isempty(Obj(Iobj).(PropertyName))
                     Result(Iobj) = true;
                 end

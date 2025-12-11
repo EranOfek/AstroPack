@@ -2,6 +2,9 @@ function varargout = funCube(ImObj, Args)
     % Apply function/s on a single cube
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
+    %            'OutIsMat' - If true, return a matrix.
+    %                    If false, return an AstroImage.
+    %                    Default is false.
     %            'CCDSEC' - [Xmin Xmax Ymin Ymax] to stack.
     %                       If empty, use entire image. Default is
     %                       [].
@@ -48,38 +51,55 @@ function varargout = funCube(ImObj, Args)
 
     arguments
         ImObj                              = [];
+        Args.OutIsMat                      = false;
         Args.CCDSEC                        = [];
-        Args.FunCube                       = {@mean, @var};
-        Args.FunArgs cell                  = {{3,'omitnan'}, {[],3,'omitnan'}};
+        Args.FunCube                       = {@mean, @var, @median};
+        Args.FunArgs cell                  = {{3,'omitnan'}, {[],3,'omitnan'}, {3,'omitnan'}};
         Args.DataProp char                 = 'ImageData'; %,'BackData', 'VarData', 'MaskData'};
-        Args.DataPropIn char               = 'Data';
-        Args.SaveInProp                    = {'ImageData','VarData'};
+        Args.DataPropIn char               = 'Image';
+        Args.SaveInProp                    = {'ImageData','ImageData','ImageData'};
         Args.DimIndex                      = 3;
     end
 
     [Cube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn, 'DataProp',{Args.DataProp}, 'DimIndex',Args.DimIndex);
+
 
     if ~iscell(Args.FunCube)
         Args.FunCube = {Args.FunCube};
         Args.FunArgs = {Args.FunArgs};
     end
     Nfun = numel(Args.FunCube);
+    Nargout = nargout;
+    if Nargout>Nfun
+        error('Number of output arguments is larger than number of functions');
+    else
+        if Nargout<Nfun
+            Nfun = Nargout;
+        end
+    end
+
     if isempty(Args.SaveInProp)
         Nfun = min(Nfun, nargout);
     else
         Nfun = min(Nfun, numel(Args.SaveInProp));
     end
+
     varargout = cell(1,Nfun);
-    for Ifun=1:1:Nfun
-        varargout{Ifun} = Args.FunCube{Ifun}(Cube, Args.FunArgs{Ifun}{:});
+    for Ifun=1:1:Nargout
+        varargout{Ifun} = AstroImage;
+        varargout{Ifun}.(Args.SaveInProp{Ifun}).(Args.DataPropIn) = Args.FunCube{Ifun}(Cube, Args.FunArgs{Ifun}{:});
+
+        if Args.OutIsMat
+            varargout{Ifun} = varargout{Ifun}.(Args.SaveInProp{Ifun}).(Args.DataPropIn);
+        end
     end
 
-    if ~isempty(Args.SaveInProp)
-        Result = AstroImage;
-        Nprop = numel(Args.SaveInProp);
-        for Iprop=1:1:Nprop
-            Result.(Args.SaveInProp{Iprop}).(Args.DataPropIn) = varargout{Iprop};
-        end
-        varargout{1} = Result;
-    end
+    % if ~isempty(Args.SaveInProp)
+    %     Result = AstroImage;
+    %     %Nprop = numel(Args.SaveInProp);
+    %     for Iprop=1:1:Nargout
+    %         Result.(Args.SaveInProp{Iprop}).(Args.DataPropIn) = varargout{Iprop};
+    %     end
+    %     varargout{1} = Result;
+    % end
 end

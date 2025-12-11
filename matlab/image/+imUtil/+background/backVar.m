@@ -68,7 +68,7 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
     arguments
         Image
 
-        Args.Method     = @imUtil.background.modeVar_Hist; %{@median,@poiss}; %or @modeVar_Hist; or string of predefined...
+        Args.Method     = @imUtil.background.modeVar_LogHist; %{@median,@poiss}; %or @modeVar_Hist; or string of predefined...
         Args.MethodArgs = {{},{}};
         Args.RN2        = 12;  % RN^2 - required by 'poiss'.
         Args.Dilute     = [];   % be careful of double diluting

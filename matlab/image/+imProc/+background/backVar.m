@@ -122,7 +122,6 @@ function [Result] = backVar(Obj, Args)
     end
     
     for Iobj=1:1:Nobj
-
         if isempty(Result(Iobj).(Args.BackProp).(Args.BackPropIn)) || Args.ReCalc
 
             [Back,Var,BackSmall,VarSmall]=imUtil.background.backVar(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn),...

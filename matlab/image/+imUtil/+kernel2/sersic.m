@@ -3,16 +3,7 @@ function K=sersic(Par,SizeXY,PosXY)
 % Package: +imUtil.kernel2
 % Input  : - A matrix with three columns containing the Sersic parameters
 %            [EffectiveRadius, n, k].
-%           (Sigma) A one column or three column matrix.
-%            One row per Gaussian template (in the output cube).
-%            The columns are: (SigmaX, [SigmaY, Rho]]).
-%            SigmaX is the gaussian sigma in the X direction (=FWHMx/2.35)
-%            If three elements are provided then the second element is
-%            SigmaY (sigma in the Y direction), and the third is the corr.
-%            coef. Rho.
-%            If one element is given, then the default is SigmaY=SigmaX,
-%            and Rho=0.
-%            If not provided then the default is [2 2 0].
+%            If not provided then the default is [2 4 1].
 %          - Stamp size [X,Y]. Default is [21 21].
 %          - [X,Y] Position of the Gaussian center in the stamp.
 %            Default is the ceil(stamp_size/2).
@@ -61,3 +52,6 @@ K = zeros(SizeXY(2),SizeXY(1),Npar);
 for I=1:1:Npar
     K(:,:,I) = exp(-SerK(I).*sqrt(MatR2./SerRe(I)).^(1./SerN(I)));
 end
+
+% normalize
+K = K./sum(K,[1 2]);
