@@ -8,6 +8,8 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
 %           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF('AI',AI_crowded,'Crowded',true);
 %           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF();
 %           [AI_PSF,mms_PSF,mms_base]=imProc.sources.testMPSF('Crowded',true);
+%           [AI_PSF1b,mms_PSF1b,mms_base1b,~]=imProc.sources.testMPSF('AI',AI,'Crowded',1,'ExternalPSF',1,'NewVersion',1);
+%
     arguments
         Args.AI   = []; % a vector of AI. If it is empry will try to load AI of crowded field or uncrowded field
         Args.Crowded = false;
@@ -23,6 +25,7 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         Args.ExternalPSF = false;
         Args.UseOriginalPSF = false;
         Args.FitRadius   = 3;
+        Args.MomRadius   = 4;
     end
 
     if isempty(Args.AI)
@@ -56,6 +59,7 @@ function [AI_PSF,mms_PSF,mms_base,SourceLess]=testMPSF(Args)
         [AI_PSF, SourceLess]=imProc.sources.multiIterExtractor(AI,'CreateNewObj',true,...
             'Threshold',[1000 300 100 30 10 5],...
             'FitRadius',Args.FitRadius,...
+            'MomRadius',Args.MomRadius,...
             'UseOriginalPSF',Args.UseOriginalPSF);
     else
         [AI_PSF, SourceLess] = imProc.sources.mextractor(AI,'CreateNewObj',true,...

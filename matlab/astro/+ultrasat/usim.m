@@ -36,8 +36,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
-    %       'Args.PicklesDir' - a directory containing Pickles' stellar spectra
-    %       'Args.Phoenix' - an object containing Phoenix stellar spectra
+    %       'PicklesDir' - a directory containing Pickles' stellar spectra
+    %       'Phoenix' - an object containing Phoenix stellar spectra
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
@@ -85,7 +85,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.ImRes           = 5;            % the internal image resolution: 5 is 1/5 of the ULTRASAT pixel
                                              % possible values: 1, 2, 5, 10, 47.5
-
+                                             
+        Args.Jitter          = false;        % include the effect of S/C jitter 
+                                             
         Args.RotAng          = 0;            % the PSF rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
                                             
@@ -664,7 +666,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         [Image_ch, PSF_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
                                  WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
-                                 'Jitter', 1, 'Method', Args.Inj, 'MeasurePSF', 0); 
+                                 'Jitter', Args.Jitter, 'Method', Args.Inj, 'MeasurePSF', 0); 
 
                                 fprintf(' done\n');
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic                      
@@ -1016,17 +1018,19 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
                 error('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
             end
     
-            Image = imUtil.art.injectSources_NS(Image0,Cat,JPSF); 
-
+            Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
+                           [X Y],'Oversample',Args.PSFScaling,'Method','ns','ShiftInterp',true);
         case 'direct'                  
 %             ImageOld = directInjectSources(Image0,Cat,Args.PSFScaling,JPSF);
             Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
-                           [X Y],'Oversample',Args.PSFScaling);
+                           [X Y],'Oversample',Args.PSFScaling,'Method','direct');
     
         otherwise        
             error('Injection method not defined! Exiting..');        
     end
 end
+
+
 
 function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     % Inject sources to catalog positions with PSFs scaled by the Scaling factor 

@@ -14,7 +14,7 @@ function [ShiftedImage] = shift_interp(Image, DX, DY, Args)
     % Author : Eran Ofek (2025 Nov) 
     % Example: Image=rand(10,10);
     %          ShiftedImage=imUtil.trans.shift_interp(Image,0.5,0.5);
-
+    %
     arguments
         Image
         DX
@@ -22,18 +22,17 @@ function [ShiftedImage] = shift_interp(Image, DX, DY, Args)
         Args.InterpMethod      = 'linear';
         Args.Norm              = false;
     end
-
-
-    F = griddedInterpolant(Image, Args.InterpMethod, 'previous');
-    [Ny, Nx, NumSrc] = size(Image);
+    %
+    F = griddedInterpolant(Image, Args.InterpMethod);
+    [Ny, Nx] = size(Image);
+    NumSrc   = size(DX,1);
     [X, Y] = meshgrid((1:Nx),(1:Ny));
     ShiftedImage = repmat(0,Ny,Nx,NumSrc);
     for Isrc = 1:NumSrc
         ShiftedImage(:,:,Isrc)  = F(X+DX(Isrc),Y+DY(Isrc))';
     end
-
+    %
     if Args.Norm
         ShiftedImage = ShiftedImage./sum(ShiftedImage,[1 2]); % renormalize
     end
-
 end
