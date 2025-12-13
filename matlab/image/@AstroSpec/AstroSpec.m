@@ -127,7 +127,7 @@ classdef AstroSpec < Component
                         Obj.Data.Properties.VariableUnits = Units;
                     end
                 elseif isnumeric(Matrix)
-                    if numel(Matrix)==1
+                    if isscalar(Matrix)
                         for I=1:1:Matrix
                             Obj(I) = AstroSpec(zeros(0,2), Columns, Units);
                         end
@@ -328,6 +328,98 @@ classdef AstroSpec < Component
         
     end
     
+
+    methods (Static) % read function
+        function AS=read1(File, Format)
+            % Read a single file (e.g., FITS) containing a spectrum into an AstroSpec object
+            % Input  : - A single file name
+            %          - Predefined file format - options are:
+            %            'sdss' - SDSS FITS file (default).
+            % Output : - An AstroSpc object containing the spectrum.
+            % Author : Eran Ofek (Dec 2025)
+            % Example: AS=AstroSpec.read1('spec-2858-54498-0426.fits');
+
+            arguments
+                File
+                Format  = 'sdss';
+            end
+            
+            AS = AstroSpec;
+            switch lower(Format)
+                case 'sdss'
+                    Data = FITS.readTable1(File);
+                    AS.Wave = 10.^Data.loglam;
+                    AS.Flux = Data.flux;
+                    AS.FluxErr = 1./sqrt(Data.ivar);
+                    AS.Back    = Data.sky;
+                    AS.Mask    = Data.or_mask;
+                    AS.WaveUnits = 'A';
+                    AS.FluxUnits = '1e-17 erg/s/cm^2/A';
+                otherwise
+                    error('Unknown format option');
+            end
+
+
+        end
+
+        function AS=read(Files, Format, Args)
+            % Read multiple files containing a spectrum into an AstroSpec object
+            % Input  : - A file name. Either a single file name (char
+            %            array), or a cell array of files names, or a
+            %            string array of file names.
+            %          - Predefined file format - options are:
+            %            'sdss' - SDSS FITS file (default).
+            %          * ...,key,val,...
+            %            'RegExp' - If true, then the file name will be
+            %                   interpreted as a regular expression for file names
+            %                   to search in the current directory.
+            %                   Relevant only if file name is a char array.
+            %                   Default is false.
+            %            'Path' - Directory from which to read files.
+            %                   If empty, then use current dir.
+            %                   Default is [].
+            % Output : - An AstroSpc object containing the spectra.
+            % Author : Eran Ofek (Dec 2025)
+            % Example: AS=AstroSpec.read('.*fits','RegExp',true);
+
+            arguments
+                Files
+                Format      = 'sdss';
+                Args.RegExp = false;
+                Args.Path   = [];
+            end
+
+            if ~isempty(Args.Path)
+                PWD = pwd;
+                cd(Args.Path);
+            end
+
+            if ischar(Files)
+                if Args.RegExp
+                    FilesDir = dir;
+                    ReE      = regexp({FilesDir.name}, Files, 'match');
+                    Flag     = ~tools.cell.isempty_cell(ReE);
+                    Files    = {FilesDir(Flag).name};
+                else
+                    Files = string(Files);
+                end
+            end
+
+            Nf = numel(Files);
+            AS = AstroSpec(Nf);
+            for If=1:1:Nf
+                AS(If) = AstroSpec.read1(Files{If}, Format);
+            end
+
+
+            if ~isempty(Args.Path)
+                cd(PWD);
+            end
+
+
+        end
+    end
+
     methods (Static)  % aux functions
         function [Factor] = applyExtinctionZ(ObsWave, Zext, EbvZ, RZ)
             % Calculate extinction to observed wavelngth vector in various redshifts.
@@ -2059,6 +2151,10 @@ classdef AstroSpec < Component
         end
     end
     
+    methods % measure lines
+        % in imProc.spec.measure
+    end
+
     methods % filtering
         function Result = filterFun(Obj, Function, varargin)
             % Apply a 1-D function (filter) on the Flux field in AstroSpec
