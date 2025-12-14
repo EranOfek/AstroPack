@@ -24,7 +24,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         XY              = [];
         Args.ImSize     = []; 
         Args.Subtract   = false;
-        Args.Oversample = 1;
+        Args.Oversample = [];
         Args.Method     = [];
         Args.ShiftInterp = false; 
     end 
@@ -35,6 +35,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     % if requested, call the old function of Noam Segev:
     if strcmpi(Args.Method,'ns')      
         [N, ~, Nsrc] = size(SrcPSF);
+        if isempty(Args.Oversample)
+            Args.Oversample = 1;
+        end
         M = round(N/Args.Oversample);    
         SrcPSF1 = zeros(M, M, Nsrc);
         for Isrc = 1:Nsrc
@@ -46,7 +49,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         return
     end
     % if the PSF is yet not to scale, call the old directInjectSources function:
-    if ~isempty(Args.Oversample)
+    if ~isempty(Args.Oversample) 
         Flux = repmat(1.0,1,size(SrcPSF,3));   
         Cat = [XY(:,1) XY(:,2) Flux'];
         Image = directInjectSources(Image, Cat, Args.Oversample, SrcPSF);
