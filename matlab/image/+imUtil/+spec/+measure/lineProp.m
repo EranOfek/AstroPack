@@ -26,7 +26,7 @@ function [Result, Mom] = lineProp(Wave, Flux, Err, LineRange, Args)
     %                   function to use for calcaulting the background std.
     %                   Default is 'std'.
     %            'FunStdArgs' - A cell array of additional arguments to
-    %                   pass to 'FunStd'. Default is {[],1,'omitnan'}.
+    %                   p0.58011ass to 'FunStd'. Default is {[],1,'omitnan'}.
     % Output : - A structure of line properties, including:
     %            .LineLum
     %            .LineLumErr

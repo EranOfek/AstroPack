@@ -17,6 +17,7 @@ function UrlFits = sdssSpecURL(Res, Args)
     % 'WHERE ra BETWEEN 150.11475-0.1 AND 150.11475+0.1 ' ...
     % 'AND dec BETWEEN 2.205833-0.1 AND 2.205833+0.1 ' ...
     % 'ORDER BY dist_deg'];
+    % Q = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>100 AND subClass LIKE '%WD%'"
     % T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
     % Url = VO.SDSS.sdssSpecURL(T)
 
