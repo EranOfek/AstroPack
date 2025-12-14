@@ -6,13 +6,15 @@ function [FunCatalog, StageCatalog] = initCompositeFun()
     %              stages they need from this catalog.
     % Input  : None
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
-    %                        Each field is a function specification struct with:
-    %                        .name, .handle, .handletype, .params, .fitpar, .paraminfo
-    %                        Note: params contains only variable parameters, not metadata
-    %                        (ZenithAngle_deg, Pressure, Temperature are passed via MetadataValues)
+    %                        Available: Normalization, Rayleigh, Ozone, Aerosol, Water, UMG,
+    %                                   Mirror, Corrector, QE_Legendre, QE_SkewedGaussian
     %          - StageCatalog: Structure with pre-configured optimization stages.
-    %                          Each field is an optimization stage struct with:
-    %                          .stagename, .method, .freeparams, .sigmaclip, .sigmathresh, .sigmaiter, .description
+    %                          Available: NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
+    %                                     Normalization_Refined, Atmospheric, AerosolOpt, OzoneOpt,
+    %                                     WaterOpt, AtmosphereFull, Default
+    %                          Note: StageCatalog.Default is a 5-stage sequence from Garrappa et al. (2025):
+    %                                [NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
+    %                                 Normalization_Refined, Atmospheric]
     % Author : D. Kovaleva (Dec 2025)
     % Example: 
     %{
@@ -32,7 +34,8 @@ function [FunCatalog, StageCatalog] = initCompositeFun()
               Lambda = linspace(336, 1020, 343)';  % Wavelength grid [nm]
               ObsFlux = Model.evaluateAllFunParInput(Lambda);  % Simulated transmission for demo
               % In real use: ObsFlux = measured_flux ./ reference_flux (pre-normalized)
-              OptSeq = [StageCat.AerosolOpt, StageCat.WaterOpt];
+              OptSeq = [StageCat.AerosolOpt, StageCat.WaterOpt];  % Simple atmospheric fit
+              % Or use: OptSeq = StageCat.Default;  % 5-stage sequence from Garrappa et al. (2025)
               [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
                   'OptimizationSequence', OptSeq, 'Verbose', true);
 
@@ -321,14 +324,4 @@ function [FunCatalog, StageCatalog] = initCompositeFun()
     StageCatalog.WaterOpt.sigmaiter = 3;
     StageCatalog.WaterOpt.description = 'Optimize precipitable water vapor with sigma clipping';
 
-    % Full atmospheric (Aerosol + Ozone + Water)
-    StageCatalog.AtmosphereFull = struct();
-    StageCatalog.AtmosphereFull.stagename = 'AtmosphereFull';
-    StageCatalog.AtmosphereFull.method = 'nonlinear';
-    StageCatalog.AtmosphereFull.freeparams = struct('function', {'Aerosol', 'Ozone', 'Water'}, 'parameter', {'TauAod500', 'DobsonUnits', 'PWV_cm'});
-    StageCatalog.AtmosphereFull.sigmaclip = true;
-    StageCatalog.AtmosphereFull.sigmathresh = 3.0;
-    StageCatalog.AtmosphereFull.sigmaiter = 3;
-    StageCatalog.AtmosphereFull.description = 'Joint optimization of aerosol, ozone, and water vapor';
-
-end
+ end
