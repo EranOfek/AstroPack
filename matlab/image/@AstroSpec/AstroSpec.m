@@ -380,8 +380,11 @@ classdef AstroSpec < Component
             %                   Default is [].
             % Output : - An AstroSpc object containing the spectra.
             % Author : Eran Ofek (Dec 2025)
-            % Example: AS=AstroSpec.read('.*fits','RegExp',true);
-
+            % Example: Q = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>10 AND subClass LIKE '%WD%'"
+            %          T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
+            %          Url = VO.SDSS.sdssSpecURL(T)
+            %          AS=AstroSpec.read('.*fits','RegExp',true);
+            
             arguments
                 Files
                 Format      = 'sdss';

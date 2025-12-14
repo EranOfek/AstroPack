@@ -38,6 +38,15 @@ function [Line, Mom] = lineProp(AS, Args)
     %            .X2 - second central moment.
     % Author : Eran Ofek (2025 Dec) 
     % Example: [L,M]=imProc.spec.measure.lineProp(AS,'LineWave',7500,'BackRange',[7400 7450; 7550 7600]);
+    %          % WD H&K line example:
+    %          Q = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>10 AND subClass LIKE '%WD%'"
+    %          T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
+    %          Url = VO.SDSS.sdssSpecURL(T)
+    %          AS=AstroSpec.read('.*fits','RegExp',true);
+    %          AS.redshift(0, T.elodiez);
+    %          [L,M]=imProc.spec.measure.lineProp(AS,'LineWave',3933.66,'BackRange',[3915 3925; 3940 3945]);
+ 
+
 
     arguments
         AS
