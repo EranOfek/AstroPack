@@ -124,11 +124,13 @@ classdef UltrasatPerf < Component
             % Example:
             %          UF = UltrasatPerf(1);
             %          UF = UltrasatPerf([2 2]);
+            % UP1 = UltrasatPerf('Init',true,'calcPerf',true,'DesignFunPar',{'FF1_fname','FF1_asBuilt','SC1_fname','SC1_0'},'calcPerfFunPar',{'SpecsFunPar',{'MStype',[],'T_BB',2e4}});
 
             arguments
                 Nobj           = 1;   % array size
-                Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};
+                Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};{'FF1_fname','FF1_asBuilt','SC1_fname','SC1_0'};
                 Args.calcPerf  = false;
+                Args.calcPerfFunPar    = {};%{'SpecsFunPar',{'MStype',[],'T_BB',2e4}};%{};%
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
             
@@ -144,7 +146,7 @@ classdef UltrasatPerf < Component
                     Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
                     Obj(Ih).populate_Design(Args.DesignFunPar{:});%'PSF_name',Args.PSF_name); % Populate design
                     if Args.calcPerf
-                        Obj(Ih).calculatePerformance;
+                        Obj(Ih).calculatePerformance(Args.calcPerfFunPar{:});
                     end
 
                 end
@@ -390,9 +392,10 @@ classdef UltrasatPerf < Component
                 Obj
                 Args.AW_radius   = 7.4; % degrees for 170 deg central region
                 Args.AW_r_step   = 0.1; % steps
+                Args.SpecsFunPar = {};
             end
             
-            Obj.Specs = Obj.create_Specs('wavelength',Obj.wavelength);
+            Obj.Specs = Obj.create_Specs('wavelength',Obj.wavelength,Args.SpecsFunPar{:});
             Obj.C_Gaia_BpRp = Obj.calcColor(Obj.Specs,'GAIA','BP','GAIA','RP');
             Obj.C_ULTRASAT_GaiaG = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GAIA','G');
             Obj.C_ULTRASAT_GalexNUV = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GALEX','NUV');
@@ -446,6 +449,7 @@ classdef UltrasatPerf < Component
                 Args.AOI_fname   = 'aoi.txt';
                 Args.FF1_fname   = '';
                 Args.FF2_fname   = '';
+                Args.SC1test_subDir = 'SC1_test';                 
                 Args.SC1_fname   = '';
                 Args.SC2_fname   = '';
                 Args.interp_mthd = 'linear';%'cubic'; % cubic generate negative tranimission....
@@ -533,7 +537,7 @@ classdef UltrasatPerf < Component
 
             % SC1 
             if ~isempty(Args.SC1_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_fname));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1test_subDir,Args.SC1_fname));
                 SC1_2surf = eval(Args.SC1_fname);
                 Obj.T_SC1_2surf = interp1(SC1_2surf.wavelength,SC1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
@@ -798,11 +802,17 @@ classdef UltrasatPerf < Component
                 Args.MStype          = 'V';
                 Args.T_BB             = [2e3 ,4e3 ,6e3 ,8e3 ,1e4 ,2e4 ,3e4 ,4e4, 5e4, 6e4, 7e4];
             end
-            
-            Specs = AstSpec.get_pickles([],Args.MStype );
+           
+            if ~isempty(Args.MStype)
+                Specs = AstSpec.get_pickles([],Args.MStype );
+            else
+                Specs = {};
+            end
             
             for T = Args.T_BB
-                Specs(end+1) = AstSpec.blackbody(T,Args.wavelength);
+                currSpec = AstSpec.blackbody(T,Args.wavelength);
+                Specs = [Specs;currSpec];
+                %Specs(end+1) = AstSpec.blackbody(T,Args.wavelength);
             end
         end
         
