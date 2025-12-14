@@ -24,9 +24,9 @@ function [Residuals, Cost, PredictedFlux] = transmissionCostFun(Lambda, Spec, Sp
     %                   Default is [].
     %            'Y' - Source Y coordinates (vector of N_calib values).
     %                   Default is [].
-    %            'PolyFieldCorr' - Function handle @(X, Y, FieldParams) for field correction.
+    %            'PolyFieldCorr' - Function handle @(X, Y, PosParams) for field correction.
     %                   Default is [].
-    %            'FieldParams' - Vector of coefficients for PolyFieldCorr.
+    %            'PosParams' - Vector of coefficients for PolyFieldCorr.
     %                   Default is zeros(1, 10).
     %            'GaiaWavelength' - Gaia XP wavelength vector of N_GaiaWvl values [nm].
     %                   Default is linspace(336, 1020, 343)'.
@@ -67,15 +67,15 @@ function [Residuals, Cost, PredictedFlux] = transmissionCostFun(Lambda, Spec, Sp
     %          X = [500; 1000; 1500];  % Pixel coordinates
     %          Y = [500; 1000; 1500];
     %          PolyFieldCorr = @(X, Y, P) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], P);
-    %          FieldParams = zeros(1, 10);
+    %          PosParams = zeros(1, 10);
     %          % Option 1: Pass TransParams explicitly
     %          [Res, Cost, Pred] = imUtil.calib.transmissionCostFun(Lambda, Spec, SpecErr, ...
     %              Flux, FluxErr, Model, 'TransParams', TransParams, 'X', X, 'Y', Y, ...
-    %              'PolyFieldCorr', PolyFieldCorr, 'FieldParams', FieldParams);
+    %              'PolyFieldCorr', PolyFieldCorr, 'PosParams', PosParams);
     %          % Option 2: Use parameters from Model (TransParams extracted automatically)
     %          [Res, Cost, Pred] = imUtil.calib.transmissionCostFun(Lambda, Spec, SpecErr, ...
     %              Flux, FluxErr, Model, 'X', X, 'Y', Y, 'PolyFieldCorr', PolyFieldCorr, ...
-    %              'FieldParams', FieldParams);
+    %              'PosParams', PosParams);
 
     arguments
         Lambda                      % Wavelength grid [N_lambda x 1]
@@ -88,7 +88,7 @@ function [Residuals, Cost, PredictedFlux] = transmissionCostFun(Lambda, Spec, Sp
         Args.X = []                 % X coordinates [N_calib x 1]
         Args.Y = []                 % Y coordinates [N_calib x 1]
         Args.PolyFieldCorr = []     % Field correction function handle
-        Args.FieldParams = zeros(1, 10)  % Field correction parameters
+        Args.PosParams = zeros(1, 10)  % Field correction parameters
         Args.GaiaWavelength = linspace(336, 1020, 343)'  % Gaia XP grid
         Args.Airmass = 1.2          % Atmospheric airmass
         Args.Temperature = 15       % Temperature [C]
@@ -353,13 +353,13 @@ function [Residuals, Cost, PredictedFlux] = transmissionCostFun(Lambda, Spec, Sp
     % ====================================================================
 
     % Check if field correction is requested (non-zero params and all inputs provided)
-    if any(Args.FieldParams ~= 0) && ~isempty(Args.X) && ~isempty(Args.Y) && ~isempty(Args.PolyFieldCorr)
+    if any(Args.PosParams ~= 0) && ~isempty(Args.X) && ~isempty(Args.Y) && ~isempty(Args.PolyFieldCorr)
         if Args.Verbose
             fprintf('Applying field corrections...\n');
         end
 
         % Apply field correction using provided function handle
-        FieldCorrectionMag = Args.PolyFieldCorr(Args.X, Args.Y, Args.FieldParams);
+        FieldCorrectionMag = Args.PolyFieldCorr(Args.X, Args.Y, Args.PosParams);
 
         % Ensure column vector
         FieldCorrectionMag = FieldCorrectionMag(:);

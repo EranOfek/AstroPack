@@ -7,337 +7,339 @@ classdef CompositeFun < handle
     %
     % Example - Basic Setup:
     %   % Create composite function
-    %   Model = tools.math.fun.CompositeFun();
-    %
-    %   % Adding functions
-    %   % Method 1: Auto-extract ArgNames from function handle(recommended)
-    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [30, 300], 'FitPar', [false, false]);
-    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
-    %   
-    %   % Method 2: Explicit extractArgFuns helper function
-    %   OzoneArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
-    %   Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
-    %                'Par', [45, 300], 'FitPar', [false, true]);
-    %
-    %   % Method 3: Manual ArgNames construction
-    %   AerosolArgNames = struct('Name', {1, 2, 3}, ...
-    %                           'Description', {'ZenithAngle_deg', 'TauAod500', 'AngstromExponent'}, ...
-    %                           'Min', {0, 0.01, 0.5}, 'Max', {90, 0.5, 2.0});
-    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, AerosolArgNames, ...
-    %                'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
-    %
-    %   % Method 4: Direct function call for ArgNames
-    %   OzoneArgNames = astro.transmission.ozoneTransmission('GetArgNames', true);
-    %
-    %   % Adding simple mathematical functions
-    %   % Sin function: y = A * sin(x + B)
-    %   SinArgNames = struct('Name', {1, 2}, 'Description', {'SinAmplitude', 'Phase'}, 'Min', {0, -pi}, 'Max', {10, pi});
-    %   Model.addFun('Sine function', @(x, par) par(1) * sin(x + par(2)), SinArgNames, 'Par', [1, 0], 'FitPar', [true, false]);
-    %
-    %   % Cos function: y = C * cos(D * x)
-    %   CosArgNames = struct('Name', {1, 2}, 'Description', {'CosAmplitude', 'Frequency'}, 'Min', {0, 0}, 'Max', {5, 10});
-    %   Model.addFun('Cosine function', @(x, par) par(1) * cos(par(2) * x), CosArgNames, 'Par', [2, 1], 'FitPar', [false, true]);
-    %
-    %   % After functions are added, can also get ArgNames from model
-    %   ArgNames1 = Model.Funs(1).ArgNames;     % Same as OzoneArgNames
-    %   ArgNames2 = Model.Funs(2).ArgNames;     % Same as AerosolArgNames
-    %
-    %   % It is possible to add function(s) without setting parameter values (NaN by default),
-    %   % but fixed parameters (FitPar=false) must be set before calculations:
-    %   Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
-    %   AllFunPar = Model.getAllFunPar();  % Get parameter structure
-    %   % AllFunPar.Name shows parameter names and their global indices
-    %   AllFunPar.Val(1) = 30;   % Set ZenithAngle_deg (fixed parameter)
-    %   AllFunPar.Val(3) = 1.2;  % Set AngstromExponent (fixed parameter)
-    %   % Parameter 2 (TauAod500) will be fitted, so can remain NaN initially
-    %   Model.setAllFunPar(AllFunPar);  % Apply the values 
-    %
+    %{   
+        Model = tools.math.fun.CompositeFun();
+    
+       % Adding functions
+       % Method 1: Auto-extract ArgNames from function handle(recommended)
+       Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, [], 'Par', [30, 300], 'FitPar', [false, false]);
+       Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+       
+       % Method 2: Explicit extractArgFuns helper function
+       OzoneArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
+       Model.addFun('Ozone transmission', @astro.transmission.ozoneTransmission, OzoneArgNames, ...
+                    'Par', [45, 300], 'FitPar', [false, true]);
+    
+       % Method 3: Manual ArgNames construction
+       AerosolArgNames = struct('Name', {1, 2, 3}, ...
+                               'Description', {'ZenithAngle_deg', 'TauAod500', 'AngstromExponent'}, ...
+                               'Min', {0, 0.01, 0.5}, 'Max', {90, 0.5, 2.0});
+       Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, AerosolArgNames, ...
+                    'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+    
+       % Method 4: Direct function call for ArgNames
+       OzoneArgNames = astro.transmission.ozoneTransmission('GetArgNames', true);
+    
+       % Adding simple mathematical functions
+       % Sin function: y = A * sin(x + B)
+       SinArgNames = struct('Name', {1, 2}, 'Description', {'SinAmplitude', 'Phase'}, 'Min', {0, -pi}, 'Max', {10, pi});
+       Model.addFun('Sine function', @(x, par) par(1) * sin(x + par(2)), SinArgNames, 'Par', [1, 0], 'FitPar', [true, false]);
+    
+       % Cos function: y = C * cos(D * x)
+       CosArgNames = struct('Name', {1, 2}, 'Description', {'CosAmplitude', 'Frequency'}, 'Min', {0, 0}, 'Max', {5, 10});
+       Model.addFun('Cosine function', @(x, par) par(1) * cos(par(2) * x), CosArgNames, 'Par', [2, 1], 'FitPar', [false, true]);
+    
+       % After functions are added, can also get ArgNames from model
+       ArgNames1 = Model.Funs(1).ArgNames;     % Same as OzoneArgNames
+       ArgNames2 = Model.Funs(2).ArgNames;     % Same as AerosolArgNames
+    
+       % It is possible to add function(s) without setting parameter values (NaN by default),
+       % but fixed parameters (FitPar=false) must be set before calculations:
+       Model.addFun('Aerosol transmission', @astro.transmission.aerosolTransmission, [], 'Par', [], 'FitPar', [false, true, false]);
+       AllFunPar = Model.getAllFunPar();  % Get parameter structure
+       % AllFunPar.Name shows parameter names and their global indices
+       AllFunPar.Val(1) = 30;   % Set ZenithAngle_deg (fixed parameter)
+       AllFunPar.Val(3) = 1.2;  % Set AngstromExponent (fixed parameter)
+       % Parameter 2 (TauAod500) will be fitted, so can remain NaN initially
+       Model.setAllFunPar(AllFunPar);  % Apply the values 
+    
     % Example - Information Getters:
-    %   % Get function summary
-    %   FunsNames = Model.namesFuns();
-    %   fprintf('Added %d functions\n', size(FunsNames, 1));
-    %
-    %   % Get parameter information
-    %   fprintf('Total parameters: %d\n', Model.numAllFunPar());
-    %   fprintf('Fitted parameters: %d\n', Model.numFittedPar());
-    %
-    %   AllNames = Model.namesAllFunPar();
-    %   AllValues = Model.valuesAllFunPar();
-    %   FittedNames = Model.namesFittedPar();
-    %   FittedInfo = Model.getFittedPar();
-    %
-    %   % Get detailed function information
-    %   AllFuns = Model.allFunsStruct();    % Complete structure with all fields
-    %   FunsNames = Model.namesFuns();      % Cell array: {Name, Description}
-    %
-    % Example - Dynamic Parameter Management:
-    %   % Get current parameter structure
-    %   AllFunPar = Model.getAllFunPar();
-    %
-    %   % Modify parameters and fit flags for optimization
-    %   AllFunPar.Val(2) = 350;      % Change ozone value
-    %   AllFunPar.FitPar(1) = false;    % Fix zenith angle
-    %   AllFunPar.FitPar(3) = true;     % Fit aerosol parameter
-    %   Model.setAllFunPar(AllFunPar);  % Handle class - modifies in place
-    %
-    % Example - Pre-calculation and Evaluation:
-    %   % Define wavelength range
-    %   Lambda = linspace(300, 1100, 401)';
-    %
-    %   % Pre-calculate functions with fixed parameters (after setting fit flags)
-    %   Model.preCalc(Lambda);
-    %
-    %   % Method 1: Evaluate with all parameter values (direct input)
-    %   NewAllValues = [45, 280, 0.08, 0.6];  % All parameters
-    %   Transmission = Model.evaluateAllFunParInput(Lambda, NewAllValues);
-    %
-    %   % Method 2: Evaluate with only fitted parameters (fixed parameters pre-set)
-    %   % First set all fixed parameters using setAllFunParStruct (if not
-    %   % set already)
-    %   AllFunPar = Model.getAllFunPar();
-    %   AllFunPar(1).Value = 45;    % Set zenith angle (fixed)
-    %   AllFunPar(1).FitPar = false;
-    %   AllFunPar(2).Value = 280;   % Set ozone value (fixed)
-    %   AllFunPar(2).FitPar = false;
-    %   AllFunPar(3).FitPar = true; % Fit aerosol AOD
-    %   AllFunPar(4).FitPar = true; % Fit Angstrom exponent
-    %   Model.setAllFunPar(AllFunPar);
-    %   % Now evaluate with only fitted parameters
-    %   FittedValues = [0.08, 0.6];  % Only fitted parameters
-    %   Transmission = Model.evaluate(Lambda, FittedValues);
-    %
+       % Get function summary
+       FunsNames = Model.namesFuns();
+       fprintf('Added %d functions\n', size(FunsNames, 1));
+    
+       % Get parameter information
+       fprintf('Total parameters: %d\n', Model.numAllFunPar());
+       fprintf('Fitted parameters: %d\n', Model.numFittedPar());
+    
+       AllNames = Model.namesAllFunPar();
+       AllValues = Model.valuesAllFunPar();
+       FittedNames = Model.namesFittedPar();
+       FittedInfo = Model.getFittedPar();
+    
+       % Get detailed function information
+       AllFuns = Model.allFunsStruct();    % Complete structure with all fields
+       FunsNames = Model.namesFuns();      % Cell array: {Name, Description}
+    
+     % Example - Dynamic Parameter Management:
+       % Get current parameter structure
+       AllFunPar = Model.getAllFunPar();
+    
+       % Modify parameters and fit flags for optimization
+       AllFunPar.Val(2) = 350;      % Change ozone value
+       AllFunPar.FitPar(1) = false;    % Fix zenith angle
+       AllFunPar.FitPar(3) = true;     % Fit aerosol parameter
+       Model.setAllFunPar(AllFunPar);  % Handle class - modifies in place
+    
+      % Example - Pre-calculation and Evaluation:
+       % Define wavelength range
+       Lambda = linspace(300, 1100, 401)';
+    
+       % Pre-calculate functions with fixed parameters (after setting fit flags)
+       Model.preCalc(Lambda);
+    
+       % Method 1: Evaluate with all parameter values (direct input)
+       NewAllValues = [45, 280, 0.08, 0.6];  % All parameters
+       Transmission = Model.evaluateAllFunParInput(Lambda, NewAllValues);
+    
+       % Method 2: Evaluate with only fitted parameters (fixed parameters pre-set)
+       % First set all fixed parameters using setAllFunParStruct (if not
+       % set already)
+       AllFunPar = Model.getAllFunPar();
+       AllFunPar(1).Value = 45;    % Set zenith angle (fixed)
+       AllFunPar(1).FitPar = false;
+       AllFunPar(2).Value = 280;   % Set ozone value (fixed)
+       AllFunPar(2).FitPar = false;
+       AllFunPar(3).FitPar = true; % Fit aerosol AOD
+       AllFunPar(4).FitPar = true; % Fit Angstrom exponent
+       Model.setAllFunPar(AllFunPar);
+       % Now evaluate with only fitted parameters
+       FittedValues = [0.08, 0.6];  % Only fitted parameters
+       Transmission = Model.evaluate(Lambda, FittedValues);
+    
     % Example - Position-Dependent Corrections with Tran2D:
-    %   % Step 1: Build base wavelength transmission model
-    %   Model = tools.math.fun.CompositeFun();
-    %   Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], ...
-    %                'Par', [30, 300], 'FitPar', [false, true]);
-    %   Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, [], ...
-    %                'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
-    %
-    %   % Step 2: Create Tran2D object for position-dependent correction
-    %   % Position correction is additive in magnitude space
-    %   T2D = Tran2D('cheby1_4_xt');  % LAST field correction (10 parameters)
-    %   % Set normalization for Chebyshev polynomials: [0, 1726] → [-1, +1]
-    %   T2D.ParNX = [863.5, 863.5];  % (x - 863.5) / 863.5 maps center to 0, edges to ±1 for LAST 1726*1726 pix subimage
-    %   T2D.ParNY = [863.5, 863.5];  % (y - 863.5) / 863.5 maps center to 0, edges to ±1
-    %   % Initialize polynomial coefficients (will be fitted later)
-    %   T2D.ParX = zeros(1, 10);  % [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
-    %   T2D.ParY = zeros(1, 10);  % Not used for photometry, but required by Tran2D
-    %
-    %   % Step 3: Add Tran2D class object to the model with reference position
-    %   X_ref = 863.5;  % Field center in pixel coordinates
-    %   Y_ref = 863.5;  % (maps to (0,0) in normalized Chebyshev coordinates)
-    %   Model.addTran2D(T2D, 'X_ref', X_ref, 'Y_ref', Y_ref, 'Verbose', true);
-    %
-    %   % Step 4: Evaluate transmission at specific positions and wavelengths
-    %   Lambda = linspace(400, 900, 100)';  % Wavelength grid [nm]
-    %   X = [200; 863.5; 1500];               % Source X positions [pixels]
-    %   Y = [200; 863.5; 1500];               % Source Y positions [pixels]
-    %
-    %   % Get transmission matrix [N_sources x N_lambda]
-    %   Trans = Model.evaluateWithPosition(Lambda, X, Y);
-    %   % Trans(i,j) = transmission for source i at wavelength j
-    %
-    %   % Step 5: Update position coefficients (e.g., after optimization)
-    %   PosParams_new = [0.01, 0.0001, -0.0002, 0.00015,-0.001, 0.1,-0.01, 0.001,-0.002,0.01];  % Fitted values
-    %   Model.setTran2DParams(PosParams_new);
-    %
-    %   % Step 7: Get combined parameter structure (wavelength + position)
-    %   AllFunParams = Model.getAllFunParWithTran2D();
-    %   fprintf('Total parameters: %d\n', length(AllFunParams.Val));
-    %   fprintf('  Wavelength transmission: %d\n', Model.numAllFunPar());
-    %   fprintf('  Position polynomial: %d\n', length(Model.Tran2DObj.ParX));
-    %
+       % Step 1: Build base wavelength transmission model
+       Model = tools.math.fun.CompositeFun();
+       Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], ...
+                    'Par', [30, 300], 'FitPar', [false, true]);
+       Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, [], ...
+                    'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+    
+       % Step 2: Create Tran2D object for position-dependent correction
+       % Position correction is additive in magnitude space
+       T2D = Tran2D('cheby1_4_xt');  % LAST field correction (10 parameters)
+       % Set normalization for Chebyshev polynomials: [0, 1726] → [-1, +1]
+       T2D.ParNX = [863, 863];  % (x - 863) / 863 maps center to 0, edges to ±1 for LAST 1726*1726 pix subimage
+       T2D.ParNY = [863, 863];  % (y - 863) / 863 maps center to 0, edges to ±1
+       % Initialize polynomial coefficients (will be fitted later)
+       T2D.ParX = zeros(1, 10);  % [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
+       T2D.ParY = zeros(1, 10);  % Not used for photometry, but required by Tran2D
+    
+       % Step 3: Add Tran2D class object to the model with reference position
+       X_ref = 863;  % Field center in pixel coordinates
+       Y_ref = 863;  % (maps to (0,0) in normalized Chebyshev coordinates)
+       Model.addTran2D(T2D, 'X_ref', X_ref, 'Y_ref', Y_ref, 'Verbose', true);
+    
+       % Step 4: Evaluate transmission at specific positions and wavelengths
+       Lambda = linspace(400, 900, 100)';  % Wavelength grid [nm]
+       X = [200; 863; 1500];               % Source X positions [pixels]
+       Y = [200; 863; 1500];               % Source Y positions [pixels]
+    
+       % Get transmission matrix [N_sources x N_lambda]
+       Trans = Model.evaluateWithPosition(Lambda, X, Y);
+       % Trans(i,j) = transmission for source i at wavelength j
+    
+       % Step 5: Update position coefficients (e.g., after optimization)
+       PosParams_new = [0.01, 0.0001, -0.0002, 0.00015,-0.001, 0.1,-0.01, 0.001,-0.002,0.01];  % Fitted values
+       Model.setTran2DParams(PosParams_new);
+    
+       % Step 7: Get combined parameter structure (wavelength + position)
+       AllFunParams = Model.getAllFunParWithTran2D();
+       fprintf('Total parameters: %d\n', length(AllFunParams.Val));
+       fprintf('  Wavelength transmission: %d\n', Model.numAllFunPar());
+       fprintf('  Position polynomial: %d\n', length(Model.Tran2DObj.ParX));
+    
     % Example - High-Level Model Building with modelCompositeFun:
-    %   % Define function specification list (e.g., from YAML or manual)
-    %   FunList(1).name = 'Ozone';
-    %   FunList(1).handle = '@astro.transmission.ozoneTransmission';
-    %   FunList(1).handletype = 'named';
-    %   FunList(1).params = [30, 300];
-    %   FunList(1).paraminfo(1).name = 'ZenithAngle_deg';
-    %   FunList(1).paraminfo(1).min = 0;
-    %   FunList(1).paraminfo(1).max = 90;
-    %   FunList(1).paraminfo(2).name = 'DobsonUnits';
-    %   FunList(1).paraminfo(2).min = 200;
-    %   FunList(1).paraminfo(2).max = 400;
-    %
-    %   FunList(2).name = 'Aerosol';
-    %   FunList(2).handle = '@astro.transmission.aerosolTransmission';
-    %   FunList(2).handletype = 'named';
-    %   FunList(2).params = [30, 0.05, 1.2];
-    %   FunList(2).paraminfo(1).name = 'ZenithAngle_deg';
-    %   FunList(2).paraminfo(1).min = 0;
-    %   FunList(2).paraminfo(1).max = 90;
-    %   FunList(2).paraminfo(2).name = 'TauAod500';
-    %   FunList(2).paraminfo(2).min = 0.0;
-    %   FunList(2).paraminfo(2).max = 0.5;
-    %   FunList(2).paraminfo(3).name = 'Alpha';
-    %   FunList(2).paraminfo(3).min = 0.5;
-    %   FunList(2).paraminfo(3).max = 2.5;
-    %
-    %   % Build transmission model with Tran2D position corrections and metadata injection
-    %   Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
-    %       'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2), ...
-    %                                'Pressure_mbar', 965, 'Temperature_C', 15), ...
-    %       'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
-    %       'XPixel', 1726, 'YPixel', 1726, 'Verbose', true);
-    %   % Or build model without position corrections
-    %   Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
-    %       'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2)), ...
-    %       'UseTran2D', false);
-    %
+       % Define function specification list (e.g., from YAML or manual)
+       FunList(1).name = 'Ozone';
+       FunList(1).handle = '@astro.transmission.ozoneTransmission';
+       FunList(1).handletype = 'named';
+       FunList(1).params = [30, 300];
+       FunList(1).paraminfo(1).name = 'ZenithAngle_deg';
+       FunList(1).paraminfo(1).min = 0;
+       FunList(1).paraminfo(1).max = 90;
+       FunList(1).paraminfo(2).name = 'DobsonUnits';
+       FunList(1).paraminfo(2).min = 200;
+       FunList(1).paraminfo(2).max = 400;
+    
+       FunList(2).name = 'Aerosol';
+       FunList(2).handle = '@astro.transmission.aerosolTransmission';
+       FunList(2).handletype = 'named';
+       FunList(2).params = [30, 0.05, 1.2];
+       FunList(2).paraminfo(1).name = 'ZenithAngle_deg';
+       FunList(2).paraminfo(1).min = 0;
+       FunList(2).paraminfo(1).max = 90;
+       FunList(2).paraminfo(2).name = 'TauAod500';
+       FunList(2).paraminfo(2).min = 0.0;
+       FunList(2).paraminfo(2).max = 0.5;
+       FunList(2).paraminfo(3).name = 'Alpha';
+       FunList(2).paraminfo(3).min = 0.5;
+       FunList(2).paraminfo(3).max = 2.5;
+    
+       % Build transmission model with Tran2D position corrections and metadata injection
+       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+           'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2), ...
+                                    'Pressure_mbar', 965, 'Temperature_C', 15), ...
+           'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
+           'XPixel', 1726, 'YPixel', 1726, 'Verbose', true);
+       % Or build model without position corrections
+       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+           'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2)), ...
+           'UseTran2D', false);
+    
     % Example - Cost Function Evaluation with costFun:
-    %   % Simple direct comparison (NumInput == NumObs)
-    %   Lambda = linspace(400, 900, 100)';
-    %   ObservedValues = randn(100, 1);  % Simulated observations
-    %   [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues);
-    %
-    %   % With position corrections (requires X, Y coordinates)
-    %   X = [200; 863.5; 1500];  % 3 sources
-    %   Y = [200; 863.5; 1500];
-    %   ObservedValues = randn(3, 1);
-    %   [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues, ...
-    %       'X', X, 'Y', Y);
-    %
-    %   % Transmission mode with spectra (for photometric calibration)
-    %   Lambda = linspace(336, 1020, 343)';  % Wavelength grid [nm]
-    %   Spec = randn(343, 3);  % Gaia XP spectra [N_GaiaWvl x N_calib]
-    %   ObsFlux = [1e5; 2e5; 1.5e5];  % Observed photon counts
-    %   X = [500; 1000; 1500];  % Pixel coordinates
-    %   Y = [500; 1000; 1500];
-    %   [Residuals, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
-    %       'WeightMatrix', GaiaSpec, 'TransmissionMode', true, ...
-    %       'X', X, 'Y', Y, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
-    %   % Residuals are magnitude differences: 2.5*log10(Predicted/Observed)
-    %
+       % Simple direct comparison (NumInput == NumObs)
+       Lambda = linspace(400, 900, 100)';
+       ObservedValues = randn(100, 1);  % Simulated observations
+       [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues);
+    
+       % With position corrections (requires X, Y coordinates)
+       X = [200; 863; 1500];  % 3 sources
+       Y = [200; 863; 1500];
+       ObservedValues = randn(3, 1);
+       [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues, ...
+           'X', X, 'Y', Y);
+    
+       % Transmission mode with spectra (for photometric calibration)
+       Lambda = linspace(336, 1020, 343)';  % Wavelength grid [nm]
+       Spec = randn(343, 3);  % Gaia XP spectra [N_GaiaWvl x N_calib]
+       ObsFlux = [1e5; 2e5; 1.5e5];  % Observed photon counts
+       X = [500; 1000; 1500];  % Pixel coordinates
+       Y = [500; 1000; 1500];
+       [Residuals, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
+           'WeightMatrix', GaiaSpec, 'TransmissionMode', true, ...
+           'X', X, 'Y', Y, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
+       % Residuals are magnitude differences: 2.5*log10(Predicted/Observed)
+    
     % Example - Parameter Fitting with fitParCompositeFun:
-    %   % Setup: Mark parameters for fitting
-    %   AllFunPar = Model.getAllFunPar();
-    %   AllFunPar.FitPar(1) = false;  % Fix ZenithAngle_deg
-    %   AllFunPar.FitPar(2) = false;   % Fix DobsonUnits
-    %   AllFunPar.FitPar(4) = true;   % Fit TauAod500
-    %   Model.setAllFunPar(AllFunPar);
-    %
-    %   % Fit wavelength parameters only (no position corrections)
-    %   Lambda = linspace(400, 900, 100)';
-    %   ObservedFlux = randn(20, 1);  % 20 observations
-    %   X = 200 + 1300 * rand(20, 1);  % Random positions
-    %   Y = 200 + 1300 * rand(20, 1);
-    %   [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
-    %       'FitTransmission', true, 'FitPosition', false, 'Verbose', true);
-    %   fprintf('Final RMS: %.4f\n', Result.RMS);
-    %
-    %   % Fit both wavelength and position parameters with sigma clipping
-    %   [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
-    %       'X', X, 'Y', Y, 'FitTransmission', true, 'FitPosition', true, ...
-    %       'SigmaClip', true, 'SigmaThresh', 3.0, 'SigmaIter', 5, 'Verbose', true);
-    %   fprintf('Final RMS: %.4f, Clipped: %d outliers\n', ...
-    %           Result.RMS, Result.NumClipped);
-    %
-    % Example - Transmission Mode for Photometric Calibration:
-    %   % Build transmission model with Tran2D
-    %   Model = tools.math.fun.CompositeFun();
-    %   Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], ...
-    %       'Par', [30, 300], 'FitPar', [false, false]);
-    %   Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, [], ...
-    %       'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
-    %   % Add Tran2D for field-dependent corrections
-    %   T2D = Tran2D('cheby1_4_xt');
-    %   T2D.ParNX = [863.5, 863.5]; T2D.ParNY = [863.5, 863.5];
-    %   T2D.ParX = zeros(1, 10); T2D.ParY = zeros(1, 10);
-    %   Model.addTran2D(T2D, 'X_ref', 863.5, 'Y_ref', 863.5);
-    %
-    %   % Prepare calibration data
-    %   Lambda = linspace(336, 1020, 343)';  % Transmission wavelength grid [nm]
-    %   SpecWvl = linspace(336, 1020, 343)'; % Spectral wavelength grid [nm]
-    %   N_calib = 20;
-    %   Generate synthetic spectra with varying spectral indices
-    %    Spec = zeros(343, N_calib);
-    %    for i = 1:N_calib
-    %        alpha = -2 + 3.5 * (i-1)/(N_calib-1);  % -2 (blue) to +1.5 (red)
-    %        Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
-    %    end
-    %   ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);  % Observed photons [80k-120k]
-    %   X = rand(N_calib, 1) * 1726;  % Source X positions [pixels]
-    %   Y = rand(N_calib, 1) * 1726;  % Source Y positions [pixels]
-    %
-    %   % Setup CostArgs for TransmissionMode
-    %   % WeightMatrix = calibrator spectra (Gaia, synthetic, or model spectra)
-    %   CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
-    %       'GaiaWavelength', SpecWvl, 'ExpTime', 20, ...
-    %       'Aperture_area_m2', pi * (0.1397)^2);
-    %
-    %   % Fit transmission + position with sigma clipping
-    %   % NOTE: FitPosition requires TransmissionMode (magnitude residuals)
-    %   [Model, Result] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
-    %       'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
-    %       'FitTransmission', true, 'FitPosition', true, ...
-    %       'SigmaClip', true, 'SigmaThresh', 3.0, 'Verbose', true);
-    %   fprintf('Final RMS: %.4f mag, Calibrators: %d/%d\n', ...
-    %           Result.RMS, Result.NumObs, length(ObsFlux));
-    %
+       % Setup: Mark parameters for fitting
+       AllFunPar = Model.getAllFunPar();
+       AllFunPar.FitPar(1) = false;  % Fix ZenithAngle_deg
+       AllFunPar.FitPar(2) = false;   % Fix DobsonUnits
+       AllFunPar.FitPar(4) = true;   % Fit TauAod500
+       Model.setAllFunPar(AllFunPar);
+    
+       % Fit wavelength parameters only (no position corrections)
+       Lambda = linspace(400, 900, 100)';
+       ObservedFlux = randn(20, 1);  % 20 observations
+       X = 200 + 1300 * rand(20, 1);  % Random positions
+       Y = 200 + 1300 * rand(20, 1);
+       [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
+           'FitTransmission', true, 'FitPosition', false, 'Verbose', true);
+       fprintf('Final RMS: %.4f\n', Result.RMS);
+    
+       % Fit both wavelength and position parameters with sigma clipping
+       [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
+           'X', X, 'Y', Y, 'FitTransmission', true, 'FitPosition', true, ...
+           'SigmaClip', true, 'SigmaThresh', 3.0, 'SigmaIter', 5, 'Verbose', true);
+       fprintf('Final RMS: %.4f, Clipped: %d outliers\n', ...
+               Result.RMS, Result.NumClipped);
+    
+     Example - Transmission Mode for Photometric Calibration:
+       % Build transmission model with Tran2D
+       Model = tools.math.fun.CompositeFun();
+       Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], ...
+           'Par', [30, 300], 'FitPar', [false, false]);
+       Model.addFun('Aerosol', @astro.transmission.aerosolTransmission, [], ...
+           'Par', [30, 0.05, 1.2], 'FitPar', [false, true, false]);
+       % Add Tran2D for field-dependent corrections
+       T2D = Tran2D('cheby1_4_xt');
+       T2D.ParNX = [863, 863]; T2D.ParNY = [863, 863];
+       T2D.ParX = zeros(1, 10); T2D.ParY = zeros(1, 10);
+       Model.addTran2D(T2D, 'X_ref', 863, 'Y_ref', 863);
+    
+       % Prepare calibration data
+       Lambda = linspace(336, 1020, 343)';  % Transmission wavelength grid [nm]
+       SpecWvl = linspace(336, 1020, 343)'; % Spectral wavelength grid [nm]
+       N_calib = 20;
+       Generate synthetic spectra with varying spectral indices
+        Spec = zeros(343, N_calib);
+        for i = 1:N_calib
+            alpha = -2 + 3.5 * (i-1)/(N_calib-1);  % -2 (blue) to +1.5 (red)
+            Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
+        end
+       ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);  % Observed photons [80k-120k]
+       X = rand(N_calib, 1) * 1726;  % Source X positions [pixels]
+       Y = rand(N_calib, 1) * 1726;  % Source Y positions [pixels]
+    
+       % Setup CostArgs for TransmissionMode
+       % WeightMatrix = calibrator spectra (Gaia, synthetic, or model spectra)
+       CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
+           'GaiaWavelength', SpecWvl, 'ExpTime', 20, ...
+           'Aperture_area_m2', pi * (0.1397)^2);
+    
+       % Fit transmission + position with sigma clipping
+       % NOTE: FitPosition requires TransmissionMode (magnitude residuals)
+       [Model, Result] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+           'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
+           'FitTransmission', true, 'FitPosition', true, ...
+           'SigmaClip', true, 'SigmaThresh', 3.0, 'Verbose', true);
+       fprintf('Final RMS: %.4f mag, Calibrators: %d/%d\n', ...
+               Result.RMS, Result.NumObs, length(ObsFlux));
+    
     % Example - Multi-Stage Optimization with OptimizationSequence:
-    %   % Build transmission model with Tran2D (as above)
-    %   Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
-    %       'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
-    %       'XPixel', 1726, 'YPixel', 1726);
-    %
-    %   % Define 2-stage optimization sequence
-    %   % Stage 1: Fit aerosol optical depth with aggressive sigma clipping
-    %   OptSeq(1).stagename = 'AerosolOpt';
-    %   OptSeq(1).freeparams(1).function = 'Aerosol';
-    %   OptSeq(1).freeparams(1).parameter = 'TauAod500';
-    %   OptSeq(1).sigmaclip = true;
-    %   OptSeq(1).sigmathresh = 3.0;
-    %   OptSeq(1).sigmaiter = 3;
-    %   OptSeq(1).description = 'Optimize aerosol optical depth';
-    %
-    %   % Stage 2: Fit position-dependent field correction (linear fit)
-    %   OptSeq(2).stagename = 'FieldCorr';
-    %   OptSeq(2).freeparams = [];  % Empty for field correction stage
-    %   OptSeq(2).sigmaclip = true;
-    %   OptSeq(2).sigmathresh = 2.0;
-    %   OptSeq(2).sigmaiter = 2;
-    %   OptSeq(2).description = 'Position-dependent field correction';
-    %
-    %   % Prepare calibration data (same as above)
-    %   Lambda = linspace(336, 1020, 343)';
-    %   N_calib = 20;
-    %   Spec = zeros(343, N_calib);
-    %   for i = 1:N_calib
-    %       alpha = -2 + 3.5 * (i-1)/(N_calib-1);
-    %       Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
-    %   end
-    %   ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);
-    %   X = rand(N_calib, 1) * 1726;
-    %   Y = rand(N_calib, 1) * 1726;
-    %
-    %   % Setup CostArgs for TransmissionMode
-    %   CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
-    %       'GaiaWavelength', Lambda, 'ExpTime', 20, ...
-    %       'Aperture_area_m2', pi * (0.1397)^2);
-    %
-    %   % Run multi-stage optimization
-    %   [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
-    %       'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
-    %       'OptimizationSequence', OptSeq, 'Verbose', true);
-    %
-    %   % Access per-stage results
-    %   fprintf('Stage 1 (Aerosol):     RMS=%.4f mag, NumObs=%d\n', ...
-    %           FitResult(1).RMS, FitResult(1).NumObs);
-    %   fprintf('Stage 2 (Field Corr):  RMS=%.4f mag, NumObs=%d\n', ...
-    %           FitResult(2).RMS, FitResult(2).NumObs);
-    %
-    %   % Get fitted position correction parameters
-    %   PosParams = Model.Tran2DObj.ParX;  % [kx0, kx, kx2, ..., kxy]
-    %   fprintf('Field correction parameters: [%.6f, %.6f, ...]\n', ...
-    %           PosParams(1), PosParams(2));
-    %
-    %   % Evaluate transmission at new positions
-    %   X_test = [863.5; 500; 1400];
-    %   Y_test = [863.5; 500; 1400];
-    %   Trans = Model.evaluateWithPosition(Lambda, X_test, Y_test);
-    %
+       % Build transmission model with Tran2D (as above)
+       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+           'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
+           'XPixel', 1726, 'YPixel', 1726);
+    
+       % Define 2-stage optimization sequence
+       % Stage 1: Fit aerosol optical depth with aggressive sigma clipping
+       OptSeq(1).stagename = 'AerosolOpt';
+       OptSeq(1).freeparams(1).function = 'Aerosol';
+       OptSeq(1).freeparams(1).parameter = 'TauAod500';
+       OptSeq(1).sigmaclip = true;
+       OptSeq(1).sigmathresh = 3.0;
+       OptSeq(1).sigmaiter = 3;
+       OptSeq(1).description = 'Optimize aerosol optical depth';
+    
+       % Stage 2: Fit position-dependent field correction (linear fit)
+       OptSeq(2).stagename = 'FieldCorr';
+       OptSeq(2).freeparams = [];  % Empty for field correction stage
+       OptSeq(2).sigmaclip = true;
+       OptSeq(2).sigmathresh = 2.0;
+       OptSeq(2).sigmaiter = 2;
+       OptSeq(2).description = 'Position-dependent field correction';
+    
+       % Prepare calibration data (same as above)
+       Lambda = linspace(336, 1020, 343)';
+       N_calib = 20;
+       Spec = zeros(343, N_calib);
+       for i = 1:N_calib
+           alpha = -2 + 3.5 * (i-1)/(N_calib-1);
+           Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
+       end
+       ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);
+       X = rand(N_calib, 1) * 1726;
+       Y = rand(N_calib, 1) * 1726;
+    
+       % Setup CostArgs for TransmissionMode
+       CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
+           'GaiaWavelength', Lambda, 'ExpTime', 20, ...
+           'Aperture_area_m2', pi * (0.1397)^2);
+    
+       % Run multi-stage optimization
+       [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+           'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
+           'OptimizationSequence', OptSeq, 'Verbose', true);
+    
+       % Access per-stage results
+       fprintf('Stage 1 (Aerosol):     RMS=%.4f mag, NumObs=%d\n', ...
+               FitResult(1).RMS, FitResult(1).NumObs);
+       fprintf('Stage 2 (Field Corr):  RMS=%.4f mag, NumObs=%d\n', ...
+               FitResult(2).RMS, FitResult(2).NumObs);
+    
+       % Get fitted position correction parameters
+       PosParams = Model.Tran2DObj.ParX;  % [kx0, kx, kx2, ..., kxy]
+       fprintf('Field correction parameters: [%.6f, %.6f, ...]\n', ...
+               PosParams(1), PosParams(2));
+    
+       % Evaluate transmission at new positions
+       X_test = [863; 500; 1400];
+       Y_test = [863; 500; 1400];
+       Trans = Model.evaluateWithPosition(Lambda, X_test, Y_test);
+    %}
+    
     % Methods:
     %   Constructor: CompositeFun() - Create composite function object
     %   addFun() - Add transmission function with parameters
@@ -432,11 +434,217 @@ classdef CompositeFun < handle
             % Constructor for CompositeFun
             % Input  : None
             % Output : - CompositeFun object.
+            % Author : D. Kovaleva (Oct 2025)
             % Example: Model = tools.math.fun.CompositeFun();
 
             % Initialize properties
             Obj.FunOperator = '*';
             Obj.Funs = [];
+        end
+    end
+
+    methods (Static) % Factory methods
+        function Obj = modelCompositeFun(FunList, Args)
+            % Build CompositeFun model from function specification list
+            % Input  : - FunList - Struct array of function specifications
+            %                   Each element is a struct with fields:
+            %                   .name - Function name (string)
+            %                   .handle - Function handle string (e.g., '@func.name')
+            %                   .handletype - 'named' or 'anonymous'
+            %                   .params - Parameter values (numeric array)
+            %                   .paraminfo - Struct array with fields: .name, .min, .max
+            %          * ...,key,val,...
+            %            'MetadataValues' - Struct with metadata name-value pairs to inject
+            %                   Default is struct().
+            %            'UseTran2D' - Enable position-dependent corrections using Tran2D
+            %                   Default is false.
+            %            'Tran2DType' - Tran2D transformation type (e.g., 'cheby1_4_xt')
+            %            'XPixel' - Detector X dimension [pixels]. Default is 1726.
+            %            'YPixel' - Detector Y dimension [pixels]. Default is 1726.
+            %            'Verbose' - Enable verbose output. Default is false.
+            % Output : - Obj - CompositeFun object with all functions added
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: FunList(1).name = 'Func1';
+            %          FunList(1).handle = '@mypackage.myfunction';
+            %          FunList(1).handletype = 'named';
+            %          FunList(1).params = [1.0, 2.0];
+            %          FunList(1).paraminfo(1).name = 'param1';
+            %          FunList(1).paraminfo(1).min = 0;
+            %          FunList(1).paraminfo(1).max = 10;
+            %          FunList(1).paraminfo(2).name = 'param2';
+            %          FunList(1).paraminfo(2).min = 0;
+            %          FunList(1).paraminfo(2).max = 5;
+            %          Metadata = struct('param1', 1.5);
+            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+            %              'MetadataValues', Metadata, 'UseTran2D', true);
+
+            arguments
+                FunList struct
+                Args.MetadataValues struct = struct()
+                Args.UseTran2D logical = false
+                Args.Tran2DType = 'cheby1_4_xt'
+                Args.XPixel = 1726
+                Args.YPixel = 1726
+                Args.Verbose logical = false
+            end
+
+            % Create CompositeFun object
+            Obj = tools.math.fun.CompositeFun();
+
+            NumFunctions = length(FunList);
+
+            if Args.Verbose
+                fprintf('=== BUILDING COMPOSITEFUN MODEL ===\n');
+                fprintf('Number of functions: %d\n', NumFunctions);
+            end
+
+            % Add all functions
+            for I = 1:NumFunctions
+                FunDef = FunList(I);
+
+                % Extract function definition
+                FunName = FunDef.name;
+                HandleStr = FunDef.handle;
+                HandleType = FunDef.handletype;
+                Params = FunDef.params;
+                ParamInfo = FunDef.paraminfo;
+
+                % Convert params from cell array to numeric array if needed (from YAML)
+                if iscell(Params)
+                    Params = cell2mat(Params);
+                end
+
+                % Validate Params is numeric array
+                if ~isnumeric(Params)
+                    error('Parameters for function %s must be numeric array', FunName);
+                end
+
+                % Convert paraminfo from cell array to struct array if needed (from YAML)
+                if iscell(ParamInfo)
+                    ParamInfo = [ParamInfo{:}];
+                end
+
+                % Convert to row vector
+                if iscolumn(Params)
+                    Params = Params';
+                end
+
+                % Create FitPar array (all false initially)
+                NumParams = length(Params);
+                FitPar = false(1, NumParams);
+
+                % Validate that params and paraminfo have matching lengths
+                if NumParams ~= length(ParamInfo)
+                    error('Function "%s" has %d params but %d paraminfo entries. These must match.', ...
+                          FunName, NumParams, length(ParamInfo));
+                end
+
+                % Build ArgNames structure
+                if NumParams == 0
+                    % No parameters - create empty struct array with proper fields
+                    ArgNames = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
+                else
+                    ArgNames = struct([]);
+                    for J = 1:NumParams
+                        PInfo = ParamInfo(J);
+                        ArgNames(J).Name = PInfo.name;
+                        ArgNames(J).Description = PInfo.name;
+                        ArgNames(J).Min = PInfo.min;
+                        ArgNames(J).Max = PInfo.max;
+                    end
+                end
+
+                % Convert string handle to function handle
+                if strcmp(HandleType, 'anonymous')
+                    FunHandle = str2func(HandleStr);
+                elseif strcmp(HandleType, 'named')
+                    if startsWith(HandleStr, '@')
+                        HandleStr = HandleStr(2:end);
+                    end
+                    FunHandle = str2func(HandleStr);
+                else
+                    error('Unknown handletype: %s', HandleType);
+                end
+
+                % Add function to CompositeFun
+                Obj.addFun(FunName, FunHandle, ArgNames, 'Par', Params, 'FitPar', FitPar);
+
+                if Args.Verbose
+                    fprintf('  [%d/%d] Added: %s (%d params)\n', I, NumFunctions, FunName, NumParams);
+                end
+            end
+
+            % Inject metadata values if provided
+            if ~isempty(fieldnames(Args.MetadataValues))
+                if Args.Verbose
+                    fprintf('\nInjecting metadata values:\n');
+                end
+
+                % Get all parameters structure from CompositeFun
+                AllFunPar = Obj.getAllFunPar();
+
+                % Update parameters by name matching
+                MetadataNames = fieldnames(Args.MetadataValues);
+                for I = 1:length(MetadataNames)
+                    MetaName = MetadataNames{I};
+                    MetaValue = Args.MetadataValues.(MetaName);
+
+                    % Find parameter with matching name
+                    Idx = find(strcmp(AllFunPar.Name, MetaName), 1);
+                    if ~isempty(Idx)
+                        AllFunPar.Val(Idx) = MetaValue;
+                        if Args.Verbose
+                            fprintf('  Injected %s = %.3f\n', MetaName, MetaValue);
+                        end
+                    elseif Args.Verbose
+                        fprintf('  Warning: Metadata "%s" not found in model parameters\n', MetaName);
+                    end
+                end
+
+                % Apply updated parameters back to CompositeFun
+                Obj.setAllFunPar(AllFunPar);
+            end
+
+            % Add Tran2D position-dependent corrections if requested
+            if Args.UseTran2D
+                if Args.Verbose
+                    fprintf('\n=== ADDING TRAN2D POSITION CORRECTIONS ===\n');
+                end
+
+                % Calculate field center coordinates
+                X_center = Args.XPixel / 2;
+                Y_center = Args.YPixel / 2;
+
+                % Create Tran2D object with specified transformation
+                T2D = Tran2D(Args.Tran2DType);
+
+                % Set normalization for coordinate transformation
+                T2D.ParNX = [X_center, X_center];
+                T2D.ParNY = [Y_center, Y_center];
+
+                % Initialize polynomial coefficients to zero
+                Nparams = length(T2D.FunX);
+                T2D.ParX = zeros(1, Nparams);
+                T2D.ParY = zeros(1, Nparams);
+
+                % Add Tran2D to CompositeFun model without normalization
+                % (normalization not needed for iterative optimization)
+                Obj.addTran2D(T2D, 'Verbose', Args.Verbose);
+
+                if Args.Verbose
+                    fprintf('Tran2D added: %s (%d parameters)\n', Args.Tran2DType, Nparams);
+                    fprintf('Field center: (%.1f, %.1f)\n', X_center, Y_center);
+                end
+            end
+
+            if Args.Verbose
+                fprintf('\n=== COMPOSITEFUN MODEL COMPLETE ===\n');
+                fprintf('Total functions: %d, Total parameters: %d\n', ...
+                        NumFunctions, Obj.numAllFunPar());
+                if Args.UseTran2D
+                    fprintf('Tran2D: %s, %d parameters\n', Args.Tran2DType, length(Obj.Tran2DObj.ParX));
+                end
+            end
         end
     end
 
@@ -447,6 +655,7 @@ classdef CompositeFun < handle
             % Get total number of all global parameters (fitted + fixed)
             % Input  : - Obj - CompositeFun object.
             % Output : - NumParams - Number of all global parameters.
+            % Author : D. Kovaleva (Nov 2025)
 
             if isempty(Obj.Funs)
                 NumParams = 0;
@@ -459,6 +668,7 @@ classdef CompositeFun < handle
             % Get list of all global parameter names (fitted + fixed)
             % Input  : - Obj - CompositeFun object.
             % Output : - ParamNames - Cell array of all parameter names.
+            % Author : D. Kovaleva (Nov 2025)
 
             NumParams = Obj.numAllFunPar();
             ParamNames = cell(NumParams, 1);
@@ -480,6 +690,7 @@ classdef CompositeFun < handle
             % Get current parameter values for all parameters (fitted + fixed)
             % Input  : - Obj - CompositeFun object.
             % Output : - ParamValues - Column vector of all parameter values.
+            % Author : D. Kovaleva (Nov 2025)
 
             AllFunPar = getAllFunPar(Obj);
             ParamValues = AllFunPar.Val;
@@ -490,6 +701,7 @@ classdef CompositeFun < handle
             % Get total number of fitted parameters only
             % Input  : - Obj - CompositeFun object.
             % Output : - NumFittedPars - Number of parameters marked for fitting.
+            % Author : D. Kovaleva (Nov 2025)
 
             if isempty(Obj.Funs)
                 NumFittedPars = 0;
@@ -504,6 +716,7 @@ classdef CompositeFun < handle
             % Get list of fitted parameter names only
             % Input  : - Obj - CompositeFun object.
             % Output : - FittedNames - Cell array of fitted parameter names.
+            % Author : D. Kovaleva (Nov 2025)
 
             NumAllFunPar = Obj.numAllFunPar();
             if NumAllFunPar == 0
@@ -538,6 +751,7 @@ classdef CompositeFun < handle
             % Get names and descriptions of added functions as cell array
             % Input  : - Obj - CompositeFun object.
             % Output : - FunsNames - Cell array with columns: {Name, Description}.
+            % Author : D. Kovaleva (Nov 2025)
 
             if isempty(Obj.Funs)
                 FunsNames = {};
@@ -556,6 +770,7 @@ classdef CompositeFun < handle
             %                              OptionalArgs, ArgNames, ArgMapping, Precalc
             % Input  : - Obj - CompositeFun object.
             % Output : - FunsStruct - Complete Funs structure array.
+            % Author : D. Kovaleva (Nov 2025)
 
             FunsStruct = Obj.Funs;
         end
@@ -564,6 +779,7 @@ classdef CompositeFun < handle
             % Get comprehensive information about fitted parameters
             % Input  : - Obj - CompositeFun object.
             % Output : - FittedInfo - Structure with TotalFitted, FittedNames, FunctionMapping.
+            % Author : D. Kovaleva (Nov 2025)
 
             FittedInfo.TotalFitted = numFittedPar(Obj);
             FittedInfo.FittedNames = namesFittedPar(Obj);
@@ -580,6 +796,7 @@ classdef CompositeFun < handle
             % Get complete parameter structure for optimization
             % Input  : - Obj - CompositeFun object.
             % Output : - AllFunPar - Structure with Name, Val, FitPar, Min, Max.
+            % Author : D. Kovaleva (Nov 2025)
             % Example: AllFunPar = Model.getAllFunPar();
             %   % Modify parameter values and fit flags as needed
             %   AllFunPar.Val(2) = 350;  % Change parameter value
@@ -634,6 +851,7 @@ classdef CompositeFun < handle
             %                            Min: (optional) vector of lower bounds
             %                            Max: (optional) vector of upper bounds
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Nov 2025)
             % Example:
             %   AllFunPar = Model.getAllFunPar();
             %   AllFunPar.Val(2) = 350;  % Change parameter value
@@ -704,6 +922,7 @@ classdef CompositeFun < handle
             % Check for parameter value inconsistencies across functions and NaN fixed parameters
             % Input  : - Obj - CompositeFun object.
             % Output : - None (throws error if inconsistencies found, shows reminder for NaN fixed params).
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Model.checkOverlappingParamConsistency();  % Optional validation before calculations
 
             if isempty(Obj.Funs)
@@ -857,8 +1076,9 @@ classdef CompositeFun < handle
             % Input  : - ~ - CompositeFun object (not used, static-like method).
             %          - FunctionHandle - Function handle to transmission function that supports GetArgNames flag.
             % Output : - ArgNames - Structure array with Name, Description, Min, Max fields.
+            % Author : D. Kovaleva (Nov 2025)
             % Example: ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission);
-            
+
             try
                 % Call function with GetArgNames flag to get parameter info
                 ArgNames = FunctionHandle('GetArgNames', true);
@@ -902,6 +1122,7 @@ classdef CompositeFun < handle
             %            'FitPar' - Logical vector for fitting ParamMatrix elements (default all false).
             %            'OptionalArgs' - Cell array for transmission function's optional arguments.
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Model.addFun('Ozone', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]);
             %          ArgNames = Model.extractArgFuns(@astro.transmission.ozoneTransmission); % Explicit generation
 
@@ -984,6 +1205,7 @@ classdef CompositeFun < handle
             % Map parameters of the last added function to global parameter indices
             % Input  : - Obj - CompositeFun object.
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Nov 2025)
 
             if isempty(Obj.Funs)
                 return;
@@ -1054,6 +1276,7 @@ classdef CompositeFun < handle
             % Input  : - Obj - CompositeFun object.
             %          - X - Input values (e.g., wavelengths).
             % Output : - None (modifies object in-place - handle class).
+            % Author : D. Kovaleva (Nov 2025)
 
             if nargin < 2 || isempty(X)
                 return;
@@ -1101,6 +1324,7 @@ classdef CompositeFun < handle
             %                       If matrix: each row is a parameter set.
             %                       If not provided, uses stored parameter values.
             % Output : - Y - Output values matrix (wavelengths × parameter_sets).
+            % Author : D. Kovaleva (Nov 2025)
 
             if nargin < 3
                 AllFunPar = [];
@@ -1169,6 +1393,7 @@ classdef CompositeFun < handle
             %                          If matrix: each row is a parameter set.
             %                          Fixed parameters are taken from stored Obj.Funs.Par values.
             % Output : - Y - Output values matrix (wavelengths × parameter_sets).
+            % Author : D. Kovaleva (Nov 2025)
 
             % Validate FittedPars size
             NumFittedPars = Obj.numFittedPar();
@@ -1242,6 +1467,7 @@ classdef CompositeFun < handle
             %                   Default is [] (no normalization).
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : None (modifies Obj in place)
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Model.addTran2D(Tran2DObj, 'Verbose', true);
             %          Model.addTran2D(Tran2DObj, 'X_ref', 1000, 'Y_ref', 1000);
 
@@ -1283,6 +1509,7 @@ classdef CompositeFun < handle
             % Input  : * ...,key,val,...
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : None (modifies Obj in place)
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Model.resetTran2DParams('Verbose', true);
 
             arguments
@@ -1321,6 +1548,7 @@ classdef CompositeFun < handle
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Transmission: [N_sources x N_lambda] matrix
             %                   Transmission(i,j) = transmission for source i at wavelength j
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Trans = Model.evaluateWithPosition(Lambda, X, Y);
 
             arguments
@@ -1448,7 +1676,8 @@ classdef CompositeFun < handle
             %          * ...,key,val,...
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : None (modifies Obj.Tran2DObj.ParX in place)
-            % Example: Model.normalizePositionPolynomial(863.5, 863.5);  % For 1726-pixel detector
+            % Author : D. Kovaleva (Nov 2025)
+            % Example: Model.normalizePositionPolynomial(863, 863);  % For 1726-pixel detector
 
             arguments
                 Obj
@@ -1503,6 +1732,7 @@ classdef CompositeFun < handle
             %                   .Name - Parameter names
             %                   .Val - Parameter values
             %                   .FitPar - Fitted parameter flags
+            % Author : D. Kovaleva (Nov 2025)
             % Example: PosPar = Model.getTran2DPar();
 
             if ~Obj.UseTran2D || isempty(Obj.Tran2DObj)
@@ -1534,6 +1764,7 @@ classdef CompositeFun < handle
             %          * ...,key,val,...
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : None (modifies Obj.Tran2DObj.ParX in place)
+            % Author : D. Kovaleva (Nov 2025)
             % Example: Model.setTran2DParams([0.1, 0.2, 0.3]);
 
             arguments
@@ -1571,6 +1802,7 @@ classdef CompositeFun < handle
             %                   .Name - Combined parameter names
             %                   .Val - Combined parameter values
             %                   .FitPar - Combined fitted parameter flags
+            % Author : D. Kovaleva (Nov 2025)
             % Example: AllParams = Model.getAllFunParWithTran2D();
 
             % Get function parameters
@@ -1597,6 +1829,7 @@ classdef CompositeFun < handle
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - FitPosResult: Structure with fit results from Tran2D.fitDesignMatrix
             %          - Obj: Updated CompositeFun object with fitted PosParams
+            % Author : D. Kovaleva (Dec 2025)
             % Example: [FitPosResult, Model] = Model.fitPositionPolynomial(X, Y, MagResid);
             %
             % Note: This method wraps Tran2D's fitDesignMatrix for convenience.
@@ -1653,197 +1886,6 @@ classdef CompositeFun < handle
             end
         end
 
-        function Obj = modelCompositeFun(FunList, Args)
-            % Build CompositeFun model from function specification list
-            % Input  : - FunList - Struct array of function specifications
-            %                   Each element is a struct with fields:
-            %                   .name - Function name (string)
-            %                   .handle - Function handle string (e.g., '@func.name')
-            %                   .handletype - 'named' or 'anonymous'
-            %                   .params - Parameter values (numeric array)
-            %                   .paraminfo - Struct array with fields: .name, .min, .max
-            %          * ...,key,val,...
-            %            'MetadataValues' - Struct with metadata name-value pairs to inject
-            %                   Default is struct().
-            %            'UseTran2D' - Enable position-dependent corrections using Tran2D
-            %                   Default is false.
-            %            'Tran2DType' - Tran2D transformation type (e.g., 'cheby1_4_xt')
-            %            'XPixel' - Detector X dimension [pixels]. Default is 1726.
-            %            'YPixel' - Detector Y dimension [pixels]. Default is 1726.
-            %            'Verbose' - Enable verbose output. Default is false.
-            % Output : - Obj - CompositeFun object with all functions added
-            % Example: FunList(1).name = 'Func1';
-            %          FunList(1).handle = '@mypackage.myfunction';
-            %          FunList(1).handletype = 'named';
-            %          FunList(1).params = [1.0, 2.0];
-            %          FunList(1).paraminfo(1).name = 'param1';
-            %          FunList(1).paraminfo(1).min = 0;
-            %          FunList(1).paraminfo(1).max = 10;
-            %          FunList(1).paraminfo(2).name = 'param2';
-            %          FunList(1).paraminfo(2).min = 0;
-            %          FunList(1).paraminfo(2).max = 5;
-            %          Metadata = struct('param1', 1.5);
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
-            %              'MetadataValues', Metadata, 'UseTran2D', true);
-
-            arguments
-                FunList struct
-                Args.MetadataValues struct = struct()
-                Args.UseTran2D logical = false
-                Args.Tran2DType = 'cheby1_4_xt'
-                Args.XPixel = 1726
-                Args.YPixel = 1726
-                Args.Verbose logical = false
-            end
-
-            % Create CompositeFun object
-            Obj = tools.math.fun.CompositeFun();
-
-            NumFunctions = length(FunList);
-
-            if Args.Verbose
-                fprintf('=== BUILDING COMPOSITEFUN MODEL ===\n');
-                fprintf('Number of functions: %d\n', NumFunctions);
-            end
-
-            % Add all functions
-            for I = 1:NumFunctions
-                FunDef = FunList(I);
-
-                % Extract function definition
-                FunName = FunDef.name;
-                HandleStr = FunDef.handle;
-                HandleType = FunDef.handletype;
-                Params = FunDef.params;
-                ParamInfo = FunDef.paraminfo;
-
-                % Convert params from cell array to numeric array if needed (from YAML)
-                if iscell(Params)
-                    Params = cell2mat(Params);
-                end
-
-                % Validate Params is numeric array
-                if ~isnumeric(Params)
-                    error('Parameters for function %s must be numeric array', FunName);
-                end
-
-                % Convert paraminfo from cell array to struct array if needed (from YAML)
-                if iscell(ParamInfo)
-                    ParamInfo = [ParamInfo{:}];
-                end
-
-                % Convert to row vector
-                if iscolumn(Params)
-                    Params = Params';
-                end
-
-                % Create FitPar array (all false initially)
-                NumParams = length(Params);
-                FitPar = false(1, NumParams);
-
-                % Build ArgNames structure
-                ArgNames = struct([]);
-                for J = 1:NumParams
-                    PInfo = ParamInfo(J);
-                    ArgNames(J).Name = PInfo.name;
-                    ArgNames(J).Description = PInfo.name;
-                    ArgNames(J).Min = PInfo.min;
-                    ArgNames(J).Max = PInfo.max;
-                end
-
-                % Convert string handle to function handle
-                if strcmp(HandleType, 'anonymous')
-                    FunHandle = str2func(HandleStr);
-                elseif strcmp(HandleType, 'named')
-                    if startsWith(HandleStr, '@')
-                        HandleStr = HandleStr(2:end);
-                    end
-                    FunHandle = str2func(HandleStr);
-                else
-                    error('Unknown handletype: %s', HandleType);
-                end
-
-                % Add function to CompositeFun
-                Obj.addFun(FunName, FunHandle, ArgNames, 'Par', Params, 'FitPar', FitPar);
-
-                if Args.Verbose
-                    fprintf('  [%d/%d] Added: %s (%d params)\n', I, NumFunctions, FunName, NumParams);
-                end
-            end
-
-            % Inject metadata values if provided
-            if ~isempty(fieldnames(Args.MetadataValues))
-                if Args.Verbose
-                    fprintf('\nInjecting metadata values:\n');
-                end
-
-                % Get all parameters structure from CompositeFun
-                AllFunPar = Obj.getAllFunPar();
-
-                % Update parameters by name matching
-                MetadataNames = fieldnames(Args.MetadataValues);
-                for I = 1:length(MetadataNames)
-                    MetaName = MetadataNames{I};
-                    MetaValue = Args.MetadataValues.(MetaName);
-
-                    % Find parameter with matching name
-                    Idx = find(strcmp(AllFunPar.Names, MetaName), 1);
-                    if ~isempty(Idx)
-                        AllFunPar.Val(Idx) = MetaValue;
-                        if Args.Verbose
-                            fprintf('  Injected %s = %.3f\n', MetaName, MetaValue);
-                        end
-                    elseif Args.Verbose
-                        fprintf('  Warning: Metadata "%s" not found in model parameters\n', MetaName);
-                    end
-                end
-
-                % Apply updated parameters back to CompositeFun
-                Obj.setAllFunPar(AllFunPar);
-            end
-
-            % Add Tran2D position-dependent corrections if requested
-            if Args.UseTran2D
-                if Args.Verbose
-                    fprintf('\n=== ADDING TRAN2D POSITION CORRECTIONS ===\n');
-                end
-
-                % Calculate field center coordinates
-                X_center = Args.XPixel / 2;
-                Y_center = Args.YPixel / 2;
-
-                % Create Tran2D object with specified transformation
-                T2D = Tran2D(Args.Tran2DType);
-
-                % Set normalization for coordinate transformation
-                T2D.ParNX = [X_center, X_center];
-                T2D.ParNY = [Y_center, Y_center];
-
-                % Initialize polynomial coefficients to zero
-                Nparams = length(T2D.FunX);
-                T2D.ParX = zeros(1, Nparams);
-                T2D.ParY = zeros(1, Nparams);
-
-                % Add Tran2D to CompositeFun model without normalization
-                % (normalization not needed for iterative optimization)
-                Obj.addTran2D(T2D, 'Verbose', Args.Verbose);
-
-                if Args.Verbose
-                    fprintf('Tran2D added: %s (%d parameters)\n', Args.Tran2DType, Nparams);
-                    fprintf('Field center: (%.1f, %.1f)\n', X_center, Y_center);
-                end
-            end
-
-            if Args.Verbose
-                fprintf('\n=== COMPOSITEFUN MODEL COMPLETE ===\n');
-                fprintf('Total functions: %d, Total parameters: %d\n', ...
-                        NumFunctions, Obj.numAllFunPar());
-                if Args.UseTran2D
-                    fprintf('Tran2D: %s, %d parameters\n', Args.Tran2DType, length(Obj.Tran2DObj.ParX));
-                end
-            end
-        end
-
         function [Residuals, Cost, PredictedValues] = costFun(Obj, InputValues, ObservedValues, Args)
             % General cost function for CompositeFun optimization with optional Tran2D.
             % Evaluates CompositeFun model, compares predictions to observations, calculates residuals.
@@ -1888,6 +1930,7 @@ classdef CompositeFun < handle
             % Output : - Residuals - Differences between predicted and observed [N_obs x 1]
             %          - Cost - Scalar cost value (depends on CostType)
             %          - PredictedValues - Model predictions [N_obs x 1]
+            % Author : D. Kovaleva (Dec 2025)
             % Example: % Simple 1D function without position corrections
             %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList);
             %          InputVals = linspace(300, 1110, 10)';
@@ -1906,8 +1949,8 @@ classdef CompositeFun < handle
             %          % Use Gaia XP spectra (typical) or synthetic/model spectra
             %          Spec = randn(343, 3) * 1e-17 + 1e-16;  % Calibrator spectra [343 x 3]
             %          ObsFlux = [1.2e5; 2.5e5; 1.8e5];  % Observed photon counts [3 x 1]
-            %          X = [200; 863.5; 1500];  % Source positions [pixels]
-            %          Y = [200; 863.5; 1500];
+            %          X = [200; 863; 1500];  % Source positions [pixels]
+            %          Y = [200; 863; 1500];
             %          [ResMag, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
             %              'WeightMatrix', Spec, 'TransmissionMode', true, ...
             %              'GaiaWavelength', SpecWvl, 'X', X, 'Y', Y, ...
@@ -2264,6 +2307,7 @@ classdef CompositeFun < handle
             %                   Multi-stage mode: Array of structs with per-stage results
             %                     FitResult(i).StageName, .Method, .Cost, .RMS, .Residuals,
             %                     .NumObs, .NumClipped, .IsFieldCorrection
+            % Author : D. Kovaleva (Dec 2025)
             % Example: % Example 1: Simple single-stage fit
             %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList);
             %          [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
@@ -2617,6 +2661,7 @@ classdef CompositeFun < handle
             %   OptSeq(i).sigmathresh - Threshold for sigma clipping
             %   OptSeq(i).sigmaiter - Number of sigma clipping iterations
             %   OptSeq(i).description - Description of the stage
+            % Author : D. Kovaleva (Nov 2025)
 
             OptSeq = Args.OptimizationSequence;
             NumStages = length(OptSeq);
@@ -2681,7 +2726,7 @@ classdef CompositeFun < handle
                     for I = 1:length(FreeParamsStage)
                         FunctionName = FreeParamsStage(I).function;
                         ParameterName = FreeParamsStage(I).parameter;
-                        Idx = find(strcmp(AllFunPar.Names, ParameterName), 1);
+                        Idx = find(strcmp(AllFunPar.Name, ParameterName), 1);
                         if isempty(Idx)
                             error('Parameter "%s" (from function "%s") not found in Model', ...
                                   ParameterName, FunctionName);

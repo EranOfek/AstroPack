@@ -282,19 +282,21 @@ classdef Tran2D < Base
             %                   of the 3rd degree.
             %            'cheby1_4' -  Fitsr kind Chebyshev polynomials
             %                   of the 4th degree.
+            %            'cheby1_4_c1' - Fitsr kind Chebyshev polynomials
+            %                   of the 4th degre + color term of the first degree.
             %            'cheby1_4_xt' - First kind Chebyshev polynomials
             %                   of the 4th degree with cross-term (10 parameters).
             %                   LAST telescope field correction formulation:
             %                   X: kx0*T0 + kx*T1 + kx2*T2 + kx3*T3 + kx4*T4 (5 params)
             %                   Y: ky*T1 + ky2*T2 + ky3*T3 + ky4*T4 (4 params, ky0=0)
             %                   Cross: kxy*T1(x)*T1(y) (1 param).
-            %            'cheby1_4_c1' - Fitsr kind Chebyshev polynomials
-            %                   of the 4th degre + color term of the first degree.
+            %                   Reference: Garrappa et al. 2025, A&A 699, A50.
             %            'cheby1_2' -  Fitsr kind Chebyshev polynomials
             %                   of the 2nd degree.
             %            'poly1' - 1st deg polynomials.
             %            'poly2' - 2nd deg polynomials.
             %            'poly3' - 3rd deg polynomials.
+            %            'poly4' - 4th deg polynomials.
             %            'poly1_tiptilt' - 1st deg polynomials + 2 tip/tilt
             %                   terms.
             % Output : - A cell array of functionals for X coordinates.
@@ -372,48 +374,8 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) (4.*x.^3 - 3.*x).*y,...
                                       @(x,y,c,AM,PA) (4.*y.^3 - 3.*y).*x,...
                                       @(x,y,c,AM,PA) (2.*x.^2-1).*(2.*y.^2-1)};
-
+                                      
                     FunY        = FunX;
-                case 'cheby1_4_xt'
-                    % Chebyshev polynomials of the first kind, order 4, with cross-term
-                    % LAST telescope field correction formulation
-                    % Reference: Garrappa et al. 2025, A&A 699, A50
-                    % Implemented in: telescope.optics.fieldCorrectionLAST
-                    % Added by D. Kovaleva (Dec 2025)
-                    %
-                    % Formulation:
-                    %   X-axis: kx0*T0(x) + kx*T1(x) + kx2*T2(x) + kx3*T3(x) + kx4*T4(x)  [5 params]
-                    %   Y-axis: 0*T0(y) + ky*T1(y) + ky2*T2(y) + ky3*T3(y) + ky4*T4(y)    [4 params]
-                    %           (ky0 is hardcoded to zero)
-                    %   Cross:  kxy*T1(x)*T1(y)                                            [1 param]
-                    %   Total: 10 parameters
-                    %
-                    % Parameter order: [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
-                    %
-                    % Note: Coordinates should be normalized to [-1,1] using ParNX, ParNY
-                    %       For LAST detector:
-                    %       ParNX = [863, 863]; ParNY = [863, 863]
-                    %       produces the required [-1, 1] normalization
-
-                    ColCell     = {'x','y','c','AM','PA'};
-                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...           % 1: kx0 * T0(x)
-                                   @(x,y,c,AM,PA) x,...                        % 2: kx  * T1(x)
-                                   @(x,y,c,AM,PA) 2.*x.^2-1,...                % 3: kx2 * T2(x)
-                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...           % 4: kx3 * T3(x)
-                                   @(x,y,c,AM,PA) 8.*x.^4 - 8.*x.^2 + 1,...    % 5: kx4 * T4(x)
-                                   @(x,y,c,AM,PA) y,...                        % 6: ky  * T1(y)
-                                   @(x,y,c,AM,PA) 2.*y.^2-1,...                % 7: ky2 * T2(y)
-                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...           % 8: ky3 * T3(y)
-                                   @(x,y,c,AM,PA) 8.*y.^4 - 8.*y.^2 + 1,...    % 9: ky4 * T4(y)
-                                   @(x,y,c,AM,PA) x.*y};                       % 10: kxy * T1(x)*T1(y)
-                    FunY        = FunX;
-
-                    % Polynomial degree vectors (approximate for cross-term)
-                    PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
-                    PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
-                    PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
-                    PolyY_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
-
                 case 'cheby1_4_c1'
                     % chebyshev polynomials of the first kind, of order 4
                     ColCell     = {'x','y','c','AM','PA'};
@@ -437,6 +399,47 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) y.*c};
                                       
                     FunY        = FunX;
+                    
+                case 'cheby1_4_xt'
+                    % Chebyshev polynomials of the first kind, order 4, with cross-term
+                    % LAST telescope field correction formulation
+                    % Reference: Garrappa et al. 2025, A&A 699, A50
+                    % Implemented in: telescope.optics.fieldCorrectionLAST
+                    % Added by D. Kovaleva (Dec 2025)
+                    %
+                    % Formulation:
+                    %   X-axis: kx0*T0(x) + kx*T1(x) + kx2*T2(x) + kx3*T3(x) + kx4*T4(x)  [5 params]
+                    %   Y-axis: 0*T0(y) + ky*T1(y) + ky2*T2(y) + ky3*T3(y) + ky4*T4(y)    [4 params]
+                    %           (ky0 is hardcoded to zero)
+                    %   Cross:  kxy*T1(x)*T1(y)                                            [1 param]
+                    %   Total: 10 parameters
+                    %
+                    % Parameter order: [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
+                    %
+                    % Note: Coordinates should be normalized to [-1,1] using ParNX, ParNY
+                    %       For LAST detector:
+                    %       ParNX = [863, 863]; ParNY = [863, 863] 
+                    %       produces the required [-1, 1] normalization
+
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...           % 1: kx0 * T0(x)
+                                   @(x,y,c,AM,PA) x,...                        % 2: kx  * T1(x)
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...                % 3: kx2 * T2(x)
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...           % 4: kx3 * T3(x)
+                                   @(x,y,c,AM,PA) 8.*x.^4 - 8.*x.^2 + 1,...    % 5: kx4 * T4(x)
+                                   @(x,y,c,AM,PA) y,...                        % 6: ky  * T1(y)
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...                % 7: ky2 * T2(y)
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...           % 8: ky3 * T3(y)
+                                   @(x,y,c,AM,PA) 8.*y.^4 - 8.*y.^2 + 1,...    % 9: ky4 * T4(y)
+                                   @(x,y,c,AM,PA) x.*y};                       % 10: kxy * T1(x)*T1(y)
+                    FunY        = FunX;
+
+                    % Polynomial degree vectors (approximate for cross-term)
+                    PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+                    PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+                    
                 case 'cheby1_2'
                     % chebyshev polynomials of the first kind, of order 3
                     ColCell     = {'x','y','c','AM','PA'};
@@ -658,7 +661,7 @@ classdef Tran2D < Base
             end
             
             % applay normalization
-            Normalize = true;
+            Normalize = false; % !!!!!!
             if Normalize
                 if iscell(Coo)
                     Xref = TC.FunNX(Coo{1},TC.ParNX(1),TC.ParNX(2));

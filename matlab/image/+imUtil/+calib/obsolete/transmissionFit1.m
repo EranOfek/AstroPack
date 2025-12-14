@@ -1,11 +1,11 @@
-function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, Flux, FluxErr, Args)
-    % Fit free transmission parameters to observations for a single image. 
+function [Model, Results] = transmissionFit1(Lambda, Spec, SpecErr, Flux, FluxErr, Args)
+    % Fit transmission parameters using integrated Tran2D position corrections.
     % The function performs optimization to fit free transmission parameters to
-    % observations for a single image in the transmission-based photometric calibration pipeline. 
-    % The used composite transmission model includes wavelength-dependent basic component functions and 
-    % position-dependent polynomial to correct for zero-point variations. The fit is done by comparing 
-    % the instrumental fluxes of stars in the image to the synthetic photometry of the stars given their 
-    % spectrum and the transmission function which have free parameters. 
+    % observations for a single image in the transmission-based photometric calibration pipeline.
+    % The composite transmission model includes wavelength-dependent basic component functions and
+    % position-dependent corrections integrated via Tran2D within CompositeFun.
+    % The fit is done by comparing the instrumental fluxes of stars in the image to the synthetic
+    % photometry of the stars given their spectrum and the transmission function which have free parameters.
     % Based on Garrappa et al. 2025, A&A 699, A50.
     %
     % Input  : - Lambda - Wavelength grid for integration range in nm
@@ -19,9 +19,6 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %            'X' - Source X coordinates for calibrators (vector of N_calib values).
     %                   Default is [].
     %            'Y' - Source Y coordinates for calibrators (vector of N_calib values).
-    %                   Default is [].
-    %            'PolyFieldCorr' - Handle @(X, Y, FieldParams) for the position-dependent
-    %                   polynomial to correct for zero-point variations.
     %                   Default is [].
     %            'TransmissionFunctions' - Explicit specification for the
     %                                      basic components of composite transmission function
@@ -48,8 +45,13 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %            'ValInp' - Validate inputs (logical). Default is true.
     %            'Verbose' - Enable verbose output. Default is true.
     % Output : - Model - Fitted CompositeFun object with optimized parameters.
-    %          - FieldParams - vector of optimized position-dependent coefficients for ZP correction.
-    %          - Results - Struct array with results from each optimization stage.
+    %                   Includes both wavelength transmission parameters and Tran2D
+    %                   position corrections (accessible via Model.Tran2DObj.ParX).
+    %          - Results - Struct array with results from each optimization
+    %                   stage: StageName (indicating which parameter(s) is optimized),
+    %                   Method (linear/nonlinear), Cost after stage was completed,
+    %                   RMS of residuals, Residuals vector of length of NumCalibrators,
+    %                   NumCalibrators after stage was completed, isFieldCorrection (0/1).  
     % Author : D. Kovaleva (Nov 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: % Example 1: Using YAML configuration
@@ -64,24 +66,29 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %          Y = [500; 1000; 1500];
     %          % In the pipeline, [Spec, SpecErr, Flux, FluxErr, X, Y] come from
     %          % upper-level wrapper function.
-    %          PolyFieldCorr = @(X, Y, FP) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], FP);
     %          YAMLPath = '~/matlab/AstroPack/config/CalibPhotAB.yml';
-    %          [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
+    %          [Model, Results] = imUtil.calib.transmissionFit1(...
     %              Lambda, Spec, SpecErr, Flux, FluxErr, 'X', X, 'Y', Y, ...
-    %              'PolyFieldCorr', PolyFieldCorr, 'YAMLConfig', YAMLPath);
+    %              'YAMLConfig', YAMLPath);
     %
-    %          % Example 2: Without YAML - explicit 2-stage optimization
-    %          % Prepare data
+    %          % Example 2: Without YAML - explicit 2-stage optimization with Tran2D
+    %          % Prepare data (20 calibrators for stable position correction fitting)
     %          Lambda = linspace(336, 1020, 343)';
-    %          Spec = [(5e-17) ./ (Lambda / 400).^2, ...      % Blue star
-    %                  (3e-17) ./ (Lambda / 550).^0.5, ...    % Solar-type star
-    %                  (2e-17) * (Lambda / 700).^1.5];        % Red star [343 x 3]
+    %          % Generate 20 synthetic spectra with varying spectral indices
+    %          N_calib = 20;
+    %          Spec = zeros(343, N_calib);
+    %          for i = 1:N_calib
+    %              % Spectral index varies from -2 (blue) to +1.5 (red)
+    %              alpha = -2 + 3.5 * (i-1)/(N_calib-1);
+    %              Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
+    %          end
     %          SpecErr = 0.05 * Spec;  % 5% errors
-    %          Flux = [1.2e5; 8.5e4; 6.3e4];  % Observed photons
-    %          FluxErr = [5e3; 4e2; 3e2];
-    %          X = [500; 1000; 1500];  % Pixel coordinates
-    %          Y = [500; 1000; 1500];
-    %          PolyFieldCorr = @(X, Y, FP) telescope.optics.fieldCorrectionLAST([X(:), Y(:)], FP);
+    %          % Observed fluxes with some scatter
+    %          Flux = (8e4 + 4e4*rand(N_calib, 1));  % 80k-120k photons
+    %          FluxErr = 0.05 * Flux;
+    %          % Pixel coordinates distributed across 1726x1726 LAST field
+    %          X = 200 + 1300 * rand(N_calib, 1);  % Random X: 200-1500
+    %          Y = 200 + 1300 * rand(N_calib, 1);  % Random Y: 200-1500
     %          % Define transmission functions as struct array
     %          TransFunList(1).name = 'Ozone';
     %          TransFunList(1).handle = '@astro.transmission.ozoneTransmission';
@@ -114,18 +121,23 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     %          OptSeq(1).sigmathresh = 3.0;
     %          OptSeq(1).sigmaiter = 3;
     %          OptSeq(1).description = 'Optimize aerosol optical depth';
-    %          OptSeq(2).stagename = 'FieldCorr';
-    %          OptSeq(2).freeparams = [];  % Empty for field correction
+    %          OptSeq(2).stagename = 'Tran2DFieldCorr';
+    %          OptSeq(2).freeparams = [];  % Empty for Tran2D position correction (linear fit)
     %          OptSeq(2).sigmaclip = true;
     %          OptSeq(2).sigmathresh = 2.0;
     %          OptSeq(2).sigmaiter = 2;
-    %          OptSeq(2).regularization = 1e-6;
-    %          OptSeq(2).description = 'Field correction (  linear)';
-    %          % Run fitting
-    %          [Model, FieldParams, Results] = imUtil.calib.transmissionFit(...
+    %          OptSeq(2).description = 'Tran2D position correction (linear, 10 params)';
+    %          % Run fitting (transmissionModel1 called internally with integrated Tran2D)
+    %          [Model, Results] = imUtil.calib.transmissionFit1(...
     %              Lambda, Spec, SpecErr, Flux, FluxErr, 'X', X, 'Y', Y, ...
-    %              'PolyFieldCorr', PolyFieldCorr, ...
     %              'TransmissionFunctions', TransFunList, 'OptimizationSequence', OptSeq);
+    %          % Access fitted Tran2D position correction parameters:
+    %          PosParams = Model.Tran2DObj.ParX;  % [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
+    %          fprintf('Fitted position parameters: [%.6f, %.6f, ...]\n', PosParams(1), PosParams(2));
+    %          % Evaluate transmission with position corrections at any (X,Y):
+    %          X_test = [863.5; 500; 1400];
+    %          Y_test = [863.5; 500; 1400];
+    %          Trans = Model.evaluateAllParInputWithPosition(Lambda, X_test, Y_test);
 
     arguments
         Lambda                      % Wavelength vector
@@ -135,7 +147,6 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         FluxErr                     % Observed flux errors: vector of N_calib flux errors
         Args.X = []                 % X coordinates: vector of N_calib elements
         Args.Y = []                 % Y coordinates: vector of N_calib elements
-        Args.PolyFieldCorr = []     % Field correction function handle
         Args.TransmissionFunctions = []  % Explicit transmission functions (optional)
         Args.OptimizationSequence = []  % Explicit optimization sequence (optional)
         Args.GaiaWavelength = linspace(336, 1020, 343)'
@@ -232,9 +243,10 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         fprintf('Building transmission model (CompositeFun)...\n');
     end
 
-    Model = imUtil.calib.transmissionModel(TransFunList, ...
+    Model = imUtil.calib.transmissionModel1(TransFunList, ...
         'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-        'Pressure_mbar', Pressure_mbar, 'Verbose', Args.Verbose);
+        'Pressure_mbar', Pressure_mbar, 'UseTran2D', true, ...
+        'Verbose', Args.Verbose);
 
     NumStages = length(OptSequence);
 
@@ -243,14 +255,8 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     end
 
     % ====================================================================
-    % STEP 3: INITIALIZE PARAMETERS
+    % STEP 3: INITIALIZE CALIBRATOR DATA
     % ====================================================================
-
-    % Get initial transmission parameter values from Model
-    CurrentParamValues = Model.valuesAllPar();
-
-    % Initialize field correction parameters 
-    CurrentFieldParams = zeros(1, 10);
 
     % Prepare current calibrator data structure
     CurrentSpec = Spec;
@@ -262,10 +268,11 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
 
     if Args.Verbose
         fprintf('Initial calibrators: %d\n', NumCalibrators);
+        AllPar = Model.getAllParStruct();
         fprintf('Initial transmission parameters: [%.3f, %.3f, ...]\n', ...
-                CurrentParamValues(1), CurrentParamValues(2));
-        fprintf('Initial field parameters: [%.3f, %.3f, ...]\n\n', ...
-                CurrentFieldParams(1), CurrentFieldParams(2));
+                AllPar.Values(1), AllPar.Values(2));
+        fprintf('Initial position parameters: [%.3f, %.3f, ...]\n\n', ...
+                Model.Tran2DObj.ParX(1), Model.Tran2DObj.ParX(2));
     end
 
     % ====================================================================
@@ -291,37 +298,32 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         % Transmission parameter stages are nonlinear
         IsFieldCorrectionStage = isempty(FreeParamsStage);
 
-        % Extract regularization parameter if present (for field correction)
-        if isfield(Stage, 'regularization')
-            Regularization = Stage.regularization;
+        % The Tran2D.fitDesignMatrix method uses standard least squares
+
+        % Determine method type (needed for Results struct)
+        if IsFieldCorrectionStage
+            Method = 'linear';
         else
-            Regularization = 0;
+            Method = 'nonlinear';
         end
 
         if Args.Verbose
-            if IsFieldCorrectionStage
-                Method = 'linear';
-            else
-                Method = 'nonlinear';
-            end
             fprintf('--- Stage %d/%d: %s [%s] ---\n', IStage, NumStages, StageName, Method);
             fprintf('Description: %s\n', Stage.description);
         end
 
         if IsFieldCorrectionStage
-            % Field correction stage
+            % =================================================================
+            % FIELD CORRECTION STAGE (Linear optimization using Tran2D)
+            % =================================================================
             if Args.Verbose
-                fprintf('Field correction stage: optimizing spatial parameters\n');
+                fprintf('Field correction stage: optimizing Tran2D spatial parameters\n');
             end
 
-            % Run field correction optimization (  linear)
-            [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrection(...
+            % Run field correction optimization using integrated Tran2D methods
+            [Cost, Residuals, ClippedData] = optimizeFieldCorrection(...
                 Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, CurrentX, CurrentY, ...
-                CurrentParamValues, CurrentFieldParams, Model, Args.PolyFieldCorr, ...
-                SigmaClip, SigmaThresh, SigmaIter, Regularization, Args);
-
-            % Update field parameters
-            CurrentFieldParams = OptFieldParams;
+                Model, SigmaClip, SigmaThresh, SigmaIter, Args);
 
             % Update calibrator data after sigma clipping
             if ~isempty(ClippedData)
@@ -334,7 +336,10 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
             end
 
         else
-            % Transmission parameter optimization
+            % =================================================================
+            % TRANSMISSION PARAMETER STAGE (Nonlinear optimization)
+            % =================================================================
+
             % Set FitPar flags for this stage's parameters
             AllPar = Model.getAllParStruct();
             AllPar.FitPar(:) = false;  % Reset all to false
@@ -368,19 +373,10 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
                 end
             end
 
-            % Run transmission parameter optimization (  nonlinear)
-            [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(...
+            % Run transmission parameter optimization using integrated approach
+            [Cost, Residuals, ClippedData] = optimizeTransmission(...
                 Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, CurrentX, CurrentY, ...
-                CurrentParamValues, CurrentFieldParams, Model, Args.PolyFieldCorr, ...
-                FreeParamIndices, SigmaClip, SigmaThresh, SigmaIter, Args);
-
-            % Update transmission parameters
-            CurrentParamValues = OptTransParams;
-
-            % Update Model with optimized parameters
-            AllPar = Model.getAllParStruct();
-            AllPar.Values = CurrentParamValues;
-            Model.setAllParStruct(AllPar);
+                Model, FreeParamIndices, SigmaClip, SigmaThresh, SigmaIter, Args);
 
             % Update calibrator data after sigma clipping
             if ~isempty(ClippedData)
@@ -410,10 +406,8 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
     end
 
     % ====================================================================
-    % STEP 6: FINALIZE OUTPUT
+    % STEP 5: FINALIZE OUTPUT
     % ====================================================================
-
-    FieldParams = CurrentFieldParams;
 
     if Args.Verbose
         fprintf('=== OPTIMIZATION COMPLETE ===\n\n');
@@ -422,10 +416,10 @@ function [Model, FieldParams, Results] = transmissionFit(Lambda, Spec, SpecErr, 
         for I = 1:length(AllPar.Values)
             fprintf('  [%d] %s: %.6f\n', I, AllPar.Names{I}, AllPar.Values(I));
         end
-        fprintf('\nFinal field correction parameters:\n');
+        fprintf('\nFinal Tran2D position correction parameters:\n');
         FieldParamNames = {'kx0', 'kx', 'kx2', 'kx3', 'kx4', 'ky', 'ky2', 'ky3', 'ky4', 'kxy'};
         for I = 1:10
-            fprintf('  [%d] %s: %.12f\n', I, FieldParamNames{I}, FieldParams(I));
+            fprintf('  [%d] %s: %.12f\n', I, FieldParamNames{I}, Model.Tran2DObj.ParX(I));
         end
         fprintf('\nFinal calibrators: %d\n', length(Residuals));
         fprintf('Final RMS: %.4f mag\n', RMS);
@@ -461,13 +455,14 @@ function YAMLConfig = loadYAMLConfig(YAMLPath, Verbose)
 end
 
 %% ========================================================================
-%  HELPER FUNCTION: Optimize Field Correction
+%  HELPER FUNCTION: Optimize Field Correction (using integrated Tran2D)
 %  ========================================================================
 
-function [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrection(...
-    Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, TransParams, FieldParams, Model, PolyFieldCorr, ...
-    SigmaClip, SigmaThresh, SigmaIter, Regularization, Args)
-    % Optimize field correction parameters using linear least squares
+function [Cost, Residuals, ClippedData] = optimizeFieldCorrection(...
+    Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, Model, ...
+    SigmaClip, SigmaThresh, SigmaIter, Args)
+    % Optimize Tran2D position correction parameters using integrated methods.
+    % Uses Model.fitPositionPolynomial() for linear optimization (standard least squares).
 
     % Initialize current data
     CurrentSpec = Spec;
@@ -476,7 +471,6 @@ function [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrectio
     CurrentFluxErr = FluxErr;
     CurrentX = X;
     CurrentY = Y;
-    CurrentFieldParams = FieldParams;
 
     % Set number of iterations: 1 if no sigma clipping, SigmaIter otherwise
     NumIterations = 1;
@@ -486,35 +480,36 @@ function [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrectio
 
     % Optimization loop with optional sigma clipping
     for Iter = 1:NumIterations
-        % Linear optimization using regularized least squares
-        % Get residuals without field correction (FieldParams = 0)
-        ZeroFieldParams = zeros(1, 10);
-        [Residuals0, ~, ~] = imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-            Model, 'X', CurrentX, 'Y', CurrentY, 'PolyFieldCorr', Args.PolyFieldCorr, ...
-            'FieldParams', ZeroFieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
+        % Calculate magnitude residuals without position correction
+        % (temporary set Tran2D parameters to zero)
+        SavedParX = Model.Tran2DObj.ParX;
+        Model.Tran2DObj.ParX = zeros(1, length(SavedParX));
+
+        % Calculate base magnitudes using transmissionCostFun1
+        [MagResid0, ~, ~] = imUtil.calib.transmissionCostFun1(...
+            Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+            Model, 'X', CurrentX, 'Y', CurrentY, ...
+            'GaiaWavelength', Args.GaiaWavelength, ...
             'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
+            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
+            'Verbose', false);
 
-        % Build design matrix for field correction
-        % FieldCorrection is linear in parameters: PolyFieldCorr(X, Y, FieldParams)
-        % We solve: Residuals0 + PolyFieldCorr(X, Y, FieldParams) = 0
-        % Build design matrix by calling PolyFieldCorr with identity matrix (vectorized)
-        DesignMatrix = Args.PolyFieldCorr(CurrentX, CurrentY, eye(10));
+        % Restore saved parameters
+        Model.Tran2DObj.ParX = SavedParX;
 
-        % Solve with regularization: min ||A*x + b||^2 + lambda*||x||^2
-        if Regularization > 0
-            CurrentFieldParams = -(DesignMatrix' * DesignMatrix + Regularization * eye(10)) \ (DesignMatrix' * Residuals0);
-        else
-            CurrentFieldParams = -DesignMatrix \ Residuals0;
-        end
-        CurrentFieldParams = CurrentFieldParams';  % Ensure row vector
+        % Fit position polynomial using integrated Tran2D method
+       
+        [FitResult, Model] = Model.fitPositionPolynomial(CurrentX, CurrentY, MagResid0, ...
+            'Verbose', false);
 
-        % Calculate residuals with optimized field parameters
-        [Residuals, ~, ~] = imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-            Model, 'X', CurrentX, 'Y', CurrentY, 'PolyFieldCorr', Args.PolyFieldCorr, ...
-            'FieldParams', CurrentFieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
+        % Calculate residuals with optimized position correction
+        [Residuals, ~, ~] = imUtil.calib.transmissionCostFun1(...
+            Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+            Model, 'X', CurrentX, 'Y', CurrentY, ...
+            'GaiaWavelength', Args.GaiaWavelength, ...
             'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
+            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
+            'Verbose', false);
 
         % Apply sigma clipping (only if enabled)
         if SigmaClip
@@ -539,11 +534,13 @@ function [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrectio
     end
 
     % Final cost and residuals
-    [Residuals, Cost, ~] = imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-        Model, 'X', CurrentX, 'Y', CurrentY, 'PolyFieldCorr', Args.PolyFieldCorr, ...
-        'FieldParams', CurrentFieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
+    [Residuals, Cost, ~] = imUtil.calib.transmissionCostFun1(...
+        Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+        Model, 'X', CurrentX, 'Y', CurrentY, ...
+        'GaiaWavelength', Args.GaiaWavelength, ...
         'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-        'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
+        'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
+        'Verbose', false);
 
     % Build final ClippedData structure with updated calibrator data
     ClippedData = struct();
@@ -553,18 +550,17 @@ function [OptFieldParams, Cost, Residuals, ClippedData] = optimizeFieldCorrectio
     ClippedData.FluxErr = CurrentFluxErr;
     ClippedData.X = CurrentX;
     ClippedData.Y = CurrentY;
-
-    OptFieldParams = CurrentFieldParams;
 end
 
 %% ========================================================================
-%  HELPER FUNCTION: Optimize Transmission Parameters
+%  HELPER FUNCTION: Optimize Transmission Parameters (using integrated Tran2D)
 %  ========================================================================
 
-function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(...
-    Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, TransParams, FieldParams, Model, PolyFieldCorr, ...
+function [Cost, Residuals, ClippedData] = optimizeTransmission(...
+    Lambda, Spec, SpecErr, Flux, FluxErr, X, Y, Model, ...
     FreeParamIndices, SigmaClip, SigmaThresh, SigmaIter, Args)
-    % Optimize transmission parameters using nonlinear least squares (lsqNonLinWithFixed)
+    % Optimize transmission parameters using nonlinear least squares (lsqNonLinWithFixed).
+    % Uses integrated Tran2D approach with transmissionCostFun1.
 
     % Optimization loop (with or without sigma clipping)
     CurrentSpec = Spec;
@@ -573,7 +569,6 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
     CurrentFluxErr = FluxErr;
     CurrentX = X;
     CurrentY = Y;
-    CurrentTransParams = TransParams;
 
     % Set number of iterations: 1 if no sigma clipping, SigmaIter otherwise
     NumIterations = 1;
@@ -587,17 +582,20 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
         Opts = optimoptions('lsqnonlin', 'Display', 'off', ...
                            'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
 
-        % Get bounds and setup FitMask for all parameters
+        % Get bounds and current parameter values
         AllPar = Model.getAllParStruct();
+        CurrentTransParams = AllPar.Values;
+
+        % Setup FitMask for all parameters
         FitMask = false(size(CurrentTransParams));
         FitMask(FreeParamIndices) = true;
 
         % Model function for lsqNonLinWithFixed (returns residuals for all calibrators)
-        % X_dummy is ignored, transmissionCostFun returns [Residuals, Cost, PredictedFlux]
+        % X_dummy is ignored, transmissionCostFun1 returns [Residuals, Cost, PredictedFlux]
         % P is the TransParams vector being optimized by lsqnonlin
-        ModelFun = @(X_dummy, P) imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, ...
-            CurrentFlux, CurrentFluxErr, Model, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY, ...
-            'PolyFieldCorr', Args.PolyFieldCorr, 'FieldParams', FieldParams, ...
+        ModelFun = @(X_dummy, P) imUtil.calib.transmissionCostFun1(...
+            Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+            Model, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY, ...
             'GaiaWavelength', Args.GaiaWavelength, ...
             'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
             'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
@@ -610,7 +608,7 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
         Sigma_weights = ones(NumCalib, 1);
 
         % Call lsqNonLinWithFixed
-        [CurrentTransParams, ~, ~] = tools.math.fit.lsqNonLinWithFixed(...
+        [OptTransParams, ~, ~] = tools.math.fit.lsqNonLinWithFixed(...
             X_dummy, Y_target, Sigma_weights, ModelFun, ...
             'InitPar', CurrentTransParams, ...
             'FitPar', FitMask, ...
@@ -618,12 +616,18 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
             'Ub', AllPar.Max, ...
             'Opts', Opts);
 
-        % Calculate residuals
-        [Residuals, ~, ~] = imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-            Model, 'TransParams', CurrentTransParams, 'X', CurrentX, 'Y', CurrentY, 'PolyFieldCorr', Args.PolyFieldCorr, ...
-            'FieldParams', FieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
+        % Update Model with optimized parameters
+        AllPar.Values = OptTransParams;
+        Model.setAllParStruct(AllPar);
+
+        % Calculate residuals with updated parameters
+        [Residuals, ~, ~] = imUtil.calib.transmissionCostFun1(...
+            Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+            Model, 'X', CurrentX, 'Y', CurrentY, ...
+            'GaiaWavelength', Args.GaiaWavelength, ...
             'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
+            'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
+            'Verbose', false);
 
         % Apply sigma clipping (if enabled)
         if SigmaClip
@@ -648,11 +652,13 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
     end
 
     % Final cost and residuals
-    [Residuals, Cost, ~] = imUtil.calib.transmissionCostFun(Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
-        Model, 'TransParams', CurrentTransParams, 'X', CurrentX, 'Y', CurrentY, 'PolyFieldCorr', Args.PolyFieldCorr, ...
-        'FieldParams', FieldParams, 'GaiaWavelength', Args.GaiaWavelength, ...
+    [Residuals, Cost, ~] = imUtil.calib.transmissionCostFun1(...
+        Lambda, CurrentSpec, CurrentSpecErr, CurrentFlux, CurrentFluxErr, ...
+        Model, 'X', CurrentX, 'Y', CurrentY, ...
+        'GaiaWavelength', Args.GaiaWavelength, ...
         'Airmass', Args.Airmass, 'Temperature', Args.Temperature, ...
-        'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, 'Verbose', false);
+        'ExpTime', Args.ExpTime, 'Aperture_area_m2', Args.Aperture_area_m2, ...
+        'Verbose', false);
 
     % Build final ClippedData structure with updated calibrator data
     ClippedData = struct();
@@ -662,8 +668,6 @@ function [OptTransParams, Cost, Residuals, ClippedData] = optimizeTransmission(.
     ClippedData.FluxErr = CurrentFluxErr;
     ClippedData.X = CurrentX;
     ClippedData.Y = CurrentY;
-
-    OptTransParams = CurrentTransParams;
 end
 
 
