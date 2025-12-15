@@ -52,7 +52,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
+%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
@@ -104,16 +104,20 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 continue
-            end          
+            end   
+            cd(Dir);
+             
             if numel(Cat) < 2 % likely no data have been read
-                cd(Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 continue
             end
             
-            % remove the elements with insufficient number of columns:
-            NCol = size(Cat(1).Catalog,2);
+            % remove the elements with insufficient number of columns:            
+            NCol = max(arrayfun(@(x) size(x.Catalog, 2), Cat));
             Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
+            if Idx(1) % if the first catalog is broken, no Table properties have been read
+                continue
+            end
             Cat(Idx) = [];
             Nobj = numel(Cat);            
             
@@ -124,7 +128,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                     insertCol(Cat(Iobj),JD.*Nrow,Inf,'JD','');
                 end
             end
-            cd(Dir);
+            
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing                  
