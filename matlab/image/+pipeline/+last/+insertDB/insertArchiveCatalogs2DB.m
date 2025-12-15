@@ -93,6 +93,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             if Args.Decompress
                 Decompress = sprintf('su %s -c "bunzip2 %s.bz2"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
+                Decompress = sprintf('su %s -c "xz -d %s.xz"',Args.RemoteUser,FileNameTemplate);
+                [~, Err.Decompress] = system(Decompress); 
             end            
             %
             try
@@ -102,13 +104,19 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 continue
-            end
-            Nobj = numel(Cat);
-            if Nobj < 2 % likely no data have been read
+            end          
+            if numel(Cat) < 2 % likely no data have been read
                 cd(Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 continue
             end
+            
+            % remove the elements with insufficient number of columns:
+            NCol = size(Cat(1).Catalog,2);
+            Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
+            Cat(Idx) = [];
+            Nobj = numel(Cat);            
+            
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
                 if ~Cat(Iobj).isColumn('JD')
                     JD   = AH(Iobj).getVal('JD');
