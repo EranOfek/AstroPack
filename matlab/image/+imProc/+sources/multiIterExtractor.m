@@ -1,10 +1,226 @@
 function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Source finding and multi-iteration PSF fitting.
+    %   This function find, fit, and subtract sources in SNR bins.
+    %   Starting with the brightest sytars to the faintest stars.
+    %   The outcome is finding more stars then regular source finding.
+    %   The function include the following heuristic step:
+    %   For the stars in the brighteest SNR bin, an extran background and
+    %   noise is added around the stars in order to avoid finding artifacts
+    %   due to the finite size of the PSF.
+    % Input  : - An AstroImage object.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'ExcludeEmpty' - A logical indicating if to exclude empty
+    %                   images. Default is true.
+    %            'BitDict' - A BitDictionary object for the bit mask image.
+    %                   Default is BitDictionary('BitMask.Image.Default')
+    %            'JD' - A vector of JD of the input images.
+    %                   If empty, then read JD from the header.
+    %                   Default is [].
+    %            'KeyJD' - Header keyword containing the JD keyword.
+    %                   Will be used only if 'JD' is empty.
+    %                   If empty, then will use the AstroImage/julday
+    %                   method without arguments (i.e., using the header
+    %                   configuration files). Default is [].
+    %            'KeyGain' - Header keyword containing the image Gain
+    %                   information. If gain is not available in the header
+    %                   then set to 1. Default is 'GAIN'.
+    %            'KeyNcoadd' - Like 'KeyGain', but for the number of
+    %                   coadded images. Default is 'NCOADD'.
+    %
+    %            --- Background arguments ---
+    %            'backVarArgs' - A cell array of additional arguments to
+    %                   pass to the background and variance estimation
+    %                   function: imProc.background.backVar.
+    %                   Default is {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}}
+    %            'ReCalcBackIter' - A list of iterations indices in which
+    %                   to recalculate the background and variance of the image.
+    %                   Default is [].
+    %
+    %            --- PSF arguments ---
+    %            'ReCalcPsfIter' - A vector of iteration indices in which
+    %                   to re-calculate the PSF from the data. Default is [].
+    %            'UseOriginalPSF' - A logical indicating if to use the PSF
+    %                   already attached to the input AstroImage. If false,
+    %                   then the PSF is re-calculated. This can be forced by
+    %                   'ReCalcPsfIter'. Default is true.
+    %            'populatePSFArgs' - A cell array of additional arguments
+    %                   to pass to imProc.psf.populatePSF when constructing
+    %                   or updating the PSF. Default is
+    %                   {'CropByQuantile',false, 'SuppressWidth',2}.
+    %            'RadiusPSF' - PSF radius in pixels used in the PSF
+    %                   construction and cutouts.
+    %                   This radius should be larger/equal then the outer annulus
+    %                   radius.
+    %                   Default is 12.
+    %            'AperRadius' - A vector of aperture radii [pix] used for
+    %                   aperture photometry. Default is [2 4 6].
+    %            'Annulus' - Inner and outer radii [pix] of the sky
+    %                   annulus used for local background/variance
+    %                   estimation. Default is [10 12].
+    %            'ThresholdPSF' - S/N threshold used to select stars for
+    %                   PSF construction. Default is 100.
+    %            'RangeSN' - Two-elements vector [SNmin SNmax] specifying
+    %                   the S/N range of stars used for PSF construction.
+    %                   Default is [100 1000].
+    %            'InitPsf' - Function handle that generates the initial PSF
+    %                   model used in populatePSF. Default is
+    %                   @imUtil.kernel2.gauss.
+    %            'InitPsfArgs' - A cell array of arguments to pass to
+    %                   InitPsf when generating the initial PSF model.
+    %                   Default is {[0.1; 1.2]}.
+    %            'ConvFunExtendedPSF' - Function handle that generates an
+    %                   extended PSF component (e.g., scattered light
+    %                   wings) to be convolved with the empirical PSF.
+    %                   Default is @imUtil.kernel2.sersic.
+    %            'ConvFunExtendedPSF_Args' - A cell array of arguments to
+    %                   pass to ConvFunExtendedPSF. Default is {[1 2 1]}.
+    %
+    %            --- PSF fitting arguments ---
+    %            'MomRadius' - A vector of radii [pix] used for moment
+    %                   measurements at each iteration. If scalar, it is
+    %                   replicated to the number of iterations.
+    %                   Default is [4].
+    %            'psfFitPhotArgs' - A cell array of additional key/val
+    %                   arguments to pass to imProc.sources.psfFitPhot.
+    %                   Default is {}.
+    %            'suppressEdgesArgs' - A cell array of arguments passed to
+    %                   imUtil.psf.suppressEdges in order to taper/suppress
+    %                   the PSF edges. Default is
+    %                   {'Fun',@imUtil.kernel2.cosbell, 'FunPars',[9 10], 'Norm',true}.
+    %            'UsePSFInterpolant' - A logical indicating if to use an
+    %                   interpolated PSF image instead of the FFT-shifted
+    %                   PSF templates returned by psfFitPhot. Default is false.
+    %            'FitRadius' - A vector specifying the PSF fit radius [pix]
+    %                   for each iteration. If scalar, it is replicated to
+    %                   the number of iterations. Default is [3].
+    %            'MaxIter' - Maximum number of iterations for the PSF fit
+    %                   per source. Default is 8.
+    %            'mexCutout' - A logical indicating if to use the MEX
+    %                   implementation of the image cutout routines where
+    %                   available. Default is true.
+    %
+    %            --- Source detection arguments ---
+    %            'FindWithEmpiricalPSF' - A logical indicating if to use
+    %                   empirical PSF templates for source detection
+    %                   (true) or to use analytic PSF models defined by
+    %                   'PsfFunPar' (false). Default is true.
+    %            'PsfFunPar' - A cell array containing the parameters of
+    %                   the analytic PSF model used when
+    %                   'FindWithEmpiricalPSF' is false. Default is
+    %                   {[0.1;1.0;1.5]}.
+    %            'Threshold' - A vector of S/N thresholds (in sigma) for
+    %                   the multi-iteration source extraction. The length
+    %                   of this vector defines the number of iterations
+    %                   (from brightest to faintest sources). Default is
+    %                   [500 50 5].
+    %            'ColCell' - A cell array of column names requested from
+    %                   imProc.sources.findMeasureSources and stored in the
+    %                   AstroCatalog, including positions, S/N, background,
+    %                   aperture fluxes and magnitudes. Default is
+    %                   {'XPEAK','YPEAK', 'X1','Y1','X2','Y2','XY',...
+    %                    'SN','BACK_IM','VAR_IM', 'BACK_ANNULUS','STD_ANNULUS',...
+    %                    'FLUX_APER','FLUXERR_APER','MAG_APER','MAGERR_APER'}.
+    %
+    %            --- Source cleaning and mask arguments ---
+    %            'RemoveEdgeDist' - A scalar specifying the distance from
+    %                   image edges [pix] within which sources are removed.
+    %                   Set to NaN for no removal. Default is 0.
+    %            'FlagCR' - A logical indicating if to flag and remove
+    %                   cosmic rays during source detection/cleaning.
+    %                   Default is true.
+    %            'maskCR_Args' - A cell array of additional arguments to
+    %                   pass to imProc.mask.maskCR when masking CRs.
+    %                   Default is {}.
+    %            'FlagDiffXY' - A logical indicating if to flag sources
+    %                   with inconsistent X/Y positions (e.g., due to
+    %                   artifacts). Default is true.
+    %            'maskDiffXY_Args' - A cell array of additional arguments
+    %                   to pass to imProc.mask.xpeak_x1_diff when masking
+    %                   such sources. Default is {}.
+    %
+    %            --- Add Back/Var noise ---
+    %            'AddBackNoise' - A logical indicating if to add additional
+    %                   scattered light / noise around very bright sources
+    %                   in the first iteration in order to suppress
+    %                   artificial detections in the PSF wings. Default is true.
+    %            'ScatteredLightFrac' - Fraction of bright-star flux used
+    %                   to construct a scattered light / variance map
+    %                   around very bright sources in the first iteration.
+    %                   Default is 0.05.
+    %
+    %            --- Catalog column names ---
+    %            'ColRA' - J2000 RA column name to add to the AstroCatalog
+    %                   object. Default is 'RA'.
+    %            'ColDec' - J2000 Dec column name to add to the
+    %                   AstroCatalog object. Default is 'Dec'.
+    %            'ColPITER' - Column name used to store the PSF iteration
+    %                   index for each extracted source. Default is 'PITER'.
+    %            'RedoUpIter' - A scalar or vector of iteration numbers
+    %                   specifying up to which iteration bright sources are
+    %                   re-measured in a dedicated final step. Default is [1].
+    %            'ColPsfFlux' - AstroCatalog column name containing the PSF
+    %                   flux. This is used only if 'RedoUpIter' is not
+    %                   empty. The new flux estimate is written into this
+    %                   column. Default is 'FLUX_PSF'
+    %            'ColPsfFluxErr' - AstroCatalog column name containing the
+    %                   uncertainty of the PSF flux for the bright-source
+    %                   refinement. Default is 'FLUXERR_PSF'.
+    %            'ColPsfMag' - AstroCatalog column name containing the PSF
+    %                   magnitude for bright sources. Default is 'MAG_PSF'.
+    %            'ColPsfMagErr' - AstroCatalog column name containing the
+    %                   PSF magnitude error for bright sources. Default is
+    %                   'MAGERR_PSF'.
+    %            'ColPsfSN' - AstroCatalog column name containing the PSF
+    %                   based S/N of the bright sources. Default is 'SN'.
+    %            'ColPsfChi2' - AstroCatalog column name containing the
+    %                   reduced chi-square (chi^2/d.o.f.) of the PSF fit
+    %                   for bright sources. Default is 'PSF_CHI2DOF'.
+    %            'ColFlux' - Base AstroCatalog column name for aperture
+    %                   fluxes; individual aperture radii get numeric
+    %                   suffixes (e.g., FLUX_APER_1, FLUX_APER_2, ...).
+    %                   Default is 'FLUX_APER'.
+    %            'ColFluxErr' - Base AstroCatalog column name for aperture
+    %                   flux errors, with numeric suffixes per aperture
+    %                   radius. Default is 'FLUXERR_APER'.
+    %            'ColMag' - Base AstroCatalog column name for aperture
+    %                   magnitudes, with numeric suffixes per aperture
+    %                   radius. Default is 'MAG_APER'.
+    %            'ColMagErr' - Base AstroCatalog column name for aperture
+    %                   magnitude errors, with numeric suffixes per
+    %                   aperture radius. Default is 'MAGERR_APER'.
+    %
+    %            --- Photometric and scattered light arguments ---
+    %            'ZP' - Photometric zero point used for converting fluxes
+    %                   to (luptitude-like) magnitudes in the PSF and
+    %                   aperture photometry. Default is 25.
+    %
+    %            --- Miscellaneous arguments ---
+    %            'AddSkyCoo' - A logical indicating if to add RA,Dec sky
+    %                   coordinates to the final catalogs using the image
+    %                   WCS, when present. Default is true.
+    %            'CreateNewObj' - A logical indicating if to work on a deep
+    %                   copy of the input AstroImage stack (true) or to
+    %                   modify the input objects in-place (false). Default
+    %                   is false.
+    %            'Verbose' - A logical indicating if to print progress and
+    %                   diagnostic information to the screen. Default is false.
+    %            'WriteDs9Regions' - A logical indicating if to write DS9
+    %                   region files with the extracted sources at each
+    %                   iteration. Default is false.
+    %
+    % Output : - (Result) An AstroImage array, same size as the
+    %            input Obj, in which the Image, Back, Var, PSF and
+    %            CatData properties are updated by the multi-iteration
+    %            PSF source extraction.
+    %          - (SourceLess) An AstroImage array containing copies of
+    %            the input images with the final (last-iteration)
+    %            source-subtracted images stored in the Image
+    %            property. Returned only if requested (nargout>1).
+    %          - (SubtractedImage) A numeric cube of size [Ny, Nx, Niter]
+    %            containing, for each processed AstroImage, the
+    %            subtracted image after each iteration of the
+    %            algorithm. Returned only if requested (nargout>2).
+    %
     % Author : Eran Ofek (2025 Nov) 
     % Example: [AI1,AI2]=imProc.sources.multiIterExtractor(AI);
 
@@ -37,6 +253,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
+        
         % PSF fitting
         Args.MomRadius                 = [4];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         Args.psfFitPhotArgs            = {};
@@ -44,15 +261,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.UsePSFInterpolant         = false;
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;
+        Args.mexCutout                 = true;
 
-        % source cleaning and mask
-        Args.RemoveEdgeDist            = 0;  % NaN for non removal
-        Args.FlagCR logical            = true;
-        Args.maskCR_Args cell          = {};
-        Args.FlagDiffXY logical        = true;
-        Args.maskDiffXY_Args cell      = {};
-        Args.AddBackNoise              = true;
-
+        
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
@@ -65,21 +276,30 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
         
+        % source cleaning and mask
+        Args.RemoveEdgeDist            = 0;  % NaN for non removal
+        Args.FlagCR logical            = true;
+        Args.maskCR_Args cell          = {};
+        Args.FlagDiffXY logical        = true;
+        Args.maskDiffXY_Args cell      = {};
+
+        % add back/var noise -  Bright stars increase back/var
+        Args.AddBackNoise              = true;
+        Args.ScatteredLightFrac = 0.05;
+
         
-        
-        % Column names
+        % Column names to add the catalog
         Args.ColRA                     = 'RA';
         Args.ColDec                    = 'Dec';
         Args.ColPITER                  = 'PITER';  % column name for PSF iteration
 
 
         % cleaning of the subtracted image:        
-        Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
-        Args.RemovePSFCore             = false;  % not decided if this is useful and correct
+        %Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
+        %Args.RemovePSFCore             = false;  % not decided if this is useful and correct
 
         Args.RedoUpIter = [1];
-
-        Args.mexCutout = true;
+        
 
         Args.ColPsfFlux        = 'FLUX_PSF';
         Args.ColPsfFluxErr     = 'FLUXERR_PSF';
@@ -94,14 +314,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         
         Args.ZP                = 25;
 
-        % Bright stars increase back/var
-        Args.ScatteredLightFrac = 0.05;
-
+       
         % miscellaneous:
-        Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
+        %Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
         Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
         Args.CreateNewObj logical      = false;   
-        Args.SaveSourcelessImage logical= false; % save the cleaned sourceless image as the second result
+        %Args.SaveSourcelessImage logical= false; % save the cleaned sourceless image as the second result
         Args.Verbose logical           = false;  
         Args.WriteDs9Regions logical   = false;
     end

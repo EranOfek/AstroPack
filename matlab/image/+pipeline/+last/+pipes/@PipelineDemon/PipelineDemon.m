@@ -2344,19 +2344,32 @@ classdef PipelineDemon < Component
             arguments
                 Obj
                 RawImageList
-                Args
+                Args.prePrepArgs             = {};
+                Args.basicCalibArgs          = {};
+                Args.multiIterExtractorArgs  = {};
+                Args.astrometryVisitSubImage = {};
             end
 
+            Nimages = numel(RawImageList);
             % load images and check quality
-            pipeline.generic.prePrep
+            % AI putput is of size [Nimages x 1]
+            [AI, TableForDB, TableHeader] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});
             
             % basic calibration (bias, flat,...) 
-            pipeline.generic.basicCalib
+            AI = pipeline.generic.basicCalib(AI, Obj.CI, Args.basicCalibArgs{:});
+
+            % break images into sub images
+            % 1st dim is epoch; 2nd dim is sub image
 
             % search for stars in all images
+            [AllSI] = imProc.sources.multiIterExtractor(AI, Args.multiIterExtractorArgs{:},...
+                                                            'AddSkyCoo',false);
 
             % solve astrometry of all images
-            imProc.astrometry.astrometryVisitSubImage
+            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImage{:});
+
+            % add coordinates to catalogs
+            imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true)
 
             % forced photometry
 
