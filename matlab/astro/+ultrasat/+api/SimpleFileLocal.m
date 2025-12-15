@@ -265,7 +265,7 @@ classdef SimpleFileLocal < ultrasat.api.Loggable
             end
 
             try
-                jsonStr = jsonencode(data);
+                jsonStr = jsonencode(data, 'PrettyPrint', true);
                 success = obj.writeFile(filePath, jsonStr);
             catch ME
                 obj.msglog(sprintf('Error encoding data for JSON file %s: %s', filePath, ME.message));
