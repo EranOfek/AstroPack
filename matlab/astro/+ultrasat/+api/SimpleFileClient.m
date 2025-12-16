@@ -200,7 +200,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
 
             try
                 % jsonencode in modern MATLAB versions pretty-prints by default.
-                jsonStr = jsonencode(data);
+                jsonStr = jsonencode(data, 'PrettyPrint', true);
                 success = obj.writeFile(filePath, jsonStr);
             catch ME
                 obj.msglog(sprintf('Error encoding data for file %s: %s', filePath, ME.message));

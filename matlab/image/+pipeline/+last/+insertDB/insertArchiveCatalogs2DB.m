@@ -52,7 +52,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     DB.Conn;
     DB.useDB(Args.DbName);
     fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
+%     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %
@@ -93,6 +93,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             if Args.Decompress
                 Decompress = sprintf('su %s -c "bunzip2 %s.bz2"',Args.RemoteUser,FileNameTemplate);
                 [~, Err.Decompress] = system(Decompress); 
+                Decompress = sprintf('su %s -c "xz -d %s.xz"',Args.RemoteUser,FileNameTemplate);
+                [~, Err.Decompress] = system(Decompress); 
             end            
             %
             try
@@ -102,13 +104,23 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 continue
-            end
-            Nobj = numel(Cat);
-            if Nobj < 2 % likely no data have been read
-                cd(Dir);
+            end   
+            cd(Dir);
+             
+            if numel(Cat) < 2 % likely no data have been read
                 fprintf(FIDnodata,'%s \n',DataDir);
                 continue
             end
+            
+            % remove the elements with insufficient number of columns:            
+            NCol = max(arrayfun(@(x) size(x.Catalog, 2), Cat));
+            Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
+            if Idx(1) % if the first catalog is broken, no Table properties have been read
+                continue
+            end
+            Cat(Idx) = [];
+            Nobj = numel(Cat);            
+            
             for Iobj = 1:Nobj  % insert JD from the header if it is missing in the catalog
                 if ~Cat(Iobj).isColumn('JD')
                     JD   = AH(Iobj).getVal('JD');
@@ -116,7 +128,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                     insertCol(Cat(Iobj),JD.*Nrow,Inf,'JD','');
                 end
             end
-            cd(Dir);
+            
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing                  

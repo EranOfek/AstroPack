@@ -48,8 +48,8 @@ function simImage = simulateKeplerField(Args)
     Tab = SrcTab(SrcTab.x_ra > ra1 & SrcTab.x_ra < ra2 & SrcTab.dec > dec1 & SrcTab.dec < dec2,:);
     
     %%% TEST ONLY!!: cut a small area        
-    Tab = Tab(Tab.x_ra > 294.36 & Tab.x_ra < 294.48 & Tab.dec > 46.52 & Tab.dec < 46.64,:); 
-    fprintf('ATTENSION! ARBITRATRY CUTS APPLIED TO THE SOURCE LIST!\n');
+%     Tab = Tab(Tab.x_ra > 294.36 & Tab.x_ra < 294.48 & Tab.dec > 46.52 & Tab.dec < 46.64,:); 
+%     fprintf('ATTENSION! ARBITRATRY CUTS APPLIED TO THE SOURCE LIST!\n');
     
     %%%
 

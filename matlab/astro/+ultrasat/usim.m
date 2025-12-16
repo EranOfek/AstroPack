@@ -953,7 +953,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         error('Input sizes inconsistent in injectArtSrc, exiting..');
     end
 
-    % rotate the PSFs (if needed)  
+    % rotate the PSFs if needed 
     %
     % the rotation does not conserve the flux, thus also need to renormalize
     % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
@@ -972,7 +972,8 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         end
     end
                 
-    % apply PSF blurring due to the S/C jitter (ULTRASAT jitter parameters employed here)    
+    % apply PSF blurring due to the S/C jitter: 
+    % NB: estimated ULTRASAT jitter parameters are directly encoded here 
     if Args.Jitter
         JPSF = ultrasat.jitter(RotPSF, Cat, 'Exposure', 300, 'SigmaX0', 2., 'SigmaY0', 2.,...
                                'Rotation', 10, 'Scaling', Args.PSFScaling);    
@@ -982,31 +983,24 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     
     % test PSF size, containment width and pseudoFWHM width (if requested)    
     if Args.MeasurePSF == 1
-
         StampSize  = size(JPSF);   
         fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
     
         ContWidth  = zeros(NumSrc,1);  % radius of the encircled flux PSF region
         PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM of the PSFs (see imUtil.psf.pseudoFWHM for the particular algorithm)
-
         for Isrc = 1:1:NumSrc
-
             ContWidth(Isrc) = imUtil.psf.quantileRadius('PSF',JPSF(:,:,Isrc),'Level',0.5);
 
             [ widthX, widthY ] = ... 
                         imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);
 
             PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
-
         end
-
         ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
         PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
-
         % some visual tests
         figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
-        xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
-    
+        xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')    
         figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
         xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')    
     end
@@ -1029,6 +1023,8 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
             error('Injection method not defined! Exiting..');        
     end
 end
+
+
 
 
 
