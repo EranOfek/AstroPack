@@ -149,7 +149,7 @@ classdef CompositeFun < handle
        fprintf('  Wavelength transmission: %d\n', Model.numAllFunPar());
        fprintf('  Position polynomial: %d\n', length(Model.Tran2DObj.ParX));
     
-    % Example - High-Level Model Building with model:
+    % Example - Model Building with CompositeFun.model function:
        % Define function specification list (e.g., from YAML or manual)
        FunList(1).name = 'Ozone';
        FunList(1).handle = '@astro.transmission.ozoneTransmission';
@@ -1544,7 +1544,7 @@ classdef CompositeFun < handle
             %                   If empty, uses current values from Obj. Default is [].
             %            'PosParams' - Position-dependent polynomial parameters (ParX).
             %                   If empty, uses current values from Tran2DObj. Default is [].
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Transmission: [N_sources x N_lambda] matrix
             %                   Transmission(i,j) = transmission for source i at wavelength j
@@ -1925,7 +1925,7 @@ classdef CompositeFun < handle
             %                   'mae' - Mean absolute error
             %                   'rmse' - Root mean squared error
             %                   Default is 'sse'.
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Residuals - Differences between predicted and observed [N_obs x 1]
             %          - Cost - Scalar cost value (depends on CostType)
@@ -2258,9 +2258,9 @@ classdef CompositeFun < handle
             % lsqNonLinWithFixed) and position parameters (linear via Tran2D.fitDesignMatrix).
             %
             % Input  : - Obj - CompositeFun object (modified in place)
-            %          - InputValues - Input values for evaluation (e.g., wavelength grid)
+            %          - InputValues - Independent variable grid where the CompositeFun is evaluated (e.g., wavelength grid)
             %                   Column vector [N_input x 1]
-            %          - ObservedValues - Observed output values [N_obs x 1]
+            %          - ObservedValues - Observed values to be compared to the model [N_obs x 1]
             %          * ...,key,val,...
             %            'CostArgs' - Struct with additional arguments to pass to Obj.costFun
             %                   Default is struct().
@@ -2282,9 +2282,11 @@ classdef CompositeFun < handle
             %            'SigmaIter' - Maximum sigma clipping iterations
             %                   Default is 5.
             %            'OptimOptions' - Options structure for lsqnonlin
+            %                   Passed via tools.math.fit.lsqNonLinWithFixed wrapper.
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
             %            'OptimizationSequence' - Multi-stage optimization sequence (struct array)
-            %                   If provided, enables multi-stage mode. Each stage is a struct with:
+            %                   If provided, enables multi-stage sequence of optimization, describing which parameters are optimized at the current step. 
+            %                   Description of each stage is a struct with:
             %                   .stagename - Name of the stage
             %                   .freeparams - Struct array with .function and .parameter fields
             %                                Empty [] for field correction stage (linear fit)
@@ -2293,7 +2295,7 @@ classdef CompositeFun < handle
             %                   .sigmaiter - Number of sigma clipping iterations
             %                   .description - Description of the stage
             %                   Default is [] (single-stage mode).
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - Updated CompositeFun object with fitted parameters
             %          - FitResult - Structure with fields:
