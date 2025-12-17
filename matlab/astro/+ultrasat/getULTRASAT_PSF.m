@@ -1,6 +1,6 @@
 function PSF = getULTRASAT_PSF(Args)
     % get a spectrum-weighted ULTRASAT PSF stamp from pre-built libraries 
-    % Input: -
+    % Input: - no mandatory input
     %       * ...,key,val,... 
     %       'Oversampling' - image oversampling in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
     %       'Type' - spectrum type: 'Pickles' or 'star', 'BB', 'galaxy'
@@ -8,7 +8,7 @@ function PSF = getULTRASAT_PSF(Args)
     %       'logg' - log(g) of the star
     %       'Rad'  - angular distance of the source from the tile's inner corner
     %       'Class'- precise stellar class as a cell array
-    % Output: 
+    % Output: - a PSF stamp (2D matrix)
     % Author: A.M. Krassilchtchikov (Oct 2023)
     % Example: P = ultrasat.getULTRASAT_PSF('Type','Pickles','Teff', 4300, 'logg', 4.2, 'Rad', 2.1);
     %          P = ultrasat.getULTRASAT_PSF('Type','BB','Teff', 4300, 'Rad', 1.2);
