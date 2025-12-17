@@ -149,7 +149,7 @@ classdef CompositeFun < handle
        fprintf('  Wavelength transmission: %d\n', Model.numAllFunPar());
        fprintf('  Position polynomial: %d\n', length(Model.Tran2DObj.ParX));
     
-    % Example - High-Level Model Building with modelCompositeFun:
+    % Example - Model Building with CompositeFun.model function:
        % Define function specification list (e.g., from YAML or manual)
        FunList(1).name = 'Ozone';
        FunList(1).handle = '@astro.transmission.ozoneTransmission';
@@ -177,13 +177,13 @@ classdef CompositeFun < handle
        FunList(2).paraminfo(3).max = 2.5;
     
        % Build transmission model with Tran2D position corrections and metadata injection
-       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+       Model = tools.math.fun.CompositeFun.model(FunList, ...
            'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2), ...
                                     'Pressure_mbar', 965, 'Temperature_C', 15), ...
            'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
            'XPixel', 1726, 'YPixel', 1726, 'Verbose', true);
        % Or build model without position corrections
-       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+       Model = tools.math.fun.CompositeFun.model(FunList, ...
            'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2)), ...
            'UseTran2D', false);
     
@@ -211,7 +211,7 @@ classdef CompositeFun < handle
            'X', X, 'Y', Y, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
        % Residuals are magnitude differences: 2.5*log10(Predicted/Observed)
     
-    % Example - Parameter Fitting with fitParCompositeFun:
+    % Example - Parameter Fitting with fitPar:
        % Setup: Mark parameters for fitting
        AllFunPar = Model.getAllFunPar();
        AllFunPar.FitPar(1) = false;  % Fix ZenithAngle_deg
@@ -224,12 +224,12 @@ classdef CompositeFun < handle
        ObservedFlux = randn(20, 1);  % 20 observations
        X = 200 + 1300 * rand(20, 1);  % Random positions
        Y = 200 + 1300 * rand(20, 1);
-       [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
+       [Model, Result] = Model.fitPar(Lambda, ObservedFlux, ...
            'FitTransmission', true, 'FitPosition', false, 'Verbose', true);
        fprintf('Final RMS: %.4f\n', Result.RMS);
-    
+
        % Fit both wavelength and position parameters with sigma clipping
-       [Model, Result] = Model.fitParCompositeFun(Lambda, ObservedFlux, ...
+       [Model, Result] = Model.fitPar(Lambda, ObservedFlux, ...
            'X', X, 'Y', Y, 'FitTransmission', true, 'FitPosition', true, ...
            'SigmaClip', true, 'SigmaThresh', 3.0, 'SigmaIter', 5, 'Verbose', true);
        fprintf('Final RMS: %.4f, Clipped: %d outliers\n', ...
@@ -270,7 +270,7 @@ classdef CompositeFun < handle
     
        % Fit transmission + position with sigma clipping
        % NOTE: FitPosition requires TransmissionMode (magnitude residuals)
-       [Model, Result] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+       [Model, Result] = Model.fitPar(Lambda, ObsFlux, ...
            'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
            'FitTransmission', true, 'FitPosition', true, ...
            'SigmaClip', true, 'SigmaThresh', 3.0, 'Verbose', true);
@@ -279,7 +279,7 @@ classdef CompositeFun < handle
     
     % Example - Multi-Stage Optimization with OptimizationSequence:
        % Build transmission model with Tran2D (as above)
-       Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+       Model = tools.math.fun.CompositeFun.model(FunList, ...
            'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
            'XPixel', 1726, 'YPixel', 1726);
     
@@ -319,7 +319,7 @@ classdef CompositeFun < handle
            'Aperture_area_m2', pi * (0.1397)^2);
     
        % Run multi-stage optimization
-       [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+       [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
            'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
            'OptimizationSequence', OptSeq, 'Verbose', true);
     
@@ -350,9 +350,9 @@ classdef CompositeFun < handle
     %   checkOverlappingParamConsistency() - Validate parameter consistency across functions
     %
     % High-Level Methods (Model Building and Optimization):
-    %   modelCompositeFun() - Static method to build CompositeFun from specification list
+    %   model() - Static method to build CompositeFun from specification list
     %   costFun() - General cost function for optimization (residuals, cost, predictions)
-    %   fitParCompositeFun() - Fit parameters with sigma clipping and optional multi-stage optimization
+    %   fitPar() - Fit parameters with sigma clipping and optional multi-stage optimization
     %                          Supports single-stage (default) or multi-stage via OptimizationSequence
     %
     % Methods using Tran2D class object (Position-Dependent Corrections):
@@ -444,7 +444,7 @@ classdef CompositeFun < handle
     end
 
     methods (Static) % Factory methods
-        function Obj = modelCompositeFun(FunList, Args)
+        function Obj = model(FunList, Args)
             % Build CompositeFun model from function specification list
             % Input  : - FunList - Struct array of function specifications
             %                   Each element is a struct with fields:
@@ -475,7 +475,7 @@ classdef CompositeFun < handle
             %          FunList(1).paraminfo(2).min = 0;
             %          FunList(1).paraminfo(2).max = 5;
             %          Metadata = struct('param1', 1.5);
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, ...
+            %          Model = tools.math.fun.CompositeFun.model(FunList, ...
             %              'MetadataValues', Metadata, 'UseTran2D', true);
 
             arguments
@@ -1544,7 +1544,7 @@ classdef CompositeFun < handle
             %                   If empty, uses current values from Obj. Default is [].
             %            'PosParams' - Position-dependent polynomial parameters (ParX).
             %                   If empty, uses current values from Tran2DObj. Default is [].
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Transmission: [N_sources x N_lambda] matrix
             %                   Transmission(i,j) = transmission for source i at wavelength j
@@ -1925,19 +1925,19 @@ classdef CompositeFun < handle
             %                   'mae' - Mean absolute error
             %                   'rmse' - Root mean squared error
             %                   Default is 'sse'.
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Residuals - Differences between predicted and observed [N_obs x 1]
             %          - Cost - Scalar cost value (depends on CostType)
             %          - PredictedValues - Model predictions [N_obs x 1]
             % Author : D. Kovaleva (Dec 2025)
             % Example: % Simple 1D function without position corrections
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList);
+            %          Model = tools.math.fun.CompositeFun.model(FunList);
             %          InputVals = linspace(300, 1110, 10)';
             %          ObsVals = randn(5, 1);  % 5 observations
             %          [Res, Cost, Pred] = Model.costFun(InputVals, ObsVals);
             %          % With Tran2D position corrections
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, 'UseTran2D', true);
+            %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
             %          X = [100; 200; 300; 400; 500];  % 5 sources
             %          Y = [100; 200; 300; 400; 500];
             %          [Res, Cost, Pred] = Model.costFun(InputVals, ObsVals, 'X', X, 'Y', Y);
@@ -2251,16 +2251,16 @@ classdef CompositeFun < handle
             end
         end
 
-        function [Obj, FitResult] = fitParCompositeFun(Obj, InputValues, ObservedValues, Args)
+        function [Obj, FitResult] = fitPar(Obj, InputValues, ObservedValues, Args)
             % General parameter fitting for CompositeFun with optional Tran2D and sigma clipping.
             % Fits free parameters by minimizing residuals between model predictions and observations.
             % Supports alternating optimization between base function parameters (nonlinear via
             % lsqNonLinWithFixed) and position parameters (linear via Tran2D.fitDesignMatrix).
             %
             % Input  : - Obj - CompositeFun object (modified in place)
-            %          - InputValues - Input values for evaluation (e.g., wavelength grid)
+            %          - InputValues - Independent variable grid where the CompositeFun is evaluated (e.g., wavelength grid)
             %                   Column vector [N_input x 1]
-            %          - ObservedValues - Observed output values [N_obs x 1]
+            %          - ObservedValues - Observed values to be compared to the model [N_obs x 1]
             %          * ...,key,val,...
             %            'CostArgs' - Struct with additional arguments to pass to Obj.costFun
             %                   Default is struct().
@@ -2282,9 +2282,11 @@ classdef CompositeFun < handle
             %            'SigmaIter' - Maximum sigma clipping iterations
             %                   Default is 5.
             %            'OptimOptions' - Options structure for lsqnonlin
+            %                   Passed via tools.math.fit.lsqNonLinWithFixed wrapper.
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
             %            'OptimizationSequence' - Multi-stage optimization sequence (struct array)
-            %                   If provided, enables multi-stage mode. Each stage is a struct with:
+            %                   If provided, enables multi-stage sequence of optimization, describing which parameters are optimized at the current step. 
+            %                   Description of each stage is a struct with:
             %                   .stagename - Name of the stage
             %                   .freeparams - Struct array with .function and .parameter fields
             %                                Empty [] for field correction stage (linear fit)
@@ -2293,7 +2295,7 @@ classdef CompositeFun < handle
             %                   .sigmaiter - Number of sigma clipping iterations
             %                   .description - Description of the stage
             %                   Default is [] (single-stage mode).
-            %            'ValInp' - Validate inputs. Default is true.
+            %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - Updated CompositeFun object with fitted parameters
             %          - FitResult - Structure with fields:
@@ -2309,13 +2311,13 @@ classdef CompositeFun < handle
             %                     .NumObs, .NumClipped, .IsFieldCorrection
             % Author : D. Kovaleva (Dec 2025)
             % Example: % Example 1: Simple single-stage fit
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList);
-            %          [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+            %          Model = tools.math.fun.CompositeFun.model(FunList);
+            %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'FitTransmission', true, 'FitPosition', false);
             %
             %          % Example 2: Single-stage with position and sigma clipping
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, 'UseTran2D', true);
-            %          [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+            %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
+            %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'X', X, 'Y', Y, 'SigmaClip', true, 'SigmaThresh', 3.0);
             %
             %          % Example 3: Multi-stage optimization sequence
@@ -2334,10 +2336,10 @@ classdef CompositeFun < handle
             %          OptSeq(2).sigmaiter = 2;
             %          OptSeq(2).description = 'Position-dependent field correction';
             %          % Build model with Tran2D
-            %          Model = tools.math.fun.CompositeFun.modelCompositeFun(FunList, 'UseTran2D', true);
+            %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
             %          CostArgs = struct('WeightMatrix', GaiaSpec, 'TransmissionMode', true, ...
             %                           'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
-            %          [Model, FitResult] = Model.fitParCompositeFun(Lambda, ObsFlux, ...
+            %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
             %              'OptimizationSequence', OptSeq, 'Verbose', true);
             %          % FitResult is an array: FitResult(1) for Stage 1, FitResult(2) for Stage 2
@@ -2397,7 +2399,7 @@ classdef CompositeFun < handle
                 if Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
                     MaxParX = max(abs(Obj.Tran2DObj.ParX));
                     if MaxParX > 100
-                        warning('CompositeFun:fitParCompositeFun:LargeTran2DParams', ...
+                        warning('CompositeFun:fitPar:LargeTran2DParams', ...
                                 'Tran2D ParX contains large values (max abs: %.2e). This may cause Inf during evaluation.\n  Consider calling Model.resetTran2DParams() before fitting.', ...
                                 MaxParX);
                         if Args.Verbose
@@ -2650,7 +2652,7 @@ classdef CompositeFun < handle
         end
 
         function [Obj, FitResult] = fitMultiStage(Obj, InputValues, ObservedValues, Args)
-            % Multi-stage optimization wrapper for fitParCompositeFun
+            % Multi-stage optimization wrapper for fitPar
             % Loops through OptimizationSequence and calls single-stage fitting for each stage
             %
             % OptimizationSequence format (same as transmissionFit1):
@@ -2707,7 +2709,7 @@ classdef CompositeFun < handle
 
                 if IsFieldCorrectionStage
                     % Field correction stage: fit position only
-                    [Obj, StageResult] = Obj.fitParCompositeFun(InputValues, CurrentObs, ...
+                    [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
                         'CostArgs', CurrentCostArgs, ...
                         'X', CurrentX, 'Y', CurrentY, ...
                         'FitTransmission', false, ...
@@ -2738,7 +2740,7 @@ classdef CompositeFun < handle
                     Obj.setAllFunPar(AllFunPar);
 
                     % Fit transmission parameters
-                    [Obj, StageResult] = Obj.fitParCompositeFun(InputValues, CurrentObs, ...
+                    [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
                         'CostArgs', CurrentCostArgs, ...
                         'X', CurrentX, 'Y', CurrentY, ...
                         'FitTransmission', true, ...
