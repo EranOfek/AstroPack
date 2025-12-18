@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 18/12/2025
 % Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
@@ -307,19 +307,60 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             app.UITableUniqueTargets.RowName = "numbered";
             app.UITableUniqueTargets.ColumnSortable = true;
 
-            % Add 'Order' column
+            % Check if the table is valid and not empty
             Data = app.MainModule.Planner.UniqTarg;
-
             if isempty(Data) || ~istable(Data)
                 app.UITableUniqueTargets.Data = [];
                 return;
             end
 
-            Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-            Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
+            % Add Index column with the row number
+            Data = addvars(Data, (1:height(Data))', 'Before', 2, 'NewVariableNames', 'Index');
 
-            % Currently unused - add column of checkboxes
-            %Data = addvars(Data, false(height(Data), 1), 'Before', 1, 'NewVariableNames', 'Checked');
+            % Convert datetime objects to string
+            Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+
+            % Replace array fiels with their length
+            Data = app.MainModule.TableHelper.replaceArrayColumnWithItsLength(Data, 'CalObj');
+            Data = app.MainModule.TableHelper.replaceArrayColumnWithItsLength(Data, 'RefImageIDs');
+            Data = app.MainModule.TableHelper.replaceArrayColumnWithItsLength(Data, 'ExtSurveys');
+
+            % -------------------------------------------------
+            % Replace 'FieldObj' column in Data with the total length of all cell arrays in the struct for each row
+            if ismember('FieldObj', Data.Properties.VariableNames)
+                lengths = zeros(height(Data), 1);
+                for i = 1:height(Data)
+                    fieldStruct = Data.FieldObj{i};
+                    if isstruct(fieldStruct)
+                        fn = fieldnames(fieldStruct);
+                        cnt = 0;
+                        for f = 1:numel(fn)
+                            fieldValue = fieldStruct.(fn{f});
+                            if iscell(fieldValue)
+                                cnt = cnt + numel(fieldValue);
+                            end
+                        end
+                        lengths(i) = cnt;
+                    else
+                        lengths(i) = 0;
+                    end
+                end
+                Data = removevars(Data, 'FieldObj');
+                Data = addvars(Data, lengths, 'NewVariableNames', 'FieldObj');
+            end
+
+            % -------------------------------------------------
+            % Remove columns 'HealpixArray' and 'DitherGroup' from display
+            if ismember('HealpixArray', Data.Properties.VariableNames)
+                Data = removevars(Data, 'HealpixArray');
+            end
+            if ismember('DitherGroup', Data.Properties.VariableNames)
+                Data = removevars(Data, 'DitherGroup');
+            end
+            % -------------------------------------------------
+
+            % Add 'Order' column
+            Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
 
             % Make only the first column editable, others non-editable
             nColumns = width(Data);
@@ -380,6 +421,41 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 app.GuiHelper.copyUITable(app.UITableUniqueTargets, app.UniqueTargetsApp.UITable);
             end
         end
+
+
+        function setOrderColumnByGridSort(obj, app)
+            % Set the 'Order' column of the Unique Targets table by the grid sort
+            app.msglog('setOrderColumnByGridSort');
+            if ~app.hasPlanner(), return; end
+            try
+                Data = app.UITableUniqueTargets.Data;
+                if isempty(Data) || ~istable(Data)
+                    return;
+                end
+                % Set the 'Order' column to the row number of the current sorted table
+                if any(strcmp('Order', Data.Properties.VariableNames))
+                    app.UITableUniqueTargets.Data.Order = (1:height(app.UITableUniqueTargets.Data))';
+                else
+                    app.msglog('Table does not have ''Order'' column.');
+                end
+            catch ME
+                app.msgex('setOrderColumnByGridSort', ME)
+            end
+        end
+
+
+        function clearOrderColumn(obj, app)
+            % Clear the 'Order' column of the Unique Targets table
+            app.msglog('clearOrderColumn');
+            if ~app.hasPlanner(), return; end
+            try
+                if any(strcmp('Order', app.UITableUniqueTargets.Data.Properties.VariableNames))
+                    app.UITableUniqueTargets.Data.Order = strings(height(Data), 1);   % sets all to ""
+                end
+            catch ME
+                app.msgex('clearOrderColumn', ME)
+            end
+        end        
 
         % =================================================================
         %                           UI CALLBACKS
