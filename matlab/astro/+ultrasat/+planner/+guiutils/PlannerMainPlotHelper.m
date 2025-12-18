@@ -463,6 +463,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
                 %    return
                 %end
+
+                % Get Sun, Earth, Moon checks, and Time value (UTC/JD)
+                SunFlag = app.PlotFlagVisibilitySunCheckBox.Value;
+                EarthFlag = app.PlotFlagVisibilityEarthCheckBox.Value;
+                MoonFlag = app.PlotFlagVisibilityMoonCheckBox.Value;
+                TimeUnits = app.VisibilityPlotTimeUnitsDropDown.Value;
                 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');

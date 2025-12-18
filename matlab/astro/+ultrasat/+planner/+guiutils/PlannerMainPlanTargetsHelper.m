@@ -205,7 +205,17 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 Data = app.MainModule.Planner.Plan;
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
 
+                % Add Index column with the row number
+                Data = addvars(Data, (1:height(Data))', 'Before', 1, 'NewVariableNames', 'Index');
+
+                % Apply style to the entire 'Index' column
+                s = uistyle("BackgroundColor",[1.00,0.99,0.82]); % Cream color
+                addStyle(app.UITablePlanTargets, s, "column", 1);                
+
+                % Set table data
                 app.UITablePlanTargets.Data = Data;
+
+                % Update the column names
                 if ~isempty(Data)
                     app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames;
                 end

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 18/12/2025
 % Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
@@ -117,7 +117,18 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
                 % Set table data from Planner
                 Data = app.MainModule.Planner.MissionApprovedPlan;
                 Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+
+                % Add Index column with the row number
+                Data = addvars(Data, (1:height(Data))', 'Before', 1, 'NewVariableNames', 'Index');
+
+                % Apply style to the entire 'Index' column
+                s = uistyle("BackgroundColor",[1.00,0.99,0.82]); % Cream color
+                addStyle(app.UITableApprovedTargets, s, "column", 1);                
+
+                % Set table data
                 app.UITableApprovedTargets.Data = Data;
+
+                % Update the column names
                 if ~isempty(Data)
                     app.UITableApprovedTargets.ColumnName = Data.Properties.VariableNames;
                 end

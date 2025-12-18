@@ -139,23 +139,25 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
             app.setModified('deleteUniqueTarget');
             try
-                % Try to delete unique target, catch exception if it is
-                % being used in the plan
+                % Try to delete unique target, catch exception if it is being used in the plan
                 app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', true);
             catch ME
                 % Unqique target is being used in plan, ask user to confirm
                 app.msgex('delUniqTarg', ME);
-                if ~strcmp(app.AppUtils.askYesNo(sprintf('Unique target is used, deleting it will delete plan targets. Are you sure (%s)?', Name), 'Confirm'), 'Yes')
-                    return;
+
+                % Ask user to confirm deleting the unique target and all targets that use it
+                if strcmp(app.AppUtils.askYesNo(sprintf('Unique target is used, deleting it will delete plan targets. Are you sure (%s)?', Name), 'Confirm'), 'Yes')
+
+                    % Force deleting the unique target and all targets that use it
+                    try
+                        app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', false);
+                    catch ME
+                        app.msgex('delUniqTarg', ME);
+                    end
+
                 end
             end
 
-            % Force deleting the unique target and all targets that use it
-            try
-                app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', false);
-            catch ME
-                app.msgex('delUniqTarg', ME);
-            end
             app.showPlanAll();
         end
 
@@ -314,9 +316,6 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 return;
             end
 
-            % Add Index column with the row number
-            Data = addvars(Data, (1:height(Data))', 'Before', 2, 'NewVariableNames', 'Index');
-
             % Convert datetime objects to string
             Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
 
@@ -362,6 +361,9 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Add 'Order' column
             Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
 
+            % Add Index column with the row number
+            Data = addvars(Data, (1:height(Data))', 'Before', 2, 'NewVariableNames', 'Index');
+
             % Make only the first column editable, others non-editable
             nColumns = width(Data);
             editableArray = false(1, nColumns);
@@ -371,6 +373,10 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Apply style to the entire 'Order' column (first column)
             s = uistyle("BackgroundColor",[1 0.85 0.4]); % Light orange color
             addStyle(app.UITableUniqueTargets, s, "column", 1);
+
+            % Apply style to the entire 'Index' column
+            s = uistyle("BackgroundColor",[1.00,0.99,0.82]); % Cream color
+            addStyle(app.UITableUniqueTargets, s, "column", 2);
 
             % Set table data
             app.UITableUniqueTargets.Data = Data;
@@ -425,16 +431,15 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         function setOrderColumnByGridSort(obj, app)
             % Set the 'Order' column of the Unique Targets table by the grid sort
+            % Note: Any write to UITable.Data resets sorting. Always.
             app.msglog('setOrderColumnByGridSort');
             if ~app.hasPlanner(), return; end
             try
-                Data = app.UITableUniqueTargets.Data;
-                if isempty(Data) || ~istable(Data)
-                    return;
-                end
                 % Set the 'Order' column to the row number of the current sorted table
-                if any(strcmp('Order', Data.Properties.VariableNames))
-                    app.UITableUniqueTargets.Data.Order = (1:height(app.UITableUniqueTargets.Data))';
+                if any(strcmp('Order', app.UITableUniqueTargets.Data.Properties.VariableNames))
+                    Data = app.UITableUniqueTargets.DisplayData;
+                    Data.Order = string((1:height(Data))');
+                    app.UITableUniqueTargets.Data = Data;   %.Order = (1:height(app.UITableUniqueTargets.Data))';
                 else
                     app.msglog('Table does not have ''Order'' column.');
                 end
@@ -446,11 +451,14 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
         function clearOrderColumn(obj, app)
             % Clear the 'Order' column of the Unique Targets table
+            % Note: Any write to UITable.Data resets sorting. Always.
             app.msglog('clearOrderColumn');
             if ~app.hasPlanner(), return; end
             try
                 if any(strcmp('Order', app.UITableUniqueTargets.Data.Properties.VariableNames))
-                    app.UITableUniqueTargets.Data.Order = strings(height(Data), 1);   % sets all to ""
+                    Data = app.UITableUniqueTargets.DisplayData;
+                    Data.Order = strings(height(app.UITableUniqueTargets.Data), 1);   % sets all to ""
+                    app.UITableUniqueTargets.Data = Data;
                 end
             catch ME
                 app.msgex('clearOrderColumn', ME)
@@ -536,9 +544,13 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             % Helper: Set field values - Currently there are 9 fields for Unique Target
             try
                 ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
+
+                % Editable fields
                 ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
                 ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
                 ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
+
+                % Read-only fields
                 ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
                 ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
                 ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
