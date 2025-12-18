@@ -26,16 +26,16 @@ classdef LcsHelper < Component
 
     % 
     methods  % Constructor
-        function Obj = LcsHelper(Args)
+        function Obj = LcsHelper(UPlanner, Args)
             % object constructor
             % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
-                Args.UPlanner               %
-                Args.Param = 0;             % 
+                UPlanner               		%
+                Args.Param = 0;             % Whatever you need in constructor
             end
 
             %          
-            Obj.Planner = Args.UPlanner;
+            Obj.Planner = UPlanner;
         end
 
     end 
@@ -52,7 +52,9 @@ classdef LcsHelper < Component
             arguments
                 Obj
                 Args.HCS_UniqTarg = 1; % Default is the first line if not selected
-            end               
+            end
+			
+			fprintf('LcsHelper.buildLcs: UT table height: %d\n', height(Obj.Planner.UniqTarg));
         end
 
     end

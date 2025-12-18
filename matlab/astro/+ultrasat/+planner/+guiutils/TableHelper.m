@@ -78,7 +78,7 @@ classdef TableHelper < ultrasat.api.Loggable
 
         % =================================================================
 
-        function Result = getSortedRowNumbers(obj, Data)
+        function Result = getSortedRowNumbers_UNUSED(obj, Data)
             % Extract row indices for non-empty 'Order' values, sorted by 'Order'.
             %
             % Expected Input:
@@ -375,6 +375,38 @@ classdef TableHelper < ultrasat.api.Loggable
             end
         end
 
+        % =================================================================
+
+        function T = replaceArrayColumnWithItsLength(obj, Data, columnName)
+            % replaceArrayColumnWithItsLength Replace an array column with its length
+            %
+            %   T = replaceArrayColumnWithItsLength(Data)
+            %   Input : Data - table
+            %   Output: T    - table with the array column replaced with its length
+            %
+            % Logs and returns empty table if input is invalid.
+            T = Data;
+            try
+                if ~istable(Data)
+                    obj.msglog('replaceArrayColumnWithItsLength: Data is not a table.');
+                    return;
+                end
+                if ~ismember(columnName, Data.Properties.VariableNames)
+                    obj.msglog(sprintf('replaceArrayColumnWithItsLength: column %s not found in Data.', columnName));
+                    return;
+                end
+                if ~iscolumn(Data.(columnName))
+                    obj.msglog(sprintf('replaceArrayColumnWithItsLength: column %s is not a column vector.', columnName));
+                    return;
+                end
+                lengths = cellfun(@length, Data.(columnName));
+                T = removevars(Data, columnName);
+                T = addvars(T, lengths, 'NewVariableNames', columnName);
+            catch ME
+                obj.msglog(sprintf('replaceArrayColumnWithItsLength: error %s', ME.message));
+                T = table();
+            end
+        end
     end
 
 end
