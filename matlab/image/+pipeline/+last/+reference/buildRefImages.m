@@ -6,8 +6,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
+    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
     arguments
         RefGrid
         DB                
@@ -76,18 +77,18 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
-        for Im = 1:10
-            for Ic = 1:4
+        for Im = 1:10      % loop on mounts
+            for Ic = 1:4   % loop on cameras
                 T1 = T(T.mountnum==Im & T.camnum==Ic,:);
                 if height(T1) > 0
                     fprintf('M%dC%d:\n',Im,Ic);
                     [Grp, ~] = findgroups(T1.jd_start); 
                     Nepoch   = max(Grp);                 
                     S = AstroImage([Nepoch 1]);
-                    for i = 1:Nepoch
-                        T2  = T1(Grp == i, :);
+                    for Iepoch = 1:Nepoch
+                        T2  = T1(Grp == Iepoch, :);
                         Nim = height(T2);
-                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,Iepoch,Nim);
                         % 2. qualify the overlapping proc images
                         
                         % 3. select exposures by specific obs. time, time span, etc.
@@ -95,7 +96,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % check the coverage
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
-                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,Iepoch,Nim);
                         Nim = height(T2);                                               
                         AI = AstroImage([1 Nim]);
                         Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
@@ -117,7 +118,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % merge
                         
                             % var1
-                        [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
+                        [S(Iepoch), ~, RemappedXY]  = imProc.stack.stitch(AI,'WCSfromFirstIm',true,'WriteFile',false); 
+                        % NB: here we made a new simple WCS (w/o distortions) and
+                        % remapped all the pixels of the stitched images to this WCS
+                        % issues: 1. does not provide Back, Var, Mask
                         clear AI;
                          
                             % var2

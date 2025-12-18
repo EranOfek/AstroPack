@@ -32,6 +32,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
         Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
         Args.Method         =    'redistribute';                 % pixel redistribution method on the mosaic image
+        Args.WCSfromFirstIm =    'false';                        % adopt WCS from the first image 
         Args.Exposure       =    0;                              % exposure time to be written into the header of the mosaic image
         Args.ZP             =    0;                              % zero point to be written into the header of the mosaic image
         Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
@@ -204,22 +205,25 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     AIm = AstroImage({ImageM});
     
-    % make a simple TAN WCS of the mosaic image from scratch     
-    AIm.WCS = AstroWCS();
-    AIm.WCS.ProjType  = 'TAN';
-    AIm.WCS.ProjClass = 'ZENITHAL';
-    AIm.WCS.CooName   = {'RA'  'DEC'};
-    AIm.WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
-    AIm.WCS.CUNIT     = {'deg', 'deg'};
-    AIm.WCS.CD(1,1)   = PixScale;
-    AIm.WCS.CD(2,2)   = PixScale;  
-    AIm.WCS.CRVAL(1)  = RAcenter;
-    AIm.WCS.CRVAL(2)  = DECcenter;
-    AIm.WCS.CRPIX(1)  = NPix1/2;
-    AIm.WCS.CRPIX(2)  = NPix2/2;
-    AIm.WCS.AlphaP    = RAcenter;
-    AIm.WCS.DeltaP    = DECcenter;
-    AIm.WCS.PhiP      = 180; 
+    if Args.WCSfromFirstIm % adopt a WCS from the first image
+        AIm.WCS = AI(1).WCS;
+    else % make a simple TAN WCS of the mosaic image from scratch
+        AIm.WCS = AstroWCS();
+        AIm.WCS.ProjType  = 'TAN';
+        AIm.WCS.ProjClass = 'ZENITHAL';
+        AIm.WCS.CooName   = {'RA'  'DEC'};
+        AIm.WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        AIm.WCS.CUNIT     = {'deg', 'deg'};
+        AIm.WCS.CD(1,1)   = PixScale;
+        AIm.WCS.CD(2,2)   = PixScale;
+        AIm.WCS.CRVAL(1)  = RAcenter;
+        AIm.WCS.CRVAL(2)  = DECcenter;
+        AIm.WCS.CRPIX(1)  = NPix1/2;
+        AIm.WCS.CRPIX(2)  = NPix2/2;
+        AIm.WCS.AlphaP    = RAcenter;
+        AIm.WCS.DeltaP    = DECcenter;
+        AIm.WCS.PhiP      = 180;
+    end
 
     % trying to warp the input images according to the new WCS frame: 
     % whole NaN images appear in AI2 for any sampling?

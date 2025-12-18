@@ -1,7 +1,7 @@
 function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     % Building a grid for LAST reference images 
     %     Optional detailed description
-    % Input  : 
+    % Input  : - 
     %          * ...,key,val,... 
     %          'Save2mat' - logical, save output to a .mat file
     % Output : - structures with reference image and subimage coordinates (incl. corners) 
