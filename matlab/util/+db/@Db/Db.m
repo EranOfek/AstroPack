@@ -1511,7 +1511,17 @@ rs = stmt.executeQuery(Query);
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
-        Result = unitTest()
+%         Result = unitTest()
+        
+        function DB = connectLAST_DB(Args)
+            arguments
+                Args.Pass
+            end
+            DB = db.Db;
+            DB.User = 'last_user';
+            DB.Password = Args.Pass;
+            DB.useDB('last');
+        end
     end
     
 end

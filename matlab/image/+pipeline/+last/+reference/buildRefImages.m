@@ -6,7 +6,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db; D.User = ...
+    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     arguments
         RefGrid
