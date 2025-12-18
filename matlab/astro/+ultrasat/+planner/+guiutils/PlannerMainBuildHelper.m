@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 18/12/2025
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -44,29 +44,40 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             if ~app.isEditableMsg(), return; end
             if height(app.MainModule.Planner.UniqTarg) == 0, return; end
 
+            % Get plan type
+            PlanType = app.MainModule.Planner.Type;
+
             % Set AfterBuild flag to true if plan is not empty
             app.MainModule.AfterBuild = height(app.MainModule.Planner.Plan) > 0;
-            if app.MainModule.AfterBuild
+            if app.MainModule.AfterBuild && ~strcmp(PlanType, 'DDT')
                 if ~strcmp(app.AppUtils.askYesNo('Build was already executed, this will override your existing plan. Are you sure you want to execute build?', 'Confirm'), 'Yes')
                     return;
                 end
             end
 
+            % Save current plan, if build fails we will restore it
+            SavedPlan = app.MainModule.Planner.Plan;
+            BuildOk = false;
+
+            % Clear plan if it is not DDT
+            if  ~strcmp(PlanType, 'DDT')
+                app.MainModule.Planner.Plan = [];
+            end
+
             % Show "Please Wait" dialog
             app.showPleaseWait('Building your plan. This may take a while. Please wait....');
             try
-                PlanType = app.MainModule.Planner.Type;
                 app.MainModule.clearStatus();
                 app.updateStatus();
                 app.msglog(sprintf('build: PlanType: %s', PlanType));
 
                 % Call the designated function according to PlanType
                 switch PlanType
-                    case 'HCS',  obj.doBuildHCS(app);
-                    case 'LCS',  obj.doBuildLCS(app);
-                    case 'DDT',  obj.doBuildDDT(app);
-                    case 'TOO',  obj.doBuildTOO(app);
-                    case 'AllSS', obj.doBuildAllSS(app);
+                    case 'HCS',  BuildOk = obj.doBuildHCS(app);
+                    case 'LCS',  BuildOk = obj.doBuildLCS(app);
+                    case 'DDT',  BuildOk = obj.doBuildDDT(app);
+                    case 'TOO',  BuildOk = obj.doBuildTOO(app);
+                    case 'AllSS', BuildOk = obj.doBuildAllSS(app);
                     otherwise,   app.msglog(sprintf('build: Unknown PlanType "%s"', PlanType));
                 end
 
@@ -81,6 +92,14 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
 
             % Close the "Please Wait" dialog
             app.closePleaseWait();
+
+            % Restore current plan if build failed
+            if ~BuildOk
+                app.msglog('build: Build failed, restoring previous plan.');
+                app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan.', 'Build Failed');
+                app.MainModule.Planner.Plan = SavedPlan;
+                return;
+            end
 
             % Update display
             app.setModified('build');
@@ -137,8 +156,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         %                     BUILD HELPERS BY PLAN TYPE
         % =================================================================
 
-        function doBuildHCS(obj, app)
+        function BuildOk = doBuildHCS(obj, app)
             % Build HCS
+            BuildOk = false;            
             app.msglog('doBuildHCS started');
             if ~app.hasPlanner(), return; end
 
@@ -156,11 +176,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
             app.msglog('doBuildHCS done');
+            BuildOk = true;
         end
 
 
-        function doBuildLCS(obj, app)
+        function BuildOk = doBuildLCS(obj, app)
             % Build LCS
+            BuildOk = false;            
             app.msglog('doBuildLCS started');
             if ~app.hasPlanner(), return; end
 
@@ -179,11 +201,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             app.addHistory('BuildLCS Ok');
             obj.setBuildStatus(app, 'OK');
             app.msglog('doBuildLCS done');
+            BuildOk = true;
         end
 
 
-        function doBuildDDT(obj, app)
+        function BuildOk = doBuildDDT(obj, app)
             % Build DDT
+            BuildOk = false;            
             app.msglog('doBuildDDT started');
             if ~app.hasPlanner(), return; end
 
@@ -230,6 +254,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                     upDDT.addDDT2Plan(SelectedRows, StartTime, 'Group', Group);
                     app.addHistory('addDDT2Plan Ok');
                     app.setStatus('OK', 'build: addDDT2Plan successfully');
+                    BuildOk = true;
                 catch ME
                     app.msgex('addDDT2Plan', ME);
                 end
@@ -242,10 +267,10 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
 
-        function doBuildTOO(app)
+        function BuildOk = doBuildTOO(app)
             % Build TOO - @Todo @Yossi
             % @Todo: Implement actual TOO build logic (requires external trigger inputs)
-
+            BuildOk = false;            
             app.msglog('doBuildTOO started');
             if ~app.hasPlanner(), return; end
 
@@ -255,6 +280,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
                 Fields = upTOO.UniqTarg(1);
                 upTOO.buildTOO('RA', Fields.RA, 'Dec', Fields.Dec, 'Name', Fields.Name);
                 %app.debugSave('upTOO.mat', upTOO);
+                BuildOk = true;
 
             catch ME
                 app.msgex('doBuildTOO', ME);
@@ -263,14 +289,16 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
         end
 
 
-        function doBuildAllSS(obj, app)
+        function BuildOk = doBuildAllSS(obj, app)
             % Build AllSS - @Todo @Yossi
             % @Todo: Implement actual build logic
-
+            BuildOk = false;            
             app.msglog('doBuildAllSS started');
             if ~app.hasPlanner(), return; end
 
             try
+                % @Todo: Implement actual build logic
+                % BuildOk = true;
             catch ME
                 app.msgex('doBuildAllSS', ME);
             end

@@ -1227,6 +1227,11 @@ classdef PlannerMain < matlab.apps.AppBase
             value = app.VisibilityPlotTimeUnitsDropDown.Value;
             % Chen
         end
+
+        % Display data changed function: UITableUniqueTargets
+        function UITableUniqueTargetsDisplayDataChanged(app, event)
+         
+        end
     end
 
     % Component initialization
@@ -1583,6 +1588,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UITableUniqueTargets.ColumnEditable = true;
             app.UITableUniqueTargets.DoubleClickedFcn = createCallbackFcn(app, @UITableUniqueTargetsDoubleClicked, true);
             app.UITableUniqueTargets.ClickedFcn = createCallbackFcn(app, @UITableUniqueTargetsClicked, true);
+            app.UITableUniqueTargets.DisplayDataChangedFcn = createCallbackFcn(app, @UITableUniqueTargetsDisplayDataChanged, true);
             app.UITableUniqueTargets.SelectionChangedFcn = createCallbackFcn(app, @UITableUniqueTargetsSelectionChanged, true);
             app.UITableUniqueTargets.FontSize = 10;
             app.UITableUniqueTargets.Position = [6 8 905 152];

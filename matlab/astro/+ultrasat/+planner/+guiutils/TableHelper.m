@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/TableHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 21/10/2025
+% Updated     : 18/12/2025
 % Description : Table Helper for Main Planner
 %==========================================================================
 
@@ -407,6 +407,55 @@ classdef TableHelper < ultrasat.api.Loggable
                 T = table();
             end
         end
+
+        % =================================================================
+
+        function sortState = getUITableSortState(obj, app, event)
+            % Initialize with default values
+            % Call from DisplayDataChanged callback by sortState = app.getCurrentSortState(app, event);
+            sortState = struct('Variable', '', 'Direction', 'none', 'ColumnIdx', []);            
+            try
+                if strcmp(event.Interaction, 'sort') && ~isempty(event.InteractionColumn)
+                    sortState.ColumnIdx = event.InteractionColumn;
+                    sortState.Variable = event.InteractionVariable;
+                    
+                    % Extract the data as currently displayed to determine direction
+                    % We use the Variable name for accuracy
+                    viewData = event.Source.DisplayData.(sortState.Variable);
+                    
+                    if issorted(viewData, 'ascend')
+                        sortState.Direction = 'ascend';
+                    elseif issorted(viewData, 'descend')
+                        sortState.Direction = 'descend';
+                    else
+                        sortState.Direction = 'none';
+                    end
+                end
+            catch ME
+                app.msgex('getCurrentSortState', ME);
+            end
+        end        
+
+
+        function sortedTable = reapplySortToData(obj, app, dataTable, sortState)
+            % NOT TESTED YET (18/12/2025)
+            % Re-sort the data manually before assignment to keep visual consistency
+            % myData = app.reapplySortToData(app, myData, sortState);
+            
+            sortedTable = dataTable; % Default to original if sort fails            
+            try
+                % Only sort if we have a valid variable and a direction that isn't 'none'
+                if ~isempty(sortState.Variable) && ~strcmp(sortState.Direction, 'none')
+                    % Check if the variable still exists in the provided table
+                    if any(strcmp(sortState.Variable, dataTable.Properties.VariableNames))
+                        sortedTable = sortrows(dataTable, sortState.Variable, sortState.Direction);
+                    end
+                end
+            catch ME
+                app.msgex('reapplySortToData', ME);
+            end
+        end
+
     end
 
 end
