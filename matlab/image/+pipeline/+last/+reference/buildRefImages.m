@@ -6,8 +6,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('~/LAST_RefIm_Grid_v2.mat'); D = db.Db; D.User = ...
+    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
     arguments
         RefGrid
         DB                
@@ -76,18 +77,19 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
-        for Im = 1:10
-            for Ic = 1:4
+        for Im = 1:10      % loop on mounts
+            for Ic = 1:4   % loop on cameras
                 T1 = T(T.mountnum==Im & T.camnum==Ic,:);
                 if height(T1) > 0
                     fprintf('M%dC%d:\n',Im,Ic);
                     [Grp, ~] = findgroups(T1.jd_start); 
                     Nepoch   = max(Grp);                 
-                    S = AstroImage([Nepoch 1]);
-                    for i = 1:Nepoch
-                        T2  = T1(Grp == i, :);
+                    S        = AstroImage([Nepoch 1]);
+                    Saligned = AstroImage([Nepoch 1]);
+                    for Iepoch = 1:Nepoch
+                        T2  = T1(Grp == Iepoch, :);
                         Nim = height(T2);
-                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,Iepoch,Nim);
                         % 2. qualify the overlapping proc images
                         
                         % 3. select exposures by specific obs. time, time span, etc.
@@ -95,7 +97,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % check the coverage
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
-                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,i,Nim);
+                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,Iepoch,Nim);
                         Nim = height(T2);                                               
                         AI = AstroImage([1 Nim]);
                         Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
@@ -117,10 +119,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % merge
                         
                             % var1
-                        [S(i), ~, RemappedXY]  = imProc.stack.stitch(AI,'WriteFile',false); % does not provide Back, Var, Mask
+                        [S(Iepoch), ~, ~]  = imProc.stack.stitch(AI,'WCSfromFirstIm',true,'WriteFile',false); 
+                        % issues: 1. does not provide Back, Var, Mask
                         clear AI;
                          
-                            % var2
+%                           % var2
 %                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
 %                         'BoundsStyle','SameAsInput' does not work
 %
@@ -132,11 +135,19 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %                           3. use xy2sky with WCS1, then sky2xy with WCS0
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
 %                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
-%                         
-                        % 4.2 rotate, align, and cut the merged crops to
-                        % the ref. coordinates: imwarp with WCS + refine
-                        % astrometry 
+%                                                 
+                        % 4.2.1 if the WCS of the target Reference Image
+                        % has not been written from the RefGrid object at
+                        % the very beginning, build it here
                         
+                        RefWCS = buildRefWCS('RA0',RefGrid.RA(Iref),'Dec0',RefGrid.Dec(Iref));
+                        
+                        % 4.2.2 rotate, align, and cut the merged crops to
+                        % the ref. coordinates: imwarp with the Reference Grid WCS 
+                        
+                        Saligned(Iepoch) = imProc.transIm.imwarp(S(Iepoch), RefWCS);
+                        
+                        % 4.2.3 refine the astrometry 
                     end                                  
                     % 5. proper coadd the the aligned and merged crops
                     
@@ -152,7 +163,33 @@ end
 
 
 
-
+function WCS = buildRefWCS(Args) % this is a simple function to be replaced by a more accurate calculation
+        arguments
+            Args.RA0      
+            Args.Dec0
+            Args.PixScale = 1.25;
+            Args.Npix1    = 1726;
+            Args.Npix2    = 1726; 
+        end
+        %
+        PixScale = Args.PixScale / 3600;    % [deg] pixel scale
+        %
+        WCS = AstroWCS();
+        WCS.ProjType  = 'TAN';
+        WCS.ProjClass = 'ZENITHAL';
+        WCS.CooName   = {'RA'  'DEC'};
+        WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        WCS.CUNIT     = {'deg', 'deg'};
+        WCS.CD(1,1)   = PixScale;
+        WCS.CD(2,2)   = PixScale;
+        WCS.CRVAL(1)  = Args.RA0;
+        WCS.CRVAL(2)  = Args.Dec0;
+        WCS.CRPIX(1)  = Args.Npix1/2;
+        WCS.CRPIX(2)  = Args.Npix2/2;
+        WCS.AlphaP    = Args.RA0;
+        WCS.DeltaP    = Args.Dec0;
+        WCS.PhiP      = 180;
+end
 
 % function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
 %     % Check that Nside1 is a multiple of Nside0

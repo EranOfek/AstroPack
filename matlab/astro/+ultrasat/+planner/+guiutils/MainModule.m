@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/MainModule.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 18/12/2025
 % Description : Central class to hold common application data
 %==========================================================================
 
@@ -270,10 +270,17 @@ classdef MainModule < ultrasat.api.Loggable
 
         function Result = length2Str(obj, array)
             % Convert array length to string as 'len: n'
-            if ~isempty(array)
-                Result = sprintf('len: %d', length(array));
-            else
+            if isempty(array)
                 Result = 'len: 0';
+                return;
+            end
+        
+            % Unwrap single-cell container
+            if iscell(array) && numel(array) == 1
+                inner = array{1};
+                Result = sprintf('len: %d', numel(inner));
+            else
+                Result = sprintf('len: %d', numel(array));
             end
         end
 

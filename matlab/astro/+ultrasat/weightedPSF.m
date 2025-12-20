@@ -40,14 +40,14 @@ function [WPSF, ContRad] = weightedPSF(Args)
             NTemp = 30; Ng = 4;
             logT = linspace(3.4,4.8,NTemp);
             logg = [3.01 4.49 4.51 6];
-            PiCl = astro.stars.tlogg2picklesClass(10.^logT,logg);
+            PicklesClass = astro.stars.tlogg2picklesClass(10.^logT,logg);
             
             WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NTemp,Ng,Nrad);
             ContRad  = zeros(NTemp,Ng,Nrad);
             % weight the PSF stamps with the spectra
             for ITemp = 1:NTemp
                 for Ig = 1:Ng
-                    Sp  = AstroSpec.specStarsPickles(PiCl(ITemp,Ig).class,PiCl(ITemp,Ig).lumclass);
+                    Sp  = AstroSpec.specStarsPickles(PicklesClass(ITemp,Ig).class,PicklesClass(ITemp,Ig).lumclass);
                     Sp2 = interp1(Sp.Wave, Sp.Flux, WavePSF);
                     Sp3 = reshape(Sp2,[1 1 Nwave]);
                     for Irad = 1:Nrad
@@ -63,7 +63,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
             end
             % save the weighted PSF cubes
             FName = sprintf('%s%.0f%s','spec_weightedPSF_Pickles_ovrsmpl',Args.ImRes,'.mat');
-            save(FName,'WPSF','logT','logg','Rad');
+            save(FName,'WPSF','logT','logg','Rad','PicklesClass');
             FName = sprintf('%s%0.2f%s%.0f%s','spec_weightedPSF_Pickles_Contain',Args.ContainmentLevel,'Rad_ovrsmpl',Args.ImRes,'.mat');
             save(FName,'ContRad','logT','logg','Rad');
             

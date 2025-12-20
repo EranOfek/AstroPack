@@ -12,7 +12,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-classdef LcsHelper < Component 
+classdef AllSSHelper < Component 
     % 
     properties(Access = public)
         Planner                                 % uplanner
@@ -26,7 +26,7 @@ classdef LcsHelper < Component
 
     % 
     methods  % Constructor
-        function Obj = LcsHelper(UPlanner, Args)
+        function Obj = AllSSHelper(UPlanner, Args)
             % object constructor
             % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
@@ -45,7 +45,7 @@ classdef LcsHelper < Component
     methods % Building the plan
 
         % === Modify, add functions, etc. ===
-        function buildLcs(Obj, Args)
+        function buildAllSS(Obj, Args)
             % Build a plan for a HCS field, using a single selected UniqTarget 
             % All relevant parameters should be set before calling this function
             % (StartTime/EndTime/Exptime/Tiles/ height(Obj.UniqTarg) >=1)
@@ -54,7 +54,7 @@ classdef LcsHelper < Component
                 Args.HCS_UniqTarg = 1; % Default is the first line if not selected
             end
 			
-			fprintf('LcsHelper.buildLcs: UT table height: %d\n', height(Obj.Planner.UniqTarg));
+			fprintf('AllSSHelper.buildAllSS: UT table height: %d\n', height(Obj.Planner.UniqTarg));
         end
 
     end
@@ -66,7 +66,8 @@ classdef LcsHelper < Component
         function Result = unitTest()
 
             % From uplanner.unitTest() etc
-            upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');
+            % upAllSS = ultrasat.planner.uplanner('AstPlanner','YS','Type','AllSS','ExtragalDitherLeg',DitherLeg,...
+            %    'Load','~/matlab/data/ULTRASAT/alss_uniq_targ.mat');
 
             % ...
 

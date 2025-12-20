@@ -307,6 +307,144 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         end
 
         % =================================================================
+        %         OTHER WINDOWS - NOT IMPLEMENTED YET (18/12/2025)
+        % =================================================================
+
+        function showRefImagesTable(obj, app)
+            % showRefImagesTable Open (or create) the RefImagesTable window and update its content.
+            %
+            % This function ensures the RefImagesTable window exists and is valid,
+            % makes it visible, and populates it with RefImages data if available.
+            % All errors are logged via app.msglog, never thrown.
+
+            app.msglog('showRefImagesTable');
+            if ~obj.hasData(app), return; end
+
+            try
+                % Ensure the CalibObjTable app instance is valid
+                if isempty(app.RefImagesTableApp) || ~isvalid(app.RefImagesTableApp)
+                    app.RefImagesTableApp = ultrasat.planner.gui.RefImagesTable(app.MainModule);
+                end
+
+                % Make the figure visible if it exists
+                if ~isempty(app.RefImagesTableApp) && isvalid(app.RefImagesTableApp)
+                    app.RefImagesTableApp.UIFigure.Visible = 'on';
+
+                    % Update the table data
+                    if isprop(app.RefImagesTableApp, 'UITableData')
+                        app.RefImagesTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+                        app.RefImagesTableApp.UITableData.ColumnSortable = true;
+
+                        % Update column names if table is non-empty
+                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
+                            app.RefImagesTableApp.UITableData.ColumnName = ...
+                                app.UniqueTargetCalibObj.Properties.VariableNames;
+                        else
+                            app.msglog('showRefImagesTable: UniqueTargetCalibObj is empty or not a table.');
+                        end
+                    else
+                        app.msglog('showRefImagesTable: UITableData property not found in RefImagesTableApp.');
+                    end
+                else
+                    app.msglog('showRefImagesTable: RefImagesTableApp is invalid and could not be created.');
+                end
+
+            catch ME
+                app.msglog(sprintf('showRefImagesTable: unexpected error - %s', ME.message));
+            end
+        end
+
+
+        function showExtSurveysTable(obj, app)
+            % showExtSurveysTable Open (or create) the ExtSurveysTable window and update its content.
+            %
+            % This function ensures the ExtSurveysTable window exists and is valid,
+            % makes it visible, and populates it with ExtSurveys data if available.
+            % All errors are logged via app.msglog, never thrown.
+
+            app.msglog('showExtSurveysTable');
+            if ~obj.hasData(app), return; end
+
+            try
+                % Ensure the CalibObjTable app instance is valid
+                if isempty(app.ExtSurveysTableApp) || ~isvalid(app.ExtSurveysTableApp)
+                    app.ExtSurveysTableApp = ultrasat.planner.gui.ExtSurveysTable(app.MainModule);
+                end
+
+                % Make the figure visible if it exists
+                if ~isempty(app.ExtSurveysTableApp) && isvalid(app.ExtSurveysTableApp)
+                    app.ExtSurveysTableApp.UIFigure.Visible = 'on';
+
+                    % Update the table data
+                    if isprop(app.ExtSurveysTableApp, 'UITableData')
+                        app.ExtSurveysTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+                        app.ExtSurveysTableApp.UITableData.ColumnSortable = true;
+
+                        % Update column names if table is non-empty
+                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
+                            app.ExtSurveysTableApp.UITableData.ColumnName = ...
+                                app.UniqueTargetCalibObj.Properties.VariableNames;
+                        else
+                            app.msglog('showExtSurveysTable: UniqueTargetCalibObj is empty or not a table.');
+                        end
+                    else
+                        app.msglog('showExtSurveysTable: UITableData property not found in ExtSurveysTableApp.');
+                    end
+                else
+                    app.msglog('showExtSurveysTable: ExtSurveysTableApp is invalid and could not be created.');
+                end
+
+            catch ME
+                app.msglog(sprintf('showExtSurveysTable: unexpected error - %s', ME.message));
+            end
+        end
+
+
+        function showFieldObjTable(obj, app)
+            % showFieldObjTable Open (or create) the FieldObjTable window and update its content.
+            %
+            % This function ensures the FieldObjTable window exists and is valid,
+            % makes it visible, and populates it with FieldObj data if available.
+            % All errors are logged via app.msglog, never thrown.
+
+            app.msglog('showFieldObjTable');
+            if ~obj.hasData(app), return; end
+
+            try
+                % Ensure the CalibObjTable app instance is valid
+                if isempty(app.FieldObjTableApp) || ~isvalid(app.FieldObjTableApp)
+                    app.FieldObjTableApp = ultrasat.planner.gui.FieldObjTable(app.MainModule);
+                end
+
+                % Make the figure visible if it exists
+                if ~isempty(app.FieldObjTableApp) && isvalid(app.FieldObjTableApp)
+                    app.FieldObjTableApp.UIFigure.Visible = 'on';
+
+                    % Update the table data
+                    if isprop(app.FieldObjTableApp, 'UITableData')
+                        app.FieldObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+                        app.FieldObjTableApp.UITableData.ColumnSortable = true;
+
+                        % Update column names if table is non-empty
+                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
+                            app.FieldObjTableApp.UITableData.ColumnName = ...
+                                app.UniqueTargetCalibObj.Properties.VariableNames;
+                        else
+                            app.msglog('showFieldObjTable: UniqueTargetCalibObj is empty or not a table.');
+                        end
+                    else
+                        app.msglog('showFieldObjTable: UITableData property not found in FieldObjTableApp.');
+                    end
+                else
+                    app.msglog('showFieldObjTable: FieldObjTableApp is invalid and could not be created.');
+                end
+
+            catch ME
+                app.msglog(sprintf('showFieldObjTable: unexpected error - %s', ME.message));
+            end
+        end
+
+        % =================================================================
         %                         VISIBILITY PLOT
         % =================================================================
 
@@ -325,6 +463,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
                 %    return
                 %end
+
+                % Get Sun, Earth, Moon checks, and Time value (UTC/JD)
+                SunFlag = app.PlotFlagVisibilitySunCheckBox.Value;
+                EarthFlag = app.PlotFlagVisibilityEarthCheckBox.Value;
+                MoonFlag = app.PlotFlagVisibilityMoonCheckBox.Value;
+                TimeUnits = app.VisibilityPlotTimeUnitsDropDown.Value;
                 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');

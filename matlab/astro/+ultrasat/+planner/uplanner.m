@@ -127,20 +127,20 @@ classdef uplanner < Component
         
         % AllSS
         AllSSgridFile                   = 'AllSS_grid_361.txt'; % the default AllSS grid
-        PointTypeCriterion              = 'b'; % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
-        AllSSHighLatThresh              = 30; % |b| [deg]
-        HighLatVisits                   =  4; % 1 visit = 3 x 300 s 
-        LowLatVisits                    =  2;      
-        DitherPattern                   = '2x2';  % not used as of yet
-        DitherLeg                       = 0;      % [deg] dither leg size
-        ExtragalMinIntervals            = [0 0 0];% minimal intervals in days between extragalactic visits
-        DailySlots                                % number of slots in a day
-        MaxDailyVisits                            % maximal allowed number of daily visits (determined from DailyWindowMaxDuration) 
-        EmptyDay                        = false;  % 1 empty day in a week (visibility set to 0 for all slots)
-        BufferEarthDist                 = 0;      % buffer distances for visibility predictions
+        PointTypeCriterion              = 'b';              % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
+        AllSSHighLatThresh              = 30;               % |b| [deg]
+        HighLatVisits                   =  4;               % 1 visit = 3 x 300 s 
+        LowLatVisits                    =  2;               %
+        DitherPattern                   = '2x2';            % not used as of yet
+        DitherLeg                       = 0;                % [deg] dither leg size
+        ExtragalMinIntervals            = [0 0 0];          % minimal intervals in days between extragalactic visits
+        DailySlots                                          % number of slots in a day
+        MaxDailyVisits                                      % maximal allowed number of daily visits (determined from DailyWindowMaxDuration) 
+        EmptyDay                        = false;            % 1 empty day in a week (visibility set to 0 for all slots)
+        BufferEarthDist                 = 0;                % buffer distances for visibility predictions
         BufferSunDist                   = 0;
         BufferMoonDist                  = 0;
-        SchedStatus                               % a table of AllSS points with the scheduling status marked 
+        SchedStatus                                         % a table of AllSS points with the scheduling status marked 
         
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
@@ -148,40 +148,41 @@ classdef uplanner < Component
         TOOMaxTargets                   =  4;               % maximal number of target fields
         TOOMinAddedProb                 =  0.05;            % minimal covered probability difference between N and N+1 targets employed
         TOOMinCoveredProb               =  0.9;             % minimal covered probability
-        TOOAlertProbMap                                     % input probability map 
-        
+        TOOAlertProbMap                                     % input probability map        
         TOOUsedTargets                                      % the number of actually employed targets
         TOOCoveredProb                                      % actually covered probability (all targets)
         TOOCoveredByTarget                                  % actually covered probability (vector: per target)
         
-        N_uniqueTargets                 =  0; % number of unique targets
-        N_planTargets                   =  0; % number of targets in the plan
+        N_uniqueTargets                 =  0;               % number of unique targets
+        N_planTargets                   =  0;               % number of targets in the plan
         
-        Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
+        Rfov                            =  10;              % [deg] FOV radius conservative, w/o roll information
         
-        BaseDataDir                      % Base directory for data needed for uplanner
+        BaseDataDir                                         % Base directory for data needed for uplanner
         
-        CalibObj                        = []; % table of calibration objects 
-        CalibDir                             % the catibration objects' spectra directory 
+        CalibObj                        = [];               % table of calibration objects 
+        CalibDir                                            % the catibration objects' spectra directory 
 
-        RetrivedMissionTime     datetime    % date or empty        
-        ScheduledTime           datetime    % date or empty
-        ValidatedTime           datetime    % date or empty
-        SubmittedTime           datetime    % date or empty
+        RetrivedMissionTime     datetime                    % date or empty        
+        ScheduledTime           datetime                    % date or empty
+        ValidatedTime           datetime                    % date or empty
+        SubmittedTime           datetime                    % date or empty
         Status                  char        = 'draft';      % 'draft', 'submitted'
         Editable                logical     = true;         %
         Validated               logical     = false;        % Validation result
         ValidationResponse      struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
         
-        AstPlanner              char        % name of the Astronomer-Planner
-        Mclient                             % API client - MissionClient / MissionClientSim
+        AstPlanner              char                        % name of the Astronomer-Planner
+        Mclient                                             % API client - MissionClient / MissionClientSim
     end
+
     % 
     properties(Hidden, Constant)
         Plan_AllowedTypes  = {'HCS', 'LCS', 'AllSS', 'DDT', 'TOO'};
         
         SysTimeZone        = 'UTC';
-        
+
+        % -------- Plan Targets Table --------
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets',...
@@ -192,23 +193,26 @@ classdef uplanner < Component
                               'logical','logical','double','double','double','double','double','cell',...
                               'string','string','string','datetime','double',...
                               'cell','string','cell'};
-                                                                
+                                               
+        % -------- Unique Targets Table --------
         Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
         Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'double'};  
         
+        % -------- Approved Targets Table --------
         MissionApprovedPlan_VarNames   = {'Name','pk','TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
         MissionApprovedPlan_VarTypes   = {'string','uint64','char','double','double','double',...
                               'datetime','datetime','duration','double','duration'};        
         
-        ObsSunDist           = 70;   % [deg]
-        ObsMoonDist          = 34;   % [deg]
-        ObsEarthDist         = 56;   % [deg]        
+        ObsSunDist           = 70;      % [deg]
+        ObsMoonDist          = 34;      % [deg]
+        ObsEarthDist         = 56;      % [deg]        
 
-        SlewSunDist          = 70;   % [deg]
-        SlewMoonDist         = 19.5; % [deg]
-        SlewEarthDist        = 19.5; % [deg]                
+        SlewSunDist          = 70;      % [deg]
+        SlewMoonDist         = 19.5;    % [deg]
+        SlewEarthDist        = 19.5;    % [deg]                
     end 
+
     % 
     methods  % Constructor
         function Obj = uplanner(Args)
@@ -407,6 +411,13 @@ classdef uplanner < Component
                 Args.TargetList = [];
             end
            
+            %------------------------------------------------------
+            % @Chen for Yossi: EXAMPLE for using the helper for LCS modifications
+            % This code just print one line - 
+            Helper = ultrasat.planner.LcsHelper(Obj);
+            Helper.buildLcs();
+            %------------------------------------------------------
+
             % Verify that all the relevant parameters are set
             
             if ~strcmp(Obj.Type,'LCS')
@@ -609,6 +620,14 @@ classdef uplanner < Component
                 Args.MaxBranch              = 0;        % SWITCHED OFF maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
             end
+
+            %------------------------------------------------------
+            % @Chen for Yossi: EXAMPLE for using the helper for AllSS modifications
+            % This code just print one line - 
+            Helper = ultrasat.planner.AllSSHelper(Obj);
+            Helper.buildAllSS();
+            %------------------------------------------------------
+
             % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
             % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
             % that is, allow for a maximum of 20 visits a day. 
@@ -916,8 +935,10 @@ classdef uplanner < Component
                 Args.Tiles = repmat(Args.Tiles(1),1,NUtarg);
             end
             
-            % Chen (05/10/2025)
+            % ------------------------------------------
+            % @Chen (05/10/2025)
             % Avoid Warning: "The assignment added rows to the table, but did not assign values to all of the table's existing variables. Those variables are extended with rows containing default values".
+            % The fix is to first extend Obj.Plan to the required height, then fill it
             lastRowNeeded = NProws + NUtarg;
             if height(Obj.Plan) < lastRowNeeded
 
@@ -934,7 +955,8 @@ classdef uplanner < Component
                 % Extend the Plan tale
                 Obj.Plan = [Obj.Plan; filler];
             end
-            
+            % ------------------------------------------
+
             % Add plan rows one be one
             for ii = 1:NUtarg
             
@@ -1685,13 +1707,15 @@ classdef uplanner < Component
                 end
                 
                 errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); 
-                xlabel(ax, '\lambda [A]'); 
-                ylabel(ax, 'F [erg/cm(2)/s/A]'); 
+
+                xlabel(ax, '$\lambda\ [\mathrm{\AA}]$', 'Interpreter', 'latex');
+                ylabel(ax, 'F [erg cm$^{-2}$ s$^{-1}$ \AA$^{-1}$]', 'Interpreter','latex');
+
                 set(ax, 'YScale', 'log');
                 if ~isempty(Args.WaveRange)
                     xlim(ax,Args.WaveRange.*10);
                 end
-                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{Args.subInd2plot},Res.Teff_K_(Args.subInd2plot),Res.logG(Args.subInd2plot))); 
+                title(ax,sprintf('%s: Teff = %.0f [K], log(g) = %.1f',Res.obj{Args.subInd2plot},Res.Teff_K_(Args.subInd2plot),Res.logG(Args.subInd2plot))); 
             end            
         end
         %
