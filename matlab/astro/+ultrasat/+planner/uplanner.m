@@ -1727,8 +1727,11 @@ classdef uplanner < Component
                 Args.AxesHandle       =[]; % appUIAxes                
                 Args.TimeWindowJD   = []; 
                 Args.JD_offset    = 2460000;
+                Args.plotSun        = true;
                 Args.SunColor     = 'k';
+                Args.plotEarth        = true;
                 Args.EarthColor     = 'b';
+                Args.plotMoon        = true;                
                 Args.MoonColor     = 'g';
                 Args.TimeColor      = 'r';
             end
@@ -1746,60 +1749,83 @@ classdef uplanner < Component
             
             V = Obj.Vis;
             
+            l = {};
+
             % plot Sun/Earth/Moon distances
-            plot(ax,V.JD-Args.JD_offset,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
-            plot(ax,V.JD-Args.JD_offset,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
-            plot(ax,V.JD-Args.JD_offset,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+            if Args.plotEarth
+                plot(ax,V.JD-Args.JD_offset,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
+                l = [l,{'Earth'}];
+            end
+            if Args.plotMoon
+                plot(ax,V.JD-Args.JD_offset,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+                l = [l,{'Moon'}];
+            end
+            if Args.plotSun
+                plot(ax,V.JD-Args.JD_offset,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
+                l = [l,{'Sun'}];
+            end
             
             % plot Sun/Earth/Moon limits
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+            if Args.plotEarth
+                plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
+            end
+            if Args.plotMoon
+               plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+            end
+            if Args.plotSun
+                plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);   
+            end
             
             yl = ylim(ax); % can be removed when using xregion
                         
-            % Check for unobservable times due to Sun %% ERROR if only one JD is not observable
-            Fvis = find(~V.SunLimits(:,UniqTargInd));
-            if ~isempty(Fvis)
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
-
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
-                end
-            end
-            
             % Check for unobservable times due to Earth %% ERROR if only one JD is not observable
-            Fvis = find(~V.EarthLimits(:,UniqTargInd));
-            if ~isempty(Fvis)            
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                clear nonVisWindows;
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
-
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+            if Args.plotEarth
+                Fvis = find(~V.EarthLimits(:,UniqTargInd));
+                if ~isempty(Fvis)            
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    clear nonVisWindows;
+                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                            [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end
                 end
             end
-            
-            % Check for unobservable times due to Moon %% ERROR if only one JD is not observable
-            Fvis = find(~V.MoonLimits(:,UniqTargInd));
-            if ~isempty(Fvis)            
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                clear nonVisWindows;
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
 
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
-                end            
+            % Check for unobservable times due to Moon %% ERROR if only one JD is not observable
+            if Args.plotMoon            
+                Fvis = find(~V.MoonLimits(:,UniqTargInd));
+                if ~isempty(Fvis)            
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    clear nonVisWindows;
+                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                            [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end            
+                end
+            end
+
+            % Check for unobservable times due to Sun %% ERROR if only one JD is not observable
+            if Args.plotSun            
+                Fvis = find(~V.SunLimits(:,UniqTargInd));
+                if ~isempty(Fvis)
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
+                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                            [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end
+                end      
             end
             
             % set plot limits
@@ -1823,9 +1849,9 @@ classdef uplanner < Component
                 TargetName = 'UnnamedTarget';
             end
             title(ax, sprintf('Visibility of %s (UniqTarget #%d)', TargetName, UniqTargInd));            
-                        
+            
             % Legend
-            legend(ax, 'Sun','Earth','Moon','Location','best');
+            legend(ax, l,'Location','best');
             hold(ax, 'off');
         end
         %
