@@ -1727,6 +1727,7 @@ classdef uplanner < Component
                 Args.AxesHandle       =[]; % appUIAxes                
                 Args.TimeWindowJD   = []; 
                 Args.JD_offset    = 2460000;
+                Args.TimeUTC      = false; % false=Time JD
                 Args.plotSun        = true;
                 Args.SunColor     = 'k';
                 Args.plotEarth        = true;
@@ -1746,34 +1747,46 @@ classdef uplanner < Component
             end
             hold(ax, 'on');  
             box(ax, 'on');
-            
-            V = Obj.Vis;
-            
             l = {};
 
+            V = Obj.Vis;
+
+            if Args.TimeUTC
+                t = datetime(V.JD,'ConvertFrom','juliandate');
+                timeWindow = datetime(Args.TimeWindowJD,'ConvertFrom','juliandate');
+                startTime = Obj.StartTime;
+                endTime = Obj.EndTime;
+                xlabeltext='UTC';
+            else
+                t = V.JD-Args.JD_offset;
+                timeWindow = Args.TimeWindowJD-Args.JD_offset;
+                startTime = juliandate(Obj.StartTime)-Args.JD_offset;
+                endTime = juliandate(Obj.EndTime)-Args.JD_offset;
+                xlabeltext=sprintf('JD-%.1f',Args.JD_offset);
+            end
             % plot Sun/Earth/Moon distances
             if Args.plotEarth
-                plot(ax,V.JD-Args.JD_offset,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
+                plot(ax,t,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
                 l = [l,{'Earth'}];
             end
             if Args.plotMoon
-                plot(ax,V.JD-Args.JD_offset,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+                plot(ax,t,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
                 l = [l,{'Moon'}];
             end
             if Args.plotSun
-                plot(ax,V.JD-Args.JD_offset,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
+                plot(ax,t,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
                 l = [l,{'Sun'}];
             end
             
             % plot Sun/Earth/Moon limits
             if Args.plotEarth
-                plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
+                plot(ax,t([1,end]),[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
             end
             if Args.plotMoon
-               plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+               plot(ax,t([1,end]),[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
             end
             if Args.plotSun
-                plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);   
+                plot(ax,t([1,end]),[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);   
             end
             
             yl = ylim(ax); % can be removed when using xregion
@@ -1785,11 +1798,16 @@ classdef uplanner < Component
                     Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
                     Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
                     clear nonVisWindows;
-                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
     
                     for i = 1:height(nonVisWindows)
-                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
                             [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                     end
                 end
@@ -1802,11 +1820,16 @@ classdef uplanner < Component
                     Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
                     Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
                     clear nonVisWindows;
-                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
     
                     for i = 1:height(nonVisWindows)
-                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
                             [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                     end            
                 end
@@ -1818,11 +1841,17 @@ classdef uplanner < Component
                 if ~isempty(Fvis)
                     Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
                     Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                    nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                    nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
+                    clear nonVisWindows;
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
     
                     for i = 1:height(nonVisWindows)
-                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
                             [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
                     end
                 end      
@@ -1831,16 +1860,16 @@ classdef uplanner < Component
             % set plot limits
             ylim(ax,yl); % can be removed when using xregion
             
-            xlim(ax,V.JD([1,end])-Args.JD_offset);
+            xlim(ax,t([1,end]));
             if ~isempty(Args.TimeWindowJD)
-                xlim(ax,Args.TimeWindow-Args.JD_offset)
+                xlim(ax,timeWindow)
             end           
             
             % plot StartTime and EndTime            
-            xline(ax,juliandate(Obj.StartTime)-Args.JD_offset,['-' Args.TimeColor],'Start Time');
-            xline(ax,juliandate(Obj.EndTime)-Args.JD_offset,['-' Args.TimeColor],'End Time');
+            xline(ax,startTime,['-' Args.TimeColor],'Start Time');
+            xline(ax,endTime,['-' Args.TimeColor],'End Time');
             
-            xlabel(ax,sprintf('JD-%.1f',Args.JD_offset)); 
+            xlabel(ax,xlabeltext); 
             ylabel(ax,'Angular distance [deg]');
 
             % Title with target name and index
