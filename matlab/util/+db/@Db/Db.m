@@ -1513,7 +1513,7 @@ rs = stmt.executeQuery(Query);
     methods(Static)
 %         Result = unitTest()
         
-        function DB = connectLAST_DB(Args)
+        function DB = connectLASTdb(Args)
             arguments
                 Args.Pass
             end

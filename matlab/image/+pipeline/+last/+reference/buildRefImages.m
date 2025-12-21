@@ -6,7 +6,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
+    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLASTdb('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
     arguments
@@ -151,7 +151,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % next step?) 
                     end                                  
                     % 5. coadd the the aligned and merged crops
-                    % tmploy pipeline.generic.procMergeCoadd?
+                    % employ pipeline.generic.procMergeCoadd?
                     
                     % 6. save the new reference on disk and fill the DB table line
                 end
