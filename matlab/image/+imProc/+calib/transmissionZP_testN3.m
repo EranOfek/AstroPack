@@ -1,0 +1,61 @@
+function [Result] = transmissionZP_testN3(Args)
+    % test function to process catalogs of LAST N3 survey with the absolute photometry calibration suite  
+    %     Optional detailed description
+    % Input  : - none    
+    %          * ...,key,val,... 
+    % Output : - catalogs augmented with absolute photometry data and written to disk as FITS files  
+    % Author : A.M. Krassilchtchikov (2025 Dec) 
+    % Example: D = db.Db.connectLASTdb('Pass','*'); 
+    %          imProc.calib.transmissionZP_testN3('DB',D);
+    arguments
+        Args.FieldID           = '1679.c';
+        Args.MountNum          = 2;
+        Args.CamNum            = 1;
+        Args.CropID            = 10;
+        Args.Table             = 'N3_visit_images';
+        Args.DB                = [];
+        Args.OutDir            = '/Data2/test/';
+    end
+    %
+    Q = sprintf(['select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') ' ... 
+        'and mountnum = %d and camnum = %d and cropid = %d'],...
+        Args.Table,Args.FieldID,Args.FieldID(1:4),Args.MountNum,Args.CamNum,Args.CropID);
+
+    T2 = Args.DB.query(Q);
+    Nvis = height(T2);    
+    
+    for Ivis = 1:Nvis
+        % construct the file name (later will use an AstroFileName object)
+        Mt  = compose('%02d',T2.mountnum(Ivis)); Cam = compose('%02d',T2.camnum(Ivis));
+        YY  = compose('%04d',T2.diryear(Ivis)); MM = compose('%02d',T2.dirmon(Ivis)); 
+        DD = compose('%02d',T2.dirday(Ivis));
+        if str2double(extractBetween(T2.filetime(Ivis),1,2)) < 12
+            DD2 = DD+1;
+        else
+            DD2 = DD;
+        end
+        
+        FN = strcat('/mnt/euclid/last/data/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
+            '/proc/',T2.subdir(Ivis),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD2,'.',T2.filetime(Ivis),...
+            '_clear_',string(T2.fieldid(Ivis)),'_000_001_',compose('%03d',T2.cropid(Ivis)),...
+            '_sci_coadd_Image_1.fits');
+        
+        % read the data files into an AI
+        AI = AstroImage.readProducts(FN,'ExtraOutProduct',"Cat");
+        
+        % process the AI (this is the main part where absolute calibration
+        % is made and appropriate columns added to the catalog)
+        
+        % AI = imProc.calib.transmissionZP_skeleton(AI);
+        
+        % write the output catalog to file 
+        FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
+            '/proc/',T2.subdir(Ivis),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD2,'.',T2.filetime(Ivis),...
+            '_clear_',string(T2.fieldid(Ivis)),'_000_001_',compose('%03d',T2.cropid(Ivis)),...
+            '_sci_coadd_Cat_1.fits');
+        
+        AI.write1(FN1,'CatData','OverWrite',true,'MkDir',true);
+        % clear the AI
+        clear AI;
+    end
+end
