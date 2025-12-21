@@ -72,7 +72,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     Dirs = Dirs(~contains({Dirs.folder},'re'));
     % 
     Ndir = numel(Dirs);
-    for IDir = 46:Ndir
+    for IDir = 1:Ndir
         DataDir = strcat(Dirs(IDir).folder,'/',Dirs(IDir).name);         
         cd(DataDir);    
         try
@@ -98,13 +98,23 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                 fprintf(FIDbrokendata,'%s \n',DataDir);
                 continue
             end
-            Nobj = numel(Cat);
-            if Nobj < 2 % likely no data have been read 
+            cd(Dir);
+                        
+            if numel(Cat) < 2 % likely no data have been read 
                 cd(Dir);
                 fprintf(FIDnodata,'%s \n',DataDir);
                 continue
             end
-            cd(Dir);
+            
+            % remove the elements with insufficient number of columns:            
+            NCol = max(arrayfun(@(x) size(x.Catalog, 2), Cat));
+            Idx  = arrayfun(@(x) size(x.Catalog,2) < NCol, Cat);
+            if Idx(1) % if the first catalog is broken, no Table properties have been read
+                continue
+            end
+            Cat(Idx) = [];
+            Nobj = numel(Cat);    
+          
             fprintf('Injecting from %s ..',DataDir);
             
             % check and add essential KEYWORDS if they are missing                  

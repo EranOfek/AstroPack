@@ -6,7 +6,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLAST_DB('Pass','*')
+    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLASTdb('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
     arguments
@@ -151,7 +151,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % next step?) 
                     end                                  
                     % 5. coadd the the aligned and merged crops
-                    % tmploy pipeline.generic.procMergeCoadd?
+                    % employ pipeline.generic.procMergeCoadd?
                     
                     % 6. save the new reference on disk and fill the DB table line
                 end
@@ -193,67 +193,4 @@ function WCS = buildRefWCS(Args) % this is a simple function to be replaced by a
         WCS.PhiP      = 180;
 end
 
-% function ipix_list = upscale_nested_pixel(ipix0, Nside0, Nside1)
-%     % Check that Nside1 is a multiple of Nside0
-%     assert(mod(Nside1, Nside0) == 0, 'Nside1 must be a multiple of Nside0');
-%     
-%     ratio = Nside1 / Nside0;
-%     npix_per_coarse = ratio^2;
-% 
-%     ipix_list = [];
-%     % First fine pixel in the block
-%     for i=1:numel(ipix0)
-%         first = ipix0(i) * npix_per_coarse;
-%         last = (ipix0(i) + 1) * npix_per_coarse - 1; 
-%         ipix_list = [ipix_list; (first : last)']; 
-%     end    
-% end
 
-% function ipix8 = neighbors(Nside, Ipix)
-% 
-%     [x, y, f] = celestial.healpix.ipix2xyf(Ipix, Nside);
-%     
-%     ipix8(1) = celestial.healpix.xyf2ipix(x+1, y+1, f, Nside);
-%     ipix8(2) = celestial.healpix.xyf2ipix(x+1, y-1, f, Nside);
-%     ipix8(3) = celestial.healpix.xyf2ipix(x-1, y+1, f, Nside);
-%     ipix8(4) = celestial.healpix.xyf2ipix(x-1, y-1, f, Nside);
-%     ipix8(5) = celestial.healpix.xyf2ipix(x, y-1, f, Nside);
-%     ipix8(6) = celestial.healpix.xyf2ipix(x, y+1, f, Nside);
-%     ipix8(7) = celestial.healpix.xyf2ipix(x+1, y, f, Nside);
-%     ipix8(8) = celestial.healpix.xyf2ipix(x-1, y, f, Nside);
-% end
-% % 
-% % function [x, y, f] = pix2xyf(ipix, nside)
-% % Convert nested HEALPix pixel index to (x, y, face number) for NESTED scheme
-% % Based on the official HEALPix algorithm
-% 
-% % Constants
-% npface = nside * nside;
-% pix = ipix;
-% f = floor(pix / npface);
-% p = mod(pix, npface);
-% 
-% % Decode p into (ix, iy) using bit interleaving (Morton order)
-% x = 0;
-% y = 0;
-% for i = 0:log2(nside)-1
-%     x = bitor(x, bitshift(bitget(p, 2*i+1), i));
-%     y = bitor(y, bitshift(bitget(p, 2*i+2), i));
-% end
-% end
-% 
-% function ipix = xyf2pix(x, y, f, nside)
-% % Convert (x, y, face number) back to HEALPix pixel index in NESTED scheme
-% % Reverses the pix2xyf logic
-% 
-% % Interleave bits of x and y to form the position within the face
-% p = 0;
-% for i = 0:log2(nside)-1
-%     p = bitor(p, bitshift(bitget(x, i+1), 2*i));
-%     p = bitor(p, bitshift(bitget(y, i+1), 2*i + 1));
-% end
-% 
-% ipix = f * nside^2 + p;
-% end
-% 
-% 
