@@ -147,9 +147,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         Saligned(Iepoch) = imProc.transIm.imwarp(S(Iepoch), RefWCS);
                         
-                        % 4.2.3 refine the astrometry 
+                        % 4.2.3 refine the astrometry (or leave it for the
+                        % next step?) 
                     end                                  
-                    % 5. proper coadd the the aligned and merged crops
+                    % 5. coadd the the aligned and merged crops
+                    % tmploy pipeline.generic.procMergeCoadd?
                     
                     % 6. save the new reference on disk and fill the DB table line
                 end
