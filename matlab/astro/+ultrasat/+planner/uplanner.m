@@ -1923,6 +1923,7 @@ classdef uplanner < Component
                 [RA_grid,Dec_grid] = meshgrid(RA_vec,Dec_vec);
                 A_u = ultrasat.tools.extinction(RA_grid,Dec_grid,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
                 imagesc(ax,RA_vec, Dec_vec, A_u);
+                colormap(ax,'turbo');
                 c = colorbar(ax);
                 c.Label.String = 'A_{ULTRASAT}';
                 clim(ax, [0,1.1]);
@@ -1931,7 +1932,13 @@ classdef uplanner < Component
             
             if Args.vis_at_time_map
                 disp('TBD');
-            end            
+            end   
+            
+            if Args.CalObjMap
+                if ~isempty(Obj.CalibObj)
+                    plot(ax,Obj.CalibObj.RA,Obj.CalibObj.Dec,'+w');
+                end
+            end
             
             if Args.disp_uniqTarg
                 UniqTargInds = Args.plan_rows;
@@ -1944,15 +1951,10 @@ classdef uplanner < Component
                     CircFOV(CircFOV(:,1)<0,1) = CircFOV(CircFOV(:,1)<0,1)+360;
                     CircFOV(CircFOV(:,1)>360,1) = CircFOV(CircFOV(:,1)>360,1)-360;
                     
-                    plot(ax,CircFOV(:,1),CircFOV(:,2),'.b');
+                    plot(ax,CircFOV(:,1),CircFOV(:,2),':k','linewidth',2);
                 end
             end
             
-            if Args.CalObjMap
-                if ~isempty(Obj.CalibObj)
-                    plot(ax,Obj.CalibObj.RA,Obj.CalibObj.Dec,'*m');
-                end
-            end
             
             if Args.disp_MissAprvPlan
                 MissAprvPlan_rows = Args.MissAprvPlan_rows;
