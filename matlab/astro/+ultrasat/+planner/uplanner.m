@@ -1397,10 +1397,11 @@ classdef uplanner < Component
 
             Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
-            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)],'CooUnits','deg',...
+            VisJD = Obj.Plan.JDstart(Plan_row) + (0:days(Obj.Plan.ExpTime(Plan_row)):(Obj.Plan.JDend(Plan_row)-Obj.Plan.JDstart(Plan_row)))'; 
+            TargetVis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)],'CooUnits','deg',...
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0); 
 
-            if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+            if ~all([TargetVis.EarthLimits ; TargetVis.MoonLimits ; TargetVis.SunLimits])
                 fprintf('Target %d, JDstart %.2f\n',Obj.Plan.UniqTargInd(Plan_row),Obj.Plan.JDstart(Plan_row))
                 
                 % @Chen: Temporary for development - removed to allow GUI tests (06/07/2025)
@@ -1413,9 +1414,9 @@ classdef uplanner < Component
             Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
 
 
-            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD; 
-            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
-            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD; 
+            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist(1)*RAD; 
+            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist(1)*RAD;
+            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist(1)*RAD; 
 
             % TODO - ADD Calc Zody,LimMag  
 
