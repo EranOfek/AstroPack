@@ -651,14 +651,19 @@ classdef Tran2D < Base
             switch numel(varargin)
                 case 1
                     Coo = varargin{1};
+                    Normalize = true;
                 case 2
                     Coo = [varargin{1}(:), varargin{2}(:)];
+                    Normalize = true;
+                case 3
+                    Coo = [varargin{1}(:), varargin{2}(:)];
+                    Normalize = varargin{3};
                 otherwise
                     error('Number of argumnets need to be 2 or 3');
             end
             
             % applay normalization
-            Normalize = true;
+%             Normalize = true;
             if Normalize
                 if iscell(Coo)
                     Xref = TC.FunNX(Coo{1},TC.ParNX(1),TC.ParNX(2));
