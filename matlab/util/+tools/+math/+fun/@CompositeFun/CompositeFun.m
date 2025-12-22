@@ -464,16 +464,17 @@ classdef CompositeFun < handle
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - CompositeFun object with all functions added
             % Author : D. Kovaleva (Dec 2025)
-            % Example: FunList(1).name = 'Func1';
-            %          FunList(1).handle = '@mypackage.myfunction';
-            %          FunList(1).handletype = 'named';
-            %          FunList(1).params = [1.0, 2.0];
-            %          FunList(1).paraminfo(1).name = 'param1';
-            %          FunList(1).paraminfo(1).min = 0;
-            %          FunList(1).paraminfo(1).max = 10;
-            %          FunList(1).paraminfo(2).name = 'param2';
-            %          FunList(1).paraminfo(2).min = 0;
-            %          FunList(1).paraminfo(2).max = 5;
+            % Example: FunList(1).Name = 'Func1';
+            %          FunList(1).Handle = '@mypackage.myfunction';
+            %          FunList(1).HandleType = 'named';
+            %          FunList(1).Params = [1.0, 2.0];
+            %          FunList(1).FitPar = [true, false];
+            %          FunList(1).ParamInfo(1).Name = 'param1';
+            %          FunList(1).ParamInfo(1).Min = 0;
+            %          FunList(1).ParamInfo(1).Max = 10;
+            %          FunList(1).ParamInfo(2).Name = 'param2';
+            %          FunList(1).ParamInfo(2).Min = 0;
+            %          FunList(1).ParamInfo(2).Max = 5;
             %          Metadata = struct('param1', 1.5);
             %          Model = tools.math.fun.CompositeFun.model(FunList, ...
             %              'MetadataValues', Metadata, 'UseTran2D', true);
@@ -503,11 +504,11 @@ classdef CompositeFun < handle
                 FunDef = FunList(I);
 
                 % Extract function definition
-                FunName = FunDef.name;
-                HandleStr = FunDef.handle;
-                HandleType = FunDef.handletype;
-                Params = FunDef.params;
-                ParamInfo = FunDef.paraminfo;
+                FunName = FunDef.Name;
+                HandleStr = FunDef.Handle;
+                HandleType = FunDef.HandleType;
+                Params = FunDef.Params;
+                ParamInfo = FunDef.ParamInfo;
 
                 % Convert params from cell array to numeric array if needed (from YAML)
                 if iscell(Params)
@@ -529,9 +530,17 @@ classdef CompositeFun < handle
                     Params = Params';
                 end
 
-                % Create FitPar array (all false initially)
+                % Extract FitPar array (or default to all false)
                 NumParams = length(Params);
-                FitPar = false(1, NumParams);
+                if isfield(FunDef, 'FitPar')
+                    FitPar = FunDef.FitPar;
+                    % Ensure row vector
+                    if iscolumn(FitPar)
+                        FitPar = FitPar';
+                    end
+                else
+                    FitPar = false(1, NumParams);
+                end
 
                 % Validate that params and paraminfo have matching lengths
                 if NumParams ~= length(ParamInfo)
@@ -547,10 +556,10 @@ classdef CompositeFun < handle
                     ArgNames = struct([]);
                     for J = 1:NumParams
                         PInfo = ParamInfo(J);
-                        ArgNames(J).Name = PInfo.name;
-                        ArgNames(J).Description = PInfo.name;
-                        ArgNames(J).Min = PInfo.min;
-                        ArgNames(J).Max = PInfo.max;
+                        ArgNames(J).Name = PInfo.Name;
+                        ArgNames(J).Description = PInfo.Name;
+                        ArgNames(J).Min = PInfo.Min;
+                        ArgNames(J).Max = PInfo.Max;
                     end
                 end
 
@@ -1318,7 +1327,7 @@ classdef CompositeFun < handle
         function Y=evaluateAllFunParInput(Obj, X, AllFunPar)
             % Evaluate the composite function
             % Input  : - Obj - CompositeFun object.
-            %          - X - Input values (e.g., wavelengths), column vector.
+            %          - X - Input values (e.g., wavelengths), a vector.
             %          - AllFunPars - Full parameter matrix (optional).
             %                       If vector: single parameter set.
             %                       If matrix: each row is a parameter set.
@@ -1387,7 +1396,7 @@ classdef CompositeFun < handle
         function Y=evaluate(Obj, X, FittedPars)
             % Evaluate the composite function using only fitted parameters
             % Input  : - Obj - CompositeFun object.
-            %          - X - Input values (e.g., wavelengths), column vector.
+            %          - X - Input values (e.g., wavelengths), a vector.
             %          - FittedPars - Fitted parameter matrix only.
             %                          If vector: single parameter set.
             %                          If matrix: each row is a parameter set.
@@ -1621,14 +1630,7 @@ classdef CompositeFun < handle
             % we use: T_corrected = T_base × 10^(+0.4 × FieldCorrectionMag)
             %   - Positive FieldCorrectionMag (model too bright, need dimming) → T_correction < 1
             %   - Negative FieldCorrectionMag (model too faint, need brightening) → T_correction > 1
-            FieldCorrectionTransmission = 10.^(+0.4 * FieldCorrectionMag);  % [N_sources x 1]
-
-            % Check if magnitude corrections are unreasonably large (> ±10 mag would give extreme transmission factors)
-            if any(abs(FieldCorrectionMag) > 10)
-                warning('CompositeFun:evaluateWithPosition:LargeMagCorrection', ...
-                        'Field corrections exceed ±10 mag (range: %.2f to %.2f). This may indicate incorrect Tran2D parameters.', ...
-                        min(FieldCorrectionMag), max(FieldCorrectionMag));
-            end
+            FieldCorrectionTransmission = 10.^(-0.4 * FieldCorrectionMag);  % [N_sources x 1]
 
             % Step 6: Build 2D transmission matrix [N_sources x N_lambda]
             Transmission_base_replicated = repmat(Transmission_base', N_sources, 1);
@@ -1751,7 +1753,7 @@ classdef CompositeFun < handle
                 Par.Name{I} = sprintf('PosCoeff_%d', I);
             end
 
-            % Get current parameter values (column vector for consistency)
+            % Get current parameter values 
             Par.Val = Obj.Tran2DObj.ParX(:);
 
             % By default, all position parameters are fittable (column vector)
@@ -2259,8 +2261,9 @@ classdef CompositeFun < handle
             %
             % Input  : - Obj - CompositeFun object (modified in place)
             %          - InputValues - Independent variable grid where the CompositeFun is evaluated (e.g., wavelength grid)
-            %                   Column vector [N_input x 1]
-            %          - ObservedValues - Observed values to be compared to the model [N_obs x 1]
+            %                   Vector [N_input x 1]
+            %          - ObservedValues - Observed values to be compared to
+            %          the model [N_obs x 1] (e.g. observed flux)
             %          * ...,key,val,...
             %            'CostArgs' - Struct with additional arguments to pass to Obj.costFun
             %                   Default is struct().
