@@ -6,7 +6,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('LAST_RefIm_Grid_v2.mat'); D = db.Db.connectLASTdb('Pass','*')
+    % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*')
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
     arguments
@@ -17,21 +17,28 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.SearchTable = 'visit_images'; % 'raw_images';
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
-                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
+                           "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.RefTable    = 'ref_images_v4';     
         Args.Verbose     = 'false';
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
+        
+        Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the Reference Grid
+        Args.Naxis1       = 1726;  % the size of the reference image 
+        Args.Naxis2       = 1726;
+        
+        Args.UseInterp2  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.interp2wcsArgs = {};  
+        
+        Args.RasterResolution = 10; % arcsec
     end
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid); 
     
     % convert the RA to [0, 360]:    % later change Yossi's grid itself to avoid this 
-    RefGrid.RA  = RefGrid.RA + 180;
-    RefGrid.RA1 = RefGrid.RA1 + 180;
-    RefGrid.RA2 = RefGrid.RA2 + 180;
-    RefGrid.RA3 = RefGrid.RA3 + 180;
-    RefGrid.RA4 = RefGrid.RA4 + 180;
+    RefGrid.RA  = RefGrid.RA  + 180; 
+    RefGrid.RA1 = RefGrid.RA1 + 180; RefGrid.RA2 = RefGrid.RA2 + 180;
+    RefGrid.RA3 = RefGrid.RA3 + 180; RefGrid.RA4 = RefGrid.RA4 + 180;
     
     % loop over the ref. image grid
     if isempty(Args.RefNumbers)
@@ -40,11 +47,23 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         RefNumbers = Args.RefNumbers;
     end
     
-    for Iref = RefNumbers    
-        % 0. build the ref polygon to be covered and find the healpix coverage
+    for Iref = RefNumbers                    
+        % if the WCS of the target Reference Image has not been read from the RefGrid object  
+        % at the very beginning, build it here 
+        if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
+            RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
+        else
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref));
+        end         
+        % create an empty reference AstroImage and attach the RefWCS to it
+        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
+        AIref.WCS = RefWCS;
         
+        % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
+        Raster0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.RasterResolution);
+        
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch);  
@@ -52,7 +71,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %         if abs(RefGrid.Dec(Iref)) > 99. % 70. % ???
 %             UpixNeighb = UpixCenter;
 %         end
-        % translate the center and the neighbors to Args.NsideLow (as in the DB)                
+        % translate the center and the neighbors to Args.NsideLow (as in the DB)                 
         UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
         % convert to UNIQ:    
@@ -80,21 +99,33 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         for Im = 1:10      % loop on mounts
             for Ic = 1:4   % loop on cameras
                 T1 = T(T.mountnum==Im & T.camnum==Ic,:);
-                if height(T1) > 0
-                    fprintf('M%dC%d:\n',Im,Ic);
+                if height(T1) > 0                    
                     [Grp, ~] = findgroups(T1.jd_start); 
-                    Nepoch   = max(Grp);                 
+                    Nepoch   = max(Grp);        
+                    fprintf('M%dC%d: %d epochs\n',Im,Ic,Nepoch);
                     S        = AstroImage([Nepoch 1]);
                     Saligned = AstroImage([Nepoch 1]);
                     for Iepoch = 1:Nepoch
                         T2  = T1(Grp == Iepoch, :);
                         Nim = height(T2);
-                        fprintf('M%dC%d epoch %d: %d images retrieved\n',Im,Ic,Iepoch,Nim);
+                        fprintf('M%dC%d epoch %d: %d images found\n',Im,Ic,Iepoch,Nim);
                         % 2. qualify the overlapping proc images
                         
                         % 3. select exposures by specific obs. time, time span, etc.
                         
-                        % check the coverage
+                        % if the total coverage is incomplete, skip to the next epoch                         
+                        Nim = height(T2);     
+                        RasterC = [];
+                        for Icrop = 1:Nim % merge the rasters of all the crops involved 
+                            CropPoly = [T2.ra1(Icrop), T2.dec1(Icrop); T2.ra2(Icrop), T2.dec2(Icrop); ...
+                                        T2.ra3(Icrop), T2.dec3(Icrop); T2.ra4(Icrop), T2.dec4(Icrop)];
+                            Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
+                            RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
+                        end
+                        if ~all(ismember(Raster0, RasterC))   
+                            fprintf('Incomplete coverage, epoch %d is skipped\n', Iepoch);
+                            continue % to the next epoch
+                        end
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
                         fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,Iepoch,Nim);
@@ -116,18 +147,12 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue
                         end
                         
-                        % merge
-                        
+                        % merge                         
                             % var1
-                        [S(Iepoch), ~, ~]  = imProc.stack.stitch(AI,'WCSfromFirstIm',true,'WriteFile',false); 
-                        % issues: 1. does not provide Back, Var, Mask
-                        clear AI;
-                         
-%                           % var2
-%                         S = imProc.transIm.imwarp(AI(2), AI(1).WCS); %
-%                         'BoundsStyle','SameAsInput' does not work
-%
-%                           % var3 
+                        [S(Iepoch), ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
+                            'WriteFile',false,'Verbosity',1); 
+                        % issues: imProc.stack.stitch does not provide Back, Var, Mask                                                 
+%                           % var2 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
 %                           1. estimate the size of the merged image and
 %                              enlarge the matrix, fill with 0s
@@ -135,24 +160,26 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %                           3. use xy2sky with WCS1, then sky2xy with WCS0
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
 %                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
-%                                                 
-                        % 4.2.1 if the WCS of the target Reference Image
-                        % has not been written from the RefGrid object at
-                        % the very beginning, build it here
+%                                                                                                 
+                        % 4.2.1 rotate, align, and cut the merged crops to
+                        % the ref. coordinates: imwarp with the Reference Grid WCS                                                  
+                        if Args.UseInterp2
+                            Saligned(Iepoch) = imProc.transIm.interp2wcs(S(Iepoch), AIref,...
+                                'CreateNewObj',true,...
+                                Args.interp2wcsArgs{:});
+                        else
+                            Saligned(Iepoch) = imProc.transIm.imwarp(S(Iepoch), AIref,...
+                                'TransWCS',true,...
+                                'FillValues',0,...
+                                'ReplaceNaN',true,...
+                                'CreateNewObj',true);
+                        end
                         
-                        RefWCS = buildRefWCS('RA0',RefGrid.RA(Iref),'Dec0',RefGrid.Dec(Iref));
-                        
-                        % 4.2.2 rotate, align, and cut the merged crops to
-                        % the ref. coordinates: imwarp with the Reference Grid WCS 
-                        
-                        Saligned(Iepoch) = imProc.transIm.imwarp(S(Iepoch), RefWCS);
-                        
-                        % 4.2.3 refine the astrometry (or leave it for the
-                        % next step?) 
+                        % 4.2.2 refine the astrometry (or leave it for the next step?) 
                     end                                  
                     % 5. coadd the the aligned and merged crops
-                    % employ pipeline.generic.procMergeCoadd?
-                    
+                    % employ pipeline.generic.procMergeCoadd or some of its fragments?
+                    clear AI;
                     % 6. save the new reference on disk and fill the DB table line
                 end
             end % camera
@@ -162,16 +189,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 end
 
 
+%%%%%%%%%%%%%%%
 
 
-
-function WCS = buildRefWCS(Args) % this is a simple function to be replaced by a more accurate calculation
+function WCS = buildRefWCS(RA0, Dec0, Args) 
         arguments
-            Args.RA0      
-            Args.Dec0
+            RA0      
+            Dec0
+            Args.PA       = [];   
             Args.PixScale = 1.25;
-            Args.Npix1    = 1726;
-            Args.Npix2    = 1726; 
+            Args.Naxis1   = 1726;
+            Args.Naxis2   = 1726; 
         end
         %
         PixScale = Args.PixScale / 3600;    % [deg] pixel scale
@@ -184,13 +212,20 @@ function WCS = buildRefWCS(Args) % this is a simple function to be replaced by a
         WCS.CUNIT     = {'deg', 'deg'};
         WCS.CD(1,1)   = PixScale;
         WCS.CD(2,2)   = PixScale;
-        WCS.CRVAL(1)  = Args.RA0;
-        WCS.CRVAL(2)  = Args.Dec0;
-        WCS.CRPIX(1)  = Args.Npix1/2;
-        WCS.CRPIX(2)  = Args.Npix2/2;
-        WCS.AlphaP    = Args.RA0;
-        WCS.DeltaP    = Args.Dec0;
+        WCS.CRVAL(1)  = RA0;
+        WCS.CRVAL(2)  = Dec0;
+        WCS.CRPIX(1)  = Args.Naxis1/2;
+        WCS.CRPIX(2)  = Args.Naxis2/2;
+        WCS.AlphaP    = RA0;
+        WCS.DeltaP    = Dec0;
         WCS.PhiP      = 180;
+        
+        % rotate the WCS if PA is put in:  
+        if ~isempty(Args.PA) 
+            RotMatrix = [cos(Args.PA), -sin(Args.PA);
+                sin(Args.PA),  cos(Args.PA)];
+            WCS.CD = RotMatrix * WCS.CD;
+        end
 end
 
 
