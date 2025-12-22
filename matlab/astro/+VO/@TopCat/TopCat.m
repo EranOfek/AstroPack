@@ -44,6 +44,12 @@
 %     'Ofmt','csv','TimeoutSec',120);
 %
 % SDSS cone search
+%   Q   = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>10 AND subClass LIKE '%WD%'"
+%   T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
+%
+% VLA archive cone search
+%   Q = "SELECT TOP 5000 * FROM tap_schema.obscore WHERE 1=CONTAINS(POINT('ICRS',s_ra,s_dec),CIRCLE('ICRS',82.995,33.148,0.1)) AND t_min > 51000 AND t_min < 61000 ORDER BY t_min";  
+%   T = Tap.query(Q,'TapUrl','https://data-query.nrao.edu/tap','Ofmt','csv','TimeoutSec',120);         
 
 
 

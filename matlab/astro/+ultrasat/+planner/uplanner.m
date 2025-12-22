@@ -127,20 +127,20 @@ classdef uplanner < Component
         
         % AllSS
         AllSSgridFile                   = 'AllSS_grid_361.txt'; % the default AllSS grid
-        PointTypeCriterion              = 'b'; % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
-        AllSSHighLatThresh              = 30; % |b| [deg]
-        HighLatVisits                   =  4; % 1 visit = 3 x 300 s 
-        LowLatVisits                    =  2;      
-        DitherPattern                   = '2x2';  % not used as of yet
-        DitherLeg                       = 0;      % [deg] dither leg size
-        ExtragalMinIntervals            = [0 0 0];% minimal intervals in days between extragalactic visits
-        DailySlots                                % number of slots in a day
-        MaxDailyVisits                            % maximal allowed number of daily visits (determined from DailyWindowMaxDuration) 
-        EmptyDay                        = false;  % 1 empty day in a week (visibility set to 0 for all slots)
-        BufferEarthDist                 = 0;      % buffer distances for visibility predictions
+        PointTypeCriterion              = 'b';              % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
+        AllSSHighLatThresh              = 30;               % |b| [deg]
+        HighLatVisits                   =  4;               % 1 visit = 3 x 300 s 
+        LowLatVisits                    =  2;               %
+        DitherPattern                   = '2x2';            % not used as of yet
+        DitherLeg                       = 0;                % [deg] dither leg size
+        ExtragalMinIntervals            = [0 0 0];          % minimal intervals in days between extragalactic visits
+        DailySlots                                          % number of slots in a day
+        MaxDailyVisits                                      % maximal allowed number of daily visits (determined from DailyWindowMaxDuration) 
+        EmptyDay                        = false;            % 1 empty day in a week (visibility set to 0 for all slots)
+        BufferEarthDist                 = 0;                % buffer distances for visibility predictions
         BufferSunDist                   = 0;
         BufferMoonDist                  = 0;
-        SchedStatus                               % a table of AllSS points with the scheduling status marked 
+        SchedStatus                                         % a table of AllSS points with the scheduling status marked 
         
         % TOO
         TOOStartTime       datetime     =  datetime('now'); % [hrs]   
@@ -148,40 +148,41 @@ classdef uplanner < Component
         TOOMaxTargets                   =  4;               % maximal number of target fields
         TOOMinAddedProb                 =  0.05;            % minimal covered probability difference between N and N+1 targets employed
         TOOMinCoveredProb               =  0.9;             % minimal covered probability
-        TOOAlertProbMap                                     % input probability map 
-        
+        TOOAlertProbMap                                     % input probability map        
         TOOUsedTargets                                      % the number of actually employed targets
         TOOCoveredProb                                      % actually covered probability (all targets)
         TOOCoveredByTarget                                  % actually covered probability (vector: per target)
         
-        N_uniqueTargets                 =  0; % number of unique targets
-        N_planTargets                   =  0; % number of targets in the plan
+        N_uniqueTargets                 =  0;               % number of unique targets
+        N_planTargets                   =  0;               % number of targets in the plan
         
-        Rfov                            =  10; % [deg] FOV radius conservative, w/o roll information
+        Rfov                            =  10;              % [deg] FOV radius conservative, w/o roll information
         
-        BaseDataDir                      % Base directory for data needed for uplanner
+        BaseDataDir                                         % Base directory for data needed for uplanner
         
-        CalibObj                        = []; % table of calibration objects 
-        CalibDir                             % the catibration objects' spectra directory 
+        CalibObj                        = [];               % table of calibration objects 
+        CalibDir                                            % the catibration objects' spectra directory 
 
-        RetrivedMissionTime     datetime    % date or empty        
-        ScheduledTime           datetime    % date or empty
-        ValidatedTime           datetime    % date or empty
-        SubmittedTime           datetime    % date or empty
+        RetrivedMissionTime     datetime                    % date or empty        
+        ScheduledTime           datetime                    % date or empty
+        ValidatedTime           datetime                    % date or empty
+        SubmittedTime           datetime                    % date or empty
         Status                  char        = 'draft';      % 'draft', 'submitted'
         Editable                logical     = true;         %
         Validated               logical     = false;        % Validation result
         ValidationResponse      struct      % sturct containing the latest response from validator (corresponding to  ValidatedTime)
         
-        AstPlanner              char        % name of the Astronomer-Planner
-        Mclient                             % API client - MissionClient / MissionClientSim
+        AstPlanner              char                        % name of the Astronomer-Planner
+        Mclient                                             % API client - MissionClient / MissionClientSim
     end
+
     % 
     properties(Hidden, Constant)
         Plan_AllowedTypes  = {'HCS', 'LCS', 'AllSS', 'DDT', 'TOO'};
         
         SysTimeZone        = 'UTC';
-        
+
+        % -------- Plan Targets Table --------
         Plan_DefVarNames   = {'Name','UniqTargInd','Group','RA', 'Dec','ExpectedRoll','Tiles',...
                               'Tstart','Tend','JDstart','JDend','ExpTime','Nexposures','TotalDuration','SlewTimeBefore',...
                               'NoComm','HardObs','MoonDist','SunDist','EarthDist','Zody','LimMag','OverlapTargets',...
@@ -192,23 +193,26 @@ classdef uplanner < Component
                               'logical','logical','double','double','double','double','double','cell',...
                               'string','string','string','datetime','double',...
                               'cell','string','cell'};
-                                                                
+                                               
+        % -------- Unique Targets Table --------
         Target_DefVarNames = {'Name', 'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'HealpixArray','DitherGroup'};
         Target_DefVarTypes = {'string', 'double', 'double', 'double', 'cell', 'cell', 'cell', 'cell', 'cell', 'double'};  
         
+        % -------- Approved Targets Table --------
         MissionApprovedPlan_VarNames   = {'Name','pk','TargetID','RA', 'Dec','Roll',...
                               'Tstart','Tend','ExpTime','Nexposures','TotalDuration'};
         MissionApprovedPlan_VarTypes   = {'string','uint64','char','double','double','double',...
                               'datetime','datetime','duration','double','duration'};        
         
-        ObsSunDist           = 70;   % [deg]
-        ObsMoonDist          = 34;   % [deg]
-        ObsEarthDist         = 56;   % [deg]        
+        ObsSunDist           = 70;      % [deg]
+        ObsMoonDist          = 34;      % [deg]
+        ObsEarthDist         = 56;      % [deg]        
 
-        SlewSunDist          = 70;   % [deg]
-        SlewMoonDist         = 19.5; % [deg]
-        SlewEarthDist        = 19.5; % [deg]                
+        SlewSunDist          = 70;      % [deg]
+        SlewMoonDist         = 19.5;    % [deg]
+        SlewEarthDist        = 19.5;    % [deg]                
     end 
+
     % 
     methods  % Constructor
         function Obj = uplanner(Args)
@@ -407,6 +411,13 @@ classdef uplanner < Component
                 Args.TargetList = [];
             end
            
+            %------------------------------------------------------
+            % @Chen for Yossi: EXAMPLE for using the helper for LCS modifications
+            % This code just print one line - 
+            Helper = ultrasat.planner.LcsHelper(Obj);
+            Helper.buildLcs();
+            %------------------------------------------------------
+
             % Verify that all the relevant parameters are set
             
             if ~strcmp(Obj.Type,'LCS')
@@ -609,6 +620,14 @@ classdef uplanner < Component
                 Args.MaxBranch              = 0;        % SWITCHED OFF maximal number of branches to try before skipping a point
                 Args.Verbose                = false;
             end
+
+            %------------------------------------------------------
+            % @Chen for Yossi: EXAMPLE for using the helper for AllSS modifications
+            % This code just print one line - 
+            Helper = ultrasat.planner.AllSSHelper(Obj);
+            Helper.buildAllSS();
+            %------------------------------------------------------
+
             % For the 361 sky points of the AllSS we need no less than 180*(2+16) = 3240 visits. 
             % As the scheduling cannot be ideal, let us assume that we need to try ~3600 visits, 
             % that is, allow for a maximum of 20 visits a day. 
@@ -916,8 +935,10 @@ classdef uplanner < Component
                 Args.Tiles = repmat(Args.Tiles(1),1,NUtarg);
             end
             
-            % Chen (05/10/2025)
+            % ------------------------------------------
+            % @Chen (05/10/2025)
             % Avoid Warning: "The assignment added rows to the table, but did not assign values to all of the table's existing variables. Those variables are extended with rows containing default values".
+            % The fix is to first extend Obj.Plan to the required height, then fill it
             lastRowNeeded = NProws + NUtarg;
             if height(Obj.Plan) < lastRowNeeded
 
@@ -934,7 +955,8 @@ classdef uplanner < Component
                 % Extend the Plan tale
                 Obj.Plan = [Obj.Plan; filler];
             end
-            
+            % ------------------------------------------
+
             % Add plan rows one be one
             for ii = 1:NUtarg
             
@@ -1375,10 +1397,11 @@ classdef uplanner < Component
 
             Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
-            TargetVis = ultrasat.ULTRASAT_restricted_visibility(Obj.Plan.JDstart(Plan_row), [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)],'CooUnits','deg',...
+            VisJD = Obj.Plan.JDstart(Plan_row) + (0:days(Obj.Plan.ExpTime(Plan_row)):(Obj.Plan.JDend(Plan_row)-Obj.Plan.JDstart(Plan_row)))'; 
+            TargetVis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)],'CooUnits','deg',...
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0); 
 
-            if ~all([TargetVis.EarthLimits , TargetVis.MoonLimits , TargetVis.SunLimits])
+            if ~all([TargetVis.EarthLimits ; TargetVis.MoonLimits ; TargetVis.SunLimits])
                 fprintf('Target %d, JDstart %.2f\n',Obj.Plan.UniqTargInd(Plan_row),Obj.Plan.JDstart(Plan_row))
                 
                 % @Chen: Temporary for development - removed to allow GUI tests (06/07/2025)
@@ -1391,9 +1414,9 @@ classdef uplanner < Component
             Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
 
 
-            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist*RAD; 
-            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist*RAD;
-            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist*RAD; 
+            Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist(1)*RAD; 
+            Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist(1)*RAD;
+            Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist(1)*RAD; 
 
             % TODO - ADD Calc Zody,LimMag  
 
@@ -1685,13 +1708,15 @@ classdef uplanner < Component
                 end
                 
                 errorbar(ax,Spec(:,1),Spec(:,2),Spec(:,3),'.'); 
-                xlabel(ax, '\lambda [A]'); 
-                ylabel(ax, 'F [erg/cm(2)/s/A]'); 
+
+                xlabel(ax, '$\lambda\ [\mathrm{\AA}]$', 'Interpreter', 'latex');
+                ylabel(ax, 'F [erg cm$^{-2}$ s$^{-1}$ \AA$^{-1}$]', 'Interpreter','latex');
+
                 set(ax, 'YScale', 'log');
                 if ~isempty(Args.WaveRange)
                     xlim(ax,Args.WaveRange.*10);
                 end
-                title(ax,sprintf('%s: Teff = %.0f, log(g) = %.1f',Res.obj{Args.subInd2plot},Res.Teff_K_(Args.subInd2plot),Res.logG(Args.subInd2plot))); 
+                title(ax,sprintf('%s: Teff = %.0f [K], log(g) = %.1f',Res.obj{Args.subInd2plot},Res.Teff_K_(Args.subInd2plot),Res.logG(Args.subInd2plot))); 
             end            
         end
         %
@@ -1703,8 +1728,12 @@ classdef uplanner < Component
                 Args.AxesHandle       =[]; % appUIAxes                
                 Args.TimeWindowJD   = []; 
                 Args.JD_offset    = 2460000;
+                Args.TimeUTC      = false; % false=Time JD
+                Args.plotSun        = true;
                 Args.SunColor     = 'k';
+                Args.plotEarth        = true;
                 Args.EarthColor     = 'b';
+                Args.plotMoon        = true;                
                 Args.MoonColor     = 'g';
                 Args.TimeColor      = 'r';
             end
@@ -1719,78 +1748,129 @@ classdef uplanner < Component
             end
             hold(ax, 'on');  
             box(ax, 'on');
-            
+            l = {};
+
             V = Obj.Vis;
-            
+
+            if Args.TimeUTC
+                t = datetime(V.JD,'ConvertFrom','juliandate');
+                timeWindow = datetime(Args.TimeWindowJD,'ConvertFrom','juliandate');
+                startTime = Obj.StartTime;
+                endTime = Obj.EndTime;
+                xlabeltext='UTC';
+            else
+                t = V.JD-Args.JD_offset;
+                timeWindow = Args.TimeWindowJD-Args.JD_offset;
+                startTime = juliandate(Obj.StartTime)-Args.JD_offset;
+                endTime = juliandate(Obj.EndTime)-Args.JD_offset;
+                xlabeltext=sprintf('JD-%.1f',Args.JD_offset);
+            end
             % plot Sun/Earth/Moon distances
-            plot(ax,V.JD-Args.JD_offset,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
-            plot(ax,V.JD-Args.JD_offset,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
-            plot(ax,V.JD-Args.JD_offset,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+            if Args.plotEarth
+                plot(ax,t,V.EarthAngDist(:,UniqTargInd)*RAD,Args.EarthColor);
+                l = [l,{'Earth'}];
+            end
+            if Args.plotMoon
+                plot(ax,t,V.MoonAngDist(:,UniqTargInd)*RAD,Args.MoonColor);
+                l = [l,{'Moon'}];
+            end
+            if Args.plotSun
+                plot(ax,t,V.SunAngDist(:,UniqTargInd)*RAD,Args.SunColor);
+                l = [l,{'Sun'}];
+            end
             
             % plot Sun/Earth/Moon limits
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
-            plot(ax,V.JD([1,end])-Args.JD_offset,[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+            if Args.plotEarth
+                plot(ax,t([1,end]),[Obj.ObsEarthDist Obj.ObsEarthDist],['--' Args.EarthColor],'linewidth',2);
+            end
+            if Args.plotMoon
+               plot(ax,t([1,end]),[Obj.ObsMoonDist Obj.ObsMoonDist],['--' Args.MoonColor],'linewidth',2);
+            end
+            if Args.plotSun
+                plot(ax,t([1,end]),[Obj.ObsSunDist Obj.ObsSunDist],['--' Args.SunColor],'linewidth',2);   
+            end
             
             yl = ylim(ax); % can be removed when using xregion
                         
-            % Check for unobservable times due to Sun %% ERROR if only one JD is not observable
-            Fvis = find(~V.SunLimits(:,UniqTargInd));
-            if ~isempty(Fvis)
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
-
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
-                end
-            end
-            
             % Check for unobservable times due to Earth %% ERROR if only one JD is not observable
-            Fvis = find(~V.EarthLimits(:,UniqTargInd));
-            if ~isempty(Fvis)            
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                clear nonVisWindows;
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
-
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+            if Args.plotEarth
+                Fvis = find(~V.EarthLimits(:,UniqTargInd));
+                if ~isempty(Fvis)            
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    clear nonVisWindows;
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
+                            [0,0,180,180],Args.EarthColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end
                 end
             end
-            
-            % Check for unobservable times due to Moon %% ERROR if only one JD is not observable
-            Fvis = find(~V.MoonLimits(:,UniqTargInd));
-            if ~isempty(Fvis)            
-                Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
-                Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
-                clear nonVisWindows;
-                nonVisWindows(:,1) = V.JD(Fvis(1:2:end));
-                nonVisWindows(:,2) = V.JD(Fvis(2:2:end));
 
-                for i = 1:height(nonVisWindows)
-                    fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)]-Args.JD_offset,...
-                        [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
-                end            
+            % Check for unobservable times due to Moon %% ERROR if only one JD is not observable
+            if Args.plotMoon            
+                Fvis = find(~V.MoonLimits(:,UniqTargInd));
+                if ~isempty(Fvis)            
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    clear nonVisWindows;
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
+                            [0,0,180,180],Args.MoonColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end            
+                end
+            end
+
+            % Check for unobservable times due to Sun %% ERROR if only one JD is not observable
+            if Args.plotSun            
+                Fvis = find(~V.SunLimits(:,UniqTargInd));
+                if ~isempty(Fvis)
+                    Fedges = find(diff(Fvis(1:(end-1)))>1 | diff(Fvis(2:(end)))>1)+1;
+                    Fvis = [Fvis(1);Fvis(Fedges);Fvis(end)];
+                    clear nonVisWindows;
+                     if Args.TimeUTC
+                         nonVisWindows(:,1) = datetime(V.JD(Fvis(1:2:end)),'ConvertFrom','juliandate');
+                         nonVisWindows(:,2) = datetime(V.JD(Fvis(2:2:end)),'ConvertFrom','juliandate');
+                     else
+                         nonVisWindows(:,1) = V.JD(Fvis(1:2:end))-Args.JD_offset;
+                         nonVisWindows(:,2) = V.JD(Fvis(2:2:end))-Args.JD_offset;
+                     end
+    
+                    for i = 1:height(nonVisWindows)
+                        fill(ax, [nonVisWindows(i,1) nonVisWindows(i,2) nonVisWindows(i,2) nonVisWindows(i,1)],...
+                            [0,0,180,180],Args.SunColor,'FaceAlpha',0.3,'EdgeColor','none'); % change later to xregion
+                    end
+                end      
             end
             
             % set plot limits
             ylim(ax,yl); % can be removed when using xregion
             
-            xlim(ax,V.JD([1,end])-Args.JD_offset);
+            xlim(ax,t([1,end]));
             if ~isempty(Args.TimeWindowJD)
-                xlim(ax,Args.TimeWindow-Args.JD_offset)
+                xlim(ax,timeWindow)
             end           
             
             % plot StartTime and EndTime            
-            xline(ax,juliandate(Obj.StartTime)-Args.JD_offset,['-' Args.TimeColor],'Start Time');
-            xline(ax,juliandate(Obj.EndTime)-Args.JD_offset,['-' Args.TimeColor],'End Time');
+            xline(ax,startTime,['-' Args.TimeColor],'Start Time');
+            xline(ax,endTime,['-' Args.TimeColor],'End Time');
             
-            xlabel(ax,sprintf('JD-%.1f',Args.JD_offset)); 
+            xlabel(ax,xlabeltext); 
             ylabel(ax,'Angular distance [deg]');
 
             % Title with target name and index
@@ -1799,9 +1879,9 @@ classdef uplanner < Component
                 TargetName = 'UnnamedTarget';
             end
             title(ax, sprintf('Visibility of %s (UniqTarget #%d)', TargetName, UniqTargInd));            
-                        
+            
             % Legend
-            legend(ax, 'Sun','Earth','Moon','Location','best');
+            legend(ax, l,'Location','best');
             hold(ax, 'off');
         end
         %
@@ -1843,6 +1923,7 @@ classdef uplanner < Component
                 [RA_grid,Dec_grid] = meshgrid(RA_vec,Dec_vec);
                 A_u = ultrasat.tools.extinction(RA_grid,Dec_grid,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
                 imagesc(ax,RA_vec, Dec_vec, A_u);
+                colormap(ax,'turbo');
                 c = colorbar(ax);
                 c.Label.String = 'A_{ULTRASAT}';
                 clim(ax, [0,1.1]);
@@ -1851,7 +1932,13 @@ classdef uplanner < Component
             
             if Args.vis_at_time_map
                 disp('TBD');
-            end            
+            end   
+            
+            if Args.CalObjMap
+                if ~isempty(Obj.CalibObj)
+                    plot(ax,Obj.CalibObj.RA,Obj.CalibObj.Dec,'+w');
+                end
+            end
             
             if Args.disp_uniqTarg
                 UniqTargInds = Args.plan_rows;
@@ -1864,15 +1951,10 @@ classdef uplanner < Component
                     CircFOV(CircFOV(:,1)<0,1) = CircFOV(CircFOV(:,1)<0,1)+360;
                     CircFOV(CircFOV(:,1)>360,1) = CircFOV(CircFOV(:,1)>360,1)-360;
                     
-                    plot(ax,CircFOV(:,1),CircFOV(:,2),'.b');
+                    plot(ax,CircFOV(:,1),CircFOV(:,2),':k','linewidth',2);
                 end
             end
             
-            if Args.CalObjMap
-                if ~isempty(Obj.CalibObj)
-                    plot(ax,Obj.CalibObj.RA,Obj.CalibObj.Dec,'*m');
-                end
-            end
             
             if Args.disp_MissAprvPlan
                 MissAprvPlan_rows = Args.MissAprvPlan_rows;
@@ -1947,3 +2029,5 @@ classdef uplanner < Component
 
     end
 end
+
+%%

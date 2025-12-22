@@ -92,16 +92,24 @@ classdef PlannerMain < matlab.apps.AppBase
         PlanTypeEditField               matlab.ui.control.EditField
         PlanTypeEditFieldLabel          matlab.ui.control.Label
         PlotGraphsDoubleClickUniqueTargetorPlanrowPanel  matlab.ui.container.Panel
+        Panel_11                        matlab.ui.container.Panel
+        OpenRefImagesButton             matlab.ui.control.Button
+        OpenFieldObjButton              matlab.ui.control.Button
+        OpenExtSurveysButton            matlab.ui.control.Button
+        OpenCalObjTableButton           matlab.ui.control.Button
         HelpGraphsPlotWindowButton      matlab.ui.control.Button
         OpenGraphsPlotWindowButton      matlab.ui.control.Button
-        OpenCalObjTableButton           matlab.ui.control.Button
         ButtonGroup                     matlab.ui.container.ButtonGroup
+        VisibilityPlotTimeUnitsDropDown  matlab.ui.control.DropDown
+        PlanTypeEditFieldLabel_2        matlab.ui.control.Label
+        PlotFlagVisibilityMoonCheckBox  matlab.ui.control.CheckBox
+        PlotFlagVisibilityEarthCheckBox  matlab.ui.control.CheckBox
+        PlotFlagVisibilitySunCheckBox   matlab.ui.control.CheckBox
+        PlotCalibObjDropDown            matlab.ui.control.DropDown
         CalibrationStarButton           matlab.ui.control.RadioButton
         VisibilityButton                matlab.ui.control.RadioButton
         GraphPlotUniqueTargetDropDown   matlab.ui.control.DropDown
         cooSysLabel_3                   matlab.ui.control.Label
-        PlotCalibObjDropDown            matlab.ui.control.DropDown
-        cooSysLabel_2                   matlab.ui.control.Label
         AxesGraphsPlot                  matlab.ui.control.UIAxes
         PlotSkyMapCurrentlyshowsgeneralskymapPanel  matlab.ui.container.Panel
         HelpSkyMapPlotWindowButton      matlab.ui.control.Button
@@ -136,6 +144,8 @@ classdef PlannerMain < matlab.apps.AppBase
         BuildButton                     matlab.ui.control.Button
         UITablePlanTargets              matlab.ui.control.Table
         UniqueTargetsPanel              matlab.ui.container.Panel
+        UniqueTargetsClearOrderButton   matlab.ui.control.Button
+        UniqueTargetsSetOrderButton     matlab.ui.control.Button
         HelpUniqueTargetsWindowButton   matlab.ui.control.Button
         ShowUniqueTargetsWindowButton   matlab.ui.control.Button
         Panel_6                         matlab.ui.container.Panel
@@ -181,7 +191,10 @@ classdef PlannerMain < matlab.apps.AppBase
         ApprovedTargetParamsApp                 %
         ApprovedTargetsApp                      %
         BuildStatusApp                          %        
-        CalibObjTableApp                        %
+        CalibObjTableApp                        % for Plot
+        RefImagesTableApp                       % for Plot
+        ExtSurveysTableApp                      % for Plot
+        FieldObjTableApp                        % for Plot
         DuplicatePlanApp                        %
         EnterStartTimeApp                       %
         ErrorLoggerApp                          %                
@@ -1181,7 +1194,43 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: RefreshApprovedTargetsButton_4
         function RefreshApprovedTargetsButton_4Pushed(app, event)
-            app.showLogger();
+            app.SessionHelper.showLogger(app);
+        end
+
+        % Button pushed function: UniqueTargetsSetOrderButton
+        function UniqueTargetsSetOrderButtonPushed(app, event)
+            app.UniqueTargetsHelper.setOrderColumnByGridSort(app);
+        end
+
+        % Button pushed function: UniqueTargetsClearOrderButton
+        function UniqueTargetsClearOrderButtonPushed(app, event)
+            app.UniqueTargetsHelper.clearOrderColumn(app);
+        end
+
+        % Button pushed function: OpenRefImagesButton
+        function OpenRefImagesButtonPushed(app, event)
+            app.PlotHelper.showRefImagesTable(app);
+        end
+
+        % Button pushed function: OpenExtSurveysButton
+        function OpenExtSurveysButtonPushed(app, event)
+            app.PlotHelper.showExtSurveysTable(app);
+        end
+
+        % Button pushed function: OpenFieldObjButton
+        function OpenFieldObjButtonPushed(app, event)
+            app.PlotHelper.showFieldObjTable(app);
+        end
+
+        % Value changed function: VisibilityPlotTimeUnitsDropDown
+        function VisibilityPlotTimeUnitsDropDownValueChanged(app, event)
+            value = app.VisibilityPlotTimeUnitsDropDown.Value;
+            % Chen
+        end
+
+        % Display data changed function: UITableUniqueTargets
+        function UITableUniqueTargetsDisplayDataChanged(app, event)
+         
         end
     end
 
@@ -1539,6 +1588,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UITableUniqueTargets.ColumnEditable = true;
             app.UITableUniqueTargets.DoubleClickedFcn = createCallbackFcn(app, @UITableUniqueTargetsDoubleClicked, true);
             app.UITableUniqueTargets.ClickedFcn = createCallbackFcn(app, @UITableUniqueTargetsClicked, true);
+            app.UITableUniqueTargets.DisplayDataChangedFcn = createCallbackFcn(app, @UITableUniqueTargetsDisplayDataChanged, true);
             app.UITableUniqueTargets.SelectionChangedFcn = createCallbackFcn(app, @UITableUniqueTargetsSelectionChanged, true);
             app.UITableUniqueTargets.FontSize = 10;
             app.UITableUniqueTargets.Position = [6 8 905 152];
@@ -1599,6 +1649,22 @@ classdef PlannerMain < matlab.apps.AppBase
             app.HelpUniqueTargetsWindowButton.FontWeight = 'bold';
             app.HelpUniqueTargetsWindowButton.Position = [915 167 34 17];
             app.HelpUniqueTargetsWindowButton.Text = '?';
+
+            % Create UniqueTargetsSetOrderButton
+            app.UniqueTargetsSetOrderButton = uibutton(app.UniqueTargetsPanel, 'push');
+            app.UniqueTargetsSetOrderButton.ButtonPushedFcn = createCallbackFcn(app, @UniqueTargetsSetOrderButtonPushed, true);
+            app.UniqueTargetsSetOrderButton.FontSize = 9;
+            app.UniqueTargetsSetOrderButton.FontWeight = 'bold';
+            app.UniqueTargetsSetOrderButton.Position = [10 167 66 17];
+            app.UniqueTargetsSetOrderButton.Text = 'Order';
+
+            % Create UniqueTargetsClearOrderButton
+            app.UniqueTargetsClearOrderButton = uibutton(app.UniqueTargetsPanel, 'push');
+            app.UniqueTargetsClearOrderButton.ButtonPushedFcn = createCallbackFcn(app, @UniqueTargetsClearOrderButtonPushed, true);
+            app.UniqueTargetsClearOrderButton.FontSize = 9;
+            app.UniqueTargetsClearOrderButton.FontWeight = 'bold';
+            app.UniqueTargetsClearOrderButton.Position = [81 167 66 17];
+            app.UniqueTargetsClearOrderButton.Text = 'Clear';
 
             % Create PlanPanel
             app.PlanPanel = uipanel(app.UIFigure);
@@ -1834,7 +1900,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.TitlePosition = 'centertop';
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Title = 'Plot - Graphs (Double Click Unique Target or Plan row)';
             app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.BackgroundColor = [0.902 0.902 0.902];
-            app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Position = [1020 16 497 381];
+            app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel.Position = [1020 11 497 386];
 
             % Create AxesGraphsPlot
             app.AxesGraphsPlot = uiaxes(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
@@ -1844,46 +1910,33 @@ classdef PlannerMain < matlab.apps.AppBase
             zlabel(app.AxesGraphsPlot, 'Z')
             app.AxesGraphsPlot.FontName = 'Helvetica';
             app.AxesGraphsPlot.ButtonDownFcn = createCallbackFcn(app, @AxesGraphsPlotButtonDown, true);
-            app.AxesGraphsPlot.Position = [12 28 476 265];
-
-            % Create cooSysLabel_2
-            app.cooSysLabel_2 = uilabel(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
-            app.cooSysLabel_2.HorizontalAlignment = 'right';
-            app.cooSysLabel_2.Position = [86 305 42 22];
-            app.cooSysLabel_2.Text = 'CalObj';
-
-            % Create PlotCalibObjDropDown
-            app.PlotCalibObjDropDown = uidropdown(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
-            app.PlotCalibObjDropDown.Items = {};
-            app.PlotCalibObjDropDown.ValueChangedFcn = createCallbackFcn(app, @PlotCalibObjDropDownValueChanged, true);
-            app.PlotCalibObjDropDown.Position = [143 303 155 22];
-            app.PlotCalibObjDropDown.Value = {};
+            app.AxesGraphsPlot.Position = [12 15 476 234];
 
             % Create cooSysLabel_3
             app.cooSysLabel_3 = uilabel(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
             app.cooSysLabel_3.HorizontalAlignment = 'right';
-            app.cooSysLabel_3.Position = [12 333 115 22];
+            app.cooSysLabel_3.Position = [8 336 115 22];
             app.cooSysLabel_3.Text = 'Unique Target Name';
 
             % Create GraphPlotUniqueTargetDropDown
             app.GraphPlotUniqueTargetDropDown = uidropdown(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
             app.GraphPlotUniqueTargetDropDown.Items = {};
             app.GraphPlotUniqueTargetDropDown.ValueChangedFcn = createCallbackFcn(app, @GraphPlotUniqueTargetDropDownValueChanged, true);
-            app.GraphPlotUniqueTargetDropDown.Position = [142 330 205 22];
+            app.GraphPlotUniqueTargetDropDown.Position = [133 335 241 22];
             app.GraphPlotUniqueTargetDropDown.Value = {};
 
             % Create ButtonGroup
             app.ButtonGroup = uibuttongroup(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
             app.ButtonGroup.SelectionChangedFcn = createCallbackFcn(app, @ButtonGroupSelectionChanged, true);
             app.ButtonGroup.ForegroundColor = [0 0 1];
-            app.ButtonGroup.Position = [366 304 122 49];
+            app.ButtonGroup.Position = [15 254 359 74];
 
             % Create VisibilityButton
             app.VisibilityButton = uiradiobutton(app.ButtonGroup);
             app.VisibilityButton.Text = 'Visibility';
             app.VisibilityButton.FontWeight = 'bold';
             app.VisibilityButton.FontColor = [0 0 1];
-            app.VisibilityButton.Position = [8 23 71 22];
+            app.VisibilityButton.Position = [8 40 71 22];
             app.VisibilityButton.Value = true;
 
             % Create CalibrationStarButton
@@ -1891,19 +1944,51 @@ classdef PlannerMain < matlab.apps.AppBase
             app.CalibrationStarButton.Text = 'Calibration Star';
             app.CalibrationStarButton.FontWeight = 'bold';
             app.CalibrationStarButton.FontColor = [0 0 1];
-            app.CalibrationStarButton.Position = [8 2 111 22];
+            app.CalibrationStarButton.Position = [8 6 111 22];
 
-            % Create OpenCalObjTableButton
-            app.OpenCalObjTableButton = uibutton(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel, 'push');
-            app.OpenCalObjTableButton.ButtonPushedFcn = createCallbackFcn(app, @OpenCalObjTableButtonPushed, true);
-            app.OpenCalObjTableButton.Position = [305 302 54 23];
-            app.OpenCalObjTableButton.Text = 'CalObj';
+            % Create PlotCalibObjDropDown
+            app.PlotCalibObjDropDown = uidropdown(app.ButtonGroup);
+            app.PlotCalibObjDropDown.Items = {};
+            app.PlotCalibObjDropDown.ValueChangedFcn = createCallbackFcn(app, @PlotCalibObjDropDownValueChanged, true);
+            app.PlotCalibObjDropDown.Position = [122 7 155 22];
+            app.PlotCalibObjDropDown.Value = {};
+
+            % Create PlotFlagVisibilitySunCheckBox
+            app.PlotFlagVisibilitySunCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilitySunCheckBox.Text = '';
+            app.PlotFlagVisibilitySunCheckBox.Position = [86 33 25 22];
+            app.PlotFlagVisibilitySunCheckBox.Value = true;
+
+            % Create PlotFlagVisibilityEarthCheckBox
+            app.PlotFlagVisibilityEarthCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilityEarthCheckBox.Text = '';
+            app.PlotFlagVisibilityEarthCheckBox.Position = [113 33 25 22];
+            app.PlotFlagVisibilityEarthCheckBox.Value = true;
+
+            % Create PlotFlagVisibilityMoonCheckBox
+            app.PlotFlagVisibilityMoonCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilityMoonCheckBox.Text = '';
+            app.PlotFlagVisibilityMoonCheckBox.Position = [144 33 25 22];
+            app.PlotFlagVisibilityMoonCheckBox.Value = true;
+
+            % Create PlanTypeEditFieldLabel_2
+            app.PlanTypeEditFieldLabel_2 = uilabel(app.ButtonGroup);
+            app.PlanTypeEditFieldLabel_2.HorizontalAlignment = 'right';
+            app.PlanTypeEditFieldLabel_2.Position = [75 52 92 22];
+            app.PlanTypeEditFieldLabel_2.Text = 'Sun Earth Moon';
+
+            % Create VisibilityPlotTimeUnitsDropDown
+            app.VisibilityPlotTimeUnitsDropDown = uidropdown(app.ButtonGroup);
+            app.VisibilityPlotTimeUnitsDropDown.Items = {'UTC', 'JD'};
+            app.VisibilityPlotTimeUnitsDropDown.ValueChangedFcn = createCallbackFcn(app, @VisibilityPlotTimeUnitsDropDownValueChanged, true);
+            app.VisibilityPlotTimeUnitsDropDown.Position = [174 43 79 22];
+            app.VisibilityPlotTimeUnitsDropDown.Value = 'UTC';
 
             % Create OpenGraphsPlotWindowButton
             app.OpenGraphsPlotWindowButton = uibutton(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel, 'push');
             app.OpenGraphsPlotWindowButton.ButtonPushedFcn = createCallbackFcn(app, @OpenGraphsPlotWindowButtonPushed, true);
             app.OpenGraphsPlotWindowButton.FontWeight = 'bold';
-            app.OpenGraphsPlotWindowButton.Position = [462 364 34 17];
+            app.OpenGraphsPlotWindowButton.Position = [462 368 34 17];
             app.OpenGraphsPlotWindowButton.Text = '*';
 
             % Create HelpGraphsPlotWindowButton
@@ -1911,8 +1996,36 @@ classdef PlannerMain < matlab.apps.AppBase
             app.HelpGraphsPlotWindowButton.ButtonPushedFcn = createCallbackFcn(app, @HelpGraphsPlotWindowButtonPushed, true);
             app.HelpGraphsPlotWindowButton.FontSize = 9;
             app.HelpGraphsPlotWindowButton.FontWeight = 'bold';
-            app.HelpGraphsPlotWindowButton.Position = [424 363 34 17];
+            app.HelpGraphsPlotWindowButton.Position = [424 368 34 17];
             app.HelpGraphsPlotWindowButton.Text = '?';
+
+            % Create Panel_11
+            app.Panel_11 = uipanel(app.PlotGraphsDoubleClickUniqueTargetorPlanrowPanel);
+            app.Panel_11.Position = [403 254 86 108];
+
+            % Create OpenCalObjTableButton
+            app.OpenCalObjTableButton = uibutton(app.Panel_11, 'push');
+            app.OpenCalObjTableButton.ButtonPushedFcn = createCallbackFcn(app, @OpenCalObjTableButtonPushed, true);
+            app.OpenCalObjTableButton.Position = [6 7 73 20];
+            app.OpenCalObjTableButton.Text = 'CalObj';
+
+            % Create OpenExtSurveysButton
+            app.OpenExtSurveysButton = uibutton(app.Panel_11, 'push');
+            app.OpenExtSurveysButton.ButtonPushedFcn = createCallbackFcn(app, @OpenExtSurveysButtonPushed, true);
+            app.OpenExtSurveysButton.Position = [6 58 73 20];
+            app.OpenExtSurveysButton.Text = 'ExtSurveys';
+
+            % Create OpenFieldObjButton
+            app.OpenFieldObjButton = uibutton(app.Panel_11, 'push');
+            app.OpenFieldObjButton.ButtonPushedFcn = createCallbackFcn(app, @OpenFieldObjButtonPushed, true);
+            app.OpenFieldObjButton.Position = [6 33 73 20];
+            app.OpenFieldObjButton.Text = 'FieldObj';
+
+            % Create OpenRefImagesButton
+            app.OpenRefImagesButton = uibutton(app.Panel_11, 'push');
+            app.OpenRefImagesButton.ButtonPushedFcn = createCallbackFcn(app, @OpenRefImagesButtonPushed, true);
+            app.OpenRefImagesButton.Position = [6 82 73 20];
+            app.OpenRefImagesButton.Text = 'RefImages';
 
             % Create TabGroup
             app.TabGroup = uitabgroup(app.UIFigure);
@@ -2187,8 +2300,8 @@ classdef PlannerMain < matlab.apps.AppBase
             app.ConnectionStatusEditField.FontWeight = 'bold';
             app.ConnectionStatusEditField.BackgroundColor = [0.8 0.8 0.8];
             app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
-            app.ConnectionStatusEditField.Position = [906 3 124 29];
-            app.ConnectionStatusEditField.Value = 'Backend JSON';
+            app.ConnectionStatusEditField.Position = [899 3 131 29];
+            app.ConnectionStatusEditField.Value = 'Note: JSON Backend';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
