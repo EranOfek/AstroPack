@@ -220,8 +220,10 @@ classdef uplanner < Component
             % example: up = ultrasat.planner.uplanner('AstPlanner','YS');
             arguments                
                 Args.Type        = '';   % plan type: HCS, LCS, AllSS, DDT, TOO  
-                
                 Args.AstPlanner  = '';
+                Args.StartTime   datetime   = NaT;   % start of the whole plan
+                Args.EndTime     datetime   = NaT;   %   end of the whole plan
+
                 
                 Args.BaseDataDir = '~/matlab/data/ULTRASAT/'; % Base directory for data needed for uplanner
                 Args.CalObjFile  = 'starlib23_table.mat';     % the calibration objects' list (within  BaseDataDir)
@@ -242,9 +244,15 @@ classdef uplanner < Component
             if ~isempty(Args.Type)
                 Obj.Type = Args.Type;               
             end
-            % 
-            Obj.StartTime.TimeZone = Obj.SysTimeZone;
-            Obj.EndTime.TimeZone   = Obj.SysTimeZone;
+            %
+
+            if ~isnat(Args.StartTime)
+                Obj.StartTime =Args.StartTime;
+            end            
+            if ~isnat(Args.EndTime)
+                Obj.EndTime =Args.EndTime;
+            end
+
             %
             Obj.CheckTimes = Obj.getDefaultCheckTimes();
             Obj.CheckTimes.TimeZone = Obj.SysTimeZone;
@@ -373,6 +381,7 @@ classdef uplanner < Component
             arguments
                 Obj
                 Args.HCS_UniqTarg = 1; % Default is the first line if not selected
+                Args.ClearPlanIfExist = true;
             end               
 
             
@@ -392,6 +401,11 @@ classdef uplanner < Component
             end            
             if numel(Args.HCS_UniqTarg) ~=1
                 error('HCS requires one single target');
+            end
+
+            % Clean Plan if exists and requested
+            if Args.ClearPlanIfExist && ~isempty(Obj.Plan)
+                Obj.clearPlan;
             end
 
             % Calc number of exposures within the plan time 
@@ -2002,16 +2016,26 @@ classdef uplanner < Component
         end
         
         %
-        function CheckTimes = getDefaultCheckTimes(Obj)
-           % Get the default Check times. TODO - update if needed - 
-           % Yossi, please calculate from start/end times
+        function CheckTimes = getDefaultCheckTimes(Obj,Args)
+           % Get the default Check times. 
+           arguments
+               Obj
+               Args.BufferRelStartEnd  =  days(7);
+               Args.DefCheckTimes = datetime({'2028-01-01 00:00:00', '2031-01-01 00:00:00'});
+           end
            
+           if ~isempty(Obj.StartTime) && ~isempty(Obj.EndTime)
+               T1 = Obj.StartTime - Args.BufferRelStartEnd;
+               T2 = Obj.EndTime + Args.BufferRelStartEnd;
+               CheckTimes = [T1,T2];
+           elseif numel(Args.DefCheckTimes)==2
+               CheckTimes = Args.DefCheckTimes;
+           else
+               T1 = datetime('now')-Args.BufferRelStartEnd; 
+               T2 = T1+calmonths(12); 
+               CheckTimes = [T1,T2];
+           end
            % 
-           CheckTimes = datetime({'2028-01-01 00:00:00', '2031-01-01 00:00:00'});
-
-           %T1 = dateshift(datetime('now'),'start','month'); 
-           %T2 = T1+calmonths(7); 
-           %CheckTimes = [T1,T2];
         end
 
         %
