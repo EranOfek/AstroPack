@@ -29,7 +29,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.UseInterp2  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs = {};  
         
-        Args.RasterResolution = 10; % arcsec
+        Args.RasterResolution   = 10;     % arcsec
+        Args.MinAllowedCoverage = 0.995;  % 
     end
     % 
     RAD = 180/pi;  
@@ -122,7 +123,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
                         end
-                        if ~all(ismember(Raster0, RasterC))   
+                        if sum(ismember(Raster0, RasterC))/numel(Raster0) < Args.MinAllowedCoverage   
                             fprintf('Incomplete coverage, epoch %d is skipped\n', Iepoch);
                             continue % to the next epoch
                         end
@@ -188,18 +189,16 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     end % reference image grid      
 end
 
-
 %%%%%%%%%%%%%%%
-
 
 function WCS = buildRefWCS(RA0, Dec0, Args) 
         arguments
             RA0      
             Dec0
-            Args.PA       = [];   
-            Args.PixScale = 1.25;
-            Args.Naxis1   = 1726;
-            Args.Naxis2   = 1726; 
+            Args.PA       = [];   % rad
+            Args.PixScale = 1.25; % arcsec
+            Args.Naxis1   = 1726; % pix
+            Args.Naxis2   = 1726; % pix 
         end
         %
         PixScale = Args.PixScale / 3600;    % [deg] pixel scale
