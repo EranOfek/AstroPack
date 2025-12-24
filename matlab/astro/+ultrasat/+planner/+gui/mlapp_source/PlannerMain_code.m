@@ -1224,13 +1224,27 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: VisibilityPlotTimeUnitsDropDown
         function VisibilityPlotTimeUnitsDropDownValueChanged(app, event)
-            value = app.VisibilityPlotTimeUnitsDropDown.Value;
-            % Chen
+            app.PlotHelper.plotVisibility(app);
         end
 
         % Display data changed function: UITableUniqueTargets
         function UITableUniqueTargetsDisplayDataChanged(app, event)
          
+        end
+
+        % Value changed function: PlotFlagVisibilitySunCheckBox
+        function PlotFlagVisibilitySunCheckBoxValueChanged(app, event)
+            app.PlotHelper.plotVisibility(app);
+        end
+
+        % Value changed function: PlotFlagVisibilityEarthCheckBox
+        function PlotFlagVisibilityEarthCheckBoxValueChanged(app, event)
+            app.PlotHelper.plotVisibility(app);
+        end
+
+        % Value changed function: PlotFlagVisibilityMoonCheckBox
+        function PlotFlagVisibilityMoonCheckBoxValueChanged(app, event)
+            app.PlotHelper.plotVisibility(app);
         end
     end
 
@@ -1655,16 +1669,16 @@ classdef PlannerMain < matlab.apps.AppBase
             app.UniqueTargetsSetOrderButton.ButtonPushedFcn = createCallbackFcn(app, @UniqueTargetsSetOrderButtonPushed, true);
             app.UniqueTargetsSetOrderButton.FontSize = 9;
             app.UniqueTargetsSetOrderButton.FontWeight = 'bold';
-            app.UniqueTargetsSetOrderButton.Position = [10 167 66 17];
-            app.UniqueTargetsSetOrderButton.Text = 'Order';
+            app.UniqueTargetsSetOrderButton.Position = [13 167 66 17];
+            app.UniqueTargetsSetOrderButton.Text = 'Set Order';
 
             % Create UniqueTargetsClearOrderButton
             app.UniqueTargetsClearOrderButton = uibutton(app.UniqueTargetsPanel, 'push');
             app.UniqueTargetsClearOrderButton.ButtonPushedFcn = createCallbackFcn(app, @UniqueTargetsClearOrderButtonPushed, true);
             app.UniqueTargetsClearOrderButton.FontSize = 9;
             app.UniqueTargetsClearOrderButton.FontWeight = 'bold';
-            app.UniqueTargetsClearOrderButton.Position = [81 167 66 17];
-            app.UniqueTargetsClearOrderButton.Text = 'Clear';
+            app.UniqueTargetsClearOrderButton.Position = [90 167 66 17];
+            app.UniqueTargetsClearOrderButton.Text = 'Clear Order';
 
             % Create PlanPanel
             app.PlanPanel = uipanel(app.UIFigure);
@@ -1955,18 +1969,21 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create PlotFlagVisibilitySunCheckBox
             app.PlotFlagVisibilitySunCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilitySunCheckBox.ValueChangedFcn = createCallbackFcn(app, @PlotFlagVisibilitySunCheckBoxValueChanged, true);
             app.PlotFlagVisibilitySunCheckBox.Text = '';
             app.PlotFlagVisibilitySunCheckBox.Position = [86 33 25 22];
             app.PlotFlagVisibilitySunCheckBox.Value = true;
 
             % Create PlotFlagVisibilityEarthCheckBox
             app.PlotFlagVisibilityEarthCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilityEarthCheckBox.ValueChangedFcn = createCallbackFcn(app, @PlotFlagVisibilityEarthCheckBoxValueChanged, true);
             app.PlotFlagVisibilityEarthCheckBox.Text = '';
             app.PlotFlagVisibilityEarthCheckBox.Position = [113 33 25 22];
             app.PlotFlagVisibilityEarthCheckBox.Value = true;
 
             % Create PlotFlagVisibilityMoonCheckBox
             app.PlotFlagVisibilityMoonCheckBox = uicheckbox(app.ButtonGroup);
+            app.PlotFlagVisibilityMoonCheckBox.ValueChangedFcn = createCallbackFcn(app, @PlotFlagVisibilityMoonCheckBoxValueChanged, true);
             app.PlotFlagVisibilityMoonCheckBox.Text = '';
             app.PlotFlagVisibilityMoonCheckBox.Position = [144 33 25 22];
             app.PlotFlagVisibilityMoonCheckBox.Value = true;
@@ -2018,7 +2035,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % Create OpenFieldObjButton
             app.OpenFieldObjButton = uibutton(app.Panel_11, 'push');
             app.OpenFieldObjButton.ButtonPushedFcn = createCallbackFcn(app, @OpenFieldObjButtonPushed, true);
-            app.OpenFieldObjButton.Position = [6 33 73 20];
+            app.OpenFieldObjButton.Position = [6 32 73 20];
             app.OpenFieldObjButton.Text = 'FieldObj';
 
             % Create OpenRefImagesButton

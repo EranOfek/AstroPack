@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 26/10/2025
+% Updated     : 18/12/2025
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -165,10 +165,18 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             %end
 
             try
+                % Check if the unique target has a calibration object, if not, clear the plot and return
+                HasCalObj = ~isempty( Planner.UniqTarg.CalObj{UniqueTargetIndex} );
+                if ~HasCalObj
+                    cla(app.AxesGraphsPlot, 'reset');
+                    if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+                    end
+                    return;
+                end
+
                 % Get table of CalibObj, check that it is not empty
-                % When calling showCalibObj('PlotSpectrum', false) the
-                % function return table of CalibObj, and does not plot anything
-                app.UniqueTargetCalibObj = Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', false);
+                app.UniqueTargetCalibObj = Planner.getCalibObj(UniqueTargetIndex);
                 if isempty(app.UniqueTargetCalibObj) || height(app.UniqueTargetCalibObj) == 0
                     app.setStatus('Warning', 'showCalibObj returned none')
                     return
@@ -186,12 +194,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotCalibSpectrum(app.UniqueTargetCalibObj, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotCalibSpectrum(app.UniqueTargetCalibObj, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotCalibObj', ME);
@@ -377,7 +385,18 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
                     % Update the table data
                     if isprop(app.ExtSurveysTableApp, 'UITableData')
-                        app.ExtSurveysTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+
+                        % Get index of selected unique target
+                        UniqueTargetIndex = app.UITableUniqueTargets.Selection;                                        
+
+                        % Get external surveys table for the selected unique target
+                        Data = app.MainModule.Planner.getExtSurveysForTarget(UniqueTargetIndex);
+
+                        % Remove the Shape column, so only the SurvName column is left
+                        Data = removevars(Data, 'Shape');
+
+                        % Update the table data
+                        app.ExtSurveysTableApp.UITableData.Data = Data;
                         app.ExtSurveysTableApp.UITableData.ColumnSortable = true;
 
                         % Update column names if table is non-empty
@@ -422,15 +441,48 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
                     % Update the table data
                     if isprop(app.FieldObjTableApp, 'UITableData')
-                        app.FieldObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
+
+                        % Get index of selected unique target
+                        UniqueTargetIndex = app.UITableUniqueTargets.Selection;                                        
+                        
+                        % Get selected table name
+                        SelectedTableName = app.FieldObjTableApp.TableDropDown.Value;
+
+                        % Get field objects table for the selected unique target and table name
+                        Data = app.MainModule.Planner.getFieldObjForTarget(UniqueTargetIndex, SelectedTableName);
+
+
+                        % Update FieldObj counters in UI
+                        FieldNames = {'TransPlanets','MassiveStars','Clusters','Blazars','Small'};
+
+                        for k = 1:numel(FieldNames)
+                            fname = FieldNames{k};
+
+                            % Get corresponding EditField name
+                            editName = [fname 'EditField'];
+
+                            % Defensive check (in case UI changes)
+                            if isprop(app.FieldObjTableApp, editName)
+
+                                % Get table for this field
+                                T = app.MainModule.Planner.getFieldObjForTarget(UniqueTargetIndex, fname);
+
+                                % Set value to number of rows
+                                app.FieldObjTableApp.(editName).Value = sprintf('%d', height(T));
+                            end
+                        end
+
+
+                        % Update the table data
+                        app.FieldObjTableApp.UITableData.Data = Data;
                         app.FieldObjTableApp.UITableData.ColumnSortable = true;
 
                         % Update column names if table is non-empty
-                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
+                        if ~isempty(Data) && istable(Data)
                             app.FieldObjTableApp.UITableData.ColumnName = ...
-                                app.UniqueTargetCalibObj.Properties.VariableNames;
+                                Data.Properties.VariableNames;
                         else
-                            app.msglog('showFieldObjTable: UniqueTargetCalibObj is empty or not a table.');
+                            app.msglog('showFieldObjTable: Data is empty or not a table.');
                         end
                     else
                         app.msglog('showFieldObjTable: UITableData property not found in FieldObjTableApp.');
@@ -442,6 +494,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             catch ME
                 app.msglog(sprintf('showFieldObjTable: unexpected error - %s', ME.message));
             end
+        end
+
+
+        function FieldObjTableDropDownValueChanged(obj, app)
+            obj.showFieldObjTable(app);
         end
 
         % =================================================================
@@ -469,15 +526,16 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 EarthFlag = app.PlotFlagVisibilityEarthCheckBox.Value;
                 MoonFlag = app.PlotFlagVisibilityMoonCheckBox.Value;
                 TimeUnits = app.VisibilityPlotTimeUnitsDropDown.Value;
+                TimeUTC = strcmpi(string(TimeUnits), 'UTC');
                 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
                 end
             catch ME
                 app.msgex('plotVisibility', ME);
