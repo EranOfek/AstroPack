@@ -42,7 +42,13 @@ classdef PhotCalib < Component
     %     clone - Create deep copy of PhotCalib object [PLACEHOLDER]
     %   Display / Output Methods:
     %     summary - Display photometric calibration summary
-    %     saveTransmission - Save base transmission to file 
+    %     saveTransmission - Save base transmission to file
+    %   Plotting Methods:
+    %     plotTransmission - Plot transmission curve vs wavelength [PLACEHOLDER]
+    %     plotResiduals - Plot calibration residuals (mag vs residual, spatial distribution) [PLACEHOLDER]
+    %     plotZPMap - Plot 2D map of position-dependent zero point corrections [PLACEHOLDER]
+    %     plotCalibrators - Plot observed vs predicted magnitudes for calibrators [PLACEHOLDER]
+    %     plotFitQuality - Plot RMS/Chi2 evolution across optimization stages [PLACEHOLDER]
     %   Static Methods:
     %     fromHeader - Create PhotCalib object from AstroHeader [PLACEHOLDER]
     %     fromFitPar - Create PhotCalib object from CompositeFun.fitPar output
@@ -301,7 +307,7 @@ classdef PhotCalib < Component
                 PosParams = Obj.getPosParams();
                 if ~isempty(PosParams) && any(PosParams(:) ~= 0)
                     Coords = [X(:), Y(:)];
-                    PosCorr = telescope.optics.fieldCorrectionLAST(Coords, PosParams);
+                    PosCorr = telescope.optics.fieldCorrectionLAST(Coords, PosParams);   %%%% ????
                     ZP = ZP + PosCorr;
                 end
             end
@@ -649,6 +655,88 @@ classdef PhotCalib < Component
                 otherwise
                     error('PhotCalib:saveTransmission:InvalidFormat', 'Format must be ''ascii'' or ''mat''');
             end
+        end
+    end
+
+    methods % Plotting methods
+        function Fig = plotTransmission(Obj, Args)
+            % Plot transmission curve vs wavelength
+            % Input  : - Obj - PhotCalib object
+            %          * ...,key,val,...
+            %            'WvlRange_nm' - Wavelength range [min max] [nm]. Default is [300, 1100].
+            %            'WvlStep_nm' - Wavelength step [nm]. Default is 1.
+            %            'NewFigure' - Create new figure. Default is true.
+            % Output : - Fig - Figure handle
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: PC.plotTransmission();
+            %          PC.plotTransmission('WvlRange_nm', [400, 900]);
+
+            % TODO: Implement
+            Fig = [];
+        end
+
+        function Fig = plotResiduals(Obj, Args)
+            % Plot calibration residuals
+            % Input  : - Obj - PhotCalib object
+            %          * ...,key,val,...
+            %            'Type' - Plot type: 'magnitude' (residuals vs mag),
+            %                     'spatial' (2D spatial distribution), 'both'. Default is 'both'.
+            %            'NewFigure' - Create new figure. Default is true.
+            % Output : - Fig - Figure handle or array of handles
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: PC.plotResiduals();
+            %          PC.plotResiduals('Type', 'spatial');
+            % Description: Plots magnitude residuals from last fit stage.
+            %              Shows spatial patterns and magnitude-dependent systematics.
+
+            % TODO: Implement
+            Fig = [];
+        end
+
+        function Fig = plotZPMap(Obj, Args)
+            % Plot 2D map of position-dependent zero point corrections
+            % Input  : - Obj - PhotCalib object
+            %          * ...,key,val,...
+            %            'GridSize' - Grid resolution [Nx, Ny]. Default is [50, 50].
+            %            'NewFigure' - Create new figure. Default is true.
+            % Output : - Fig - Figure handle
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: PC.plotZPMap();
+            % Description: Shows position-dependent ZP corrections across the field.
+            %              Requires TransModel with Tran2D position corrections.
+
+            % TODO: Implement
+            Fig = [];
+        end
+
+        function Fig = plotCalibrators(Obj, Args)
+            % Plot observed vs predicted magnitudes for calibrators
+            % Input  : - Obj - PhotCalib object
+            %          * ...,key,val,...
+            %            'NewFigure' - Create new figure. Default is true.
+            % Output : - Fig - Figure handle
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: PC.plotCalibrators();
+            % Description: Shows 1:1 plot of observed vs model-predicted magnitudes.
+            %              Includes RMS and Chi2/DOF statistics.
+
+            % TODO: Implement
+            Fig = [];
+        end
+
+        function Fig = plotFitQuality(Obj, Args)
+            % Plot RMS/Chi2 evolution across optimization stages
+            % Input  : - Obj - PhotCalib object
+            %          * ...,key,val,...
+            %            'NewFigure' - Create new figure. Default is true.
+            % Output : - Fig - Figure handle
+            % Author : D. Kovaleva (Dec 2025)
+            % Example: PC.plotFitQuality();
+            % Description: Shows convergence of fit across optimization stages.
+            %              Displays RMS, Chi2/DOF evolution, and number of calibrators.
+
+            % TODO: Implement
+            Fig = [];
         end
     end
 

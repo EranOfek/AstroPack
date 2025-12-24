@@ -58,7 +58,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
                CostArgs = struct('WeightMatrix', RefSpec, 'TransmissionMode', true, ...
                    'ExpTime', 20, 'Aperture_area_m2', pi * (0.1397)^2);
                % Multi-stage optimization with field correction
-               OptSeq = [StageCat.AerosolOpt, StageCat.FieldCorrection_Adapted, StageCat.WaterOpt];
+               OptSeq = StageCat.DefaultLAST;
                [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
                    'CostArgs', CostArgs, 'X', X, 'Y', Y, 'OptimizationSequence', OptSeq, 'Verbose', true);
     %}
