@@ -21,9 +21,7 @@ function Result = unitTest(Args)
         
         % Example for creating HCS survey:
         HCS_fields = table({'S1','N2','N3'}',[67,215,254]',[-59,60,64]','VariableNames',{'Name','RA','Dec'},'RowNames',{'S1','N2','N3'}');
-        upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS');
-        upHCS.StartTime = 'now';
-        upHCS.EndTime = upHCS.StartTime+calmonths(6)-days(1);
+        upHCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','HCS','StartTime','now','EndTime',datetime('now')+calmonths(6)-days(1));
         upHCS.addUniqTargets(HCS_fields.RA('S1'),HCS_fields.Dec('S1'),'Name',HCS_fields.Name('S1'));
         upHCS.buildHCS;
         
