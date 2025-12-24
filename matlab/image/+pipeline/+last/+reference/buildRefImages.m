@@ -30,7 +30,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.interp2wcsArgs = {};  
         
         Args.RasterResolution   = 10;     % arcsec
-        Args.MinAllowedCoverage = 0.995;  % 
+        Args.MinAllowedCoverage = 0.995;  % allowed inaccuracy in the required reference field coverage  
     end
     % 
     RAD = 180/pi;  
@@ -123,8 +123,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
                         end
-                        if sum(ismember(Raster0, RasterC))/numel(Raster0) < Args.MinAllowedCoverage   
-                            fprintf('Incomplete coverage, epoch %d is skipped\n', Iepoch);
+                        Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
+                        if Coverage < Args.MinAllowedCoverage   
+                            fprintf('Incomplete coverage of %.2f, epoch %d is skipped\n', Coverage, Iepoch);
                             continue % to the next epoch
                         end
                         

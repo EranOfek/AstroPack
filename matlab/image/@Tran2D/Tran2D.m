@@ -647,7 +647,7 @@ classdef Tran2D < Base
             %            transformation.
             % Example: TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13);
             %          [Xf,Yf]=forward(TC,[1 1;2 1])
-            
+            %          [Xf,Yf]=forward(TC,[1 1;2 1],false)
             switch numel(varargin)
                 case 1
                     Coo = varargin{1};
