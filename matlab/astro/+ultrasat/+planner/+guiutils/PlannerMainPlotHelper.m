@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 26/10/2025
+% Updated     : 18/12/2025
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -165,10 +165,18 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             %end
 
             try
+                % Check if the unique target has a calibration object, if not, clear the plot and return
+                HasCalObj = ~isempty( Planner.UniqTarg.CalObj{UniqueTargetIndex} );
+                if ~HasCalObj
+                    cla(app.AxesGraphsPlot, 'reset');
+                    if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+                    end
+                    return;
+                end
+
                 % Get table of CalibObj, check that it is not empty
-                % When calling showCalibObj('PlotSpectrum', false) the
-                % function return table of CalibObj, and does not plot anything
-                app.UniqueTargetCalibObj = Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', false);
+                app.UniqueTargetCalibObj = Planner.getCalibObj(UniqueTargetIndex);
                 if isempty(app.UniqueTargetCalibObj) || height(app.UniqueTargetCalibObj) == 0
                     app.setStatus('Warning', 'showCalibObj returned none')
                     return
@@ -186,12 +194,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotCalibSpectrum(app.UniqueTargetCalibObj, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotCalibSpectrum(app.UniqueTargetCalibObj, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotCalibObj', ME);
@@ -469,15 +477,16 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
                 EarthFlag = app.PlotFlagVisibilityEarthCheckBox.Value;
                 MoonFlag = app.PlotFlagVisibilityMoonCheckBox.Value;
                 TimeUnits = app.VisibilityPlotTimeUnitsDropDown.Value;
+                TimeUTC = strcmpi(string(TimeUnits), 'UTC');
                 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
                 end
             catch ME
                 app.msgex('plotVisibility', ME);
