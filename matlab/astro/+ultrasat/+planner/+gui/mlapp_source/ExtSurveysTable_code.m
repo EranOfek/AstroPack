@@ -7,7 +7,7 @@ classdef ExtSurveysTable < matlab.apps.AppBase
         UITableData  matlab.ui.control.Table
         Panel_2      matlab.ui.container.Panel
         HelpButton   matlab.ui.control.Button
-        ExtSurveysNOTIMPLEMENTEDYETLabel  matlab.ui.control.Label
+        ExtSurveysonlySurvNamecolumnisdisplayedLabel  matlab.ui.control.Label
     end
 
     methods (Static)
@@ -64,28 +64,28 @@ classdef ExtSurveysTable < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1343 543];
+            app.UIFigure.Position = [100 100 670 435];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [14 501 1316 33];
+            app.Panel_2.Position = [14 393 647 33];
 
-            % Create ExtSurveysNOTIMPLEMENTEDYETLabel
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel = uilabel(app.Panel_2);
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel.HorizontalAlignment = 'center';
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel.FontSize = 18;
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel.FontWeight = 'bold';
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel.Position = [8 1 1298 33];
-            app.ExtSurveysNOTIMPLEMENTEDYETLabel.Text = 'ExtSurveys - NOT IMPLEMENTED YET';
+            % Create ExtSurveysonlySurvNamecolumnisdisplayedLabel
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel = uilabel(app.Panel_2);
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel.HorizontalAlignment = 'center';
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel.FontSize = 18;
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel.FontWeight = 'bold';
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel.Position = [8 1 556 33];
+            app.ExtSurveysonlySurvNamecolumnisdisplayedLabel.Text = 'ExtSurveys (only SurvName column is displayed)';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.Panel_2, 'push');
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
             app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
-            app.HelpButton.Position = [1219 3 64 26];
+            app.HelpButton.Position = [563 3 64 26];
             app.HelpButton.Text = 'Help';
 
             % Create Panel_4
@@ -93,7 +93,7 @@ classdef ExtSurveysTable < matlab.apps.AppBase
             app.Panel_4.BorderColor = [0.4902 0.4902 0.4902];
             app.Panel_4.TitlePosition = 'centertop';
             app.Panel_4.BackgroundColor = [0.9412 0.9412 0.9412];
-            app.Panel_4.Position = [14 14 1316 475];
+            app.Panel_4.Position = [14 8 647 373];
 
             % Create UITableData
             app.UITableData = uitable(app.Panel_4);
@@ -101,7 +101,7 @@ classdef ExtSurveysTable < matlab.apps.AppBase
             app.UITableData.RowName = {};
             app.UITableData.SelectionChangedFcn = createCallbackFcn(app, @UITableDataSelectionChanged, true);
             app.UITableData.FontSize = 10;
-            app.UITableData.Position = [8 9 1298 457];
+            app.UITableData.Position = [8 8 633 356];
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

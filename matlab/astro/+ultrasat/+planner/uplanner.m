@@ -169,8 +169,8 @@ classdef uplanner < Component
         CalibObj                        = [];               % table of calibration objects 
         CalibDir                                            % the catibration objects' spectra directory 
 
-        ExtSurveysTable                 = [];               % table of external surveys
-
+        ExtSurveysTable                 = [];               % table
+        FieldObjects                    = [];               % struct
 
         RetrivedMissionTime     datetime                    % date or empty        
         ScheduledTime           datetime                    % date or empty
@@ -239,17 +239,25 @@ classdef uplanner < Component
                 Args.CalObjFile  = 'starlib23_table.mat';     % the calibration objects' list (within  BaseDataDir)
                 Args.CalSubDir   = 'Calib/';                  % the catibration objects' spectra directory (within  BaseDataDir)
                 
+                Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat'; %'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
+                Args.FieldObjectsFile  = 'FieldObjects.mat';  %'~/matlab/data/ULTRASAT/FieldObjects.mat';
+
                 Args.AllSSgridFile = [];                      % an alternative AllSS grid (the default is in the properties)
                 Args.ExtragalDitherLeg = [];                  % an alternative dither leg size for the AllSS grid
                 Args.Save          = [];
-                Args.Load          = [];
+                Args.Load          = [];            
+            end
+
+            % Windows
+            if ispc
+                Args.BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
             end
 
             % If the AstPlanner is not set, error
             if isempty(Args.AstPlanner) 
                 error('Planner Name is missing');
             else
-                Obj.AstPlanner= Args.AstPlanner;  
+                Obj.AstPlanner = Args.AstPlanner;  
             end
 
             % Set plan type if provided
@@ -292,12 +300,26 @@ classdef uplanner < Component
 
             % Set folder paths            
             Obj.BaseDataDir = Args.BaseDataDir;
-            Obj.CalibDir = fullfile(Obj.BaseDataDir ,Args.CalSubDir);
+            Obj.CalibDir = fullfile(Obj.BaseDataDir, Args.CalSubDir);
             
+            % ---------- Load ----------
             % Load the calibration objects' table
-            load(fullfile(Obj.BaseDataDir ,Args.CalObjFile)); 
+            load(fullfile(Obj.BaseDataDir, Args.CalObjFile)); 
             Obj.CalibObj = CalibObj;
             
+            % Load the lists of external important objects and survey maps
+            load(fullfile(Obj.BaseDataDir, Args.ExtSurveyMapsFile)); % 'SurveyMaps' table
+            Obj.ExtSurveysTable = SurveyMaps;
+
+            % Load the lists of field objects and store them in a struct Obj.FieldObjects
+            load(fullfile(Obj.BaseDataDir, Args.FieldObjectsFile));  % 'Known_Obj_large', 'Known_Obj_small' tables
+            Obj.FieldObjects.TransPlanets = Known_Obj_large.WG3_det_trans_planets;
+            Obj.FieldObjects.MassiveStars = Known_Obj_large.WG5_Massive_Stars;
+            Obj.FieldObjects.Clusters = Known_Obj_large.WG5_AllClusters;
+            Obj.FieldObjects.Blazars = Known_Obj_large.WG7_Blazars;
+            Obj.FieldObjects.Small = Known_Obj_small;
+            
+            % ---------- AllSS ----------
             % If the Type is AllSS, construct the AllSS grid and set DitherLeg if provided
             if strcmpi(Obj.Type,'AllSS') 
                 if ~isempty(Args.AllSSgridFile)
@@ -1433,8 +1455,6 @@ classdef uplanner < Component
             % TODO - should allow to update only selected targets (i.e., new targets)
             arguments
                 Obj    
-                Args.ExtSurveyMapsFile = 'ExtSurveyMaps.mat';%'~/matlab/data/ULTRASAT/ExtSurveyMaps.mat';
-                Args.FieldObjectsFile  = 'FieldObjects.mat';%'~/matlab/data/ULTRASAT/FieldObjects.mat';
                 Args.AveExtincFile      = 'A_USat_aver7deg_hp49152_v2.mat'; % '~/matlab/data/ULTRASAT/A_USat_aver7deg_hp49152_v2.mat'
                 Args.HealpixNside = 2^8; % corresponds to R ~ 0.2 deg
                 Args.TargList            = []; % List of Targets (index) to update. If empty, update all targets in UniqTarg
@@ -1452,43 +1472,48 @@ classdef uplanner < Component
             % extinction 
             Obj.UniqTarg.A_U(Args.TargList) = ultrasat.tools.extinction(RA, Dec,'AveragedExt',fullfile(Obj.BaseDataDir,Args.AveExtincFile)); 
             
-            % load the lists of external important objects and survey maps
-            load(fullfile(Obj.BaseDataDir,Args.ExtSurveyMapsFile)); % 'SurveyMaps' table
-            load(fullfile(Obj.BaseDataDir,Args.FieldObjectsFile));  % 'Known_Obj_large', 'Known_Obj_small' tables
-
             for ii = 1:numel(Args.TargList) % loop over targets 
                 
                 iT = Args.TargList(ii);                
                 
-                RA0 = Obj.UniqTarg.RA(iT); Dec0 = Obj.UniqTarg.Dec(iT);                
-                % make a circular FOV region
+                RA0 = Obj.UniqTarg.RA(iT); Dec0 = Obj.UniqTarg.Dec(iT);
+
+                % Make a circular FOV region
                 FOV = ultrasat.tools.getFOVcircle(RA0,Dec0,'Radius',Obj.Rfov,'Plot',0);  
                 FOVp = polyshape(FOV);  % a polyshape is useful to test intersections
                 
-                % select calibration objects 
+                % Select calibration objects 
                 Ind = celestial.search.isPointInsidePolygon(Obj.CalibObj.RA, Obj.CalibObj.Dec, FOV);
                 Obj.UniqTarg.CalObj{iT} = num2cell(find(Ind>0));
                 
-                % select reference images
-%                 Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
-%                 Obj.UniqTarg.RefImageIDs{iT} = num2cell(find(Ind>0));
+                % Select reference images
+                %Ind = celestial.search.isPointInsidePolygon(Obj.RefIma.RA, Obj.RefIma.Dec,FOV); 
+                %Obj.UniqTarg.RefImageIDs{iT} = num2cell(find(Ind>0));
 
                 % select external surveys 
-                Ind = overlaps(SurveyMaps.Shape,FOVp);
+                Ind = overlaps(Obj.ExtSurveysTable.Shape, FOVp);
                 Obj.UniqTarg.ExtSurveys{iT} = num2cell(find(Ind>0));
                
                 % select specific objects falling into the FOV
-                Ind = celestial.search.isPointInsidePolygon(Known_Obj_small.RA, Known_Obj_small.Dec, FOV);
+                Ind = celestial.search.isPointInsidePolygon(Obj.FieldObjects.Small.RA, Obj.FieldObjects.Small.Dec, FOV);
                 Field.Small = num2cell(find(Ind>0));
-                % also extract
-                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG3_det_trans_planets.ra, Known_Obj_large.WG3_det_trans_planets.dec,FOV);
+
+                % FieldObjects.TransPlanets
+                Ind = celestial.search.isPointInsidePolygon(Obj.FieldObjects.TransPlanets.ra, Obj.FieldObjects.TransPlanets.dec,FOV);
                 Field.TransPlanets = num2cell(find(Ind>0));
-                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG5_Massive_Stars.RA, Known_Obj_large.WG5_Massive_Stars.Dec,FOV);
+
+                % FieldObjects.MassiveStars
+                Ind = celestial.search.isPointInsidePolygon(Obj.FieldObjects.MassiveStars.RA, Obj.FieldObjects.MassiveStars.Dec,FOV);
                 Field.MassiveStars = num2cell(find(Ind>0));
-                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG5_AllClusters.RA, Known_Obj_large.WG5_AllClusters.DEC,FOV);
+
+                % FieldObjects.Clusters
+                Ind = celestial.search.isPointInsidePolygon(Obj.FieldObjects.Clusters.RA, Obj.FieldObjects.Clusters.DEC,FOV);
                 Field.Clusters = num2cell(find(Ind>0));                
-                Ind = celestial.search.isPointInsidePolygon(Known_Obj_large.WG7_Blazars.RA, Known_Obj_large.WG7_Blazars.Dec,FOV);
+
+                % FieldObjects.Blazars
+                Ind = celestial.search.isPointInsidePolygon(Obj.FieldObjects.Blazars.RA, Obj.FieldObjects.Blazars.Dec,FOV);
                 Field.Blazars = num2cell(find(Ind>0));    
+
                 %
                 Obj.UniqTarg.FieldObj{iT} = Field;
                 
@@ -2012,15 +2037,18 @@ classdef uplanner < Component
                     end
                 end      
             end
-            
-            % Set the y limits
-            ylim(ax,yl); % can be removed when using xregion
-            
-            % Set the x limits, if a time window is provided, use the time window limits
-            xlim(ax,t([1,end]));
-            if ~isempty(Args.TimeWindowJD)
-                xlim(ax,timeWindow)
-            end           
+
+            % Set the plot limits if any of the plots are requested
+            if Args.plotSun || Args.plotMoon || Args.plotEarth
+                % Set the y limits
+                ylim(ax,yl); % can be removed when using xregion
+                
+                % Set the x limits, if a time window is provided, use the time window limits
+                xlim(ax,t([1,end]));
+                if ~isempty(Args.TimeWindowJD)
+                    xlim(ax,timeWindow)
+                end           
+            end
             
             % Display vertical lines at the start and end times
             xline(ax,startTime,['-' Args.TimeColor],'Start Time');
@@ -2218,6 +2246,73 @@ classdef uplanner < Component
             % Allow editing the plan only while still draft, after submit no further modifications are allowed.
             Result = strcmp(Obj.Status, 'draft') && Obj.Editable;
         end
+
+        % ---------------------- New Functions ----------------------
+        
+        function Res = getExtSurveysForTarget(Obj, UniqTargInd)
+            % Return external surveys table for a given unique target index
+        
+            % Defensive checks
+            if isempty(UniqTargInd) || UniqTargInd < 1 || UniqTargInd > height(Obj.UniqTarg)
+                Res = Obj.ExtSurveysTable([],:);
+                return;
+            end
+        
+            % Extract survey indices (cell content!)
+            IndCell = Obj.UniqTarg.ExtSurveys{UniqTargInd};
+        
+            if isempty(IndCell)
+                Res = Obj.ExtSurveysTable([],:);
+                return;
+            end
+        
+            % Convert cell array of indices to numeric vector
+            Ind = [IndCell{:}];
+        
+            % Return subset table
+            Res = Obj.ExtSurveysTable(Ind, :);
+        end
+
+
+        function Res = getFieldObjForTarget(Obj, UniqTargInd, FieldName)
+            % Return table of field objects for a given unique target and field name
+            %
+            % FieldName: char or string, e.g. 'Blazars', 'Clusters', 'Small', ...
+        
+            % Normalize field name
+            FieldName = char(FieldName);
+        
+            % Defensive defaults
+            Res = table();
+        
+            % Basic validation
+            if isempty(UniqTargInd) || ...
+               UniqTargInd < 1 || UniqTargInd > height(Obj.UniqTarg)
+                return;
+            end
+        
+            % Check if the field name is a valid field in the FieldObj struct
+            if ~isfield(Obj.FieldObjects, FieldName)
+                return;
+            end
+        
+            % Extract indices (cell content!)
+            IndCell = Obj.UniqTarg.FieldObj{UniqTargInd}.(FieldName);
+        
+            if isempty(IndCell)
+                % Return empty table with correct variables
+                Res = Obj.FieldObjects.(FieldName)([],:);
+                return;
+            end
+        
+            % Convert cell array of indices to numeric vector
+            Ind = [IndCell{:}];
+        
+            % Slice the corresponding table
+            Res = Obj.FieldObjects.(FieldName)(Ind, :);
+        end
+       
+
     end
 
 
