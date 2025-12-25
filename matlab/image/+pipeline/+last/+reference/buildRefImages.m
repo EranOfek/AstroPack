@@ -26,8 +26,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Naxis1       = 1726;       % the pixel size of a reference image 
         Args.Naxis2       = 1726;
         
-        Args.UseInterp2  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.UseInterp2WCS  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs = {};  
+        
+        Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -80,7 +82,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)         
-        S = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
+        StitchedImage = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
@@ -90,9 +92,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
             W = strcat(W,Wn);
         end      
-        T = DB.query(strcat(S,W)); % T = db.mex.query(strcat(S,W));
+        T = DB.query(strcat(StitchedImage,W)); % T = db.mex.query(strcat(S,W));
 
-        if isempty(T)          
+        if isempty(T)                       
             if Args.Verbose
                 fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
@@ -103,9 +105,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 if height(TabMountCam) > 0                    
                     [Grp, ~] = findgroups(TabMountCam.jd_start); 
                     Nepoch   = max(Grp);        
-                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);
-                    S        = AstroImage([Nepoch 1]);
-                    Saligned = AstroImage([Nepoch 1]);
+                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);                    
+                    RegisteredImage = AstroImage([Nepoch 1]);                    
+                    %
                     for Iepoch = 1:Nepoch
                         TabEpoch  = TabMountCam(Grp == Iepoch, :);
                         Nim = height(TabEpoch);
@@ -137,7 +139,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue % to the next epoch
                         end
                         
-                        % 4.1 retrieve the crop images and merge the set of covering crops
+                        % 4.1 retrieve the crop images 
                         fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
                         Nim = height(TabEpoch);                                               
                         AI = AstroImage([1 Nim]);
@@ -158,63 +160,55 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue
                         end
                         
-                        % merge                         
+                        % 4.2 merge the set of covering crops                         
                             % var1
-                        [S(Iepoch), ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
+                        [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
                             'WriteFile',false,'Verbosity',1); 
+                        
                         % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
-%                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
-%                           1. estimate the size of the merged image and
-%                              enlarge the matrix, fill with 0s
-%                           2. take the WCS0 form the 1st image
+%                         MergedAI = imProc.transIm.merge(AI); % a new function to be written?
+%                           1. estimate the size of the merged image, enlarge the matrix, fill with 0s
+%                           2. take the WCS0 from the 1st image
 %                           3. use xy2sky with WCS1, then sky2xy with WCS0
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
-%                           5. for each pixel of the merge take an exposure weighted mean of the merged pixel values
+%                           5. for each pixel of the merge take an inverse variance weighted mean of the merged pixel values
 %                                                                                                 
-                        % 4.2.1 rotate, align, and cut the merged crops to
-                        % the ref. coordinates: imwarp with the Reference Grid WCS                                                  
-                        if Args.UseInterp2
-                            Saligned(Iepoch) = imProc.transIm.interp2wcs(S(Iepoch), AIref,...
+                        % 4.3 rotate, align, and cut the merged crops to 
+                        % the ref. coordinates: warp with the reference grid WCS                                                  
+                        if Args.UseInterp2WCS
+                            RegisteredImage(Iepoch) = imProc.transIm.interp2wcs(StitchedImage, AIref,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
-                            Saligned(Iepoch) = imProc.transIm.imwarp(S(Iepoch), AIref,...
+                            RegisteredImage(Iepoch) = imProc.transIm.imwarp(StitchedImage, AIref,...
                                 'TransWCS',true,...
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
                                 'CreateNewObj',true);
                         end  
+                        
+                        % 4.4 add the RegisteredImage to the stack
+                        StackImages = [StackImages RegisteredImage(Iepoch)];
                         % clear the intermediate objects
                         clear AI;
-                    end % epochs of the same mount and camera 
-                    
-                    if ~isempty(Saligned(1).Image) % if the                         
-                       fprintf('Merging epochs of M%dC%d \n',Imount,Icam);
-                        % 5.1 coadd the the aligned and merged crops                    
-                        % employ pipeline.generic.procMergeCoadd or some of its fragments?
-
-                        % 5.2 find and measure the sources
-
-                        % 5.3 refine the astrometry
-                    
-                    end
-                    % clear the intermediate objects                   
-                    clear S;
-                    clear Saligned;                    
+                        clear StitchedImage;
+                    end % epochs of the same mount and camera                                                                       
                 end
             end % camera
         end % mount
         
-        % 5.4 coadd the merged epochs from different telescopes and cameras                   
-        % employ pipeline.generic.procMergeCoadd or some of its fragments?
+        % 5. coadd the epochs from different telescopes and cameras                   
+        % employ imProc.stack.coaddW or a simliar function        
+        
+        RefImage = @Args.CoaddFunction(StackImages);
         
         % 6. save the new reference image and its catalog to the disk (euclid?)
                                         
         % 7. write the image metadata to the reference image table of the DB 
         %    write the reference image catalog to the reference image catalog table of the DB
                     
-        end % coadd image table is not empty for the particular reference grid position 
+        end % for the particular reference grid position we have some coadds to build on  
     end % reference image grid      
 end
 
