@@ -55,8 +55,8 @@ classdef PhotCalib < Component
 
     properties
         % Core calibration results
-        ZP                      % Base zero point without positional correction [mag]
-        ZP_Err                  % Zero point uncertainty [mag]
+        %ZP                      % Base zero point without positional correction [mag]
+        %ZP_Err                  % Zero point uncertainty [mag]
 
         % Quality metrics
         RMS                     % RMS of residuals [mag]
@@ -66,7 +66,7 @@ classdef PhotCalib < Component
 
         % Transmission model
         TransModel              % CompositeFun transmission model object with Tran2D for position-dependent corrections
-        FitResults              % Structure array with per-stage fit results
+        %FitResults              % Structure array with per-stage fit results
 
         % Calibration metadata
         AirMass                 % Airmass
@@ -74,20 +74,21 @@ classdef PhotCalib < Component
         ExpTime                 % Exposure time [s]
         Temperature             % Temperature [C]
         Pressure                % Atmospheric pressure [mbar]
+        Humidity
 
         % Calibrator information
-        CalibTable              % Table with the data on calibrators
+        %CalibTable              % Table with the data on calibrators
 
         % Configuration used
-        TransFuns               % Transmission function list (from predefSeqCompositeFun)
-        OptSeq                  % Optimization sequence (from predefSeqCompositeFun)
-        SearchRadius            % Gaia matching radius [arcsec]
-        MagRange                % Calibrator magnitude range [min max]
+        %TransFuns               % Transmission function list (from predefSeqCompositeFun)
+        %OptSeq                  % Optimization sequence (from predefSeqCompositeFun)
+        %SearchRadius            % Gaia matching radius [arcsec]
+        %MagRange                % Calibrator magnitude range [min max]
 
         % Transmission output
-        TransFile               % Filename for saved base transmission
-        TransWvl                % Wavelength grid for transmission [nm]
-        TransValues             % Base transmission values (without position correction)
+        %TransFile               % Filename for saved base transmission
+        %TransWvl                % Wavelength grid for transmission [nm]
+        %TransValues             % Base transmission values (without position correction)
     end
 
     methods % Constructor
@@ -127,7 +128,7 @@ classdef PhotCalib < Component
             end
 
             % Call parent constructor
-            Obj@Component();
+            %Obj@Component();
 
             % Initialize properties
             Obj.ZP = Args.ZP;
@@ -155,6 +156,35 @@ classdef PhotCalib < Component
     end
 
     methods % Core calibration
+        % buildCompositeFun
+
+        % fitTransmission(Obj, AI)
+
+        % 
+    end
+
+    methods % utility functions
+        % writeHeader
+
+        % readHeader
+
+        % selectCalibrators
+
+        %
+
+    end
+
+    methods % evaluation
+        % evaluateTransmission
+
+        % evaluateZP
+
+        % evaluateMag
+    end
+
+
+    methods
+
         function Obj = calibrate(Obj, CalibData, TransFuns, OptSeq, Metadata, Args)
             % Perform transmission-based photometric calibration
             % Input  : - Obj - PhotCalib object
@@ -550,16 +580,7 @@ classdef PhotCalib < Component
             Diff = struct();
         end
 
-        function ObjCopy = clone(Obj)
-            % Create deep copy of PhotCalib object
-            % Input  : - Obj - PhotCalib object
-            % Output : - ObjCopy - Deep copy of object
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: PC2 = PC1.clone();
-
-            % TODO: Implement
-            ObjCopy = Obj;
-        end
+        
     end
 
     methods % Display / Output methods
