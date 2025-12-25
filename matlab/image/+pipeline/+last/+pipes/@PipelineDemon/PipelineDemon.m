@@ -2388,6 +2388,25 @@ classdef PipelineDemon < Component
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
 
+            
+            % Individual sub images : quality           
+            % astrometry
+            IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);
+            % Nstars
+            Nstars    = AllSI.sizeCatalog;
+            % background variations
+            MeanBack     = imProc.stat.mean(AllSI);
+            MeanVar      = imProc.stat.mean(AllSI);
+            MeanMeanBack = mean(MeanBack, 1); % mean background over all sub images in each epoch
+            MaxFracGrad  = (max(MeanBack,[],1) - min(MeanBack,[],1))./MeanMeanBack; % max fractional background gradient per epoch
+
+            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
+
+            % MISSING - write general info to header:
+            % background, var, number of stars, etc.
+            % [AllSI, ImageStat] = imProc.header.writeStatToHeader(AllSI)
+
+
             % forced photometry
             % forced pgotometry on pre-selected targets
             if ~isempty(Args.ForcedPhotCat)
@@ -2404,23 +2423,11 @@ classdef PipelineDemon < Component
 
             % match external
             if Args.matchExternal_Indiv
+                % current default is true - do we want this?
                 AllSI = pipeline.generic.matchExternal(AllSI, Args.proc2MatchedSourcesArgs_Indiv{:});
             end
-
-            % Individual sub images : quality           
-            % astrometry
-            IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);
-            % Nstars
-            Nstars    = AllSI.sizeCatalog;
-            % background variations
-            MeanBack     = imProc.stat.mean(AllSI);
-            MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 1); % mean background over all sub images in each epoch
-            MaxFracGrad  = (max(MeanBack,[],1) - min(MeanBack,[],1))./MeanMeanBack; % max fractional background gradient per epoch
-
-
-            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
             
+            MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood);
 
             % The following logic is applied:
             % MatchedSources and photometric calibration is done only after
@@ -2443,8 +2450,8 @@ classdef PipelineDemon < Component
             % coadd: match external
             pipeline.generic.matchExternal
 
-
-
+            % MISSING - calculate drifts and write to headers
+            % Coadd=imProc.header.writeDriftsToHeader(Coadd, MS)
 
             % merge catalogs
             pipeline.generic.proc2MatchedSources
