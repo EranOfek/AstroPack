@@ -314,6 +314,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     AH = StitchedImage.Header;  % save the header back from the AstroImage
     
+    if Args.Verbosity > 0        
+        cprintf('hyper','Mosaic constructed\n');
+    end
+    
     % make a FITS file:
     if Args.WriteFile
         % if isa(InputImages,'AstroImage')
@@ -328,7 +332,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         FITS.write(StitchedImage.Image, OutputName, 'Header',StitchedImage.HeaderData.Data,...
             'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
         if Args.Verbosity > 1        
-        cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');
+        cprintf('hyper','See the output AstroImage and FITS image file.\n');
         fprintf('%s\n',OutputName(2:end));
         end
     end

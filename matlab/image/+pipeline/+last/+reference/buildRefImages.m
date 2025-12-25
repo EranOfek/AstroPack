@@ -22,15 +22,15 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Verbose     = 'false';
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
-        Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the Reference Grid
-        Args.Naxis1       = 1726;  % the size of the reference image 
+        Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
+        Args.Naxis1       = 1726;       % the pixel size of a reference image 
         Args.Naxis2       = 1726;
         
         Args.UseInterp2  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs = {};  
         
         Args.RasterResolution   = 10;     % arcsec
-        Args.MinAllowedCoverage = 0.995;  % allowed inaccuracy in the required reference field coverage  
+        Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
     end
     % 
     RAD = 180/pi;  
@@ -41,16 +41,16 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     RefGrid.RA1 = RefGrid.RA1 + 180; RefGrid.RA2 = RefGrid.RA2 + 180;
     RefGrid.RA3 = RefGrid.RA3 + 180; RefGrid.RA4 = RefGrid.RA4 + 180;
     
-    % loop over the ref. image grid
+    % loop over the Reference Image grid that has been read above 
     if isempty(Args.RefNumbers)
         RefNumbers = 1:Nref;
     else
         RefNumbers = Args.RefNumbers;
     end
     
+    % the main loop over the reference grid 
     for Iref = RefNumbers                    
-        % if the WCS of the target Reference Image has not been read from the RefGrid object  
-        % at the very beginning, build it here 
+        % if the WCS of the target Reference Image has not been read from the RefGrid object, build it here 
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
@@ -79,7 +79,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
-        % 1. find the overlapping coadd proc or single-epoch proc images        
+        % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)         
         S = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
@@ -97,29 +97,37 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
-        for Im = 1:10      % loop on mounts
-            for Ic = 1:4   % loop on cameras
-                T1 = T(T.mountnum==Im & T.camnum==Ic,:);
-                if height(T1) > 0                    
-                    [Grp, ~] = findgroups(T1.jd_start); 
+        for Imount = 1:10      % loop on mounts
+            for Icam = 1:4     % loop on cameras
+                TabMountCam = T(T.mountnum==Imount & T.camnum==Icam,:);
+                if height(TabMountCam) > 0                    
+                    [Grp, ~] = findgroups(TabMountCam.jd_start); 
                     Nepoch   = max(Grp);        
-                    fprintf('M%dC%d: %d epochs\n',Im,Ic,Nepoch);
+                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);
                     S        = AstroImage([Nepoch 1]);
                     Saligned = AstroImage([Nepoch 1]);
                     for Iepoch = 1:Nepoch
-                        T2  = T1(Grp == Iepoch, :);
-                        Nim = height(T2);
-                        fprintf('M%dC%d epoch %d: %d images found\n',Im,Ic,Iepoch,Nim);
-                        % 2. qualify the overlapping proc images
+                        TabEpoch  = TabMountCam(Grp == Iepoch, :);
+                        Nim = height(TabEpoch);
+                        fprintf('M%dC%d epoch %d: %d images found\n',Imount,Icam,Iepoch,Nim);                                               
                         
-                        % 3. select exposures by specific obs. time, time span, etc.
+                        % 2. select exposures by specific obs. time, time span, etc.
+                        %
+                        % if T2.jd_start ... 
+                        %   fprintf('Epoch %d is skipped due to..\n', Iepoch);
+                        %   continue % to the next epoch
+                        % end
                         
-                        % if the total coverage is incomplete, skip to the next epoch                         
-                        Nim = height(T2);     
+                        % 3. select the overlapping proc images by some quality
+                        %
+                        % T2 = T2(quality condition,:)
+                        Nim = height(TabEpoch);   
+                        fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
+                        % if the total coverage is incomplete, skip to the next epoch                                                 
                         RasterC = [];
                         for Icrop = 1:Nim % merge the rasters of all the crops involved 
-                            CropPoly = [T2.ra1(Icrop), T2.dec1(Icrop); T2.ra2(Icrop), T2.dec2(Icrop); ...
-                                        T2.ra3(Icrop), T2.dec3(Icrop); T2.ra4(Icrop), T2.dec4(Icrop)];
+                            CropPoly = [TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
+                                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
                         end
@@ -130,17 +138,18 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end
                         
                         % 4.1 retrieve the crop images and merge the set of covering crops
-                        fprintf('M%dC%d epoch %d: %d images filtered\n',Im,Ic,Iepoch,Nim);
-                        Nim = height(T2);                                               
+                        fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
+                        Nim = height(TabEpoch);                                               
                         AI = AstroImage([1 Nim]);
-                        Mt  = compose('%02d',T2.mountnum(1)); Cam = compose('%02d',T2.camnum(1)); 
-                        YY  = compose('%04d',T2.diryear(1)); MM = compose('%02d',T2.dirmon(1)); DD = compose('%02d',T2.dirday(1));
+                        Mt  = compose('%02d',TabEpoch.mountnum(1)); Cam = compose('%02d',TabEpoch.camnum(1)); 
+                        YY  = compose('%04d',TabEpoch.diryear(1)); MM = compose('%02d',TabEpoch.dirmon(1)); DD = compose('%02d',TabEpoch.dirday(1));
                         for Icrop = 1:Nim
                              FN = strcat('/mnt/euclid/last/data/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
-                                 '/proc/',T2.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',T2.filetime(Icrop),...
-                                 '_clear_',string(T2.fieldid(Icrop)),'_000_001_',compose('%03d',T2.cropid(Icrop)),...
+                                 '/proc/',TabEpoch.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',TabEpoch.filetime(Icrop),...
+                                 '_clear_',string(TabEpoch.fieldid(Icrop)),'_000_001_',compose('%03d',TabEpoch.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
-                             AI(Icrop)= AstroImage.readProducts(FN); % no data on Back or Var is saved @ euclid!  
+                             AI(Icrop)= AstroImage.readProducts(FN); 
+                             % NB: no data on background or variance is kept in the archive (Euclid), need to re-measure    
                         end
                         
                         % check WCS
@@ -175,24 +184,40 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
                                 'CreateNewObj',true);
-                        end
-                        
-                        % 4.2.2 refine the astrometry (or leave it for the next step?) 
-                    end                                  
-                    % 5. coadd the the aligned and merged crops
+                        end                                               
+                    end % epochs of the same mount and camera 
+                    
+                    % 5.1 coadd the the aligned and merged crops                    
                     % employ pipeline.generic.procMergeCoadd or some of its fragments?
+                    
+                    % 5.2 find and measure the sources
+                    
+                    % 5.3 refine the astrometry
+                    
+                    % clear the intermediate objects
                     clear AI;
-                    % 6. save the new reference on disk and fill the DB table line
+                    clear S;
+                    clear Saligned;                    
                 end
             end % camera
-        end % mount                 
-        end % if the image table is not empty
+        end % mount
+        
+        % 5.4 coadd the merged epochs from different telescopes and cameras                   
+        % employ pipeline.generic.procMergeCoadd or some of its fragments?
+        
+        % 6. save the new reference image and its catalog to the disk (euclid?)
+                                        
+        % 7. write the image metadata to the reference image table of the DB 
+        %    write the reference image catalog to the reference image catalog table of the DB
+                    
+        end % coadd image table is not empty for the particular reference grid position 
     end % reference image grid      
 end
 
 %%%%%%%%%%%%%%%
 
 function WCS = buildRefWCS(RA0, Dec0, Args) 
+        % builds a WCS from position, size, and rotation angle
         arguments
             RA0      
             Dec0
@@ -218,9 +243,8 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         WCS.CRPIX(2)  = Args.Naxis2/2;
         WCS.AlphaP    = RA0;
         WCS.DeltaP    = Dec0;
-        WCS.PhiP      = 180;
-        
-        % rotate the WCS if PA is put in:  
+        WCS.PhiP      = 180;        
+        % rotate the WCS if a PA is given:  
         if ~isempty(Args.PA) 
             RotMatrix = [cos(Args.PA), -sin(Args.PA);
                 sin(Args.PA),  cos(Args.PA)];
