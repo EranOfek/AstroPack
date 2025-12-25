@@ -162,7 +162,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             % var1
                         [S(Iepoch), ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
                             'WriteFile',false,'Verbosity',1); 
-                        % issues: imProc.stack.stitch does not provide Back, Var, Mask                                                 
+                        % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written
 %                           1. estimate the size of the merged image and
@@ -184,18 +184,22 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
                                 'CreateNewObj',true);
-                        end                                               
+                        end  
+                        % clear the intermediate objects
+                        clear AI;
                     end % epochs of the same mount and camera 
                     
-                    % 5.1 coadd the the aligned and merged crops                    
-                    % employ pipeline.generic.procMergeCoadd or some of its fragments?
+                    if ~isempty(Saligned(1).Image) % if the                         
+                       fprintf('Merging epochs of M%dC%d \n',Imount,Icam);
+                        % 5.1 coadd the the aligned and merged crops                    
+                        % employ pipeline.generic.procMergeCoadd or some of its fragments?
+
+                        % 5.2 find and measure the sources
+
+                        % 5.3 refine the astrometry
                     
-                    % 5.2 find and measure the sources
-                    
-                    % 5.3 refine the astrometry
-                    
-                    % clear the intermediate objects
-                    clear AI;
+                    end
+                    % clear the intermediate objects                   
                     clear S;
                     clear Saligned;                    
                 end
