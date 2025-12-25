@@ -171,65 +171,39 @@ function [Result, ResFit] = transmissionZP_skeleton(Obj, Args)
 
 
         % ----------------------------------------------------------------
-        % STEP 1.3: Optimization of transmission parameters
+        % STEP 1.3: Perform calibration using PhotCalib
         % ----------------------------------------------------------------
 
-        % Build CompositeFun model
-   
-        MetaValues = struct(...
-            'ZenithAngle_deg', ZenithAngle_deg, ...
+        % Create PhotCalib object and run calibration
+        PC = PhotCalib();
+        PC.calibrate(CalibData, FunList, OptSeq, Metadata, ...
             'Pressure_mbar', Args.Pressure_mbar, ...
-            'Temperature_C', Metadata.TEMP);
-
-        Model = tools.math.fun.CompositeFun.model(FunList, ...
-            'MetadataValues', MetaValues, ...
-            'UseTran2D', true, ...
-            'Tran2DType', 'cheby1_4_xt');
-
-        % Setup CostArgs for TransmissionMode CompositeFun.model
-        CostArgs = struct(...
-            'WeightMatrix', Spec, ...
-            'TransmissionMode', true, ...
-            'GaiaWavelength', Lambda, ...
-            'ExpTime', Metadata.EXPTIME, ...
-            'Aperture_area_m2', Args.ApertureArea);
-
-        % Fit transmission parameters using multi-stage optimization
-        [Model, FitResults] = Model.fitPar(Lambda, Flux, ...
-            'X', X, 'Y', Y, ...
-            'CostArgs', CostArgs, ...
-            'OptimizationSequence', OptSeq);
- 
-         FieldParams = Model.Tran2DObj.ParX;
-  
-  
-        % ----------------------------------------------------------------
-        % STEP 1.4: Calculate zero point
-        % ----------------------------------------------------------------
-
-        % Helper function: calculateZeroPoint(Model, Lambda, ExpTime)
+            'ApertureArea_m2', Args.ApertureArea);
 
         % ----------------------------------------------------------------
-        % STEP 1.5: Update magnitude columns
+        % STEP 1.4: Update magnitude columns (transmissionZP responsibility)
         % ----------------------------------------------------------------
 
-     
+        if Args.UpdateMagCols
+            % Apply ZP to catalog magnitude columns
+            % Example: updateCatalogMagnitudes(Result(Iobj).CatData, PC);
+        end
 
         % ----------------------------------------------------------------
-        % STEP 1.6: Update header 
+        % STEP 1.5: Update header (transmissionZP responsibility)
         % ----------------------------------------------------------------
 
-   
+        if Args.UpdateHeader
+            % Write ZP to header
+            % Result(Iobj).HeaderData.replaceVal('PHOTZP', PC.ZP);
+            % Result(Iobj).HeaderData.replaceVal('PHOTZPER', PC.ZP_Err);
+        end
 
         % ----------------------------------------------------------------
-        % STEP 1.7: Create calibrator diagnostics table
+        % STEP 1.6: Store PhotCalib object
         % ----------------------------------------------------------------
 
-        % ????? if needed
-
-        % ----------------------------------------------------------------
-        % STEP 1.8: Store results
-        % ----------------------------------------------------------------
+        ResFit(Iobj).PhotCalib = PC;  % Store complete calibration object
 
      
 
@@ -316,65 +290,21 @@ function [CalibData] = findGaiaCalibrators(Cat, Args)
    
 
     % ----------------------------------------------------------------
-    % STEP 5: Build CalibData structure to save calibrators data 
+    % STEP 5: Build CalibData structure to save calibrators data
     % ----------------------------------------------------------------
 
     CalibData = struct();
-    .Spec 
-    .SpecErr 
-    .LASTData = struct();
-    CalibData.LASTData.(Args.FluxColName) %%% ???
-    CalibData.LASTData.(['ERR_' Args.FluxColName])
-    CalibData.LASTData.X 
-    CalibData.LASTData.Y 
-    CalibData.LASTData.RA 
-    CalibData.LASTData.Dec 
+    CalibData.Lambda = ...             % Wavelength grid from Gaia XP [nm] [WvlPoints x 1]
+    CalibData.Spec = ...               % Gaia XP spectra [N x WvlPoints]
+    CalibData.SpecErr = ...            % Gaia XP spectra errors [N x WvlPoints]
+    CalibData.LASTData = struct();
+    CalibData.LASTData.Flux = ...      % LAST observed flux [N x 1]
+    CalibData.LASTData.FluxErr = ...   % LAST flux uncertainties [N x 1] (for Chi2 calculation)
+    CalibData.LASTData.X = ...         % X pixel coordinates [N x 1]
+    CalibData.LASTData.Y = ...         % Y pixel coordinates [N x 1]
+    CalibData.LASTData.RA = ...        % Right Ascension [rad] [N x 1]
+    CalibData.LASTData.Dec = ...       % Declination [rad] [N x 1] 
 
   end
-
-%% ========================================================================
-%  HELPER FUNCTION: Calculate Zero Point
-%  ========================================================================
-
-function ZP = calculateZeroPoint(Model, Lambda, ExpTime)
-    % Calculate photometric zero point from optimized transmission model
-    %
-    % Input  : - Model - Optimized CompositeFun transmission model
-    %          - Lambda - Wavelength grid [nm]
-    %          - ExpTime - Exposure time [s]
-    % Output : - ZP - Zero point [mag]
-
-    % Get optimized parameter values
-    ParamValues = Model.valuesAllFunPar();
-
-    % Evaluate transmission on wavelength grid
-    Transmission = Model.evaluateAllFunParInput(Lambda, ParamValues(:)');
-
-    % Create flat Fnu spectrum for AB zero-point
-    Fnu = constant.Fnu('SI');  % AB system flux density [W/m^2/Hz]
-    FlatSpectrum = Fnu * ones(size(Lambda));  % Flat spectrum
-
-    % Apply transmission
-    SpecTrans = FlatSpectrum(:) .* Transmission(:);
-
-    % Integrate: A = integral(SpecTrans * Lambda * dLambda)
-    Integrand = SpecTrans(:) .* Lambda(:);
-    A = tools.math.integral.trapzmat(Lambda(:), Integrand(:), 1);
-
-    % Physical constants
-    H = constant.h('SI');  % Planck constant [J·s]
-    C = constant.c('SI');  % Speed of light [m/s]
-    B = H * C * 1e9;       % H*C with nm to m conversion
-
-    % Telescope aperture area (LAST default)
-    Ageom = pi * (0.1397)^2;  % m^2
-
-    % Calculate zero-point flux
-    TotalFlux_ZP = ExpTime * Ageom * A / B;
-
-    % Convert to magnitude
-    ZP = 2.5 * log10(TotalFlux_ZP);
-
-end
 
 
