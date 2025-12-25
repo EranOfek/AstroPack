@@ -129,28 +129,11 @@ classdef PhotCalib < Component
             % Call parent constructor
             Obj@Component();
 
-            % Initialize properties
-            Obj.ZP = Args.ZP;
-            Obj.ZP_Err = Args.ZP_Err;
-            Obj.RMS = Args.RMS;
-            Obj.NumCalib = Args.NumCalib;
-            Obj.Chi2 = Args.Chi2;
-            Obj.DOF = Args.DOF;
-            Obj.TransModel = Args.TransModel;
-            Obj.FitResults = Args.FitResults;
-            Obj.AirMass = Args.AirMass;
-            Obj.ZenithAngle = Args.ZenithAngle;
-            Obj.ExpTime = Args.ExpTime;
-            Obj.Temperature = Args.Temperature;
-            Obj.Pressure = Args.Pressure;
-            Obj.CalibTable = Args.CalibTable;
-            Obj.TransFuns = Args.TransFuns;
-            Obj.OptSeq = Args.OptSeq;
-            Obj.SearchRadius = Args.SearchRadius;
-            Obj.MagRange = Args.MagRange;
-            Obj.TransFile = Args.TransFile;
-            Obj.TransWvl = Args.TransWvl;
-            Obj.TransValues = Args.TransValues;
+            % Initialize properties from arguments
+            Fields = fieldnames(Args);
+            for I = 1:length(Fields)
+                Obj.(Fields{I}) = Args.(Fields{I});
+            end
         end
     end
 
