@@ -201,9 +201,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 5. coadd the epochs from different telescopes and cameras                   
         % employ imProc.stack.coaddW or a simliar function        
         
-        RefImage = @Args.CoaddFunction(StackImages);
+        RefImage = Args.CoaddFunction(StackImages);
         
         % 6. save the new reference image and its catalog to the disk (euclid?)
+        
+        % RefImage.write1....
                                         
         % 7. write the image metadata to the reference image table of the DB 
         %    write the reference image catalog to the reference image catalog table of the DB
