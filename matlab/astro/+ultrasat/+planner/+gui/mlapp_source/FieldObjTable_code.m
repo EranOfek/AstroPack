@@ -3,6 +3,7 @@ classdef FieldObjTable < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                    matlab.ui.Figure
+        Panel_6                     matlab.ui.container.Panel
         TableDropDown               matlab.ui.control.DropDown
         TableDropDownLabel          matlab.ui.control.Label
         SmallEditField              matlab.ui.control.EditField
@@ -15,6 +16,14 @@ classdef FieldObjTable < matlab.apps.AppBase
         MassiveStarsEditFieldLabel  matlab.ui.control.Label
         TransPlanetsEditField       matlab.ui.control.EditField
         TransPlanetsEditFieldLabel  matlab.ui.control.Label
+        Panel_5                     matlab.ui.container.Panel
+        RowEditFieldLabel_2         matlab.ui.control.Label
+        NameEditField               matlab.ui.control.EditField
+        NameEditFieldLabel          matlab.ui.control.Label
+        IndexEditField              matlab.ui.control.EditField
+        IndexEditFieldLabel         matlab.ui.control.Label
+        RowEditField                matlab.ui.control.EditField
+        RowEditFieldLabel           matlab.ui.control.Label
         Panel_4                     matlab.ui.container.Panel
         UITableData                 matlab.ui.control.Table
         Panel_2                     matlab.ui.container.Panel
@@ -69,7 +78,7 @@ classdef FieldObjTable < matlab.apps.AppBase
 
         % Value changed function: TableDropDown
         function TableDropDownValueChanged(app, event)
-            app.MainModule.MainApp.PlotHelper.FieldObjTableDropDownValueChanged(app.MainModule.MainApp);
+            app.MainModule.MainApp.TablesHelper.FieldObjTableDropDownValueChanged(app.MainModule.MainApp);
         end
     end
 
@@ -81,28 +90,28 @@ classdef FieldObjTable < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1026 543];
+            app.UIFigure.Position = [100 100 1204 585];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
-            app.Panel_2.Position = [14 501 1004 33];
+            app.Panel_2.Position = [14 543 1186 33];
 
             % Create FieldObjectsLabel
             app.FieldObjectsLabel = uilabel(app.Panel_2);
             app.FieldObjectsLabel.HorizontalAlignment = 'center';
             app.FieldObjectsLabel.FontSize = 18;
             app.FieldObjectsLabel.FontWeight = 'bold';
-            app.FieldObjectsLabel.Position = [8 1 995 33];
+            app.FieldObjectsLabel.Position = [8 1 1167 33];
             app.FieldObjectsLabel.Text = 'Field Objects';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.Panel_2, 'push');
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
             app.HelpButton.Tooltip = {'Open SNR Calculator web application in browser window'};
-            app.HelpButton.Position = [928 3 64 26];
+            app.HelpButton.Position = [1102 3 64 26];
             app.HelpButton.Text = 'Help';
 
             % Create Panel_4
@@ -110,7 +119,7 @@ classdef FieldObjTable < matlab.apps.AppBase
             app.Panel_4.BorderColor = [0.4902 0.4902 0.4902];
             app.Panel_4.TitlePosition = 'centertop';
             app.Panel_4.BackgroundColor = [0.9412 0.9412 0.9412];
-            app.Panel_4.Position = [14 14 1003 441];
+            app.Panel_4.Position = [18 11 1178 441];
 
             % Create UITableData
             app.UITableData = uitable(app.Panel_4);
@@ -118,79 +127,135 @@ classdef FieldObjTable < matlab.apps.AppBase
             app.UITableData.RowName = {};
             app.UITableData.SelectionChangedFcn = createCallbackFcn(app, @UITableDataSelectionChanged, true);
             app.UITableData.FontSize = 10;
-            app.UITableData.Position = [9 13 983 418];
+            app.UITableData.Position = [9 13 1158 418];
+
+            % Create Panel_5
+            app.Panel_5 = uipanel(app.UIFigure);
+            app.Panel_5.BorderType = 'none';
+            app.Panel_5.BackgroundColor = [0.8 0.8 0.8];
+            app.Panel_5.Position = [14 501 1186 34];
+
+            % Create RowEditFieldLabel
+            app.RowEditFieldLabel = uilabel(app.Panel_5);
+            app.RowEditFieldLabel.HorizontalAlignment = 'right';
+            app.RowEditFieldLabel.Position = [112 7 29 22];
+            app.RowEditFieldLabel.Text = 'Row';
+
+            % Create RowEditField
+            app.RowEditField = uieditfield(app.Panel_5, 'text');
+            app.RowEditField.Editable = 'off';
+            app.RowEditField.BackgroundColor = [1 0.9882 0.8196];
+            app.RowEditField.Position = [156 7 47 22];
+
+            % Create IndexEditFieldLabel
+            app.IndexEditFieldLabel = uilabel(app.Panel_5);
+            app.IndexEditFieldLabel.HorizontalAlignment = 'right';
+            app.IndexEditFieldLabel.Position = [226 7 34 22];
+            app.IndexEditFieldLabel.Text = 'Index';
+
+            % Create IndexEditField
+            app.IndexEditField = uieditfield(app.Panel_5, 'text');
+            app.IndexEditField.Editable = 'off';
+            app.IndexEditField.BackgroundColor = [1 0.9882 0.8196];
+            app.IndexEditField.Position = [275 7 47 22];
+
+            % Create NameEditFieldLabel
+            app.NameEditFieldLabel = uilabel(app.Panel_5);
+            app.NameEditFieldLabel.HorizontalAlignment = 'right';
+            app.NameEditFieldLabel.Position = [334 7 37 22];
+            app.NameEditFieldLabel.Text = 'Name';
+
+            % Create NameEditField
+            app.NameEditField = uieditfield(app.Panel_5, 'text');
+            app.NameEditField.Editable = 'off';
+            app.NameEditField.BackgroundColor = [1 0.9882 0.8196];
+            app.NameEditField.Position = [386 7 196 22];
+
+            % Create RowEditFieldLabel_2
+            app.RowEditFieldLabel_2 = uilabel(app.Panel_5);
+            app.RowEditFieldLabel_2.HorizontalAlignment = 'right';
+            app.RowEditFieldLabel_2.FontWeight = 'bold';
+            app.RowEditFieldLabel_2.Position = [9 7 89 22];
+            app.RowEditFieldLabel_2.Text = 'Unique Target:';
+
+            % Create Panel_6
+            app.Panel_6 = uipanel(app.UIFigure);
+            app.Panel_6.BorderColor = [0.8 0.8 0.8];
+            app.Panel_6.BorderType = 'none';
+            app.Panel_6.BackgroundColor = [0.902 0.902 0.902];
+            app.Panel_6.Position = [15 459 1185 37];
 
             % Create TransPlanetsEditFieldLabel
-            app.TransPlanetsEditFieldLabel = uilabel(app.UIFigure);
+            app.TransPlanetsEditFieldLabel = uilabel(app.Panel_6);
             app.TransPlanetsEditFieldLabel.HorizontalAlignment = 'right';
-            app.TransPlanetsEditFieldLabel.Position = [234 467 75 22];
+            app.TransPlanetsEditFieldLabel.Position = [223 6 75 22];
             app.TransPlanetsEditFieldLabel.Text = 'TransPlanets';
 
             % Create TransPlanetsEditField
-            app.TransPlanetsEditField = uieditfield(app.UIFigure, 'text');
+            app.TransPlanetsEditField = uieditfield(app.Panel_6, 'text');
             app.TransPlanetsEditField.Editable = 'off';
             app.TransPlanetsEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.TransPlanetsEditField.Position = [324 467 50 22];
+            app.TransPlanetsEditField.Position = [313 6 50 22];
 
             % Create MassiveStarsEditFieldLabel
-            app.MassiveStarsEditFieldLabel = uilabel(app.UIFigure);
+            app.MassiveStarsEditFieldLabel = uilabel(app.Panel_6);
             app.MassiveStarsEditFieldLabel.HorizontalAlignment = 'right';
-            app.MassiveStarsEditFieldLabel.Position = [391 467 77 22];
+            app.MassiveStarsEditFieldLabel.Position = [380 6 77 22];
             app.MassiveStarsEditFieldLabel.Text = 'MassiveStars';
 
             % Create MassiveStarsEditField
-            app.MassiveStarsEditField = uieditfield(app.UIFigure, 'text');
+            app.MassiveStarsEditField = uieditfield(app.Panel_6, 'text');
             app.MassiveStarsEditField.Editable = 'off';
             app.MassiveStarsEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.MassiveStarsEditField.Position = [483 467 50 22];
+            app.MassiveStarsEditField.Position = [472 6 50 22];
 
             % Create ClustersEditFieldLabel
-            app.ClustersEditFieldLabel = uilabel(app.UIFigure);
+            app.ClustersEditFieldLabel = uilabel(app.Panel_6);
             app.ClustersEditFieldLabel.HorizontalAlignment = 'right';
-            app.ClustersEditFieldLabel.Position = [557 467 49 22];
+            app.ClustersEditFieldLabel.Position = [546 6 49 22];
             app.ClustersEditFieldLabel.Text = 'Clusters';
 
             % Create ClustersEditField
-            app.ClustersEditField = uieditfield(app.UIFigure, 'text');
+            app.ClustersEditField = uieditfield(app.Panel_6, 'text');
             app.ClustersEditField.Editable = 'off';
             app.ClustersEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.ClustersEditField.Position = [621 467 50 22];
+            app.ClustersEditField.Position = [610 6 50 22];
 
             % Create BlazarsEditFieldLabel
-            app.BlazarsEditFieldLabel = uilabel(app.UIFigure);
+            app.BlazarsEditFieldLabel = uilabel(app.Panel_6);
             app.BlazarsEditFieldLabel.HorizontalAlignment = 'right';
-            app.BlazarsEditFieldLabel.Position = [694 467 45 22];
+            app.BlazarsEditFieldLabel.Position = [683 6 45 22];
             app.BlazarsEditFieldLabel.Text = 'Blazars';
 
             % Create BlazarsEditField
-            app.BlazarsEditField = uieditfield(app.UIFigure, 'text');
+            app.BlazarsEditField = uieditfield(app.Panel_6, 'text');
             app.BlazarsEditField.Editable = 'off';
             app.BlazarsEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.BlazarsEditField.Position = [754 467 50 22];
+            app.BlazarsEditField.Position = [743 6 50 22];
 
             % Create SmallEditFieldLabel
-            app.SmallEditFieldLabel = uilabel(app.UIFigure);
+            app.SmallEditFieldLabel = uilabel(app.Panel_6);
             app.SmallEditFieldLabel.HorizontalAlignment = 'right';
-            app.SmallEditFieldLabel.Position = [819 467 35 22];
+            app.SmallEditFieldLabel.Position = [808 6 35 22];
             app.SmallEditFieldLabel.Text = 'Small';
 
             % Create SmallEditField
-            app.SmallEditField = uieditfield(app.UIFigure, 'text');
+            app.SmallEditField = uieditfield(app.Panel_6, 'text');
             app.SmallEditField.Editable = 'off';
             app.SmallEditField.BackgroundColor = [1 0.9882 0.8196];
-            app.SmallEditField.Position = [869 467 50 22];
+            app.SmallEditField.Position = [858 6 50 22];
 
             % Create TableDropDownLabel
-            app.TableDropDownLabel = uilabel(app.UIFigure);
+            app.TableDropDownLabel = uilabel(app.Panel_6);
             app.TableDropDownLabel.HorizontalAlignment = 'right';
-            app.TableDropDownLabel.Position = [25 467 34 22];
+            app.TableDropDownLabel.Position = [14 6 34 22];
             app.TableDropDownLabel.Text = 'Table';
 
             % Create TableDropDown
-            app.TableDropDown = uidropdown(app.UIFigure);
+            app.TableDropDown = uidropdown(app.Panel_6);
             app.TableDropDown.Items = {'TransPlanets', 'MassiveStars', 'Clusters', 'Blazars', 'Small'};
             app.TableDropDown.ValueChangedFcn = createCallbackFcn(app, @TableDropDownValueChanged, true);
-            app.TableDropDown.Position = [74 467 143 22];
+            app.TableDropDown.Position = [63 6 143 22];
             app.TableDropDown.Value = 'TransPlanets';
 
             % Show the figure after all components are created

@@ -224,7 +224,6 @@ classdef PlannerMain < matlab.apps.AppBase
         % =================================================================
         % Data
         Preferences                             % Refrence to app.MainModule.Preferences
-        UniqueTargetCalibObj                    % Table returned by Planner.showCalibObj()        
         StartupNamespaceId                      %
 
         % Helper classes in astro/+ultrasat/+planner/+guiutils/
@@ -238,11 +237,12 @@ classdef PlannerMain < matlab.apps.AppBase
         NewPlanHelper                           % PlannerMainNewPlanHelper        
         PlanParamsHelper                        % PlannerMainPlanParamsHelper
         PlanTargetsHelper                       % PlannerMainPlanTargetsHelper
-        PlotHelper                              % PlannerMainPlotHelper        
+        PlotHelper                              % PlannerMainPlotHelper                
         SessionHelper                           % PlannerMainSessionHelper
         StatusHelper                            % PlannerMainStatusHelper
         StorageHelper                           % PlannerMainStorageHelper                
         SubmitHelper                            % PlannerMainSubmitHelper
+        TablesHelper                            % PlannerMainTablesHelper
         ValidationHelper                        % PlannerMainValidationHelper        
         UniqueTargetsHelper                     % PlannerMainUniqueTargetsHelper                       
     end
@@ -300,6 +300,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.StatusHelper            = ultrasat.planner.guiutils.PlannerMainStatusHelper();                        
             app.PlotHelper              = ultrasat.planner.guiutils.PlannerMainPlotHelper();
             app.SubmitHelper            = ultrasat.planner.guiutils.PlannerMainSubmitHelper();                        
+            app.TablesHelper            = ultrasat.planner.guiutils.PlannerMainTablesHelper();
             app.ValidationHelper        = ultrasat.planner.guiutils.PlannerMainValidationHelper();
             app.UniqueTargetsHelper     = ultrasat.planner.guiutils.PlannerMainUniqueTargetsHelper();
 
@@ -940,7 +941,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: PlotCalibObjDropDown
         function PlotCalibObjDropDownValueChanged(app, event)
-            app.PlotHelper.plotCalibObjSub(app);
+            app.PlotHelper.plotCalibObj(app);
         end
 
         % Button pushed function: UpdateSkyMapButton
@@ -1055,7 +1056,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: OpenCalObjTableButton
         function OpenCalObjTableButtonPushed(app, event)
-            app.PlotHelper.showCalibObjTable(app);
+            app.TablesHelper.showCalibObjTable(app);
         end
 
         % Button pushed function: OpenSkyMapPlotWindowButton
@@ -1189,7 +1190,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Value changed function: GraphPlotUniqueTargetDropDown
         function GraphPlotUniqueTargetDropDownValueChanged(app, event)
-            app.PlotHelper.plotCalibObj(app);            
+            app.UniqueTargetsHelper.uniqueTargetDropDownValueChanged(app);            
         end
 
         % Button pushed function: RefreshApprovedTargetsButton_4
@@ -1209,17 +1210,17 @@ classdef PlannerMain < matlab.apps.AppBase
 
         % Button pushed function: OpenRefImagesButton
         function OpenRefImagesButtonPushed(app, event)
-            app.PlotHelper.showRefImagesTable(app);
+            app.TablesHelper.showRefImagesTable(app);
         end
 
         % Button pushed function: OpenExtSurveysButton
         function OpenExtSurveysButtonPushed(app, event)
-            app.PlotHelper.showExtSurveysTable(app);
+            app.TablesHelper.showExtSurveysTable(app);
         end
 
         % Button pushed function: OpenFieldObjButton
         function OpenFieldObjButtonPushed(app, event)
-            app.PlotHelper.showFieldObjTable(app);
+            app.TablesHelper.showFieldObjTable(app);
         end
 
         % Value changed function: VisibilityPlotTimeUnitsDropDown
