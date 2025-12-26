@@ -401,7 +401,7 @@ classdef uplanner < Component
             if ~isempty(Args.Save)
                 UniqTarg    = Obj.UniqTarg;
                 SchedStatus = Obj.SchedStatus;
-                save(Args.Save,'UniqTarg','SchedStatus');
+                save(Args.Save,'UniqTarg', 'SchedStatus');
             end
         end
     end 
@@ -1874,7 +1874,7 @@ classdef uplanner < Component
 
         % -------------------------- Plotting --------------------------
 
-        function h = plotCalibSpectum(Obj,Res,Args)
+        function h = plotCalibSpectrum(Obj,Res,Args)
             % Plot the spectra of CalibObj, returned by getCalibObj()
             arguments
                 Obj
@@ -1889,7 +1889,7 @@ classdef uplanner < Component
             % Get the filename of the calibration object
             Fname = sprintf('%s/%s.fits',Obj.CalibDir,Res.obj{Args.subInd2plot});
             if ~isfile(Fname)
-                error('plotCalibSpectum: file not found: %s', Fname)                    
+                error('plotCalibSpectrum: file not found: %s', Fname)                    
             end
             try
                 Ftab  = fitsread(Fname,'binarytable');                        

@@ -63,6 +63,9 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
             % Update the CalibObjTable with the selected unique target.
             app.msglog('updateCalibObjTable');
             if ~obj.hasData(app), return; end
+            if isempty(app.CalibObjTableApp) || ~isvalid(app.CalibObjTableApp)
+                return
+            end
         
             try
                 % Get index of selected unique target in the drop-down
@@ -71,10 +74,12 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
                     return
                 end
 
+                % Set the caption and edit fields in the table window
+                obj.setTargetHeaderAndFields(app, app.CalibObjTableApp, UniqueTargetIndex, 'Calibration Objects');
+
                 % Get CalibObj table for the selected unique target
                 CalibObjTable = app.MainModule.Planner.getCalibObj(UniqueTargetIndex);
                 if isempty(CalibObjTable) || height(CalibObjTable) == 0
-                    app.setStatus('Warning', 'getCalibObj returned none')
                     return
                 end
 
@@ -130,9 +135,19 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
             % @TODO - NOT IMPLEMENTED YET - Update the RefImagesTable with the selected unique target.
             app.msglog('updateRefImagesTable');
             if ~obj.hasData(app), return; end
+            if isempty(app.RefImagesTableApp) || ~isvalid(app.RefImagesTableApp)
+                return
+            end
+
             try
                 % Get index of selected unique target
-                UniqueTargetIndex = app.UITableUniqueTargets.Selection;                                        
+                UniqueTargetIndex = app.UITableUniqueTargets.Selection;   
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
+
+                % Set the caption and edit fields in the table window
+                obj.setTargetHeaderAndFields(app, app.RefImagesTableApp, UniqueTargetIndex, 'Reference Images');
 
                 % Get reference images table for the selected unique target
                 Data = app.MainModule.Planner.getRefImagesForTarget(UniqueTargetIndex);
@@ -189,16 +204,26 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
             % Update the ExtSurveysTable with the selected unique target.
             app.msglog('updateExtSurveysTable');
             if ~obj.hasData(app), return; end
+            if isempty(app.ExtSurveysTableApp) || ~isvalid(app.ExtSurveysTableApp)
+                return
+            end
+
             try
                 % Get index of selected unique target
-                UniqueTargetIndex = app.UITableUniqueTargets.Selection;                                        
+                UniqueTargetIndex = app.UniqueTargetsHelper.getUniqueTargetIndexFromDropDown(app);                                        
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
+
+                % Set the caption and edit fields in the table window
+                obj.setTargetHeaderAndFields(app, app.ExtSurveysTableApp, UniqueTargetIndex, 'External Surveys');
 
                 % Get external surveys table for the selected unique target
                 Data = app.MainModule.Planner.getExtSurveysForTarget(UniqueTargetIndex);
 
                 % Clear the data in the Shape column, but keep the column in the table
                 if ismember('Shape', Data.Properties.VariableNames)
-                    Data.Shape(:) = {[]};
+                    %Data.Shape(:) = {[]};
                 end
 
                 % Update the table data
@@ -208,7 +233,7 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
                 % Update column names if table is non-empty
                 if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
                     app.ExtSurveysTableApp.UITableData.ColumnName = ...
-                        app.UniqueTargetCalibObj.Properties.VariableNames;
+                        Data.Properties.VariableNames;
                 else
                     app.msglog('showExtSurveysTable: UniqueTargetCalibObj is empty or not a table.');
                 end
@@ -250,10 +275,20 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
         function updateFieldObjTable(obj, app)
             % Update the FieldObjTable with the selected unique target and table name.
             app.msglog('updateFieldObjTable');
+            if ~obj.hasData(app), return; end
+            if isempty(app.FieldObjTableApp) || ~isvalid(app.FieldObjTableApp)
+                return
+            end
 
             try
                 % Get index of selected unique target
-                UniqueTargetIndex = app.UITableUniqueTargets.Selection;                                        
+                UniqueTargetIndex = app.UniqueTargetsHelper.getUniqueTargetIndexFromDropDown(app);                                        
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
+
+                % Set the caption and edit fields in the table window
+                obj.setTargetHeaderAndFields(app, app.FieldObjTableApp, UniqueTargetIndex, 'Field Objects');
                 
                 % Get selected table name
                 SelectedTableName = app.FieldObjTableApp.TableDropDown.Value;
@@ -320,6 +355,49 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
             Result = app.hasPlanner() && (height(app.MainModule.Planner.UniqTarg) > 0) || (height(app.MainModule.Planner.Plan) > 0);
         end
 
+
+        function setTargetHeaderAndFields(obj, app, form, UniqueTargetIndex, captionPrefix)
+            % Updates caption & top-row info fields in a table window for selected target.
+        
+            try
+                % Build caption
+                captionText = app.UniqueTargetsHelper.makeUniqTargetCaption(app, UniqueTargetIndex);
+                if nargin > 4 && ~isempty(captionPrefix)
+                    caption = sprintf("%s - %s", captionPrefix, captionText);
+                else
+                    caption = captionText;
+                end
+        
+                % Apply caption to window title / label - prefer TitleLabel if exists (visual)
+                if isprop(form, "TitleLabel")
+                    form.TitleLabel.Text = caption;
+                elseif isprop(form, "UIFigure")
+                    form.UIFigure.Name = caption;
+                end
+        
+                % Extract row, index, name
+                row  = app.UniqueTargetsHelper.getRowByIndex(app, UniqueTargetIndex);
+                name = app.UniqueTargetsHelper.getNameByIndex(app, UniqueTargetIndex);
+                idx  = UniqueTargetIndex;
+        
+                % Populate UI edit fields (optional)
+                if isprop(form, "RowEditField")
+                    form.RowEditField.Value = num2str(row);
+                end
+                
+                if isprop(form, "IndexEditField")
+                    form.IndexEditField.Value = num2str(idx);
+                end
+                
+                if isprop(form, "NameEditField")
+                    form.NameEditField.Value = string(name);
+                end
+        
+            catch ME
+                app.msgex("PlannerMainTablesHelper.setTargetHeaderAndFields", ME);
+            end
+        end
+        
     end
 
 end

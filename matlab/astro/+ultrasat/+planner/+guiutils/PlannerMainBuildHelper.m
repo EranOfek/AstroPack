@@ -96,8 +96,13 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             % Restore current plan if build failed
             if ~BuildOk
                 app.msglog('build: Build failed, restoring previous plan.');
-                app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan.', 'Build Failed');
-                app.MainModule.Planner.Plan = SavedPlan;
+                app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan', 'Build Failed');
+
+                % Restore the previous plan (only for DDT)
+                if strcmp(PlanType, 'DDT')
+                    app.MainModule.Planner.Plan = SavedPlan;
+                    app.msglog('build: Restored previous plan');
+                end
                 return;
             end
 
