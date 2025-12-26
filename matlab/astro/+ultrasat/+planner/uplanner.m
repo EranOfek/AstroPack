@@ -82,11 +82,16 @@
 %
 % - h = Obj.plotCalibSpectrum(Res,Args)                     : Plot the spectra returned by getCalibObj()
 %
-% - Obj.plotVisibility(UniqTargInd,Args)                            : Plot the visibilty of a UniqTarg
+% - Obj.plotVisibility(UniqTargInd,Args)                    : Plot the visibilty of a UniqTarg
 %
-% - Obj.plotMapPlan(Args)                                           : plotting on a map relevant properties and info from the plan
+% - Obj.plotMapPlan(Args)                                   : plotting on a map relevant properties and info from the plan
 %                                                                     TODO - Change to map projection later
-% - CheckTimes = getDefaultCheckTimes()                             : Get the default Check times.  TODO - Need to update
+% - CheckTimes = getDefaultCheckTimes()                     : Get the default Check times.  TODO - Need to update
+%
+% - Result = Obj.isEditable()                               : Return true if the plan is editable (Status is 'draft' and Editable is true)
+% - Res = Obj.getExtSurveysForTarget(UniqTargInd)           : Return external surveys table for a given unique target index
+% - Res = Obj.getFieldObjForTarget(UniqTargInd, FieldName)  : Return table of field objects for a given unique target and field name. FieldName: char or string, e.g. 'Blazars', 'Clusters', 'Small', ...
+% - Obj.enforceUniqueNames()                                : Enforce unique names in the UniqTarg table, add _n suffix to duplicate names
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -841,23 +846,28 @@ classdef uplanner < Component
             
             % If a file is provided, read the coordinates from the file
             if ~isempty(Args.File)
+
+                % Load the file coordinates into a table
                 cooFile = readtable(Args.File);
+
+                % Find the columns for RA, Dec, and Name
                 colRA = find(strcmp(cooFile.Properties.VariableNames,'RA'));
                 colDec = find(strcmp(cooFile.Properties.VariableNames,'Dec'));
                 colName = find(strcmp(cooFile.Properties.VariableNames,'Name'));
+
+                % Get the number of columns in the file
                 Ncol = numel(cooFile.Properties.VariableNames);
                 
-                % Name column is optional
+                % If RA/Dec headers not found, use default file structure: "Name, RA, Dec" or "RA, Dec"
                 if isempty(colRA) || isempty(colDec)
-                    if Ncol==3
+                    if Ncol == 3       % Name, RA, Dec
                         colName = 1;
                         colRA = 2;
                         colDec =3;
-                    else
+                    else               % RA, Dec
                         colRA = 1;
                         colDec =2;
-                    end
-                    
+                    end                    
                 end
 
                 % Extract the RA and Dec from the file data, Name is optional
@@ -876,10 +886,13 @@ classdef uplanner < Component
             Obj.UniqTarg.RA( NU0+1:NU0+NUtarg) =  RA; 
             Obj.UniqTarg.Dec(NU0+1:NU0+NUtarg) = Dec;
 
-            % Set Name
+            % Set Name if provided (for single target addition)
             if ~isempty(Args.Name)
                 Obj.UniqTarg.Name(NU0+1:NU0+NUtarg) = Args.Name;
             end
+
+            % Enforce unique names in the UniqTarg table, renaming duplicates with suffix _n
+            Obj.enforceUniqueNames();
 
             % Set DitherGroup
             if ~isempty(Args.DitherGroup)
@@ -1008,16 +1021,19 @@ classdef uplanner < Component
             
             % Remove all unique targets
             Obj.UniqTarg(:,:) = [];
+
             % clean the number of unique targets
             Obj.N_uniqueTargets = 0;
+
             % clear the plan
             Obj.clearPlan;
+
             % clean the visibility
             Obj.Vis = [];
         end
 
         %
-        function scheduleTargets(Obj, UniqTargetIndexes,StartTime,Args)
+        function scheduleTargets(Obj, UniqTargetIndexes, StartTime,Args)
             % Schedule a group of targets, starting at StartTime following by the rest, taking into account slew time between targets.
             % TODO- allow to provide a list of StartTime, one for each of target in the list.
             arguments
@@ -1113,8 +1129,8 @@ classdef uplanner < Component
             Obj.StartTime = min(Obj.Plan.Tstart);
             Obj.EndTime = max(Obj.Plan.Tend);
             
-            % Timestamp the schedule
-            Obj.schedule();
+            % Change status to scheduled and timestamp the schedule
+            Obj.setScheduledStatus();
         end
 
         %
@@ -1311,7 +1327,7 @@ classdef uplanner < Component
             % Loop over the plan rows and validate the timing
             for Plan_row = 1:height(tmpPlan)
                 % Calculate and validate times between targets
-                if Plan_row>1
+                if Plan_row > 1
                     
                     [T_sec,~] = ultrasat.tools.calcSlew(tmpPlan.RA(Plan_row-1),tmpPlan.Dec(Plan_row-1),tmpPlan.RA(Plan_row),tmpPlan.Dec(Plan_row),...
                                                         'Units','deg','CheckTrajectory',true);
@@ -1538,8 +1554,10 @@ classdef uplanner < Component
            
             RAD = 180/pi;
             
+            % Calculate the total duration of the plan row
             Obj.Plan.TotalDuration(Plan_row) = Obj.Plan.Nexposures(Plan_row) * Obj.Plan.ExpTime(Plan_row) + Obj.FullTileReadTime; 
 
+            % Optionally calculate the slew time before, and the start time from the previous target
             if Args.CalcStartTimeFromPrevTarget
                 [T_sec,~] = ultrasat.tools.calcSlew(Obj.Plan.RA(Plan_row-1),Obj.Plan.Dec(Plan_row-1),Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),...
                                                     'Units','deg','CheckTrajectory',true);  
@@ -1547,12 +1565,15 @@ classdef uplanner < Component
                 Obj.Plan.Tstart(Plan_row) = Obj.Plan.Tend(Plan_row-1) + Obj.Plan.SlewTimeBefore(Plan_row);  
             end
 
+            % Calculate the end time of the plan row
             Obj.Plan.Tend(Plan_row) = Obj.Plan.Tstart(Plan_row) + Obj.Plan.TotalDuration(Plan_row); 
             Obj.Plan.JDstart(Plan_row) = juliandate(Obj.Plan.Tstart(Plan_row));  
             Obj.Plan.JDend(Plan_row) = juliandate(Obj.Plan.Tend(Plan_row)); 
 
+            % Calculate the expected roll of the plan row
             Obj.Plan.ExpectedRoll(Plan_row) = ultrasat.tools.expectedRoll(Obj.Plan.RA(Plan_row),Obj.Plan.Dec(Plan_row),Obj.Plan.JDstart(Plan_row));
 
+            % Calculate the visibility of the plan row
             VisJD = Obj.Plan.JDstart(Plan_row) + (0:days(Obj.Plan.ExpTime(Plan_row)):(Obj.Plan.JDend(Plan_row)-Obj.Plan.JDstart(Plan_row)))'; 
             TargetVis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.Plan.RA(Plan_row) Obj.Plan.Dec(Plan_row)],'CooUnits','deg',...
                 'MinSunDist',Obj.ObsSunDist,'MinMoonDist',Obj.ObsMoonDist,'MinEarthDist',Obj.ObsEarthDist,'MinDistOffset',0); 
@@ -1566,17 +1587,18 @@ classdef uplanner < Component
 				end
             end
 
+            % Update no communication and hard observation flags
             Obj.Plan.NoComm(Plan_row) = ~all(TargetVis.CommLimits); 
             Obj.Plan.HardObs(Plan_row) = ~all(TargetVis.PowerLimits);
 
-
+            % Update the moon, sun, and earth distances
             Obj.Plan.MoonDist(Plan_row) = TargetVis.MoonAngDist(1)*RAD; 
             Obj.Plan.SunDist(Plan_row) = TargetVis.SunAngDist(1)*RAD;
             Obj.Plan.EarthDist(Plan_row) = TargetVis.EarthAngDist(1)*RAD; 
 
-            % TODO - ADD Calc Zody,LimMag  
+            % TODO @Yossi - ADD Calc Zody,LimMag  
 
-            % Search for overlapping targets
+            % Search for overlapping targets in the mission approved plan
             if ~isempty(Obj.MissionApprovedPlan)          
                 Obj.Plan.OverlapTargets{Plan_row} = find((Obj.Plan.Tstart(Plan_row) > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tstart(Plan_row) < Obj.MissionApprovedPlan.Tend) |...
                                                     (Obj.Plan.Tend(Plan_row)   > Obj.MissionApprovedPlan.Tstart & Obj.Plan.Tend(Plan_row)   < Obj.MissionApprovedPlan.Tend));
@@ -1587,14 +1609,16 @@ classdef uplanner < Component
             % Calcuate visibility for all unique targets for a given time window (default window is Obj.CheckTimes)
             arguments
                 Obj                     
-                Args.TimeBin         = 0.01; % [days] % this is close to 1 visit 
-                Args.WindowStartTime = []; 
-                Args.WindowEndTime   = []; 
-                Args.ObsSunDist      = [];
-                Args.ObsMoonDist     = [];
-                Args.ObsEarthDist    = [];
+                Args.TimeBin         = 0.01;        % [days] % this is close to 1 visit 
+                Args.WindowStartTime = [];          % Start time of the time window
+                Args.WindowEndTime   = [];          % End time of the time window
+                Args.ObsSunDist      = [];          % Minimum sun distance
+                Args.ObsMoonDist     = [];          % Minimum moon distance
+                Args.ObsEarthDist    = [];          % Minimum earth distance
             end
-            %
+
+            % Use the default values if not provided
+
             if isempty(Args.WindowStartTime)
                 Args.WindowStartTime = Obj.CheckTimes(1);
             end
@@ -1615,13 +1639,18 @@ classdef uplanner < Component
                 Args.ObsEarthDist = Obj.ObsEarthDist;
             end
             
+            % Calculate the start and end Julian dates
             StartJD = juliandate(Args.WindowStartTime);
             EndJD   = juliandate(Args.WindowEndTime);
-            VisJD   = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';                         
+
+            % Calculate the Julian dates of the visibility window
+            VisJD   = StartJD + (0:Args.TimeBin:(EndJD-StartJD))';          
+            
+            % Calculate the visibility of the targets
             Obj.Vis = ultrasat.ULTRASAT_restricted_visibility(VisJD, [Obj.UniqTarg.RA Obj.UniqTarg.Dec],'CooUnits','deg',...
                 'MinSunDist',Args.ObsSunDist,'MinMoonDist',Args.ObsMoonDist,'MinEarthDist',Args.ObsEarthDist,'MinDistOffset',0);             
-%             Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
-%             Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
+            %Obj.CombVis      = Obj.Vis.SunLimits .* Obj.Vis.MoonLimits .* Obj.Vis.EarthLimits;  
+            %Obj.CombVisPower = Obj.CombVis .* Obj.Vis.PowerLimits; 
         end
         %
         function adjustCheckTimes(Obj,CheckStartTime,CheckEndTime)
@@ -1631,7 +1660,7 @@ classdef uplanner < Component
             Obj.retrieveMissionApprovedPlan;
         end
         %
-        function schedule(Obj)
+        function setScheduledStatus(Obj)
             % Set Obj.Status to 'draft' and Obj.ScheduledTime time to 'now'. (called from Obj.scheduleTargets)
             Obj.Status    = 'draft';
             Obj.ScheduledTime = datetime('now','TimeZone', 'UTC');    
@@ -2311,8 +2340,43 @@ classdef uplanner < Component
             % Slice the corresponding table
             Res = Obj.FieldObjects.(FieldName)(Ind, :);
         end
-       
 
+
+        function enforceUniqueNames(Obj)
+            % Enforce unique names in the UniqTarg table
+            Names = Obj.UniqTarg.Name;
+        
+            % Convert to string to avoid char/cell inconsistencies
+            Names = string(Names);
+        
+            % Count occurrences
+            [uNames, ~, ic] = unique(Names, 'stable');
+            counts = accumarray(ic, 1);
+        
+            % Find names that appear >1 time
+            dupIdx = find(counts > 1);
+        
+            if ~isempty(dupIdx)
+                warning("addUniqTargets:DuplicateNames", "Duplicate unique target names found. Renaming using suffix _n");
+        
+                for k = dupIdx'
+                    name = uNames(k);
+                    rows = find(Names == name);
+        
+                    % Skip first occurrence, rename second onward
+                    for n = 2:numel(rows)
+                        newName = sprintf("%s_%d", name, n);
+                        Names(rows(n)) = newName;
+        
+                        fprintf("  Renamed '%s' -> '%s'\n", name, newName);
+                    end
+                end
+        
+                % Write updated names back
+                Obj.UniqTarg.Name = Names;
+            end
+        end
+        
     end
 
 
