@@ -423,6 +423,10 @@ classdef CompositeFun < handle
         % Position-dependent correction (Tran2D integration)
         Tran2DObj = []           % Tran2D object for spatial corrections
         UseTran2D logical = false  % Flag to enable Tran2D evaluation
+
+        % Fit quality metrics (set by fitPar)
+        Chi2 = NaN               % Chi-squared value from last fit
+        DOF = NaN                % Degrees of freedom from last fit
     end
 
     properties (Constant)
@@ -2298,9 +2302,13 @@ classdef CompositeFun < handle
             %                   .sigmaiter - Number of sigma clipping iterations
             %                   .description - Description of the stage
             %                   Default is [] (single-stage mode).
+            %            'ObsUncertainties' - Observation uncertainties [N_obs x 1]
+            %                   Used for Chi2 calculation. If empty, Chi2 = NaN.
+            %                   Default is [].
             %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - Updated CompositeFun object with fitted parameters
+            %                   Also sets Obj.Chi2 and Obj.DOF from the final fit.
             %          - FitResult - Structure with fields:
             %                   Single-stage mode:
             %                     .Cost - Final cost value
@@ -2309,9 +2317,11 @@ classdef CompositeFun < handle
             %                     .NumObs - Number of observations after clipping
             %                     .NumClipped - Number of clipped outliers
             %                     .ConvergedSigmaClip - True if sigma clipping converged
+            %                     .Chi2 - Chi-squared value (NaN if uncertainties not provided)
+            %                     .DOF - Degrees of freedom
             %                   Multi-stage mode: Array of structs with per-stage results
             %                     FitResult(i).StageName, .Method, .Cost, .RMS, .Residuals,
-            %                     .NumObs, .NumClipped, .IsFieldCorrection
+            %                     .NumObs, .NumClipped, .IsFieldCorrection, .Chi2, .DOF
             % Author : D. Kovaleva (Dec 2025)
             % Example: % Example 1: Simple single-stage fit
             %          Model = tools.math.fun.CompositeFun.model(FunList);
@@ -2364,6 +2374,7 @@ classdef CompositeFun < handle
                 Args.SigmaIter = 5
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
+                Args.ObsUncertainties = []      % Observation uncertainties for Chi2 calculation
                 Args.ValInp logical = true
                 Args.Verbose logical = false
             end
@@ -2638,6 +2649,13 @@ classdef CompositeFun < handle
 
             NumClipped = NumObsInitial - length(CurrentObs);
 
+            % Calculate Chi2 and DOF
+            [Chi2, DOF] = calculateChi2DOF(Obj, Residuals, Args.ObsUncertainties);
+
+            % Store in object
+            Obj.Chi2 = Chi2;
+            Obj.DOF = DOF;
+
             FitResult = struct();
             FitResult.Cost = Cost;
             FitResult.RMS = RMS;
@@ -2645,12 +2663,17 @@ classdef CompositeFun < handle
             FitResult.NumObs = length(CurrentObs);
             FitResult.NumClipped = NumClipped;
             FitResult.ConvergedSigmaClip = ConvergedSigmaClip;
+            FitResult.Chi2 = Chi2;
+            FitResult.DOF = DOF;
 
             if Args.Verbose
                 fprintf('\n=== FITTING COMPLETE ===\n');
                 fprintf('Final cost: %.4e\n', Cost);
                 fprintf('Final RMS: %.4f\n', RMS);
                 fprintf('Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
+                if ~isnan(Chi2)
+                    fprintf('Chi2: %.4f, DOF: %d, Chi2/DOF: %.4f\n', Chi2, DOF, Chi2/DOF);
+                end
             end
         end
 
@@ -2673,12 +2696,17 @@ classdef CompositeFun < handle
 
             % Initialize results array
             FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
-                           'Residuals', {}, 'NumObs', {}, 'IsFieldCorrection', {});
+                           'Residuals', {}, 'NumObs', {}, 'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
 
             % Current data (will be updated after sigma clipping in each stage)
             CurrentObs = ObservedValues(:);
             CurrentX = Args.X(:);
             CurrentY = Args.Y(:);
+            if ~isempty(Args.ObsUncertainties)
+                CurrentUncertainties = Args.ObsUncertainties(:);  % Track uncertainties through clipping
+            else
+                CurrentUncertainties = [];
+            end
             CurrentCostArgs = Args.CostArgs;
 
             if Args.Verbose
@@ -2720,6 +2748,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
+                        'ObsUncertainties', CurrentUncertainties, ...
                         'OptimOptions', Args.OptimOptions, ...
                         'Verbose', Args.Verbose);
                 else
@@ -2751,6 +2780,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
+                        'ObsUncertainties', CurrentUncertainties, ...
                         'OptimOptions', Args.OptimOptions, ...
                         'Verbose', Args.Verbose);
                 end
@@ -2764,6 +2794,8 @@ classdef CompositeFun < handle
                 FitResult(IStage).NumObs = StageResult.NumObs;
                 FitResult(IStage).NumClipped = StageResult.NumClipped;
                 FitResult(IStage).IsFieldCorrection = IsFieldCorrectionStage;
+                FitResult(IStage).Chi2 = StageResult.Chi2;
+                FitResult(IStage).DOF = StageResult.DOF;
 
                 % Update current data after sigma clipping
                 if SigmaClip && StageResult.NumClipped > 0
@@ -2799,6 +2831,9 @@ classdef CompositeFun < handle
                         CurrentX = CurrentX(KeepMask);
                         CurrentY = CurrentY(KeepMask);
                     end
+                    if ~isempty(CurrentUncertainties)
+                        CurrentUncertainties = CurrentUncertainties(KeepMask);
+                    end
 
                     % Update WeightMatrix if present (for TransmissionMode)
                     if isfield(CurrentCostArgs, 'WeightMatrix') && ~isempty(CurrentCostArgs.WeightMatrix)
@@ -2817,6 +2852,48 @@ classdef CompositeFun < handle
             if Args.Verbose
                 fprintf('=== MULTI-STAGE OPTIMIZATION COMPLETE ===\n\n');
             end
+        end
+    end
+
+    methods (Access = private)
+        function [Chi2, DOF] = calculateChi2DOF(Obj, Residuals, ObsUncertainties)
+            % Calculate Chi-squared and degrees of freedom from fit residuals
+            % Input  : - Obj - CompositeFun object
+            %          - Residuals - Fit residuals [N x 1]
+            %          - ObsUncertainties - Observation uncertainties [N x 1] or []
+            % Output : - Chi2 - Chi-squared value (NaN if uncertainties not provided)
+            %          - DOF - Degrees of freedom
+            % Author : D. Kovaleva (Dec 2025)
+
+            Chi2 = NaN;
+            DOF = NaN;
+
+            Residuals = Residuals(:);
+            NData = numel(Residuals);
+
+            % Calculate Chi2 if uncertainties are provided
+            if ~isempty(ObsUncertainties)
+                ObsUncertainties = ObsUncertainties(:);
+
+                % Ensure uncertainties match residuals size
+                if numel(ObsUncertainties) == NData && all(ObsUncertainties > 0)
+                    Chi2 = sum((Residuals ./ ObsUncertainties).^2);
+                end
+            end
+
+            % Count total number of free parameters from transmission model
+            NParams = Obj.numFittedPar();
+
+            % Add Tran2D parameters if present (position-dependent corrections)
+            if Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
+                % Count non-zero parameters in ParX (ParY not used for photometry)
+                if ~isempty(Obj.Tran2DObj.ParX)
+                    NParams = NParams + sum(Obj.Tran2DObj.ParX ~= 0);
+                end
+            end
+
+            % Calculate degrees of freedom
+            DOF = NData - NParams;
         end
     end
 
