@@ -15,12 +15,17 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
 %            'TapName'     - TAP service name (e.g., 'ESA Gaia Archive',
 %                            'VizieR TAP'). Used to resolve TapUrl via
 %                            VO.TopCat.searchTapList. Default is [].
-%            'CatName'     - Output catalog base name (required). HDF5 files
-%                            will be named <CatName>_htm_NNNNNN.hdf5.
+%            'CatName'     - Output catalog name. HDF5 files will be
+%                            named <CatName>_htm_NNNNNN.hdf5. If empty,
+%                            derived from TableName. Default is ''.
 %            'Columns'     - Columns to SELECT. String or cell array.
 %                            Default is '*' (all columns).
-%            'WhereClause' - Additional WHERE conditions for ADQL query
-%                            (without WHERE keyword). Default is ''.
+%            'WhereClause' - Additional filtering conditions for ADQL query,
+%                            appended with AND to the spatial constraint.
+%                            Do not include WHERE keyword.
+%                            E.g., 'phot_g_mean_mag < 15' or
+%                            'parallax > 10 AND bp_rp > 0.5'.
+%                            Default is '' (no additional filter).
 %            'ColRA'       - RA column name in source table. Default is 'ra'.
 %            'ColDec'      - Dec column name in source table. Default is 'dec'.
 %            'ColRAOut'    - RA column index in output matrix. Default is 1.
@@ -28,9 +33,8 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
 %            'OutUnits'    - Output coordinate units: 'rad'|'deg'.
 %                            Default is 'rad'.
 %            'TapUnits'    - Coordinate units returned by TAP: 'rad'|'deg'.
-%                            Most catalogs (Gaia, VizieR) return degrees.
 %                            Default is 'deg'.
-%            'HTM_Level'   - HTM level (4-10) or 'auto' for automatic selection
+%            'HTM_Level'   - HTM level or 'auto' for automatic selection
 %                            based on catalog size. Default is 7.
 %            'AutoLevelMaxSrc' - Max sources per HTM segment for auto-level
 %                            selection. Default is 1e6.
@@ -43,8 +47,9 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
 %                            Default is [-pi/2, pi/2].
 %            'RARange'     - [min, max] RA range to process in radians.
 %                            Default is [0, 2*pi].
-%            'RadiusFactor'- Cone search radius = RadiusFactor * HTM_cell_radius.
-%                            Must be >1 to ensure full coverage. Default is 1.5.
+%            'RadiusFactor'- Cone search radius = RadiusFactor * HTM_side_length.
+%                            Must be >1 to ensure cone fully covers triangle.
+%                            Default is 1.5.
 %            'QueryType'   - Spatial query type: 'cone'|'polygon'.
 %                            Cone is universally supported; polygon is more
 %                            efficient but not all TAP services support it.
@@ -78,16 +83,22 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
               'WhereClause', 'phot_g_mean_mag < 15', ...
               'QueryType', 'polygon');
 
-          % Download VizieR catalog (VizieR does not support polygon, uses cone)
-          Nsrc = VO.prep.build_large_htm_catalog('"II/349/ps1"', ...
+    % Download VizieR catalog (VizieR does not support polygon, uses cone)
+    Nsrc = VO.prep.build_large_htm_catalog('"II/349/ps1"', ...
               'TapName', 'VizieR TAP', ...
               'CatName', 'PS1_DR1');
 
-          % Resume interrupted download
-          Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
+    % Resume interrupted download
+    Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
               'TapName', 'ESA Gaia Archive', ...
               'CatName', 'GAIA_DR3_Full', ...
               'Resume', true);
+
+    % Use pre-built HTM structure
+    [HTM, LevelHTM] = celestial.htm.htm_build(7);
+    Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
+              'CatName', 'GAIA_Bright', ...
+              'HTM', HTM, 'LevelHTM', LevelHTM);
 %}
 
     arguments
@@ -120,8 +131,8 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         Args.ColCell          = {}          % Column names for output (auto-detect if empty)
         Args.ColUnits         = {}          % Column units for output
         Args.QueryMethod      = 'auto'      % 'java'|'http'|'auto'
-        Args.HTM              = []          % Pre-built HTM structure (optional)
-        Args.LevelHTM         = []          % Pre-built LevelHTM structure (optional)
+        Args.HTM              = []          % Pre-built HTM structure 
+        Args.LevelHTM         = []          % Pre-built LevelHTM structure 
         Args.SaveInd          = true        % Save index HDF file at the end
     end
 
@@ -147,9 +158,11 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         end
     end
 
-    % Validate catalog name
+    % Generate catalog name from table name if not provided
     if isempty(Args.CatName)
-        error('CatName must be provided');
+        Args.CatName = regexprep(TableName, '[^a-zA-Z0-9_]', '_');
+        Args.CatName = regexprep(Args.CatName, '_+', '_');
+        Args.CatName = regexprep(Args.CatName, '^_|_$', '');
     end
 
     % Format columns for query
@@ -206,7 +219,7 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
     ListIndexHTM = LevelHTM(Args.HTM_Level).ptr;
     Nhtm = numel(ListIndexHTM);
 
-    % HTM cell radius in radians
+    % HTM cell side length in radians
     HTMSideRad = LevelHTM(Args.HTM_Level).side;
     SearchRadiusDeg = Args.RadiusFactor * HTMSideRad * RAD;
 
