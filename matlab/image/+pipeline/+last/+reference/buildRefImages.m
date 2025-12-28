@@ -56,7 +56,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref));
+            % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
+%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref));
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref)); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
@@ -105,8 +107,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 if height(TabMountCam) > 0                    
                     [Grp, ~] = findgroups(TabMountCam.jd_start); 
                     Nepoch   = max(Grp);        
-                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);                    
-                    RegisteredImage = AstroImage([Nepoch 1]);                    
+                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);                                                
                     %
                     for Iepoch = 1:Nepoch
                         TabEpoch  = TabMountCam(Grp == Iepoch, :);
@@ -177,11 +178,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % 4.3 rotate, align, and cut the merged crops to 
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
-                            RegisteredImage(Iepoch) = imProc.transIm.interp2wcs(StitchedImage, AIref,...
+                            RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
-                            RegisteredImage(Iepoch) = imProc.transIm.imwarp(StitchedImage, AIref,...
+                            RegisteredImage = imProc.transIm.imwarp(StitchedImage, AIref,...
                                 'TransWCS',true,...
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
@@ -190,13 +191,14 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % 4.4 add the RegisteredImage to the stack
                         if exist('StackImages','var')
-                            StackImages = [StackImages RegisteredImage(Iepoch)];
+                            StackImages = [StackImages RegisteredImage];
                         else
-                            StackImages = RegisteredImage(Iepoch);
+                            StackImages = RegisteredImage;
                         end
                         % clear the intermediate objects
                         clear AI;
                         clear StitchedImage;
+                        clear RegisteredImage;
                     end % epochs of the same mount and camera                                                                       
                 end
             end % camera
