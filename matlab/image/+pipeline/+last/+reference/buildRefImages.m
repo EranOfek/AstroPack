@@ -189,7 +189,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end  
                         
                         % 4.4 add the RegisteredImage to the stack
-                        StackImages = [StackImages RegisteredImage(Iepoch)];
+                        if exist('StackImages','var')
+                            StackImages = [StackImages RegisteredImage(Iepoch)];
+                        else
+                            StackImages = RegisteredImage(Iepoch);
+                        end
                         % clear the intermediate objects
                         clear AI;
                         clear StitchedImage;
