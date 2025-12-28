@@ -7,7 +7,7 @@ function plot_polygon(P, Args)
     %          'Symbol'- plotting symbol
     % Output : - a graph
     % Author : A.M. Krasilchtchikov (2025 Dec) 
-    % Example: 
+    % Example: plot.plot_polygon(P, 'Color', 'blue')
     arguments
         P
         Args.Color             = 'black';
