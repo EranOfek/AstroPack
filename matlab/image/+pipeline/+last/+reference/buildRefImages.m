@@ -163,9 +163,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % 4.2 merge the set of covering crops                         
                             % var1
+                            %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                         [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
                             'WriteFile',false,'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1); 
-                        
+
                         % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
 %                         MergedAI = imProc.transIm.merge(AI); % a new function to be written?
