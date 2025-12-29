@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 26/10/2025
+% Updated     : 26/12/2025
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -61,17 +61,11 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             app.msglog('showSkyMapPlot');
 
             % No planner object - just clear
-            if ~app.hasPlanner() || ~obj.hasData(app)
+            if ~obj.hasData(app)
                 obj.clearPlots(app);
                 return;
             end
 
-            % Future? @Todo @Yossi
-            % Get index of selected item - Currently unused - @Yossi
-            % UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-            % if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-            %     return
-            % end
             try
                 % Update the plot embedded in this window
                 obj.doPlotSkyMap(app, app.AxesSkymapPlot);
@@ -90,7 +84,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % Show stand-alone window with SkyMap plot, the user need to
             % click the Update button in the embedded plot in this
             app.msglog('showSkyMapPlotWindow');
-            if ~app.hasPlanner() || ~obj.hasData(app), return; end
+            if ~obj.hasData(app), return; end
 
             % Create and show PlotSkyMapApp
             if isempty(app.PlotSkyMapApp) || ~isvalid(app.PlotSkyMapApp)
@@ -100,7 +94,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         end
 
         % =================================================================
-        %                           GRAPHS PLOT
+        %          GRAPHS PLOT FOR UNIQE-TARGET - BY RADIO BUTTON 
         % =================================================================
 
         function plotGraphs(obj, app)
@@ -109,7 +103,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             app.msglog('plotGraphs');
             try
                 % No planner object - just clear the graphs                
-                if ~app.hasPlanner() || ~obj.hasData(app)
+                if ~obj.hasData(app)
                     obj.clearPlots(app);
                     return;
                 end
@@ -133,7 +127,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         function showGraphsPlotWindow(obj, app)
             % Show stand-alone window with Graphs plot
             app.msglog('showGraphsPlotWindow');
-            if ~app.hasPlanner() || ~obj.hasData(app), return; end
+            if  ~obj.hasData(app), return; end
 
             % Create and show PlotGraphsApp
             if isempty(app.PlotGraphsApp) || ~isvalid(app.PlotGraphsApp)
@@ -150,297 +144,41 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
             % Plot Calibration Objects graph of the currently selected Unique Target in GraphPlotUniqueTargetDropDown
 
             app.msglog('plotCalibObj');
-            if ~app.hasPlanner() || ~obj.hasData(app), return; end
+            if ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
 
             % Get index of selected unique target in the drop-down
-            UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, app.GraphPlotUniqueTargetDropDown.Items));
-
-            % Get index of selected item from DropDown
-            % app.GraphPlotUniqueTargetDropDown.Value = Planner.UniqTarg.Name(UniqueTargetIndex);
-
-            %UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-            %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-            %    return
-            %end
+            UniqueTargetIndex = app.UniqueTargetsHelper.getUniqueTargetIndexFromDropDown(app);
 
             try
+                % Check if the unique target has a calibration object, if not, clear the plot and return
+                HasCalObj = ~isempty( Planner.UniqTarg.CalObj{UniqueTargetIndex} );
+                if ~HasCalObj
+                    cla(app.AxesGraphsPlot, 'reset');
+                    if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
+                        cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
+                    end
+                    return;
+                end
+
                 % Get table of CalibObj, check that it is not empty
-                % When calling showCalibObj('PlotSpectrum', false) the
-                % function return table of CalibObj, and does not plot anything
-                app.UniqueTargetCalibObj = Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', false);
-                if isempty(app.UniqueTargetCalibObj) || height(app.UniqueTargetCalibObj) == 0
+                CalibObjTable = Planner.getCalibObj(UniqueTargetIndex);
+                if isempty(CalibObjTable) || height(CalibObjTable) == 0
                     app.setStatus('Warning', 'showCalibObj returned none')
                     return
                 end
 
-                % Set selected value in Unique Targets drop-down (next to the plot)
-                app.GraphPlotUniqueTargetDropDown.Value = Planner.UniqTarg.Name(UniqueTargetIndex);
-
-                % Extract unique values from the 'obj' column of the table
-                ObjValues = unique(app.UniqueTargetCalibObj.obj, 'stable');
-
-                % Set the dropdown items to these values
-                app.PlotCalibObjDropDown.Items = string(ObjValues);
-                app.PlotCalibObjDropDown.Value = ObjValues{1};
-
-                % Update the plot embedded in this window
+                 % Plot the CalibObj spectrum
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
 
-                % Update also the plot in the standalone window
+                % Plot the CalibObj spectrum in the standalone window
                 if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotCalibObj', ME);
-            end
-        end
-
-
-        function showCalibObjTable(obj, app)
-            % showCalibObjTable  Open (or create) the CalibObjTable window and update its content.
-            %
-            % This function ensures the CalibObjTable window exists and is valid,
-            % makes it visible, and populates it with UniqueTargetCalibObj data if available.
-            % All errors are logged via app.msglog, never thrown.
-
-            app.msglog('showCalibObjTable');
-            if ~obj.hasData(app), return; end
-
-            try
-                % Ensure the CalibObjTable app instance is valid
-                if isempty(app.CalibObjTableApp) || ~isvalid(app.CalibObjTableApp)
-                    app.CalibObjTableApp = ultrasat.planner.gui.CalibObjTable(app.MainModule);
-                end
-
-                % Make the figure visible if it exists
-                if ~isempty(app.CalibObjTableApp) && isvalid(app.CalibObjTableApp)
-                    app.CalibObjTableApp.UIFigure.Visible = 'on';
-
-                    % Update the table data
-                    if isprop(app.CalibObjTableApp, 'UITableData')
-                        app.CalibObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-                        app.CalibObjTableApp.UITableData.ColumnSortable = true;
-
-                        % Update column names if table is non-empty
-                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
-                            app.CalibObjTableApp.UITableData.ColumnName = ...
-                                app.UniqueTargetCalibObj.Properties.VariableNames;
-                        else
-                            app.msglog('showCalibObjTable: UniqueTargetCalibObj is empty or not a table.');
-                        end
-                    else
-                        app.msglog('showCalibObjTable: UITableData property not found in CalibObjTableApp.');
-                    end
-                else
-                    app.msglog('showCalibObjTable: CalibObjTableApp is invalid and could not be created.');
-                end
-
-            catch ME
-                app.msglog(sprintf('showCalibObjTable: unexpected error - %s', ME.message));
-            end
-        end
-
-
-        function plotCalibObjSub(obj, app)
-            % % Plot the selected calibration object (sub-component) in both embedded and standalone plot windows
-            % Called on selecting CalibObj in the drop-down next to the Graphs plot
-
-            app.msglog('plotCalibObjSub');
-            if ~obj.hasData(app), return; end
-
-            try
-                % Update the plot embedded in this window
-                Value = app.PlotCalibObjDropDown.Value;
-                if isempty(Value) || strcmp(Value, '')
-                    app.msglog('plotCalibObjSub: No value in CalObj DropDown');
-                    return;
-                end
-                
-                % app.UniqueTargetCalibObj is table returned by Planner.showCalibObj()        
-                CalObjIndex = find(strcmp(app.UniqueTargetCalibObj.obj, Value));
-                if isempty(CalObjIndex)
-                    app.msglog('plotCalibObjSub: CalObj not found in UniqueTargetCalibObj (table returned by Planner.showCalibObj)');
-                    return;
-                end                
-
-                % Get index of selected unique target
-                UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-
-                % No selection in the table
-                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-                
-                    % If there is exactly one unique target, use it
-                    if height(app.MainModule.Planner.UniqTarg) == 1
-                        UniqueTargetIndex = 1;
-                
-                    % If multiple exist, determine index from dropdown selection
-                    elseif height(app.MainModule.Planner.UniqTarg) > 1
-                        UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, ...
-                                                        app.GraphPlotUniqueTargetDropDown.Items));
-                
-                        % If still not found, default to first
-                        if isempty(UniqueTargetIndex)
-                            UniqueTargetIndex = 1;
-                        end
-                
-                    % If no targets exist, just return
-                    else
-                        return;
-                    end
-                end               
-
-                % Update the plot embedded in this window
-                cla(app.AxesGraphsPlot, 'reset');
-                app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.AxesGraphsPlot);
-
-                % Update also the plot in the standalone window
-                if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
-                    cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    app.MainModule.Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', true, 'subInd2plot', CalObjIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
-                end
-            catch ME
-                app.msgex('plotCalibObjSub', ME);
-            end
-        end
-
-        % =================================================================
-        %         OTHER WINDOWS - NOT IMPLEMENTED YET (18/12/2025)
-        % =================================================================
-
-        function showRefImagesTable(obj, app)
-            % showRefImagesTable Open (or create) the RefImagesTable window and update its content.
-            %
-            % This function ensures the RefImagesTable window exists and is valid,
-            % makes it visible, and populates it with RefImages data if available.
-            % All errors are logged via app.msglog, never thrown.
-
-            app.msglog('showRefImagesTable');
-            if ~obj.hasData(app), return; end
-
-            try
-                % Ensure the CalibObjTable app instance is valid
-                if isempty(app.RefImagesTableApp) || ~isvalid(app.RefImagesTableApp)
-                    app.RefImagesTableApp = ultrasat.planner.gui.RefImagesTable(app.MainModule);
-                end
-
-                % Make the figure visible if it exists
-                if ~isempty(app.RefImagesTableApp) && isvalid(app.RefImagesTableApp)
-                    app.RefImagesTableApp.UIFigure.Visible = 'on';
-
-                    % Update the table data
-                    if isprop(app.RefImagesTableApp, 'UITableData')
-                        app.RefImagesTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-                        app.RefImagesTableApp.UITableData.ColumnSortable = true;
-
-                        % Update column names if table is non-empty
-                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
-                            app.RefImagesTableApp.UITableData.ColumnName = ...
-                                app.UniqueTargetCalibObj.Properties.VariableNames;
-                        else
-                            app.msglog('showRefImagesTable: UniqueTargetCalibObj is empty or not a table.');
-                        end
-                    else
-                        app.msglog('showRefImagesTable: UITableData property not found in RefImagesTableApp.');
-                    end
-                else
-                    app.msglog('showRefImagesTable: RefImagesTableApp is invalid and could not be created.');
-                end
-
-            catch ME
-                app.msglog(sprintf('showRefImagesTable: unexpected error - %s', ME.message));
-            end
-        end
-
-
-        function showExtSurveysTable(obj, app)
-            % showExtSurveysTable Open (or create) the ExtSurveysTable window and update its content.
-            %
-            % This function ensures the ExtSurveysTable window exists and is valid,
-            % makes it visible, and populates it with ExtSurveys data if available.
-            % All errors are logged via app.msglog, never thrown.
-
-            app.msglog('showExtSurveysTable');
-            if ~obj.hasData(app), return; end
-
-            try
-                % Ensure the CalibObjTable app instance is valid
-                if isempty(app.ExtSurveysTableApp) || ~isvalid(app.ExtSurveysTableApp)
-                    app.ExtSurveysTableApp = ultrasat.planner.gui.ExtSurveysTable(app.MainModule);
-                end
-
-                % Make the figure visible if it exists
-                if ~isempty(app.ExtSurveysTableApp) && isvalid(app.ExtSurveysTableApp)
-                    app.ExtSurveysTableApp.UIFigure.Visible = 'on';
-
-                    % Update the table data
-                    if isprop(app.ExtSurveysTableApp, 'UITableData')
-                        app.ExtSurveysTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-                        app.ExtSurveysTableApp.UITableData.ColumnSortable = true;
-
-                        % Update column names if table is non-empty
-                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
-                            app.ExtSurveysTableApp.UITableData.ColumnName = ...
-                                app.UniqueTargetCalibObj.Properties.VariableNames;
-                        else
-                            app.msglog('showExtSurveysTable: UniqueTargetCalibObj is empty or not a table.');
-                        end
-                    else
-                        app.msglog('showExtSurveysTable: UITableData property not found in ExtSurveysTableApp.');
-                    end
-                else
-                    app.msglog('showExtSurveysTable: ExtSurveysTableApp is invalid and could not be created.');
-                end
-
-            catch ME
-                app.msglog(sprintf('showExtSurveysTable: unexpected error - %s', ME.message));
-            end
-        end
-
-
-        function showFieldObjTable(obj, app)
-            % showFieldObjTable Open (or create) the FieldObjTable window and update its content.
-            %
-            % This function ensures the FieldObjTable window exists and is valid,
-            % makes it visible, and populates it with FieldObj data if available.
-            % All errors are logged via app.msglog, never thrown.
-
-            app.msglog('showFieldObjTable');
-            if ~obj.hasData(app), return; end
-
-            try
-                % Ensure the CalibObjTable app instance is valid
-                if isempty(app.FieldObjTableApp) || ~isvalid(app.FieldObjTableApp)
-                    app.FieldObjTableApp = ultrasat.planner.gui.FieldObjTable(app.MainModule);
-                end
-
-                % Make the figure visible if it exists
-                if ~isempty(app.FieldObjTableApp) && isvalid(app.FieldObjTableApp)
-                    app.FieldObjTableApp.UIFigure.Visible = 'on';
-
-                    % Update the table data
-                    if isprop(app.FieldObjTableApp, 'UITableData')
-                        app.FieldObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-                        app.FieldObjTableApp.UITableData.ColumnSortable = true;
-
-                        % Update column names if table is non-empty
-                        if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
-                            app.FieldObjTableApp.UITableData.ColumnName = ...
-                                app.UniqueTargetCalibObj.Properties.VariableNames;
-                        else
-                            app.msglog('showFieldObjTable: UniqueTargetCalibObj is empty or not a table.');
-                        end
-                    else
-                        app.msglog('showFieldObjTable: UITableData property not found in FieldObjTableApp.');
-                    end
-                else
-                    app.msglog('showFieldObjTable: FieldObjTableApp is invalid and could not be created.');
-                end
-
-            catch ME
-                app.msglog(sprintf('showFieldObjTable: unexpected error - %s', ME.message));
             end
         end
 
@@ -451,33 +189,32 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
         function plotVisibility(obj, app)
             % Plot Visibility graph of currently select Unique Target
 
-            if ~app.hasPlanner() || ~obj.hasData(app), return; end
+            app.msglog('plotVisibility');
+            if ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
 
             try
                 % Get index of selected unique target in the drop-down
-                UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, app.GraphPlotUniqueTargetDropDown.Items));
+                UniqueTargetIndex = app.UniqueTargetsHelper.getUniqueTargetIndexFromDropDown(app);
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
     
-                % Get index of selected item
-                %UniqueTargetIndex = app.UITableUniqueTargets.Selection;
-                %if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
-                %    return
-                %end
-
                 % Get Sun, Earth, Moon checks, and Time value (UTC/JD)
                 SunFlag = app.PlotFlagVisibilitySunCheckBox.Value;
                 EarthFlag = app.PlotFlagVisibilityEarthCheckBox.Value;
                 MoonFlag = app.PlotFlagVisibilityMoonCheckBox.Value;
                 TimeUnits = app.VisibilityPlotTimeUnitsDropDown.Value;
+                TimeUTC = strcmpi(string(TimeUnits), 'UTC');
                 
                 % Update the plot embedded in this window
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
 
                 % Update also the plot in the standalone window
                 if ~isempty(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotVisibility(UniqueTargetIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot, 'plotSun', SunFlag, 'plotEarth', EarthFlag, 'plotMoon', MoonFlag, 'TimeUTC', TimeUTC);
                 end
             catch ME
                 app.msgex('plotVisibility', ME);
@@ -523,45 +260,10 @@ classdef PlannerMainPlotHelper < ultrasat.api.Loggable
 
 
         function Result = hasData(obj, app)
+            % Check if there is data in the Planner (UniqTarg and Plan tables)
             Result = app.hasPlanner() && (height(app.MainModule.Planner.UniqTarg) > 0) || (height(app.MainModule.Planner.Plan) > 0);
-        end
-
-        % =================================================================
-        %                        CURRENTLY UNUSED
-        % =================================================================
-
-        function uniqueTargetSelectedInPlot(obj, app, UniqueTargetIndex)
-            % Currently unused
-
-            app.msglog('uniqueTargetSelectedInPlot');
-            if ~app.hasPlanner(), return; end
-            Planner = app.MainModule.Planner;
-
-
-            %
-            app.GraphPlotUniqueTargetDropDown.Value = Planner.UniqTarg.Name(UniqueTargetIndex);
-
-            %
-            app.UniqueTargetCalibObj = Planner.showCalibObj(UniqueTargetIndex, 'PlotSpectrum', false);
-            if isempty(app.UniqueTargetCalibObj) || height(app.UniqueTargetCalibObj) == 0
-                app.setStatus('Warning', 'showCalibObj returned none')
-                return
-            end
-
-            if ~isempty(app.CalibObjTableApp)
-                app.CalibObjTableApp.UITableData.Data = app.UniqueTargetCalibObj;
-                app.CalibObjTableApp.UITableData.ColumnName = app.UniqueTargetCalibObj.Properties.VariableNames;
-            end
-
-            % Extract unique values from the 'obj' column of the table
-            ObjValues = unique(app.UniqueTargetCalibObj.obj, 'stable');
-
-            % Set the dropdown items to these values
-            app.PlotCalibObjDropDown.Items = string(ObjValues);
-            app.PlotCalibObjDropDown.Value = ObjValues{1};
         end
 
     end
 
 end
-

@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainUniqueTargetsHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 18/12/2025
+% Updated     : 26/12/2025
 % Description : Unique Targets Helper for Main Planner
 %==========================================================================
 
@@ -32,7 +32,6 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
             obj.LogPrefix = 'UniqueTargetsHelper';
         end
 
-
         % =================================================================
         %                           CORE ACTIONS
         % =================================================================
@@ -56,6 +55,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     RA = app.MainModule.GuiHelper.getFieldRA( app.AddUniqueTargetApp.RAEditField.Value );
                     Dec = app.MainModule.GuiHelper.getFieldDec( app.AddUniqueTargetApp.DecEditField.Value );
 
+                    % Check if RA/Dec are valid
                     if isnan(RA) || isnan(Dec)
                         app.AppUtils.msgError('Invalid RA/Dec values.');
                         return;
@@ -75,35 +75,38 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
 
         function editUniqueTarget(obj, app)
-            % Edit Unique-Target with editUniqTarg()
+            % Edit the selected Unique-Target row in the grid with editUniqTarg()
             app.msglog('editUniqueTarget');
             if ~app.hasPlanner(), return; end
             if ~app.isEditableMsg(), return; end
 
             try
-                % Get index of selected Unique Target
+                % Get index of selected Unique Target row in the grid
                 Index = app.UITableUniqueTargets.Selection;
                 if isempty(Index) || (Index < 1)
                     return
                 end
 
-                % Create app
+                % Create UniqueTargetParamsApp if not exists
                 if isempty(app.UniqueTargetParamsApp) || ~isvalid(app.UniqueTargetParamsApp)
                     app.UniqueTargetParamsApp = ultrasat.planner.gui.UniqueTargetParams(app.MainModule);
                 end
 
-                % Set field values - Currently there are 9 fields for Unique Target
+                % Set field values in the UniqueTargetParamsApp
                 ParamsApp = app.UniqueTargetParamsApp;
                 UniqTarg = app.MainModule.Planner.UniqTarg;
                 obj.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
 
                 % Show the form, update values if closed with Save
-                if strcmp(app.showModal(app.UniqueTargetParamsApp), 'Save')
+                if strcmp(app.showModal(app.UniqueTargetParamsApp), 'Save')1
+
+                    % Get field values from the UniqueTargetParamsApp
                     Name = app.MainModule.GuiHelper.getFieldUniqueTargetName( ParamsApp.NameEditField.Value );
                     RA = app.MainModule.GuiHelper.getFieldRA( ParamsApp.RAEditField.Value );
                     Dec = app.MainModule.GuiHelper.getFieldDec( ParamsApp.DecEditField.Value );
                     app.setModified('editUniqueTarget');
                     try
+                        % Update the Unique Target in the Planner
                         app.MainModule.Planner.editUniqTarg(Index, 'Name', Name, 'RA', RA, 'Dec', Dec);
                         if app.PlanParamsHelper.checkPlanSelfConsistency(app)
                             app.msglog('editUniqueTarget successfully');
@@ -120,18 +123,18 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
 
 
         function deleteUniqueTarget(obj, app)
-            % Delete Unique-Target with delUniqTarg()
+            % Delete the selected Unique-Target row in the grid with delUniqTarg()
             app.msglog('deleteUniqueTarget');
             if ~app.hasPlanner(), return; end
             if ~app.isEditableMsg(), return; end
 
-            % Get index of selected Unique Target
+            % Get index of selected Unique Target row in the grid
             Index = app.UITableUniqueTargets.Selection;
             if isempty(Index) || (Index < 1)
                 return
             end
 
-            % Ask user to confirm
+            % Ask user to confirm deleting the unique target
             Name = app.MainModule.Planner.UniqTarg.Name(Index);
             if ~strcmp(app.AppUtils.askYesNo(sprintf('Delete selected unique target (%s)?', Name)), 'Yes')
                 return;
@@ -142,7 +145,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 % Try to delete unique target, catch exception if it is being used in the plan
                 app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', true);
             catch ME
-                % Unqique target is being used in plan, ask user to confirm
+                % Unique target is being used in plan, ask user to confirm deleting the unique target and all targets that use it
                 app.msgex('delUniqTarg', ME);
 
                 % Ask user to confirm deleting the unique target and all targets that use it
@@ -158,6 +161,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                 end
             end
 
+            % Refresh the entire display
             app.showPlanAll();
         end
 
@@ -466,6 +470,36 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
         end        
 
         % =================================================================
+
+        function updateUniqueTargetPlotsAndTables(obj, app)
+            % Update the plots and tables of the selected unique target
+            app.msglog('clearOrderColumn');
+            if ~app.hasPlanner(), return; end
+            try
+
+                % Get index of selected unique target in the drop-down
+                % UniqueTargetIndex = obj.getUniqueTargetIndexFromDropDown(app);
+
+                %Planner = app.MainModule.Planner;
+                %Value = Planner.UniqTarg.Name(UniqueTargetIndex);
+
+                % Update selected value in drop down
+                %app.GraphPlotUniqueTargetDropDown.Value = Value;
+
+                % Plot the graphs of this unique target
+                app.PlotHelper.plotGraphs(app);
+                
+                % Update tables if windows are displayed: CalibObj, ExtSurveys, ObjFields, RefImages
+                app.TablesHelper.updateCalibObjTable(app);
+                app.TablesHelper.updateExtSurveysTable(app);
+                app.TablesHelper.updateFieldObjTable(app);
+                app.TablesHelper.updateRefImagesTable(app);
+            catch ME
+                app.msgex('clearOrderColumn', ME)
+            end            
+        end
+
+        % =================================================================
         %                           UI CALLBACKS
         % =================================================================
 
@@ -515,18 +549,154 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
                     return
                 end
 
-                % Update drop-down with unique target double-clicked
-                Planner = app.MainModule.Planner;
-                Value = Planner.UniqTarg.Name(UniqueTargetIndex);
-                app.GraphPlotUniqueTargetDropDown.Value = Value;
+                % Set the selected unique target index in the drop-down
+                obj.setUniqueTargetIndexInDropDown(app, UniqueTargetIndex);
 
-                % Plot the graphs of this unique target
-                app.PlotHelper.plotGraphs(app);
+                % Update the plots and tables of the selected unique target
+                obj.updateUniqueTargetPlotsAndTables(app, UniqueTargetIndex);
             catch ME
                 app.msgex('uniqueTargetDoubleClick', ME)
             end
         end
 
+
+        function uniqueTargetDropDownValueChanged(obj, app)
+            % Handle Unique Target double click - Plot graphs of the selected Unique Target
+            % Called from UITable callback
+
+            app.msglog('uniqueTargetDoubleClick');
+            if ~app.hasPlanner(), return; end
+            try
+                % Get the selected unique targets
+                %UniqueTargetIndex = app.UITableUniqueTargets.Selection;
+                UniqueTargetIndex = obj.getUniqueTargetIndexFromDropDown(app);
+                if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                    return
+                end
+
+                % Update drop-down with unique target double-clicked
+                Planner = app.MainModule.Planner;
+                Value = Planner.UniqTarg.Name(UniqueTargetIndex);
+                app.GraphPlotUniqueTargetDropDown.Value = Value;
+
+                % Update the CalibObj drop-down according to the selected unique target
+                obj.updateCalibObjDropDown(app);
+
+                % Plot the graphs of this unique target
+                obj.updateUniqueTargetPlotsAndTables(app);
+            catch ME
+                app.msgex('uniqueTargetDoubleClick', ME)
+            end            
+        end
+
+
+        function UniqueTargetIndex = getUniqueTargetIndexFromDropDown(obj, app)
+            % Get index of selected unique target in the drop-down
+            UniqueTargetIndex = find(strcmp(app.GraphPlotUniqueTargetDropDown.Value, app.GraphPlotUniqueTargetDropDown.Items));
+        end
+
+
+        function setUniqueTargetIndexInDropDown(obj, app, UniqueTargetIndex)
+            % Set index of selected unique target in the drop-down
+            if UniqueTargetIndex < 1 || UniqueTargetIndex > length(app.GraphPlotUniqueTargetDropDown.Items)
+                app.msglog(sprintf('setUniqueTargetIndexInDropDown: Invalid unique target index: %d', UniqueTargetIndex));
+                return;
+            end
+
+            % Set the selected unique target name in the drop-down
+            app.GraphPlotUniqueTargetDropDown.Value = string(app.MainModule.Planner.UniqTarg.Name(UniqueTargetIndex));
+
+            % Update the CalibObj drop-down according to the selected unique target
+            obj.updateCalibObjDropDown(app);
+        end
+
+
+        function updateCalibObjDropDown(obj, app)
+            % Update the CalibObj drop-down with the unique target index
+
+            app.msglog('updateCalibObjDropDown');
+
+            % Get index of selected unique target in the drop-down
+            UniqueTargetIndex = obj.getUniqueTargetIndexFromDropDown(app);
+            if isempty(UniqueTargetIndex) || (UniqueTargetIndex < 1)
+                return
+            end
+
+            % Get CalibObj table for the selected unique target
+            CalibObjTable = app.MainModule.Planner.getCalibObj(UniqueTargetIndex);
+
+            % If no calibration objects, clear the drop-down
+            if isempty(CalibObjTable) || height(CalibObjTable) == 0
+                app.PlotCalibObjDropDown.Items = {};
+                app.PlotCalibObjDropDown.Value = {};
+                return
+            end
+
+            % Extract unique values from the 'obj' column of the table
+            ObjValues = unique(CalibObjTable.obj, 'stable');
+
+            % Set the dropdown items to these values
+            app.PlotCalibObjDropDown.Items = string(ObjValues);
+            app.PlotCalibObjDropDown.Value = ObjValues{1};
+        end
+
+
+        function row = getRowByIndex(obj, app, UniqueTargetIndex)
+            % Returns the *visible* row index in the UITable that corresponds
+            % to the given unique target index.
+        
+            row = [];    
+            try
+                Data = app.UITableUniqueTargets.Data;   % sorted displayed table
+        
+                % Must have Index column
+                if ~ismember("Index", Data.Properties.VariableNames)
+                    app.msglog("getRowByIndex: 'Index' column missing in grid.");
+                    return;
+                end
+        
+                % Locate row where Index matches
+                idx = find(Data.Index == UniqueTargetIndex, 1);
+        
+                if ~isempty(idx)
+                    row = idx;
+                end        
+            catch ME
+                app.msgex("getRowByIndex", ME);
+            end
+        end
+        
+
+        function name = getNameByIndex(obj, app, UniqueTargetIndex)
+            % Returns the name of the unique target with the given index
+            name = "";
+            try
+                % Read from Planner (true data owner)
+                name = string(app.MainModule.Planner.UniqTarg.Name(UniqueTargetIndex));
+            catch ME
+                app.msgex("getNameByIndex", ME);
+            end
+        end
+        
+
+        function caption = makeUniqTargetCaption(obj, app, UniqueTargetIndex)
+            % Returns the caption for the unique target with the given index, as "#Row – Index: index – Name: name"
+            caption = "";
+            try
+                row  = obj.getRowByIndex(app, UniqueTargetIndex);
+                name = obj.getNameByIndex(app, UniqueTargetIndex);
+        
+                if isempty(row)
+                    caption = sprintf("Index: %d - Name: %s", UniqueTargetIndex, name);
+                else
+                    caption = sprintf("#%d - Index: %d - Name: %s", row, UniqueTargetIndex, name);
+                end
+        
+            catch ME
+                app.msgex("makeUniqTargetCaption", ME);
+            end
+        end
+        
     end
 
     % =====================================================================
@@ -534,7 +704,6 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.Loggable
     % =====================================================================
 
     methods (Access = private)
-
 
         % =================================================================
         %                            HELPERS

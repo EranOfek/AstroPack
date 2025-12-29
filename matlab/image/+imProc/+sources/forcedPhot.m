@@ -387,7 +387,7 @@ function [Result] = forcedPhot(Obj, Args)
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
                                                                 'ZP',Args.ZP);
                                                             
-            % Store forced photometry results in MatchedSources object
+            
             
             Xpos = X(:).' + ResultPSF.DX(:).';
             Ypos = Y(:).' + ResultPSF.DY(:).';
@@ -411,8 +411,17 @@ function [Result] = forcedPhot(Obj, Args)
                     else
                         Mat = [Mat; table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1))];
                     end
-                case 'MatchedSources'
+                case 'AstroCatalog'
+                    if Iobj==1
+                        % init Result
+                        Result = AstroCatalog([Nobj 1]);
+                    end
+                    Result(Iobj).Catalog = [RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1)];
+                    Result(Iobj).ColNames = {};
+                    Result(Iobj).ColUnits = {};
 
+                case 'MatchedSources'
+                    % Store forced photometry results in MatchedSources object
                     for Icol=1:1:Ncol
                         switch Args.ColNames{Icol}
                             case 'RA'

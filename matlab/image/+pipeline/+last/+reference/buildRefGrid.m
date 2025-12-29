@@ -25,8 +25,8 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     dDec_sub= 0.3;
     for i = 1:height(LAST_Grid)
         for k = 1:height(Telescope_offset_Grid.dRA)
-            [Dist,PA]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA,Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec,'deg');
-            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA*RAD);
+            [Dist,PA0]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA,Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec,'deg');
+            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA0*RAD);
             newT.mount(1:24) = i;
             newT.telescope(1:24) = k;
             newT.RA(1:24) = r4;
@@ -48,6 +48,7 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
             newT.RA2(1:24) = r2; newT.Dec2(1:24) = d2;
             newT.RA3(1:24) = r3; newT.Dec3(1:24) = d3;
             newT.RA4(1:24) = r4; newT.Dec4(1:24) = d4;
+            newT.PA(1:24)  = PA0; % is it right? 
             %        
             LAST_RefIm_Grid = [LAST_RefIm_Grid;newT];
         end

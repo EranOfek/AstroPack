@@ -2344,11 +2344,23 @@ classdef PipelineDemon < Component
             arguments
                 Obj
                 RawImageList
-                Args.prePrepArgs             = {};
-                Args.basicCalibArgs          = {};
-                Args.multiIterExtractorArgs  = {};
-                Args.astrometryVisitSubImage = {};
+                Args.prePrepArgs                   = {};
+                Args.basicCalibArgs                = {};
+                Args.multiIterExtractorArgs        = {};
+                Args.astrometryVisitSubImageArgs   = {};
+                Args.forcedPhotArgs                = {};
+                Args.matchExternal_Indiv           = true;
+                Args.matchExternalArgs_Indiv       = {};
+
+                
+
+                Args.ForcedPhotCat               = [];
+                Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
+                Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
+                Args.MinNstars                   = 50;
+                Args.MaxFracGrad                 = 0.2;
             end
+            ARCSEC_DEG = 3600;
 
             Nimages = numel(RawImageList);
             % load images and check quality
@@ -2361,22 +2373,85 @@ classdef PipelineDemon < Component
             % break images into sub images
             % 1st dim is epoch; 2nd dim is sub image
 
+            % get JD of all epoch - once
+
             % search for stars in all images
             [AllSI] = imProc.sources.multiIterExtractor(AI, Args.multiIterExtractorArgs{:},...
                                                             'AddSkyCoo',false);
 
             % solve astrometry of all images
-            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImage{:});
+            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:});
 
             % add coordinates to catalogs
-            imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true)
+            AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true);
+
+            [Nepoch, Nsub] = size(AllSI);
+            Nobj = numel(AllSI);
+
+            
+            % Individual sub images : quality           
+            % astrometry
+            IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);
+            % Nstars
+            Nstars    = AllSI.sizeCatalog;
+            % background variations
+            MeanBack     = imProc.stat.mean(AllSI);
+            MeanVar      = imProc.stat.mean(AllSI);
+            MeanMeanBack = mean(MeanBack, 1); % mean background over all sub images in each epoch
+            MaxFracGrad  = (max(MeanBack,[],1) - min(MeanBack,[],1))./MeanMeanBack; % max fractional background gradient per epoch
+
+            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
+
+            % MISSING - write general info to header:
+            % background, var, number of stars, etc.
+            % [AllSI, ImageStat] = imProc.header.writeStatToHeader(AllSI)
+
 
             % forced photometry
+            % forced pgotometry on pre-selected targets
+            if ~isempty(Args.ForcedPhotCat)
+
+                MidEpoch = ceil(Nepoch.*0.5);
+                CatForcedPhot = imProc.cat.catsHM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));
+
+                for Isub=1:1:Nsub
+                    % for each sub image - run over all epochs
+                    Coo = CatForcedPhot.getCol({'RA','Dec'});
+                    AllFP = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','table', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});
+                end
+            end
 
             % match external
+            if Args.matchExternal_Indiv
+                % current default is true - do we want this?
+                AllSI = pipeline.generic.matchExternal(AllSI, Args.proc2MatchedSourcesArgs_Indiv{:});
+            end
+            
+            MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood);
+
+            % The following logic is applied:
+            % MatchedSources and photometric calibration is done only after
+            % the photometric calibration of the coadd image
+            % Such that we can use the photometric calibration of the coadd
+            % for the individual images.
+            
+            % coadd images
+            
+
+            NEEDED updates: pipeline.generic.procCoadd
+
+            % coadd: search stars
+            [Coadd] = imProc.sources.multiIterExtractor(Coadd, Args.multiIterExtractorArgs{:},...
+                                                            'AddSkyCoo',true);
+
+            % coadd: solve astrometry
+            imProc.astrometry.astrometryAllSubImage
+
+            % coadd: match external
             pipeline.generic.matchExternal
 
-            % photometric calibration
+            % MISSING - calculate drifts and write to headers
+            % Coadd=imProc.header.writeDriftsToHeader(Coadd, MS)
 
             % merge catalogs
             pipeline.generic.proc2MatchedSources
@@ -2385,17 +2460,7 @@ classdef PipelineDemon < Component
             imProc.io.saveProductImage
             imProc.io.saveProductMatchedSources
 
-            % coadd images
-            NEEDED updates: pipeline.generic.procCoadd
-
-            % coadd: search stars
-
-            % coadd: solve astrometry
-            imProc.astrometry.astrometryAllSubImage
-
-            % coadd: match external
-            pipeline.generic.matchExternal
-
+            
             % coadd: photometric calibration
 
             % save products

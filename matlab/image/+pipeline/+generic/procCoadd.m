@@ -142,8 +142,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
    
     arguments
         AllSI
-        Args.EpochDim   = 1;
-        
+        Args.EpochDim                         = 1;
+        Args.JD                               = [];
+        Args.IsGood                           = [];
+        Args.MinNumCoadd                      = 10;
+
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
@@ -193,10 +196,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         % transpose in order to make the epochs in the 1st dimension
         AllSI = AllSI.';
     end
-    
+    [Nepoch, Nfields]  = size(AllSI);
+
     % get JD
-    JD = julday(AllSI(:,1));
-    
+    if isempty(Args.JD)
+        JD = julday(AllSI(:,1));
+    else
+        JD = Args.JD;
+    end
+
     % merge catalogs % note that the merging works only on columns of AllSI !!!
     % In principle mergeCatalogs can work on all sub images simoultanouly
     % however, if one of the ephocs in one of the sub images is missing
@@ -205,10 +213,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % loop
     
     % continue only for fields for which all visits astrometry is good
-    FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
-    if ~all(FlagGoodAstrometry)
-        warning('Some sub images have bad astrometry');
+    if isempty(Args.IsGood)
+        Args.IsGood = imProc.astrometry.isSuccessWCS(AllSI);
     end
+    
+
+    %FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
+    %if ~all(FlagGoodAstrometry)
+    %    warning('Some sub images have bad astrometry');
+    %end
    
     
     % delete Back and Var before coaddition
@@ -221,7 +234,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     
     % coadd images
     %Nfields = numel(MatchedS);
-    [Nepoch, Nfields]  = size(AllSI);
+    
     % check if all sub images has equal size
     % if so preallocate memory for cube
     [SizeSI, SizeSJ] = sizeImage(AllSI);
@@ -241,6 +254,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                          'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
+        Ngood = sum(Args.IsGoodWCS(:,Ifields));
+        if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
+            % coadd images Args.MinNumCoadd
+
+
+
+
         if FlagGoodAstrometry(Ifields)
             if isempty(Args.MatchedS)
                 ResultCoadd(Ifields).ShiftX = NaN;
