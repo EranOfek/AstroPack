@@ -274,7 +274,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 5. coadd the epochs from different telescopes and cameras                   
         % employ imProc.stack.coaddW or a simliar function                
         % should do with 'PH_ZP' which requires photometricZP to be run on each of the RegisteredImage 
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
