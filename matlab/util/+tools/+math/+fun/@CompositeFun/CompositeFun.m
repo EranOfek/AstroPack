@@ -1,6 +1,6 @@
 classdef CompositeFun < handle
-    % This class provides a unified interface for combining multiple
-    % functions (and, possibly, Tran2D object for position-dependent component)
+    % This class provides a unified interface for combining multiple functions 
+    % (and, possibly, Tran2D object for position-dependent component)
     % with parameter mapping and optimization support. 
     %
     % Author : D. Kovaleva (Oct 2025 - Dec 2025)
@@ -82,8 +82,8 @@ classdef CompositeFun < handle
        Model.setAllFunPar(AllFunPar);  % Handle class - modifies in place
     
       % Example - Pre-calculation and Evaluation:
-       % Define wavelength range
-       Lambda = linspace(300, 1100, 401)';
+       % Use pre-defined wavelength grid constant
+       Lambda = Model.Lambda;  % (300:2:1100)' nm, 401 points
     
        % Pre-calculate functions with fixed parameters (after setting fit flags)
        Model.preCalc(Lambda);
@@ -201,14 +201,16 @@ classdef CompositeFun < handle
            'X', X, 'Y', Y);
     
        % Transmission mode with spectra (for photometric calibration)
-       Lambda = linspace(336, 1020, 343)';  % Wavelength grid [nm]
-       Spec = randn(343, 3);  % Gaia XP spectra [N_GaiaWvl x N_calib]
+       Lambda = Model.Lambda;   % Transmission wavelength grid (300:2:1100)' nm
+       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid (336:2:1020)' nm
+       Spec = randn(343, 3);  % Simulated calibrator spectra [N_CalibWvl x N_calib] (default: Gaia DR3 XP)
        ObsFlux = [1e5; 2e5; 1.5e5];  % Observed photon counts
        X = [500; 1000; 1500];  % Pixel coordinates
        Y = [500; 1000; 1500];
        [Residuals, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
-           'WeightMatrix', GaiaSpec, 'TransmissionMode', true, ...
-           'X', X, 'Y', Y, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
+           'WeightMatrix', Spec, 'TransmissionMode', true, ...
+           'CalibWavelength', SpecWvl, 'X', X, 'Y', Y, ...
+           'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
        % Residuals are magnitude differences: 2.5*log10(Predicted/Observed)
     
     % Example - Parameter Fitting with fitPar:
@@ -249,23 +251,23 @@ classdef CompositeFun < handle
        Model.addTran2D(T2D, 'X_ref', 863, 'Y_ref', 863);
     
        % Prepare calibration data
-       Lambda = linspace(336, 1020, 343)';  % Transmission wavelength grid [nm]
-       SpecWvl = linspace(336, 1020, 343)'; % Spectral wavelength grid [nm]
+       Lambda = Model.Lambda;   % Transmission wavelength grid [nm] (300:2:1100)'
+       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid [nm] (336:2:1020)'
        N_calib = 20;
-       Generate synthetic spectra with varying spectral indices
+       % Generate synthetic spectra with varying spectral indices
         Spec = zeros(343, N_calib);
         for i = 1:N_calib
             alpha = -2 + 3.5 * (i-1)/(N_calib-1);  % -2 (blue) to +1.5 (red)
-            Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
+            Spec(:, i) = (3e-17) ./ (SpecWvl / 500).^alpha;
         end
        ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);  % Observed photons [80k-120k]
        X = rand(N_calib, 1) * 1726;  % Source X positions [pixels]
        Y = rand(N_calib, 1) * 1726;  % Source Y positions [pixels]
     
        % Setup CostArgs for TransmissionMode
-       % WeightMatrix = calibrator spectra (Gaia, synthetic, or model spectra)
+       % WeightMatrix = calibrator spectra (default: Gaia DR3 XP, or synthetic/model spectra)
        CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
-           'GaiaWavelength', SpecWvl, 'ExpTime', 20, ...
+           'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
            'Aperture_area_m2', pi * (0.1397)^2);
     
        % Fit transmission + position with sigma clipping
@@ -302,12 +304,13 @@ classdef CompositeFun < handle
        OptSeq(2).description = 'Position-dependent field correction';
     
        % Prepare calibration data (same as above)
-       Lambda = linspace(336, 1020, 343)';
+       Lambda = Model.Lambda;   % Transmission wavelength grid [nm] (300:2:1100)'
+       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid [nm] (336:2:1020)'
        N_calib = 20;
        Spec = zeros(343, N_calib);
        for i = 1:N_calib
            alpha = -2 + 3.5 * (i-1)/(N_calib-1);
-           Spec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
+           Spec(:, i) = (3e-17) ./ (SpecWvl / 500).^alpha;
        end
        ObsFlux = 8e4 + 4e4 * rand(N_calib, 1);
        X = rand(N_calib, 1) * 1726;
@@ -315,7 +318,7 @@ classdef CompositeFun < handle
     
        % Setup CostArgs for TransmissionMode
        CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
-           'GaiaWavelength', Lambda, 'ExpTime', 20, ...
+           'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
            'Aperture_area_m2', pi * (0.1397)^2);
     
        % Run multi-stage optimization
@@ -430,7 +433,9 @@ classdef CompositeFun < handle
     end
 
     properties (Constant)
-        % No constants defined currently
+        % Wavelength grids (2 nm step) - used for transmission-based calibration
+        Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
+        SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points)
     end
 
     methods % Constructor
@@ -1919,9 +1924,9 @@ classdef CompositeFun < handle
             %            'TransmissionMode' - Enable transmission-specific calculations
             %                   When true, performs photon conversion and magnitude residuals
             %                   Requires WeightMatrix (calibrator spectra). Default is false.
-            %            'GaiaWavelength' - Spectral wavelength grid [N_wvl x 1] in nm
-            %                   (name kept for backward compatibility, works with any spectra)
-            %                   Used in transmission mode. Default is linspace(336, 1020, 343)'.
+            %            'CalibWavelength' - Calibrator spectral wavelength grid [N_wvl x 1] in nm
+            %                   Works with any calibrator spectra (default: Gaia DR3 XP)
+            %                   Used in transmission mode. Default is CompositeFun.SpecWvl.
             %            'ExpTime' - Exposure time [s] for photon conversion
             %                   Used in transmission mode. Default is 20.
             %            'Aperture_area_m2' - Telescope aperture area [m^2]
@@ -1950,16 +1955,16 @@ classdef CompositeFun < handle
             %          % TransmissionMode with calibrator spectra (photometric calibration)
             %          % This mode integrates transmission×spectrum, converts to photons,
             %          % and returns magnitude residuals: DeltaMag = 2.5*log10(Pred/Obs)
-            %          Lambda = linspace(336, 1020, 343)';  % Transmission wavelength grid [nm]
-            %          SpecWvl = linspace(336, 1020, 343)'; % Spectral wavelength grid [nm]
-            %          % Use Gaia XP spectra (typical) or synthetic/model spectra
+            %          Lambda = Model.Lambda;   % Transmission wavelength grid [nm]
+            %          SpecWvl = Model.SpecWvl; % Calibrator spectral wavelength grid [nm]
+            %          % Use calibrator spectra (default: Gaia DR3 XP, or synthetic/model spectra)
             %          Spec = randn(343, 3) * 1e-17 + 1e-16;  % Calibrator spectra [343 x 3]
             %          ObsFlux = [1.2e5; 2.5e5; 1.8e5];  % Observed photon counts [3 x 1]
             %          X = [200; 863; 1500];  % Source positions [pixels]
             %          Y = [200; 863; 1500];
             %          [ResMag, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
             %              'WeightMatrix', Spec, 'TransmissionMode', true, ...
-            %              'GaiaWavelength', SpecWvl, 'X', X, 'Y', Y, ...
+            %              'CalibWavelength', SpecWvl, 'X', X, 'Y', Y, ...
             %              'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
             %          % ResMag are magnitude differences [mag], PredFlux are photons
 
@@ -1973,7 +1978,7 @@ classdef CompositeFun < handle
                 Args.WeightMatrix = []                % Weight matrix [N_obs x N_input] or calibrator spectra
                 Args.IntegrationDim = 2               % Integration dimension
                 Args.TransmissionMode logical = false % Enable transmission-specific mode
-                Args.GaiaWavelength = linspace(336, 1020, 343)'  % Spectral wavelength grid [nm]
+                Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP)
                 Args.ExpTime = 20                     % Exposure time [s]
                 Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
                 Args.CostType = 'sse'                 % Cost function type
@@ -2091,7 +2096,7 @@ classdef CompositeFun < handle
 
                 % WeightMatrix = calibrator spectra [N_SpecWvl x N_obs]
                 Spec = Args.WeightMatrix;
-                SpecWvl = Args.GaiaWavelength(:);
+                SpecWvl = Args.CalibWavelength(:);
 
                 % Determine integration range from InputValues (Lambda)
                 Lambda_min = min(InputValues);
@@ -2350,8 +2355,8 @@ classdef CompositeFun < handle
             %          OptSeq(2).description = 'Position-dependent field correction';
             %          % Build model with Tran2D
             %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
-            %          CostArgs = struct('WeightMatrix', GaiaSpec, 'TransmissionMode', true, ...
-            %                           'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
+            %          CostArgs = struct('WeightMatrix', CalibSpec, 'TransmissionMode', true, ...
+            %                           'CalibWavelength', SpecWvl, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
             %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
             %              'OptimizationSequence', OptSeq, 'Verbose', true);

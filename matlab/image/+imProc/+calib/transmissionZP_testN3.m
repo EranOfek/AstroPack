@@ -16,8 +16,15 @@ function [Result] = transmissionZP_testN3(Args)
         Args.DB                = [];
         Args.OutDir            = '/Data2/test/';
     end
+
+    % Check that DB connection is provided
+    if isempty(Args.DB)
+        error('transmissionZP_testN3:NoDB', ...
+              'Database connection required. Call with: D = db.Db.connectLASTdb(''Pass'',''*''); transmissionZP_testN3(''DB'', D);');
+    end
+
     %
-    Q = sprintf(['select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') ' ... 
+    Q = sprintf(['select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') ' ...
         'and mountnum = %d and camnum = %d and cropid = %d'],...
         Args.Table,Args.FieldID,Args.FieldID(1:4),Args.MountNum,Args.CamNum,Args.CropID);
 
@@ -30,7 +37,7 @@ function [Result] = transmissionZP_testN3(Args)
         YY  = compose('%04d',T2.diryear(Ivis)); MM = compose('%02d',T2.dirmon(Ivis)); 
         DD = compose('%02d',T2.dirday(Ivis));
         if str2double(extractBetween(T2.filetime(Ivis),1,2)) < 12
-            DD2 = DD+1;
+            DD2 = compose('%02d',T2.dirday(Ivis)+1);
         else
             DD2 = DD;
         end
@@ -45,8 +52,13 @@ function [Result] = transmissionZP_testN3(Args)
         
         % process the AI (this is the main part where absolute calibration
         % is made and appropriate columns added to the catalog)
-        
-        % AI = imProc.calib.transmissionZP_skeleton(AI);
+
+        % Create PhotCalibTrans object and perform calibration
+        PC = PhotCalibTrans();
+        PC.calibrate(AI);
+
+        % Add calibrated AB magnitudes to catalog
+        AI.CatData = PC.addMagAB(AI.CatData);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
