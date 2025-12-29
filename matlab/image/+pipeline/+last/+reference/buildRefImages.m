@@ -18,7 +18,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
-        Args.RefTable    = 'ref_images_v4';     
+            
         Args.Verbose     = 'false';
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
@@ -29,12 +29,30 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.UseInterp2WCS  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs = {};  
         
-        Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
-        
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
         
         Args.StitchPars         = {'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1}; % parameters passed to the stitch function
+        
+        Args.BackSubSizeXY      = [128 128];
+        Args.Threshold          = 5;
+        Args.MomRadius          = 6;
+        Args.PsfFunPar cell     = {[0.1;1.0;1.5]};  % search for sources  
+        Args.ZP                 = 25;
+        Args.ColCell cell       = {'XPEAK','YPEAK',...
+                                    'X1', 'Y1',...
+                                    'X2','Y2','XY',...
+                                    'SN','BACK_IM','VAR_IM',...
+                                    'BACK_ANNULUS', 'STD_ANNULUS', ...
+                                    'FLUX_APER', 'FLUXERR_APER',...
+                                    'MAG_APER', 'MAGERR_APER'};
+        
+        Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
+                
+        Args.OutputDir          = '/Data2/NewRef/';
+        Args.WriteProp          = ['Image','Cat','Mask','PSF'];
+        
+        Args.OutputRefTable    = 'ref_images_v5'; % output DB table        
     end
     % 
     RAD = 180/pi;  
@@ -166,8 +184,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % 4.2 merge the set of covering crops                         
                             % var1
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                        [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
-                                                                     'WriteFile',false, Args.StitchPars{:}); 
+                            try % a temporary try-catch until a new version of stitch is made 
+                                [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
+                                    'WriteFile',false, Args.StitchPars{:});
+                            catch ME
+                                cprintf('err','However stitching failed, we are going on with other epochs\n');
+                                continue
+                            end
 
                         % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
@@ -192,7 +215,23 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'CreateNewObj',true);
                         end  
                         
-                        % 4.4 add the RegisteredImage to the stack
+                        % 4.4 measure background, find sources, re-measure PSF, do PSF photometry 
+                        RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
+                        
+                        RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
+                                                       'Threshold', Args.Threshold,...
+                                                       'ReCalcBack',false,...
+                                                       'MomPar',{'MomRadius',Args.MomRadius},...
+                                                       'ColCell',Args.ColCell,...
+                                                       'FlagCR',true,...
+                                                       'ZP',Args.ZP,...
+                                                       'CreateNewObj',false);                                            
+                                                   
+                        RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
+
+                        RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false,'ZP',Args.ZP);                  
+
+                        % 4.5 add the RegisteredImage to the stack
                         if exist('StackImages','var')
                             StackImages = [StackImages RegisteredImage];
                         else
@@ -209,15 +248,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         % 5. coadd the epochs from different telescopes and cameras                   
         % employ imProc.stack.coaddW or a simliar function        
+        % NB: the output image is background-subtracted! 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',true,'FluxMatch','PH_ZP');
         
-        RefImage = Args.CoaddFunction(StackImages);
-        
-        % 6. save the new reference image and its catalog to the disk (euclid?)
-        
-        % RefImage.write1....
+        % 6. save the new reference image and its catalog, mask, and PSF to the disk                 
+        for Iprop=1:numel(Args.WriteProp)
+            FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true)
+        end
                                         
-        % 7. write the image metadata to the reference image table of the DB 
-        %    write the reference image catalog to the reference image catalog table of the DB
+        % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)  
+        %    write the reference image catalog to the reference image catalog table of the DB?
                     
         end % for the particular reference grid position we have some coadds to build on  
     end % reference image grid      

@@ -2,7 +2,7 @@ function [Result] = coaddW(Obj, Args)
     % Weighted Stack/Coadd images in AstroImage object, based on measured Back, Var, and ZP.
     %   The coadd images are background subtracted and flux matched, and
     %   weighted by the Transmission/divided by invese variance.
-    % Input  : - An AstriImage.
+    % Input  : - An AstroImage.
     %            If the background and variance are not populated, then
     %            running this function will populate the Back and Var
     %            properties of the input argument.
