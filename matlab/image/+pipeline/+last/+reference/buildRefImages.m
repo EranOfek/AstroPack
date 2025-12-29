@@ -33,6 +33,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
+        
+        Args.StitchPars         = {'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1}; % parameters passed to the stitch function
     end
     % 
     RAD = 180/pi;  
@@ -165,7 +167,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             % var1
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                         [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
-                            'WriteFile',false,'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1); 
+                                                                     'WriteFile',false, Args.StitchPars{:}); 
 
                         % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
