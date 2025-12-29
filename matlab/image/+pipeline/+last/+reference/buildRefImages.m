@@ -48,7 +48,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                     'MAG_APER', 'MAGERR_APER'};
         
         Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
-                
+        
+        Args.PixScale           = 1.25;
+        Args.Tran               = Tran2D('poly3');
+        Args.CatName            = 'GAIAEDR3';
+        
         Args.OutputDir          = '/Data2/NewRef/';
         Args.WriteProp          = ['Image','Cat','Mask','PSF'];
         
@@ -77,8 +81,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
             % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref));
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref)); % temporary! 
+%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PixScale',Args.PixScale); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
@@ -188,16 +192,21 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
                                     'WriteFile',false, Args.StitchPars{:});
                             catch ME
+                                fprintf('%s\n',ME.message);
                                 cprintf('err','However stitching failed, we are going on with other epochs\n');
                                 continue
+                            end
+                            
+                            if isnan(julday(StitchedImage))
+                                StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
                             end
 
                         % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
 %                           % var2 
-%                         MergedAI = imProc.transIm.merge(AI); % a new function to be written?
-%                           1. estimate the size of the merged image, enlarge the matrix, fill with 0s
-%                           2. take the WCS0 from the 1st image
-%                           3. use xy2sky with WCS1, then sky2xy with WCS0
+%                         MergedAI = imProc.transIm.stitch(AI); % a new function to be written?
+%                           1. estimate the size of the stitched image
+%                           2. adopt WCS0 from the 1st image
+%                           3. use xy2sky with WCS1, then sky2xy with WCS0 or remap with interp2wcs? 
 %                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
 %                           5. for each pixel of the merge take an inverse variance weighted mean of the merged pixel values
 %                                                                                                 
@@ -215,7 +224,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'CreateNewObj',true);
                         end  
                         
-                        % 4.4 measure background, find sources, re-measure PSF, do PSF photometry 
+                        % 4.4 measure background, find sources
                         RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
                         
                         RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
@@ -226,10 +235,26 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                                        'FlagCR',true,...
                                                        'ZP',Args.ZP,...
                                                        'CreateNewObj',false);                                            
-                                                   
+                                                                           
+                        % re-measure PSF, do PSF photometry -- do we really need it here?
                         RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
+                        RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);    
 
-                        RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false,'ZP',Args.ZP);                  
+                        % DOES not work yet, need to debug with EO? 
+                        
+%                         [~, RegisteredImage, AstrometricCat] = imProc.astrometry.astrometrySubImages(RegisteredImage, ...
+%                                                                             'EpochOut',TabEpoch.jd_start(Iepoch),...
+%                                                                             'CCDSEC',[1, Args.Naxis1, 1, Args.Naxis2],...
+%                                                                             'Scale',Args.PixScale,...
+%                                                                             'CatName',Args.CatName,...                                                                            
+%                                                                             'Tran',Args.Tran,...
+%                                                                             'CreateNewObj',false);
+%                                         
+%                         [RegisteredImage, RegisteredImage.ZP, RegisteredImage.PhotCat] = ... 
+%                                               imProc.calib.photometricZP(RegisteredImage,...
+%                                                                         'CreateNewObj',false,...
+%                                                                         'MagZP',Args.ZP,...
+%                                                                         'CatName',AstrometricCat);
 
                         % 4.5 add the RegisteredImage to the stack
                         if exist('StackImages','var')
@@ -247,10 +272,51 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        % employ imProc.stack.coaddW or a simliar function        
-        % NB: the output image is background-subtracted! 
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',true,'FluxMatch','PH_ZP');
+        % employ imProc.stack.coaddW or a simliar function                
+        % should do with 'PH_ZP' which requires photometricZP to be run on each of the RegisteredImage 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','ZP'); 
         
+        % measure the background, find and measure sources, measure the PSF
+        RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
+                        
+        RefImage = imProc.sources.findMeasureSources(RefImage, ...
+                                       'Threshold', Args.Threshold,...
+                                       'ReCalcBack',false,...
+                                       'MomPar',{'MomRadius',Args.MomRadius},...
+                                       'ColCell',Args.ColCell,...
+                                       'FlagCR',true,...
+                                       'ZP',Args.ZP,...
+                                       'CreateNewObj',false);                                                                                                      
+                        
+        % re-measure PSF, do PSF photometry 
+        RefImage = imProc.psf.populatePSF(RefImage, 'RePopulatePSF', true, 'DataType',@single);
+        RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
+        
+        
+        MeanJD = mean(julday(StackImages));        
+        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'JD', MeanJD);
+                           
+        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
+                                            'EpochOut',MeanJD,...
+                                            'Scale',Args.PixScale,...
+                                            'CatName',Args.CatName,...
+                                            'Tran',Args.Tran,...
+                                            'CreateNewObj',false);                    
+                                        
+        RefImage = imProc.calib.photometricZP(RefImage);
+        
+%         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
+%         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));
+%         RefImage = imProc.sources.findMeasureSources(RefImage,'AddFlags',true);
+%         RefImage = imProc.psf.populatePSF(RefImage);
+%         imProc.psf.fwhm(RefImage);
+%         RefImage = imProc.sources.psfFitPhot(RefImage);
+%         RefImage = imProc.astrometry.addCoordinates2catalog(RefImage,'OutUnits','deg');
+%         RefImage = imProc.calib.photometricZP(RefImage);
+%         RefImage = imProc.match.match_catsHTMmerged(RefImage, 'SameField',false, 'CreateNewObj',false);
+        
+        RefImage.UserData.Nimages = numel(StackImages);        
+
         % 6. save the new reference image and its catalog, mask, and PSF to the disk                 
         for Iprop=1:numel(Args.WriteProp)
             FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
@@ -277,7 +343,7 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
             Args.Naxis2   = 1726; % pix 
         end
         %
-        PixScale = Args.PixScale / 3600;    % [deg] pixel scale
+        PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
         %
         WCS = AstroWCS();
         WCS.ProjType  = 'TAN';
@@ -285,8 +351,8 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         WCS.CooName   = {'RA'  'DEC'};
         WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
         WCS.CUNIT     = {'deg', 'deg'};
-        WCS.CD(1,1)   = PixScale;
-        WCS.CD(2,2)   = PixScale;
+        WCS.CD(1,1)   = PixScaleDeg;
+        WCS.CD(2,2)   = PixScaleDeg;
         WCS.CRVAL(1)  = RA0;
         WCS.CRVAL(2)  = Dec0;
         WCS.CRPIX(1)  = Args.Naxis1/2;

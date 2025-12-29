@@ -26,7 +26,7 @@ function [Result] = coaddW(Obj, Args)
     %                   Each image will be divided by its corresponding value.
     %                   If empty, then do not flux match.
     %                   If char array, then this is an header keyword
-    %                   containing the ZP key haeder name. The ZP key will
+    %                   containing the ZP key header name. The ZP key will
     %                   be used to calculate the flux matching vector.
     %                   Default is 'PH_ZP'.
     %            'StackMethod' - Stack method:

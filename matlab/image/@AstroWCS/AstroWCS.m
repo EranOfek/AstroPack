@@ -200,7 +200,7 @@ classdef AstroWCS < Component
         function Obj = populateSucess(Obj, Args)
             % Populate the sucess flag in the AstroWCS object
             %   The success flag indicate if the WCS solution and residuals
-            %   are reasnoble.
+            %   are reasonable.
             % Input  : - An AstroWCS object (single element)
             %          * ...,key,val,...
             %            'TestNbin' - Number of bins in each dim of the 2D hist
