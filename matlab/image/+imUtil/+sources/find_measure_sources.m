@@ -1,4 +1,4 @@
-function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
+function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
     % find sources in an image
     % Package: imUtil.sources
     % Description: Find sources in an image using a matched filter of template
@@ -90,8 +90,8 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     % Output : - A catalog of sources and their properties.
     %            Forced photometry requestes will have TEMP_ID=NaN.
     %          - A cell array of column names in the output catalog.
-    %          - A structure with additional calculated output (e.g., the
-    %            filtered image).
+    %          - A structure with additional calculated output.
+    %          - The filtered image.
     % License: GNU general public license version 3
     % Tested : Matlab R2015b
     %     By : Eran O. Ofek                    Apr 2016
@@ -160,7 +160,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
 
     
 
-    [Src,Template] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
+    [Src,Template,FiltImage] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
                                             'Psf',Args.Psf,...
                                             'PsfFun',Args.PsfFun,...
                                             'PsfFunPar',Args.PsfFunPar,...
