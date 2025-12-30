@@ -247,6 +247,7 @@ classdef PhotonsList < Component
                 case {'xrt','swift'}
                     % Swift-XRT
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
+                    Obj.ColSky = {'X','Y'};
                 otherwise
                     error('Unknown X-ray telescope');
             end
