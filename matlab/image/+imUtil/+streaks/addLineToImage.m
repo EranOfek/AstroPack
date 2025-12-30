@@ -1,4 +1,4 @@
-function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF)
+function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature)
     % One line description
     %     Optional detailed description
     % Input  : - Image:     2D matrix (original image)
@@ -10,6 +10,9 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF)
     %            with the image.
     %            if empty, no convolution is done. If scalar, then this is
     %            the sigma width of the Gaussian PSF.
+    %          - Curvature of line measured in units of maximum deviation
+    %            from a straight line. Negative number means curved downward.
+    %            Default is 0.
     % Output : - Output image.
     % Author : Eran Ofek (2025 Jul) 
     % Example: Out=imUtil.streaks.addLineToImage(Image,[10 50 20 40],10,imUtil.kernel2.gauss(3));
@@ -20,6 +23,7 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF)
         Coords
         Intensity         = 1;
         PSF               = [];
+        Curvature         = 0;
     end
 
     % Copy image to output
@@ -33,11 +37,15 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF)
         MinY = Coords(I,3);
         MaxY = Coords(I,4);
     
-        % Generate points along the line using linear interpolation
-        NPoints = max(abs(MaxX - MinX), abs(MaxY - MinY)) + 1;
-        X = round(linspace(MinX, MaxX, NPoints));
-        Y = round(linspace(MinY, MaxY, NPoints));
-    
+        if Curvature==0
+            % Generate points along the line using linear interpolation
+            NPoints = max(abs(MaxX - MinX), abs(MaxY - MinY)) + 1;
+            X = round(linspace(MinX, MaxX, NPoints));
+            Y = round(linspace(MinY, MaxY, NPoints));
+        else
+            [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curvature);
+        end
+            
         % Ensure coordinates are within bounds
         Valid = X >= 1 & X <= size(Image, 2) & Y >= 1 & Y <= size(Image, 1);
         X = X(Valid);
@@ -56,5 +64,47 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF)
         OutImage = conv2(OutImage, PSF, 'same');
     end
 end
+
+
+function [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curv)
+    % Inputs: MinX, MinY, MaxX, MaxY, Curv
+    % Curv is max deviation from the straight line (in pixels), Curv=0 => straight
+    
+    Dx = MaxX - MinX;
+    Dy = MaxY - MinY;
+    
+    NPoints = max(abs(Dx), abs(Dy)) + 1;
+    
+    t = linspace(0, 1, NPoints);              % parameter along the chord
+    
+    % Straight line (baseline)
+    X0 = MinX + Dx .* t;
+    Y0 = MinY + Dy .* t;
+    
+    % Unit normal to the chord (perpendicular direction)
+    L = hypot(Dx, Dy);
+    if L == 0
+        X = round(X0);
+        Y = round(Y0);
+        return
+    end
+    Nx = -Dy / L;
+    Ny =  Dx / L;
+    
+    % Parabolic profile: 0 at t=0,1 and max=1 at t=0.5
+    Profile = 4 .* t .* (1 - t);              % in [0,1], peak 1 at mid
+    
+    % Apply curvature as offset along the normal
+    Offset = Curv .* Profile;                 % max deviation = Curv
+    
+    X = round(X0 + Offset .* Nx);
+    Y = round(Y0 + Offset .* Ny);
+    
+    % Optional: remove duplicates caused by rounding (keeps order)
+    Keep = [true, diff(X)~=0 | diff(Y)~=0];
+    X = X(Keep);
+    Y = Y(Keep);
+end
+
 
 
