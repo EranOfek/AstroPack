@@ -423,6 +423,16 @@ classdef CompositeFun < handle
 
         FunOperator = '*'
 
+        OptSeq = []             % Optimization sequence (struct array defining multi-stage fitting strategy)
+                                % Each stage is a struct with fields:
+                                %   .StageName - Name of the optimization stage
+                                %   .FreeParams - Struct array with .Function and .Parameter fields (empty for field correction)
+                                %   .SigmaClip - Enable sigma clipping (true/false)
+                                %   .SigmaThresh - Sigma threshold for outlier rejection
+                                %   .SigmaIter - Number of sigma clipping iterations
+                                %   .Description - Description of the stage
+                                % Can be set directly or passed to fitPar via 'OptimizationSequence' argument
+
         % Position-dependent correction (Tran2D integration)
         Tran2DObj = []           % Tran2D object for spatial corrections
         UseTran2D logical = false  % Flag to enable Tran2D evaluation
@@ -433,7 +443,7 @@ classdef CompositeFun < handle
         DOF = NaN                % Degrees of freedom from last fit
     end
 
-    properties (Constant)
+    properties (Constant, Hidden)
         % Wavelength grids (2 nm step) - used for transmission-based calibration
         Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
         SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points)
@@ -2297,6 +2307,7 @@ classdef CompositeFun < handle
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
             %            'OptimizationSequence' - Multi-stage optimization sequence (struct array)
             %                   If provided, enables multi-stage sequence of optimization, describing which parameters are optimized at the current step.
+            %                   When provided, it is stored in Obj.OptSeq for future use. If not provided, uses stored Obj.OptSeq if available.
             %                   Description of each stage is a struct with:
             %                   .StageName - Name of the stage
             %                   .FreeParams - Struct array with .Function and .Parameter fields
@@ -2305,7 +2316,7 @@ classdef CompositeFun < handle
             %                   .SigmaThresh - Threshold for sigma clipping [sigma units]
             %                   .SigmaIter - Number of sigma clipping iterations
             %                   .Description - Description of the stage
-            %                   Default is [] (single-stage mode).
+            %                   Default is [] (single-stage mode if Obj.OptSeq is also empty).
             %            'ObsUncertainties' - Observation uncertainties [N_obs x 1]
             %                   Used for Chi2 calculation. If empty, Chi2 = NaN.
             %                   Default is [].
@@ -2387,7 +2398,20 @@ classdef CompositeFun < handle
             % STEP 0: MULTI-STAGE OPTIMIZATION (if OptimizationSequence provided)
             % ====================================================================
 
+            % Use provided OptimizationSequence or fall back to stored Obj.OptSeq
             if ~isempty(Args.OptimizationSequence)
+                % Only store if it's a multi-stage sequence (external call)
+                % Don't overwrite during recursive single-stage calls from fitMultiStage
+                if length(Args.OptimizationSequence) > 1
+                    Obj.OptSeq = Args.OptimizationSequence;  % Store for future reference
+                end
+            elseif isempty(Args.OptimizationSequence) && ~isempty(Obj.OptSeq)
+                Args.OptimizationSequence = Obj.OptSeq;  % Use stored sequence
+            end
+
+            % Only call fitMultiStage if there are multiple stages (>1)
+            % Single-stage sequences run as regular single-stage fits
+            if ~isempty(Args.OptimizationSequence) && length(Args.OptimizationSequence) > 1
                 % Multi-stage optimization mode
                 [Obj, FitResult] = fitMultiStage(Obj, InputValues, ObservedValues, Args);
                 return;
@@ -2696,7 +2720,8 @@ classdef CompositeFun < handle
             %   OptSeq(i).Description - Description of the stage
             % Author : D. Kovaleva (Nov 2025)
 
-            OptSeq = Args.OptimizationSequence;
+            % Use stored Obj.OptSeq directly (already set by fitPar)
+            OptSeq = Obj.OptSeq;
             NumStages = length(OptSeq);
 
             % Initialize results array
@@ -2754,6 +2779,7 @@ classdef CompositeFun < handle
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
                         'ObsUncertainties', CurrentUncertainties, ...
+                        'OptimizationSequence', OptSeq(IStage), ...
                         'OptimOptions', Args.OptimOptions, ...
                         'Verbose', Args.Verbose);
                 else
@@ -2786,6 +2812,7 @@ classdef CompositeFun < handle
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
                         'ObsUncertainties', CurrentUncertainties, ...
+                        'OptimizationSequence', OptSeq(IStage), ...
                         'OptimOptions', Args.OptimOptions, ...
                         'Verbose', Args.Verbose);
                 end

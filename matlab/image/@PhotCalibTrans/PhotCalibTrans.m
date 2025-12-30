@@ -15,20 +15,20 @@ classdef PhotCalibTrans < Component
     % Key Properties:
     %   TransModel - CompositeFun object with fitted transmission model
     %   CalibData  - Structure with calibrator data (spectra, positions, fluxes)
-    %   AIRMASS, ZENITH, EXPTIME, NCOADD, TEMP, PRESSURE, HUMIDITY, APERTURE - Observation metadata
+    %   AirMass, Zenith, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %   FunList, OptSeq - Calibration scheme configuration (reusable across images)
     %
     % Example:
     %{
      % Create calibration object
-     PC = PhotCalibTrans();  
+     PC = PhotCalibTrans();
 
      % Perform calibration on AstroImage (metadata read from AI.HeaderData)
      PC.calibrate(AI);
 
      % Evaluate transmission and zero points
-     Trans = PC.evaluateTransmission(PC.Lambda);  % Use constant wavelength grid
-     ZP = PC.evaluateZP();  % Uses Obj.Lambda, Obj.EXPTIME, Obj.NCOADD, Obj.APERTURE
+     Trans = PC.evaluateTransmission();  % Use constant wavelength grid (Obj.Lambda)
+     ZP = PC.evaluateZP();  % Uses Obj.Lambda, Obj.ExpTime, Obj.NCoadd, Obj.Aperture
 
      % Apply calibration to catalog
      [MagAB, MagABErr] = PC.evaluateMag(MagInst, 'X', X, 'Y', Y, 'MagInstErr', MagErr);
@@ -67,36 +67,30 @@ classdef PhotCalibTrans < Component
     %   Static Methods:
     %     fromHeader - Create PhotCalibTrans object from AstroHeader [PLACEHOLDER]
 
-    properties (Constant)
-        % Wavelength grids (2 nm step)
-        Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
-        SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points)
-    end
-
     properties
-     
-        % Calibration metadata (FITS header naming convention)
-        AIRMASS                 % Airmass
-        ZENITH                  % Zenith angle [deg]
-        TEMP                    % Temperature [C]
-        PRESSURE                % Atmospheric pressure [mbar]
-        HUMIDITY                % Relative humidity [%]
-        APERTURE                % Telescope aperture area [m^2]
-        EXPTIME                 % Exposure time [s]
-        NCOADD                  % Number of coadded images
-        
+
+        % Calibration metadata (read from header, defaults for missing values)
+        AirMass = NaN           % Airmass
+        Zenith = NaN            % Zenith angle [deg]
+        Temp = NaN              % Temperature [C]
+        Pressure = 965          % Atmospheric pressure [mbar] (default: typical at observatory altitude)
+        Humidity = NaN          % Relative humidity [%]
+        Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
+        ExpTime = NaN           % Exposure time [s]
+        NCoadd = 1              % Number of coadded images (default: single image)
+
         % Calibration scheme configuration
-        FunList                 % Built transmission function list (struct array from predefSeqCompositeFun)
-        OptSeq                  % Built optimization sequence (struct from predefSeqCompositeFun)
-    
-        % Transmission model
-        TransModel              % CompositeFun transmission model object containing:
+        FunList = []            % Built transmission function list (struct array from predefSeqCompositeFun)
+        OptSeq = []             % Built optimization sequence (struct from predefSeqCompositeFun)
+
+        % Transmission model (empty until calibration)
+        TransModel = []         % CompositeFun transmission model object containing:
                                 %   Before calibration: .Funs (function list with initial parameters), .FunOperator ('*'),
                                 %                        .Tran2DObj (position-dependent correction object), .UseTran2D (true/false)
                                 %   After calibration:  .Funs.Par (fitted parameters), .RMS (fit RMS [mag]), .Chi2 (chi-squared), .DOF (degrees of freedom)
 
-        % Calibrator information
-        CalibData               % Structure with calibrator data from selectCalibrators containing:
+        % Calibrator information (empty until calibration)
+        CalibData = []          % Structure with calibrator data from selectCalibrators containing:
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
                                 %   .ObsData - struct with .Flux, .FluxErr, .X, .Y, .RA, .Dec (observed data)
@@ -106,45 +100,34 @@ classdef PhotCalibTrans < Component
 
     end
 
+    properties (Constant, Hidden)
+        % Wavelength grids (2 nm step)
+        Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
+        SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points - not stored in the source catalog)
+    end
+
     methods % Constructor
-        function Obj = PhotCalibTrans(Args)
+        function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
             % Input  : * ...,key,val,...
-            %            'TransModel' - CompositeFun transmission model. Default is [].
-            %            'FunList' - Built transmission function list. Default is [].
-            %            'OptSeq' - Built optimization sequence. Default is [].
-            %            'AIRMASS' - Airmass. Default is NaN.
-            %            'ZENITH' - Zenith angle [deg]. Default is NaN.
-            %            'EXPTIME' - Exposure time [s]. Default is NaN.
-            %            'TEMP' - Temperature [C]. Default is NaN.
-            %            'PRESSURE' - Atmospheric pressure [mbar]. Default is NaN.
-            %            'HUMIDITY' - Relative humidity [%]. Default is NaN.
-            %            'APERTURE' - Telescope aperture area [m^2]. Default is pi*(0.1397)^2 (LAST).
+            %            Any property name as key with corresponding value
+            %            Property defaults are defined in the properties block
             % Output : - PhotCalibTrans object
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC = PhotCalibTrans();
+            %          PC = PhotCalibTrans('Pressure', 970, 'Aperture', 0.05);
 
-            arguments
-                Args.TransModel = []
-                Args.FunList = []
-                Args.OptSeq = []
-                Args.AIRMASS = NaN
-                Args.ZENITH = NaN
-                Args.TEMP = NaN
-                Args.PRESSURE = 965     % Default atmospheric pressure [mbar]
-                Args.HUMIDITY = NaN
-                Args.APERTURE = pi * (0.1397)^2    % LAST telescope aperture [m^2]
-                Args.EXPTIME = NaN
-                Args.NCOADD = 1         % Default number of coadded images
-            end
-
-            % Call parent constructor
-      %      Obj@Component();
-
-            % Initialize properties from arguments
-            Fields = fieldnames(Args);
-            for I = 1:length(Fields)
-                Obj.(Fields{I}) = Args.(Fields{I});
+            % Parse name-value pairs and set properties if they exist
+            for i = 1:2:length(varargin)
+                if i+1 <= length(varargin)
+                    propName = varargin{i};
+                    if isprop(Obj, propName)
+                        Obj.(propName) = varargin{i+1};
+                    else
+                        warning('PhotCalibTrans:UnknownProperty', ...
+                            'Property "%s" does not exist and will be ignored.', propName);
+                    end
+                end
             end
         end
     end
@@ -158,7 +141,7 @@ classdef PhotCalibTrans < Component
             % Example: PC = PC.reset();
             % Description: Clears calibration results (TransModel, CalibData) and
             %              observation-specific metadata (AirMass, ExpTime, etc.)
-            %              while keeping calibration scheme (FunList, OptSeq, ApertureArea_m2).
+            %              while keeping calibration scheme (FunList, OptSeq, Aperture).
 
             arguments
                 Obj
@@ -169,18 +152,18 @@ classdef PhotCalibTrans < Component
             Obj.CalibData = [];
 
             % Clear observation-specific metadata (restore defaults)
-            Obj.AIRMASS = NaN;
-            Obj.ZENITH = NaN;
-            Obj.EXPTIME = NaN;
-            Obj.NCOADD = 1;         % Default: single image
-            Obj.TEMP = NaN;
-            Obj.PRESSURE = 965;     % Default atmospheric pressure [mbar]
-            Obj.HUMIDITY = NaN;
+            Obj.AirMass = NaN;
+            Obj.Zenith = NaN;
+            Obj.ExpTime = NaN;
+            Obj.NCoadd = 1;         % Default: single image
+            Obj.Temp = NaN;
+            Obj.Pressure = 965;     % Default atmospheric pressure [mbar]
+            Obj.Humidity = NaN;
 
             % Keep calibration scheme configuration:
             % - FunList (transmission function list)
             % - OptSeq (optimization sequence)
-            % - APERTURE (telescope aperture)
+            % - Aperture (telescope aperture)
         end
     end
 
@@ -231,26 +214,26 @@ classdef PhotCalibTrans < Component
 
             % Extract metadata from Cat.HeaderData with defaults for missing values
             Metadata = struct();
-            Metadata.AIRMASS  = Cat.HeaderData.getVal('AIRMASS', 'Fill', 1.2);
-            Metadata.TEMP     = Cat.HeaderData.getVal('TEMP_MNT', 'Fill', 15);    % Temperature from TEMP_MNT keyword
-            Metadata.EXPTIME  = Cat.HeaderData.getVal('EXPTIME', 'Fill', 20);
-            Metadata.NCOADD   = Cat.HeaderData.getVal('NCOADD', 'Fill', 1);
-            Metadata.PRESSURE = Cat.HeaderData.getVal('PRESSURE', 'Fill', 965);
+            Metadata.AirMass  = Cat.HeaderData.getVal('AIRMASS', 'Fill', 1.2);
+            Metadata.Temp     = Cat.HeaderData.getVal('TEMP_MNT', 'Fill', 15);    % Temperature from TEMP_MNT keyword
+            Metadata.ExpTime  = Cat.HeaderData.getVal('EXPTIME', 'Fill', 20);
+            Metadata.NCoadd   = Cat.HeaderData.getVal('NCOADD', 'Fill', 1);
+            Metadata.Pressure = Cat.HeaderData.getVal('PRESSURE', 'Fill', 965);
 
             % Calculate derived fields
-            Metadata.ZENITH = acosd(1.0 / Metadata.AIRMASS);
+            Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
 
             % Use setProps to copy all metadata fields to object properties
             Obj.setProps(Metadata);
 
             if Args.Verbose
                 fprintf('Metadata from FITS header:\n');
-                fprintf('  AIRMASS  = %.2f\n', Obj.AIRMASS);
-                fprintf('  ZENITH   = %.2f deg\n', Obj.ZENITH);
-                fprintf('  EXPTIME  = %.1f s\n', Obj.EXPTIME);
-                fprintf('  NCOADD   = %d\n', Obj.NCOADD);
-                fprintf('  TEMP     = %.1f C\n', Obj.TEMP);
-                fprintf('  PRESSURE = %.1f mbar\n\n', Obj.PRESSURE);
+                fprintf('  AirMass  = %.2f\n', Obj.AirMass);
+                fprintf('  Zenith   = %.2f deg\n', Obj.Zenith);
+                fprintf('  ExpTime  = %.1f s\n', Obj.ExpTime);
+                fprintf('  NCoadd   = %d\n', Obj.NCoadd);
+                fprintf('  Temp     = %.1f C\n', Obj.Temp);
+                fprintf('  Pressure = %.1f mbar\n\n', Obj.Pressure);
             end
 
             % ====================================================================
@@ -319,9 +302,9 @@ classdef PhotCalibTrans < Component
 
             % Build metadata values for transmission model
             MetaValues = struct(...
-                'ZenithAngle_deg', Obj.ZENITH, ...
-                'Pressure_mbar', Obj.PRESSURE, ...
-                'Temperature_C', Obj.TEMP);
+                'ZenithAngle_deg', Obj.Zenith, ...
+                'Pressure_mbar', Obj.Pressure, ...
+                'Temperature_C', Obj.Temp);
 
             % Create CompositeFun model
             Model = tools.math.fun.CompositeFun.model(FunList, ...
@@ -365,7 +348,7 @@ classdef PhotCalibTrans < Component
             Y = CalibData.ObsData.Y;
 
             % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.EXPTIME / Obj.NCOADD;
+            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
 
             % Setup CostArgs for TransmissionMode
             CostArgs = struct(...
@@ -373,7 +356,7 @@ classdef PhotCalibTrans < Component
                 'TransmissionMode', true, ...
                 'CalibWavelength', Obj.SpecWvl, ...  % Wavelength grid for calibrator spectra (default: Gaia DR3 XP)
                 'ExpTime', ExpTime_eff, ...          % Effective exposure time per image [s]
-                'Aperture_area_m2', Obj.APERTURE);
+                'Aperture_area_m2', Obj.Aperture);
 
             % Fit transmission parameters using multi-stage optimization
             % Obj.Lambda is used to evaluate transmission and integrate predicted fluxes
@@ -666,25 +649,32 @@ classdef PhotCalibTrans < Component
     end
 
     methods % Evaluation methods
-        function Trans = evaluateTransmission(Obj, Lambda, Args)
+        function Trans = evaluateTransmission(Obj, Args)
             % Evaluate transmission at specific positions (with position-dependent corrections)
             % Input  : - Obj - PhotCalibTrans object
-            %          - Lambda - Wavelength grid [nm] [N_lambda x 1]
             %          * ...,key,val,...
+            %            'Lambda' - Wavelength grid [nm] [N_lambda x 1]. Default is Obj.Lambda (constant property).
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
             % Output : - Trans - Transmission values [N_pos x N_lambda] or [N_lambda x 1]
             %                    If X, Y provided: matrix where Trans(i,j) = transmission for position i at wavelength j
             %                    If X, Y empty: vector of base transmission at field center
             % Author : D. Kovaleva (Dec 2025)
-            % Example: Trans = PC.evaluateTransmission(Lambda);  % Base transmission at field center
-            %          Trans = PC.evaluateTransmission(Lambda, 'X', X, 'Y', Y);
+            % Example: Trans = PC.evaluateTransmission();  % Base transmission at field center using Obj.Lambda
+            %          Trans = PC.evaluateTransmission('Lambda', CustomLambda, 'X', X, 'Y', Y);
 
             arguments
                 Obj
-                Lambda
+                Args.Lambda = []
                 Args.X = []
                 Args.Y = []
+            end
+
+            % Use default Lambda if not provided
+            if isempty(Args.Lambda)
+                Lambda = Obj.Lambda;
+            else
+                Lambda = Args.Lambda;
             end
 
             if isempty(Obj.TransModel)
@@ -752,16 +742,16 @@ classdef PhotCalibTrans < Component
             Lambda = Obj.Lambda;
 
             % Check that calibration has been performed
-            if isnan(Obj.EXPTIME) || isnan(Obj.NCOADD)
-                error('PhotCalibTrans:evaluateZP:NoMetadata', 'EXPTIME and NCOADD must be set. Run calibrate() first.');
+            if isnan(Obj.ExpTime) || isnan(Obj.NCoadd)
+                error('PhotCalibTrans:evaluateZP:NoMetadata', 'ExpTime and NCoadd must be set. Run calibrate() first.');
             end
 
             % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.EXPTIME / Obj.NCOADD;
+            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
 
             % Evaluate transmission at positions (or field center if X, Y empty)
             % Trans is [N_lambda x 1] if no positions, or [N_pos x N_lambda] if positions provided
-            Trans = Obj.evaluateTransmission(Lambda, 'X', Args.X, 'Y', Args.Y);
+            Trans = Obj.evaluateTransmission('X', Args.X, 'Y', Args.Y);
 
             % Create flat Fnu spectrum for AB zero-point
             Fnu = constant.Fnu('SI');  % AB system flux density [W/m^2/Hz]
@@ -789,7 +779,7 @@ classdef PhotCalibTrans < Component
             A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % [N_pos x 1]
 
             % Calculate zero-point flux for all positions
-            TotalFlux_ZP = ExpTime_eff * Obj.APERTURE * A / B;  % [N_pos x 1]
+            TotalFlux_ZP = ExpTime_eff * Obj.Aperture * A / B;  % [N_pos x 1]
 
             % Convert to magnitude
             ZP = 2.5 * log10(TotalFlux_ZP);  % [N_pos x 1]
@@ -1068,8 +1058,8 @@ classdef PhotCalibTrans < Component
                 fprintf('Transmission Model: Not available\n');
             end
 
-            if ~isnan(Obj.AIRMASS)
-                fprintf('Airmass: %.3f\n', Obj.AIRMASS);
+            if ~isnan(Obj.AirMass)
+                fprintf('Airmass: %.3f\n', Obj.AirMass);
             end
 
             % Check for position-dependent corrections
@@ -1108,7 +1098,7 @@ classdef PhotCalibTrans < Component
 
             % Create wavelength grid and compute transmission
             Lambda = (Args.WvlRange_nm(1):Args.WvlStep_nm:Args.WvlRange_nm(2))';
-            Trans = Obj.evaluateTransmission(Lambda);
+            Trans = Obj.evaluateTransmission('Lambda', Lambda);
 
             % Store in object
             Obj.TransFile = Filename;
@@ -1169,8 +1159,8 @@ classdef PhotCalibTrans < Component
             ylim([0, max(Trans(:)) * 1.1]);
 
             % Add metadata to title if available
-            if ~isnan(Obj.AIRMASS)
-                title(sprintf('Total System Transmission (Airmass=%.2f)', Obj.AIRMASS));
+            if ~isnan(Obj.AirMass)
+                title(sprintf('Total System Transmission (Airmass=%.2f)', Obj.AirMass));
             end
         end
 
