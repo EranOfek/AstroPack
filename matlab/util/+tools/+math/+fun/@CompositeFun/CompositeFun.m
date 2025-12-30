@@ -287,21 +287,21 @@ classdef CompositeFun < handle
     
        % Define 2-stage optimization sequence
        % Stage 1: Fit aerosol optical depth with aggressive sigma clipping
-       OptSeq(1).stagename = 'AerosolOpt';
-       OptSeq(1).freeparams(1).function = 'Aerosol';
-       OptSeq(1).freeparams(1).parameter = 'TauAod500';
-       OptSeq(1).sigmaclip = true;
-       OptSeq(1).sigmathresh = 3.0;
-       OptSeq(1).sigmaiter = 3;
-       OptSeq(1).description = 'Optimize aerosol optical depth';
-    
+       OptSeq(1).StageName = 'AerosolOpt';
+       OptSeq(1).FreeParams(1).Function = 'Aerosol';
+       OptSeq(1).FreeParams(1).Parameter = 'TauAod500';
+       OptSeq(1).SigmaClip = true;
+       OptSeq(1).SigmaThresh = 3.0;
+       OptSeq(1).SigmaIter = 3;
+       OptSeq(1).Description = 'Optimize aerosol optical depth';
+
        % Stage 2: Fit position-dependent field correction (linear fit)
-       OptSeq(2).stagename = 'FieldCorr';
-       OptSeq(2).freeparams = [];  % Empty for field correction stage
-       OptSeq(2).sigmaclip = true;
-       OptSeq(2).sigmathresh = 2.0;
-       OptSeq(2).sigmaiter = 2;
-       OptSeq(2).description = 'Position-dependent field correction';
+       OptSeq(2).StageName = 'FieldCorr';
+       OptSeq(2).FreeParams = [];  % Empty for field correction stage
+       OptSeq(2).SigmaClip = true;
+       OptSeq(2).SigmaThresh = 2.0;
+       OptSeq(2).SigmaIter = 2;
+       OptSeq(2).Description = 'Position-dependent field correction';
     
        % Prepare calibration data (same as above)
        Lambda = Model.Lambda;   % Transmission wavelength grid [nm] (300:2:1100)'
@@ -428,6 +428,7 @@ classdef CompositeFun < handle
         UseTran2D logical = false  % Flag to enable Tran2D evaluation
 
         % Fit quality metrics (set by fitPar)
+        RMS = NaN                % RMS of residuals from last fit
         Chi2 = NaN               % Chi-squared value from last fit
         DOF = NaN                % Degrees of freedom from last fit
     end
@@ -1636,9 +1637,8 @@ classdef CompositeFun < handle
             % Polynomial was fitted to residuals: MagResid = Observed - Predicted (positive when model too bright)
             % At each position, FieldCorrectionMag = Hx*ParX where ParX was fitted to MagResid directly
             % Since we multiply in transmission space,
-            % we use: T_corrected = T_base × 10^(+0.4 × FieldCorrectionMag)
-            %   - Positive FieldCorrectionMag (model too bright, need dimming) → T_correction < 1
-            %   - Negative FieldCorrectionMag (model too faint, need brightening) → T_correction > 1
+            % we use: T_corrected = T_base × 10^(-0.4 × FieldCorrectionMag)
+         
             FieldCorrectionTransmission = 10.^(-0.4 * FieldCorrectionMag);  % [N_sources x 1]
 
             % Step 6: Build 2D transmission matrix [N_sources x N_lambda]
@@ -1649,7 +1649,7 @@ classdef CompositeFun < handle
             % Check for unphysical transmission values
             if any(Transmission(:) > 1)
                 warning('CompositeFun:evaluateWithPosition:UnphysicalTransmission', ...
-                        ['Transmission exceeds 1.0 (max=%.4f). This is unphysical.\n' ...
+                        ['Transmission exceeds 1.0 (max=%.4f). \n' ...
                          '  Base transmission range: %.4f - %.4f\n' ...
                          '  Field correction mag range: %.4f - %.4f mag\n' ...
                          '  Field correction transmission range: %.4f - %.4f\n' ...
@@ -1878,7 +1878,6 @@ classdef CompositeFun < handle
 
             % Use Tran2D's fitDesignMatrix method
             % MagResid follows convention: Observed - Predicted (positive when model too bright)
-            % We negate MagResid to match legacy transmissionFit sign convention
             % Combined with evaluation using +0.4 factor, this produces:
             %   - ParX with same sign as legacy PosParams
             %   - Transmission ≤ 1.0 for positive residuals (model too bright)
@@ -2297,15 +2296,15 @@ classdef CompositeFun < handle
             %                   Passed via tools.math.fit.lsqNonLinWithFixed wrapper.
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
             %            'OptimizationSequence' - Multi-stage optimization sequence (struct array)
-            %                   If provided, enables multi-stage sequence of optimization, describing which parameters are optimized at the current step. 
+            %                   If provided, enables multi-stage sequence of optimization, describing which parameters are optimized at the current step.
             %                   Description of each stage is a struct with:
-            %                   .stagename - Name of the stage
-            %                   .freeparams - Struct array with .function and .parameter fields
+            %                   .StageName - Name of the stage
+            %                   .FreeParams - Struct array with .Function and .Parameter fields
             %                                Empty [] for field correction stage (linear fit)
-            %                   .sigmaclip - Enable sigma clipping for this stage
-            %                   .sigmathresh - Threshold for sigma clipping [sigma units]
-            %                   .sigmaiter - Number of sigma clipping iterations
-            %                   .description - Description of the stage
+            %                   .SigmaClip - Enable sigma clipping for this stage
+            %                   .SigmaThresh - Threshold for sigma clipping [sigma units]
+            %                   .SigmaIter - Number of sigma clipping iterations
+            %                   .Description - Description of the stage
             %                   Default is [] (single-stage mode).
             %            'ObsUncertainties' - Observation uncertainties [N_obs x 1]
             %                   Used for Chi2 calculation. If empty, Chi2 = NaN.
@@ -2340,19 +2339,19 @@ classdef CompositeFun < handle
             %
             %          % Example 3: Multi-stage optimization sequence
             %          % Define 2-stage optimization: (1) fit aerosol, (2) fit position
-            %          OptSeq(1).stagename = 'AerosolOpt';
-            %          OptSeq(1).freeparams(1).function = 'Aerosol';
-            %          OptSeq(1).freeparams(1).parameter = 'TauAod500';
-            %          OptSeq(1).sigmaclip = true;
-            %          OptSeq(1).sigmathresh = 3.0;
-            %          OptSeq(1).sigmaiter = 3;
-            %          OptSeq(1).description = 'Optimize aerosol optical depth';
-            %          OptSeq(2).stagename = 'FieldCorr';
-            %          OptSeq(2).freeparams = [];  % Empty for field correction stage
-            %          OptSeq(2).sigmaclip = true;
-            %          OptSeq(2).sigmathresh = 2.0;
-            %          OptSeq(2).sigmaiter = 2;
-            %          OptSeq(2).description = 'Position-dependent field correction';
+            %          OptSeq(1).StageName = 'AerosolOpt';
+            %          OptSeq(1).FreeParams(1).Function = 'Aerosol';
+            %          OptSeq(1).FreeParams(1).Parameter = 'TauAod500';
+            %          OptSeq(1).SigmaClip = true;
+            %          OptSeq(1).SigmaThresh = 3.0;
+            %          OptSeq(1).SigmaIter = 3;
+            %          OptSeq(1).Description = 'Optimize aerosol optical depth';
+            %          OptSeq(2).StageName = 'FieldCorr';
+            %          OptSeq(2).FreeParams = [];  % Empty for field correction stage
+            %          OptSeq(2).SigmaClip = true;
+            %          OptSeq(2).SigmaThresh = 2.0;
+            %          OptSeq(2).SigmaIter = 2;
+            %          OptSeq(2).Description = 'Position-dependent field correction';
             %          % Build model with Tran2D
             %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
             %          CostArgs = struct('WeightMatrix', CalibSpec, 'TransmissionMode', true, ...
@@ -2657,7 +2656,8 @@ classdef CompositeFun < handle
             % Calculate Chi2 and DOF
             [Chi2, DOF] = calculateChi2DOF(Obj, Residuals, Args.ObsUncertainties);
 
-            % Store in object
+            % Store fit quality metrics in object
+            Obj.RMS = RMS;
             Obj.Chi2 = Chi2;
             Obj.DOF = DOF;
 
@@ -2687,13 +2687,13 @@ classdef CompositeFun < handle
             % Loops through OptimizationSequence and calls single-stage fitting for each stage
             %
             % OptimizationSequence format (same as transmissionFit1):
-            %   OptSeq(i).stagename - Name of the stage
-            %   OptSeq(i).freeparams - Struct array with .function and .parameter fields
+            %   OptSeq(i).StageName - Name of the stage
+            %   OptSeq(i).FreeParams - Struct array with .Function and .Parameter fields
             %                          Empty [] for field correction stage
-            %   OptSeq(i).sigmaclip - Enable sigma clipping for this stage
-            %   OptSeq(i).sigmathresh - Threshold for sigma clipping
-            %   OptSeq(i).sigmaiter - Number of sigma clipping iterations
-            %   OptSeq(i).description - Description of the stage
+            %   OptSeq(i).SigmaClip - Enable sigma clipping for this stage
+            %   OptSeq(i).SigmaThresh - Threshold for sigma clipping
+            %   OptSeq(i).SigmaIter - Number of sigma clipping iterations
+            %   OptSeq(i).Description - Description of the stage
             % Author : D. Kovaleva (Nov 2025)
 
             OptSeq = Args.OptimizationSequence;
@@ -2723,11 +2723,11 @@ classdef CompositeFun < handle
             % Loop through optimization stages
             for IStage = 1:NumStages
                 Stage = OptSeq(IStage);
-                StageName = Stage.stagename;
-                FreeParamsStage = Stage.freeparams;
-                SigmaClip = Stage.sigmaclip;
-                SigmaThresh = Stage.sigmathresh;
-                SigmaIter = Stage.sigmaiter;
+                StageName = Stage.StageName;
+                FreeParamsStage = Stage.FreeParams;
+                SigmaClip = Stage.SigmaClip;
+                SigmaThresh = Stage.SigmaThresh;
+                SigmaIter = Stage.SigmaIter;
 
                 % Detect field correction stage (empty freeparams)
                 IsFieldCorrectionStage = isempty(FreeParamsStage);
@@ -2740,7 +2740,7 @@ classdef CompositeFun < handle
 
                 if Args.Verbose
                     fprintf('=== Stage %d/%d: %s [%s] ===\n', IStage, NumStages, StageName, Method);
-                    fprintf('Description: %s\n', Stage.description);
+                    fprintf('Description: %s\n', Stage.Description);
                 end
 
                 if IsFieldCorrectionStage
@@ -2763,8 +2763,8 @@ classdef CompositeFun < handle
 
                     % Set FitPar for parameters specified in this stage
                     for I = 1:length(FreeParamsStage)
-                        FunctionName = FreeParamsStage(I).function;
-                        ParameterName = FreeParamsStage(I).parameter;
+                        FunctionName = FreeParamsStage(I).Function;
+                        ParameterName = FreeParamsStage(I).Parameter;
                         Idx = find(strcmp(AllFunPar.Name, ParameterName), 1);
                         if isempty(Idx)
                             error('Parameter "%s" (from function "%s") not found in Model', ...

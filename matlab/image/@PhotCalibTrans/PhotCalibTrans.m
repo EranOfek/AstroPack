@@ -21,7 +21,7 @@ classdef PhotCalibTrans < Component
     % Example:
     %{
      % Create calibration object
-     PC = PhotCalibTrans();  % LAST telescope
+     PC = PhotCalibTrans();  
 
      % Perform calibration on AstroImage (metadata read from AI.HeaderData)
      PC.calibrate(AI);
@@ -74,17 +74,7 @@ classdef PhotCalibTrans < Component
     end
 
     properties
-        % Core calibration results
-        %ZP                      % Base zero point without positional correction [mag]
-        %ZP_Err                  % Zero point uncertainty [mag]
-
-        % Quality metrics
-        NumCalib                % Number of calibrators used
-
-        % Transmission model
-        TransModel              % CompositeFun transmission model object with Tran2D for position-dependent corrections
-        %FitResults              % Structure array with per-stage fit results
-
+     
         % Calibration metadata (FITS header naming convention)
         AIRMASS                 % Airmass
         ZENITH                  % Zenith angle [deg]
@@ -95,26 +85,31 @@ classdef PhotCalibTrans < Component
         EXPTIME                 % Exposure time [s]
         NCOADD                  % Number of coadded images
         
-        % Calibrator information
-        CalibData               % Structure with calibrator data from selectCalibrators
-
         % Calibration scheme configuration
         FunList                 % Built transmission function list (struct array from predefSeqCompositeFun)
         OptSeq                  % Built optimization sequence (struct from predefSeqCompositeFun)
-        %SearchRadius            % Calibrator matching radius [arcsec]
-        %MagRange                % Calibrator magnitude range [min max]
+    
+        % Transmission model
+        TransModel              % CompositeFun transmission model object containing:
+                                %   Before calibration: .Funs (function list with initial parameters), .FunOperator ('*'),
+                                %                        .Tran2DObj (position-dependent correction object), .UseTran2D (true/false)
+                                %   After calibration:  .Funs.Par (fitted parameters), .RMS (fit RMS [mag]), .Chi2 (chi-squared), .DOF (degrees of freedom)
 
-        % Transmission output
-        %TransFile               % Filename for saved base transmission
-        %TransWvl                % Wavelength grid for transmission [nm]
-        %TransValues             % Base transmission values (without position correction)
+        % Calibrator information
+        CalibData               % Structure with calibrator data from selectCalibrators containing:
+                                %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
+                                %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
+                                %   .ObsData - struct with .Flux, .FluxErr, .X, .Y, .RA, .Dec (observed data)
+                                %   .CalData - struct with .RA, .Dec (positions in the catalog of spectra)
+                                %   .MatchDistance [N_calib x 1] - Match distances [arcsec]
+                                %   .NumMatches - Total number of matched calibrators
+
     end
 
     methods % Constructor
         function Obj = PhotCalibTrans(Args)
             % Constructor for PhotCalibTrans class
             % Input  : * ...,key,val,...
-            %            'NumCalib' - Number of calibrators. Default is 0.
             %            'TransModel' - CompositeFun transmission model. Default is [].
             %            'FunList' - Built transmission function list. Default is [].
             %            'OptSeq' - Built optimization sequence. Default is [].
@@ -128,10 +123,8 @@ classdef PhotCalibTrans < Component
             % Output : - PhotCalibTrans object
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC = PhotCalibTrans();
-            %          PC = PhotCalibTrans('NumCalib', 50);
 
             arguments
-                Args.NumCalib = 0
                 Args.TransModel = []
                 Args.FunList = []
                 Args.OptSeq = []
@@ -173,7 +166,6 @@ classdef PhotCalibTrans < Component
 
             % Clear calibration results
             Obj.TransModel = [];
-            Obj.NumCalib = 0;
             Obj.CalibData = [];
 
             % Clear observation-specific metadata (restore defaults)
@@ -355,8 +347,6 @@ classdef PhotCalibTrans < Component
                       'No calibrators found. Cannot proceed with calibration.');
             end
 
-            Obj.NumCalib = size(CalibData.Spec, 1);
-
             % ====================================================================
             % STEP 3: Fit transmission parameters
             % ====================================================================
@@ -379,7 +369,7 @@ classdef PhotCalibTrans < Component
 
             % Setup CostArgs for TransmissionMode
             CostArgs = struct(...
-                'WeightMatrix', CalibData.Spec, ...  % Calibrator reference spectra [N_cal x N_wvl]
+                'WeightMatrix', CalibData.Spec', ... % Calibrator reference spectra [N_wvl x N_cal] (transposed)
                 'TransmissionMode', true, ...
                 'CalibWavelength', Obj.SpecWvl, ...  % Wavelength grid for calibrator spectra (default: Gaia DR3 XP)
                 'ExpTime', ExpTime_eff, ...          % Effective exposure time per image [s]
@@ -401,18 +391,18 @@ classdef PhotCalibTrans < Component
                 fprintf('\nStep 4: Storing calibration results...\n');
             end
 
-            % Store the fitted model (contains RMS, Chi2, DOF, FitResults)
+            % Store the fitted model (RMS, Chi2, DOF stored in Model properties)
             Obj.TransModel = Model;
 
             if Args.Verbose
                 fprintf('  Calibration complete!\n');
-                fprintf('  Number of calibrators: %d\n', Obj.NumCalib);
+                fprintf('  Number of calibrators: %d\n', size(Obj.CalibData.Spec, 1));
 
                 % Access RMS, Chi2, DOF from TransModel
-                if ~isempty(Obj.TransModel.RMS)
+                if ~isnan(Obj.TransModel.RMS)
                     fprintf('  RMS: %.4f mag\n', Obj.TransModel.RMS);
                 end
-                if ~isempty(Obj.TransModel.Chi2) && ~isempty(Obj.TransModel.DOF)
+                if ~isnan(Obj.TransModel.Chi2) && ~isnan(Obj.TransModel.DOF) && Obj.TransModel.DOF > 0
                     fprintf('  Chi2/DOF: %.2f / %d = %.3f\n', ...
                             Obj.TransModel.Chi2, Obj.TransModel.DOF, Obj.TransModel.Chi2/Obj.TransModel.DOF);
                 end
@@ -489,6 +479,9 @@ classdef PhotCalibTrans < Component
             % STEP 2: APPLY QUALITY FILTERS
             % ====================================================================
 
+            % Track original indices (for mapping match results back to filtered table)
+            OriginalIdx = (1:height(Tab))';
+
             % Filter 1: Magnitude range
             magFilterMask = true(height(Tab), 1);
             if ismember('MAG_APER_3', Tab.Properties.VariableNames)
@@ -500,6 +493,7 @@ classdef PhotCalibTrans < Component
             end
 
             Tab = Tab(magFilterMask, :);
+            OriginalIdx = OriginalIdx(magFilterMask);
 
             % Filter 2: Bad FLAGS (optional) - vectorized
             if Args.FilterBadFlags && ismember('FLAGS', Tab.Properties.VariableNames)
@@ -514,6 +508,7 @@ classdef PhotCalibTrans < Component
                 % Mark as bad if it has multiple problematic flags
                 badFlagsMask = (isSaturated + isNaN + isNegative + isCR + isNearEdge) >= 2;
                 Tab = Tab(~badFlagsMask, :);
+                OriginalIdx = OriginalIdx(~badFlagsMask);
 
                 if Args.Verbose
                     fprintf('  FLAGS filter: %d sources passed\n', height(Tab));
@@ -524,6 +519,7 @@ classdef PhotCalibTrans < Component
             if ismember('SN', Tab.Properties.VariableNames)
                 snMask = (Tab.SN >= Args.MinSN) & (Tab.SN <= Args.MaxSN);
                 Tab = Tab(snMask, :);
+                OriginalIdx = OriginalIdx(snMask);
 
                 if Args.Verbose
                     fprintf('  S/N filter (%g-%g): %d sources passed\n', ...
@@ -548,37 +544,46 @@ classdef PhotCalibTrans < Component
                                                               'CooUnits', 'rad', ...
                                                               'RadiusUnits', 'arcsec');
 
-            % Extract match information
+            % Extract match information (indices are into full Cat.Table)
             calIdx_all   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each observed source
             dist_rad_all  = ResInd.Obj2_Dist;          % Distance in radians
             nmatch_all    = ResInd.Obj2_NmatchObj1;    % Number of matches
 
-            % Keep only rows with valid calibrator index
-            idxObsMatched = find(~isnan(calIdx_all));
+            % Find which matched sources are in our filtered list
+            % idxObsMatched_Full contains indices into the FULL catalog
+            idxObsMatched_Full = find(~isnan(calIdx_all));
+
+            % Filter to keep only those that passed our quality filters
+            % Check which of the matched indices are in OriginalIdx
+            [~, idxInFiltered] = ismember(idxObsMatched_Full, OriginalIdx);
+            keepMask = idxInFiltered > 0;  % Only keep matches that are in our filtered table
+
+            idxObsMatched_Full = idxObsMatched_Full(keepMask);
+            idxInFiltered = idxInFiltered(keepMask);  % Positions in filtered Tab
 
             if Args.Verbose
-                fprintf('  Found %d/%d sources with Gaia XP matches\n', ...
-                        length(idxObsMatched), length(calIdx_all));
+                fprintf('  Found %d/%d filtered sources with Gaia XP matches\n', ...
+                        length(idxObsMatched_Full), height(Tab));
             end
 
-            calIdx        = double(calIdx_all(idxObsMatched));
-            dist_rad       = dist_rad_all(idxObsMatched);
-            nmatch         = nmatch_all(idxObsMatched);
+            calIdx        = double(calIdx_all(idxObsMatched_Full));
+            dist_rad       = dist_rad_all(idxObsMatched_Full);
+            nmatch         = nmatch_all(idxObsMatched_Full);
 
-            if isempty(idxObsMatched)
+            if isempty(idxObsMatched_Full)
                 warning('PhotCalibTrans:selectCalibrators:NoMatches', ...
-                        'No calibrator matches found within %.1f arcsec', Args.SearchRadius);
-                CalibData = struct('Spec', [], 'SpecErr', [], 'Lambda', [], ...
+                        'No calibrator matches found within %.1f arcsec for filtered sources', Args.SearchRadius);
+                CalibData = struct('Spec', [], 'SpecErr', [], ...
                                    'ObsData', [], 'CalData', [], ...
                                    'MatchDistance', [], 'NumMatches', []);
                 return;
             end
 
-            % Extract matched tables
-            ObsTab = Tab(idxObsMatched, :);  % Use filtered Tab, not Cat.Table
-            CalTabAll = CatH.Table;
-            CalTab = CalTabAll(calIdx, :);
-            Nmatch = height(CalTab);
+            % Extract matched tables using positions in filtered table
+            ObsTab = Tab(idxInFiltered, :);  % Use positions in filtered Tab
+            CalArr = CatH.Catalog;  % Use Catalog (matrix) instead of Table to avoid VariableUnits validation
+            CalTab = CalArr(calIdx, :);
+            Nmatch = size(CalTab, 1);
 
             if Args.Verbose
                 fprintf('  Found %d matched calibrator pairs\n', Nmatch);
@@ -588,14 +593,14 @@ classdef PhotCalibTrans < Component
             % STEP 4: EXTRACT CALIBRATOR SPECTRA AND PREPARE OUTPUT
             % ====================================================================
 
-            % Extract calibrator spectra
-            CalArr = table2array(CalTab);
-            SpecFlux = CalArr(:, FluxIni:FluxEnd);      % [N x 343]
-            SpecErr = CalArr(:, EFluxIni:EFluxEnd);     % [N x 343]
+            % Extract calibrator spectra (CalTab is already a matrix from Catalog)
+            % Convert to double (catsHTM stores Gaia data as single for memory efficiency)
+            SpecFlux = double(CalTab(:, FluxIni:FluxEnd));      % [N x 343]
+            SpecErr = double(CalTab(:, EFluxIni:EFluxEnd));     % [N x 343]
 
             % Extract coordinates
-            Cal_RA = CalArr(:, 1) * RAD;   % rad -> deg
-            Cal_Dec = CalArr(:, 2) * RAD;  % rad -> deg
+            Cal_RA = double(CalTab(:, 1)) * RAD;   % rad -> deg
+            Cal_Dec = double(CalTab(:, 2)) * RAD;  % rad -> deg
 
             % Extract observed data
             Obs_X = ObsTab.X;
@@ -630,9 +635,8 @@ classdef PhotCalibTrans < Component
             % ====================================================================
 
             CalibData = struct();
-            CalibData.Spec = SpecFlux;           % [N x 343]
-            CalibData.SpecErr = SpecErr;         % [N x 343]
-            CalibData.Lambda = Obj.SpecWvl;      % [343 x 1] Calibrator wavelength grid (default: Gaia DR3 XP, from constant property)
+            CalibData.Spec = SpecFlux;           % [N_calib x N_wvl]
+            CalibData.SpecErr = SpecErr;         % [N_calib x N_wvl]
 
             % Observed data structure
             CalibData.ObsData = struct(...
@@ -782,7 +786,7 @@ classdef PhotCalibTrans < Component
             Integrand = SpecTrans .* Lambda';  % [N_pos x N_lambda]
 
             % Integrate along wavelength dimension (dim=2) for each position
-            A = tools.math.integral.trapzmat(Lambda(:), Integrand, 2);  % [N_pos x 1]
+            A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % [N_pos x 1]
 
             % Calculate zero-point flux for all positions
             TotalFlux_ZP = ExpTime_eff * Obj.APERTURE * A / B;  % [N_pos x 1]
@@ -846,8 +850,9 @@ classdef PhotCalibTrans < Component
                     MagInstErr = Args.MagInstErr(:);
 
                     % Estimate ZP uncertainty from RMS if available
-                    if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && Obj.NumCalib > 0
-                        ZP_Err = Obj.TransModel.RMS / sqrt(Obj.NumCalib);
+                    NumCalib = size(Obj.CalibData.Spec, 1);
+                    if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && NumCalib > 0
+                        ZP_Err = Obj.TransModel.RMS / sqrt(NumCalib);
                     else
                         ZP_Err = 0;
                     end
@@ -1004,21 +1009,20 @@ classdef PhotCalibTrans < Component
                     MagAB = Obj.evaluateMag(MagInst, 'X', X, 'Y', Y);
                 end
 
-                % Create new column name
+                % Create new column name and insert into catalog
                 NewMagColName = [MagColName, Args.NewColSuffix];
-
-                % Add calibrated magnitude column
-                Tab.(NewMagColName) = MagAB;
+                Tab.(NewMagColName) = MagAB;  % Also update Tab for reference
+                CatObj = CatObj.insertCol(MagAB, Inf, {NewMagColName});
 
                 % Add calibrated magnitude error column if requested and available
                 if Args.AddErrors && exist('MagABErr', 'var') && ~isempty(MagABErr)
                     NewErrColName = [ErrColName, Args.NewColSuffix];
                     Tab.(NewErrColName) = MagABErr;
+                    CatObj = CatObj.insertCol(MagABErr, Inf, {NewErrColName});
                 end
             end
 
-            % Update catalog table
-            CatObj.Table = Tab;
+            % Note: New columns were inserted using insertCol within the loop above
         end
     end
 
@@ -1042,7 +1046,11 @@ classdef PhotCalibTrans < Component
             end
 
             fprintf('\n=== PhotCalibTrans Object ===\n');
-            fprintf('Calibrators: %d\n', Obj.NumCalib);
+            if ~isempty(Obj.CalibData)
+                fprintf('Calibrators: %d\n', size(Obj.CalibData.Spec, 1));
+            else
+                fprintf('Calibrators: 0\n');
+            end
 
             if ~isempty(Obj.TransModel)
                 fprintf('Transmission Model: Available\n');
@@ -1393,14 +1401,15 @@ classdef PhotCalibTrans < Component
             axis equal tight;
 
             % Add statistics to title
+            NumCalib = size(Obj.CalibData.Spec, 1);
             if ~isempty(Obj.TransModel.Chi2) && ~isempty(Obj.TransModel.DOF)
                 title(sprintf('Calibrators: N=%d, RMS=%.4f mag, Chi2/DOF=%.2f/%d=%.2f', ...
-                    Obj.NumCalib, Obj.TransModel.RMS, ...
+                    NumCalib, Obj.TransModel.RMS, ...
                     Obj.TransModel.Chi2, Obj.TransModel.DOF, ...
                     Obj.TransModel.Chi2/Obj.TransModel.DOF));
             else
                 title(sprintf('Calibrators: N=%d, RMS=%.4f mag', ...
-                    Obj.NumCalib, Obj.TransModel.RMS));
+                    NumCalib, Obj.TransModel.RMS));
             end
 
             % Add legend
@@ -1458,7 +1467,7 @@ classdef PhotCalibTrans < Component
             grid on;
             xlabel('Optimization Stage');
             ylabel('RMS [mag]');
-            title(sprintf('Fit Convergence (N=%d calibrators)', Obj.NumCalib));
+            title(sprintf('Fit Convergence (N=%d calibrators)', size(Obj.CalibData.Spec, 1)));
             xticks(1:Nstages);
 
             % Subplot 2: Chi2/DOF evolution

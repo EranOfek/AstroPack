@@ -14,7 +14,7 @@ function [Result] = transmissionZP_testN3(Args)
         Args.CropID            = 10;
         Args.Table             = 'N3_visit_images';
         Args.DB                = [];
-        Args.OutDir            = '/Data2/test/';
+        Args.OutDir            = '~/Data2/test/';
     end
 
     % Check that DB connection is provided
