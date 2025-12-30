@@ -246,45 +246,46 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('ShiftX',cell(Nfields,1),...
-                         'ShiftY',cell(Nfields,1),...
-                         'CoaddN',cell(Nfields,1),...
-                         'AstrometricFit',cell(Nfields,1),...
-                         'ZP',cell(Nfields,1),...
-                         'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
+    % ResultCoadd = struct('ShiftX',cell(Nfields,1),...
+    %                      'ShiftY',cell(Nfields,1),...
+    %                      'CoaddN',cell(Nfields,1),...
+    %                      'AstrometricFit',cell(Nfields,1),...
+    %                      'ZP',cell(Nfields,1),...
+    %                      'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
-        Ngood = sum(Args.IsGoodWCS(:,Ifields));
+        FlagGood = Args.IsGoodWCS(:,Ifields);
+        Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
             % coadd images Args.MinNumCoadd
 
 
 
 
-        if FlagGoodAstrometry(Ifields)
-            if isempty(Args.MatchedS)
-                ResultCoadd(Ifields).ShiftX = NaN;
-                ResultCoadd(Ifields).ShiftY = NaN;
-            else
-                ResultCoadd(Ifields).ShiftX = median(diff(Args.MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
-                ResultCoadd(Ifields).ShiftY = median(diff(Args.MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
-            end
-
-            ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
-
-            % Check that all images have astrometric solution
-            FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
-
-            % Remove Images with high background
-            if isempty(Args.HighBackNsigma)
-                FlagGood = FlagGoodWCS;
-            else
-                MedBack = imProc.stat.median(AllSI(:,Ifields));
-                FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
-
-                FlagGood = FlagGoodWCS & FlagGoodBack;
-            end
-            
+        % if FlagGoodAstrometry(Ifields)
+        %     if isempty(Args.MatchedS)
+        %         ResultCoadd(Ifields).ShiftX = NaN;
+        %         ResultCoadd(Ifields).ShiftY = NaN;
+        %     else
+        %         ResultCoadd(Ifields).ShiftX = median(diff(Args.MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
+        %         ResultCoadd(Ifields).ShiftY = median(diff(Args.MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
+        %     end
+        % 
+        %     ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
+        % 
+        %     % Check that all images have astrometric solution
+        %     FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
+        % 
+        %     % Remove Images with high background
+        %     if isempty(Args.HighBackNsigma)
+        %         FlagGood = FlagGoodWCS;
+        %     else
+        %         MedBack = imProc.stat.median(AllSI(:,Ifields));
+        %         FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
+        % 
+        %         FlagGood = FlagGoodWCS & FlagGoodBack;
+        %     end
+        % 
             % no need to transform WCS - as this will be dealt later on
             % 'ShiftXY',ShiftXY,...
             % 'RefWCS',AllSI(1,Ifields).WCS,...

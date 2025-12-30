@@ -2427,7 +2427,11 @@ classdef PipelineDemon < Component
                 AllSI = pipeline.generic.matchExternal(AllSI, Args.proc2MatchedSourcesArgs_Indiv{:});
             end
             
+            % Merge catalogs
             MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood);
+
+            % Calculate drift between epochs
+            Drift = 
 
             % The following logic is applied:
             % MatchedSources and photometric calibration is done only after
@@ -2437,9 +2441,9 @@ classdef PipelineDemon < Component
             
             % coadd images
             
+            Coadd = pipeline.generic.procCoadd(AllSI, '')
 
-            NEEDED updates: pipeline.generic.procCoadd
-
+           
             % coadd: search stars
             [Coadd] = imProc.sources.multiIterExtractor(Coadd, Args.multiIterExtractorArgs{:},...
                                                             'AddSkyCoo',true);
@@ -2450,11 +2454,9 @@ classdef PipelineDemon < Component
             % coadd: match external
             pipeline.generic.matchExternal
 
-            % MISSING - calculate drifts and write to headers
-            % Coadd=imProc.header.writeDriftsToHeader(Coadd, MS)
+            % MISSING - write drifts to header
 
-            % merge catalogs
-            pipeline.generic.proc2MatchedSources
+            
 
             % save products
             imProc.io.saveProductImage
