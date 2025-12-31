@@ -357,9 +357,11 @@ classdef CompositeFun < handle
     %   costFun() - General cost function for optimization (residuals, cost, predictions)
     %   fitPar() - Fit parameters with sigma clipping and optional multi-stage optimization
     %                          Supports single-stage (default) or multi-stage via OptimizationSequence
+    %   fitMultiStage() - Execute multi-stage optimization sequence
     %
     % Methods using Tran2D class object (Position-Dependent Corrections):
     %   addTran2D() - Add Tran2D object for spatial corrections
+    %   resetTran2DParams() - Reset Tran2D parameters to zeros
     %   evaluateWithPosition() - Evaluate transmission with position corrections
     %   fitPositionPolynomial() - Fit position polynomial using Tran2D (wraps fitDesignMatrix)
     %   normalizePositionPolynomial() - Normalize position polynomial at reference
@@ -385,6 +387,7 @@ classdef CompositeFun < handle
     % Internal methods:
     %   extractArgFuns() - Extract argument information from function handles
     %   argMapping() - Map global parameters for newly added functions (builds from Funs structure)
+    %   calculateChi2DOF() - Calculate chi-squared and degrees of freedom from residuals
     %
 
 

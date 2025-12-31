@@ -12,11 +12,11 @@ classdef PhotCalibTrans < Component
     %   Lambda  - Transmission wavelength grid [nm] (300:2:1100, 401 points)
     %   SpecWvl - Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 336-1020, 343 points)
     %
-    % Key Properties:
-    %   TransModel - CompositeFun object with fitted transmission model
+    % Properties:
+    %   TransModel - CompositeFun object with fitted transmission model and
+    %   optimization sequence used for fitting
     %   CalibData  - Structure with calibrator data (spectra, positions, fluxes)
     %   AirMass, Zenith, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
-    %   FunList, OptSeq - Calibration scheme configuration (reusable across images)
     %
     % Example:
     %{
@@ -78,10 +78,6 @@ classdef PhotCalibTrans < Component
         Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
         ExpTime = NaN           % Exposure time [s]
         NCoadd = 1              % Number of coadded images (default: single image)
-
-        % Calibration scheme configuration
-        FunList = []            % Built transmission function list (struct array from predefSeqCompositeFun)
-        OptSeq = []             % Built optimization sequence (struct from predefSeqCompositeFun)
 
         % Transmission model (empty until calibration)
         TransModel = []         % CompositeFun transmission model object containing:
@@ -212,18 +208,25 @@ classdef PhotCalibTrans < Component
             % STEP 0: Extract metadata from FITS header
             % ====================================================================
 
-            % Extract metadata from Cat.HeaderData with defaults for missing values
+            % Extract metadata from FITS header and map to property names
+            Keys = {'TEMP_MNT', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
+            PropNames = {'Temp', 'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
+            Res = getStructKey(Cat.HeaderData, Keys);
+
+            % Map FITS keywords to property names
             Metadata = struct();
-            Metadata.AirMass  = Cat.HeaderData.getVal('AIRMASS', 'Fill', 1.2);
-            Metadata.Temp     = Cat.HeaderData.getVal('TEMP_MNT', 'Fill', 15);    % Temperature from TEMP_MNT keyword
-            Metadata.ExpTime  = Cat.HeaderData.getVal('EXPTIME', 'Fill', 20);
-            Metadata.NCoadd   = Cat.HeaderData.getVal('NCOADD', 'Fill', 1);
-            Metadata.Pressure = Cat.HeaderData.getVal('PRESSURE', 'Fill', 965);
+            for i = 1:length(Keys)
+                if isfield(Res, Keys{i})
+                    Metadata.(PropNames{i}) = Res.(Keys{i});
+                end
+            end
 
             % Calculate derived fields
-            Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
+            if isfield(Metadata, 'AirMass')
+                Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
+            end
 
-            % Use setProps to copy all metadata fields to object properties
+            % Set all properties at once (falls back to property defaults if missing)
             Obj.setProps(Metadata);
 
             if Args.Verbose
@@ -237,17 +240,17 @@ classdef PhotCalibTrans < Component
             end
 
             % ====================================================================
-            % STEP 1: Build or reuse calibration scheme (FunList and OptSeq)
+            % STEP 1: Build or update transmission model
             % ====================================================================
 
             if Args.Verbose
-                fprintf('Step 1: Preparing calibration scheme...\n');
+                fprintf('Step 1: Preparing transmission model...\n');
             end
 
-            % Determine if we need to rebuild the scheme
-            NeedRebuild = Args.RebuildScheme || isempty(Obj.FunList) || isempty(Obj.OptSeq);
+            % Determine if we need to rebuild the model structure
+            NeedRebuildModel = Args.RebuildScheme || isempty(Obj.TransModel);
 
-            if NeedRebuild
+            if NeedRebuildModel
                 % Load catalog
                 [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
 
@@ -275,10 +278,6 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-                % Store in object for reuse
-                Obj.FunList = FunList;
-                Obj.OptSeq = OptSeq;
-
                 if Args.Verbose
                     fprintf('  Built new calibration scheme\n');
                     fprintf('  Using %d transmission functions: %s\n', ...
@@ -290,27 +289,57 @@ classdef PhotCalibTrans < Component
                                 Args.OptSeqName, numel(OptSeq));
                     end
                 end
-            else
-                % Reuse stored scheme
-                FunList = Obj.FunList;
-                OptSeq = Obj.OptSeq;
+                % Build metadata values for initial model creation
+                MetaValues = struct(...
+                    'ZenithAngle_deg', Obj.Zenith, ...
+                    'Pressure_mbar', Obj.Pressure, ...
+                    'Temperature_C', Obj.Temp);
+
+                % Create new CompositeFun model (stores FunList in TransModel.Funs, OptSeq in TransModel.OptSeq)
+                Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
+                    'MetadataValues', MetaValues, ...
+                    'OptimizationSequence', OptSeq, ...
+                    'UseTran2D', true, ...
+                    'Tran2DType', Args.Tran2DType);
 
                 if Args.Verbose
-                    fprintf('  Reusing stored calibration scheme\n');
+                    fprintf('  Created new TransModel\n');
+                end
+            else
+                % Update metadata parameters in existing model (efficient - no rebuild)
+                AllFunPar = Obj.TransModel.getAllFunPar();
+
+                % Map PhotCalibTrans property names to TransModel parameter names
+                MetadataMap = struct(...
+                    'Zenith', 'ZenithAngle_deg', ...
+                    'Pressure', 'Pressure_mbar', ...
+                    'Temp', 'Temperature_C');
+
+                % Update each metadata parameter
+                MetaPropNames = fieldnames(MetadataMap);
+                for i = 1:length(MetaPropNames)
+                    PropName = MetaPropNames{i};
+                    ParamName = MetadataMap.(PropName);
+
+                    Idx = find(strcmp(AllFunPar.Name, ParamName), 1);
+                    if ~isempty(Idx)
+                        AllFunPar.Val(Idx) = Obj.(PropName);
+                        if Args.Verbose
+                            fprintf('  Updated %s = %.3f\n', ParamName, Obj.(PropName));
+                        end
+                    end
+                end
+
+                % Apply updated parameters back to model
+                Obj.TransModel.setAllFunPar(AllFunPar);
+
+                if Args.Verbose
+                    fprintf('  Updated metadata in existing TransModel\n');
                 end
             end
 
-            % Build metadata values for transmission model
-            MetaValues = struct(...
-                'ZenithAngle_deg', Obj.Zenith, ...
-                'Pressure_mbar', Obj.Pressure, ...
-                'Temperature_C', Obj.Temp);
-
-            % Create CompositeFun model
-            Model = tools.math.fun.CompositeFun.model(FunList, ...
-                'MetadataValues', MetaValues, ...
-                'UseTran2D', true, ...
-                'Tran2DType', Args.Tran2DType);
+            % Reference to model for fitting
+            Model = Obj.TransModel;
 
             % ====================================================================
             % STEP 2: Select calibrators 
