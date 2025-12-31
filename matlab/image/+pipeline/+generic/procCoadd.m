@@ -146,6 +146,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.JD                               = [];
         Args.IsGood                           = [];
         Args.MinNumCoadd                      = 10;
+        Args.ShiftXY                          = [];
+        Args.PropShiftXY                      = 'ShiftXY';
+        Args.IsShiftXYfiltered                = true;
+        Args.UseMultiIterPSF                  = true;
+
 
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         Args.backgroundArgs cell              = {};
@@ -246,69 +251,39 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    % ResultCoadd = struct('ShiftX',cell(Nfields,1),...
-    %                      'ShiftY',cell(Nfields,1),...
-    %                      'CoaddN',cell(Nfields,1),...
-    %                      'AstrometricFit',cell(Nfields,1),...
-    %                      'ZP',cell(Nfields,1),...
-    %                      'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
+    
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
         FlagGood = Args.IsGoodWCS(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
             % coadd images Args.MinNumCoadd
-
-
-
-
-        % if FlagGoodAstrometry(Ifields)
-        %     if isempty(Args.MatchedS)
-        %         ResultCoadd(Ifields).ShiftX = NaN;
-        %         ResultCoadd(Ifields).ShiftY = NaN;
-        %     else
-        %         ResultCoadd(Ifields).ShiftX = median(diff(Args.MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
-        %         ResultCoadd(Ifields).ShiftY = median(diff(Args.MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
-        %     end
-        % 
-        %     ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
-        % 
-        %     % Check that all images have astrometric solution
-        %     FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
-        % 
-        %     % Remove Images with high background
-        %     if isempty(Args.HighBackNsigma)
-        %         FlagGood = FlagGoodWCS;
-        %     else
-        %         MedBack = imProc.stat.median(AllSI(:,Ifields));
-        %         FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
-        % 
-        %         FlagGood = FlagGoodWCS & FlagGoodBack;
-        %     end
-        % 
-            % no need to transform WCS - as this will be dealt later on
-            % 'ShiftXY',ShiftXY,...
-            % 'RefWCS',AllSI(1,Ifields).WCS,...
-            % if sum(FlagGood)<20
-            %     'a'
-            % end
+        
+            if isstruct(Args.ShiftXY)
+                ShiftXY = Args.ShiftXY.(Args.PropShiftXY);
+            else
+                ShiftXY = Args.ShiftXY;
+            end
+            if ~Args.IsShiftXYfiltered
+                ShiftXY = ShiftXY(FlagGood,:);
+            end
             
-             if Args.UseShift
+            if Args.UseShift
                 
                 if Args.UseInterp2
-                    RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                    RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
                                                                     'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                                     Args.interp2affineArgs{:});
                 else
-
-
-                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+            
+            
+                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY,...
                                                      'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
                 end
-
+            
             else
                 % Use WCS:
                 if Args.UseInterp2
@@ -339,7 +314,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 
             % in all the subimages. Here we correct it taking the date from the first Proc image:
-            Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+            % HERE RegisteredImages contains only good images - so the next
+            % line should be irrelevant
+            %Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+
+
+            %--- source detection ---
+
 
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
@@ -356,21 +337,29 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
             
-            % Source finding
-            Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
-                                                       'RemoveBadSources',true,...
-                                                       'ZP',Args.ZP,...
-                                                       'ColCell',Args.ColCell,...
-                                                       'Threshold',Args.Threshold,...
-                                                       'CreateNewObj',false);
+            if Args.UseMultiIterPSF
+                % search for stars in all images
+                [AllSI] = imProc.sources.multiIterExtractor(AI, Args.multiIterExtractorArgs{:},...
+                                                                'AddSkyCoo',true);
 
-            % Estimate PSF 
-            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
+            else
 
-
-            % PSF photometry
-            [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:}); 
-
+                % Source finding
+                Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
+                                                           'RemoveBadSources',true,...
+                                                           'ZP',Args.ZP,...
+                                                           'ColCell',Args.ColCell,...
+                                                           'Threshold',Args.Threshold,...
+                                                           'CreateNewObj',false);
+    
+                % Estimate PSF 
+                [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
+    
+    
+                % PSF photometry
+                [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:}); 
+            end
+            
             % astrometry    
             % Note that if available, will use the "X" & "Y" positions produced
             % by the PSF photometry
@@ -397,25 +386,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                         'CatName',AstrometricCat,...
                                                                                                         Args.photometricZPArgs{:});
 
-            % Add GlobalMotion information to header
-            % calculate tracking rate information
-            if Args.AddGlobalMotion
-                RelTimeDay            = JD-mean(JD);
-                Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
-                GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
-                GlobalMotion.StdX     = std(GlobalMotion.ResidX);
-                GlobalMotion.RateX    = Par(1)./SEC_DAY;
-                Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
-                GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
-                GlobalMotion.StdY     = std(GlobalMotion.ResidY);
-                GlobalMotion.RateY    = Par(1)./SEC_DAY;
-
-                Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_RATEY',GlobalMotion.RateY,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_STDY',GlobalMotion.StdY,''});
-            end
-
+         
 
         end
     end

@@ -2431,8 +2431,10 @@ classdef PipelineDemon < Component
             MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood);
 
             % Calculate drift between epochs
-            Drift = 
-
+            % Note that MS is already filerted! I.e., some epochs may not
+            % be included
+            [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
+        
             % The following logic is applied:
             % MatchedSources and photometric calibration is done only after
             % the photometric calibration of the coadd image
@@ -2441,7 +2443,9 @@ classdef PipelineDemon < Component
             
             % coadd images
             
-            Coadd = pipeline.generic.procCoadd(AllSI, '')
+            Coadd = pipeline.generic.procCoadd(AllSI, 'ShiftXY',ShiftInfo,...
+                                                      'PropShiftXY','ShiftXY',...
+                                                      'IShiftXYfiltered',true);
 
            
             % coadd: search stars
