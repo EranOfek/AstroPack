@@ -482,6 +482,31 @@ classdef PhotonsList < Component
             end
         end
         
+        function Obj=pi2energy(Obj, Args)
+            % Convert Swift-XRT PI column to energy (approximate)
+            %   For accurate convesrion see rmf files in XSPEC
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'ColEnergy' - Energy column name to add.
+            %                   Default is 'Energy'.
+            % Output : - PhotonsList object with the "Energy" column added.
+            % Author : Eran Ofek (Jan 2026)
+            % Example:
+
+            arguments
+                Obj
+                Args.ColEnergy = 'Energy';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                PI = Obj(Iobj).Events.getCol('PI');
+                E  = 10.*PI;
+                Obj(Iobj).Events.insertCol(E, Inf, Args.ColEnergy, 'eV');
+                Obj(Iobj).ColEnergy = Args.ColEnergy;
+            end
+        end
+
         function [Obj, FlagEnergy] = selectEnergy(Obj, EnergyRange, Args)
             % Select photons within some energy ranges
             % Input  : - An PhotonsList object (multi elements supported).
@@ -527,6 +552,9 @@ classdef PhotonsList < Component
                     
         end
     end
+
+
+
 
     methods % sources
         function [Src] = getSrcPhotons(Obj, RA, Dec, Args)
@@ -634,10 +662,24 @@ classdef PhotonsList < Component
                 
                 Dist2 = (XY(:,1) - Xsrc).^2 + (XY(:,2) - Ysrc).^2;
                 Src(Isrc).Flag     = Dist2<SearchRadius2;
-                Src(Iscc).FlagBack = Dist2<Annulus2; 
+                Src(Isrc).FlagBack = Dist2>Annulus2(1) & Dist2<Annulus2(2); 
                 Src(Isrc).Data     = ReturnData(Src(Isrc).Flag,:);
                 Src(Isrc).DataBack = ReturnData(Src(Isrc).FlagBack,:);
+
+                Src(Isrc).AperAreaPix = pi.*SearchRadius2;
+                Src(Isrc).BackAreaPix = pi.*(Annulus2(2) - Annulus2(1));
                 
+                % N photins in aperture
+                Src(Isrc).Nflux = size(Src(Isrc).Data, 1);
+                % N photons in back
+                Nback = size(Src(Isrc).DataBack, 1);
+                % back exoectency in aperture
+                Src(Isrc).BackExpectency = Nback .*Src(Isrc).AperAreaPix./Src(Isrc).BackAreaPix; 
+                Src(Isrc).AperFlux     = Src(Isrc).Nflux - Src(Isrc).BackExpectency;
+                Src(Isrc).ProbFromBack = poisscdf(Src(Isrc).Nflux, Src(Isrc).BackExpectency, 'upper');
+
+                % calculate area inside image!
+
             end
             
         end
