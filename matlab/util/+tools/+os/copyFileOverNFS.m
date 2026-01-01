@@ -1,5 +1,5 @@
 function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
-    % copy files to a network NFS drive 
+    % copy files to a network NFS drive with user spoofing
     %     May fail if the file name list is too long (> 8-10 thousand file names)
     % Input  : - a file name or a cell array of file names
     %          - the target directory name
