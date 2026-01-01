@@ -402,10 +402,10 @@ classdef PlannerMain < matlab.apps.AppBase
         function showHelp(app, item)
             % Open website in browser window, use system default browser (-browser)
             if isempty(item)
-                web('http://socsrv/soc/data/help/planner/planner.html', '-browser');
+                web('http://socsrv/ultrasat/docs/help/planner/index.html', '-browser');
                 %web('https://docs.google.com/document/d/e/2PACX-1vTQKjJmBjzmcSXwaIRsq3FviYYpsW-Of7fewwcavCErBG7Pg589j3viLrUmNIr-NM-EfRWfQI4n0PdE/pub', '-browser');
             else
-                item = ['http://socsrv/soc/data/help/planner/', item, '.html'];
+                item = ['http://socsrv/ultrasat/docs/help/planner/', item, '.html'];
                 web(item, '-browser');
             end
         end
