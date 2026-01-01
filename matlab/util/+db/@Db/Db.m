@@ -1515,12 +1515,25 @@ rs = stmt.executeQuery(Query);
         
         function DB = connectLASTdb(Args)
             arguments
-                Args.Pass
+                Args.User = [];
+                Args.Pass = [];
+                Args.DbName = 'last';   
+                Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
             end
             DB = db.Db;
-            DB.User = 'last_user';
-            DB.Password = Args.Pass;
-            DB.useDB('last');
+            if isempty(Args.User)
+                DB.User = 'last_user';
+            else
+                DB.User = Args.User;
+            end
+            if isempty(Args.Pass)
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;
+                DB.Password = PM.search(Args.DbName).Pass;
+            else
+                DB.Password = Args.Pass;
+            end
+            DB.useDB(Args.DbName);
         end
     end
     
