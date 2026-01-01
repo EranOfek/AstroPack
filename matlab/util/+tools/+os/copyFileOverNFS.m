@@ -1,7 +1,7 @@
 function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
     % copy files to a network NFS drive 
     %     May fail if the file name list is too long (> 8-10 thousand file names)
-    % Input  : - file name 
+    % Input  : - a file name or a cell array of file names
     %          - the target directory name
     %          * ...,key,val,... 
     % Output : - none
@@ -19,7 +19,7 @@ function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
     %
     FN = '';
     for IFiles = numel(FileNames)
-        NewName = sprintf('%s/%s',Args.LocalDirName,FileNames(IFiles));
+        NewName = sprintf('%s/%s',Args.LocalDirName,FileNames{IFiles});
         FN = strcat(FN,' ',NewName);
     end
     CopyFile = sprintf('su - %s -c "cp -f %s %s"',Args.RemoteUser,FN,RemoteDirName);
