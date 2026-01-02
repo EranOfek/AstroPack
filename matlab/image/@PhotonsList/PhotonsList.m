@@ -551,6 +551,51 @@ classdef PhotonsList < Component
             end
                     
         end
+    
+        function Obj=markEventsNearBoundries(Obj, CCDSEC, Dist, Args)
+            % Mark events near image bounderies
+            % Input  : - self.
+            %          - CCDSEC [Xmin Xmax Ymin Ymax] of image bouneries.
+            %          - Distance to edge to mark.
+            %          * ...,key,val,...
+            %            'ColX' - Column name in the events file containing
+            %                   the raw X position.
+            %                   Default is 'RAWX'.
+            %            'ColY' - Like 'ColX', but for Y.
+            %                   Default is 'RAWY'.
+            %            'ColFlag' - Column name in which to insert the
+            %                   logical flag indicating if the event is
+            %                   near edge.
+            %                   Default is 'NearEdge'.
+            %            'ColDist' - Column name in which to insert the
+            %                   distance to the nearest edge of the event.
+            %                   Default is 'DistEdge'.
+            % Output : - A PhotonsList object in which two columns were
+            %            added. The new columns indicate if event is near
+            %            edge, and the distance of the event to the nearest
+            %            edge.
+            % Author : Eran Ofek (Jan 2026)
+            % Example: 
+
+            arguments
+                Obj
+                CCDSEC
+                Dist       = 10;
+                Args.ColX  = 'RAWX';  % for swift
+                Args.ColY  = 'RAWY';
+
+                Args.ColFlag = 'NearEdge';
+                Args.ColDist = 'DistEdge';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                XY = Obj(Iobj).Events.getCol({Args.ColX, Args.ColY});
+                [FlagNearEdge, DistToEdge] = imUtil.ccdsec.listNearEdges(XY, CCDSEC, Dist);
+                Obj(Iobj).Events.insertCol(double(FlagNearEdge), Inf, Args.ColFlag, '');
+                Obj(Iobj).Events.insertCol(DistToEdge, Inf, Args.ColDist, 'pix');
+            end
+        end
     end
 
 
@@ -613,12 +658,17 @@ classdef PhotonsList < Component
                 Args.SearchRadiusUnits = 'pix';
                 Args.ReturnCol         = {'time','energy','ccd_id','chipx','chipy','x','y','grade','RA','Dec'};
                 Args.ColSky            = [];
+                Args.ColEnergy         = [];
+                Args.ColNearEdge       = 'NearEdge';
             end
             
             ARCSEC_DEG = 3600;
             
             if isempty(Args.ColSky)
                 Args.ColSky = Obj.ColSky;
+            end
+            if isempty(Args.ColEnergy)
+                Args.ColEnergy = Obj.ColEnergy;
             end
             
             if any(strcmp(Args.ReturnCol, 'RA')) || any(strcmp(Args.ReturnCol, 'Dec'))
@@ -652,9 +702,12 @@ classdef PhotonsList < Component
                     % Convert to sky X/Y
                     [Xsrc, Ysrc] = Obj.sky2xy(RA, Dec, 'InUnits',Args.InUnits);
             end
-            XY     = getCol(Obj, Args.ColSky);   % XY of all photons
-            
+            XY       = getCol(Obj, Args.ColSky);   % XY of all photons
+            Energy   = getCol(Obj, Args.ColEnergy);
+            NearEdge = getCol(Obj, Args.ColNearEdge);
+
             ReturnData = getCol(Obj, Args.ReturnCol);
+
             
             Nsrc = numel(Xsrc);
             for Isrc=1:1:Nsrc
@@ -663,6 +716,10 @@ classdef PhotonsList < Component
                 Dist2 = (XY(:,1) - Xsrc).^2 + (XY(:,2) - Ysrc).^2;
                 Src(Isrc).Flag     = Dist2<SearchRadius2;
                 Src(Isrc).FlagBack = Dist2>Annulus2(1) & Dist2<Annulus2(2); 
+                Src(Isrc).AperEnergy = Energy(Src(Isrc).Flag);
+                Src(Isrc).BackEnergy = Energy(Src(Isrc).FlagBack);
+                Src(Isrc).IsNearEdge = any(NearEdge(Src(Isrc).FlagBack));
+
                 Src(Isrc).Data     = ReturnData(Src(Isrc).Flag,:);
                 Src(Isrc).DataBack = ReturnData(Src(Isrc).FlagBack,:);
 
@@ -678,7 +735,6 @@ classdef PhotonsList < Component
                 Src(Isrc).AperFlux     = Src(Isrc).Nflux - Src(Isrc).BackExpectency;
                 Src(Isrc).ProbFromBack = poisscdf(Src(Isrc).Nflux, Src(Isrc).BackExpectency, 'upper');
 
-                % calculate area inside image!
 
             end
             
