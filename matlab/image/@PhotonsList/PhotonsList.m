@@ -731,6 +731,7 @@ classdef PhotonsList < Component
                 % N photons in back
                 Nback = size(Src(Isrc).DataBack, 1);
                 % back exoectency in aperture
+                Src(Isrc).BackPerPix     = Nback./Src(Isrc).BackAreaPix;
                 Src(Isrc).BackExpectency = Nback .*Src(Isrc).AperAreaPix./Src(Isrc).BackAreaPix; 
                 Src(Isrc).AperFlux     = Src(Isrc).Nflux - Src(Isrc).BackExpectency;
                 Src(Isrc).ProbFromBack = poisscdf(Src(Isrc).Nflux, Src(Isrc).BackExpectency, 'upper');
