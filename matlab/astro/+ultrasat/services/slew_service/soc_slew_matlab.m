@@ -33,8 +33,10 @@ function soc_slew_matlab()
     global SOC_PATH;
 
     % Set logfile name
-	fprintf('soc_slew_matlab started, V1.00 (04/11/2025)\n');
-    LogFile.getSingleton('FileName', 'soc_slew_matlab');
+	fprintf('soc_slew_matlab started, V1.02 (04/01/2026)\n');
+    LogFile.getSingleton('FileName', 'soc_slew_matlab', ...
+        'SubFolder', 'slew_calc/matlab', ...
+        'UseMonthPrefix', true);
             
     % Print some info
     fprintf('getPid: %d\n', tools.os.getPid());
@@ -58,7 +60,7 @@ function soc_slew_matlab()
         if ispc
             SOC_PATH = 'c:/soc';
         else
-            SOC_PATH = '/var/opt/soc';
+            SOC_PATH = '/home/soc/soc';
         end
     end
 
@@ -137,7 +139,8 @@ function Result = mainLoop()
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
 
     % Set the input path
-    InputPath = fullfile(SOC_PATH, 'slew', 'input');
+    InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
+    % InputPath = fullfile(SOC_PATH, 'slew', 'input');
 
     % Log the start of the main loop
     io.msgLog(LogLevel.Info, '=========== Slew mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
