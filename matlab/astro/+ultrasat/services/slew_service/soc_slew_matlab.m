@@ -140,13 +140,14 @@ function Result = mainLoop()
 
     % Set the input path
     InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');    
     % InputPath = fullfile(SOC_PATH, 'slew', 'input');
 
     % Log the start of the main loop
     io.msgLog(LogLevel.Info, '=========== Slew mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
 
     % Create the FileProcessor object
-    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
+    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json', 'ProcessedPath', ProcessedPath);
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
     fp.WatchdogFileName = 'soc_slew_matlab_watchdog.txt';
