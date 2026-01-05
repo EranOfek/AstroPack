@@ -18,7 +18,11 @@ function [Result] = stitchCrops(AI, Args)
     Ncrop = numel(AI);
     MaxX  = 1;
     MaxY  = 1;
+    MCat   = repmat(AstroCatalog,1,Ncrop);
+    
     for Icrop = 1:Ncrop
+        MCat(Icrop) = AI(Icrop).CatData;
+        
         ReadUniq  = AI(Icrop).getStructKey(Args.UNIQSEC).(Args.UNIQSEC);
         ReadOrig  = AI(Icrop).getStructKey(Args.ORIGUSEC).(Args.ORIGUSEC); 
         Uniq(Icrop,:) = sscanf(ReadUniq(2:end-1), '%d').';
@@ -33,5 +37,9 @@ function [Result] = stitchCrops(AI, Args)
         Result.Image(Orig(Icrop,1):Orig(Icrop,2),Orig(Icrop,3):Orig(Icrop,4)) = ...
             AI(Icrop).Image(1:Uniq(Icrop,2)+Args.Border,1:Uniq(Icrop,4)+Args.Border);
     end
+    
+    % merge catalogs:
+    Result.CatData = merge(MCat);
+    % exclude eduplicates: 
     
 end
