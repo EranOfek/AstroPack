@@ -32,12 +32,18 @@ function soc_slew_matlab()
 
     global SOC_PATH;
 
-    % Set logfile name
-	fprintf('soc_slew_matlab started, V1.02 (04/01/2026)\n');
-    LogFile.getSingleton('FileName', 'soc_slew_matlab', ...
+    % Set LogFile to use monthly log file
+	fprintf('soc_slew_matlab started, V1.02 (05/01/2026)\n');
+    LF = LogFile.getSingleton('FileName', 'soc_slew_calc_matlab', ...
         'SubFolder', 'slew_calc/matlab', ...
         'UseMonthPrefix', true);
-            
+           
+    % Link MsgLogger to the LogFile object
+    ML = MsgLogger.getSingleton();
+    ML.LogF = LF;
+    io.msgLog(LogLevel.Info, 'soc_slew_matlab started');
+    
+
     % Print some info
     fprintf('getPid: %d\n', tools.os.getPid());
     fprintf('getProcessName: %s\n', tools.os.getProcessName());
