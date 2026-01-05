@@ -33,4 +33,5 @@ function [Result] = stitchCrops(AI, Args)
         Result.Image(Orig(Icrop,1):Orig(Icrop,2),Orig(Icrop,3):Orig(Icrop,4)) = ...
             AI(Icrop).Image(1:Uniq(Icrop,2)+Args.Border,1:Uniq(Icrop,4)+Args.Border);
     end
+    
 end
