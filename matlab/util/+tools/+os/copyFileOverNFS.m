@@ -20,7 +20,7 @@ function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
         Args.RemoteUser        = [];
         Args.LocalDirName      = '.';
         Args.RemoveOrigin      = false;
-        Args.MakeRemoteDir     = false;
+        Args.MakeRemoteDir     = true;
     end
     %
     FN = '';
@@ -37,6 +37,10 @@ function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
     end
     CopyFile = sprintf('su %s -c "cp -f %s %s"',Args.RemoteUser,FN,RemoteDirName);
     [~, Result] = system(CopyFile);
+    if ~isempty(Result)
+        fprintf('%s\n',Result);
+        error('Copying over NFS failed');
+    end
     if isempty(Result) && Args.RemoveOrigin
         RemoveLocalFile = sprintf('rm %s',FN);
         [~, Result] = system(RemoveLocalFile);

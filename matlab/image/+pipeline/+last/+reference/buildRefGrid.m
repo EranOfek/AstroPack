@@ -32,23 +32,26 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
             newT.RA(1:24) = r4;
             newT.Dec(1:24) = d4;
             %
-            [Dist,PA]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
+            [Dist,PA1]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec+dDec_sub,'deg');
-            [d1,r1] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA*RAD);
-            [Dist,PA]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
+            [d1,r1] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA1*RAD);
+            [Dist,PA2]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec-dDec_sub,'deg');
-            [d2,r2] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA*RAD);
-            [Dist,PA]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
+            [d2,r2] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA2*RAD);
+            [Dist,PA3]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec-dDec_sub,'deg');
-            [d3,r3] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA*RAD);
-            [Dist,PA]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
+            [d3,r3] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA3*RAD);
+            [Dist,PA4]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec+dDec_sub,'deg');
-            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA*RAD);       
+            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA4*RAD);       
             newT.RA1(1:24) = r1; newT.Dec1(1:24) = d1;
             newT.RA2(1:24) = r2; newT.Dec2(1:24) = d2;
             newT.RA3(1:24) = r3; newT.Dec3(1:24) = d3;
             newT.RA4(1:24) = r4; newT.Dec4(1:24) = d4;
-            newT.PA(1:24)  = PA0; % is it right? 
+            newT.PA1(1:24) = PA1; % is it the right angle? 
+            newT.PA2(1:24) = PA2; 
+            newT.PA3(1:24) = PA3; 
+            newT.PA4(1:24) = PA4; 
             %        
             LAST_RefIm_Grid = [LAST_RefIm_Grid;newT];
         end

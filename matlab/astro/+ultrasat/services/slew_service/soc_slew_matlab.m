@@ -32,10 +32,18 @@ function soc_slew_matlab()
 
     global SOC_PATH;
 
-    % Set logfile name
-	fprintf('soc_slew_matlab started, V1.00 (04/11/2025)\n');
-    LogFile.getSingleton('FileName', 'soc_slew_matlab');
-            
+    % Set LogFile to use monthly log file
+	fprintf('soc_slew_matlab started, V1.02 (05/01/2026)\n');
+    LF = LogFile.getSingleton('FileName', 'soc_slew_calc_matlab', ...
+        'SubFolder', 'slew_calc/matlab', ...
+        'UseMonthPrefix', true);
+           
+    % Link MsgLogger to the LogFile object
+    ML = MsgLogger.getSingleton();
+    ML.LogF = LF;
+    io.msgLog(LogLevel.Info, 'soc_slew_matlab started');
+    
+
     % Print some info
     fprintf('getPid: %d\n', tools.os.getPid());
     fprintf('getProcessName: %s\n', tools.os.getProcessName());
@@ -58,7 +66,7 @@ function soc_slew_matlab()
         if ispc
             SOC_PATH = 'c:/soc';
         else
-            SOC_PATH = '/var/opt/soc';
+            SOC_PATH = '/home/soc/soc';
         end
     end
 
@@ -137,13 +145,15 @@ function Result = mainLoop()
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
 
     % Set the input path
-    InputPath = fullfile(SOC_PATH, 'slew', 'input');
+    InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');    
+    % InputPath = fullfile(SOC_PATH, 'slew', 'input');
 
     % Log the start of the main loop
     io.msgLog(LogLevel.Info, '=========== Slew mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
 
     % Create the FileProcessor object
-    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
+    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json', 'ProcessedPath', ProcessedPath);
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
     fp.WatchdogFileName = 'soc_slew_matlab_watchdog.txt';

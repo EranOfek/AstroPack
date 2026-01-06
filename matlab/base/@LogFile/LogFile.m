@@ -28,6 +28,7 @@ classdef LogFile < handle
         MaxFileSize = 10000000  % Limit file size automatic switching, will be renamed to '.old', default is 10MB
         RenameToTime = true     % True to rename old files to timestamp
         DayFolder = false       % True to use folder per day
+        UseMonthPrefix = false  % NEW: True to add yyyy-mm prefix to file name
         UseFlush = true         % Due to issue with fflush(), fclose() is called on each write (Chen, 13/06/2021), @Todo
         UsePid = true           % True to write process id
         Pid = 0
@@ -45,7 +46,9 @@ classdef LogFile < handle
             %         'DateFolder' - When true
             arguments
                 FileName = ''               % File name
-                Args.UseTimestamp = false   % True to add timestamp to file name, 
+                Args.UseTimestamp = false   % True to add timestamp to file name
+                Args.UseMonthPrefix = false % NEW: True to add yyyy-mm prefix to file name
+                Args.SubFolder = ''         % NEW: Optional subfolder(s) under log path
                 Args.MaxFileSize = 10000000 % Maximum file size before switching to '.old'
                 Args.DayFolder = false      %
             end
@@ -55,6 +58,7 @@ classdef LogFile < handle
             Obj.MaxFileSize = Args.MaxFileSize;
             Obj.Pid = feature('getpid');
             Obj.DayFolder = Args.DayFolder;
+            Obj.UseMonthPrefix = Args.UseMonthPrefix;  % NEW: Store flag
             
             % Empty file name, use default
             if isempty(FileName)
@@ -69,9 +73,15 @@ classdef LogFile < handle
             
             % Filename does not include folder name, use deafult folder
             if ~contains(FileName, '/') && ~contains(FileName, '\')
-                FileName = fullfile(LogFile.defaultPath(), FileName);                
-            end
-                     
+                BasePath = LogFile.defaultPath();
+        
+                % NEW: Add subfolder if specified
+                if ~isempty(Args.SubFolder)
+                    BasePath = fullfile(BasePath, Args.SubFolder);
+                end
+                FileName = fullfile(BasePath, FileName);   
+            end                    
+
             % Add timestamp before file name
             if Args.UseTimestamp                
                 [Path, FileName, Ext] = fileparts(FileName);
@@ -81,6 +91,11 @@ classdef LogFile < handle
             
             % Store
             Obj.FileName = FileName;
+
+            % NEW: When using monthly file, do not limit file size (no log/old file rotation)
+            if Obj.UseMonthPrefix
+                Obj.MaxFileSize = 0;
+            end
 
             % Create folder
             [Path, ~, ~] = fileparts(FileName);
@@ -138,6 +153,14 @@ classdef LogFile < handle
 
             % Open file
             ActualFileName = Obj.FileName;
+
+            % NEW: Add month prefix to filename if enabled
+            if Obj.UseMonthPrefix
+                [filepath, basename, extension] = fileparts(Obj.FileName);
+                MonthPrefix = datestr(now, 'yyyy-mm');
+                ActualFileName = fullfile(filepath, sprintf('%s-%s%s', MonthPrefix, basename, extension));
+            end
+
             if Obj.DayFolder
                 % Use UTC or LocalTime Zone12:00:00                 
                 Date = io.files.getLogDate('Utc', true);                
@@ -233,12 +256,13 @@ classdef LogFile < handle
             
             % Use system folder if not set
             if isempty(Path)
-                if ~isunix
+                SocPath = getenv('SOC_PATH');
+                if ~isempty(SocPath)
+                    Path = fullfile(SocPath, 'log');                
+                elseif ~isunix
                     Path = 'c:/soc/log';
                 else
                     Path = '~/soc/log';
-                    
-                    % @Todo - Should we use '/var/soc/log' ?
                 end                
             end
             Result = Path;
@@ -254,10 +278,15 @@ classdef LogFile < handle
             arguments
                 Args.FileName = ''          % File name
                 Args.UseTimestamp = false   % true to add current timestamp to file name
+                Args.UseMonthPrefix = false % NEW: true to add yyyy-mm prefix to file name
+                Args.SubFolder = ''         % NEW: Optional subfolder under log path
             end
             persistent PersObj
             if isempty(PersObj)
-                PersObj = LogFile(Args.FileName, 'UseTimestamp', Args.UseTimestamp);
+                PersObj = LogFile(Args.FileName, ...
+                    'UseTimestamp', Args.UseTimestamp, ...
+                    'UseMonthPrefix', Args.UseMonthPrefix, ...
+                    'SubFolder', Args.SubFolder);
             end
             Result = PersObj;
         end
