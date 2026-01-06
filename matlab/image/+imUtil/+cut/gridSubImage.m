@@ -22,8 +22,8 @@ function [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = gridSu
     % Example: [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = imUtil.cut.gridSubImage([1000 1000], [300 301])
     
     arguments
-        ImageSize (1,2) double {mustBeFinite, mustBePositive}
-        SubSize   (1,2) double {mustBeFinite, mustBePositive}
+        ImageSize
+        SubSize
     end
     
     SizeImageX = int64(round(ImageSize(1)));
