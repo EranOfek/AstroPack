@@ -1,5 +1,6 @@
 function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 % Partition image size into a grid of sub images
+%   This function is obsolete. Instead use: imUtil.cut.gridSubImage
 % Package: mUtil.image
 % Description: Given the size of a two dimensional array (e.g., image), and
 %              a sub image size or the number of partitions in each

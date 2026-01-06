@@ -98,7 +98,7 @@ classdef AstroWCS < Component
     properties  % quality of solution
         % why is this here? In principle this can be located in Tran2D.
         % However, Tran2D describes only part of the full transformaion.
-        Success(1,1) logical   = false;  % is astrometry solution reasnoable
+        Success logical        = false;  % is astrometry solution reasnoable
         ErrorOnMean            = NaN;    % assymptotic-rms/sqrt(Ngood)
         AssymRMS               = NaN;    % assymptotic-rms
         Ngood                  = NaN;    % number of good matches used for the solution
