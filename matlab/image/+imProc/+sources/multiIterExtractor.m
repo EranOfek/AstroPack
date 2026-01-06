@@ -10,7 +10,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     % Input  : - An AstroImage object.
     %          * ...,key,val,... 
     %            'ExcludeEmpty' - A logical indicating if to exclude empty
-    %                   images. Default is true.
+    %                   images.
+    %                   If true, then will not keep the shape of the output
+    %                   to be the same as the shape of the input.
+    %                   Default is false.
     %            'BitDict' - A BitDictionary object for the bit mask image.
     %                   Default is BitDictionary('BitMask.Image.Default')
     %            'JD' - A vector of JD of the input images.
@@ -228,7 +231,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Obj AstroImage
 
         % pre subtraction treatment
-        Args.ExcludeEmpty              = true;
+        Args.ExcludeEmpty              = false;  % if true, will not keep the shape
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
@@ -358,7 +361,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     ReCalcBackIter1 = any(Args.ReCalcBackIter==1); % re-calc backgroun in 1st iteration
     FlagBack = ReCalcBackIter1 | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
     if any(FlagBack)
-        Result(FlagBack) = imProc.background.backVar(Result, Args.backVarArgs{:});
+        % redo everything - will keep the shape
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
     end
     
     % measure PSF if it does not exist or if the user requested to re-calc
@@ -367,7 +371,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     % at Threshold > 20 sigma, but the object's catalog property will not be populated
     FlagPSF = Result.isemptyPSF | ~Args.UseOriginalPSF; 
     if any(FlagPSF)
-        [Result(FlagPSF)] = imProc.psf.populatePSF(Result(FlagPSF),...
+        % redo everything - keep the shape:
+        [Result] = imProc.psf.populatePSF(Result,...
                                                    Args.populatePSFArgs{:},...
                                                    'RadiusPSF',Args.RadiusPSF,...
                                                    'Annulus',Args.Annulus,...

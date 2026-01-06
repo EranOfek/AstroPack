@@ -26,7 +26,7 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
     % Example: Obj = imProc.transIm.updateHeaderCCDSEC(Obj)
     
     arguments
-        Obj AstroImage
+        Obj
         
                                       % CCDSEC of current image
         Args.EdgesCCDSEC     = [];    % ORIGSEC : SEC of subimage in full image
