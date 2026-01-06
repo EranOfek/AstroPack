@@ -255,13 +255,14 @@ function TranCat = flagNonTransients(Obj, Args)
             'StarMatch', 'Ringing', 'Translient', 'Streak'};
         Args.StreakDistanceThreshold = 20;
         Args.NumStreaks = 1;
+
+        Args.flagDiffSpike logical = true;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
         Args.NeighborDenThreshold = 1.0;
         Args.NeighborExclude = {'BadPixelHard', 'BadPixelSoft', ...
             'StarMatch', 'Ringing', 'Translient', 'Streak'};
-        Args.NeighborNumThresholdSaturated = 2;
     
         Args.flagVariable logical = true;
 
@@ -344,6 +345,8 @@ function TranCat = flagNonTransients(Obj, Args)
         N_LIMMAG = Obj(Iobj).New.HeaderData.getVal('LIMMAG');
         R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
 
+        MedDiffVar = median(Obj(Iobj).Var(:));
+
         % N and R PSF magnitudes
         N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
         R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
@@ -369,6 +372,12 @@ function TranCat = flagNonTransients(Obj, Args)
         BitsSatCut = Obj(Iobj).MaskData.bitwise_cutouts([X,Y], ...
                 'or', 'HalfSize',Args.SaturatedNeighborDistanceThreshold);
         NearSaturated = BD_IM.findBit(BitsSatCut,'Saturated');
+
+        SaturatedPixels = BD_IM.findBit(Obj.Mask,'Saturated');
+        SaturatedIslands = bwconncomp(SaturatedPixels, 8);
+        SaturatedIslands_Props = regionprops(SaturatedIslands, ...
+            'Centroid', 'Area', 'PixelIdxList');
+        SaturationCentroids = vertcat(SaturatedIslands_Props.Centroid);
 
         % Check N and R PSFs
         N_X2 = CandCat.getCol('N_X2');
@@ -400,8 +409,7 @@ function TranCat = flagNonTransients(Obj, Args)
         else
             GalCand = false(NumCand,1);
         end
-        
-        
+                
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
@@ -700,15 +708,60 @@ function TranCat = flagNonTransients(Obj, Args)
                                      (R_GoodPSF | IsolatedCand));
 
                 N_Passes_PSFShape = N_Passes_PSFShape | N_Passes_Local_Circ;
-
-                % Use only local test for candidates near saturated pixels.
-                N_Passes_PSFShape(NearSaturated) = N_Passes_Local_Circ(NearSaturated);
             end
 
             Passes_PSFShape = N_Passes_PSFShape & R_Passes_PSFShape;
 
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = FilterFlags + PSF_Flagged.*2.^BD_TF.name2bit('NPSFShape');
+        end
+
+        if Args.flagDiffSpike
+
+            NearSatNotStar = NearSaturated & ~StarCand;
+
+            X_NearSaturated = X(NearSatNotStar);
+            Y_NearSaturated = Y(NearSatNotStar);
+
+            NNearSat = sum(NearSatNotStar);
+
+            IsDiffSpike = false(NumCand,1);
+            IsDiffSpikeSubSel = false(NNearSat, 1);
+
+            for INearSat = 1:NNearSat
+                X_INearSat = X_NearSaturated(INearSat);
+                Y_INearSat = Y_NearSaturated(INearSat);
+
+                SatCentDist = sqrt( ...
+                    (SaturationCentroids(:,1)-X_INearSat).^2 + ...
+                    (SaturationCentroids(:,2)-Y_INearSat).^2);
+
+                SatIdx = find(SatCentDist == min(SatCentDist));
+
+                X_SatCent = SaturationCentroids(SatIdx,1);
+                Y_SatCent = SaturationCentroids(SatIdx,2);
+                Dist_SatCent = SatCentDist(SatIdx);
+
+                X_Line = linspace(X_INearSat, X_SatCent, ceil(Dist_SatCent));
+                Y_Line = linspace(Y_INearSat, Y_SatCent, ceil(Dist_SatCent));
+                
+                % sample matrix values (interp2 uses x=col, y=row)
+                Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
+                                
+                % remove NaNs (edges etc.)
+                Good = ~isnan(Vals_Line);
+                Vals_Line = Vals_Line(Good);
+
+                SN_Line = Vals_Line/sqrt(MedDiffVar);
+                PosSignificant_Line = SN_Line > 2.0;
+                NegSignificant_Line = SN_Line < -2.0;
+
+                IsDiffSpikeSubSel(INearSat) = (sum(PosSignificant_Line)/ceil(Dist_SatCent) > 0.5) | ...
+                              (sum(NegSignificant_Line)/ceil(Dist_SatCent) > 0.5) ;
+            end
+
+            IsDiffSpike(NearSatNotStar) = IsDiffSpikeSubSel;
+            FilterFlags = FilterFlags + IsDiffSpike.*2.^BD_TF.name2bit('DiffSpike');
         end
 
         % ----- Photometry Flux -----
@@ -907,11 +960,6 @@ function TranCat = flagNonTransients(Obj, Args)
             % Test number of neighbors against threshold
             Overdensity = (LocalDensity > 1.0) | ...
                 (NumNeighbors.*LocalDensity >= Args.NeighborDenThreshold);
-
-            % Special treatment if the candidate is near a saturated
-            % source.
-            Overdensity = Overdensity | ...
-                (NearSaturated & (NumNeighbors >= Args.NeighborNumThresholdSaturated));
 
             % Update flags
             FilterFlags = FilterFlags + Overdensity.*2.^BD_TF.name2bit('Overdensity');
