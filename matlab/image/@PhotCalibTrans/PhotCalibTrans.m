@@ -533,62 +533,63 @@ classdef PhotCalibTrans < Component
                     end
                     % Object already has CalFound = false and CalibData property set by selectCalibrators
                     % TransModel is present but not fitted
-                    continue;
-                end
+                else
+                    % Calibrators found - proceed with fitting
 
-                if Args.Verbose
-                    fprintf('Fitting transmission parameters...\n');
-                end
-
-                % Extract data for fitting
-                Flux = CalData.ObsData.Flux;
-                X = CalData.ObsData.X;
-                Y = CalData.ObsData.Y;
-
-                % Calculate effective exposure time (accounting for coadding)
-                ExpTime_eff = Obj(Iobj).ExpTime / Obj(Iobj).NCoadd;
-
-                % Setup CostArgs for TransmissionMode
-                CostArgs = struct(...
-                    'WeightMatrix', CalData.Spec', ...
-                    'TransmissionMode', true, ...
-                    'CalibWavelength', CalData.SpecWvl, ...
-                    'ExpTime', ExpTime_eff, ...
-                    'Aperture_area_m2', Obj(Iobj).Aperture);
-
-                % Fit transmission parameters
-                [Model, FitRes] = Obj(Iobj).TransModel.fitPar(Obj(Iobj).TransWvl, Flux, ...
-                    'X', X, 'Y', Y, ...
-                    'CostArgs', CostArgs, ...
-                    'Verbose', Args.Verbose);
-
-                % Store fitted model
-                Obj(Iobj).TransModel = Model;
-
-                if Args.Verbose
-                    fprintf('  Number of calibrators: %d\n', size(Obj(Iobj).CalibData.Spec, 1));
-                    if ~isnan(Obj(Iobj).TransModel.RMS)
-                        fprintf('  RMS: %.4f mag\n', Obj(Iobj).TransModel.RMS);
+                    if Args.Verbose
+                        fprintf('Fitting transmission parameters...\n');
                     end
-                    if ~isnan(Obj(Iobj).TransModel.Chi2) && ~isnan(Obj(Iobj).TransModel.DOF) && Obj(Iobj).TransModel.DOF > 0
-                        fprintf('  Chi2/DOF: %.2f / %d = %.3f\n', ...
-                                Obj(Iobj).TransModel.Chi2, Obj(Iobj).TransModel.DOF, Obj(Iobj).TransModel.Chi2/Obj(Iobj).TransModel.DOF);
+
+                    % Extract data for fitting
+                    Flux = CalData.ObsData.Flux;
+                    X = CalData.ObsData.X;
+                    Y = CalData.ObsData.Y;
+
+                    % Calculate effective exposure time (accounting for coadding)
+                    ExpTime_eff = Obj(Iobj).ExpTime / Obj(Iobj).NCoadd;
+
+                    % Setup CostArgs for TransmissionMode
+                    CostArgs = struct(...
+                        'WeightMatrix', CalData.Spec', ...
+                        'TransmissionMode', true, ...
+                        'CalibWavelength', CalData.SpecWvl, ...
+                        'ExpTime', ExpTime_eff, ...
+                        'Aperture_area_m2', Obj(Iobj).Aperture);
+
+                    % Fit transmission parameters
+                    [Model, FitRes] = Obj(Iobj).TransModel.fitPar(Obj(Iobj).TransWvl, Flux, ...
+                        'X', X, 'Y', Y, ...
+                        'CostArgs', CostArgs, ...
+                        'Verbose', Args.Verbose);
+
+                    % Store fitted model
+                    Obj(Iobj).TransModel = Model;
+
+                    if Args.Verbose
+                        fprintf('  Number of calibrators: %d\n', size(Obj(Iobj).CalibData.Spec, 1));
+                        if ~isnan(Obj(Iobj).TransModel.RMS)
+                            fprintf('  RMS: %.4f mag\n', Obj(Iobj).TransModel.RMS);
+                        end
+                        if ~isnan(Obj(Iobj).TransModel.Chi2) && ~isnan(Obj(Iobj).TransModel.DOF) && Obj(Iobj).TransModel.DOF > 0
+                            fprintf('  Chi2/DOF: %.2f / %d = %.3f\n', ...
+                                    Obj(Iobj).TransModel.Chi2, Obj(Iobj).TransModel.DOF, Obj(Iobj).TransModel.Chi2/Obj(Iobj).TransModel.DOF);
+                        end
                     end
-                end
 
-                % ----------------------------------------------------------------
-                % STEP 2.6:  Update header (AstroImage only) - TODO placeholder
-                % ----------------------------------------------------------------
+                    % ----------------------------------------------------------------
+                    % STEP 2.6:  Update header (AstroImage only) - TODO placeholder
+                    % ----------------------------------------------------------------
 
-                if IsAstroImage
-                    % TODO: Write calibration results to Cat(Iobj).HeaderData
-                    % Keys: PH_ZP, PH_RMS, PH_NCAL, etc.
-                end
+                    if IsAstroImage
+                        % TODO: Write calibration results to Cat(Iobj).HeaderData
+                        % Keys: PH_ZP, PH_RMS, PH_NCAL, etc.
+                    end
 
-                if Args.Verbose
-                    fprintf('\n');
-                end
-            end
+                    if Args.Verbose
+                        fprintf('\n');
+                    end
+                end  % if ~Obj(Iobj).CalFound ... else
+            end  % for Iobj
 
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
