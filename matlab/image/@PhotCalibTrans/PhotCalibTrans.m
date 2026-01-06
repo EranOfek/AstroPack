@@ -601,7 +601,7 @@ classdef PhotCalibTrans < Component
         function CalibData = selectCalibrators(Obj, Cat, Args)
             % Select calibrators with reference spectra for photometric calibration
             % Input  : - Obj - PhotCalibTrans object
-            %          - Cat - AstroImage or AstroCatalog object with observed sources
+            %          - Cat - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 1.0.
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
@@ -624,15 +624,16 @@ classdef PhotCalibTrans < Component
             %                          .RA, .Dec
             %                        .MatchDistance - Matching distance [arcsec]
             %                        .NumMatches - Number of matches per source
-            % Author : D. Kovaleva (Dec 2025)
+            % Author : D. Kovaleva (Jan 2026)
             % Example: CalibData = PC.selectCalibrators(Cat);
-            %          CalibData = PC.selectCalibrators(AI, 'SearchRadius', 1.5, 'MagRange', [12 16]);
+            %          CalibData = PC.selectCalibrators(Cat, 'SearchRadius', 1.5, 'MagRange', [12 16]);
             % Note: Default implementation uses Gaia DR3 XP spectra from GAIADR3spec catalog.
             %       Default telescope/instrument configuration is for LAST.
+            %       Input must be single-element AstroCatalog (extracted in calibrate()).
 
             arguments
                 Obj
-                Cat  % AstroImage or AstroCatalog
+                Cat  % AstroCatalog (single element)
                 Args.SearchRadius = 1.0  % arcsec
                 Args.MagRange = [12 16]
                 Args.MinSN = 5
@@ -646,46 +647,72 @@ classdef PhotCalibTrans < Component
                 Args.Verbose logical = true
             end
 
-            RAD = constant.RAD;  % Conversion factor
+            RAD = constant.RAD;
 
             % ====================================================================
-            % STEP 1: EXTRACT CATALOG FROM INPUT OBJECT
+            % STEP 1: VALIDATE INPUT
             % ====================================================================
 
-            if isa(Cat, 'AstroImage')
-                % For AstroImage, use first element if array - %%%%% TEMPORARY
-        
-                if numel(Cat) > 1
-                    warning('PhotCalibTrans:selectCalibrators:multipleImages', ...
-                            'Multiple AstroImage elements provided. Using first element only.');
-                end
-                Cat = Cat(1).CatData;
+            if ~isa(Cat, 'AstroCatalog')
+                error('PhotCalibTrans:selectCalibrators:InvalidInput', ...
+                      'Input must be AstroCatalog (catalog extracted by calibrate())');
+            end
+
+            if numel(Cat) > 1
+                error('PhotCalibTrans:selectCalibrators:MultipleElements', ...
+                      'Input catalog must be single element (numel=%d)', numel(Cat));
             end
 
             % Get the catalog table
             Tab = Cat.Table;
+            Nsources_initial = height(Tab);
 
             % ====================================================================
-            % STEP 2: APPLY QUALITY FILTERS
+            % STEP 2: MATCH WITH CALIBRATOR CATALOG (BEFORE FILTERING)
             % ====================================================================
 
-            % Track original indices (for mapping match results back to filtered table)
-            OriginalIdx = (1:height(Tab))';
+            % Match all sources with calibrator catalog (default: GAIADR3spec)
+            % Filter matches afterward to avoid indexing issues
+            if Args.Verbose
+                fprintf('  Matching %d sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
+                        Nsources_initial, Args.SearchRadius);
+            end
+
+            [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
+                                                              'Radius', Args.SearchRadius, ...
+                                                              'RadiusUnits', 'arcsec');
+
+            % Extract match information (indexed to full catalog)
+            calIdx_all   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each source
+            dist_rad_all  = ResInd.Obj2_Dist;          % Distance in radians
+            nmatch_all    = ResInd.Obj2_NmatchObj1;    % Number of matches
+
+            % Create mask for sources that have matches
+            hasMatchMask = ~isnan(calIdx_all);
+
+            if Args.Verbose
+                fprintf('  Found %d/%d sources with Gaia XP matches\n', ...
+                        sum(hasMatchMask), Nsources_initial);
+            end
+
+            % ====================================================================
+            % STEP 3: APPLY QUALITY FILTERS TO MATCHED SOURCES
+            % ====================================================================
+
+            % Start with sources that have matches
+            goodMask = hasMatchMask;
 
             % Filter 1: Magnitude range
-            magFilterMask = true(height(Tab), 1);
             if ismember('MAG_APER_3', Tab.Properties.VariableNames)
                 magFilterMask = (Tab.MAG_APER_3 >= Args.MagRange(1)) & (Tab.MAG_APER_3 <= Args.MagRange(2));
+                goodMask = goodMask & magFilterMask;
                 if Args.Verbose
                     fprintf('  Magnitude filter (%g-%g): %d sources passed\n', ...
-                            Args.MagRange(1), Args.MagRange(2), sum(magFilterMask));
+                            Args.MagRange(1), Args.MagRange(2), sum(goodMask));
                 end
             end
 
-            Tab = Tab(magFilterMask, :);
-            OriginalIdx = OriginalIdx(magFilterMask);
-
-            % Filter 2: Bad FLAGS (optional) - vectorized
+            % Filter 2: Bad FLAGS (optional)
             if Args.FilterBadFlags && ismember('FLAGS', Tab.Properties.VariableNames)
                 flags = Tab.FLAGS;
                 % Check for critical bad flags (vectorized bitget operations)
@@ -697,72 +724,28 @@ classdef PhotCalibTrans < Component
 
                 % Mark as bad if it has multiple problematic flags
                 badFlagsMask = (isSaturated + isNaN + isNegative + isCR + isNearEdge) >= 2;
-                Tab = Tab(~badFlagsMask, :);
-                OriginalIdx = OriginalIdx(~badFlagsMask);
+                goodMask = goodMask & ~badFlagsMask;
 
                 if Args.Verbose
-                    fprintf('  FLAGS filter: %d sources passed\n', height(Tab));
+                    fprintf('  FLAGS filter: %d sources passed\n', sum(goodMask));
                 end
             end
 
             % Filter 3: S/N range
             if ismember('SN', Tab.Properties.VariableNames)
                 snMask = (Tab.SN >= Args.MinSN) & (Tab.SN <= Args.MaxSN);
-                Tab = Tab(snMask, :);
-                OriginalIdx = OriginalIdx(snMask);
+                goodMask = goodMask & snMask;
 
                 if Args.Verbose
                     fprintf('  S/N filter (%g-%g): %d sources passed\n', ...
-                            Args.MinSN, Args.MaxSN, height(Tab));
+                            Args.MinSN, Args.MaxSN, sum(goodMask));
                 end
             end
 
-            % ====================================================================
-            % STEP 3: MATCH WITH CALIBRATOR CATALOG
-            % ====================================================================
-
-            % Match with calibrator catalog (default: GAIADR3spec)
-            % Use filtered Tab directly - RA/Dec in degrees, pass as degrees
-            if Args.Verbose
-                fprintf('  Matching %d filtered sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
-                        height(Tab), Args.SearchRadius);
-            end
-
-            [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
-                                                              'Coo', [Tab.RA/RAD, Tab.Dec/RAD], ...
-                                                              'Radius', Args.SearchRadius, ...
-                                                              'CooUnits', 'rad', ...
-                                                              'RadiusUnits', 'arcsec');
-
-            % Extract match information (indices are into full Cat.Table)
-            calIdx_all   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each observed source
-            dist_rad_all  = ResInd.Obj2_Dist;          % Distance in radians
-            nmatch_all    = ResInd.Obj2_NmatchObj1;    % Number of matches
-
-            % Find which matched sources are in our filtered list
-            % idxObsMatched_Full contains indices into the FULL catalog
-            idxObsMatched_Full = find(~isnan(calIdx_all));
-
-            % Filter to keep only those that passed our quality filters
-            % Check which of the matched indices are in OriginalIdx
-            [~, idxInFiltered] = ismember(idxObsMatched_Full, OriginalIdx);
-            keepMask = idxInFiltered > 0;  % Only keep matches that are in our filtered table
-
-            idxObsMatched_Full = idxObsMatched_Full(keepMask);
-            idxInFiltered = idxInFiltered(keepMask);  % Positions in filtered Tab
-
-            if Args.Verbose
-                fprintf('  Found %d/%d filtered sources with Gaia XP matches\n', ...
-                        length(idxObsMatched_Full), height(Tab));
-            end
-
-            calIdx        = double(calIdx_all(idxObsMatched_Full));
-            dist_rad       = dist_rad_all(idxObsMatched_Full);
-            nmatch         = nmatch_all(idxObsMatched_Full);
-
-            if isempty(idxObsMatched_Full)
+            % Check if any sources passed all filters
+            if ~any(goodMask)
                 warning('PhotCalibTrans:selectCalibrators:NoMatches', ...
-                        'No calibrator matches found within %.1f arcsec for filtered sources', Args.SearchRadius);
+                        'No sources passed quality filters and have calibrator matches');
                 CalibData = struct('SpecWvl', [], 'Spec', [], 'SpecErr', [], ...
                                    'ObsData', [], 'CalData', [], ...
                                    'MatchDistance', [], 'NumMatches', []);
@@ -771,10 +754,14 @@ classdef PhotCalibTrans < Component
                 return;
             end
 
-            % Extract matched tables using positions in filtered table
-            ObsTab = Tab(idxInFiltered, :);  % Use positions in filtered Tab
-            CalArr = CatH.Catalog;  % Use Catalog (matrix) instead of Table to avoid VariableUnits validation
-            CalTab = CalArr(calIdx, :);
+            % Extract matched and filtered sources
+            ObsTab = Tab(goodMask, :);                    % Filtered observed sources
+            calIdx = double(calIdx_all(goodMask));        % Calibrator indices
+            dist_rad = dist_rad_all(goodMask);            % Match distances
+            nmatch = nmatch_all(goodMask);                % Number of matches
+
+            CalArr = CatH.Catalog;  % Use Catalog (matrix) instead of Table
+            CalTab = CalArr(calIdx, :);  % Matched calibrators
             Nmatch = size(CalTab, 1);
 
             if Args.Verbose
