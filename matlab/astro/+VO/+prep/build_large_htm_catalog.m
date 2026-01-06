@@ -65,9 +65,10 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
 %                            If empty, auto-detected from first query. Default is {}.
 %            'ColUnits'    - Cell array of column units for output metadata.
 %                            Default is {}.
-%            'QueryMethod' - TAP query method: 'java'|'http'|'auto'.
-%                            'java' uses STILTS, 'http' uses native HTTP.
-%                            Default is 'auto' (java if STILTS available).
+%            'QueryMethod' - TAP query method: 'java'|'http'.
+%                            'java' uses STILTS (faster), 'http' uses native HTTP.
+%                            TopCat auto-falls back to 'http' if STILTS unavailable.
+%                            Default is 'java'.
 %            'HTM'         - Pre-built HTM structure from celestial.htm.htm_build.
 %                            If empty, built internally. Default is [].
 %            'LevelHTM'    - Pre-built LevelHTM structure. Default is [].
@@ -130,7 +131,7 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         Args.Verbose          = true        % Print progress
         Args.ColCell          = {}          % Column names for output (auto-detect if empty)
         Args.ColUnits         = {}          % Column units for output
-        Args.QueryMethod      = 'auto'      % 'java'|'http'|'auto'
+        Args.QueryMethod      = 'java'      % 'java'|'http' (TopCat handles fallback)
         Args.HTM              = []          % Pre-built HTM structure 
         Args.LevelHTM         = []          % Pre-built LevelHTM structure 
         Args.SaveInd          = true        % Save index HDF file at the end
@@ -172,23 +173,12 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         ColumnsStr = char(Args.Columns);
     end
 
-    % Set query method
-    if strcmpi(Args.QueryMethod, 'auto')
-        if isfile(VO.TopCat.getStiltsJarPath())
-            QueryMethod = 'java';
-        else
-            QueryMethod = 'http';
-        end
-    else
-        QueryMethod = Args.QueryMethod;
-    end
-
     if Args.Verbose
         fprintf('=== build_large_htm_catalog ===\n');
         fprintf('Table: %s\n', TableName);
         fprintf('TAP URL: %s\n', Args.TapUrl);
         fprintf('Output: %s\n', Args.CatName);
-        fprintf('Query method: %s\n', QueryMethod);
+        fprintf('Query method: %s\n', Args.QueryMethod);
     end
 
     %----------------------------------------------------------------------
@@ -256,92 +246,45 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         MeanRA  = mean(HTM(IndHTM).coo(:,1));   % radians
         MeanDec = mean(HTM(IndHTM).coo(:,2));   % radians
 
-        % Check RA/Dec range filter
-        if MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
-           MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2)
-            Nsrc(Ihtm, :) = [IndHTM, 0];
-            continue;
-        end
+        % Determine cell status
+        OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
+                       MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
+        AlreadyExists = Args.Resume && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF);
 
-        % Check resume: skip if already exists
-        if Args.Resume
-            if checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF)
-                SkippedCount = SkippedCount + 1;
-                if Args.Verbose && mod(SkippedCount, 100) == 0
-                    fprintf('  Skipped %d existing cells...\n', SkippedCount);
-                end
-                continue;
+        if OutsideRange
+            % Skip: outside requested RA/Dec range
+            Nsrc(Ihtm, :) = [IndHTM, 0];
+
+        elseif AlreadyExists
+            % Skip: already processed (resume mode)
+            SkippedCount = SkippedCount + 1;
+            if Args.Verbose && mod(SkippedCount, 100) == 0
+                fprintf('  Skipped %d existing cells...\n', SkippedCount);
             end
-        end
 
-        % Convert coordinates to degrees for query
-        CenterRADeg  = MeanRA * RAD;
-        CenterDecDeg = MeanDec * RAD;
+        else
+            % Process this HTM cell
+            [NsrcCell, ColNames, QueryFailed] = processHTMCell( ...
+                Tap, TableName, ColumnsStr, IndHTM, HTM, RAD, SearchRadiusDeg, Args);
 
-        % Get HTM vertices in degrees for polygon query
-        HTMCooDeg = HTM(IndHTM).coo * RAD;
-
-        % Construct query
-        Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRA, Args.ColDec, ...
-                                       HTMCooDeg, CenterRADeg, CenterDecDeg, ...
-                                       SearchRadiusDeg, Args.QueryType, Args.WhereClause);
-
-        % Execute query with retry logic
-        try
-            T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                               Args.TapUrl, Args.TimeoutSec, QueryMethod);
-        catch ME
-            warning('VO:build_large_htm_catalog:QueryFailed', ...
-                'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, ME.message);
-            FailedCells = [FailedCells, IndHTM]; %#ok<AGROW>
-            Nsrc(Ihtm, :) = [IndHTM, 0];
-            continue;
-        end
-
-        % Check for empty result
-        if isempty(T) || height(T) == 0
-            Nsrc(Ihtm, :) = [IndHTM, 0];
-            ProcessedCount = ProcessedCount + 1;
-            continue;
-        end
-
-        % Convert table to matrix (radians for in_polysphere filtering)
-        [Data, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
-
-        % Store column names from first successful query
-        if isempty(ColNamesDetected)
-            ColNamesDetected = ColNames;
-        end
-
-        % Filter sources to keep only those inside HTM triangle (for cone queries)
-        if strcmpi(Args.QueryType, 'cone')
-            CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
-            Flag = celestial.htm.in_polysphere(CooRad, HTM(IndHTM).coo, 2);
-            Data = Data(Flag, :);
-        end
-
-        % Count sources
-        NsrcCell = size(Data, 1);
-        Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
-
-        % Convert to output units and save to HDF5
-        if NsrcCell > 0
-            if strcmpi(Args.OutUnits, 'deg')
-                DataOut = Data;
-                DataOut(:, 1) = Data(:, 1) * RAD;  % RA rad->deg
-                DataOut(:, 2) = Data(:, 2) * RAD;  % Dec rad->deg
+            % Update tracking variables
+            if QueryFailed
+                FailedCells = [FailedCells, IndHTM]; %#ok<AGROW>
+                Nsrc(Ihtm, :) = [IndHTM, 0];
             else
-                DataOut = Data;  % Already in radians
+                Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
+                ProcessedCount = ProcessedCount + 1;
+
+                % Store column names from first successful query
+                if isempty(ColNamesDetected) && ~isempty(ColNames)
+                    ColNamesDetected = ColNames;
+                end
+
+                % Print progress
+                if Args.Verbose && (mod(ProcessedCount, 10) == 0 || ProcessedCount == 1)
+                    printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount);
+                end
             end
-            [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
-            HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
-        end
-
-        ProcessedCount = ProcessedCount + 1;
-
-        % Print progress
-        if Args.Verbose && (mod(ProcessedCount, 10) == 0 || ProcessedCount == 1)
-            printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount);
         end
     end
 
@@ -505,6 +448,78 @@ function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, Timeo
                 rethrow(ME);
             end
         end
+    end
+end
+
+
+function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, ColumnsStr, IndHTM, HTM, RAD, SearchRadiusDeg, Args)
+    % Process a single HTM cell: query, filter, and save
+    %
+    % Output:
+    %   NsrcCell    - Number of sources saved (0 if empty or failed)
+    %   ColNames    - Column names from query (empty if failed)
+    %   QueryFailed - true if query failed after retries
+
+    NsrcCell = 0;
+    ColNames = {};
+    QueryFailed = false;
+
+    % Get cell center in degrees
+    MeanRA  = mean(HTM(IndHTM).coo(:,1));
+    MeanDec = mean(HTM(IndHTM).coo(:,2));
+    CenterRADeg  = MeanRA * RAD;
+    CenterDecDeg = MeanDec * RAD;
+
+    % Get HTM vertices in degrees for polygon query
+    HTMCooDeg = HTM(IndHTM).coo * RAD;
+
+    % Construct query
+    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRA, Args.ColDec, ...
+                                   HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                   SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+
+    % Execute query with retry logic
+    try
+        T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+    catch ME
+        warning('VO:build_large_htm_catalog:QueryFailed', ...
+            'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, ME.message);
+        QueryFailed = true;
+        return;
+    end
+
+    % Handle empty result
+    if isempty(T) || height(T) == 0
+        return;
+    end
+
+    % Convert table to matrix (radians for in_polysphere filtering)
+    [Data, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+
+    % Filter sources to keep only those inside HTM triangle (for cone queries)
+    if strcmpi(Args.QueryType, 'cone')
+        CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, HTM(IndHTM).coo, 2);
+        Data = Data(Flag, :);
+    end
+
+    % Count sources
+    NsrcCell = size(Data, 1);
+
+    % Convert to output units and save to HDF5
+    if NsrcCell > 0
+        if strcmpi(Args.OutUnits, 'deg')
+            DataOut = Data;
+            DataOut(:, 1) = Data(:, 1) * RAD;  % RA rad->deg
+            DataOut(:, 2) = Data(:, 2) * RAD;  % Dec rad->deg
+        else
+            DataOut = Data;  % Already in radians
+        end
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+        HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
+        % TargetDir = '/euclid/catsHTM/NewCats/GAIA/DR3var/';
+        % tools.os.copyFileOverNFS({FileName}, TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
     end
 end
 

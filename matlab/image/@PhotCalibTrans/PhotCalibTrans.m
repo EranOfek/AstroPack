@@ -8,9 +8,8 @@ classdef PhotCalibTrans < Component
     % Author : D. Kovaleva (Dec 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50 (transmission-based calibration)
     %
-    % Constant Properties:
-    %   Lambda  - Transmission wavelength grid [nm] (300:2:1100, 401 points)
-    %   SpecWvl - Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 336-1020, 343 points)
+    % Constant Properties (Hidden):
+    %   TransWvl  - Transmission wavelength grid [nm] (300:2:1100, 2 nm step, 401 points)
     %
     % Properties:
     %   TransModel - CompositeFun object with fitted transmission model and
@@ -27,8 +26,8 @@ classdef PhotCalibTrans < Component
      PC.calibrate(AI);
 
      % Evaluate transmission and zero points
-     Trans = PC.evaluateTransmission();  % Use constant wavelength grid (Obj.Lambda)
-     ZP = PC.evaluateZP();  % Uses Obj.Lambda, Obj.ExpTime, Obj.NCoadd, Obj.Aperture
+     Trans = PC.evaluateTransmission();  % Use constant wavelength grid (Obj.TransWvl)
+     ZP = PC.evaluateZP();  % Uses Obj.TransWvl, Obj.ExpTime, Obj.NCoadd, Obj.Aperture
 
      % Apply calibration to catalog
      [MagAB, MagABErr] = PC.evaluateMag(MagInst, 'X', X, 'Y', Y, 'MagInstErr', MagErr);
@@ -42,8 +41,6 @@ classdef PhotCalibTrans < Component
     % Methods:
     %   Constructor:
     %     PhotCalibTrans - Constructor for PhotCalibTrans class
-    %   Setters:
-    %     reset - Reset calibration data while keeping configuration
     %   Core Calibration Methods:
     %     calibrate - Perform transmission-based photometric calibration using CompositeFun
     %     selectCalibrators - Select calibrators with reference spectra for photometric calibration
@@ -87,6 +84,7 @@ classdef PhotCalibTrans < Component
 
         % Calibrator information (empty until calibration)
         CalibData = []          % Structure with calibrator data from selectCalibrators containing:
+                                %   .SpecWvl [N_wvl x 1] - Wavelength grid for calibrator spectra [nm] (e.g., 336:2:1020 for Gaia DR3 XP)
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
                                 %   .ObsData - struct with .Flux, .FluxErr, .X, .Y, .RA, .Dec (observed data)
@@ -94,24 +92,50 @@ classdef PhotCalibTrans < Component
                                 %   .MatchDistance [N_calib x 1] - Match distances [arcsec]
                                 %   .NumMatches - Total number of matched calibrators
 
+        CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
+
     end
 
     properties (Constant, Hidden)
-        % Wavelength grids (2 nm step)
-        Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
-        SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points - not stored in the source catalog)
+        % Wavelength grid for transmission evaluation (2 nm step)
+        TransWvl = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
     end
 
     methods % Constructor
         function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
             % Input  : * ...,key,val,...
-            %            Any property name as key with corresponding value
-            %            Property defaults are defined in the properties block
+            %            Any property name as key with corresponding value.
+            %            Available arguments (all optional):
+            %
+            %            Observation Metadata:
+            %            'AirMass' - Airmass. Default is NaN.
+            %            'Zenith' - Zenith angle [deg]. Default is NaN.
+            %            'Temp' - Temperature [C]. Default is NaN.
+            %            'Pressure' - Atmospheric pressure [mbar]. Default is 965.
+            %            'Humidity' - Relative humidity [%]. Default is NaN.
+            %            'ExpTime' - Exposure time [s]. Default is NaN.
+            %            'NCoadd' - Number of coadded images. Default is 1.
+            %
+            %            Instrument Configuration:
+            %            'Aperture' - Telescope aperture area [m^2]. Default is pi*(0.1397)^2 (LAST telescope).
+            %
+            %            Calibration Data (typically set by calibrate() method):
+            %            'TransModel' - CompositeFun transmission model object. Default is [].
+            %            'CalibData' - Structure with calibrator data. Default is [].
+            %            'CalFound' - Flag indicating if calibrators were found. Default is false.
+            %
             % Output : - PhotCalibTrans object
             % Author : D. Kovaleva (Dec 2025)
-            % Example: PC = PhotCalibTrans();
+            % Example: % Create with default values
+            %          PC = PhotCalibTrans();
+            %
+            %          % Create with custom pressure and aperture
             %          PC = PhotCalibTrans('Pressure', 970, 'Aperture', 0.05);
+            %
+            %          % Create with observation metadata
+            %          PC = PhotCalibTrans('AirMass', 1.2, 'Zenith', 33.5, 'ExpTime', 20, ...
+            %                              'NCoadd', 1, 'Temp', 15, 'Pressure', 965);
 
             % Parse name-value pairs and set properties if they exist
             for i = 1:2:length(varargin)
@@ -128,297 +152,449 @@ classdef PhotCalibTrans < Component
         end
     end
 
-    methods % Setters
-        function Obj = reset(Obj)
-            % Reset calibration data while keeping configuration
-            % Input  : - Obj - PhotCalibTrans object
-            % Output : - Obj - PhotCalibTrans object with cleared results
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: PC = PC.reset();
-            % Description: Clears calibration results (TransModel, CalibData) and
-            %              observation-specific metadata (AirMass, ExpTime, etc.)
-            %              while keeping calibration scheme (FunList, OptSeq, Aperture).
-
-            arguments
-                Obj
-            end
-
-            % Clear calibration results
-            Obj.TransModel = [];
-            Obj.CalibData = [];
-
-            % Clear observation-specific metadata (restore defaults)
-            Obj.AirMass = NaN;
-            Obj.Zenith = NaN;
-            Obj.ExpTime = NaN;
-            Obj.NCoadd = 1;         % Default: single image
-            Obj.Temp = NaN;
-            Obj.Pressure = 965;     % Default atmospheric pressure [mbar]
-            Obj.Humidity = NaN;
-
-            % Keep calibration scheme configuration:
-            % - FunList (transmission function list)
-            % - OptSeq (optimization sequence)
-            % - Aperture (telescope aperture)
-        end
-    end
-
     methods % Core calibration methods
         function Obj = calibrate(Obj, Cat, Args)
             % Perform transmission-based photometric calibration
             % Input  : - Obj - PhotCalibTrans object
             %          - Cat - AstroImage or AstroCatalog object with observed sources
-            %                  Metadata is read from Cat.HeaderData (FITS header)
+            %                  Supports arrays: processes each element independently
             %          * ...,key,val,...
+            %            'MetadataSource' - Source of observation metadata. Options:
+            %                   'FromCat' - Read from Cat(i).HeaderData (default)
+            %                   'FromHeader' - Read from Args.Header(i) (AstroHeader array)
+            %                   'FromStruct' - Read from Args.Metadata(i) (struct array, single or per-subimage)
+            %                   'Default' - Use hardcoded default values (same for all subimages)
+            %            'Header' - [1 x Nobj] AstroHeader array (used with MetadataSource='FromHeader'). Default is [].
+            %            'Metadata' - [1 x Nobj] struct array with fields: .AirMass, .Zenith, .ExpTime, .NCoadd, .Temp, .Pressure
+            %                         (used with MetadataSource='FromStruct'). Default is [].
             %            'TransFunList' - Cell array of transmission function names to use.
-            %                             Default is {'Normalization', 'Rayleigh', 'Aerosol', 'Water',
-            %                                         'Mirror', 'Corrector', 'QE_SkewedGaussian'}.
+            %                             Default is {'Normalization',
+            %                             'Rayleigh', 'Aerosol', 'Water', 'Ozone', 'UMG', 
+            %                             'Mirror', 'Corrector', 'QE_SkewedGaussian', 'QE_Legendre'}.
             %            'OptSeqName' - Name of optimization sequence from StageCatalog.
             %                           Default is 'DefaultLAST' (5-stage sequence from Garrappa et al. 2025).
             %            'CustomOptSeq' - Custom optimization sequence (overrides OptSeqName). Default is [].
-            %            'RebuildScheme' - Force rebuild of FunList and OptSeq even if already stored. Default is false.
             %            'Tran2DType' - Type of 2D transformation for field corrections. Default is 'cheby1_4_xt'.
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 1.0.
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
+            %            'FluxIni' - Start column index for calibrator spectra flux values. Default is 7.
+            %            'FluxEnd' - End column index for calibrator spectra flux values. Default is 349.
+            %            'EFluxIni' - Start column index for calibrator spectra flux errors. Default is 350.
+            %            'EFluxEnd' - End column index for calibrator spectra flux errors. Default is 692.
             %            'Verbose' - Enable verbose output. Default is true.
-            % Output : - Obj - PhotCalibTrans object with calibration results
+            % Output : - Obj - Array [1 x Nobj] of PhotCalibTrans objects, one per subimage
+            %                  Each Obj(i) contains independent calibration results for Cat(i)
+            %                  Properties: .CalFound, .CalibData, .TransModel, metadata
+            %                  Methods available: Obj(i).evaluateZP(), Obj(i).evaluateTransmission(), etc.
             % Author : D. Kovaleva (Dec 2025)
-            % Example: PC = PhotCalibTrans();
-            %          PC.calibrate(AI);
-            %          PC.calibrate(Cat, 'TransFunList', {'Rayleigh', 'Aerosol', 'Mirror'});
+            % Example: % AstroImage with auto metadata (from FITS headers)
+            %          PC = PhotCalibTrans();
+            %          PC = PC.calibrate(AI);
+            %
+            %          % AstroCatalog with metadata from struct (same for all subcatalogs)
+            %          Meta = struct('AirMass', 1.2, 'Zenith', 33.5, 'ExpTime', 20, ...
+            %                        'NCoadd', 1, 'Temp', 15, 'Pressure', 965);
+            %          PC = PhotCalibTrans();
+            %          PC = PC.calibrate(Cat, 'Metadata', Meta);
+            %
+            %          % With external Header array (different per subcatalog)
+            %          PC = PC.calibrate(Cat, 'Header', HeaderArray);
+            %
+            %          % Using default values
+            %          PC = PC.calibrate(Cat, 'MetadataSource', 'Default');
+            %
+            %          % Access results
+            %          [PC.CalFound]              % Get CalFound for all subimages
+            %          rms_values = [PC.TransModel]; rms_values = [rms_values.RMS];
 
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
+
+                % Metadata arguments
+                Args.MetadataSource = 'FromCat'  % 'FromCat', 'FromHeader', 'FromStruct', 'Default'
+                Args.Header = []                 % [1 x Nobj] AstroHeader array
+                Args.Metadata = []               % [1 x Nobj] struct array (or single struct for all)
+
+                % Calibration arguments
                 Args.TransFunList = {'Normalization', 'Rayleigh', 'Aerosol', 'Ozone', 'Water', 'UMG', 'Mirror', 'Corrector', 'QE_SkewedGaussian', 'QE_Legendre'}
                 Args.OptSeqName = 'DefaultLAST'
                 Args.CustomOptSeq = []
-                Args.RebuildScheme logical = false
                 Args.Tran2DType = 'cheby1_4_xt'
                 Args.SearchRadius = 1.0
                 Args.MagRange = [12 16]
+                Args.FluxIni = 7      % Start column index for calibrator spectra flux
+                Args.FluxEnd = 349    % End column index for calibrator spectra flux
+                Args.EFluxIni = 350   % Start column index for calibrator spectra flux errors
+                Args.EFluxEnd = 692   % End column index for calibrator spectra flux errors
                 Args.Verbose logical = true
             end
 
-            if Args.Verbose
-                fprintf('\n=== PhotCalibTrans Calibration ===\n\n');
+            % ====================================================================
+            % STEP 0: Validate input type and auto-detect metadata source
+            % ====================================================================
+
+            % Validate input object type
+            if isa(Cat, 'AstroImage')
+                IsAstroImage = true;
+            elseif isa(Cat, 'AstroCatalog')
+                IsAstroImage = false;
+            else
+                error('PhotCalibTrans:calibrate:InvalidInput', ...
+                    'Cat must be AstroImage or AstroCatalog object');
             end
 
-            % ====================================================================
-            % STEP 0: Extract metadata from FITS header
-            % ====================================================================
+            Nobj = numel(Cat);
 
-            % Extract metadata from FITS header and map to property names
-            Keys = {'TEMP_MNT', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
-            PropNames = {'Temp', 'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
-            Res = getStructKey(Cat.HeaderData, Keys);
+            % Validate metadata source
+            ValidSources = {'FromCat', 'FromHeader', 'FromStruct', 'Default'};
+            if ~any(strcmp(Args.MetadataSource, ValidSources))
+                error('PhotCalibTrans:calibrate:InvalidMetadataSource', ...
+                    'Invalid MetadataSource: %s. Valid options: %s', ...
+                    Args.MetadataSource, strjoin(ValidSources, ', '));
+            end
 
-            % Map FITS keywords to property names
-            Metadata = struct();
-            for i = 1:length(Keys)
-                if isfield(Res, Keys{i})
-                    Metadata.(PropNames{i}) = Res.(Keys{i});
+            % Validate metadata arrays if provided
+            if strcmp(Args.MetadataSource, 'FromHeader')
+                if numel(Args.Header) ~= Nobj
+                    error('PhotCalibTrans:calibrate:HeaderSizeMismatch', ...
+                        'Header array size (%d) must match Cat size (%d)', numel(Args.Header), Nobj);
                 end
             end
 
-            % Calculate derived fields
-            if isfield(Metadata, 'AirMass')
-                Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
-            end
-
-            % Set all properties at once (falls back to property defaults if missing)
-            Obj.setProps(Metadata);
-
-            if Args.Verbose
-                fprintf('Metadata from FITS header:\n');
-                fprintf('  AirMass  = %.2f\n', Obj.AirMass);
-                fprintf('  Zenith   = %.2f deg\n', Obj.Zenith);
-                fprintf('  ExpTime  = %.1f s\n', Obj.ExpTime);
-                fprintf('  NCoadd   = %d\n', Obj.NCoadd);
-                fprintf('  Temp     = %.1f C\n', Obj.Temp);
-                fprintf('  Pressure = %.1f mbar\n\n', Obj.Pressure);
-            end
-
-            % ====================================================================
-            % STEP 1: Build or update transmission model
-            % ====================================================================
-
-            if Args.Verbose
-                fprintf('Step 1: Preparing transmission model...\n');
-            end
-
-            % Determine if we need to rebuild the model structure
-            NeedRebuildModel = Args.RebuildScheme || isempty(Obj.TransModel);
-
-            if NeedRebuildModel
-                % Load catalog
-                [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
-
-                % Build transmission function list from catalog
-                FunList = [];
-                for i = 1:length(Args.TransFunList)
-                    FunName = Args.TransFunList{i};
-                    if isfield(FunCat, FunName)
-                        FunList = [FunList, FunCat.(FunName)];
-                    else
-                        error('PhotCalibTrans:calibrate:InvalidFunction', ...
-                              'Transmission function %s not found in catalog', FunName);
-                    end
+            if strcmp(Args.MetadataSource, 'FromStruct')
+                NMeta = numel(Args.Metadata);
+                if NMeta ~= 1 && NMeta ~= Nobj
+                    error('PhotCalibTrans:calibrate:MetadataSizeMismatch', ...
+                        'Metadata array size (%d) must be 1 (same for all) or match Cat size (%d)', NMeta, Nobj);
                 end
+            end
 
-                % Get optimization sequence
-                if ~isempty(Args.CustomOptSeq)
-                    OptSeq = Args.CustomOptSeq;
+            if Args.Verbose
+                fprintf('\n=== PhotCalibTrans Calibration ===\n');
+                fprintf('Processing %d object(s)\n', Nobj);
+                fprintf('Input type: %s\n', class(Cat));
+                fprintf('Metadata source: %s\n\n', Args.MetadataSource);
+            end
+
+            % ====================================================================
+            % STEP 1: Build TransModel structure
+            % ====================================================================
+
+            if Args.Verbose
+                fprintf('Step 1: Building transmission model structure...\n');
+            end
+
+            % Load catalog
+            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
+
+            % Build transmission function list from catalog
+            FunList = [];
+            for i = 1:length(Args.TransFunList)
+                FunName = Args.TransFunList{i};
+                if isfield(FunCat, FunName)
+                    FunList = [FunList, FunCat.(FunName)];
                 else
-                    if isfield(StageCat, Args.OptSeqName)
-                        OptSeq = StageCat.(Args.OptSeqName);
-                    else
-                        error('PhotCalibTrans:calibrate:InvalidOptSeq', ...
-                              'Optimization sequence %s not found in catalog', Args.OptSeqName);
-                    end
+                    error('PhotCalibTrans:calibrate:InvalidFunction', ...
+                          'Transmission function %s not found in catalog', FunName);
                 end
+            end
 
+            % Get optimization sequence
+            if ~isempty(Args.CustomOptSeq)
+                OptSeq = Args.CustomOptSeq;
+            else
+                if isfield(StageCat, Args.OptSeqName)
+                    OptSeq = StageCat.(Args.OptSeqName);
+                else
+                    error('PhotCalibTrans:calibrate:InvalidOptSeq', ...
+                          'Optimization sequence %s not found in catalog', Args.OptSeqName);
+                end
+            end
+
+            if Args.Verbose
+                fprintf('  Using %d transmission functions: %s\n', ...
+                        length(Args.TransFunList), strjoin(Args.TransFunList, ', '));
+                if ~isempty(Args.CustomOptSeq)
+                    fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
+                else
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', ...
+                            Args.OptSeqName, numel(OptSeq));
+                end
+            end
+
+            if Args.Verbose
+                fprintf('  Transmission functions and optimization sequence configured\n\n');
+            end
+
+            % ====================================================================
+            % STEP 1.5: Pre-allocate output array
+            % ====================================================================
+
+            % Each object will store independent calibration results for its subimage
+            Obj(Nobj) = PhotCalibTrans();
+
+            % ====================================================================
+            % STEP 2: Loop over subimages/subcatalogs
+            % ====================================================================
+
+            for Iobj = 1:Nobj
                 if Args.Verbose
-                    fprintf('  Built new calibration scheme\n');
-                    fprintf('  Using %d transmission functions: %s\n', ...
-                            length(Args.TransFunList), strjoin(Args.TransFunList, ', '));
-                    if ~isempty(Args.CustomOptSeq)
-                        fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
-                    else
-                        fprintf('  Using optimization sequence: %s (%d stages)\n', ...
-                                Args.OptSeqName, numel(OptSeq));
+                    fprintf('--- Processing Object %d/%d ---\n', Iobj, Nobj);
+                end
+
+                % ----------------------------------------------------------------
+                % STEP 2.0: Extract metadata and catalog for this subimage
+                % ----------------------------------------------------------------
+
+                % Extract metadata based on source
+                switch Args.MetadataSource
+                    case 'FromCat'
+                        % Extract from Cat(Iobj).HeaderData
+                        if IsAstroImage
+                            HeaderSource = Cat(Iobj).HeaderData;
+                        else
+                            % AstroCatalog case - placeholder for when AstroCatalog has HeaderData
+                            % TODO: Implement HeaderData property for AstroCatalog
+                            if isprop(Cat(Iobj), 'HeaderData') && ~isempty(Cat(Iobj).HeaderData)
+                                HeaderSource = Cat(Iobj).HeaderData;
+                            else
+                                error('PhotCalibTrans:calibrate:NoHeaderData', ...
+                                    'AstroCatalog object does not have HeaderData property. Use different MetadataSource.');
+                            end
+                        end
+
+                        Keys = {'MNTTEMP', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
+                        PropNames = {'Temp', 'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
+                        Res = getStructKey(HeaderSource, Keys);
+
+                        % Map FITS keywords to property names
+                        Metadata = struct();
+                        for i = 1:length(Keys)
+                            if isfield(Res, Keys{i})
+                                Metadata.(PropNames{i}) = Res.(Keys{i});
+                            end
+                        end
+
+                        % Calculate derived fields
+                        if isfield(Metadata, 'AirMass')
+                            Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
+                        end
+
+                        if Args.Verbose
+                            fprintf('Metadata from Cat(%d).HeaderData:\n', Iobj);
+                        end
+
+                    case 'FromHeader'
+                        % Extract from Args.Header(Iobj)
+                        Keys = {'MNTTEMP', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
+                        PropNames = {'Temp', 'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
+                        Res = getStructKey(Args.Header(Iobj), Keys);
+
+                        % Map to property names
+                        Metadata = struct();
+                        for i = 1:length(Keys)
+                            if isfield(Res, Keys{i})
+                                Metadata.(PropNames{i}) = Res.(Keys{i});
+                            end
+                        end
+
+                        % Calculate derived fields
+                        if isfield(Metadata, 'AirMass')
+                            Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
+                        end
+
+                        if Args.Verbose
+                            fprintf('Metadata from Header array (Args.Header(%d)):\n', Iobj);
+                        end
+
+                    case 'FromStruct'
+                        % Use Args.Metadata directly (single struct for all or array)
+                        if numel(Args.Metadata) == 1
+                            % Single struct - use for all subimages
+                            Metadata = Args.Metadata;
+                            if Args.Verbose
+                                fprintf('Metadata from struct (same for all):\n');
+                            end
+                        else
+                            % Array of structs - use Iobj element
+                            Metadata = Args.Metadata(Iobj);
+                            if Args.Verbose
+                                fprintf('Metadata from struct array (Args.Metadata(%d)):\n', Iobj);
+                            end
+                        end
+
+                        % Calculate derived fields if needed
+                        if isfield(Metadata, 'AirMass') && ~isfield(Metadata, 'Zenith')
+                            Metadata.Zenith = acosd(1.0 / Metadata.AirMass);
+                        end
+
+                    case 'Default'
+                        % Use default values
+                        Metadata = struct(...
+                            'AirMass', 1.2, ...
+                            'Zenith', 33.56, ...
+                            'ExpTime', 20, ...
+                            'NCoadd', 1, ...
+                            'Temp', 15, ...
+                            'Pressure', 965);
+
+                        if Args.Verbose
+                            fprintf('Using default metadata values:\n');
+                        end
+                end
+
+                % Set properties for this object
+                Obj(Iobj).setProps(Metadata);
+
+                % Extract catalog (depends on input type)
+                if IsAstroImage
+                    CurrentCat = Cat(Iobj).CatData;
+                else
+                    CurrentCat = Cat(Iobj);
+                end
+
+                % Display metadata if verbose
+                if Args.Verbose
+                    fprintf('  AirMass  = %.2f\n', Obj(Iobj).AirMass);
+                    fprintf('  Zenith   = %.2f deg\n', Obj(Iobj).Zenith);
+                    fprintf('  ExpTime  = %.1f s\n', Obj(Iobj).ExpTime);
+                    fprintf('  NCoadd   = %d\n', Obj(Iobj).NCoadd);
+                    fprintf('  Temp     = %.1f C\n', Obj(Iobj).Temp);
+                    fprintf('  Pressure = %.1f mbar\n', Obj(Iobj).Pressure);
+                end
+
+                % ----------------------------------------------------------------
+                % STEP 2.1: Build TransModel with real metadata for this subimage
+                % ----------------------------------------------------------------
+
+                % Build MetaValues from extracted metadata (use defaults for NaN values)
+                % Use class default values if metadata is missing/NaN
+                Zenith_val = Obj(Iobj).Zenith;
+                if isnan(Zenith_val)
+                    Zenith_val = 30;  % Default zenith angle [deg]
+                    if Args.Verbose
+                        fprintf('  Warning: Zenith angle is NaN, using default %.1f deg\n', Zenith_val);
                     end
                 end
-                % Build metadata values for initial model creation
-                MetaValues = struct(...
-                    'ZenithAngle_deg', Obj.Zenith, ...
-                    'Pressure_mbar', Obj.Pressure, ...
-                    'Temperature_C', Obj.Temp);
 
-                % Create new CompositeFun model (stores FunList in TransModel.Funs, OptSeq in TransModel.OptSeq)
-                Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
-                    'MetadataValues', MetaValues, ...
+                Pressure_val = Obj(Iobj).Pressure;
+                if isnan(Pressure_val)
+                    Pressure_val = 965;  % Default pressure [mbar] (from property default)
+                    if Args.Verbose
+                        fprintf('  Warning: Pressure is NaN, using default %.1f mbar\n', Pressure_val);
+                    end
+                end
+
+                Temp_val = Obj(Iobj).Temp;
+                if isnan(Temp_val)
+                    Temp_val = 15;  % Default temperature [C]
+                    if Args.Verbose
+                        fprintf('  Warning: Temperature is NaN, using default %.1f C\n', Temp_val);
+                    end
+                end
+
+                MetaValuesSubim = struct(...
+                    'ZenithAngle_deg', Zenith_val, ...
+                    'Pressure_mbar', Pressure_val, ...
+                    'Temperature_C', Temp_val);
+
+                % Build TransModel with real metadata
+                Obj(Iobj).TransModel = tools.math.fun.CompositeFun.model(FunList, ...
+                    'MetadataValues', MetaValuesSubim, ...
                     'OptimizationSequence', OptSeq, ...
                     'UseTran2D', true, ...
                     'Tran2DType', Args.Tran2DType);
 
+                % ----------------------------------------------------------------
+                % STEP 2.2: Select calibrators
+                % ----------------------------------------------------------------
+
                 if Args.Verbose
-                    fprintf('  Created new TransModel\n');
+                    fprintf('Selecting calibrators...\n');
                 end
-            else
-                % Update metadata parameters in existing model (efficient - no rebuild)
-                AllFunPar = Obj.TransModel.getAllFunPar();
 
-                % Map PhotCalibTrans property names to TransModel parameter names
-                MetadataMap = struct(...
-                    'Zenith', 'ZenithAngle_deg', ...
-                    'Pressure', 'Pressure_mbar', ...
-                    'Temp', 'Temperature_C');
+                CalData = Obj(Iobj).selectCalibrators(CurrentCat, ...
+                    'SearchRadius', Args.SearchRadius, ...
+                    'MagRange', Args.MagRange, ...
+                    'FluxIni', Args.FluxIni, ...
+                    'FluxEnd', Args.FluxEnd, ...
+                    'EFluxIni', Args.EFluxIni, ...
+                    'EFluxEnd', Args.EFluxEnd, ...
+                    'Verbose', Args.Verbose);
 
-                % Update each metadata parameter
-                MetaPropNames = fieldnames(MetadataMap);
-                for i = 1:length(MetaPropNames)
-                    PropName = MetaPropNames{i};
-                    ParamName = MetadataMap.(PropName);
+                % ----------------------------------------------------------------
+                % STEP 2.3: Fit transmission if calibrators found
+                % ----------------------------------------------------------------
 
-                    Idx = find(strcmp(AllFunPar.Name, ParamName), 1);
-                    if ~isempty(Idx)
-                        AllFunPar.Val(Idx) = Obj.(PropName);
-                        if Args.Verbose
-                            fprintf('  Updated %s = %.3f\n', ParamName, Obj.(PropName));
-                        end
+                if ~Obj(Iobj).CalFound
+                    if Args.Verbose
+                        fprintf('  No calibrators found - skipping transmission fitting.\n\n');
+                    end
+                    % Object already has CalFound = false and CalibData property set by selectCalibrators
+                    % TransModel is present but not fitted
+                    continue;
+                end
+
+                if Args.Verbose
+                    fprintf('Fitting transmission parameters...\n');
+                end
+
+                % Extract data for fitting
+                Flux = CalData.ObsData.Flux;
+                X = CalData.ObsData.X;
+                Y = CalData.ObsData.Y;
+
+                % Calculate effective exposure time (accounting for coadding)
+                ExpTime_eff = Obj(Iobj).ExpTime / Obj(Iobj).NCoadd;
+
+                % Setup CostArgs for TransmissionMode
+                CostArgs = struct(...
+                    'WeightMatrix', CalData.Spec', ...
+                    'TransmissionMode', true, ...
+                    'CalibWavelength', CalData.SpecWvl, ...
+                    'ExpTime', ExpTime_eff, ...
+                    'Aperture_area_m2', Obj(Iobj).Aperture);
+
+                % Fit transmission parameters
+                [Model, FitRes] = Obj(Iobj).TransModel.fitPar(Obj(Iobj).TransWvl, Flux, ...
+                    'X', X, 'Y', Y, ...
+                    'CostArgs', CostArgs, ...
+                    'Verbose', Args.Verbose);
+
+                % Store fitted model
+                Obj(Iobj).TransModel = Model;
+
+                if Args.Verbose
+                    fprintf('  Number of calibrators: %d\n', size(Obj(Iobj).CalibData.Spec, 1));
+                    if ~isnan(Obj(Iobj).TransModel.RMS)
+                        fprintf('  RMS: %.4f mag\n', Obj(Iobj).TransModel.RMS);
+                    end
+                    if ~isnan(Obj(Iobj).TransModel.Chi2) && ~isnan(Obj(Iobj).TransModel.DOF) && Obj(Iobj).TransModel.DOF > 0
+                        fprintf('  Chi2/DOF: %.2f / %d = %.3f\n', ...
+                                Obj(Iobj).TransModel.Chi2, Obj(Iobj).TransModel.DOF, Obj(Iobj).TransModel.Chi2/Obj(Iobj).TransModel.DOF);
                     end
                 end
 
-                % Apply updated parameters back to model
-                Obj.TransModel.setAllFunPar(AllFunPar);
+                % ----------------------------------------------------------------
+                % STEP 2.6:  Update header (AstroImage only) - TODO placeholder
+                % ----------------------------------------------------------------
+
+                if IsAstroImage
+                    % TODO: Write calibration results to Cat(Iobj).HeaderData
+                    % Keys: PH_ZP, PH_RMS, PH_NCAL, etc.
+                end
 
                 if Args.Verbose
-                    fprintf('  Updated metadata in existing TransModel\n');
+                    fprintf('\n');
                 end
             end
 
-            % Reference to model for fitting
-            Model = Obj.TransModel;
-
-            % ====================================================================
-            % STEP 2: Select calibrators 
-            % ====================================================================
-
             if Args.Verbose
-                fprintf('\nStep 2: Selecting calibrators...\n');
-            end
-
-            CalibData = Obj.selectCalibrators(Cat, ...
-                'SearchRadius', Args.SearchRadius, ...
-                'MagRange', Args.MagRange, ...
-                'Verbose', Args.Verbose);
-
-            if isempty(CalibData.Spec)
-                error('PhotCalibTrans:calibrate:NoCalibrators', ...
-                      'No calibrators found. Cannot proceed with calibration.');
-            end
-
-            % ====================================================================
-            % STEP 3: Fit transmission parameters
-            % ====================================================================
-
-            if Args.Verbose
-                fprintf('\nStep 3: Fitting transmission parameters...\n');
-            end
-
-            % Use pre-computed wavelength grids from constant properties:
-            % Lambda: Transmission wavelength grid for evaluating transmission model (300:2:1100 nm)
-            % SpecWvl: Wavelength grid where calibrator reference spectra are defined (default: Gaia DR3 XP, 336-1020 nm)
-
-            % Extract data for fitting
-            Flux = CalibData.ObsData.Flux;
-            X = CalibData.ObsData.X;
-            Y = CalibData.ObsData.Y;
-
-            % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
-
-            % Setup CostArgs for TransmissionMode
-            CostArgs = struct(...
-                'WeightMatrix', CalibData.Spec', ... % Calibrator reference spectra [N_wvl x N_cal] (transposed)
-                'TransmissionMode', true, ...
-                'CalibWavelength', Obj.SpecWvl, ...  % Wavelength grid for calibrator spectra (default: Gaia DR3 XP)
-                'ExpTime', ExpTime_eff, ...          % Effective exposure time per image [s]
-                'Aperture_area_m2', Obj.Aperture);
-
-            % Fit transmission parameters using multi-stage optimization
-            % Obj.Lambda is used to evaluate transmission and integrate predicted fluxes
-            [Model, FitRes] = Model.fitPar(Obj.Lambda, Flux, ...
-                'X', X, 'Y', Y, ...
-                'CostArgs', CostArgs, ...
-                'OptimizationSequence', OptSeq, ...
-                'Verbose', Args.Verbose);
-
-            % ====================================================================
-            % STEP 4: Store results in PhotCalibTrans object
-            % ====================================================================
-
-            if Args.Verbose
-                fprintf('\nStep 4: Storing calibration results...\n');
-            end
-
-            % Store the fitted model (RMS, Chi2, DOF stored in Model properties)
-            Obj.TransModel = Model;
-
-            if Args.Verbose
-                fprintf('  Calibration complete!\n');
-                fprintf('  Number of calibrators: %d\n', size(Obj.CalibData.Spec, 1));
-
-                % Access RMS, Chi2, DOF from TransModel
-                if ~isnan(Obj.TransModel.RMS)
-                    fprintf('  RMS: %.4f mag\n', Obj.TransModel.RMS);
-                end
-                if ~isnan(Obj.TransModel.Chi2) && ~isnan(Obj.TransModel.DOF) && Obj.TransModel.DOF > 0
-                    fprintf('  Chi2/DOF: %.2f / %d = %.3f\n', ...
-                            Obj.TransModel.Chi2, Obj.TransModel.DOF, Obj.TransModel.Chi2/Obj.TransModel.DOF);
-                end
-                fprintf('\n=== Calibration Complete ===\n\n');
+                fprintf('=== Calibration Complete ===\n');
+                fprintf('Processed %d object(s)\n', Nobj);
+                fprintf('Successful: %d\n', sum([Obj.CalFound]));
+                fprintf('Failed (no calibrators): %d\n\n', sum(~[Obj.CalFound]));
             end
         end
 
@@ -433,13 +609,17 @@ classdef PhotCalibTrans < Component
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
             %            'FluxColName' - Flux column name to compare with. Default is 'FLUX_APER_3'.
+            %            'FluxIni' - Start column index for calibrator spectra flux values. Default is 7.
+            %            'FluxEnd' - End column index for calibrator spectra flux values. Default is 349.
+            %            'EFluxIni' - Start column index for calibrator spectra flux errors. Default is 350.
+            %            'EFluxEnd' - End column index for calibrator spectra flux errors. Default is 692.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - CalibData - Structure with calibrator data:
-            %                        .Spec - Calibrator reference spectra [N x WvlPoints]
-            %                        .SpecErr - Calibrator spectra errors [N x WvlPoints]
-            %                        .Lambda - Wavelength grid [nm]
+            %                        .SpecWvl - Wavelength grid for calibrator spectra [nm] [N_wvl x 1]
+            %                        .Spec - Calibrator reference spectra [N_calib x N_wvl]
+            %                        .SpecErr - Calibrator spectra errors [N_calib x N_wvl]
             %                        .ObsData - Structure with observed catalog data (e.g., LAST):
-            %                          .Flux, .FluxErr, .X, .Y, .RA, .Dec  
+            %                          .Flux, .FluxErr, .X, .Y, .RA, .Dec
             %                        .CalData - Structure with calibrator data:
             %                          .RA, .Dec
             %                        .MatchDistance - Matching distance [arcsec]
@@ -459,15 +639,13 @@ classdef PhotCalibTrans < Component
                 Args.MaxSN = 1000
                 Args.FilterBadFlags logical = true
                 Args.FluxColName = 'FLUX_APER_3'
+                Args.FluxIni = 7      % Start column index for calibrator spectra flux
+                Args.FluxEnd = 349    % End column index for calibrator spectra flux
+                Args.EFluxIni = 350   % Start column index for calibrator spectra flux errors
+                Args.EFluxEnd = 692   % End column index for calibrator spectra flux errors
                 Args.Verbose logical = true
             end
 
-            % Constants for calibrator spectra columns (for GAIADR3spec catalog)
-            FluxIni = 7;      % Start of flux values
-            FluxEnd = 349;    % End of flux values
-            EFluxIni = 350;   % Start of flux errors
-            EFluxEnd = 692;   % End of flux errors
-  
             RAD = constant.RAD;  % Conversion factor
 
             % ====================================================================
@@ -543,7 +721,7 @@ classdef PhotCalibTrans < Component
             % STEP 3: MATCH WITH CALIBRATOR CATALOG
             % ====================================================================
 
-            % Match with calibrator catalog using imProc.match.match_catsHTM (default: GAIADR3spec)
+            % Match with calibrator catalog (default: GAIADR3spec)
             % Use filtered Tab directly - RA/Dec in degrees, pass as degrees
             if Args.Verbose
                 fprintf('  Matching %d filtered sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
@@ -585,9 +763,11 @@ classdef PhotCalibTrans < Component
             if isempty(idxObsMatched_Full)
                 warning('PhotCalibTrans:selectCalibrators:NoMatches', ...
                         'No calibrator matches found within %.1f arcsec for filtered sources', Args.SearchRadius);
-                CalibData = struct('Spec', [], 'SpecErr', [], ...
+                CalibData = struct('SpecWvl', [], 'Spec', [], 'SpecErr', [], ...
                                    'ObsData', [], 'CalData', [], ...
                                    'MatchDistance', [], 'NumMatches', []);
+                Obj.CalibData = CalibData;
+                Obj.CalFound = false;
                 return;
             end
 
@@ -607,8 +787,8 @@ classdef PhotCalibTrans < Component
 
             % Extract calibrator spectra (CalTab is already a matrix from Catalog)
             % Convert to double (catsHTM stores Gaia data as single for memory efficiency)
-            SpecFlux = double(CalTab(:, FluxIni:FluxEnd));      % [N x 343]
-            SpecErr = double(CalTab(:, EFluxIni:EFluxEnd));     % [N x 343]
+            SpecFlux = double(CalTab(:, Args.FluxIni:Args.FluxEnd));      % [N x 343]
+            SpecErr = double(CalTab(:, Args.EFluxIni:Args.EFluxEnd));     % [N x 343]
 
             % Extract coordinates
             Cal_RA = double(CalTab(:, 1)) * RAD;   % rad -> deg
@@ -647,6 +827,12 @@ classdef PhotCalibTrans < Component
             % ====================================================================
 
             CalibData = struct();
+
+            % Determine wavelength grid for calibrator spectra
+            % Default: Gaia DR3 XP wavelength grid (336:2:1020 nm, 343 points)
+            % TODO: Add logic to read SpecWvl from catalog if different calibrator source is used
+            CalibData.SpecWvl = (336:2:1020)';   % [N_wvl x 1]
+
             CalibData.Spec = SpecFlux;           % [N_calib x N_wvl]
             CalibData.SpecErr = SpecErr;         % [N_calib x N_wvl]
 
@@ -670,6 +856,7 @@ classdef PhotCalibTrans < Component
 
             % Store calibrator data in object
             Obj.CalibData = CalibData;
+            Obj.CalFound = true;
 
             if Args.Verbose
                 fprintf('Calibrator selection complete: %d matched calibrators.\n\n', Nmatch);
@@ -682,14 +869,14 @@ classdef PhotCalibTrans < Component
             % Evaluate transmission at specific positions (with position-dependent corrections)
             % Input  : - Obj - PhotCalibTrans object
             %          * ...,key,val,...
-            %            'Lambda' - Wavelength grid [nm] [N_lambda x 1]. Default is Obj.Lambda (constant property).
+            %            'Lambda' - Wavelength grid [nm] [N_lambda x 1]. Default is Obj.TransWvl (constant property).
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
             % Output : - Trans - Transmission values [N_pos x N_lambda] or [N_lambda x 1]
             %                    If X, Y provided: matrix where Trans(i,j) = transmission for position i at wavelength j
             %                    If X, Y empty: vector of base transmission at field center
             % Author : D. Kovaleva (Dec 2025)
-            % Example: Trans = PC.evaluateTransmission();  % Base transmission at field center using Obj.Lambda
+            % Example: Trans = PC.evaluateTransmission();  % Transmission at field center using Obj.TransWvl
             %          Trans = PC.evaluateTransmission('Lambda', CustomLambda, 'X', X, 'Y', Y);
 
             arguments
@@ -699,15 +886,22 @@ classdef PhotCalibTrans < Component
                 Args.Y = []
             end
 
+            % Check if calibration was performed
+            if ~Obj.CalFound
+                error('PhotCalibTrans:evaluateTransmission:NoCalibration', ...
+                    'No calibrators found during calibration. Cannot evaluate transmission.');
+            end
+
             % Use default Lambda if not provided
             if isempty(Args.Lambda)
-                Lambda = Obj.Lambda;
+                Lambda = Obj.TransWvl;
             else
                 Lambda = Args.Lambda;
             end
 
             if isempty(Obj.TransModel)
-                error('PhotCalibTrans:evaluateTransmission:NoModel', 'TransModel is not available');
+                error('PhotCalibTrans:evaluateTransmission:NoModel', ...
+                    'TransModel is not available. Run calibrate() first.');
             end
 
             Lambda = Lambda(:);  % Ensure column vector
@@ -759,7 +953,7 @@ classdef PhotCalibTrans < Component
             % Formula: ZP = 2.5*log10(ExpTime_eff * Area * Integral(Trans * Fnu * Lambda * dLambda) / (h*c))
             % where ExpTime_eff = EXPTIME/NCOADD (effective exposure time per image)
             %       Fnu is the AB system flux density (constant for flat spectrum)
-            %       Lambda is Obj.Lambda constant property (300:2:1100 nm)
+            %       Lambda is Obj.TransWvl constant property (300:2:1100 nm)
 
             arguments
                 Obj
@@ -767,16 +961,19 @@ classdef PhotCalibTrans < Component
                 Args.Y = []
             end
 
+            % Check if calibration was performed
+            if ~Obj.CalFound
+                error('PhotCalibTrans:evaluateZP:NoCalibration', ...
+                    'No calibrators found during calibration. Cannot evaluate zero point.');
+            end
+
             % Use constant wavelength grid
-            Lambda = Obj.Lambda;
+            Lambda = Obj.TransWvl;
 
             % Check that calibration has been performed
             if isnan(Obj.ExpTime) || isnan(Obj.NCoadd)
                 error('PhotCalibTrans:evaluateZP:NoMetadata', 'ExpTime and NCoadd must be set. Run calibrate() first.');
             end
-
-            % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
 
             % Evaluate transmission at positions (or field center if X, Y empty)
             % Trans is [N_lambda x 1] if no positions, or [N_pos x N_lambda] if positions provided
@@ -788,8 +985,7 @@ classdef PhotCalibTrans < Component
 
             % Physical constants
             H = constant.h('SI');  % Planck constant [J·s]
-            C = constant.c('SI');  % Speed of light [m/s]
-            B = H * C * 1e9;       % H*C with nm to m conversion
+            B = H;  % For zero-point: B = H (not H*C as in flux conversion)
 
             % Ensure Trans is 2D matrix for consistent handling
             if isvector(Trans)
@@ -802,13 +998,13 @@ classdef PhotCalibTrans < Component
             SpecTrans = Trans .* FlatSpectrum';  % [N_pos x N_lambda]
 
             % Multiply by Lambda for integration
-            Integrand = SpecTrans .* Lambda';  % [N_pos x N_lambda]
+            Integrand = SpecTrans ./ Lambda';  % [N_pos x N_lambda]
 
             % Integrate along wavelength dimension (dim=2) for each position
             A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % [N_pos x 1]
 
             % Calculate zero-point flux for all positions
-            TotalFlux_ZP = ExpTime_eff * Obj.Aperture * A / B;  % [N_pos x 1]
+            TotalFlux_ZP = Obj.Aperture * A / B;  % [N_pos x 1]
 
             % Convert to magnitude
             ZP = 2.5 * log10(TotalFlux_ZP);  % [N_pos x 1]
@@ -819,65 +1015,65 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function [MagAB, MagABErr] = evaluateMag(Obj, MagInst, Args)
-            % Evaluate calibrated AB magnitudes from instrumental magnitudes
+        function [MagAB, MagABErr] = evaluateMag(Obj, Flux, Args)
+            % Evaluate calibrated AB magnitudes from observed flux
             % Input  : - Obj - PhotCalibTrans object
-            %          - MagInst - Instrumental magnitudes [N x 1]
+            %          - Flux - Observed flux values [photons] [N x 1]
             %          * ...,key,val,...
             %            'X' - X coordinates [N x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N x 1]. Default is [] (field center).
-            %            'MagInstErr' - Instrumental magnitude errors [N x 1]. Default is [].
+            %            'MagErr' - Magnitude errors [N x 1]. Default is [].
             % Output : - MagAB - Calibrated AB magnitudes [N x 1]
             %          - MagABErr - Calibrated AB magnitude errors [N x 1] (optional)
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: MagAB = PC.evaluateMag(MagInst);
-            %          [MagAB, MagABErr] = PC.evaluateMag(MagInst, 'X', X, 'Y', Y, 'MagInstErr', MagErr);
-            % Description: Converts instrumental magnitudes to calibrated AB magnitudes.
-            %              Mag_AB = Mag_inst + ZP
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: MagAB = PC.evaluateMag(Flux);
+            %          [MagAB, MagABErr] = PC.evaluateMag(Flux, 'X', X, 'Y', Y, 'MagErr', MagErr);
+            % Description: Converts observed flux to calibrated AB magnitudes.
+            %              MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
             %              Uses evaluateZP to calculate position-dependent zero points.
-            %              Uses Obj.Lambda constant property for wavelength grid.
-            %              Error propagation: MagErr_AB = sqrt(MagErr_inst^2 + ZP_Err^2)
+            %              Errors are provided directly (e.g., from MAGERR columns).
 
             arguments
                 Obj
-                MagInst              % Instrumental magnitudes [N x 1]
+                Flux                 % Observed flux [photons] [N x 1]
                 Args.X = []          % X coordinates [N x 1]
                 Args.Y = []          % Y coordinates [N x 1]
-                Args.MagInstErr = [] % Instrumental magnitude errors [N x 1]
+                Args.MagErr = []     % Magnitude errors [N x 1]
             end
 
+            % Check if calibration was performed
+            if ~Obj.CalFound
+                error('PhotCalibTrans:evaluateMag:NoCalibration', ...
+                    'No calibrators found during calibration. Cannot evaluate magnitudes.');
+            end
+
+            % Calculate effective exposure time (accounting for coadding)
+            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+
             % Ensure column vectors
-            MagInst = MagInst(:);
+            Flux = Flux(:);
 
             % Calculate ZP at positions (or field center if X, Y empty)
             ZP = Obj.evaluateZP('X', Args.X, 'Y', Args.Y);
 
-            % Apply ZP to get calibrated magnitudes
-            % Mag_AB = Mag_inst + ZP
+            % Calculate calibrated AB magnitudes
+            % MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
+            MagInst = -2.5 * log10(Flux / ExpTime_eff);
+
             if isscalar(ZP)
                 MagAB = MagInst + ZP;
             else
                 MagAB = MagInst + ZP(:);
             end
 
-            % Calculate calibrated magnitude errors if requested
+            % Return magnitude errors if requested
             if nargout > 1
-                if isempty(Args.MagInstErr)
-                    % No instrumental errors provided
+                if isempty(Args.MagErr)
+                    % No errors provided
                     MagABErr = [];
                 else
-                    MagInstErr = Args.MagInstErr(:);
-
-                    % Estimate ZP uncertainty from RMS if available
-                    NumCalib = size(Obj.CalibData.Spec, 1);
-                    if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && NumCalib > 0
-                        ZP_Err = Obj.TransModel.RMS / sqrt(NumCalib);
-                    else
-                        ZP_Err = 0;
-                    end
-
-                    % Error propagation: MagErr_AB = sqrt(MagErr_inst^2 + ZP_Err^2)
-                    MagABErr = sqrt(MagInstErr.^2 + ZP_Err^2);
+                    % Use provided magnitude errors directly
+                    MagABErr = Args.MagErr(:);
                 end
             end
         end
@@ -912,33 +1108,28 @@ classdef PhotCalibTrans < Component
 
     methods % Catalog operations
         function CatObj = addMagAB(Obj, CatObj, Args)
-            % Add calibrated AB magnitude (and optionally error) columns to catalog
+            % Add calibrated AB magnitude columns to catalog
             % Input  : - Obj - PhotCalibTrans object
-            %          - CatObj - AstroCatalog object with instrumental magnitudes
+            %          - CatObj - AstroCatalog object with flux measurements
             %          * ...,key,val,...
-            %            'MagColNames' - Instrumental magnitude column names. Default is all MAG_* columns.
-            %            'NewColSuffix' - Suffix for new calibrated columns. Default is '_AB'.
+            %            'FluxColNames' - Flux column names to calibrate. Default is all FLUX_* columns.
             %            'ApplyPosCorrection' - Apply position-dependent corrections. Default is true.
-            %            'AddErrors' - Also add calibrated magnitude error columns. Default is true.
             % Output : - CatObj - AstroCatalog with added calibrated AB magnitude columns
-            %                     (e.g., MAG_APER_1 → MAG_APER_1_AB)
-            %                     and optionally error columns (e.g., MAGERR_APER_1 → MAGERR_APER_1_AB)
-            % Author : D. Kovaleva (Dec 2025)
+            %                     (e.g., FLUX_APER_3 → MAG_AB_APER_3, FLUX_PSF → MAG_AB_PSF)
+            % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addMagAB(Cat);
-            %          Cat = PC.addMagAB(Cat, 'NewColSuffix', '_CAL', 'AddErrors', false);
-            % Description: Creates new columns with calibrated AB magnitudes = instrumental + ZP.
-            %              If AddErrors=true, also creates error columns with error propagation:
-            %              MagErr_AB = sqrt(MagErr_inst^2 + ZP_Err^2).
-            %              Preserves original instrumental magnitude and error columns.
+            %          Cat = PC.addMagAB(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
+            % Description: Creates new columns with calibrated AB magnitudes from flux measurements.
+            %              Formula: MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
+            %              For each FLUX_<something> column, creates MAG_AB_<something> column.
+            %              Preserves original flux columns.
             %              Applies position-dependent corrections if available.
 
             arguments
                 Obj
                 CatObj
-                Args.MagColNames = []
-                Args.NewColSuffix = '_AB'
+                Args.FluxColNames = []
                 Args.ApplyPosCorrection logical = true
-                Args.AddErrors logical = true
             end
 
             % Validate inputs
@@ -958,30 +1149,30 @@ classdef PhotCalibTrans < Component
                 return;
             end
 
-            % Determine which magnitude columns to calibrate
+            % Determine which flux columns to calibrate
             AllColNames = Tab.Properties.VariableNames;
-            if isempty(Args.MagColNames)
-                % Find all magnitude columns (MAG_*)
-                MagColNames = AllColNames(startsWith(AllColNames, 'MAG_'));
+            if isempty(Args.FluxColNames)
+                % Find all flux columns (FLUX_*)
+                FluxColNames = AllColNames(startsWith(AllColNames, 'FLUX_'));
             else
                 % Use specified columns
-                if ischar(Args.MagColNames)
-                    MagColNames = {Args.MagColNames};
+                if ischar(Args.FluxColNames)
+                    FluxColNames = {Args.FluxColNames};
                 else
-                    MagColNames = Args.MagColNames;
+                    FluxColNames = Args.FluxColNames;
                 end
 
                 % Verify columns exist
-                for i = 1:length(MagColNames)
-                    if ~ismember(MagColNames{i}, AllColNames)
+                for i = 1:length(FluxColNames)
+                    if ~ismember(FluxColNames{i}, AllColNames)
                         error('PhotCalibTrans:addMagAB:ColumnNotFound', ...
-                              'Column %s not found in catalog', MagColNames{i});
+                              'Column %s not found in catalog', FluxColNames{i});
                     end
                 end
             end
 
-            if isempty(MagColNames)
-                warning('PhotCalibTrans:addMagAB:NoMagCols', 'No magnitude columns found in catalog.');
+            if isempty(FluxColNames)
+                warning('PhotCalibTrans:addMagAB:NoFluxCols', 'No FLUX_* columns found in catalog.');
                 return;
             end
 
@@ -998,47 +1189,24 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Process each magnitude column
-            for i = 1:length(MagColNames)
-                MagColName = MagColNames{i};
+            % Process each flux column
+            for i = 1:length(FluxColNames)
+                FluxColName = FluxColNames{i};
 
-                % Get instrumental magnitudes
-                MagInst = Tab.(MagColName);
+                % Get flux values [photons]
+                Flux = Tab.(FluxColName);
 
-                % Find corresponding error column
-                ErrColName = strrep(MagColName, 'MAG_', 'MAGERR_');
-                if ~ismember(ErrColName, AllColNames)
-                    ErrColName = [];
-                end
+                % Calculate calibrated AB magnitudes from flux
+                % MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
+                MagAB = Obj.evaluateMag(Flux, 'X', X, 'Y', Y);
 
-                % Get instrumental magnitude errors if available and needed
-                MagInstErr = [];
-                if Args.AddErrors && ~isempty(ErrColName)
-                    MagInstErr = Tab.(ErrColName);
-                end
+                % Create new calibrated magnitude column name
+                % FLUX_APER_3 → MAG_AB_APER_3
+                % FLUX_PSF → MAG_AB_PSF
+                NewMagColName = strrep(FluxColName, 'FLUX_', 'MAG_AB_');
 
-                % Calculate calibrated AB magnitudes
-                if Args.AddErrors && ~isempty(MagInstErr)
-                    % Call evaluateMag to get both magnitude and error
-                    [MagAB, MagABErr] = Obj.evaluateMag(MagInst, ...
-                                                        'X', X, 'Y', Y, ...
-                                                        'MagInstErr', MagInstErr);
-                else
-                    % Call evaluateMag to get only magnitude
-                    MagAB = Obj.evaluateMag(MagInst, 'X', X, 'Y', Y);
-                end
-
-                % Create new column name and insert into catalog
-                NewMagColName = [MagColName, Args.NewColSuffix];
-                Tab.(NewMagColName) = MagAB;  % Also update Tab for reference
+                % Insert column into catalog
                 CatObj = CatObj.insertCol(MagAB, Inf, {NewMagColName});
-
-                % Add calibrated magnitude error column if requested and available
-                if Args.AddErrors && exist('MagABErr', 'var') && ~isempty(MagABErr)
-                    NewErrColName = [ErrColName, Args.NewColSuffix];
-                    Tab.(NewErrColName) = MagABErr;
-                    CatObj = CatObj.insertCol(MagABErr, Inf, {NewErrColName});
-                end
             end
 
             % Note: New columns were inserted using insertCol within the loop above
@@ -1103,52 +1271,7 @@ classdef PhotCalibTrans < Component
         end
     end
 
-   %{
-     function saveTransmission(Obj, Filename, Args)
-             % Save base transmission to file
-            % Input  : - Obj - PhotCalibTrans object
-            %          - Filename - Output filename
-            %          * ...,key,val,...
-            %            'WvlRange_nm' - Wavelength range [min max] [nm]. Default is [300, 1100].
-            %            'WvlStep_nm' - Wavelength step [nm]. Default is 1.
-            %            'Format' - Output format: 'ascii' or 'mat'. Default is 'ascii'.
-            % Output : None (writes file)
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: PC.saveTransmission('transmission.txt');
-            %          PC.saveTransmission('trans.mat', 'Format', 'mat');
-
-            arguments
-                Obj
-                Filename
-                Args.WvlRange_nm = [300, 1100]
-                Args.WvlStep_nm = 1
-                Args.Format = 'ascii'
-            end
-
-            % Create wavelength grid and compute transmission
-            Lambda = (Args.WvlRange_nm(1):Args.WvlStep_nm:Args.WvlRange_nm(2))';
-            Trans = Obj.evaluateTransmission('Lambda', Lambda);
-
-            % Store in object
-            Obj.TransFile = Filename;
-            Obj.TransWvl = Lambda;
-            Obj.TransValues = Trans;
-
-            % Write to file
-            switch lower(Args.Format)
-                case 'ascii'
-                    % Write as ASCII table: wavelength [nm], transmission
-                    Data = [Lambda(:), Trans(:)];
-                    writematrix(Data, Filename, 'Delimiter', ' ');
-                case 'mat'
-                    % Save as MATLAB file
-                    save(Filename, 'Lambda', 'Trans');
-                otherwise
-                    error('PhotCalibTrans:saveTransmission:InvalidFormat', 'Format must be ''ascii'' or ''mat''');
-            end
-        end
- %}
-        
+    
     methods % Plotting methods
         function Fig = plotTransmission(Obj, Args)
             % Plot transmission curve vs wavelength
@@ -1158,7 +1281,7 @@ classdef PhotCalibTrans < Component
             % Output : - Fig - Figure handle
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotTransmission();
-            % Description: Uses Obj.Lambda (300:2:1100 nm, 401 points) for transmission evaluation.
+            % Description: Uses Obj.TransWvl (300:2:1100 nm, 401 points) for transmission evaluation.
 
             arguments
                 Obj
@@ -1170,7 +1293,7 @@ classdef PhotCalibTrans < Component
             end
 
             % Evaluate transmission using constant wavelength grid
-            Trans = Obj.evaluateTransmission(Obj.Lambda);
+            Trans = Obj.evaluateTransmission('Lambda', Obj.TransWvl);
 
             % Create figure
             if Args.NewFigure
@@ -1180,7 +1303,7 @@ classdef PhotCalibTrans < Component
             end
 
             % Plot transmission curve
-            plot(Obj.Lambda, Trans, 'LineWidth', 2);
+            plot(Obj.TransWvl, Trans, 'LineWidth', 2);
             grid on;
             xlabel('Wavelength [nm]');
             ylabel('Transmission');
@@ -1302,7 +1425,7 @@ classdef PhotCalibTrans < Component
             % Example: PC.plotZPMap();
             % Description: Shows position-dependent ZP corrections across the field.
             %              Requires TransModel with Tran2D position corrections.
-            %              Uses Obj.Lambda (300:2:1100 nm, 401 points) for ZP calculation.
+            %              Uses Obj.TransWvl (300:2:1100 nm, 401 points) for ZP calculation.
 
             arguments
                 Obj

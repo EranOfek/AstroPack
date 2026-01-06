@@ -1,6 +1,6 @@
 classdef CompositeFun < handle
     % This class provides a unified interface for combining multiple functions 
-    % (and, possibly, Tran2D object for position-dependent component)
+    % (and, possibly, Tran2D object for position-dependent component and the sequence of optimization for transmission parameters)
     % with parameter mapping and optimization support. 
     %
     % Author : D. Kovaleva (Oct 2025 - Dec 2025)
@@ -82,9 +82,9 @@ classdef CompositeFun < handle
        Model.setAllFunPar(AllFunPar);  % Handle class - modifies in place
     
       % Example - Pre-calculation and Evaluation:
-       % Use pre-defined wavelength grid constant
-       Lambda = Model.Lambda;  % (300:2:1100)' nm, 401 points
-    
+       % Define wavelength grid for evaluation
+       Lambda = (300:2:1100)';  % Transmission wavelength grid [nm], 401 points
+
        % Pre-calculate functions with fixed parameters (after setting fit flags)
        Model.preCalc(Lambda);
     
@@ -201,9 +201,9 @@ classdef CompositeFun < handle
            'X', X, 'Y', Y);
     
        % Transmission mode with spectra (for photometric calibration)
-       Lambda = Model.Lambda;   % Transmission wavelength grid (300:2:1100)' nm
-       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid (336:2:1020)' nm
-       Spec = randn(343, 3);  % Simulated calibrator spectra [N_CalibWvl x N_calib] (default: Gaia DR3 XP)
+       Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
+       SpecWvl = (336:2:1020)';  % Calibrator spectra wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
+       Spec = randn(343, 3);  % Simulated calibrator spectra [N_CalibWvl x N_calib]
        ObsFlux = [1e5; 2e5; 1.5e5];  % Observed photon counts
        X = [500; 1000; 1500];  % Pixel coordinates
        Y = [500; 1000; 1500];
@@ -251,8 +251,8 @@ classdef CompositeFun < handle
        Model.addTran2D(T2D, 'X_ref', 863, 'Y_ref', 863);
     
        % Prepare calibration data
-       Lambda = Model.Lambda;   % Transmission wavelength grid [nm] (300:2:1100)'
-       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid [nm] (336:2:1020)'
+       Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
+       SpecWvl = (336:2:1020)';  % Calibrator spectra wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
        N_calib = 20;
        % Generate synthetic spectra with varying spectral indices
         Spec = zeros(343, N_calib);
@@ -304,8 +304,8 @@ classdef CompositeFun < handle
        OptSeq(2).Description = 'Position-dependent field correction';
     
        % Prepare calibration data (same as above)
-       Lambda = Model.Lambda;   % Transmission wavelength grid [nm] (300:2:1100)'
-       SpecWvl = Model.SpecWvl; % Calibrator spectra wavelength grid [nm] (336:2:1020)'
+       Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
+       SpecWvl = (336:2:1020)';  % Calibrator spectra wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
        N_calib = 20;
        Spec = zeros(343, N_calib);
        for i = 1:N_calib
@@ -446,12 +446,6 @@ classdef CompositeFun < handle
         DOF = NaN                % Degrees of freedom from last fit
     end
 
-    properties (Constant, Hidden)
-        % Wavelength grids (2 nm step) - used for transmission-based calibration
-        Lambda = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
-        SpecWvl = (336:2:1020)'     % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP, 343 points)
-    end
-
     methods % Constructor
         function Obj = CompositeFun()
             % Constructor for CompositeFun
@@ -479,6 +473,8 @@ classdef CompositeFun < handle
             %          * ...,key,val,...
             %            'MetadataValues' - Struct with metadata name-value pairs to inject
             %                   Default is struct().
+            %            'OptimizationSequence' - Optimization sequence struct array defining multi-stage fitting.
+            %                   Default is [] (no optimization sequence set).
             %            'UseTran2D' - Enable position-dependent corrections using Tran2D
             %                   Default is false.
             %            'Tran2DType' - Tran2D transformation type (e.g., 'cheby1_4_xt')
@@ -505,6 +501,7 @@ classdef CompositeFun < handle
             arguments
                 FunList struct
                 Args.MetadataValues struct = struct()
+                Args.OptimizationSequence = []
                 Args.UseTran2D logical = false
                 Args.Tran2DType = 'cheby1_4_xt'
                 Args.XPixel = 1726
@@ -666,6 +663,14 @@ classdef CompositeFun < handle
                 if Args.Verbose
                     fprintf('Tran2D added: %s (%d parameters)\n', Args.Tran2DType, Nparams);
                     fprintf('Field center: (%.1f, %.1f)\n', X_center, Y_center);
+                end
+            end
+
+            % Set optimization sequence if provided
+            if ~isempty(Args.OptimizationSequence)
+                Obj.OptSeq = Args.OptimizationSequence;
+                if Args.Verbose
+                    fprintf('Optimization sequence set: %d stages\n', length(Args.OptimizationSequence));
                 end
             end
 
@@ -1283,7 +1288,7 @@ classdef CompositeFun < handle
                           length(CurrentFun.ArgNames), NumParams, CurrentFun.Name);
                 end
 
-                % Get parameter name (now stored in Description field)
+                % Get parameter name (stored in Description field)
                 ParamName = CurrentFun.ArgNames(Ipar).Description;
 
                 % Check if parameter exists in global list
@@ -1967,9 +1972,9 @@ classdef CompositeFun < handle
             %          % TransmissionMode with calibrator spectra (photometric calibration)
             %          % This mode integrates transmission×spectrum, converts to photons,
             %          % and returns magnitude residuals: DeltaMag = 2.5*log10(Pred/Obs)
-            %          Lambda = Model.Lambda;   % Transmission wavelength grid [nm]
-            %          SpecWvl = Model.SpecWvl; % Calibrator spectral wavelength grid [nm]
-            %          % Use calibrator spectra (default: Gaia DR3 XP, or synthetic/model spectra)
+            %          Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
+            %          SpecWvl = (336:2:1020)';  % Calibrator spectral wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
+            %          % Use calibrator spectra (e.g., Gaia DR3 XP, or synthetic/model spectra)
             %          Spec = randn(343, 3) * 1e-17 + 1e-16;  % Calibrator spectra [343 x 3]
             %          ObsFlux = [1.2e5; 2.5e5; 1.8e5];  % Observed photon counts [3 x 1]
             %          X = [200; 863; 1500];  % Source positions [pixels]

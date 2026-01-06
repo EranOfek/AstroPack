@@ -55,7 +55,7 @@ function [Result] = transmissionZP_testN3(Args)
 
         % Create PhotCalibTrans object and perform calibration
         PC = PhotCalibTrans();
-        PC.calibrate(AI);
+        PC = PC.calibrate(AI);
 
         % Add calibrated AB magnitudes to catalog
         AI.CatData = PC.addMagAB(AI.CatData);
