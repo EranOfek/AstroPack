@@ -18,14 +18,18 @@ function [Result] = copyFileOverNFS(FileNames, RemoteDirName, Args)
         FileNames
         RemoteDirName
         Args.RemoteUser        = [];
-        Args.LocalDirName      = '.';
+        Args.LocalDirName      = [];
         Args.RemoveOrigin      = false;
         Args.MakeRemoteDir     = true;
     end
     %
     FN = '';
     for IFiles = 1:numel(FileNames)
-        NewName = sprintf('%s/%s ',Args.LocalDirName,FileNames{IFiles});
+        if ~isempty(Args.LocalDirName)
+            NewName = sprintf('%s/%s ',Args.LocalDirName,FileNames{IFiles});
+        else
+            NewName = sprintf('%s ',FileNames{IFiles});
+        end
         FN = strcat(FN," ",NewName);
     end
     if Args.MakeRemoteDir
