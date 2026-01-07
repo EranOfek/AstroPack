@@ -140,7 +140,13 @@ mxArray* convert_blocks_to_struct_array(const std::vector<Block>& blocks) {
                 if (mxIsCell(arr)) {
                     val = mxGetCell(arr, r);
                     // Increase ref count because mxSetField takes ownership
-                    mxSetField(result, destRow + r, fieldNames[c].c_str(), val);
+
+                    // Following the advice of Mark Zitnik, this line:
+                    // mxSetField(result, destRow + r, fieldNames[c].c_str(), val);
+                    // was changed for these two lines:
+                    mxArray* valCopy = mxDuplicateArray(val); // Create a copy! 
+                    mxSetField(result, destRow + r, fieldNames[c].c_str(), valCopy); 
+
                     // Do NOT destroy val, it's now owned by result
                 } else {                    
                     if (mxGetNumberOfElements(arr) == nRows) {
