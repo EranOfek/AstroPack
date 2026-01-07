@@ -149,6 +149,7 @@ classdef TopCat < Base
             %                   to search for Tap URL.
             %                   Default is [].
             %            'Ofmt' - Format. Default is 'csv'.
+            %            'WorkDir' - (string) directory for temp files. Default: tempdir
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             %            'JarFile' - Jar file full path.
             %                   Default is VO.TopCat.getStiltsJarPath()
@@ -169,6 +170,7 @@ classdef TopCat < Base
                 Args.TapUrl     = [];   % []|'select' | or url
                 Args.TapName    = [];
                 Args.Ofmt       = 'csv';
+                Args.WorkDir string = string(tempdir);
                 Args.TimeoutSec = 600;
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
             end
@@ -213,9 +215,9 @@ classdef TopCat < Base
 
             switch lower(Args.Method)
                 case 'java'
-                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec, 'WorkDir',Args.WorkDir);
                 case 'http'
-                    T = VO.TopCat.queryHttp(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec);
+                    T = VO.TopCat.queryHttp(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec); % , 'WorkDir',Args.WorkDir);
                 otherwise
                     error('Unknown Method option');
             end
