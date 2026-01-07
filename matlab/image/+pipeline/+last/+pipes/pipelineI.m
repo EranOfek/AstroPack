@@ -68,7 +68,6 @@ function pipelineI(RawImageList, CI, Args)
     if isempty(Args.EdgesCCDSEC)
         SizeXY = fliplr(size(AI(1).ImageData.Data));
         [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
-        someting not right?!
     end
     AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap);  % 8.9s
     
