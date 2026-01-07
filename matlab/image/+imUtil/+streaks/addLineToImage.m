@@ -1,4 +1,4 @@
-function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature)
+function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
     % One line description
     %     Optional detailed description
     % Input  : - Image:     2D matrix (original image)
@@ -13,6 +13,11 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature)
     %          - Curvature of line measured in units of maximum deviation
     %            from a straight line. Negative number means curved downward.
     %            Default is 0.
+    %          * ...,key,val,...
+    %            'Norm' - one of the following normalization options:
+    %                   'None' - Default.
+    %                   'LxI' - (Conserve flux) Normalize the line intensity such that its
+    %                           integral equal to Length X Intensity.
     % Output : - Output image.
     % Author : Eran Ofek (2025 Jul) 
     % Example: Out=imUtil.streaks.addLineToImage(Image,[10 50 20 40],10,imUtil.kernel2.gauss(3));
@@ -24,6 +29,7 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature)
         Intensity         = 1;
         PSF               = [];
         Curvature         = 0;
+        Args.Norm         = 'none';
     end
 
     % Copy image to output
@@ -53,6 +59,19 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature)
     
         % Add intensity to the line pixels
         Indices = sub2ind(size(Image), Y, X);
+
+        switch lower(Args.Norm)
+            case 'none'
+                % do nothing
+            case 'lxi'
+                % noramlzie by Length X Intensity
+                % conserve flux
+                Length = sqrt((MinX-MaxX).^2 + (MinY-MaxY).^2);
+                Intensity(I) = Length./numel(Indices);
+
+            otherwise
+                error('Unknown Norm option');
+        end
         OutImage(Indices) = OutImage(Indices) + Intensity(I);
     end
 
