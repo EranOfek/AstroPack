@@ -1,6 +1,6 @@
 function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
     % Rayleigh transmission of the Earth atmosphere
-    % Input  : - Lambda (double array): Wavelength array in nm.
+    % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %            If GetArgNames flag is true, returns ArgNames structure for parameters.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
     %            [ZenithAngle_deg, Pressure_mbar].
@@ -10,9 +10,9 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
     % Output : - Result (double matrix): Transmission matrix (wavelengths x parameter_sets)
     %            OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
-    % Example: 
+    % Example:
     %   % Basic usage:
-    %   Lambda = linspace(300, 1100, 401)';
+    %   Lambda = linspace(3000, 11000, 401)';
     %   ParamMatrix = [45, 1013; 60, 950; 30, 1020];  % Multiple parameter sets
     %   Result = astro.transmission.rayleighTransmission(Lambda, ParamMatrix);
     %
@@ -26,7 +26,7 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
     %   Model.addFun('Rayleigh scattering', @astro.transmission.rayleighTransmission, [], 'Par', [45, 1013]);
 
     arguments
-        Lambda      = linspace(300, 1100, 401)'
+        Lambda      = linspace(3000, 11000, 401)'
         ParamMatrix = [30, 965]               % [ZenithAngle_deg, Pressure_mbar]
         Args.AbsorptionData = []
         Args.Return = []
@@ -88,7 +88,7 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
         Am_rayleigh = Airmasses.rayleigh;
 
         % Calculate Rayleigh optical depth using AstroPack rayleighScattering
-        TauRayleigh = astro.atmosphere.rayleighScattering(Lambda, Pressure(i), 'nm');
+        TauRayleigh = astro.atmosphere.rayleighScattering(Lambda, Pressure(i), 'Ang');
 
         % Calculate transmission
         Result(:, i) = exp(-Am_rayleigh .* TauRayleigh);

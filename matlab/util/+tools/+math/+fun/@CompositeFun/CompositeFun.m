@@ -83,7 +83,7 @@ classdef CompositeFun < handle
     
       % Example - Pre-calculation and Evaluation:
        % Define wavelength grid for evaluation
-       Lambda = (300:2:1100)';  % Transmission wavelength grid [nm], 401 points
+       Lambda = (3000:20:11000)';  % Transmission wavelength grid [Angstrom], 401 points
 
        % Pre-calculate functions with fixed parameters (after setting fit flags)
        Model.preCalc(Lambda);
@@ -131,7 +131,7 @@ classdef CompositeFun < handle
        Model.addTran2D(T2D, 'X_ref', X_ref, 'Y_ref', Y_ref, 'Verbose', true);
     
        % Step 4: Evaluate transmission at specific positions and wavelengths
-       Lambda = linspace(400, 900, 100)';  % Wavelength grid [nm]
+       Lambda = linspace(4000, 9000, 100)';  % Wavelength grid [Angstrom]
        X = [200; 863; 1500];               % Source X positions [pixels]
        Y = [200; 863; 1500];               % Source Y positions [pixels]
     
@@ -189,7 +189,7 @@ classdef CompositeFun < handle
     
     % Example - Cost Function Evaluation with costFun:
        % Simple direct comparison (NumInput == NumObs)
-       Lambda = linspace(400, 900, 100)';
+       Lambda = linspace(4000, 9000, 100)';
        ObservedValues = randn(100, 1);  % Simulated observations
        [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues);
     
@@ -201,8 +201,8 @@ classdef CompositeFun < handle
            'X', X, 'Y', Y);
     
        % Transmission mode with spectra (for photometric calibration)
-       Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
-       SpecWvl = (336:2:1020)';  % Calibrator spectra wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
+       Lambda = (3000:20:11000)';   % Transmission wavelength grid [Angstrom], 401 points
+       SpecWvl = (3360:20:10200)';  % Calibrator spectra wavelength grid [Angstrom], 343 points (e.g., Gaia DR3 XP)
        Spec = randn(343, 3);  % Simulated calibrator spectra [N_CalibWvl x N_calib]
        ObsFlux = [1e5; 2e5; 1.5e5];  % Observed photon counts
        X = [500; 1000; 1500];  % Pixel coordinates
@@ -222,7 +222,7 @@ classdef CompositeFun < handle
        Model.setAllFunPar(AllFunPar);
     
        % Fit wavelength parameters only (no position corrections)
-       Lambda = linspace(400, 900, 100)';
+       Lambda = linspace(4000, 9000, 100)';
        ObservedFlux = randn(20, 1);  % 20 observations
        X = 200 + 1300 * rand(20, 1);  % Random positions
        Y = 200 + 1300 * rand(20, 1);
@@ -251,8 +251,8 @@ classdef CompositeFun < handle
        Model.addTran2D(T2D, 'X_ref', 863, 'Y_ref', 863);
     
        % Prepare calibration data
-       Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
-       SpecWvl = (336:2:1020)';  % Calibrator spectra wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
+       Lambda = (3000:20:11000)';   % Transmission wavelength grid [Angstrom], 401 points
+       SpecWvl = (3360:20:10200)';  % Calibrator spectra wavelength grid [Angstrom], 343 points (e.g., Gaia DR3 XP)
        N_calib = 20;
        % Generate synthetic spectra with varying spectral indices
         Spec = zeros(343, N_calib);
@@ -1941,7 +1941,7 @@ classdef CompositeFun < handle
             %            'TransmissionMode' - Enable transmission-specific calculations
             %                   When true, performs photon conversion and magnitude residuals
             %                   Requires WeightMatrix (calibrator spectra). Default is false.
-            %            'CalibWavelength' - Calibrator spectral wavelength grid [N_wvl x 1] in nm
+            %            'CalibWavelength' - Calibrator spectral wavelength grid [N_wvl x 1] in Angstrom
             %                   Works with any calibrator spectra (default: Gaia DR3 XP)
             %                   Used in transmission mode. Default is CompositeFun.SpecWvl.
             %            'ExpTime' - Exposure time [s] for photon conversion
@@ -1995,7 +1995,7 @@ classdef CompositeFun < handle
                 Args.WeightMatrix = []                % Weight matrix [N_obs x N_input] or calibrator spectra
                 Args.IntegrationDim = 2               % Integration dimension
                 Args.TransmissionMode logical = false % Enable transmission-specific mode
-                Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator spectra wavelength grid [nm] (default: Gaia DR3 XP)
+                Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator spectra wavelength grid [Angstrom] (default: Gaia DR3 XP)
                 Args.ExpTime = 20                     % Exposure time [s]
                 Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
                 Args.CostType = 'sse'                 % Cost function type
@@ -2164,15 +2164,18 @@ classdef CompositeFun < handle
                 TransmittedSpectra = SpecFluxMatrix .* Transmission_Spec;  % [N_integration_points x N_obs]
 
                 % Integrate: ∫ Flux(λ) × Transmission(λ) × λ dλ
+                % NOTE: Gaia flux is in W/m²/nm, so λ must be in nm for dimensional consistency
                 TransmittedSpectraT = TransmittedSpectra';  % [N_obs x N_integration_points]
-                Integrand = TransmittedSpectraT .* SpecWvl_Integration(:)';
+                SpecWvl_nm = SpecWvl_Integration / 10;  % Convert Angstrom to nm (Gaia flux is per nm)
+                Integrand = TransmittedSpectraT .* SpecWvl_nm(:)';
+                % Integration still uses Angstrom grid (physical step size unchanged)
                 A_vector = tools.math.integral.trapzmat(SpecWvl_Integration(:)', Integrand, 2);
                 A_vector = A_vector(:);  % [N_obs x 1]
 
                 % Convert to photons
                 H = constant.h('SI');      % Planck constant [J·s]
                 C = constant.c('SI');      % Speed of light [m/s]
-                B = H * C * 1e9;           % H*C with nm to m conversion
+                B = H * C * 1e10;          % H*C with Angstrom to m conversion (1 Angstrom = 1e-10 m)
 
                 Dt = Args.ExpTime;
                 Ageom = Args.Aperture_area_m2;

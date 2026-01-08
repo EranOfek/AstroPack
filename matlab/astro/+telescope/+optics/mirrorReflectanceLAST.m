@@ -1,6 +1,6 @@
 function Result = mirrorReflectanceLAST(Lambda, unusedParam, Args)
     % LAST mirror reflectance using pre-computed polynomial function handle
-    % Input  : - Lambda - Wavelength array [nm].
+    % Input  : - Lambda - Wavelength array [Angstrom].
     %                   If GetArgNames flag is true, returns ArgNames structure.
     %          - unusedParam - Dummy parameter for CompositeFun compatibility.
     %                   Default is 1.
@@ -17,14 +17,14 @@ function Result = mirrorReflectanceLAST(Lambda, unusedParam, Args)
     %                   OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
-    % Example: Lambda = linspace(300, 1100, 401)';
+    % Example: Lambda = linspace(3000, 11000, 401)';
     %          Refl = telescope.optics.mirrorReflectanceLAST(Lambda);
     %          Model = tools.math.fun.CompositeFun();
     %          Model.addFun('Mirror', @telescope.optics.mirrorReflectanceLAST, [], ...
     %                       'Par', [1], 'FitPar', [false]);
 
     arguments
-        Lambda = linspace(300, 1100, 401)'
+        Lambda = linspace(3000, 11000, 401)'
         unusedParam = 1
         Args.Return = []
         Args.UsePersistentCache logical = true
@@ -55,9 +55,11 @@ function Result = mirrorReflectanceLAST(Lambda, unusedParam, Args)
     end
 
     % Load and apply polynomial function handle
+    % Note: Internal function handle expects nm, so convert from Angstrom
     DataPath = fullfile(getenv('HOME'), 'matlab/data/spec/Telescope/LAST/Mirror_reflectance.mat');
     LoadedData = load(DataPath, 'Mirror_reflectance');
-    Result = LoadedData.Mirror_reflectance(Lambda);
+    Lambda_nm = Lambda / 10;  % Convert Angstrom to nm (1 nm = 10 Angstrom)
+    Result = LoadedData.Mirror_reflectance(Lambda_nm);
 
     % Store in persistent cache if enabled
     if Args.UsePersistentCache

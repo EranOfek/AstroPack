@@ -9,7 +9,7 @@ classdef PhotCalibTrans < Component
     % Reference: Garrappa et al. 2025, A&A 699, A50 (transmission-based calibration)
     %
     % Constant Properties (Hidden):
-    %   TransWvl  - Transmission wavelength grid [nm] (300:2:1100, 2 nm step, 401 points)
+    %   TransWvl  - Transmission wavelength grid [Angstrom] (3000:20:11000, 20 Angstrom step, 401 points)
     %
     % Properties:
     %   TransModel - CompositeFun object with fitted transmission model and
@@ -73,7 +73,7 @@ classdef PhotCalibTrans < Component
         Pressure = 965          % Atmospheric pressure [mbar] (default: typical at observatory altitude)
         Humidity = NaN          % Relative humidity [%]
         Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
-        ExpTime = NaN           % Exposure time [s]
+        ExpTime = 1             % Exposure time [s]
         NCoadd = 1              % Number of coadded images (default: single image)
 
         % Transmission model (empty until calibration)
@@ -84,7 +84,7 @@ classdef PhotCalibTrans < Component
 
         % Calibrator information (empty until calibration)
         CalibData = []          % Structure with calibrator data from selectCalibrators containing:
-                                %   .SpecWvl [N_wvl x 1] - Wavelength grid for calibrator spectra [nm] (e.g., 336:2:1020 for Gaia DR3 XP)
+                                %   .SpecWvl [N_wvl x 1] - Wavelength grid for calibrator spectra [Angstrom] (e.g., 3360:20:10200 for Gaia DR3 XP)
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
                                 %   .ObsData - struct with .Flux, .FluxErr, .X, .Y, .RA, .Dec (observed data)
@@ -97,8 +97,8 @@ classdef PhotCalibTrans < Component
     end
 
     properties (Constant, Hidden)
-        % Wavelength grid for transmission evaluation (2 nm step)
-        TransWvl = (300:2:1100)'      % Transmission wavelength grid [nm] for model evaluation (401 points)
+        % Wavelength grid for transmission evaluation (20 Angstrom step)
+        TransWvl = (3000:20:11000)'   % Transmission wavelength grid [Angstrom] for model evaluation (401 points)
     end
 
     methods % Constructor
@@ -616,7 +616,7 @@ classdef PhotCalibTrans < Component
             %            'EFluxEnd' - End column index for calibrator spectra flux errors. Default is 692.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - CalibData - Structure with calibrator data:
-            %                        .SpecWvl - Wavelength grid for calibrator spectra [nm] [N_wvl x 1]
+            %                        .SpecWvl - Wavelength grid for calibrator spectra [Angstrom] [N_wvl x 1]
             %                        .Spec - Calibrator reference spectra [N_calib x N_wvl]
             %                        .SpecErr - Calibrator spectra errors [N_calib x N_wvl]
             %                        .ObsData - Structure with observed catalog data (e.g., LAST):
@@ -817,9 +817,9 @@ classdef PhotCalibTrans < Component
             CalibData = struct();
 
             % Determine wavelength grid for calibrator spectra
-            % Default: Gaia DR3 XP wavelength grid (336:2:1020 nm, 343 points)
+            % Default: Gaia DR3 XP wavelength grid (3360:20:10200 Angstrom, 343 points)
             % TODO: Add logic to read SpecWvl from catalog if different calibrator source is used
-            CalibData.SpecWvl = (336:2:1020)';   % [N_wvl x 1]
+            CalibData.SpecWvl = (3360:20:10200)';   % [N_wvl x 1]
 
             CalibData.Spec = SpecFlux;           % [N_calib x N_wvl]
             CalibData.SpecErr = SpecErr;         % [N_calib x N_wvl]
@@ -857,7 +857,7 @@ classdef PhotCalibTrans < Component
             % Evaluate transmission at specific positions (with position-dependent corrections)
             % Input  : - Obj - PhotCalibTrans object
             %          * ...,key,val,...
-            %            'Lambda' - Wavelength grid [nm] [N_lambda x 1]. Default is Obj.TransWvl (constant property).
+            %            'Lambda' - Wavelength grid [Angstrom] [N_lambda x 1]. Default is Obj.TransWvl (constant property).
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
             % Output : - Trans - Transmission values [N_pos x N_lambda] or [N_lambda x 1]
@@ -937,11 +937,7 @@ classdef PhotCalibTrans < Component
             % Author : D. Kovaleva (Dec 2025)
             % Example: ZP = PC.evaluateZP();  % ZP at field center
             %          ZP = PC.evaluateZP('X', X, 'Y', Y);  % ZP at specific positions
-            %
-            % Formula: ZP = 2.5*log10(ExpTime_eff * Area * Integral(Trans * Fnu * Lambda * dLambda) / (h*c))
-            % where ExpTime_eff = EXPTIME/NCOADD (effective exposure time per image)
-            %       Fnu is the AB system flux density (constant for flat spectrum)
-            %       Lambda is Obj.TransWvl constant property (300:2:1100 nm)
+            
 
             arguments
                 Obj
@@ -1293,7 +1289,7 @@ classdef PhotCalibTrans < Component
             % Plot transmission curve
             plot(Obj.TransWvl, Trans, 'LineWidth', 2);
             grid on;
-            xlabel('Wavelength [nm]');
+            xlabel('Wavelength [Angstrom]');
             ylabel('Transmission');
             title('Total System Transmission');
             ylim([0, max(Trans(:)) * 1.1]);

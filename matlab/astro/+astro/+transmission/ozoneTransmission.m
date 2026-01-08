@@ -1,6 +1,6 @@
 function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     % Ozone transmission of the Earth atmosphere
-    % Input :    Lambda      - Wavelength array (nm), column vector
+    % Input :    Lambda      - Wavelength array (Angstrom), column vector
     %                          If empty, returns ArgNames structure for parameters
     %            ParamMatrix - Parameter matrix where each row is [ZenithAngle_deg, DobsonUnits]
     %                          ZenithAngle_deg: Solar zenith angle in degrees [0-90]
@@ -15,7 +15,7 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     % Author: D. Kovaleva (Oct 2025)
     % Example:
     %   AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
-    %   Lambda = linspace(300, 1100, 401)';
+    %   Lambda = linspace(3000, 11000, 401)';
     %   ParamMatrix = [45, 300; 60, 280; 30, 320];  % Multiple parameter sets
     %   Result = astro.transmission.ozoneTransmission(Lambda, ParamMatrix);
     %
@@ -32,7 +32,7 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     %   Model.addFun('Ozone absorption', @astro.transmission.ozoneTransmission, [], 'Par', [45, 300]);
 
     arguments
-        Lambda        = linspace(300,1100,401)'
+        Lambda        = linspace(3000,11000,401)'
         ParamMatrix   = [30,300]                 % [ZenithAngle_deg, DobsonUnits]
         Args.AbsorptionData = []
         Args.Return = []

@@ -1,6 +1,6 @@
 function Result = waterTransmission(Lambda, ParamMatrix, Args)
     % Water vapor transmission of the Earth atmosphere
-    % Input  : - Lambda - Wavelength array (nm), column vector.
+    % Input  : - Lambda - Wavelength array (Angstrom), column vector.
     %                    If empty, returns ArgNames structure for parameters.
     %          - ParamMatrix - Parameter matrix where each row is [ZenithAngle_deg, PWV_cm, Pressure_mbar].
     %                        ZenithAngle_deg: Solar zenith angle in degrees [0-90].
@@ -12,14 +12,14 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
     %            'Return' - Pre-computed results for caching (external cache pattern).
     %                      Default is [].
     %            'UsePersistentCache' - Enable/disable persistent cache. Default is true.
-    %            'Tolerance' - Parameter comparison tolerance. Default is 1e-12. 
+    %            'Tolerance' - Parameter comparison tolerance. Default is 1e-12.
     %            'GetArgNames' - Return ArgNames structure instead of calculating.
     %                           Default is false.
     % Output : - Result - Transmission matrix (wavelengths × parameter_sets) [0-1]
     %                    OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
     % Example: % Basic usage:
-    %          Lambda = linspace(300, 1100, 401)';
+    %          Lambda = linspace(3000, 11000, 401)';
     %          ParamMatrix = [45, 1.0, 1013; 60, 3.0, 950; 30, 1.5, 1020];  % Multiple parameter sets
     %          Result = astro.transmission.waterTransmission(Lambda, ParamMatrix);
     %          AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
@@ -33,7 +33,7 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
     %          Model.addFun('Water vapor', @astro.transmission.waterTransmission, [], 'Par', [45, 2.5, 1013]);
 
     arguments
-        Lambda        = linspace(300,1100,401)'
+        Lambda        = linspace(3000,11000,401)'
         ParamMatrix   = [30, 1.0, 965]          % [ZenithAngle_deg, PWV_cm, Pressure_mbar]
         Args.AbsorptionData = []
         Args.Return = []

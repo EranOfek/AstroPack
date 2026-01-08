@@ -1,6 +1,6 @@
 function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
     % Aerosol transmission of the Earth atmosphere
-    % Input  : - Lambda (double array): Wavelength array in nm.
+    % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %            If GetArgNames flag is true, returns ArgNames structure for parameters.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
     %            [ZenithAngle_deg, TauAod500, AngstromExponent].
@@ -12,7 +12,7 @@ function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
     % Author : D. Kovaleva (Oct 2025)
     % Examples:
     %   % Basic usage:
-    %   Lambda = linspace(300, 1100, 401)';
+    %   Lambda = linspace(3000, 11000, 401)';
     %   ParamMatrix = [45, 0.1, 0.6; 60, 0.2, 1.1; 30, 0.05, 1.2];  % Multiple parameter sets
     %   Result = astro.transmission.aerosolTransmission(Lambda, ParamMatrix);
     %
@@ -26,7 +26,7 @@ function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
     %   Model.addFun('Aerosol scattering', @astro.transmission.aerosolTransmission, [], 'Par', [45, 0.08, 1.2]);
 
     arguments
-        Lambda      = linspace(300,1100,401)'
+        Lambda      = linspace(3000,11000,401)'
         ParamMatrix = [30, 0.085, 0.6]            %  [ZenithAngle_deg, TauAod500, AngstromExponent]
         Args.AbsorptionData = []
         Args.Return = []

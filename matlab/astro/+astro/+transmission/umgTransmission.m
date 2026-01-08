@@ -1,6 +1,6 @@
 function Result = umgTransmission(Lambda, ParamMatrix, Args)
     % Uniformly Mixed Gases (UMG) transmission of the Earth atmosphere
-    % Input  : - Lambda (double array): Wavelength array in nm.
+    % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %            If GetArgNames flag is true, returns ArgNames structure for parameters.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
     %            [ZenithAngle_deg, Temperature_C, Pressure_mbar].
@@ -18,7 +18,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     % Author : D. Kovaleva (Oct 2025)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Example: % Basic usage:
-    %          Lambda = linspace(300, 1100, 401)';
+    %          Lambda = linspace(3000, 11000, 401)';
     %          ParamMatrix = [45, 15, 1013; 60, 25, 950; 30, 5, 1020];  % Multiple parameter sets
     %          Result = astro.transmission.umgTransmission(Lambda, ParamMatrix);
     %          AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
@@ -30,9 +30,9 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     %          % Usage with CompositeFun:
     %          Model = tools.math.fun.CompositeFun();
     %          Model.addFun('UMG gases', @astro.transmission.umgTransmission, [], 'Par', [45, 15, 1013]);
-    
+
     arguments
-        Lambda        = linspace(300,1100,401)'
+        Lambda        = linspace(3000,11000,401)'
         ParamMatrix   = [30, 15, 965]           % [ZenithAngle_deg, Temperature_C, Pressure_mbar]
         Args.AbsorptionData = []
         Args.Return = []

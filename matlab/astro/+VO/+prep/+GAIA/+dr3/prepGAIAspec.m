@@ -4,9 +4,10 @@ function prepGAIAspec(Args)
     % Author : Eran Ofek (Jul 2022)
    
     arguments
-        % spectralo units W m−2 nm-1
+        % Spectral units W m−2 nm-1 (from GAIA archive)
+        % Wavelength grid in Angstrom (GAIA provides 336:2:1020 nm, converted to Angstrom)
         Args.URL = 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/';
-        Args.Wave = (336:2:1020).';
+        Args.Wave = (3360:20:10200).';
     end
     
     %%

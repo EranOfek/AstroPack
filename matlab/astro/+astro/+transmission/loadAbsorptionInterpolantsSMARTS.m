@@ -9,9 +9,13 @@ function AbsData = loadAbsorptionInterpolantsSMARTS(Args)
     %                   Default is false.
     % Output : - AbsData - Structure with getInterpolated method for compatibility.
     %                   Usage: AbsData.getInterpolated('O3UV', Lambda)
+    %                   Lambda input should be in Angstroms.
+    %                   Interpolants internally use nm but conversion is automatic.
     % Author : D. Kovaleva (Oct 2025)
     % Example: AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
-    %          O3_values = AbsData.getInterpolated('O3UV', linspace(300, 400, 101)');
+    %          O3_values = AbsData.getInterpolated('O3UV', linspace(3000, 4000, 101)');
+    % Note: Wavelengths are in Angstroms. Internal .mat files store grids in nm
+    %       but unit conversion is handled automatically.
 
     arguments
         Args.DataPath = "~/matlab/data/spec/Atmosphere/Transmission/";
@@ -108,28 +112,35 @@ end
 
 function Values = interpolateSpecies(Interpolants, Species, Lambda)
     % Helper function to interpolate species data
+    % Input: Lambda in Angstroms
+    % Interpolants internally use nm, so convert: Angstrom → nm
+
     if ~isfield(Interpolants, Species)
         AvailableSpecies = fieldnames(Interpolants);
         error('Species "%s" not available. Available species: %s', ...
-              Species, strjoin(AvailableSpecies, ', '));  % DEBUGGING
+              Species, strjoin(AvailableSpecies, ', '));
     end
+
+    % Convert wavelength: Angstroms → nanometers
+    Lambda_nm = Lambda / 10;
 
     % Handle H2O compound interpolant structure
     if strcmp(Species, 'H2O') && isstruct(Interpolants.(Species))
         % For H2O, return the basic absorption coefficient by default
         % Full coefficient access available via direct structure access
-        Values = Interpolants.(Species).absorption(Lambda);
+        Values = Interpolants.(Species).absorption(Lambda_nm);
     else
         % For other species, use standard single interpolant
-        Values = Interpolants.(Species)(Lambda);
+        Values = Interpolants.(Species)(Lambda_nm);
     end
 end
 
 function H2O_Data = getH2OAllCoefficients(Interpolants, Lambda)
     % Get all H2O coefficients interpolated to Lambda wavelengths
     % Input  : - Interpolants - Structure containing H2O compound interpolants
-    %          - Lambda - Wavelength array for interpolation
+    %          - Lambda - Wavelength array for interpolation [Angstrom]
     % Output : - H2O_Data - Structure with all interpolated coefficients
+    %                       .wavelength will be in Angstroms
 
     if ~isfield(Interpolants, 'H2O')
         error('H2O interpolants not available');
@@ -142,32 +153,37 @@ function H2O_Data = getH2OAllCoefficients(Interpolants, Lambda)
     H2O_Interp = Interpolants.H2O;
     H2O_Data = struct();
 
-    % Interpolate all coefficient arrays to Lambda
+    % Convert wavelength: Angstroms → nanometers for interpolation
+    Lambda_nm = Lambda / 10;
+
+    % Store wavelength in Angstroms (input units)
     H2O_Data.wavelength = Lambda(:);  % Ensure column vector
-    H2O_Data.absorption = H2O_Interp.absorption(Lambda);
-    H2O_Data.band = H2O_Interp.band(Lambda);
+
+    % Interpolate all coefficient arrays using Lambda_nm
+    H2O_Data.absorption = H2O_Interp.absorption(Lambda_nm);
+    H2O_Data.band = H2O_Interp.band(Lambda_nm);
 
     % Water vapor fitting coefficients
-    H2O_Data.ifitw = H2O_Interp.ifitw(Lambda);
-    H2O_Data.bwa0 = H2O_Interp.bwa0(Lambda);
-    H2O_Data.bwa1 = H2O_Interp.bwa1(Lambda);
-    H2O_Data.bwa2 = H2O_Interp.bwa2(Lambda);
+    H2O_Data.ifitw = H2O_Interp.ifitw(Lambda_nm);
+    H2O_Data.bwa0 = H2O_Interp.bwa0(Lambda_nm);
+    H2O_Data.bwa1 = H2O_Interp.bwa1(Lambda_nm);
+    H2O_Data.bwa2 = H2O_Interp.bwa2(Lambda_nm);
 
     % Airmass fitting coefficients
-    H2O_Data.ifitm = H2O_Interp.ifitm(Lambda);
-    H2O_Data.bma0 = H2O_Interp.bma0(Lambda);
-    H2O_Data.bma1 = H2O_Interp.bma1(Lambda);
-    H2O_Data.bma2 = H2O_Interp.bma2(Lambda);
+    H2O_Data.ifitm = H2O_Interp.ifitm(Lambda_nm);
+    H2O_Data.bma0 = H2O_Interp.bma0(Lambda_nm);
+    H2O_Data.bma1 = H2O_Interp.bma1(Lambda_nm);
+    H2O_Data.bma2 = H2O_Interp.bma2(Lambda_nm);
 
     % Combined water-airmass fitting coefficients
-    H2O_Data.ifitmw = H2O_Interp.ifitmw(Lambda);
-    H2O_Data.bmwa0 = H2O_Interp.bmwa0(Lambda);
-    H2O_Data.bmwa1 = H2O_Interp.bmwa1(Lambda);
-    H2O_Data.bmwa2 = H2O_Interp.bmwa2(Lambda);
+    H2O_Data.ifitmw = H2O_Interp.ifitmw(Lambda_nm);
+    H2O_Data.bmwa0 = H2O_Interp.bmwa0(Lambda_nm);
+    H2O_Data.bmwa1 = H2O_Interp.bmwa1(Lambda_nm);
+    H2O_Data.bmwa2 = H2O_Interp.bmwa2(Lambda_nm);
 
     % Pressure fitting coefficients
-    H2O_Data.bpa1 = H2O_Interp.bpa1(Lambda);
-    H2O_Data.bpa2 = H2O_Interp.bpa2(Lambda);
+    H2O_Data.bpa1 = H2O_Interp.bpa1(Lambda_nm);
+    H2O_Data.bpa2 = H2O_Interp.bpa2(Lambda_nm);
 
     % Ensure all arrays are column vectors for consistency
     Fields = fieldnames(H2O_Data);
