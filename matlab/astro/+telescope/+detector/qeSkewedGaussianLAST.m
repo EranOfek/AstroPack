@@ -1,9 +1,9 @@
 function Result = qeSkewedGaussianLAST(Lambda, ParamMatrix, Args)
     % Skewed Gaussian quantum efficiency model for LAST QHY600-PH CMOS camera
-    % Input  : - Lambda (double array): Wavelength array in nm.
+    % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
-    %            [Amplitude, Center_nm, Sigma_nm, Gamma].
+    %            [Amplitude, Center_Ang, Sigma_Ang, Gamma].
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
     %            'GetArgNames' - Return ArgNames structure instead of calculating. Default is false.
@@ -14,8 +14,8 @@ function Result = qeSkewedGaussianLAST(Lambda, ParamMatrix, Args)
     %             2. Garrappa et al. 2025, A&A 699, A50.
     % Example:
     %   % Basic usage:
-    %   Lambda = linspace(300, 1100, 401)';
-    %   ParamMatrix = [328.1936, 570.973, 139.77, -0.1517];  % Default LAST parameters
+    %   Lambda = linspace(3000, 11000, 401)'; [Angstrom]
+    %   ParamMatrix = [3281.936, 5709.73, 1397.7, -0.1517];  % Default LAST parameters
     %   Result = telescope.detector.qeSkewedGaussianLAST(Lambda, ParamMatrix);
     %
     %   % Get parameter information:
@@ -24,11 +24,11 @@ function Result = qeSkewedGaussianLAST(Lambda, ParamMatrix, Args)
     %   % Usage with CompositeFun:
     %   Model = tools.math.fun.CompositeFun();
     %   Model.addFun('QE LAST', @telescope.detector.qeSkewedGaussianLAST, [], ...
-    %                'Par', [328.1936, 570.973, 139.77, -0.1517], 'FitPar', [false, true, false, false]);
+    %                'Par', [3281.936, 5709.73, 1397.7, -0.1517], 'FitPar', [false, true, false, false]);
 
     arguments
-        Lambda = linspace(300, 1100, 401)'
-        ParamMatrix = [328.1936, 570.973, 139.77, -0.1517]  % [Amplitude, Center_nm, Sigma_nm, Gamma]
+        Lambda = linspace(3000, 11000, 401)'
+        ParamMatrix = [3281.936, 5709.73, 1397.7, -0.1517]  % [Amplitude, Center_Ang, Sigma_Ang, Gamma]
         Args.Return = []
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
@@ -38,9 +38,9 @@ function Result = qeSkewedGaussianLAST(Lambda, ParamMatrix, Args)
     % Return ArgNames structure if requested
     if Args.GetArgNames
         Result = struct('Name', {1, 2, 3, 4}, ...
-                       'Description', {'Amplitude', 'Center_nm', 'Sigma_nm', 'Gamma'}, ...
-                       'Min', {100, 400, 50, -1}, ...
-                       'Max', {500, 800, 300, 1});
+                       'Description', {'Amplitude', 'Center_Ang', 'Sigma_Ang', 'Gamma'}, ...
+                       'Min', {1000, 4000, 500, -1}, ...
+                       'Max', {5000, 8000, 3000, 1});
         return;
     end
 
@@ -63,13 +63,13 @@ function Result = qeSkewedGaussianLAST(Lambda, ParamMatrix, Args)
 
     % Validate input dimensions
     if size(ParamMatrix, 2) ~= 4
-        error('ParamMatrix must have 4 columns: [Amplitude, Center_nm, Sigma_nm, Gamma]');
+        error('ParamMatrix must have 4 columns: [Amplitude, Center_Ang, Sigma_Ang, Gamma]');
     end
 
     % Extract parameters
     Amplitude = ParamMatrix(:, 1);  % Column vector
-    Center = ParamMatrix(:, 2);     % nm
-    Sigma = ParamMatrix(:, 3);      % nm
+    Center = ParamMatrix(:, 2);     % Angstrom
+    Sigma = ParamMatrix(:, 3);      % Angstrom
     Gamma = ParamMatrix(:, 4);      % skewness parameter
     NumParamSets = size(ParamMatrix, 1);
     NumWavelengths = length(Lambda);

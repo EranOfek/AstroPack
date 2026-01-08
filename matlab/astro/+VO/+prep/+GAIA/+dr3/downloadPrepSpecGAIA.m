@@ -3,7 +3,7 @@ function Cat = downloadPrepSpecGAIA(Args)
     % Input  : * ...,key,val,...
     %            'URL' - URL in which the spectra are stored.
     %                   Default is 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/'
-    %            'Wave' - Spectra wavelength. Default is (336:2:1020).'
+    %            'Wave' - Spectra wavelength [Angstrom]. Default is (3360:20:10200).'
     %            'Step' - Which step to execute:
     %                   1 - Download the catalogs.
     %                   2 - store as HDF5
@@ -11,9 +11,9 @@ function Cat = downloadPrepSpecGAIA(Args)
     % Author : Eran Ofek (Dec 2022)
     
     arguments
-        
+
         Args.URL = 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/';
-        Args.Wave = (336:2:1020).';
+        Args.Wave = (3360:20:10200).';  % Wavelength grid [Angstrom] (GAIA provides 336:2:1020 nm)
         Args.Step = [1 2 3];
         Args.SaveTemp logical   = false;
     end

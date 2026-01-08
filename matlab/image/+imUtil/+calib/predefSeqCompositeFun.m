@@ -33,7 +33,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
               % Use when you have direct transmission measurements [N_lambda x 1]
               % (i.e., observed flux already normalized by reference spectra externally)
               % Residuals: (ModelTransmission - ObservedTransmission)
-              Lambda = linspace(336, 1020, 343)';  % Wavelength grid [nm]
+              Lambda = linspace(3360, 10200, 343)';  % Wavelength grid [Angstrom]
               ObsFlux = Model.evaluateAllFunParInput(Lambda);  % Simulated transmission for demo
               OptSeq = [StageCat.AerosolOpt, StageCat.WaterOpt];  % Simple atmospheric fit
               % Or use: OptSeq = StageCat.DefaultLAST;  % 5-stage sequence from Garrappa et al. (2025)
@@ -167,7 +167,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     % Parameters: [DummyParam] - fixed at 1
     FunCatalog.Mirror = struct();
     FunCatalog.Mirror.Name = 'Mirror';
-    FunCatalog.Mirror.Handle = '@astro.transmission.mirrorTransmission';
+    FunCatalog.Mirror.Handle = '@telescope.optics.mirrorReflectanceLAST';
     FunCatalog.Mirror.HandleType = 'named';
     FunCatalog.Mirror.Params = [1];  % Dummy parameter
     FunCatalog.Mirror.FitPar = [false];
@@ -181,7 +181,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     % Parameters: [DummyParam] - fixed at 1
     FunCatalog.Corrector = struct();
     FunCatalog.Corrector.Name = 'Corrector';
-    FunCatalog.Corrector.Handle = '@astro.transmission.correctorTransmission';
+    FunCatalog.Corrector.Handle = '@telescope.optics.correctorTransmissionLAST';
     FunCatalog.Corrector.HandleType = 'named';
     FunCatalog.Corrector.Params = [1];  % Dummy parameter
     FunCatalog.Corrector.FitPar = [false];
@@ -210,18 +210,18 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
         'Max', {1});
 
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
-    % Parameters: [Amplitude, Center_nm, Sigma_nm, Gamma]
+    % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
     FunCatalog.QE_SkewedGaussian = struct();
     FunCatalog.QE_SkewedGaussian.Name = 'QE_SkewedGaussian';
     FunCatalog.QE_SkewedGaussian.Handle = '@telescope.detector.qeSkewedGaussianLAST';
     FunCatalog.QE_SkewedGaussian.HandleType = 'named';
-    FunCatalog.QE_SkewedGaussian.Params = [328.1936, 570.973, 139.77, -0.1517];  % Default LAST QHY600-PH
+    FunCatalog.QE_SkewedGaussian.Params = [3281.936, 5709.73, 1397.7, -0.1517];  % Default LAST QHY600-PH
     FunCatalog.QE_SkewedGaussian.FitPar = [false, true, false, false];  % Fit center wavelength only
     FunCatalog.QE_SkewedGaussian.ParamInfo = struct(...
-        'Name', {'Amplitude', 'Center_nm', 'Sigma_nm', 'Gamma'}, ...
-        'Description', {'Amplitude', 'Peak wavelength [nm]', 'Width [nm]', 'Skewness parameter'}, ...
-        'Min', {200, 400, 50, -1}, ...
-        'Max', {500, 800, 300, 1});
+        'Name', {'Amplitude', 'Center_Ang', 'Sigma_Ang', 'Gamma'}, ...
+        'Description', {'Amplitude', 'Peak wavelength [Angstrom]', 'Width [Angstrom]', 'Skewness parameter'}, ...
+        'Min', {2000, 4000, 500, -1}, ...
+        'Max', {5000, 8000, 3000, 1});
 
     %% ====================================================================
     %% OPTIMIZATION STAGE CATALOG
@@ -232,7 +232,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
         'StageName', {'NormOnly_Initial', 'NormAndCenter', 'FieldCorrection_Adapted', 'Normalization_Refined', 'Atmospheric'}, ...
         'Method', {'nonlinear', 'nonlinear', 'linear', 'nonlinear', 'nonlinear'}, ...
         'FreeParams', {struct('Function', {'Normalization'}, 'Parameter', {'Norm'}), ...
-                       struct('Function', {'Normalization', 'QE_SkewedGaussian'}, 'Parameter', {'Norm', 'Center_nm'}), ...
+                       struct('Function', {'Normalization', 'QE_SkewedGaussian'}, 'Parameter', {'Norm', 'Center_Ang'}), ...
                        [], ...
                        struct('Function', {'Normalization'}, 'Parameter', {'Norm'}), ...
                        struct('Function', {'Water', 'Aerosol'}, 'Parameter', {'PWV_cm', 'TauAod500'})}, ...
@@ -257,7 +257,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     StageCatalog.NormAndCenter = struct();
     StageCatalog.NormAndCenter.StageName = 'NormAndCenter';
     StageCatalog.NormAndCenter.Method = 'nonlinear';
-    StageCatalog.NormAndCenter.FreeParams = struct('Function', {'Normalization', 'QE_SkewedGaussian'}, 'Parameter', {'Norm', 'Center_nm'});
+    StageCatalog.NormAndCenter.FreeParams = struct('Function', {'Normalization', 'QE_SkewedGaussian'}, 'Parameter', {'Norm', 'Center_Ang'});
     StageCatalog.NormAndCenter.SigmaClip = true;
     StageCatalog.NormAndCenter.SigmaThresh = 3.0;
     StageCatalog.NormAndCenter.SigmaIter = 3;

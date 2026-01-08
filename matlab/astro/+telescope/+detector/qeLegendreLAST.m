@@ -1,7 +1,7 @@
 function Result = qeLegendreLAST(Lambda, unusedParam, Args)
     % Legendre polynomial model for perturbations to instrumental
     % transmission optimized for LAST, Legendre coefficients from Ofek et al. (2023)
-    % Input  : - Lambda (double array): Wavelength array in nm.
+    % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %          - unusedParam - Dummy parameter for CompositeFun compatibility.
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          * ...,key,val,...
@@ -12,14 +12,14 @@ function Result = qeLegendreLAST(Lambda, unusedParam, Args)
     % Author : D. Kovaleva (Oct 2025)
     % References: 1. Ofek et al. 2023, PASP 135, Issue 1054, id.124502.
     %             2. Garrappa et al. 2025, A&A 699, A50.
-    % Example: Lambda = linspace(300, 1100, 401)';
+    % Example: Lambda = linspace(3000, 11000, 401)';
     %          QEpert = telescope.detector.qeLegendreLAST(Lambda);
     %          % Use with CompositeFun:
     %          Model = tools.math.fun.CompositeFun();
     %          Model.addFun('QE Legendre', @telescope.detector.qeLegendreLAST, [], 'Par', [1], 'FitPar', [false]);
 
     arguments
-        Lambda = linspace(300, 1100, 401)'
+        Lambda = linspace(3000, 11000, 401)'
         unusedParam = 1
         Args.Return = []
         Args.UsePersistentCache logical = true

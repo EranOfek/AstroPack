@@ -1,4 +1,4 @@
-function Nsrc = build_large_htm_catalog(TableName, Args)
+function Nsrc = buildHTMfromTopCat(TableName, Args)
 % Build an HTM catalog in HDF5 format by downloading in segments via TAP
 % Package: VO.prep
 % Description: Build an HTM catalog from large online sources by downloading
@@ -73,11 +73,16 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
 %                            If empty, built internally. Default is [].
 %            'LevelHTM'    - Pre-built LevelHTM structure. Default is [].
 %            'SaveInd'     - Save HTM index file at the end. Default is true.
+%            'LocalDir'    - Local directory for writing HDF5 files.
+%                            Default is '~/tmp'.
+%            'TargetDir'   - Remote directory where HDF5 files will be copied
+%                            via NFS after writing locally. If empty, files
+%                            are not copied. Default is '/euclid/catsHTM/NewCats/'.
 % Output : - Nsrc: Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
 % Author : Dana Kovaleva (Dec 2025)
 % Example: % Download Gaia DR3 bright stars with polygon query (ESA supports polygon)
 %{
-    Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
+    Nsrc = VO.prep.buildHTMfromTopCat('gaiaedr3.gaia_source', ...
               'TapName', 'ESA Gaia Archive', ...
               'CatName', 'GAIA_DR3_Bright', ...
               'Columns', 'source_id, ra, dec, phot_g_mean_mag, bp_rp', ...
@@ -85,19 +90,19 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
               'QueryType', 'polygon');
 
     % Download VizieR catalog (VizieR does not support polygon, uses cone)
-    Nsrc = VO.prep.build_large_htm_catalog('"II/349/ps1"', ...
+    Nsrc = VO.prep.buildHTMfromTopCat('"II/349/ps1"', ...
               'TapName', 'VizieR TAP', ...
               'CatName', 'PS1_DR1');
 
     % Resume interrupted download
-    Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
+    Nsrc = VO.prep.buildHTMfromTopCat('gaiaedr3.gaia_source', ...
               'TapName', 'ESA Gaia Archive', ...
               'CatName', 'GAIA_DR3_Full', ...
               'Resume', true);
 
     % Use pre-built HTM structure
     [HTM, LevelHTM] = celestial.htm.htm_build(7);
-    Nsrc = VO.prep.build_large_htm_catalog('gaiaedr3.gaia_source', ...
+    Nsrc = VO.prep.buildHTMfromTopCat('gaiaedr3.gaia_source', ...
               'CatName', 'GAIA_Bright', ...
               'HTM', HTM, 'LevelHTM', LevelHTM);
 %}
@@ -135,6 +140,8 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         Args.HTM              = []          % Pre-built HTM structure 
         Args.LevelHTM         = []          % Pre-built LevelHTM structure 
         Args.SaveInd          = true        % Save index HDF file at the end
+        Args.LocalDir         = '/home/dana/tmp'      % Local directory for writing HDF5 files
+        Args.TargetDir        = '/euclid/catsHTM/NewCats/'  % Remote directory for copying files
     end
 
     RAD = constant.RAD;
@@ -174,7 +181,7 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
     end
 
     if Args.Verbose
-        fprintf('=== build_large_htm_catalog ===\n');
+        fprintf('=== buildHTMfromTopCat ===\n');
         fprintf('Table: %s\n', TableName);
         fprintf('TAP URL: %s\n', Args.TapUrl);
         fprintf('Output: %s\n', Args.CatName);
@@ -249,7 +256,7 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         % Determine cell status
         OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                        MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
-        AlreadyExists = Args.Resume && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF);
+        AlreadyExists = Args.Resume && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
 
         if OutsideRange
             % Skip: outside requested RA/Dec range
@@ -311,7 +318,7 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         end
 
         % Delete old index file if exists
-        IndFileName = sprintf('%s_htm.hdf5', Args.CatName);
+        IndFileName = fullfile(Args.LocalDir, sprintf('%s_htm.hdf5', Args.CatName));
         if isfile(IndFileName)
             delete(IndFileName);
         end
@@ -319,9 +326,15 @@ function Nsrc = build_large_htm_catalog(TableName, Args)
         % Save HTM index using tracked Nsrc
         HDF5.save_htm_ind(HTM, IndFileName, [], {}, Nsrc);
 
+        % Copy index file to remote directory if specified
+        if ~isempty(Args.TargetDir)
+            tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+        end
+
         % Save column metadata
         if ~isempty(Args.ColCell)
-            HDF5.save_cat_colcell(Args.CatName, Args.ColCell, Args.ColUnits);
+            ColCellPath = fullfile(Args.LocalDir, Args.CatName);
+            HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
         end
     end
 
@@ -383,9 +396,10 @@ function Query = constructSpatialQuery(TableName, Columns, ColRA, ColDec, ...
 end
 
 
-function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF)
+function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF, LocalDir)
     % Check if an HTM cell already exists in HDF5 files
     [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NfilesInHDF);
+    FileName = fullfile(LocalDir, FileName);
     Exists = false;
     if isfile(FileName)
         try
@@ -417,6 +431,18 @@ function [Data, ColNames] = tableToMatrix(T, ColRA, ColDec, TapUnits)
         error('Could not find RA column "%s" or Dec column "%s" in table', ColRA, ColDec);
     end
 
+    % Keep only numeric columns (drop strings, cells, etc.)
+    numericMask = varfun(@isnumeric, T, 'OutputFormat', 'uniform');
+    if ~numericMask(idxRA) || ~numericMask(idxDec)
+        error('RA column "%s" or Dec column "%s" is not numeric', ColRA, ColDec);
+    end
+    T = T(:, numericMask);
+    ColNames = ColNames(numericMask);
+
+    % Update RA/Dec indices after filtering
+    idxRA = find(strcmpi(ColNames, ColRA), 1);
+    idxDec = find(strcmpi(ColNames, ColDec), 1);
+
     % Convert table to matrix
     Data = table2array(T);
 
@@ -438,7 +464,7 @@ function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, Timeo
     % Execute TAP query with retry logic
     for attempt = 1:MaxRetries
         try
-            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod);
+            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', '/home/dana/tmp/');
             return;
         catch ME
             if attempt < MaxRetries
@@ -483,7 +509,7 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
                            Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
     catch ME
-        warning('VO:build_large_htm_catalog:QueryFailed', ...
+        warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, ME.message);
         QueryFailed = true;
         return;
@@ -517,9 +543,13 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
             DataOut = Data;  % Already in radians
         end
         [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+        FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
-        % TargetDir = '/euclid/catsHTM/NewCats/GAIA/DR3var/';
-        % tools.os.copyFileOverNFS({FileName}, TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+
+        % Copy to remote directory if specified
+        if ~isempty(Args.TargetDir)
+            tools.os.copyFileOverNFS({FileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+        end
     end
 end
 
@@ -568,7 +598,7 @@ function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRan
             TotalSrc = T(1);
         end
     catch ME
-        warning('VO:build_large_htm_catalog:CountQueryFailed', ...
+        warning('VO:buildHTMfromTopCat:CountQueryFailed', ...
             'Could not query catalog size: %s. Using default level 7.', ME.message);
         Level = 7;
         return;

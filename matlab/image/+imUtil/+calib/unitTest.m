@@ -65,7 +65,7 @@ function Answer=unitTest
     % Get parameter values from Model
     TransParams = Model.valuesAllPar();
     % Create test data (3 calibrators with realistic Gaia-like spectra)
-    Lambda = linspace(336, 1020, 343)';
+    Lambda = linspace(3360, 10200, 343)';
     Spec = [(5e-17) ./ (Lambda / 400).^2, ...      % Blue star
             (3e-17) ./ (Lambda / 550).^0.5, ...    % Solar-type star
             (2e-17) * (Lambda / 700).^1.5];        % Red star [343 x 3]
