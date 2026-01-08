@@ -257,6 +257,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NumStreaks = 1;
 
         Args.flagDiffSpike logical = true;
+        Args.SatCentroidDistThreshold = 100;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -736,28 +737,37 @@ function TranCat = flagNonTransients(Obj, Args)
                     (SaturationCentroids(:,1)-X_INearSat).^2 + ...
                     (SaturationCentroids(:,2)-Y_INearSat).^2);
 
-                SatIdx = find(SatCentDist == min(SatCentDist));
+                SatIdx = find(SatCentDist < Args.SatCentroidDistThreshold);
 
                 X_SatCent = SaturationCentroids(SatIdx,1);
                 Y_SatCent = SaturationCentroids(SatIdx,2);
                 Dist_SatCent = SatCentDist(SatIdx);
 
-                X_Line = linspace(X_INearSat, X_SatCent, ceil(Dist_SatCent));
-                Y_Line = linspace(Y_INearSat, Y_SatCent, ceil(Dist_SatCent));
-                
-                % sample matrix values (interp2 uses x=col, y=row)
-                Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
-                                
-                % remove NaNs (edges etc.)
-                Good = ~isnan(Vals_Line);
-                Vals_Line = Vals_Line(Good);
+                NumSatIdx = numel(SatIdx);
 
-                SN_Line = Vals_Line/sqrt(MedDiffVar);
-                PosSignificant_Line = SN_Line > 2.0;
-                NegSignificant_Line = SN_Line < -2.0;
+                HereIsDiffSpikeSubSel = false;
 
-                IsDiffSpikeSubSel(INearSat) = (sum(PosSignificant_Line)/ceil(Dist_SatCent) > 0.5) | ...
-                              (sum(NegSignificant_Line)/ceil(Dist_SatCent) > 0.5) ;
+                for ISatIdx = 1:NumSatIdx
+                    X_Line = linspace(X_INearSat, X_SatCent(ISatIdx), ...
+                        ceil(Dist_SatCent(ISatIdx)));
+                    Y_Line = linspace(Y_INearSat, Y_SatCent(ISatIdx), ...
+                        ceil(Dist_SatCent(ISatIdx)));
+                    
+                    % sample matrix values (interp2 uses x=col, y=row)
+                    Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
+                                    
+                    % remove NaNs (edges etc.)
+                    Good = ~isnan(Vals_Line);
+                    Vals_Line = Vals_Line(Good);
+    
+                    SN_Line = Vals_Line/sqrt(MedDiffVar);
+                    PosSignificant_Line = SN_Line > 2.0;
+                    NegSignificant_Line = SN_Line < -2.0;
+                    HereIsDiffSpikeSubSel = HereIsDiffSpikeSubSel | ...
+                        (sum(PosSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > 0.5) | ...
+                              (sum(NegSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > 0.5);
+                end
+                IsDiffSpikeSubSel(INearSat) = HereIsDiffSpikeSubSel;
             end
 
             IsDiffSpike(NearSatNotStar) = IsDiffSpikeSubSel;
