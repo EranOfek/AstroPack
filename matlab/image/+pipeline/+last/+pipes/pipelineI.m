@@ -6,14 +6,14 @@ function pipelineI(RawImageList, CI, Args)
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = false;
+        Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
         Args.basicCalibArgs                = {};
 
         % Sub image partitioning
-        Args.SubSizeXY                     = [1716 1716];
+        Args.SubSizeXY                     = [1716 1716]; % tested using: RR=imUtil.filter.fft_size_timing([Size Size],false,10000);
         Args.EdgesCCDSEC                   = [];
         Args.NoOverlapCCDSEC               = [];
         Args.ListCenters                   = [];
@@ -29,7 +29,7 @@ function pipelineI(RawImageList, CI, Args)
 
         
 
-        Args.ForcedPhotCat               = [];
+        Args.ForcedPhotCat               = 'WDEDR3';
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
@@ -37,6 +37,7 @@ function pipelineI(RawImageList, CI, Args)
 
         Args.Logger                      = [];
     end
+    RAD        = 180./pi;
     ARCSEC_DEG = 3600;
 
     if isempty(RawImageList)
@@ -128,15 +129,18 @@ function pipelineI(RawImageList, CI, Args)
     % forced photometry
     % forced photometry on pre-selected targets
     if ~isempty(Args.ForcedPhotCat)
-
+        tic;
         MidEpoch = ceil(Nepoch.*0.5);
-        CatForcedPhot = imProc.cat.catsHM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));
+        CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));  % 0.2
 
+        AllFP = AstroCatalog([Nepoch, Nsub]);
         for Isub=1:1:Nsub
             % for each sub image - run over all epochs
-            Coo = CatForcedPhot.getCol({'RA','Dec'});
-            AllFP = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','table', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});
+            Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
+            AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
         end
+        toc
+
     end
 
     % match external

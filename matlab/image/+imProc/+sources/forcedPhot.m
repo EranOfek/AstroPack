@@ -394,7 +394,8 @@ function [Result] = forcedPhot(Obj, Args)
             [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
             if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
-                FlagsXY  = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+                FlagsXY  = nan(Nsrc,1);
+                FlagsXY(FlagIn)  = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
             else
                 FlagsXY  = nan(Nsrc, 1);
             end
@@ -404,7 +405,7 @@ function [Result] = forcedPhot(Obj, Args)
                     Nsrc = numel(RA);
                     if Iobj==1
                         % {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS','SN'}; 
-                        Mat = table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1));
+                        Mat = table(RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), ResultPSF.Dof(:));
 
                         %[RA, Dec, Xpos, Ypos, X(:).', Y(:).', M2.X2(:).', M2.Y2(:).', M2.XY(:).', FlagIn, FlagsXY, Aper.AnnulusBack(:).', Aper.AnnulusStd(:).', ResultPSF.SNm(:).', convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:).', ResultPSF.Dof(:).'];
                         
@@ -416,9 +417,9 @@ function [Result] = forcedPhot(Obj, Args)
                         % init Result
                         Result = AstroCatalog([Nobj 1]);
                     end
-                    Result(Iobj).Catalog = [RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), FlagIn, FlagsXY, Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), repmat(ResultPSF.Dof(:),Nsrc,1)];
-                    Result(Iobj).ColNames = {};
-                    Result(Iobj).ColUnits = {};
+                    Result(Iobj).Catalog = [RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), single(FlagIn), single(FlagsXY), Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), ResultPSF.Dof(:)];
+                    Result(Iobj).ColNames = {'RA','Dec','Xin','Yin','X','Y','X2','Y2','XY','FlagIn','FLAGS','BACK_ANNULUS','STD_ANNULUS','SN','FLUX_PSF','ZP','MAG_PSF','CHI2','DOF'};
+                    Result(Iobj).ColUnits = {'deg','deg','pix','pix','','','','','','','e','e','','e','mag','mag','',''};
 
                 case 'MatchedSources'
                     % Store forced photometry results in MatchedSources object
