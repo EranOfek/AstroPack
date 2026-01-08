@@ -200,7 +200,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ConfigFile = '';
 
         Args.PixelScale = 1.25;
-        Args.SaturatedNeighborDistanceThreshold = 100;
+        Args.SaturatedNeighborDistanceThreshold = 200;
     
         Args.flagNegatives logical = true;
 
@@ -257,7 +257,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NumStreaks = 1;
 
         Args.flagDiffSpike logical = true;
-        Args.SatCentroidDistThreshold = 100;
+        Args.SatCentroidDistThreshold = 200;
+        Args.DiffSpikeSNRThreshold = 2.0;
+        Args.DiffSpikeFracThreshold = 0.5;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -761,11 +763,11 @@ function TranCat = flagNonTransients(Obj, Args)
                     Vals_Line = Vals_Line(Good);
     
                     SN_Line = Vals_Line/sqrt(MedDiffVar);
-                    PosSignificant_Line = SN_Line > 2.0;
-                    NegSignificant_Line = SN_Line < -2.0;
+                    PosSignificant_Line = SN_Line > Args.DiffSpikeSNRThreshold;
+                    NegSignificant_Line = SN_Line < -Args.DiffSpikeSNRThreshold;
                     HereIsDiffSpikeSubSel = HereIsDiffSpikeSubSel | ...
-                        (sum(PosSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > 0.5) | ...
-                              (sum(NegSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > 0.5);
+                        (sum(PosSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > Args.DiffSpikeFracThreshold) | ...
+                        (sum(NegSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > Args.DiffSpikeFracThreshold);
                 end
                 IsDiffSpikeSubSel(INearSat) = HereIsDiffSpikeSubSel;
             end
