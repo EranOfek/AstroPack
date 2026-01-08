@@ -143,6 +143,22 @@ function TranCat = flagNonTransients(Obj, Args)
                 'StreakDistanceThreshold' - Maximum distance from a fitted
                        streak for which to flag candidates. Default is 20.
                 'NumStreaks' - Number of streaks to fit for. Default is 1.
+                'flagDiffSpike' - Bool on whether to flag candidates
+                       induced by diffraction spikes. Default is true.
+                'SatCentroidDistThreshold' - Maximum distance from
+                       candidate to centroid of saturated pixels. Saturation
+                       cenroid within this distance will be considered for 
+                       further testing. Default is 200.
+                'DiffSpikeSNRThreshold' - Minimum SNR of pixels along 
+                       the line between candidate and saturation centroid. 
+                       Pixels above the threshold will be counted for final
+                       decision. Default is 2.0.
+                'DiffSpikeFracThreshold' - Minimum fraction of pixels along 
+                       the line between candidate and saturation centroid 
+                       to fulfill the SNR threshold. If the fraction of 
+                       pixels alon the line fulfills this threshold, 
+                       the candidate is counted as caused by a 
+                       diffraction spike. Default is 0.5.
                 'flagDensity' - Bool on whether to flag candidates that are
                        too close to each other, i.e., that have too many
                        neighbors. Default is true.
