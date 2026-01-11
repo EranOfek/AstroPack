@@ -120,11 +120,9 @@ function pipelineI(RawImageList, CI, Args)
 
     IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
 
-
-    % MISSING - write general info to header:
-    % background, var, number of stars, etc.
-    % [AllSI, ImageStat] = imProc.header.writeStatToHeader(AllSI)
-
+    % write stat data to header: Nstars, PSF, Scale, Rotation,...
+    % background, var: written as part of the background estimation
+    AllSI = imProc.header.writeStat2Header(AllSI, 'WriteBack',false);  % 4.2s
 
     % forced photometry
     % forced photometry on pre-selected targets
@@ -140,13 +138,13 @@ function pipelineI(RawImageList, CI, Args)
             AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
         end
         toc
-
+        AFP = AllFP(:).merge; % 0.05s
     end
 
     % match external
     if Args.matchExternal_Indiv
         % current default is true - do we want this?
-        AllSI = pipeline.generic.matchExternal(AllSI, Args.proc2MatchedSourcesArgs_Indiv{:});
+        AllSI = pipeline.generic.matchExternal(AllSI, Args.matchExternalArgs_Indiv{:});
     end
     
     % Merge catalogs

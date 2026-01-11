@@ -38,7 +38,7 @@ function [AI] = writeStat2Header(AI, Args)
         Args.KeyNstars         = 'N_STARS';
         Args.KeyMagQuant       = 'MAG_95Q';
         % PSF realted
-        Args.KeyFWHM           = {'FWHM'};
+        Args.KeyFWHM           = 'FWHM';
         Args.KeyShapePSF       = {'FWHM_A', 'FWHM_B', 'FWHM_TH'};
         Args.KeySqrtSumPSF2    = 'SSPSF2';
         Args.KeyMedM2          = {'MED_X2', 'MED_Y2', 'MED_XY'};
@@ -47,6 +47,7 @@ function [AI] = writeStat2Header(AI, Args)
         Args.KeyScaleRot       = {'PIXSCALE', 'ROTAT'};
 
     end
+    ARCSEC_DEG = 3600;
 
     Keys = fieldnames(Args);
     Nkey = numel(Keys);
@@ -66,7 +67,7 @@ function [AI] = writeStat2Header(AI, Args)
     else
         ColsPSF = {};
     end
-    if Args.KeyScaleRot
+    if Args.WriteScale
         ColsScale = Args.KeyScaleRot;
     else
         ColsScale = {};
@@ -88,7 +89,7 @@ function [AI] = writeStat2Header(AI, Args)
         if Args.WriteStars
             Idata = Idata + 1;            
             Data(Idata) = size(AI(Iai).CatData.Catalog, 1);
-            Idata = Iadat + 1;
+            Idata = Idata + 1;
             Mag = AI(Iai).CatData.getCol(Args.ColMag);
             Data(Idata) = quantile(Mag, Args.MagQuantile);
         end
@@ -97,24 +98,25 @@ function [AI] = writeStat2Header(AI, Args)
             Data(Idata) = AI(Iai).PSFData.fwhm;
             % SigmaX, SigmaY, Rho
             Idata = Idata + 1;
-            [~,BestFit,~] = AI(Iai).PSFData.fitFunPSF();
-            [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(BestFit.Par(1), BestFit.Par(2), BestFit.Par(3));
+            [~,~,BestFit] = AI(Iai).PSFData.fitFunPSF();
+            [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(BestFit{1}.Par(2), BestFit{1}.Par(3), BestFit{1}.Par(4));
             Data(Idata:Idata+2) = [A, B, Theta];
             Idata = Idata + 3;
             Data(Idata) = sqrt(sum(AI(Iai).PSFData.Data.^2, 'all'));
             Idata = Idata + 1;
-            M2 = AI(Iai).CatData.getCol(Args.KeyMedM2);
+            M2 = AI(Iai).CatData.getCol({Args.ColX2, Args.ColY2, Args.ColXY});
             Data(Idata:Idata+2) = median(M2, 1, 'omitnan');
-            Idata = Idata + 3;
-
+            Idata = Idata + 2;
+        if Args.WriteScale
+            Idata = Idata + 1;
             CD = AI(Iai).WCS.CD;
             [ScRot] = imUtil.astrometry.cdmatrix2rotScale(CD(1,1), CD(1,2), CD(2,1), CD(2,2));
                         
-            Data(Idata:Idata+1) = [ScRot.Scale, SCRot.PA_deg];
+            Data(Idata:Idata+1) = [ScRot.Scale .* ARCSEC_DEG, ScRot.PA_deg];
         end
 
         Cell = [Cols(:), num2cell(Data)];
-        AI(Iai).HeaderData.insertKey(Cell);
+        AI(Iai).HeaderData.insertKey(Cell, 'end');
 
     end
 
