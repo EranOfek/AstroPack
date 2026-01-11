@@ -766,10 +766,11 @@ function TranCat = flagNonTransients(Obj, Args)
                 HereIsDiffSpikeSubSel = false;
 
                 for ISatIdx = 1:NumSatIdx
-                    X_Line = linspace(X_INearSat, X_SatCent(ISatIdx), ...
-                        ceil(Dist_SatCent(ISatIdx)));
-                    Y_Line = linspace(Y_INearSat, Y_SatCent(ISatIdx), ...
-                        ceil(Dist_SatCent(ISatIdx)));
+
+                    NumLinePixels = ceil(Dist_SatCent(ISatIdx));
+
+                    X_Line = linspace(X_INearSat, X_SatCent(ISatIdx), NumLinePixels);
+                    Y_Line = linspace(Y_INearSat, Y_SatCent(ISatIdx), NumLinePixels);
                     
                     % sample matrix values (interp2 uses x=col, y=row)
                     Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
@@ -779,11 +780,10 @@ function TranCat = flagNonTransients(Obj, Args)
                     Vals_Line = Vals_Line(Good);
     
                     SN_Line = Vals_Line/sqrt(MedDiffVar);
-                    PosSignificant_Line = SN_Line > Args.DiffSpikeSNRThreshold;
-                    NegSignificant_Line = SN_Line < -Args.DiffSpikeSNRThreshold;
+                    Significant_Line = abs(SN_Line) > Args.DiffSpikeSNRThreshold;
+                    NumSpikePixels = sum(Significant_Line);
                     HereIsDiffSpikeSubSel = HereIsDiffSpikeSubSel | ...
-                        (sum(PosSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > Args.DiffSpikeFracThreshold) | ...
-                        (sum(NegSignificant_Line)/ceil(Dist_SatCent(ISatIdx)) > Args.DiffSpikeFracThreshold);
+                        (NumSpikePixels/NumLinePixels > Args.DiffSpikeFracThreshold);
                 end
                 IsDiffSpikeSubSel(INearSat) = HereIsDiffSpikeSubSel;
             end
