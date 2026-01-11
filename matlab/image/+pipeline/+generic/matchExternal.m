@@ -58,7 +58,7 @@ function [Result] = matchExternal(Obj, Args)
     if Args.CreateNewObj
         Result = Obj.copy;
     else
-        Result = copy;
+        Result = Obj;
     end
 
     if Args.matchStars
