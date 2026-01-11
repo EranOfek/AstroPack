@@ -36,6 +36,10 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
     OutImage = Image;
 
     N = size(Coords,1);
+    if numel(Intensity)==1
+        Intensity=Intensity*ones(1,N);
+    end
+    Brightness=Intensity;
     for I=1:1:N
         % Extract coordinates
         MinX = Coords(I,1);
@@ -64,15 +68,14 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
             case 'none'
                 % do nothing
             case 'lxi'
-                % noramlzie by Length X Intensity
+                % normalize by Length X Intensity
                 % conserve flux
                 Length = sqrt((MinX-MaxX).^2 + (MinY-MaxY).^2);
-                Brightness(Indices) = Intensity*Length./numel(Indices);
-
+                Brightness(I) = Intensity(I)/(Length*numel(Indices));
             otherwise
                 error('Unknown Norm option');
         end
-        OutImage(Indices) = OutImage(Indices) + Brightness(Indices);
+        OutImage(Indices) = OutImage(Indices) + Brightness(I);
     end
 
     % Convolve with PSF if provided
