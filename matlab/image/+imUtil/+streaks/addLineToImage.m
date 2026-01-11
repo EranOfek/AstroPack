@@ -67,12 +67,12 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
                 % noramlzie by Length X Intensity
                 % conserve flux
                 Length = sqrt((MinX-MaxX).^2 + (MinY-MaxY).^2);
-                Intensity(I) = Length./numel(Indices);
+                Brightness(Indices) = Intensity*Length./numel(Indices);
 
             otherwise
                 error('Unknown Norm option');
         end
-        OutImage(Indices) = OutImage(Indices) + Intensity(I);
+        OutImage(Indices) = OutImage(Indices) + Brightness(Indices);
     end
 
     % Convolve with PSF if provided
