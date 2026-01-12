@@ -34,4 +34,4 @@ __pycache__/
 tests/TestResults.mat
 
 # Planner stuff
-data/global/users/
+data/
