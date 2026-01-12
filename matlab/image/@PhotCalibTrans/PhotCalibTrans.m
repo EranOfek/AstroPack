@@ -17,8 +17,6 @@ classdef PhotCalibTrans < Component
     %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
-    %   NCalibMin  - Minimum number of calibrators required for success (default: 30)
-    %   RMSMax     - Maximum allowed RMS for success [mag] (default: 0.1)
     %   AirMass, Zenith, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %
     % Example:
@@ -106,10 +104,8 @@ classdef PhotCalibTrans < Component
 
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
 
-        % Success criteria and status
+        % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
-        NCalibMin = 30          % Minimum number of calibrators required for success (default: 30)
-        RMSMax = 0.1            % Maximum allowed RMS for success [mag] (default: 0.1)
 
     end
 
@@ -122,19 +118,18 @@ classdef PhotCalibTrans < Component
         function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
             % Input  : * ...,key,val,...
-            %            Observation Metadata:
-            %            'AirMass' - Airmass. Default is NaN.
-            %            'Zenith' - Zenith angle [deg]. Default is NaN.
-            %            'Temp' - Temperature [C]. Default is NaN.
+            %            Metadata describing conditions of observations: 
+            %            'AirMass' - Airmass. 
+            %            'Zenith' - Zenith angle [deg]. 
+            %            'Temp' - Temperature [C]. 
             %            'Pressure' - Atmospheric pressure [mbar]. Default is 965.
             %            'Humidity' - Relative humidity [%]. Default is NaN.
-            %            'ExpTime' - Exposure time [s]. Default is NaN.
+            %            'ExpTime' - Exposure time [s]. Default is 1.
             %            'NCoadd' - Number of coadded images. Default is 1.
             %            Instrument Configuration:
             %            'Aperture' - Telescope aperture area [m^2]. Default is pi*(0.1397)^2 (LAST telescope).
-            %            Calibration Data (typically set by calibrate() method):
+            %            Calibration Data (set by calibrate() method):
             %            'TransModel' - CompositeFun transmission model object. Default is [].
-            %            'CalibData' - Structure with calibrator data. Default is [].
             %            'CalFound' - Flag indicating if calibrators were found. Default is false.
             %
             % Output : - PhotCalibTrans object
@@ -382,7 +377,7 @@ classdef PhotCalibTrans < Component
                 if Args.Verbose
                     fprintf('  No calibrators found - skipping transmission fitting.\n\n');
                 end
-                % Object already has CalFound = false and CalibData property set by selectCalibrators
+                % Object already has CalFound = false
                 % TransModel is present but not fitted
             else
                 % Calibrators found - proceed with fitting
@@ -478,7 +473,7 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function CalibData = selectCalibrators(Obj, Cat, Args)
+        function Obj = selectCalibrators(Obj, Cat, Args)
             % Select calibrators with reference spectra for photometric calibration
             % Input  : - Obj - PhotCalibTrans object
             %          - Cat - AstroCatalog object with observed sources (single element)
@@ -620,10 +615,8 @@ classdef PhotCalibTrans < Component
             if ~any(goodMask)
                 warning('PhotCalibTrans:selectCalibrators:NoMatches', ...
                         'No sources passed quality filters and have calibrator matches');
-                CalibData = struct('SpecWvl', [], 'Spec', [], 'SpecErr', [], ...
-                                   'ObsData', [], 'CalData', [], ...
-                                   'MatchDistance', [], 'NumMatches', []);
-                Obj.CalibData = CalibData;
+                Obj.SourceData = [];
+                Obj.SpecData = [];
                 Obj.CalFound = false;
                 return;
             end
@@ -716,8 +709,9 @@ classdef PhotCalibTrans < Component
             % Evaluate and set Success flag based on calibration quality criteria
             % Input  : - Obj - PhotCalibTrans object (scalar)
             %          * ...,key,val,...
-            %            'NCalibMin' - Minimum number of calibrators required. Default is Obj.NCalibMin.
-            %            'RMSMax' - Maximum allowed RMS [mag]. Default is Obj.RMSMax.
+            %            'NCalibMin' - Minimum number of calibrators required. Default is 30.
+            %            'RMSMax' - Maximum allowed RMS [mag]. Default is 0.1.
+            %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - PhotCalibTrans object with updated Success flag
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.populateSuccess();
@@ -730,21 +724,9 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.NCalibMin = []
-                Args.RMSMax = []
-            end
-
-            % Use object properties as defaults if not provided
-            if isempty(Args.NCalibMin)
-                MinCalib = Obj.NCalibMin;
-            else
-                MinCalib = Args.NCalibMin;
-            end
-
-            if isempty(Args.RMSMax)
-                MaxRMS = Obj.RMSMax;
-            else
-                MaxRMS = Args.RMSMax;
+                Args.NCalibMin = 30
+                Args.RMSMax = 0.1
+                Args.Verbose logical = false
             end
 
             % Evaluate all criteria (Success remains false unless all criteria pass)
@@ -754,13 +736,13 @@ classdef PhotCalibTrans < Component
             HasEnoughCalibrators = false;
             if ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
                 NCalib = size(Obj.SpecData.Spec, 1);
-                HasEnoughCalibrators = (NCalib >= MinCalib);
+                HasEnoughCalibrators = (NCalib >= Args.NCalibMin);
             end
 
             % Criterion 3: Check if RMS is acceptable
             HasAcceptableRMS = false;
             if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && ~isnan(Obj.TransModel.RMS)
-                HasAcceptableRMS = (Obj.TransModel.RMS <= MaxRMS);
+                HasAcceptableRMS = (Obj.TransModel.RMS <= Args.RMSMax);
             end
 
             % Set success only if all criteria are met
