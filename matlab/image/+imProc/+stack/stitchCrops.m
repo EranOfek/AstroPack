@@ -17,20 +17,17 @@ function [Result] = stitchCrops(AI, Args)
     end
     %
     Ncrop = numel(AI);
-    MaxX  = 1;
-    MaxY  = 1;
+    MaxX  = 1; MaxY  = 1;
     MCat   = repmat(AstroCatalog,1,Ncrop);
-    
-%     Res = crop(AI(1),[66 1532 66 1531],'CreateNewObj',true,'UpdateCat',true); 
-    
+       
     for Icrop = 1:Ncrop                
         ReadCCDSEC = AI(Icrop).getStructKey(Args.CCDSEC).(Args.CCDSEC);        
-        ReadUniq  = AI(Icrop).getStructKey(Args.UNIQSEC).(Args.UNIQSEC);
-        ReadOrig  = AI(Icrop).getStructKey(Args.ORIGUSEC).(Args.ORIGUSEC); 
+        ReadUniq   = AI(Icrop).getStructKey(Args.UNIQSEC).(Args.UNIQSEC);
+        ReadOrig   = AI(Icrop).getStructKey(Args.ORIGUSEC).(Args.ORIGUSEC); 
         CCDSEC(Icrop,:) = sscanf(ReadCCDSEC(2:end-1), '%d').';
-        Uniq(Icrop,:) = sscanf(ReadUniq(2:end-1), '%d').';        
-        Orig(Icrop,:) = sscanf(ReadOrig(2:end-1), '%d').';    
-        AIuniq =  crop(AI(Icrop),( Uniq(Icrop,:) + CCDSEC(Icrop,:) )/2,'UpdateCat',true,'CreateNewObj',true);             
+        Uniq(Icrop,:)   = sscanf(ReadUniq(2:end-1), '%d').';        
+        Orig(Icrop,:)   = sscanf(ReadOrig(2:end-1), '%d').';    
+        AIuniq = crop(AI(Icrop),( Uniq(Icrop,:) + CCDSEC(Icrop,:) )/2,'UpdateCat',true,'CreateNewObj',true);             
         MCat(Icrop) = AIuniq.CatData;        
         MaxX  = max(MaxX,  Orig(Icrop,2));
         MaxY  = max(MaxY,  Orig(Icrop,4));
@@ -51,6 +48,7 @@ function [Result] = stitchCrops(AI, Args)
     
     % merge the catalogs:
     Result.CatData = merge(MCat);
+    Result.CatData.JD = MCat(1).julday;     
             
     % build WCS from the merged catalog 
     [~, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData);

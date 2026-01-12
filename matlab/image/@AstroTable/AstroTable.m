@@ -797,6 +797,22 @@ classdef AstroTable < Component
             end
         end
         
+        function ColUnit = colind2unit(Obj, ColInd)
+            % Return column units corresponding to column indices
+            % Input  : - A single element AstroCatlog object
+            %          - A vector of column indices.
+            % Output : - A cell array of column units corresponding to the
+            %            column indices.
+            % Example: colind2unit(AC,[2 1])
+           
+            if iscell(ColInd) || isstring(ColInd)
+                % assume already in cell format
+                ColUnit = ColInd;
+            else
+                ColUnit = Obj.ColUnits(ColInd);
+            end
+        end
+        
         function [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(Obj, ColNames)
             % Given a list of column names, select the first that appear in Table
             % Input  : - An AstroTable (single element)
@@ -1241,6 +1257,7 @@ classdef AstroTable < Component
                 Args.IsTable logical          = false;
                 Args.AddEntryPerElement       = [];
                 Args.AddColNames cell         = {};
+                Args.AddColUnits cell         = {};
             end
             
             Nobj     = numel(Obj);
@@ -1254,7 +1271,8 @@ classdef AstroTable < Component
                 end
                 ColNames = colind2name(Obj(Imax), Columns);
                 ColIndC  = colname2ind(Obj(Imax), Columns);
-                
+                ColUnits = colind2unit(Obj(Imax), ColIndC);
+                                
                 Ncol     = numel(ColNames);
                 if isa(Obj, 'AstroCatalog')
                     NewObj   = AstroCatalog;
@@ -1266,6 +1284,7 @@ classdef AstroTable < Component
                 NextraCol    = size(Args.AddEntryPerElement,2);
     
                 NewObj.ColNames = [ColNames, Args.AddColNames];
+                NewObj.ColUnits = [ColUnits, Args.AddColUnits];
                 NewObj.Catalog = zeros(0,Ncol+NextraCol);
                 if Args.IsTable
                     NewObj.Catalog = array2table(NewObj.Catalog);
