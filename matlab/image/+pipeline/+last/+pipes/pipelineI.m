@@ -26,6 +26,7 @@ function pipelineI(RawImageList, CI, Args)
         Args.forcedPhotArgs                = {};
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
+        Args.procCoaddArgs                 = {};
 
         
 
@@ -141,19 +142,23 @@ function pipelineI(RawImageList, CI, Args)
         AFP = AllFP(:).merge; % 0.05s
     end
 
-    % match external
-    if Args.matchExternal_Indiv
-        % current default is true - do we want this?
-        AllSI = pipeline.generic.matchExternal(AllSI, Args.matchExternalArgs_Indiv{:});
-    end
-    
+    % match external / too expensive
+    %if Args.matchExternal_Indiv
+    %    % current default is true - do we want this?
+    %    AllSI = pipeline.generic.matchExternal(AllSI, Args.matchExternalArgs_Indiv{:});
+    %end
+    %AllSI = imProc.match.match_catsHTMmerged(AllSI); % 240 s
+
     % Merge catalogs
-    MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood);
+    MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s
+
+
 
     % Calculate drift between epochs
     % Note that MS is already filerted! I.e., some epochs may not
     % be included
     [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
+    
 
     % The following logic is applied:
     % MatchedSources and photometric calibration is done only after
@@ -162,15 +167,22 @@ function pipelineI(RawImageList, CI, Args)
     % for the individual images.
     
     % coadd images
-    
-    Coadd = pipeline.generic.procCoadd(AllSI, 'ShiftXY',ShiftInfo,...
+    % Only coaddition: 56 s 
+    % only multiIterationPSF: 35 s
+    % coadd+multiIterPSF+astrometry+PhotCalibSimple : 109 s
+    tic;
+    [Coadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
+                                              'ShiftXY',ShiftInfo,...
+                                              'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
-                                              'IShiftXYfiltered',true);
-
+                                              'IsShiftXYfiltered',true);
+toc
    
     % coadd: search stars
+    tic;
     [Coadd] = imProc.sources.multiIterExtractor(Coadd, Args.multiIterExtractorArgs{:},...
                                                     'AddSkyCoo',true);
+    toc
 
     % coadd: solve astrometry
     imProc.astrometry.astrometryAllSubImage

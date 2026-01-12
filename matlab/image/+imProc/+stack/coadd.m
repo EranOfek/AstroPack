@@ -1,4 +1,4 @@
-function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
+function [Result, CoaddN, ImageCube, MidJD, SumExpTime] = coadd(ImObj, Args)
     % Coadd images in AstroImage object including pre/post normalization
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
@@ -121,6 +121,8 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %          - A matrix in which each pixel give the number of
     %            images on which the coaddition was based.
     %          - The cube of images
+    %          - MidJD (NaN if UpdateTimes is false).
+    %          - SumExpTime (NaN if UpdateTimes is false).
     % Author : Eran Ofek (Apr 2021)
     % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
     %          [Result, CoaddN] = imProc.stack.coadd(AI);
@@ -177,6 +179,9 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
 
     % allocate output
     Result = AstroImage;
+
+    MidJD      = NaN;
+    SumExpTime = NaN;
 
     Nim = numel(ImObj);
 
@@ -452,8 +457,9 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
             
         Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
 
+        SumExpTime = sum(VecExpTime);
         if Args.SumExpTime
-            Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {sum(VecExpTime)});
+            Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {SumExpTime});
         else
             Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {mean(VecExpTime)});
         end
