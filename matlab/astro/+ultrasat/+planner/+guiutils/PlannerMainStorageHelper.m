@@ -120,7 +120,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             if ~strcmp(PlanData.planner.AstPlanner, app.MainModule.UserName)
                 Result = app.AppUtils.askYesNoCancel('The AstPlanner field in this plan differs from the currently logged-in user. Click Yes to duplicate the plan or No to open in read-only mode.', 'Confirmation');
                 if strcmp(Result, 'Yes')
-                    app.duplicatePlan();
+                    obj.duplicatePlan(app);
                 elseif strcmp(Result, 'No')
                     PlanData.planner.Editable = false;
                 else
