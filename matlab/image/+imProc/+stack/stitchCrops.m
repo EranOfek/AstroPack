@@ -9,6 +9,7 @@ function [Result] = stitchCrops(AI, Args)
 
     arguments
         AI
+        Args.CCDSEC                  = 'CCDSEC';
         Args.UNIQSEC                 = 'UNIQSEC';
         Args.ORIGUSEC                = 'ORIGUSEC';
         Args.Properties              = {'Image','Back','Var','Mask','PSF','Cat'};
@@ -20,12 +21,17 @@ function [Result] = stitchCrops(AI, Args)
     MaxY  = 1;
     MCat   = repmat(AstroCatalog,1,Ncrop);
     
-    for Icrop = 1:Ncrop        
-        MCat(Icrop) = AI(Icrop).CatData;        
+%     Res = crop(AI(1),[66 1532 66 1531],'CreateNewObj',true,'UpdateCat',true); 
+    
+    for Icrop = 1:Ncrop                
+        ReadCCDSEC = AI(Icrop).getStructKey(Args.CCDSEC).(Args.CCDSEC);        
         ReadUniq  = AI(Icrop).getStructKey(Args.UNIQSEC).(Args.UNIQSEC);
         ReadOrig  = AI(Icrop).getStructKey(Args.ORIGUSEC).(Args.ORIGUSEC); 
-        Uniq(Icrop,:) = sscanf(ReadUniq(2:end-1), '%d').';
-        Orig(Icrop,:) = sscanf(ReadOrig(2:end-1), '%d').';                       
+        CCDSEC(Icrop,:) = sscanf(ReadCCDSEC(2:end-1), '%d').';
+        Uniq(Icrop,:) = sscanf(ReadUniq(2:end-1), '%d').';        
+        Orig(Icrop,:) = sscanf(ReadOrig(2:end-1), '%d').';    
+        AIuniq =  crop(AI(Icrop),( Uniq(Icrop,:) + CCDSEC(Icrop,:) )/2,'UpdateCat',true,'CreateNewObj',true);             
+        MCat(Icrop) = AIuniq.CatData;        
         MaxX  = max(MaxX,  Orig(Icrop,2));
         MaxY  = max(MaxY,  Orig(Icrop,4));
     end
