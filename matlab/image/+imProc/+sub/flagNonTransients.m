@@ -143,6 +143,22 @@ function TranCat = flagNonTransients(Obj, Args)
                 'StreakDistanceThreshold' - Maximum distance from a fitted
                        streak for which to flag candidates. Default is 20.
                 'NumStreaks' - Number of streaks to fit for. Default is 1.
+                'flagDiffSpike' - Bool on whether to flag candidates
+                       induced by diffraction spikes. Default is true.
+                'SatCentroidDistThreshold' - Maximum distance from
+                       candidate to centroid of saturated pixels. Saturation
+                       cenroid within this distance will be considered for 
+                       further testing. Default is 200.
+                'DiffSpikeSNRThreshold' - Minimum SNR of pixels along 
+                       the line between candidate and saturation centroid. 
+                       Pixels above the threshold will be counted for final
+                       decision. Default is 2.0.
+                'DiffSpikeFracThreshold' - Minimum fraction of pixels along 
+                       the line between candidate and saturation centroid 
+                       to fulfill the SNR threshold. If the fraction of 
+                       pixels alon the line fulfills this threshold, 
+                       the candidate is counted as caused by a 
+                       diffraction spike. Default is 0.5.
                 'flagDensity' - Bool on whether to flag candidates that are
                        too close to each other, i.e., that have too many
                        neighbors. Default is true.
@@ -200,7 +216,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ConfigFile = '';
 
         Args.PixelScale = 1.25;
-        Args.SaturatedNeighborDistanceThreshold = 100;
+        Args.SaturatedNeighborDistanceThreshold = 200;
     
         Args.flagNegatives logical = true;
 
@@ -257,6 +273,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NumStreaks = 1;
 
         Args.flagDiffSpike logical = true;
+        Args.SatCentroidDistThreshold = 200;
+        Args.DiffSpikeSNRThreshold = 2.0;
+        Args.DiffSpikeFracThreshold = 0.5;
         
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -736,28 +755,37 @@ function TranCat = flagNonTransients(Obj, Args)
                     (SaturationCentroids(:,1)-X_INearSat).^2 + ...
                     (SaturationCentroids(:,2)-Y_INearSat).^2);
 
-                SatIdx = find(SatCentDist == min(SatCentDist));
+                SatIdx = find(SatCentDist < Args.SatCentroidDistThreshold);
 
                 X_SatCent = SaturationCentroids(SatIdx,1);
                 Y_SatCent = SaturationCentroids(SatIdx,2);
                 Dist_SatCent = SatCentDist(SatIdx);
 
-                X_Line = linspace(X_INearSat, X_SatCent, ceil(Dist_SatCent));
-                Y_Line = linspace(Y_INearSat, Y_SatCent, ceil(Dist_SatCent));
-                
-                % sample matrix values (interp2 uses x=col, y=row)
-                Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
-                                
-                % remove NaNs (edges etc.)
-                Good = ~isnan(Vals_Line);
-                Vals_Line = Vals_Line(Good);
+                NumSatIdx = numel(SatIdx);
 
-                SN_Line = Vals_Line/sqrt(MedDiffVar);
-                PosSignificant_Line = SN_Line > 2.0;
-                NegSignificant_Line = SN_Line < -2.0;
+                HereIsDiffSpikeSubSel = false;
 
-                IsDiffSpikeSubSel(INearSat) = (sum(PosSignificant_Line)/ceil(Dist_SatCent) > 0.5) | ...
-                              (sum(NegSignificant_Line)/ceil(Dist_SatCent) > 0.5) ;
+                for ISatIdx = 1:NumSatIdx
+
+                    NumLinePixels = ceil(Dist_SatCent(ISatIdx));
+
+                    X_Line = linspace(X_INearSat, X_SatCent(ISatIdx), NumLinePixels);
+                    Y_Line = linspace(Y_INearSat, Y_SatCent(ISatIdx), NumLinePixels);
+                    
+                    % sample matrix values (interp2 uses x=col, y=row)
+                    Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
+                                    
+                    % remove NaNs (edges etc.)
+                    Good = ~isnan(Vals_Line);
+                    Vals_Line = Vals_Line(Good);
+    
+                    SN_Line = Vals_Line/sqrt(MedDiffVar);
+                    Significant_Line = abs(SN_Line) > Args.DiffSpikeSNRThreshold;
+                    NumSpikePixels = sum(Significant_Line);
+                    HereIsDiffSpikeSubSel = HereIsDiffSpikeSubSel | ...
+                        (NumSpikePixels/NumLinePixels > Args.DiffSpikeFracThreshold);
+                end
+                IsDiffSpikeSubSel(INearSat) = HereIsDiffSpikeSubSel;
             end
 
             IsDiffSpike(NearSatNotStar) = IsDiffSpikeSubSel;
