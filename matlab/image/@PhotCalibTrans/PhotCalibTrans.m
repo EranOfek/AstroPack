@@ -14,8 +14,8 @@ classdef PhotCalibTrans < Component
     %   TransModel - CompositeFun object with fitted transmission model and
     %   optimization sequence used for fitting
     %   SpecData   - Structure with reference spectral data (calibrator spectra)
-    %   SourceData - AstroCatalog with observed calibrator sources
-    %   CalibData  - Structure with calibrator data (spectra, positions, fluxes) [deprecated]
+    %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
+    %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
     %   NCalibMin  - Minimum number of calibrators required for success (default: 30)
     %   RMSMax     - Maximum allowed RMS for success [mag] (default: 0.1)
@@ -40,7 +40,7 @@ classdef PhotCalibTrans < Component
      ZP = PC.evaluateZP();  % Uses Obj.TransWvl, Obj.ExpTime, Obj.NCoadd, Obj.Aperture
 
      % Apply calibration to catalog
-     [MagAB, MagABErr] = PC.evaluateMag(MagInst, 'X', X, 'Y', Y, 'MagInstErr', MagErr);
+     [MagAB, MagABErr] = PC.evaluateMag(Flux, 'X', X, 'Y', Y, 'MagErr', MagErr);
 
      % Diagnostic plots
      PC.plotTransmission();
@@ -470,6 +470,9 @@ classdef PhotCalibTrans < Component
                 end
             end  % if ~Obj.CalFound ... else
 
+            % Evaluate success criteria
+            Obj = Obj.populateSuccess('Verbose', Args.Verbose);
+
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
             end
@@ -603,6 +606,14 @@ classdef PhotCalibTrans < Component
                     fprintf('  S/N filter (%g-%g): %d sources passed\n', ...
                             Args.MinSN, Args.MaxSN, sum(goodMask));
                 end
+            end
+
+            % Filter 4: Unique matches only (exclude sources with multiple identifications)
+            uniqueMatchMask = (nmatch_all == 1);
+            goodMask = goodMask & uniqueMatchMask;
+
+            if Args.Verbose
+                fprintf('  Unique match filter: %d sources passed\n', sum(goodMask));
             end
 
             % Check if any sources passed all filters
