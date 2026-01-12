@@ -809,7 +809,7 @@ classdef AstroTable < Component
                 % assume already in cell format
                 ColUnit = ColInd;
             else
-                ColUnit = Obj.ColUnit(ColInd);
+                ColUnit = Obj.ColUnits(ColInd);
             end
         end
         
@@ -1270,9 +1270,9 @@ classdef AstroTable < Component
                     Columns = Obj(Imax).ColNames;
                 end
                 ColNames = colind2name(Obj(Imax), Columns);
-                ColUnits = colind2unit(Obj(Imax), Columns);
                 ColIndC  = colname2ind(Obj(Imax), Columns);
-                
+                ColUnits = colind2unit(Obj(Imax), ColIndC);
+                                
                 Ncol     = numel(ColNames);
                 if isa(Obj, 'AstroCatalog')
                     NewObj   = AstroCatalog;
