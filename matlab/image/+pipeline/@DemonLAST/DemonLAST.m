@@ -30,6 +30,7 @@ classdef DemonLAST < Component
         LogPath      = 'log';    % if start with '/' then abs path
 
         SciPath      = 'science';
+        ManualPath   = false;  % of true, then can set paths manually
 
         RefPath      = [];
         
@@ -90,10 +91,13 @@ classdef DemonLAST < Component
                 end
             else
                 Result         = Obj.BasePath;
-                Obj.NewPath    = Obj.DefNewPath;
-                Obj.CalibPath  = Obj.DefCalibPath;
-                Obj.FailedPath = Obj.DefFailedPath;
-                Obj.LogPath    = Obj.DefLogPath;
+                if ~Obj.ManualPath                    
+                    Obj.NewPath    = Obj.DefNewPath;
+                    Obj.CalibPath  = Obj.DefCalibPath;
+                    Obj.FailedPath = Obj.DefFailedPath;
+                    Obj.LogPath    = Obj.DefLogPath;
+                end
+                  
             end
         end
 

@@ -1,4 +1,4 @@
-function [ResZP, MatchedS, ApplyToMagField] = zpFit(MatchedS, Args)
+function [ResZP, MatchedS, ApplyToMagField] = relZPfit(MatchedS, Args)
     %  Perform and apply relative photometry to a MatchedSources object.
     % Input  : - A MatchedSources object.
     %          * ...,key,val,... 
