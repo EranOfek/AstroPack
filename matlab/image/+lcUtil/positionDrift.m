@@ -60,7 +60,7 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
                 end
                 JD = MS(Ims).JD;
                 Result(Ims).DeltaTime = median(diff(JD));
-                Result(Ims).ShiftXY = cumsum([0 0; -[Result(Ifields).DShiftX, Result(Ifields).DShiftY]]);
+                Result(Ims).ShiftXY = cumsum([0 0; -[Result(Ims).DShiftX, Result(Ims).DShiftY]]);
 
 
                 RelTimeDay                 = JD-mean(JD);
