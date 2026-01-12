@@ -117,7 +117,8 @@ classdef PhotCalibTrans < Component
     methods % Constructor
         function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
-            % Input  : * ...,key,val,...
+            % Input  : - 
+            %            * ...,key,val,...
             %            Metadata describing conditions of observations: 
             %            'AirMass' - Airmass. 
             %            'Zenith' - Zenith angle [deg]. 
@@ -145,14 +146,14 @@ classdef PhotCalibTrans < Component
             %                              'NCoadd', 1, 'Temp', 15, 'Pressure', 965);
 
             % Parse name-value pairs and set properties if they exist
-            for i = 1:2:length(varargin)
-                if i+1 <= length(varargin)
-                    propName = varargin{i};
-                    if isprop(Obj, propName)
-                        Obj.(propName) = varargin{i+1};
+            for I = 1:2:length(varargin)
+                if I+1 <= length(varargin)
+                    PropName = varargin{I};
+                    if isprop(Obj, PropName)
+                        Obj.(PropName) = varargin{I+1};
                     else
                         warning('PhotCalibTrans:UnknownProperty', ...
-                            'Property "%s" does not exist and will be ignored.', propName);
+                            'Property "%s" does not exist and will be ignored.', PropName);
                     end
                 end
             end
