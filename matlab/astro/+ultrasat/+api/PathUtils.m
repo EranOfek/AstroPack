@@ -45,7 +45,7 @@ classdef PathUtils < handle
                 subFolder (1,:) char
             end
             % CHANGE: Concatenation with [] instead of +
-            folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'global', moduleName, subFolder), filesep];
+            folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'namespaces', '_global', moduleName, subFolder), filesep];
         end
 
 
@@ -74,9 +74,9 @@ classdef PathUtils < handle
 
             % CHANGE: isempty() check instead of == ""
             if isempty(subFolder)
-                folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'global', moduleName, dateSubFolder), filesep];
+                folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'namespaces', '_global', moduleName, dateSubFolder), filesep];
             else
-                folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'global', moduleName, subFolder, dateSubFolder), filesep];
+                folderPath = [fullfile(ultrasat.api.PathUtils.BasePath, 'data', 'namespaces', '_global', moduleName, subFolder, dateSubFolder), filesep];
             end
         end
 
@@ -179,7 +179,7 @@ classdef PathUtils < handle
             end
             dt = ultrasat.api.PathUtils.resolveDateTime(options.DT);
             logSubPath = ultrasat.api.PathUtils.getLogSubfolderFilename(fileName, dt);
-            filePath = fullfile(ultrasat.api.PathUtils.BasePath, 'log', 'global', moduleName, logSubPath);
+            filePath = fullfile(ultrasat.api.PathUtils.BasePath, 'log', 'namespaces', '_global', moduleName, logSubPath);
         end
 
 

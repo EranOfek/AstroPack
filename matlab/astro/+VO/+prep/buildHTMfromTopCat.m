@@ -324,7 +324,8 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Save HTM index using tracked Nsrc
-        HDF5.save_htm_ind(HTM, IndFileName, [], {}, Nsrc);
+        [~, BaseName, ~] = fileparts(FileName);
+        HDF5.save_htm_ind(HTM, BaseName, [], {}, Nsrc);
 
         % Copy index file to remote directory if specified
         if ~isempty(Args.TargetDir)

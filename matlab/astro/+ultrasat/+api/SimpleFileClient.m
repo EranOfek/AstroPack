@@ -64,7 +64,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
             result = false;
             try
-                response = obj.performPostRequest('files/health', {});
+                response = obj.performPostRequest('api/files/health', {});
                 if isfield(response, 'status') && strcmp(response.status, 'ok')
                     result = true;
                 end
@@ -86,7 +86,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 masks char = ''
             end
 
-            endpoint = 'files/list';
+            endpoint = 'api/files/list';
             payload.path = obj.safePath([obj.BasePath, folderPath]);
             if ~isempty(masks)
                 payload.masks = masks;
@@ -116,7 +116,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 filePath char
             end
 
-            endpoint = 'files/read';
+            endpoint = 'api/files/read';
             payload.path = obj.safePath([obj.BasePath, filePath]);
 
             try
@@ -171,7 +171,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 append logical = false
             end
 
-            endpoint = 'files/write';
+            endpoint = 'api/files/write';
             payload.path = obj.safePath([obj.BasePath, filePath]);
             payload.data = data;
             payload.append = append;
@@ -218,7 +218,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             binaryData = uint8.empty(1,0); % Default empty response
-            endpoint = 'files/read';
+            endpoint = 'api/files/read';
 
             % Create a payload telling the server we want the file as Base64
             payload.path = obj.safePath([obj.BasePath, relativeFilePath]);
@@ -250,7 +250,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             success = false; % Default to failure
-            endpoint = 'files/write';
+            endpoint = 'api/files/write';
 
             try
                 % Use MATLAB's built-in Base64 encoder to convert the raw bytes
@@ -285,7 +285,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
                 maxIndex (1,1) double {mustBeInteger, mustBePositive}
             end
 
-            endpoint = 'files/next_available_file';
+            endpoint = 'api/files/next_available_file';
             payload.path = obj.safePath([obj.BasePath, folderPath]);
             payload.mask = mask;
             payload.zero_pad = zeroPad;
@@ -311,7 +311,7 @@ classdef SimpleFileClient < ultrasat.api.Loggable
             end
 
             % Delete a file from the server
-            endpoint = 'files/delete';
+            endpoint = 'api/files/delete';
             payload.path = obj.safePath([obj.BasePath, filePath]);
             try
                 result = obj.performPostRequest(endpoint, payload);
