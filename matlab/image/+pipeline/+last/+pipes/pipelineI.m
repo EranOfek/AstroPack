@@ -1,7 +1,7 @@
-function pipelineI(RawImageList, CI, Args)
+function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
-    %          pipeline.last.pipes.pipelineI([],D.CI);
+    %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
 
     arguments
         RawImageList                       = [];
@@ -35,6 +35,15 @@ function pipelineI(RawImageList, CI, Args)
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
         Args.MaxFracGrad                 = 0.2;
+
+        Args.AddMergedCat                = true;
+        Args.AddKnownAst                 = true;
+        Args.GeoPos                      = [];
+        Args.OrbEl                       = [];
+        Args.INPOP                       = celestial.INPOP.init;
+        Args.AsteroidSearchRadius        = 10;
+
+        Args.KeysGlobalMotion = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
 
         Args.Logger                      = [];
     end
@@ -80,24 +89,30 @@ function pipelineI(RawImageList, CI, Args)
     JD = AI.julday;
     JD = repmat(JD(:), 1, Nsub); % faster than getting the JD for AllSI
 
-    % measure background, PSF, search for stars in all images
-    if isempty(Args.UseParfor)
+    % initiate parpool if needed
+    if Args.UseParfor
         PP = gcp('nocreate');
         if isempty(PP)
+            % no parpool exist
+            % create new parpool
             PP = parpool(Args.Nworkers);
         end
+    end
+
+    % measure background, PSF, search for stars in all images
+    if isempty(PP)
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
                                                     'JD',JD,...
                                                     'AddSkyCoo',false);  % 513 s
        
     else
-        tic;
+        %tic;
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
                                                     'AddSkyCoo',false);  % 193 s
         end
-        toc
+        %toc
     end
 
 
@@ -128,7 +143,7 @@ function pipelineI(RawImageList, CI, Args)
     % forced photometry
     % forced photometry on pre-selected targets
     if ~isempty(Args.ForcedPhotCat)
-        tic;
+        %tic;
         MidEpoch = ceil(Nepoch.*0.5);
         CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));  % 0.2
 
@@ -138,7 +153,7 @@ function pipelineI(RawImageList, CI, Args)
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
             AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
         end
-        toc
+        %toc
         AFP = AllFP(:).merge; % 0.05s
     end
 
@@ -169,40 +184,61 @@ function pipelineI(RawImageList, CI, Args)
     % coadd images
     % Only coaddition: 56 s 
     % only multiIterationPSF: 35 s
-    % coadd+multiIterPSF+astrometry+PhotCalibSimple : 109 s
-    tic;
+    % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s 
+    % (93 s with parfor)
+    %tic;
     [Coadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'ShiftXY',ShiftInfo,...
                                               'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
                                               'IsShiftXYfiltered',true);
-toc
-   
-    % coadd: search stars
-    tic;
-    [Coadd] = imProc.sources.multiIterExtractor(Coadd, Args.multiIterExtractorArgs{:},...
-                                                    'AddSkyCoo',true);
-    toc
+    %toc
 
-    % coadd: solve astrometry
-    imProc.astrometry.astrometryAllSubImage
+    if Args.AddMergedCat
+        %tic;
+        if isempty(Args.UseParfor)
+            Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);  % 23 s
+        else
+            PP = gcp('nocreate');
+            if isempty(PP)
+                PP = parpool(Args.Nworkers);
+            end
+            tic;
+            parfor Isub=1:1:Nsub
+                Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
+            end
+            %toc
+        end
+    end
 
-    % coadd: match external
-    pipeline.generic.matchExternal
+    if Args.AddKnownAst
+        % slower with parfor
+        [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+    else
+        OnlyMP = [];
+    end
 
-    % MISSING - write drifts to header
-
+    % write drifts to header
+    for Isub=1:1:Nsub      
+        DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
+        Coadd(Isub).HeaderData.insertKey(DataGM,'end');
+    end
     
 
-    % save products
-    imProc.io.saveProductImage
-    imProc.io.saveProductMatchedSources
 
-    
+
     % coadd: photometric calibration
 
+
+
     % save products
-    imProc.io.saveProductImage
+    %imProc.io.saveProductImage
+    %imProc.io.saveProductMatchedSources
+
+    
+    
+    % save products
+    %imProc.io.saveProductImage
 
     % write status
     

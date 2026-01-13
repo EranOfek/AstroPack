@@ -1,4 +1,4 @@
-function DW=apsides_precession(Mass,A,E)
+function DW=apsidal_precession(Mass,A,E)
 % First order estimation of the GR precession of the line of apsides
 % Package: celestial.Kepler
 % Description: First order estimation of the GR precession of the line

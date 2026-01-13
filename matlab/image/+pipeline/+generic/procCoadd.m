@@ -270,7 +270,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
     
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
-    for Ifields=1:1:Nfields
+    parfor Ifields=1:1:Nfields
         FlagGood = Args.IsGood(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
@@ -411,23 +411,22 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
     
     % 
-   if 1==0
-    if Args.CoaddMatchMergedCat
-        % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
-    end
-    
-    % match Coadd catalog against MergedCat
-    [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
-    
-    % adding known minor planets
-    % FFU
-    if Args.SelectKnownAsteroid
-        [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
-    else
-        OnlyMP = [];
-    end
+ 
+    % if Args.CoaddMatchMergedCat
+    %     % match against external catalogs
+    %     Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
+    % end
+    % 
+    % % match Coadd catalog against MergedCat
+    % %[Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
+    % 
+    % % adding known minor planets
+    % % FFU
+    % if Args.SelectKnownAsteroid
+    %     [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
+    % else
+    %     OnlyMP = [];
+    % end
 
-   end
 
 end
