@@ -270,7 +270,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
     
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
-    parfor Ifields=1:1:Nfields
+    for Ifields=1:1:Nfields
         FlagGood = Args.IsGood(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch

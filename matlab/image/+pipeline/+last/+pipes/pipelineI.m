@@ -188,6 +188,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     % (93 s with parfor)
     %tic;
     [Coadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
+                                              'CatName',CatName,...
                                               'ShiftXY',ShiftInfo,...
                                               'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
@@ -203,7 +204,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
             if isempty(PP)
                 PP = parpool(Args.Nworkers);
             end
-            tic;
+            %tic;
             parfor Isub=1:1:Nsub
                 Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
             end
