@@ -1,11 +1,12 @@
-function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
+function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
     % One line description
     %     Optional detailed description
     % Input  : - Image:     2D matrix (original image)
     %          - Coords:    A 4 column matrix, of [MinX, MaxX, MinY, MaxY],
     %            of the coordinates of the lines to add to image.
     %          - Intensity: A vector of intensities (per line) to add along
-    %            each line. Default is 1.
+    %            each line, or a scalar (all ines with the same intensity).
+    %            Default is 1.
     %          - PSF:       Point Spread Function (2D array) to convolve
     %            with the image.
     %            if empty, no convolution is done. If scalar, then this is
@@ -36,6 +37,7 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
     OutImage = Image;
 
     N = size(Coords,1);
+    fluxes = zeros(N,1);
     if numel(Intensity)==1
         Intensity=Intensity*ones(1,N);
     end
@@ -75,16 +77,33 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
             otherwise
                 error('Unknown Norm option');
         end
-        OutImage(Indices) = OutImage(Indices) + Brightness(I);
+        StreakImage=zeros(size(Image));
+        StreakImage(Indices) = Brightness(I);
+
+        % Convolve with PSF if provided
+        if ~isempty(PSF)
+            if numel(PSF)==1
+                PSF = imUtil.kernel2.gauss(PSF);
+            end
+            StreakImage = conv2(StreakImage, PSF, 'same');
+        end
+
+        % compute a posteriori the resulting fluxes before summing to the input
+        %  image
+        fluxes(I) = sum(StreakImage,'all');
+
+        switch lower(Args.Norm)
+            case 'none'
+                fluxes(I) = fluxes(I)/numel(Indices);
+            case 'lxi'
+                % normalize by Length X Intensity
+                % conserve flux
+                fluxes(I) = fluxes(I)/(Length*numel(Indices));
+        end
+
+        OutImage = OutImage+StreakImage;
     end
 
-    % Convolve with PSF if provided
-    if ~isempty(PSF)
-        if numel(PSF)==1
-            PSF = imUtil.kernel2.gauss(PSF);
-        end
-        OutImage = conv2(OutImage, PSF, 'same');
-    end
 end
 
 

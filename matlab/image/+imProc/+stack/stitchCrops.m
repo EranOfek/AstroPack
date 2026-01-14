@@ -48,9 +48,11 @@ function [Result] = stitchCrops(AI, Args)
     
     % merge the catalogs:
     Result.CatData = merge(MCat);
-    Result.CatData.JD = MCat(1).julday;     
+    Result.CatData.JD = MCat(1).julday;  
+    RA0  = mean(Result.Table.RA);
+    Dec0 = mean(Result.Table.Dec);
             
     % build WCS from the merged catalog 
-    [~, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData);
+    [~, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData,'RA',RA0,'Dec',Dec0);
     
 end
