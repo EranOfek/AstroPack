@@ -439,6 +439,7 @@ classdef CompositeFun < handle
         % Position-dependent correction (Tran2D integration)
         Tran2DObj = []           % Tran2D object for spatial corrections
         UseTran2D logical = false  % Flag to enable Tran2D evaluation
+        NameTran2D = ''          % Name/type of Tran2D transformation (e.g., 'cheby1_3', 'poly_2')
 
         % Fit quality metrics (set by fitPar)
         RMS = NaN                % RMS of residuals from last fit
@@ -536,11 +537,6 @@ classdef CompositeFun < handle
                     Params = cell2mat(Params);
                 end
 
-                % Validate Params is numeric array
-                if ~isnumeric(Params)
-                    error('Parameters for function %s must be numeric array', FunName);
-                end
-
                 % Convert paraminfo from cell array to struct array if needed (from YAML)
                 if iscell(ParamInfo)
                     ParamInfo = [ParamInfo{:}];
@@ -561,12 +557,6 @@ classdef CompositeFun < handle
                     end
                 else
                     FitPar = false(1, NumParams);
-                end
-
-                % Validate that params and paraminfo have matching lengths
-                if NumParams ~= length(ParamInfo)
-                    error('Function "%s" has %d params but %d paraminfo entries. These must match.', ...
-                          FunName, NumParams, length(ParamInfo));
                 end
 
                 % Build ArgNames structure
@@ -660,6 +650,9 @@ classdef CompositeFun < handle
                 % Add Tran2D to CompositeFun model without normalization
                 % (normalization not needed for iterative optimization)
                 Obj.addTran2D(T2D, 'Verbose', Args.Verbose);
+
+                % Store Tran2D transformation name
+                Obj.NameTran2D = Args.Tran2DType;
 
                 if Args.Verbose
                     fprintf('Tran2D added: %s (%d parameters)\n', Args.Tran2DType, Nparams);
@@ -898,36 +891,10 @@ classdef CompositeFun < handle
             %   AllFunPar.Max(2) = 500;     % Set upper bound
             %   Model.setAllFunPar(AllFunPar);
 
-            % Validate input structure
-            if ~isstruct(AllFunPar) || ~isfield(AllFunPar, 'Val') || ~isfield(AllFunPar, 'FitPar')
-                error('CompositeFun:setAllFunPar:InvalidInput', 'Input must be structure with Val and FitPar fields');
-            end
-
             NumAllFunPar = Obj.numAllFunPar();
 
-            % Validate sizes
-            if length(AllFunPar.Val) ~= NumAllFunPar
-                error('CompositeFun:setAllFunPar:ValuesSizeMismatch', ...
-                      'Val has %d elements but %d expected', length(AllFunPar.Val), NumAllFunPar);
-            end
-            if length(AllFunPar.FitPar) ~= NumAllFunPar
-                error('CompositeFun:setAllFunPar:FitParSizeMismatch', ...
-                      'FitPar has %d elements but %d expected', length(AllFunPar.FitPar), NumAllFunPar);
-            end
-
-            % Validate bounds if provided
-            UpdateBounds = false;
-            if isfield(AllFunPar, 'Min') && isfield(AllFunPar, 'Max')
-                if length(AllFunPar.Min) ~= NumAllFunPar
-                    error('CompositeFun:setAllFunPar:MinSizeMismatch', ...
-                          'Min has %d elements but %d expected', length(AllFunPar.Min), NumAllFunPar);
-                end
-                if length(AllFunPar.Max) ~= NumAllFunPar
-                    error('CompositeFun:setAllFunPar:MaxSizeMismatch', ...
-                          'Max has %d elements but %d expected', length(AllFunPar.Max), NumAllFunPar);
-                end
-                UpdateBounds = true;
-            end
+            % Check if bounds should be updated
+            UpdateBounds = isfield(AllFunPar, 'Min') && isfield(AllFunPar, 'Max');
 
             % Update all functions with new values, FitPar flags, and bounds
             for Ifun = 1:numel(Obj.Funs)
@@ -1120,19 +1087,6 @@ classdef CompositeFun < handle
             try
                 % Call function with GetArgNames flag to get parameter info
                 ArgNames = FunctionHandle('GetArgNames', true);
-
-                if isempty(ArgNames) || ~isstruct(ArgNames)
-                    error('Function did not return valid ArgNames structure');
-                end
-
-                % Validate structure has required fields
-                RequiredFields = {'Name', 'Description', 'Min', 'Max'};
-                for i = 1:length(RequiredFields)
-                    if ~isfield(ArgNames, RequiredFields{i})
-                        error('ArgNames missing required field: %s', RequiredFields{i});
-                    end
-                end
-
             catch ME
                 error('CompositeFun:extractArgFuns:Failed', ...
                       'Cannot extract ArgNames from function handle: %s', ME.message);
@@ -1202,11 +1156,6 @@ classdef CompositeFun < handle
             % Set FitPar default if not provided
             if isempty(FitPar)
                 FitPar = false(size(Par));  % Already returns logical
-            end
-
-            % Validate sizes
-            if length(Par) ~= length(FitPar)
-                error('CompositeFun:addFun:SizeMismatch', 'Par and FitPar must have the same length');
             end
 
             % Create an entry for new function 
@@ -1280,15 +1229,6 @@ classdef CompositeFun < handle
 
             % Now process the last function's parameters
             for Ipar = 1:NumParams
-                % Validate ArgNames
-                if isempty(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:MissingArgNames', 'ArgNames is empty for function %s', CurrentFun.Name);
-                end
-                if Ipar > length(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:ArgNamesMismatch', 'ArgNames has %d elements but Par has %d elements for function %s', ...
-                          length(CurrentFun.ArgNames), NumParams, CurrentFun.Name);
-                end
-
                 % Get parameter name (stored in Description field)
                 ParamName = CurrentFun.ArgNames(Ipar).Description;
 
@@ -1368,14 +1308,8 @@ classdef CompositeFun < handle
                 AllFunPar = [];
             end
 
-            % Validate AllFunPar size if provided
+            % Determine number of parameter sets
             if ~isempty(AllFunPar)
-                ExpectedSize = Obj.numAllFunPar();
-                if size(AllFunPar, 2) ~= ExpectedSize
-                    error('CompositeFun:evaluate:AllFunParSizeMismatch', ...
-                          'AllFunPar has %d columns but %d expected', ...
-                          size(AllFunPar, 2), ExpectedSize);
-                end
                 NumParamSets = size(AllFunPar, 1);
             else
                 NumParamSets = 1;
