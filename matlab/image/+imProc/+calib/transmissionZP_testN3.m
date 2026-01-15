@@ -55,6 +55,8 @@ function [Result] = transmissionZP_testN3(Args)
     T2 = Args.DB.query(Q);
     Nvis = height(T2);    
     
+    Result = zeros(Nvis,2);
+
     for Ivis = 1:Nvis
         % construct the file name (later will use an AstroFileName object)
         Mt  = compose('%02d',T2.mountnum(Ivis)); Cam = compose('%02d',T2.camnum(Ivis));
@@ -85,7 +87,7 @@ function [Result] = transmissionZP_testN3(Args)
     %    AI.CatData = PC.addMagAB(AI.CatData);
     % toc
      
-        imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
+        [~,~, Result(Ivis,1), Result(Ivis,2)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
