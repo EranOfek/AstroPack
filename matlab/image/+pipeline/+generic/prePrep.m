@@ -196,7 +196,7 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         %AI.cast(Args.ImageClass);  % very slow
 
         for Iim=1:1:Nim
-            AI(Iim).ImageData.Image = single(AI(Iim).ImageData.Image);
+            AI(Iim).ImageData.Data = single(AI(Iim).ImageData.Data);
             %AI(Iim).Image = single(AI(Iim).Image);
         end
     end
