@@ -37,7 +37,7 @@ classdef PhotCalibTrans < Component
      Cat = PC.addMagAB(Cat);
 
      % Write results to header
-     PC.writePhotCalibTrans(AI.HeaderData);
+     PC.photCalibTransToHeader(AI.HeaderData);
 
      % Diagnostic plots
      PC.plotTransmission();
@@ -57,8 +57,8 @@ classdef PhotCalibTrans < Component
     %     evaluateZP - Evaluate photometric zero point at specific positions
     %     evaluateMag - Evaluate calibrated AB magnitudes from instrumental magnitudes
     %   Header I/O Methods:
-    %     writePhotCalibTrans - Write calibration results to AstroHeader
-    %     populatePhotCalibTrans - Read calibration data from AstroHeader
+    %     photCalibTransToHeader - Write calibration results to AstroHeader
+    %     photCalibTransFromHeader - Read calibration data from AstroHeader
     %   Catalog Operations:
     %     addMagAB - Add calibrated AB magnitude columns to catalog
     %     addZP - Add position-dependent ZP column to catalog
@@ -1017,7 +1017,7 @@ classdef PhotCalibTrans < Component
 
 
     methods % Header I/O methods
-        function HeaderObj = writePhotCalibTrans(Obj, HeaderObj, Args)
+        function HeaderObj = photCalibTransToHeader(Obj, HeaderObj, Args)
             % Write calibration data to AstroHeader
             % Input  : - Obj - PhotCalibTrans object
             %          - HeaderObj - AstroHeader object
@@ -1025,8 +1025,8 @@ classdef PhotCalibTrans < Component
             %            'WriteComments' - Add explanatory comments to keywords. Default is false.
             % Output : - HeaderObj - Updated AstroHeader object with PT_* keywords
             % Author : D. Kovaleva (Jan 2026)
-            % Example: Header = PC.writePhotCalibTrans(Header);
-            %          Header = PC.writePhotCalibTrans(Header, 'WriteComments', true);
+            % Example: Header = PC.photCalibTransToHeader(Header);
+            %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
             %              Keywords: PT_RMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
             %                        PT_AREF, PT_SREF, PT_SPEC,
@@ -1188,14 +1188,14 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function Obj = populatePhotCalibTrans(Obj, HeaderObj, Args)
+        function Obj = photCalibTransFromHeader(Obj, HeaderObj, Args)
             % Populate PhotCalibTrans object from AstroHeader
             % Input  : - Obj - PhotCalibTrans object (existing)
             %          - HeaderObj - AstroHeader object with PT_* keywords
             %          * ...,key,val,...
             % Output : - Obj - PhotCalibTrans object populated from header
             % Author : D. Kovaleva (Jan 2026)
-            % Example: PC = PC.populatePhotCalibTrans(Header);
+            % Example: PC = PC.photCalibTransFromHeader(Header);
             % Description: Reads calibration results and fitted parameters from header.
             %              Populates existing PhotCalibTrans object with stored data.
 

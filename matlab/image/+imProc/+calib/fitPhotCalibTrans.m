@@ -157,10 +157,10 @@ function [Result, PhotCalib, NCalib, RMS] = fitPhotCalibTrans(Obj, Args)
             % Update header if requested
             if Args.UpdateHeader
                 if IsAstroImage
-                    PC.writePhotCalibTrans(Result(Iobj).HeaderData);
+                    PC.photCalibTransToHeader(Result(Iobj).HeaderData);
                 else
                     % For AstroCatalog, create new header (not stored)
-                    PC.writePhotCalibTrans(AstroHeader());
+                    PC.photCalibTransToHeader(AstroHeader());
                 end
                 if Args.Verbose
                     fprintf('  Header updated with calibration results\n');

@@ -317,6 +317,27 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             Args.ColCell = ColNamesDetected;
         end
 
+        % If still empty (e.g., all cells skipped in resume mode), try to read from existing colcell file
+        if isempty(Args.ColCell) && Args.Resume
+            ExistingColCellFile = fullfile(Args.LocalDir, sprintf('%s_htmColCell.mat', Args.CatName));
+            if isfile(ExistingColCellFile)
+                try
+                    LoadedData = load(ExistingColCellFile, 'ColCell', 'ColUnits');
+                    if isfield(LoadedData, 'ColCell')
+                        Args.ColCell = LoadedData.ColCell;
+                        if isfield(LoadedData, 'ColUnits') && isempty(Args.ColUnits)
+                            Args.ColUnits = LoadedData.ColUnits;
+                        end
+                        if Args.Verbose
+                            fprintf('Loaded column names from existing file: %s\n', ExistingColCellFile);
+                        end
+                    end
+                catch
+                    % Could not load - will warn later
+                end
+            end
+        end
+
         % Delete old index file if exists
         IndFileName = fullfile(Args.LocalDir, sprintf('%s_htm.hdf5', Args.CatName));
         if isfile(IndFileName)
@@ -324,8 +345,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Save HTM index using tracked Nsrc
-        [~, BaseName, ~] = fileparts(FileName);
-        HDF5.save_htm_ind(HTM, BaseName, [], {}, Nsrc);
+        HDF5.save_htm_ind(HTM, IndFileName, [], {}, Nsrc);
 
         % Copy index file to remote directory if specified
         if ~isempty(Args.TargetDir)
@@ -336,6 +356,18 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         if ~isempty(Args.ColCell)
             ColCellPath = fullfile(Args.LocalDir, Args.CatName);
             HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
+            ColCellFileName = sprintf('%s_htmColCell.mat', ColCellPath);
+            if Args.Verbose
+                fprintf('Saved column metadata: %s\n', ColCellFileName);
+            end
+
+            % Copy colcell file to remote directory if specified
+            if ~isempty(Args.TargetDir)
+                tools.os.copyFileOverNFS({ColCellFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            end
+        else
+            warning('VO:buildHTMfromTopCat:NoColCell', ...
+                'Column names could not be detected (no successful queries). ColCell file not created.');
         end
     end
 
