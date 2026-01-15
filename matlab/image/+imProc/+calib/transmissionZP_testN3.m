@@ -9,9 +9,10 @@ function [Result] = transmissionZP_testN3(Args)
     %          imProc.calib.transmissionZP_testN3('DB',D);
     arguments
         Args.FieldID           = '1679.c';
-        Args.MountNum          = 2;
-        Args.CamNum            = 1;
-        Args.CropID            = 10;
+        Args.MountNum          = 2; % []; % 2;
+        Args.CamNum            = 1; % []; % 1;
+        Args.CropID            = []; % 10;
+        Args.AddConstraints    = []; % e.g. 'jd_start > 2.46086240482600e+06 and jd_start < 2.46086240482700e+06'
         Args.Table             = 'N3_visit_images';
         Args.DB                = [];
         Args.OutDir            = '~/Data2/test/';
@@ -24,9 +25,32 @@ function [Result] = transmissionZP_testN3(Args)
     end
 
     %
-    Q = sprintf(['select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') ' ...
-        'and mountnum = %d and camnum = %d and cropid = %d'],...
-        Args.Table,Args.FieldID,Args.FieldID(1:4),Args.MountNum,Args.CamNum,Args.CropID);
+    if isempty(Args.MountNum)
+        QMount = '';
+    else
+        QMount = sprintf('and mountnum = %d',Args.MountNum);
+    end
+    %
+    if isempty(Args.CamNum)
+        QCam = '';
+    else
+        QCam = sprintf('and camnum = %d',Args.CamNum);
+    end
+    %
+    if isempty(Args.CropID)
+        QCrop = '';
+    else
+        QCrop = sprintf('and cropid = %d',Args.CropID);
+    end
+    %
+    if isempty(Args.AddConstraints)
+        QAdd = '';
+    else
+        QAdd = sprintf('and %s',Args.AddConstraints);
+    end
+
+    Q = sprintf('select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') %s %s %s %s',...
+        Args.Table,Args.FieldID,Args.FieldID(1:4), QMount, QCam, QCrop, QAdd);
 
     T2 = Args.DB.query(Q);
     Nvis = height(T2);    
@@ -61,7 +85,7 @@ function [Result] = transmissionZP_testN3(Args)
     %    AI.CatData = PC.addMagAB(AI.CatData);
     % toc
      
-        imProc.calib.fitPhotCalibTrans(AI, 'addZP', true);
+        imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
