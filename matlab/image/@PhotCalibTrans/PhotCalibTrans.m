@@ -753,6 +753,17 @@ classdef PhotCalibTrans < Component
                 Obj.SpecData = [];
                 Obj.CalFound = false;
             end
+
+            % Clean up temporary columns added by match_catsHTM to input catalog
+            if HasRADec
+                CatTab = Cat.Table;
+                if ismember('Dist', CatTab.Properties.VariableNames)
+                    Cat = Cat.deleteCol('Dist');
+                end
+                if ismember('Nmatch', CatTab.Properties.VariableNames)
+                    Cat = Cat.deleteCol('Nmatch');
+                end
+            end
         end
 
         function Obj = populateSuccess(Obj, Args)
@@ -776,9 +787,9 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.NCalibMin = 30
-                Args.RMSMax = 0.1
-                Args.MinCalibRetention = 0.5
+                Args.NCalibMin = 0   %30
+                Args.RMSMax = 100    %0.1  
+                Args.MinCalibRetention = 0.0 %0.5
                 Args.Verbose logical = false
             end
 
@@ -1489,7 +1500,7 @@ classdef PhotCalibTrans < Component
             ZP = ZP(:);  % Ensure column vector
 
             % Insert column
-            CatObj = CatObj.insertCol(ZP, Inf, {'ZP'});
+            CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
         end
     end
 

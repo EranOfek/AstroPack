@@ -1,4 +1,4 @@
-function [Result, PhotCalib] = fitPhotCalibTrans(Obj, Args)
+function [Result, PhotCalib, NCalib, RMS] = fitPhotCalibTrans(Obj, Args)
     % Transmission-based absolute photometric calibration wrapper
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
@@ -25,16 +25,14 @@ function [Result, PhotCalib] = fitPhotCalibTrans(Obj, Args)
     %            'Verbose' - Enable verbose output. Default is true.
     % Output : - Result - Input object, possibly with updated catalog and header.
     %          - PhotCalib - Array of PhotCalibTrans objects (one per input object).
+    %          - NCalib - Number of calibrators used [Nobj x 1] (0 if failed).
+    %          - RMS - Fit RMS [mag] [Nobj x 1] (NaN if failed).
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
-    %          [Result, PC] = imProc.calib.fitPhotCalibTrans(AI);
-    %          % Check calibration success
-    %          if PC.Success
-    %              fprintf('Calibration successful! RMS = %.4f mag\n', PC.TransModel.RMS);
-    %          end
-    %          % Process multiple images
-    %          [Result, PC] = imProc.calib.fitPhotCalibTrans(AI_vector, 'Verbose', false);
+    %          [Result, PC, NCalib, RMS] = imProc.calib.fitPhotCalibTrans(AI);
+    %          % Check results even if calibration failed
+    %          fprintf('NCalib=%d, RMS=%.4f\n', NCalib, RMS);
 
     arguments
         Obj  % AstroImage or AstroCatalog
@@ -91,6 +89,10 @@ tic
 
     % Initialize output array of PhotCalibTrans objects
     PhotCalib = PhotCalibTrans.empty(0, Nobj);
+
+    % Initialize output statistics arrays
+    NCalib = zeros(Nobj, 1);
+    RMS = nan(Nobj, 1);
 
     % ====================================================================
     % LOOP OVER OBJECTS
@@ -168,6 +170,18 @@ tic
             if Args.Verbose
                 fprintf('  Calibration unsuccessful - skipping post-processing\n');
             end
+        end
+
+        % Extract calibration statistics (even if failed)
+        if PC.CalFound && ~isempty(PC.SpecData)
+            if ~isempty(PC.SourceData) && PC.SourceData.isColumn('Used')
+                NCalib(Iobj) = sum(PC.SourceData.getCol('Used'));
+            else
+                NCalib(Iobj) = size(PC.SpecData.Spec, 1);
+            end
+        end
+        if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.RMS)
+            RMS(Iobj) = PC.TransModel.RMS;
         end
 
         % Store calibration object
