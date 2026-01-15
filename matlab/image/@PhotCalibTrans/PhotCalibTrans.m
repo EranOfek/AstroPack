@@ -563,18 +563,31 @@ classdef PhotCalibTrans < Component
             Tab = Cat.Table;
             Nsources_initial = height(Tab);
 
+            % Check if RA/Dec columns exist for calibrator matching
+            AllColNames = Tab.Properties.VariableNames;
+            HasRADec = ismember('RA', AllColNames) && ismember('Dec', AllColNames);
+
+            if ~HasRADec
+                if Args.Verbose
+                    fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
+                    fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
+                end
+            end
+
             % ====================================================================
             % STEP 2: MATCH WITH CALIBRATOR CATALOG (BEFORE FILTERING)
             % ====================================================================
 
-            % Match all sources with calibrator catalog (default: GAIADR3spec)
-            % Filter matches afterward to avoid indexing issues
-            if Args.Verbose
-                fprintf('  Matching %d sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
-                        Nsources_initial, Args.SearchRadius);
-            end
+            % Only proceed if RA/Dec are available
+            if HasRADec
+                % Match all sources with calibrator catalog (default: GAIADR3spec)
+                % Filter matches afterward to avoid indexing issues
+                if Args.Verbose
+                    fprintf('  Matching %d sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
+                            Nsources_initial, Args.SearchRadius);
+                end
 
-            [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
+                [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
                                                               'Radius', Args.SearchRadius, ...
                                                               'RadiusUnits', 'arcsec');
 
@@ -646,97 +659,99 @@ classdef PhotCalibTrans < Component
                 fprintf('  Unique match filter: %d sources passed\n', sum(goodMask));
             end
 
-            % Check if any sources passed all filters
-            if ~any(goodMask)
-                warning('PhotCalibTrans:selectCalibrators:NoMatches', ...
-                        'No sources passed quality filters and have calibrator matches');
+                % Check if any sources passed all filters
+                HasGoodMatches = any(goodMask);
+
+                if ~HasGoodMatches && Args.Verbose
+                    fprintf('  Warning: No sources passed quality filters and have calibrator matches\n');
+                end
+            else
+                HasGoodMatches = false;
+            end
+
+            % ====================================================================
+            % STEP 4: EXTRACT CALIBRATOR DATA (if matches found)
+            % ====================================================================
+
+            if HasRADec && HasGoodMatches
+                % Extract matched and filtered sources
+                ObsTab = Tab(goodMask, :);                    % Filtered observed sources
+                calIdx = double(calIdx_all(goodMask));        % Calibrator indices
+                dist_rad = dist_rad_all(goodMask);            % Match distances
+                nmatch = nmatch_all(goodMask);                % Number of matches
+
+                CalArr = CatH.Catalog;  % Use Catalog (matrix) instead of Table
+                CalTab = CalArr(calIdx, :);  % Matched calibrators
+                Nmatch = size(CalTab, 1);
+
+                if Args.Verbose
+                    fprintf('  Found %d matched calibrator pairs\n', Nmatch);
+                end
+
+                % Extract column indices from SpFluxCol
+                FluxIni = Args.SpFluxCol(1);
+                FluxEnd = Args.SpFluxCol(2);
+                EFluxIni = Args.SpFluxCol(3);
+                EFluxEnd = Args.SpFluxCol(4);
+
+                % Extract calibrator spectra (CalTab is already a matrix from Catalog)
+                % Convert to double (catsHTM stores Gaia data as single for memory efficiency)
+                SpecFlux = double(CalTab(:, FluxIni:FluxEnd));      % [N x 343]
+                SpecErr = double(CalTab(:, EFluxIni:EFluxEnd));     % [N x 343]
+
+                % Extract coordinates
+                Cal_RA = double(CalTab(:, 1)) * RAD;   % rad -> deg
+                Cal_Dec = double(CalTab(:, 2)) * RAD;  % rad -> deg
+
+                % Extract observed data
+                Obs_X = ObsTab.X;
+                Obs_Y = ObsTab.Y;
+                Obs_RA = ObsTab.RA;
+                Obs_Dec = ObsTab.Dec;
+
+                % Extract flux from specified column (for fitting)
+                Obs_Flux = ObsTab.(Args.FluxColName);
+
+                % Get flux error column name (replace FLUX with FLUXERR)
+                FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
+                if ismember(FluxErrColName, ObsTab.Properties.VariableNames)
+                    Obs_FluxErr = ObsTab.(FluxErrColName);
+                else
+                    Obs_FluxErr = sqrt(Obs_Flux);  % Use Poisson approximation
+                    if Args.Verbose
+                        fprintf('  Warning: %s not found, using sqrt(flux) for errors\n', FluxErrColName);
+                    end
+                end
+
+                % Convert distance to arcsec
+                Dist_arcsec = convert.angular('rad', 'arcsec', dist_rad);
+
+                % Populate SpecData structure with reference spectral data
+                Obj.SpecData = struct();
+                Obj.SpecData.CalData = struct('RA', Cal_RA, 'Dec', Cal_Dec);
+
+                % Determine wavelength grid for calibrator spectra
+                % Default: Gaia DR3 XP wavelength grid (3360:20:10200 Angstrom, 343 points)
+                Obj.SpecData.SpecWvl = (3360:20:10200)';   % [N_wvl x 1]
+                Obj.SpecData.Spec = SpecFlux;              % [N_calib x N_wvl]
+                Obj.SpecData.SpecErr = SpecErr;            % [N_calib x N_wvl]
+
+                % Populate SourceData as AstroCatalog with observed calibrator sources
+                SourceTable = table(Obs_Flux, Obs_FluxErr, Obs_X, Obs_Y, Obs_RA, Obs_Dec, Dist_arcsec, nmatch, ...
+                                    'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
+                Obj.SourceData = AstroCatalog(SourceTable);
+
+                % Set CalFound flag
+                Obj.CalFound = true;
+
+                if Args.Verbose
+                    fprintf('Calibrator selection complete: %d matched calibrators.\n\n', Nmatch);
+                end
+            else
+                % No RA/Dec or no good matches - set failure state
                 Obj.SourceData = [];
                 Obj.SpecData = [];
                 Obj.CalFound = false;
-                return;
-            end
-
-            % Extract matched and filtered sources
-            ObsTab = Tab(goodMask, :);                    % Filtered observed sources
-            calIdx = double(calIdx_all(goodMask));        % Calibrator indices
-            dist_rad = dist_rad_all(goodMask);            % Match distances
-            nmatch = nmatch_all(goodMask);                % Number of matches
-
-            CalArr = CatH.Catalog;  % Use Catalog (matrix) instead of Table
-            CalTab = CalArr(calIdx, :);  % Matched calibrators
-            Nmatch = size(CalTab, 1);
-
-            if Args.Verbose
-                fprintf('  Found %d matched calibrator pairs\n', Nmatch);
-            end
-
-            % ====================================================================
-            % STEP 4: EXTRACT CALIBRATOR SPECTRA AND PREPARE OUTPUT
-            % ====================================================================
-
-            % Extract column indices from SpFluxCol
-            FluxIni = Args.SpFluxCol(1);
-            FluxEnd = Args.SpFluxCol(2);
-            EFluxIni = Args.SpFluxCol(3);
-            EFluxEnd = Args.SpFluxCol(4);
-
-            % Extract calibrator spectra (CalTab is already a matrix from Catalog)
-            % Convert to double (catsHTM stores Gaia data as single for memory efficiency)
-            SpecFlux = double(CalTab(:, FluxIni:FluxEnd));      % [N x 343]
-            SpecErr = double(CalTab(:, EFluxIni:EFluxEnd));     % [N x 343]
-
-            % Extract coordinates
-            Cal_RA = double(CalTab(:, 1)) * RAD;   % rad -> deg
-            Cal_Dec = double(CalTab(:, 2)) * RAD;  % rad -> deg
-
-            % Extract observed data
-            Obs_X = ObsTab.X;
-            Obs_Y = ObsTab.Y;
-            Obs_RA = ObsTab.RA;
-            Obs_Dec = ObsTab.Dec;
-
-            % Extract flux from specified column (for fitting)
-            Obs_Flux = ObsTab.(Args.FluxColName);
-
-            % Get flux error column name (replace FLUX with FLUXERR)
-            FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
-            if ismember(FluxErrColName, ObsTab.Properties.VariableNames)
-                Obs_FluxErr = ObsTab.(FluxErrColName);
-            else
-                Obs_FluxErr = sqrt(Obs_Flux);  % Use Poisson approximation
-                if Args.Verbose
-                    fprintf('  Warning: %s not found, using sqrt(flux) for errors\n', FluxErrColName);
-                end
-            end
-
-            % Convert distance to arcsec
-            Dist_arcsec = convert.angular('rad', 'arcsec', dist_rad);
-
-            % ====================================================================
-            % STEP 5: POPULATE OBJECT PROPERTIES
-            % ====================================================================
-
-            % Populate SpecData structure with reference spectral data
-            Obj.SpecData = struct();
-            Obj.SpecData.CalData = struct('RA', Cal_RA, 'Dec', Cal_Dec);
-
-            % Determine wavelength grid for calibrator spectra
-            % Default: Gaia DR3 XP wavelength grid (3360:20:10200 Angstrom, 343 points)
-            % TODO: Add logic to read SpecWvl from catalog if different calibrator source is used
-            Obj.SpecData.SpecWvl = (3360:20:10200)';   % [N_wvl x 1]
-            Obj.SpecData.Spec = SpecFlux;              % [N_calib x N_wvl]
-            Obj.SpecData.SpecErr = SpecErr;            % [N_calib x N_wvl]
-
-            % Populate SourceData as AstroCatalog with observed calibrator sources
-            SourceTable = table(Obs_Flux, Obs_FluxErr, Obs_X, Obs_Y, Obs_RA, Obs_Dec, Dist_arcsec, nmatch, ...
-                                'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
-            Obj.SourceData = AstroCatalog(SourceTable);
-
-            % Set CalFound flag based on whether we have source data
-            Obj.CalFound = ~isempty(Obj.SourceData);
-
-            if Args.Verbose
-                fprintf('Calibrator selection complete: %d matched calibrators.\n\n', Nmatch);
             end
         end
 

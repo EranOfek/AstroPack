@@ -52,14 +52,17 @@ function [Result] = transmissionZP_testN3(Args)
         
         % process the AI (this is the main part where absolute calibration
         % is made and appropriate columns added to the catalog)
-      tic 
+    % tic 
         % Create PhotCalibTrans object and perform calibration
-        PC = PhotCalibTrans();
-        PC = PC.calibrate(AI);
+    %    PC = PhotCalibTrans();
+    %    PC = PC.calibrate(AI);
 
         % Add calibrated AB magnitudes to catalog
-        AI.CatData = PC.addMagAB(AI.CatData);
-      toc  
+    %    AI.CatData = PC.addMagAB(AI.CatData);
+    % toc
+     
+        imProc.calib.fitPhotCalibTrans(AI, 'addZP', true);
+        
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
             '/proc/',T2.subdir(Ivis),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD2,'.',T2.filetime(Ivis),...
