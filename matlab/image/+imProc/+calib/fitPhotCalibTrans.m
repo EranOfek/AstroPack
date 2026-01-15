@@ -15,8 +15,9 @@ function [Result, PhotCalib] = fitPhotCalibTrans(Obj, Args)
     %            'CustomOptSeq' - Custom optimization sequence (overrides OptSeqName). Default is [].
     %            'Tran2DType' - Position-dependent correction type. Default is 'cheby1_4_xt'.
     %            Catalog update:
-    %            'AddMagAB' - Add calibrated AB magnitude column to catalog. Default is true.
-    %            'FluxColName' - Flux column for AB magnitude calculation. Default is 'FLUX_APER_3'.
+    %            'AddMagAB' - Add calibrated AB magnitude columns to catalog. Default is true.
+    %            'FluxColName' - Flux column for calibration fitting. Default is 'FLUX_APER_3'.
+    %            'AddZP' - Add ZP column (position-dependent) to catalog. Default is false.
     %            Header update:
     %            'UpdateHeader' - Update AstroImage header with ZP. Default is true.
     %            General:
@@ -52,6 +53,7 @@ function [Result, PhotCalib] = fitPhotCalibTrans(Obj, Args)
         % Catalog update
         Args.AddMagAB logical = true
         Args.FluxColName = 'FLUX_APER_3'
+        Args.AddZP logical = false
 
         % Header update
         Args.UpdateHeader logical = true
@@ -132,18 +134,21 @@ tic
         % ----------------------------------------------------------------
 
         if PC.Success
-            % Add AB magnitude column if requested
+            % Add AB magnitude columns if requested
             if Args.AddMagAB
                 if IsAstroImage
-                    Result(Iobj).CatData = PC.addMagAB(Result(Iobj).CatData, ...
-                        'FluxColNames', {Args.FluxColName});
+                    Result(Iobj).CatData = PC.addMagAB(Result(Iobj).CatData);
                 else
-                    Result(Iobj) = PC.addMagAB(Result(Iobj), ...
-                        'FluxColNames', {Args.FluxColName});
+                    Result(Iobj) = PC.addMagAB(Result(Iobj));
                 end
+            end
 
-                if Args.Verbose
-                    fprintf('  Added calibrated AB magnitude column to catalog\n');
+            % Add ZP column if requested
+            if Args.AddZP
+                if IsAstroImage
+                    Result(Iobj).CatData = PC.addZP(Result(Iobj).CatData);
+                else
+                    Result(Iobj) = PC.addZP(Result(Iobj));
                 end
             end
 

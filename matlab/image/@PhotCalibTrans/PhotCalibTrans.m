@@ -61,6 +61,7 @@ classdef PhotCalibTrans < Component
     %     populatePhotCalibTrans - Read calibration data from AstroHeader
     %   Catalog Operations:
     %     addMagAB - Add calibrated AB magnitude columns to catalog
+    %     addZP - Add position-dependent ZP column to catalog
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -694,7 +695,7 @@ classdef PhotCalibTrans < Component
             Obs_RA = ObsTab.RA;
             Obs_Dec = ObsTab.Dec;
 
-            % Extract flux and flux error
+            % Extract flux from specified column (for fitting)
             Obs_Flux = ObsTab.(Args.FluxColName);
 
             % Get flux error column name (replace FLUX with FLUXERR)
@@ -762,7 +763,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 Args.NCalibMin = 30
                 Args.RMSMax = 0.1
-                Args.MinCalibRetention = 0.6
+                Args.MinCalibRetention = 0.5
                 Args.Verbose logical = false
             end
 
@@ -1411,7 +1412,7 @@ classdef PhotCalibTrans < Component
                 return;
             end
 
-            % Extract X, Y coordinates if position corrections are requested
+            % Extract X, Y coordinates if position corrections requested
             X = [];
             Y = [];
             if Args.ApplyPosCorrection
@@ -1443,8 +1444,37 @@ classdef PhotCalibTrans < Component
                 % Insert column into catalog
                 CatObj = CatObj.insertCol(MagAB, Inf, {NewMagColName});
             end
+        end
 
-            % Note: New columns were inserted using insertCol within the loop above
+        function CatObj = addZP(Obj, CatObj)
+            % Add position-dependent ZP column to catalog
+            % Input  : - Obj - PhotCalibTrans object
+            %          - CatObj - AstroCatalog object
+            % Output : - CatObj - AstroCatalog with added ZP column
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Cat = PC.addZP(Cat);
+
+            Tab = CatObj.Table;
+            if isempty(Tab) || height(Tab) == 0
+                warning('PhotCalibTrans:addZP:EmptyCatalog', 'Catalog is empty.');
+                return;
+            end
+
+            % Extract X, Y coordinates
+            AllColNames = Tab.Properties.VariableNames;
+            if ~ismember('X', AllColNames) || ~ismember('Y', AllColNames)
+                error('PhotCalibTrans:addZP:NoCoords', 'X, Y columns not found in catalog.');
+            end
+
+            X = Tab.X(:);
+            Y = Tab.Y(:);
+
+            % Evaluate ZP at each position
+            ZP = Obj.evaluateZP('X', X, 'Y', Y);
+            ZP = ZP(:);  % Ensure column vector
+
+            % Insert column
+            CatObj = CatObj.insertCol(ZP, Inf, {'ZP'});
         end
     end
 

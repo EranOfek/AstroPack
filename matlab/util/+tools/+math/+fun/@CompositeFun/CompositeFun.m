@@ -2510,13 +2510,6 @@ classdef CompositeFun < handle
                     % Update Obj with optimized parameters
                     AllFunPar.Val = OptTransParams;
                     Obj.setAllFunPar(AllFunPar);
-
-                    if Args.Verbose
-                        fprintf('Transmission optimization complete\n');
-                        fprintf('  RMS: %.4f, Chi2: %.4f, DOF: %d, Chi2/DOF: %.4f\n', ...
-                                sqrt(sum(MinimizerInfo.Resid.^2) / length(MinimizerInfo.Resid)), ...
-                                MinimizerInfo.Chi2, MinimizerInfo.Dof, MinimizerInfo.Chi2/MinimizerInfo.Dof);
-                    end
                 end
 
                 % =============================================================
@@ -2549,10 +2542,6 @@ classdef CompositeFun < handle
                     % BaseResiduals are magnitude differences (Predicted - Observed)
                     [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
                         'Verbose', false);
-
-                    if Args.Verbose
-                        fprintf('Position optimization complete\n');
-                    end
                 end
 
                 % =============================================================
@@ -2664,14 +2653,9 @@ classdef CompositeFun < handle
             FitResult.DOF = DOF;
 
             if Args.Verbose
-                fprintf('\n=== FITTING COMPLETE ===\n');
-                fprintf('Final cost: %.4e\n', Cost);
-                fprintf('Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
-                fprintf('RMS: %.4f\n', RMS);
-                if ~isnan(Chi2)
-                    fprintf('Chi2: %.4f, DOF: %d, Chi2/DOF: %.4f\n', ...
-                            Chi2, DOF, Chi2/DOF);
-                end
+                fprintf('\nTransmission optimization complete\n');
+                fprintf('  Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
+                fprintf('  RMS: %.4f\n', RMS);
             end
         end
 
@@ -2829,18 +2813,14 @@ classdef CompositeFun < handle
                 FitResult(IStage).DOF = StageResult.DOF;
 
                 if Args.Verbose
-                    fprintf('Stage complete: Cost=%.4e, RMS=%.4f mag, NumObs=%d\n', ...
-                            StageResult.Cost, StageResult.RMS, StageResult.NumObs);
-                    if ~isnan(StageResult.Chi2)
-                        fprintf('  Chi2: %.4f, DOF: %d, Chi2/DOF: %.4f\n', ...
-                                StageResult.Chi2, StageResult.DOF, StageResult.Chi2/StageResult.DOF);
-                    end
+                    fprintf('Stage complete: RMS=%.4f mag, NumObs=%d\n', ...
+                            StageResult.RMS, StageResult.NumObs);
                     fprintf('\n');
                 end
             end
 
             if Args.Verbose
-                fprintf('=== MULTI-STAGE OPTIMIZATION COMPLETE ===\n\n');
+                fprintf('Transmission optimization complete\n\n');
             end
         end
     end
