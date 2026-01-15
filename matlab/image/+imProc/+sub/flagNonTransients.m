@@ -260,6 +260,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeCovD = [0.06467546, 0.02720397;...
             0.02720397, 0.06933742];
         Args.PSFShapeConfThreshD = 0.95;
+
+        Args.flagExtended logical = true;
         
         Args.flagLimitingMag logical = true;
 
@@ -367,13 +369,19 @@ function TranCat = flagNonTransients(Obj, Args)
         MedDiffVar = median(Obj(Iobj).Var(:));
 
         % N and R PSF magnitudes
-        N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
-        R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
+        if CandCat.isColumn('N_MAG_PSF')
+            N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
+        end
+        if CandCat.isColumn('R_MAG_PSF')
+            R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
+        end
         
         % Get isolated and blended candidates
-        R_SN = CandCat.getCol('R_SN');
-        IsolatedCand = ((abs(R_SN) < 3) | (R_MAG_PSF > R_LIMMAG));
-        BlendedCand = ~IsolatedCand;
+        if CandCat.isColumn('R_SN')
+            R_SN = CandCat.getCol('R_SN');
+            IsolatedCand = ((abs(R_SN) < 3) | (R_MAG_PSF > R_LIMMAG));
+            BlendedCand = ~IsolatedCand;
+        end
 
         % Get candidate New and Ref bits masks values
         N_BM = CandCat.getCol('N_FLAGS');
@@ -399,21 +407,33 @@ function TranCat = flagNonTransients(Obj, Args)
         SaturationCentroids = vertcat(SaturatedIslands_Props.Centroid);
 
         % Check N and R PSFs
-        N_X2 = CandCat.getCol('N_X2');
-        N_Y2 = CandCat.getCol('N_Y2');
+        if CandCat.isColumn('N_X2')
+            N_X2 = CandCat.getCol('N_X2');
+        end
+        if CandCat.isColumn('N_Y2')
+            N_Y2 = CandCat.getCol('N_Y2');
+        end
 
-        N_GoodPSF = ...
-                  (N_X2 < Args.SecondMomSoftLim) & ...
-                  (N_Y2 < Args.SecondMomSoftLim) & ...
-                  (abs(N_X2-N_Y2) < Args.SecondMomAsymLim);
+        if exist('N_X2', 'var') && exist('N_Y2', 'var')
+            N_GoodPSF = ...
+                      (N_X2 < Args.SecondMomSoftLim) & ...
+                      (N_Y2 < Args.SecondMomSoftLim) & ...
+                      (abs(N_X2-N_Y2) < Args.SecondMomAsymLim);
+        end
 
-        R_X2 = CandCat.getCol('R_X2');
-        R_Y2 = CandCat.getCol('R_Y2');
-
-        R_GoodPSF = ...
-                  (R_X2 < Args.SecondMomHardLim) & ...
-                  (R_Y2 < Args.SecondMomHardLim) & ...
-                  (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
+        if CandCat.isColumn('R_X2')
+            R_X2 = CandCat.getCol('R_X2');
+        end
+        if CandCat.isColumn('R_Y2')
+            R_Y2 = CandCat.getCol('R_Y2');
+        end
+        
+        if exist('R_X2', 'var') && exist('R_Y2', 'var')
+            R_GoodPSF = ...
+                      (R_X2 < Args.SecondMomHardLim) & ...
+                      (R_Y2 < Args.SecondMomHardLim) & ...
+                      (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
+        end
 
         % Get star matched candidates
         if CandCat.isColumn('STAR_N')
@@ -581,6 +601,17 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % ----- PSF Shape -----
+
+        if Args.flagExtended && CandCat.isColumn('SN_ext')
+
+            SN_ext = CandCat.getCol('SN_ext');
+
+            ExtendedSource = abs(SN_ext) > abs(Score);
+
+
+            FilterFlags = FilterFlags + ExtendedSource.*2.^BD_TF.name2bit('Extended');
+
+        end
 
         if Args.flagDPSFShape
             X2 = CandCat.getCol('X2');
@@ -1084,7 +1115,11 @@ function TranCat = flagNonTransients(Obj, Args)
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
-            ExcludeCand = IsolatedCand | (GalCand & ~NuclearCand & ~StarCand);
+            ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
+
+            if exist('IsolatedCand', 'var')
+                ExcludeCand = ExcludeCand | IsolatedCand;
+            end
 
             if exist('N_Passes_PSF_Global','var')
                 ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
