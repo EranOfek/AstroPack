@@ -140,7 +140,7 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
     Logger = MsgLogger('FileName', Args.LogFile);
 
     % Print preamble
-    PreambleMSG = sprintf('Running TESS_pointpipe on FFIs in %s for coordinates RA,Dec = %f,%f', ...
+    PreambleMSG = sprintf('Running TESSpointpipe on FFIs in %s for coordinates RA,Dec = %f,%f', ...
         FFIDataPath, RA, Dec);
     Logger.msgLog(LogLevel.Info, PreambleMSG);
 
@@ -179,7 +179,6 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         SubLevel = 'proc.zogyD';
         NumSaveSubProd = numel(Args.SaveSubProducts);
     end
-
 
     Filter = 'clear';
     Counter = 1;
@@ -375,7 +374,7 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
     end
 
     if Args.runPhotometry && ~isempty(JD)
-        Logger.msgLog(LogLevel.Info, 'Saving photometry results to .');
+        Logger.msgLog(LogLevel.Info, 'Saving photometry results to %s.', Args.PhotometryFile);
         
         LCTableColumns = {'JD','SN','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF',...
             'N_SN','N_FLUX_PSF','N_FLUXERR_PSF','N_MAG_PSF','N_MAGERR_PSF'};
