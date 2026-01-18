@@ -41,6 +41,9 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
     if numel(Intensity)==1
         Intensity=Intensity*ones(1,N);
     end
+    if numel(Curvature)==1
+        Curvature=Curvature*ones(1,N);
+    end
     Brightness=Intensity;
     for I=1:1:N
         % Extract coordinates
@@ -49,13 +52,13 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
         MinY = Coords(I,3);
         MaxY = Coords(I,4);
     
-        if Curvature==0
+        if Curvature(I)==0
             % Generate points along the line using linear interpolation
             NPoints = max(abs(MaxX - MinX), abs(MaxY - MinY)) + 1;
             X = round(linspace(MinX, MaxX, NPoints));
             Y = round(linspace(MinY, MaxY, NPoints));
         else
-            [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curvature);
+            [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curvature(I));
         end
             
         % Ensure coordinates are within bounds
