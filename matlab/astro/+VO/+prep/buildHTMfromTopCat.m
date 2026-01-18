@@ -263,7 +263,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             Nsrc(Ihtm, :) = [IndHTM, 0];
 
         elseif AlreadyExists
-            % Skip: already processed (resume mode)
+            % Skip: already processed (resume mode) - but read source count
+            NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
+            Nsrc(Ihtm, :) = [IndHTM, NsrcExisting];
             SkippedCount = SkippedCount + 1;
             if Args.Verbose && mod(SkippedCount, 100) == 0
                 fprintf('  Skipped %d existing cells...\n', SkippedCount);
@@ -333,8 +335,28 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                         end
                     end
                 catch
-                    % Could not load - will warn later
+                    % Could not load - will try TAP query next
                 end
+            end
+        end
+
+        % If still empty, query TAP for a small sample to get column names
+        if isempty(Args.ColCell)
+            if Args.Verbose
+                fprintf('Querying TAP for column names...\n');
+            end
+            try
+                SampleQuery = sprintf('SELECT TOP 1 %s FROM %s', ColumnsStr, TableName);
+                T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', 60, 'Method', Args.QueryMethod, 'WorkDir', Args.LocalDir);
+                if ~isempty(T) && istable(T)
+                    [~, Args.ColCell] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+                    if Args.Verbose
+                        fprintf('Detected %d columns from TAP query\n', numel(Args.ColCell));
+                    end
+                end
+            catch ME
+                warning('VO:buildHTMfromTopCat:ColCellQuery', ...
+                    'Could not query column names: %s', ME.message);
             end
         end
 
@@ -345,12 +367,12 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Save HTM index using tracked Nsrc
-        HDF5.save_htm_ind(HTM, IndFileName, [], {}, Nsrc);
+        HDF5.save_htm_ind(HTM, IndFileName, sprintf('%s_HTM', Args.CatName), {}, Nsrc);
 
         % Copy index file to remote directory if specified
-        if ~isempty(Args.TargetDir)
-            tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-        end
+  %      if ~isempty(Args.TargetDir)
+  %          tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+  %      end
 
         % Save column metadata
         if ~isempty(Args.ColCell)
@@ -440,6 +462,22 @@ function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF, LocalDir)
             Exists = any(strcmp({Info.Datasets.Name}, DataName));
         catch
             % File exists but can't be read - treat as not existing
+        end
+    end
+end
+
+
+function Nsrc = getHTMSourceCount(CatName, IndHTM, NfilesInHDF, LocalDir)
+    % Get source count from an existing HTM cell in HDF5 file
+    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NfilesInHDF);
+    FileName = fullfile(LocalDir, FileName);
+    Nsrc = 0;
+    if isfile(FileName)
+        try
+            Info = h5info(FileName, ['/' DataName]);
+            Nsrc = Info.Dataspace.Size(1);  % Number of rows = number of sources
+        catch
+            % Could not read - return 0
         end
     end
 end
@@ -580,9 +618,9 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
         HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
 
         % Copy to remote directory if specified
-        if ~isempty(Args.TargetDir)
-            tools.os.copyFileOverNFS({FileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-        end
+  %      if ~isempty(Args.TargetDir)
+  %          tools.os.copyFileOverNFS({FileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+  %      end
     end
 end
 

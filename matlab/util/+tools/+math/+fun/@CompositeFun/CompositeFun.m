@@ -2693,6 +2693,19 @@ classdef CompositeFun < handle
             GlobalKeepMask = true(NumObsInitial, 1);
             CurrentIndices = (1:NumObsInitial)';
 
+            % Setup optimization options once for all stages (avoid repeated optimoptions calls)
+            if isempty(Args.OptimOptions)
+                if Args.Verbose
+                    DisplayOpt = 'iter';
+                else
+                    DisplayOpt = 'off';
+                end
+                OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
+                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+            else
+                OptimOpts = Args.OptimOptions;
+            end
+
             if Args.Verbose
                 fprintf('\n=== MULTI-STAGE OPTIMIZATION ===\n');
                 fprintf('Number of stages: %d\n', NumStages);
@@ -2711,7 +2724,18 @@ classdef CompositeFun < handle
                 % Detect field correction stage (empty freeparams)
                 IsFieldCorrectionStage = isempty(FreeParamsStage);
 
+                % Detect Norm-only linear stage (analytical solution)
+                IsNormOnlyLinear = false;
+                if ~IsFieldCorrectionStage && isfield(Stage, 'Method') && strcmp(Stage.Method, 'linear')
+                    % Check if only Norm parameter is being fitted
+                    if length(FreeParamsStage) == 1 && strcmp(FreeParamsStage(1).Parameter, 'Norm')
+                        IsNormOnlyLinear = true;
+                    end
+                end
+
                 if IsFieldCorrectionStage
+                    Method = 'linear';
+                elseif IsNormOnlyLinear
                     Method = 'linear';
                 else
                     Method = 'nonlinear';
@@ -2722,7 +2746,121 @@ classdef CompositeFun < handle
                     fprintf('Description: %s\n', Stage.Description);
                 end
 
-                if IsFieldCorrectionStage
+                if IsNormOnlyLinear
+                    % =============================================================
+                    % NORM-ONLY LINEAR STAGE: Analytical solution
+                    % =============================================================
+                    % Norm_opt = 10^(-mean(residuals_with_Norm1 / 2.5))
+                    % where residuals_with_Norm1 = 2.5 * log10(PredBase / Obs)
+
+                    if Args.Verbose
+                        fprintf('  Using analytical solution for Norm parameter\n');
+                    end
+
+                    % Get current Norm value and parameter index
+                    AllFunPar = Obj.getAllFunPar();
+                    NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+                    OriginalNorm = AllFunPar.Val(NormIdx);
+
+                    % Sigma clipping loop for Norm-only stage
+                    NumIterNorm = SigmaClip * SigmaIter + ~SigmaClip;
+                    CurrentObsNorm = CurrentObs;
+                    CurrentXNorm = CurrentX;
+                    CurrentYNorm = CurrentY;
+                    CurrentCostArgsNorm = CurrentCostArgs;
+                    KeepMaskNorm = true(length(CurrentObs), 1);
+
+                    for IterNorm = 1:NumIterNorm
+                        if Args.Verbose && SigmaClip
+                            fprintf('  Norm sigma clipping iteration %d/%d\n', IterNorm, SigmaIter);
+                        end
+
+                        % Set Norm=1 temporarily to get base residuals
+                        AllFunPar.Val(NormIdx) = 1.0;
+                        Obj.setAllFunPar(AllFunPar);
+
+                        % Compute residuals with Norm=1
+                        if ~isempty(CurrentXNorm)
+                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
+                        else
+                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:});
+                        end
+
+                        % Analytical solution: Norm_opt = 10^(-mean(residuals / 2.5))
+                        Norm_opt = 10^(-mean(Residuals_base) / 2.5);
+
+                        % Update Norm in model
+                        AllFunPar.Val(NormIdx) = Norm_opt;
+                        Obj.setAllFunPar(AllFunPar);
+
+                        if Args.Verbose
+                            fprintf('  Norm = %.6f (analytical)\n', Norm_opt);
+                        end
+
+                        % Compute final residuals with optimal Norm
+                        if ~isempty(CurrentXNorm)
+                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
+                        else
+                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:});
+                        end
+
+                        % Sigma clipping
+                        if SigmaClip && IterNorm < NumIterNorm
+                            ResidualStd = std(Residuals);
+                            OutlierMask = abs(Residuals) > SigmaThresh * ResidualStd;
+
+                            if any(OutlierMask)
+                                % Update KeepMask
+                                CurrentKeep = ~OutlierMask;
+                                KeepMaskNorm(KeepMaskNorm) = CurrentKeep;
+
+                                % Subset data
+                                CurrentObsNorm = CurrentObsNorm(CurrentKeep);
+                                if ~isempty(CurrentXNorm)
+                                    CurrentXNorm = CurrentXNorm(CurrentKeep);
+                                    CurrentYNorm = CurrentYNorm(CurrentKeep);
+                                end
+
+                                % Update WeightMatrix if present
+                                WeightMatrixIdx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
+                                if ~isempty(WeightMatrixIdx)
+                                    ActualIdx = 2 * WeightMatrixIdx;
+                                    CurrentCostArgsNorm{ActualIdx} = CurrentCostArgsNorm{ActualIdx}(:, CurrentKeep);
+                                end
+
+                                if Args.Verbose
+                                    fprintf('  Clipped %d outliers (%.1f sigma)\n', sum(OutlierMask), SigmaThresh);
+                                end
+                            else
+                                break;  % No more outliers
+                            end
+                        end
+                    end
+
+                    % Build StageResult structure
+                    RMS = std(Residuals);
+                    NumClipped = sum(~KeepMaskNorm);
+
+                    StageResult = struct();
+                    StageResult.Cost = sum(Residuals.^2);
+                    StageResult.RMS = RMS;
+                    StageResult.Residuals = Residuals;
+                    StageResult.NumObs = length(CurrentObsNorm);
+                    StageResult.NumClipped = NumClipped;
+                    StageResult.KeepMask = KeepMaskNorm;
+                    StageResult.ConvergedSigmaClip = true;
+                    StageResult.Chi2 = sum(Residuals.^2);
+                    StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
+
+                    if Args.Verbose
+                        fprintf('  RMS: %.4f mag, Observations: %d\n', RMS, length(CurrentObsNorm));
+                    end
+
+                elseif IsFieldCorrectionStage
                     % Field correction stage: fit position only
                     [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
                         'CostArgs', CurrentCostArgs, ...
@@ -2733,7 +2871,7 @@ classdef CompositeFun < handle
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
                         'OptimizationSequence', OptSeq(IStage), ...
-                        'OptimOptions', Args.OptimOptions, ...
+                        'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 else
                     % Transmission parameter stage: set FitPar flags for specified parameters
@@ -2765,7 +2903,7 @@ classdef CompositeFun < handle
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
                         'OptimizationSequence', OptSeq(IStage), ...
-                        'OptimOptions', Args.OptimOptions, ...
+                        'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 end
 

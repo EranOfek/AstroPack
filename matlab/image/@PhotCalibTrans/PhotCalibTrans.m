@@ -100,9 +100,17 @@ classdef PhotCalibTrans < Component
                                 %   After calibration: Used (logical, non-clipped), Residuals (valid for Used)
 
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
+        NoRADec = false         % Flag indicating RA/Dec columns missing (set by selectCalibrators)
 
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
+
+        % Fit results by stage (stored after calibration for diagnostics)
+        FitResults = []         % Struct array from CompositeFun.fitPar() with per-stage results:
+                                %   Single-stage: FitResults.Cost, .RMS, .Residuals, .NumObs, .NumClipped,
+                                %                 .KeepMask, .ConvergedSigmaClip, .Chi2, .DOF
+                                %   Multi-stage:  FitResults(i).StageName, .Method, .Cost, .RMS, .Residuals,
+                                %                 .NumObs, .NumClipped, .KeepMask, .IsFieldCorrection, .Chi2, .DOF
 
     end
 
@@ -394,8 +402,9 @@ classdef PhotCalibTrans < Component
                     'CostArgs', CostArgs, ...
                     'Verbose', Args.Verbose);
 
-                % Store fitted model
+                % Store fitted model and fit results
                 Obj.TransModel = Model;
+                Obj.FitResults = FitResult;
 
                 % Add Used and Residuals columns to SourceData
                 % Get final KeepMask and Residuals (from last stage if multi-stage)
@@ -568,6 +577,7 @@ classdef PhotCalibTrans < Component
             HasRADec = ismember('RA', AllColNames) && ismember('Dec', AllColNames);
 
             if ~HasRADec
+                Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
                 if Args.Verbose
                     fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
                     fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
@@ -1625,14 +1635,32 @@ classdef PhotCalibTrans < Component
                 Args.NewFigure logical = true
             end
 
-            % Get residuals from last fit stage
-            LastStage = Obj.TransModel.FitResults(end);
-            Residuals = LastStage.Residual;  % [N_calibrators x 1] in magnitude units
+            % Get residuals and calibrator data from SourceData
+            % (Residuals and Used columns are added by calibrate() after fitting)
+            Tab = Obj.SourceData.Table;
+            ColNames = Tab.Properties.VariableNames;
 
-            % Get calibrator data from SourceData
-            X = Obj.SourceData.getCol('X');
-            Y = Obj.SourceData.getCol('Y');
-            Flux = Obj.SourceData.getCol('Flux');
+            if ~ismember('Residuals', ColNames)
+                error('PhotCalibTrans:plotResiduals:NoResiduals', ...
+                      'No residuals available. Run calibrate() first.');
+            end
+
+            AllResiduals = Tab.Residuals;
+            X_all = Tab.X;
+            Y_all = Tab.Y;
+            Flux_all = Tab.Flux;
+
+            % Filter to used calibrators only (not sigma-clipped)
+            if ismember('Used', ColNames)
+                UsedMask = logical(Tab.Used);
+            else
+                UsedMask = true(size(AllResiduals));
+            end
+
+            Residuals = AllResiduals(UsedMask);
+            X = X_all(UsedMask);
+            Y = Y_all(UsedMask);
+            Flux = Flux_all(UsedMask);
             MagInst = -2.5 * log10(Flux);  % Convert flux to instrumental magnitude
 
             % Determine what to plot
@@ -1849,11 +1877,12 @@ classdef PhotCalibTrans < Component
                 Args.NewFigure logical = true
             end
 
-            if isempty(Obj.TransModel) || isempty(Obj.TransModel.FitResults)
-                error('PhotCalibTrans:plotFitQuality:NoFitResults', 'Fit results not available');
+            if isempty(Obj.FitResults)
+                error('PhotCalibTrans:plotFitQuality:NoFitResults', ...
+                      'Fit results not available. Run calibrate() first.');
             end
 
-            FitResults = Obj.TransModel.FitResults;
+            FitResults = Obj.FitResults;
             Nstages = length(FitResults);
 
             % Extract metrics from each stage
@@ -1894,7 +1923,7 @@ classdef PhotCalibTrans < Component
                 plot(1:Nstages, Chi2PerDOF, 's-', 'LineWidth', 2, 'MarkerSize', 8);
                 yline(1, 'r--', 'LineWidth', 1.5);  % Ideal Chi2/DOF = 1
                 ylabel('Chi2/DOF');
-                legend('Fit Quality', 'Ideal (Chi2/DOF=1)', 'Location', 'best');
+                legend('Fit Quality', 'Location', 'best');
             else
                 plot(1:Nstages, Chi2_stages, 's-', 'LineWidth', 2, 'MarkerSize', 8);
                 ylabel('Chi2');
