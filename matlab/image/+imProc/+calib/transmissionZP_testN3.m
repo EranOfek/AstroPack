@@ -6,7 +6,8 @@ function [Result] = transmissionZP_testN3(Args)
     % Output : - catalogs augmented with absolute photometry data and written to disk as FITS files  
     % Author : A.M. Krassilchtchikov (2025 Dec) 
     % Example: D = db.Db.connectLASTdb('Pass','*'); 
-    %          imProc.calib.transmissionZP_testN3('DB',D);
+    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1679.c','MountNum',2);
+    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1678.c','MountNum',9);
     arguments
         Args.FieldID           = '1679.c'; % []
         Args.MountNum          = 2; % []; % 2;
