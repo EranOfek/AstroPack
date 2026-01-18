@@ -45,7 +45,7 @@ function runTESSpointpipe(WorkDir)
               %   "SavePath": "/path/to/proc",
               %   "LogFile": "/path/to/status/tess_pointpipe.log",
               %   "runSubtraction": true,
-              %   "RefPath": "/path/to/Ref"
+              %   "RefPath": "/path/to/ref"
               % }
               %}
     %}

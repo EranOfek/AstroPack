@@ -21,7 +21,7 @@ function TranCat=findTransients(AD, Args)
                 'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
                        performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
                        Default is {}.
-                'include2ndMoment' - Bool whether to derive 2nd moments. 
+                'include2ndMoments' - Bool whether to derive 2nd moments. 
                        Default is true. 
                 'includeAperturePhot' - Bool whether to add aperture photometry results. 
                        Default is true.
@@ -87,7 +87,7 @@ function TranCat=findTransients(AD, Args)
         Args.psfPhotCubeArgs cell       = {};
 
         Args.includeAperturePhot logical = true;
-        Args.include2ndMoment logical = true;
+        Args.include2ndMoments logical = true;
         Args.AsymThresh             = 0.2;
 
         Args.includeGradientDir logical = true;
@@ -135,7 +135,7 @@ function TranCat=findTransients(AD, Args)
             continue
         end
 
-        if Args.include2ndMoment || Args.includePsfFit
+        if Args.include2ndMoments || Args.includePsfFit
             [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Dbs, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).PSFData.fwhm);
@@ -477,7 +477,7 @@ function TranCat=findTransients(AD, Args)
                 );
         end
 
-        if Args.include2ndMoment
+        if Args.include2ndMoments
             % Get moments
 
             PeakDist = sqrt((M1N.X-M1.X).^2+(M1N.Y-M1.Y).^2);

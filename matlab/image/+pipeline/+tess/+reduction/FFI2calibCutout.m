@@ -84,4 +84,5 @@ function FFIc = FFI2calibCutout(FFI, RA, Dec, Args)
     FFIc = imProc.sources.findMeasureSources(FFIc);
     FFIc = imProc.psf.populatePSF(FFIc, Args.populatePSF_Par{:});
     FFIc = imProc.sources.psfFitPhot(FFIc);
+
 end

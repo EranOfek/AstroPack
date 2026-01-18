@@ -6,16 +6,18 @@ function [Result] = transmissionZP_testN3(Args)
     % Output : - catalogs augmented with absolute photometry data and written to disk as FITS files  
     % Author : A.M. Krassilchtchikov (2025 Dec) 
     % Example: D = db.Db.connectLASTdb('Pass','*'); 
-    %          imProc.calib.transmissionZP_testN3('DB',D);
+    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1679.c','MountNum',2);
+    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1678.c','MountNum',9);
     arguments
-        Args.FieldID           = '1679.c';
+        Args.FieldID           = '1679.c'; % []
         Args.MountNum          = 2; % []; % 2;
         Args.CamNum            = 1; % []; % 1;
         Args.CropID            = []; % 10;
         Args.AddConstraints    = []; % e.g. 'jd_start > 2.46086240482600e+06 and jd_start < 2.46086240482700e+06'
         Args.Table             = 'N3_visit_images';
         Args.DB                = [];
-        Args.OutDir            = '~/Data2/test/';
+        Args.OutDir            = '~/Data2/test/'; % '/Data2/test/AbsCalib/'
+        Args.RemoteDir         = []; % '/bigdata2/projects/temp/';
     end
 
     % Check that DB connection is provided
@@ -24,6 +26,12 @@ function [Result] = transmissionZP_testN3(Args)
               'Database connection required. Call with: D = db.Db.connectLASTdb(''Pass'',''*''); transmissionZP_testN3(''DB'', D);');
     end
 
+    %
+    if isempty(Args.FieldID)
+        QField = '1>0';
+    else
+        QField = sprintf('(fieldid = ''%s'' or fieldid = ''%s'')',Args.FieldID, Args.FieldID(1:4));
+    end
     %
     if isempty(Args.MountNum)
         QMount = '';
@@ -49,10 +57,13 @@ function [Result] = transmissionZP_testN3(Args)
         QAdd = sprintf('and %s',Args.AddConstraints);
     end
 
-    Q = sprintf('select * from %s where (fieldid = ''%s'' or fieldid = ''%s'') %s %s %s %s',...
-        Args.Table,Args.FieldID,Args.FieldID(1:4), QMount, QCam, QCrop, QAdd);
+    Q = sprintf('select * from %s where %s %s %s %s %s',...
+        Args.Table, QField, QMount, QCam, QCrop, QAdd);
 
     T2 = Args.DB.query(Q);
+
+    save('QueryResult.mat','T2');
+
     Nvis = height(T2);    
     
     Result = zeros(Nvis,2);
@@ -76,17 +87,7 @@ function [Result] = transmissionZP_testN3(Args)
         % read the data files into an AI
         AI = AstroImage.readProducts(FN,'ExtraOutProduct',"Cat");
         
-        % process the AI (this is the main part where absolute calibration
-        % is made and appropriate columns added to the catalog)
-    % tic 
-        % Create PhotCalibTrans object and perform calibration
-    %    PC = PhotCalibTrans();
-    %    PC = PC.calibrate(AI);
-
-        % Add calibrated AB magnitudes to catalog
-    %    AI.CatData = PC.addMagAB(AI.CatData);
-    % toc
-     
+        % process the AI (this is the main part where absolute calibration is performed)  
         [~,~, Result(Ivis,1), Result(Ivis,2)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
         
         % write the output catalog to file 
@@ -96,7 +97,14 @@ function [Result] = transmissionZP_testN3(Args)
             '_sci_coadd_Cat_1.fits');
         
         AI.write1(FN1,'CatData','OverWrite',true,'MkDir',true);
-        % clear the AI
+       
         clear AI;
+
+        if ~isempty(Args.RemoteDir)
+            Err = tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            if ~isempty(Err)
+                error(Err);
+            end
+        end
     end
 end
