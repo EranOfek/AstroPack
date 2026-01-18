@@ -69,7 +69,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % ====================================================================
     % VALIDATE INPUT
     % ====================================================================
- tic
+ % tic
     if isa(Obj, 'AstroImage')
         IsAstroImage = true;
     elseif isa(Obj, 'AstroCatalog')
@@ -203,7 +203,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Store calibration object
         PhotCalib(Iobj) = PC;
     end
- toc
+ % toc
     % ====================================================================
     % SUMMARY
     % ====================================================================

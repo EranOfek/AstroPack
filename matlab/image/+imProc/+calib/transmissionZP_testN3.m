@@ -6,8 +6,9 @@ function [Result] = transmissionZP_testN3(Args)
     % Output : - catalogs augmented with absolute photometry data and written to disk as FITS files  
     % Author : A.M. Krassilchtchikov (2025 Dec) 
     % Example: D = db.Db.connectLASTdb('Pass','*'); 
-    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1679.c','MountNum',2);
-    %          imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1678.c','MountNum',9);
+    %          Res1 = imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1679.c','MountNum',2,...
+    %                            'OutDir','/Data2/test/AbsCalib/','RemoteDir','/bigdata2/projects/temp/');
+    %          Res2 = imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1678.c','MountNum',9);
     arguments
         Args.FieldID           = '1679.c'; % []
         Args.MountNum          = 2; % []; % 2;
@@ -65,9 +66,7 @@ function [Result] = transmissionZP_testN3(Args)
     save('QueryResult.mat','T2');
 
     Nvis = height(T2);    
-    
-    Result = zeros(Nvis,2);
-
+        
     for Ivis = 1:Nvis
         % construct the file name (later will use an AstroFileName object)
         Mt  = compose('%02d',T2.mountnum(Ivis)); Cam = compose('%02d',T2.camnum(Ivis));
@@ -88,7 +87,7 @@ function [Result] = transmissionZP_testN3(Args)
         AI = AstroImage.readProducts(FN,'ExtraOutProduct',"Cat");
         
         % process the AI (this is the main part where absolute calibration is performed)  
-        [~,~, Result(Ivis,1), Result(Ivis,2)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
+        [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
