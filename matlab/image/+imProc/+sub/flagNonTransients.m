@@ -216,7 +216,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ConfigFile = '';
 
         Args.PixelScale = 1.25;
-        Args.SaturatedNeighborDistanceThreshold = 200;
+        Args.SaturatedNeighborDistanceThreshold = 250;
     
         Args.flagNegatives logical = true;
 
@@ -262,6 +262,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeConfThreshD = 0.95;
 
         Args.flagExtended logical = true;
+        Args.ExtendedSatDelta = 1.0;
         
         Args.flagLimitingMag logical = true;
 
@@ -275,7 +276,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NumStreaks = 1;
 
         Args.flagDiffSpike logical = true;
-        Args.SatCentroidDistThreshold = 200;
+        Args.SatCentroidDistThreshold = 250;
         Args.DiffSpikeSNRThreshold = 2.0;
         Args.DiffSpikeFracThreshold = 0.5;
         
@@ -336,12 +337,15 @@ function TranCat = flagNonTransients(Obj, Args)
     % Get image mask bit dictionary
     BD_IM = BitDictionary('BitMask.Image.Default');
 
-    Arcsec2Rad = 4.84814e-6;
-    %Rad2Arcsec = 206265;
+    % Some unit conversion parameters
+    Rad2Arcsec = 3600.*180./pi; %206265;
+    Arcsec2Rad = 1./Rad2Arcsec; %4.84814e-6;
 
     for Iobj=Nobj:-1:1
         CandCat = Obj(Iobj).CatData;
         Score = CandCat.getCol('SCORE');
+
+        PointLimit = Obj(Iobj).PSFData.fwhm*Args.PixelScale*1.2739; % 3sig in arcsec
 
         % Get size of catalog and initialize an array holding the filtering
         % summary. Array is initialized as zero and will be updates with 
@@ -397,7 +401,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Get candidates near saturated sources
         BitsSatCut = Obj(Iobj).MaskData.bitwise_cutouts([X,Y], ...
-                'or', 'HalfSize',Args.SaturatedNeighborDistanceThreshold);
+                'or', 'HalfSize', Args.SaturatedNeighborDistanceThreshold);
         NearSaturated = BD_IM.findBit(BitsSatCut,'Saturated');
 
         SaturatedPixels = BD_IM.findBit(Obj.Mask,'Saturated');
@@ -448,11 +452,11 @@ function TranCat = flagNonTransients(Obj, Args)
         else
             GalCand = false(NumCand,1);
         end
-                
+
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
-            NuclearCand = GalDist < 3.0;
+            NuclearCand = GalDist < PointLimit;
         else
             NuclearCand = false(NumCand,1);
         end
@@ -606,8 +610,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
             SN_ext = CandCat.getCol('SN_ext');
 
-            ExtendedSource = abs(SN_ext) > abs(Score);
+            ExtendedThreshold = zeros(NumCand,1);
 
+            if exist('NearSaturated', 'var')
+                ExtendedThreshold = ExtendedThreshold + Args.ExtendedSatDelta*NearSaturated;
+            end
+
+            ExtendedSource = abs(Score) - abs(SN_ext) < ExtendedThreshold;
 
             FilterFlags = FilterFlags + ExtendedSource.*2.^BD_TF.name2bit('Extended');
 
@@ -714,7 +723,7 @@ function TranCat = flagNonTransients(Obj, Args)
                     DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
                     % Ignore self-contamination.
-                    IdxRef = IdxRef(DistRad > 3.0*Arcsec2Rad);
+                    IdxRef = IdxRef(DistRad > PointLimit*Arcsec2Rad);
 
                     if isempty(IdxRef)
                         N_Passes_Local(ICand) = true;
@@ -728,7 +737,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 
                     N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag);
                 end
-
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
@@ -923,7 +931,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % We're matching galaxy nuclei, so the matching radius is
                 % on candidate postions.
                 MatchResQSO = VO.search.search_sortedlat_multi( ...
-                    [QSOLon, QSOLat], RA, Dec, -3*Arcsec2Rad);
+                    [QSOLon, QSOLat], RA, Dec, -PointLimit*Arcsec2Rad);
     
                 % Flag candidates as variable if matched to a QSO.
                 VariableGal = vertcat(MatchResQSO.Nmatch) > 0;
@@ -937,7 +945,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Get star distances and find stars matched on candidate
             % position.
             StarDist = CandCat.getCol('STAR_DIST');
-            NearStar = StarDist <= 3.0;
+            NearStar = StarDist <= PointLimit;
 
             % Use the maxium candidate distance + maximum star distance
             % among candidates as search radius for variable stars.
