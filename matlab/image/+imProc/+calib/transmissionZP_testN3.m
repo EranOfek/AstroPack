@@ -53,6 +53,9 @@ function [Result] = transmissionZP_testN3(Args)
         Args.Table,Args.FieldID,Args.FieldID(1:4), QMount, QCam, QCrop, QAdd);
 
     T2 = Args.DB.query(Q);
+
+    save('QueryResult.mat','T2');
+    
     Nvis = height(T2);    
     
     Result = zeros(Nvis,2);
