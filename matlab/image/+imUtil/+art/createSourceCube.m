@@ -1,5 +1,5 @@
 function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
-    % Build a cube / cell array of fluxed PSF stamps, optionally rescaled, rotated, and shifted to whole pixel positions
+    % Rescale, rotate, and shift a cube/cell-array of PSF stamps to whole pixel positions f    
     %     This is a low-level function to be used for source injection into
     %     an astronomical image or source removal therefrom 
     % Input  : - a cube or a cell array of PSF stamps or a single PSF stamp
