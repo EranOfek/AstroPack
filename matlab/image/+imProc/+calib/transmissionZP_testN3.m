@@ -103,9 +103,10 @@ function [Result] = transmissionZP_testN3(Args)
         clear AI;
 
         if ~isempty(Args.RemoteDir) && Result(Ivis).NumObs > 0 
-            Err = tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-            if ~isempty(Err)
-                error(Err);
+            try
+                tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            catch ME
+                fprintf('%d: movement of processed file %s failed due to %s\n', Ivis, FN1, ME.message)
             end
         end
     end
