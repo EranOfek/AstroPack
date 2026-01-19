@@ -115,6 +115,28 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     end
 
     % ====================================================================
+    % BUILD CALIBRATION ARGUMENTS (once, before loop)
+    % ====================================================================
+
+    CalibArgs = {...
+        'FunListName', Args.FunListName, ...
+        'OptSeqName', Args.OptSeqName, ...
+        'Tran2DType', Args.Tran2DType, ...
+        'SearchRadius', Args.SearchRadius, ...
+        'MagRange', Args.MagRange, ...
+        'Verbose', Args.Verbose};
+
+    % Add custom function list if provided
+    if ~isempty(Args.CustomFunList)
+        CalibArgs = [CalibArgs, {'CustomFunList', Args.CustomFunList}];
+    end
+
+    % Add custom optimization sequence if provided
+    if ~isempty(Args.CustomOptSeq)
+        CalibArgs = [CalibArgs, {'CustomOptSeq', Args.CustomOptSeq}];
+    end
+
+    % ====================================================================
     % LOOP OVER OBJECTS
     % ====================================================================
 
@@ -125,25 +147,6 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
         % Create new PhotCalibTrans object for this image
         PC = PhotCalibTrans();
-
-        % Build calibration arguments
-        CalibArgs = {...
-            'FunListName', Args.FunListName, ...
-            'OptSeqName', Args.OptSeqName, ...
-            'Tran2DType', Args.Tran2DType, ...
-            'SearchRadius', Args.SearchRadius, ...
-            'MagRange', Args.MagRange, ...
-            'Verbose', Args.Verbose};
-
-        % Add custom function list if provided
-        if ~isempty(Args.CustomFunList)
-            CalibArgs = [CalibArgs, {'CustomFunList', Args.CustomFunList}];
-        end
-
-        % Add custom optimization sequence if provided
-        if ~isempty(Args.CustomOptSeq)
-            CalibArgs = [CalibArgs, {'CustomOptSeq', Args.CustomOptSeq}];
-        end
 
         % ----------------------------------------------------------------
         % Perform calibration
@@ -208,7 +211,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Merge StatusLog from PhotCalibTrans and CompositeFun (TransModel)
         MergedLog = PC.StatusLog;
         if ~isempty(PC.TransModel) && isprop(PC.TransModel, 'StatusLog') && ~isempty(PC.TransModel.StatusLog)
-            MergedLog = [MergedLog, PC.TransModel.StatusLog];
+            MergedLog = [MergedLog, PC.TransModel.StatusLog];  %#ok<AGROW>
         end
         FitRes(Iobj).StatusLog = MergedLog;
 
