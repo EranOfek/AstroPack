@@ -38,6 +38,7 @@ function TranCat = measureTransients(AD, Args)
         % AstroZOGY
         Args.RadiusTS = 5;
         Args.useFWHM = true;
+        Args.applyDSDFcorrection = true;
     end
     
     % Get object class and apply corresponding function.
@@ -46,8 +47,8 @@ function TranCat = measureTransients(AD, Args)
     switch ClassName
         case 'AstroZOGY'
             TranCat = measureTransientsAstroZOGY(AD, ...
-                'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM...
-                );
+                'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM,...
+                'applyDSDFcorrection', Args.applyDSDFcorrection);
         otherwise
             % TODO: probably give Warning and return empty cat instead
             error('Class not supported.')
@@ -86,6 +87,12 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         Args.RadiusTS = 5;
         Args.useFWHM logical = true;
         Args.MultipleFWHM = 2;
+        Args.applyDSDFcorrection = true;
+        Args.photColorTermCol = 'PH_COL1';
+        Args.GAIA_BpCol = 'GAIA_BP';
+        Args.GAIA_RpCol = 'GAIA_RP';
+        Args.assumedColor = 1;
+        Args.DSDFCol = 'DSDF';
     end
 
     if Args.useFWHM
@@ -97,29 +104,23 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
     % Get number of objects
     Nobj = numel(AD);
 
-    % Get image (x,y) coordinates of transients candidates
-    XY = AD.CatData.getXY('ColX', 'XPEAK', 'ColY', 'YPEAK');
 
     % reverse order to initiate Result array with proper size on first 
     % iteration
     for Iobj=Nobj:-1:1
-    
-        CatSize = size(AD(Iobj).CatData.Catalog,1);
-        
+
+        CandCat = AD(Iobj).CatData;
+        CatSize = CandCat.sizeCatalog;
+        % Get image (x,y) coordinates of transients candidates
+        XY = CandCat.getXY('ColX', 'XPEAK', 'ColY', 'YPEAK');
+
         % If catalog is empty, continue.
         if CatSize < 1
-            TranCat = AD(Iobj).CatData.Catalog;
+            TranCat = CandCat.Catalog;
             continue
         end
         
-        % Get Scorr value 
 
-        if ~isempty(AD(Iobj).Scorr)
-            Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,2),XY(:,1));
-            Scorr = AD(Iobj).Scorr(Indices);
-        else
-            Scorr = nan(Nsrc,1);
-        end
 
         if ~isempty(AD(Iobj).DSDF)
             Indices = sub2ind(size(AD(Iobj).DSDF), XY(:,2),XY(:,1));
@@ -128,6 +129,21 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             DSDF = nan(Nsrc,1);
         end
         
+        % Get Scorr value 
+        if ~isempty(AD(Iobj).Scorr)
+            Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,2),XY(:,1));
+            Scorr = AD(Iobj).Scorr(Indices);
+            if Args.applyDSDFcorrection && exist('DSDF','var')
+                Alpha = AD(Iobj).New.HeaderData.getVal(Args.photColorTermCol);
+                GAIA_Color = CandCat.getCol(Args.GAIA_BpCol) - CandCat.getCol(Args.GAIA_RpCol);
+                ColorCorrection = Alpha.*(GAIA_Color - Args.assumedColor).*DSDF;
+                ColorCorrection(isnan(ColorCorrection)) = 0;
+                Scorr = Scorr + ColorCorrection;
+            end
+        else
+            Scorr = nan(Nsrc,1);
+        end
+
         % find and save peak TS and corresponding gaussian significance for
         % S2 and Z2 statistics
 

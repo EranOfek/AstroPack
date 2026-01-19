@@ -1071,8 +1071,8 @@ classdef AstroZOGY < AstroDiff
                 Args.RN_New      = 2.7;  % Read noise in electrons [single image]
                 Args.RN_Ref      = 2.7;  % Read noise in electrons [single image]
 
-                Args.SysNoiseN   = [];
-                Args.SysNoiseR   = [];
+                Args.SysNoiseN   = 0.015;
+                Args.SysNoiseR   = 0.015;
 
                 Args.SigmaAstNew = 0.1;   % astrometric noise in pixels.
                 Args.SigmaAstRef = 0.1;   % astrometric noise in pixels.
@@ -1498,7 +1498,7 @@ classdef AstroZOGY < AstroDiff
         % Inject artificial sources to the New/Ref images
         %   Will store original New/Ref images in the OrigImage property.
 
-    end   
+    end
     
     methods (Static) % Unit-Test
         Result = unitTest()
