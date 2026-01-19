@@ -32,6 +32,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                               >0 = success, 0 = no calibrators found, -1 = RA/Dec missing
     %                     .NumClipped - Number of clipped outliers (0 if failed)
     %                     .Chi2 - Chi-squared value (NaN if failed)
+    %                     .StatusLog - Struct array of status messages with fields:
+    %                                  .Function, .Level, .Message, .Identifier, .Timestamp
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -100,13 +102,16 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                     'Residuals', cell(Nobj, 1), ...
                     'NumObs', cell(Nobj, 1), ...
                     'NumClipped', cell(Nobj, 1), ...
-                    'Chi2', cell(Nobj, 1));
+                    'Chi2', cell(Nobj, 1), ...
+                    'StatusLog', cell(Nobj, 1));
     for Iinit = 1:Nobj
         FitRes(Iinit).RMS = NaN;
         FitRes(Iinit).Residuals = [];
         FitRes(Iinit).NumObs = 0;
         FitRes(Iinit).NumClipped = 0;
         FitRes(Iinit).Chi2 = NaN;
+        FitRes(Iinit).StatusLog = struct('Function', {}, 'Level', {}, ...
+            'Message', {}, 'Identifier', {}, 'Timestamp', {});
     end
 
     % ====================================================================
@@ -199,6 +204,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             % Special code: RA/Dec columns missing in catalog
             FitRes(Iobj).NumObs = -1;
         end
+
+        % Merge StatusLog from PhotCalibTrans and CompositeFun (TransModel)
+        MergedLog = PC.StatusLog;
+        if ~isempty(PC.TransModel) && isprop(PC.TransModel, 'StatusLog') && ~isempty(PC.TransModel.StatusLog)
+            MergedLog = [MergedLog, PC.TransModel.StatusLog];
+        end
+        FitRes(Iobj).StatusLog = MergedLog;
 
         % Store calibration object
         PhotCalib(Iobj) = PC;

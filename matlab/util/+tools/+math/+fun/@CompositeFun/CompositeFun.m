@@ -445,6 +445,15 @@ classdef CompositeFun < handle
         RMS = NaN                % RMS of residuals from last fit
         Chi2 = NaN               % Chi-squared value from last fit
         DOF = NaN                % Degrees of freedom from last fit
+
+        % Status log for error/warning tracking (accumulated across method calls)
+        StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {})
+                                 % Struct array with fields:
+                                 %   .Function   - Method name that generated the status
+                                 %   .Level      - 'error', 'warning', or 'info'
+                                 %   .Message    - Status message text
+                                 %   .Identifier - Error identifier (from ME.identifier)
+                                 %   .Timestamp  - Time of occurrence (datestr)
     end
 
     methods % Constructor
@@ -458,6 +467,105 @@ classdef CompositeFun < handle
             % Initialize properties
             Obj.FunOperator = '*';
             Obj.Funs = [];
+        end
+    end
+
+    methods % Status logging utilities
+        function Obj = addStatus(Obj, FunctionName, Level, Message, Identifier)
+            % Add a status entry to the log
+            % Input  : - Obj - CompositeFun object
+            %          - FunctionName - Name of the method generating the status
+            %          - Level - 'error', 'warning', or 'info'
+            %          - Message - Status message text
+            %          - Identifier - (optional) Error identifier. Default is ''.
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Model.addStatus('fitPar', 'warning', 'Convergence issue', '');
+
+            arguments
+                Obj
+                FunctionName char
+                Level char
+                Message char
+                Identifier char = ''
+            end
+
+            NewEntry.Function = FunctionName;
+            NewEntry.Level = Level;
+            NewEntry.Message = Message;
+            NewEntry.Identifier = Identifier;
+            NewEntry.Timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Obj.StatusLog = NewEntry;
+            else
+                Obj.StatusLog(end+1) = NewEntry;
+            end
+        end
+
+        function Log = getStatus(Obj, Level)
+            % Get status log entries, optionally filtered by level
+            % Input  : - Obj - CompositeFun object
+            %          - Level - (optional) Filter: 'error', 'warning', 'info', or 'all'
+            %                    Default is 'all'.
+            % Output : - Log - Struct array of status entries
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Errors = Model.getStatus('error');
+
+            arguments
+                Obj
+                Level char = 'all'
+            end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Log = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+                return;
+            end
+
+            if strcmp(Level, 'all')
+                Log = Obj.StatusLog;
+            else
+                Mask = strcmp({Obj.StatusLog.Level}, Level);
+                Log = Obj.StatusLog(Mask);
+            end
+        end
+
+        function Obj = clearStatus(Obj)
+            % Clear all status log entries
+            % Input  : - Obj - CompositeFun object
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Model.clearStatus();
+
+            Obj.StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+        end
+
+        function Result = hasErrors(Obj)
+            % Check if any error-level status entries exist
+            % Input  : - Obj - CompositeFun object
+            % Output : - Result - Logical, true if errors present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if Model.hasErrors(), disp('Errors occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'error'));
+            end
+        end
+
+        function Result = hasWarnings(Obj)
+            % Check if any warning-level status entries exist
+            % Input  : - Obj - CompositeFun object
+            % Output : - Result - Logical, true if warnings present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if Model.hasWarnings(), disp('Warnings occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'warning'));
+            end
         end
     end
 
@@ -1003,7 +1111,7 @@ classdef CompositeFun < handle
 
                         % Add current entry to existing list
                         NewEntry = {Ifun, Ipar, ParamValue};
-                        ExistingEntries = [ExistingEntries, {NewEntry}];  % Concatenate instead of dynamic indexing
+                        ExistingEntries{end+1} = NewEntry;  %#ok<AGROW>
                         GlobalParamMap(GlobalIndex) = ExistingEntries;
                     else
                         % First time seeing this global parameter
@@ -1013,8 +1121,10 @@ classdef CompositeFun < handle
             end
 
             % Check for NaN fixed parameters (informational warning, not error)
-            % Use cell array to avoid size-changing warnings
-            NaNFixedParamsCell = {};
+            % Pre-allocate cell array to avoid size-changing in loop
+            TotalParams = sum(arrayfun(@(f) length(f.Par), Obj.Funs));
+            NaNFixedParamsCell = cell(1, TotalParams);
+            NaNCount = 0;
             for Ifun = 1:numel(Obj.Funs)
                 for Ipar = 1:length(Obj.Funs(Ifun).Par)
                     if ~Obj.Funs(Ifun).FitPar(Ipar) && isnan(Obj.Funs(Ifun).Par(Ipar))
@@ -1024,11 +1134,13 @@ classdef CompositeFun < handle
                         else
                             ParamName = sprintf('Param_%d', GlobalIndex);
                         end
-                        NewEntry = {GlobalIndex, Ifun, Ipar, ParamName, Obj.Funs(Ifun).Desc};
-                        NaNFixedParamsCell = [NaNFixedParamsCell, {NewEntry}];
+                        NaNCount = NaNCount + 1;
+                        NaNFixedParamsCell{NaNCount} = {GlobalIndex, Ifun, Ipar, ParamName, Obj.Funs(Ifun).Desc};
                     end
                 end
             end
+            % Trim to actual size
+            NaNFixedParamsCell = NaNFixedParamsCell(1:NaNCount);
 
             % Convert to matrix if there are any NaN fixed params
             if ~isempty(NaNFixedParamsCell)
@@ -2556,10 +2668,10 @@ classdef CompositeFun < handle
                     [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
                 end
 
-                RMS = sqrt(Cost / length(Residuals));
+                StageRMS = sqrt(Cost / length(Residuals));
 
                 if Args.Verbose
-                    fprintf('Current RMS: %.4f, NumObs: %d\n', RMS, length(Residuals));
+                    fprintf('Current RMS: %.4f, NumObs: %d\n', StageRMS, length(Residuals));
                 end
 
                 % Apply sigma clipping if enabled
@@ -2627,35 +2739,35 @@ classdef CompositeFun < handle
 
             % Get quality metrics from minimizer if available
             if exist('MinimizerInfo', 'var')
-                Chi2 = MinimizerInfo.Chi2;
-                DOF = MinimizerInfo.Dof;
-                RMS = sqrt(sum(MinimizerInfo.Resid.^2) / length(MinimizerInfo.Resid));
+                StageChi2 = MinimizerInfo.Chi2;
+                StageDOF = MinimizerInfo.Dof;
+                StageRMS = sqrt(sum(MinimizerInfo.Resid.^2) / length(MinimizerInfo.Resid));
             else
-                Chi2 = NaN;
-                DOF = NaN;
-                % RMS already calculated from costFun residuals
+                StageChi2 = NaN;
+                StageDOF = NaN;
+                % StageRMS already calculated from costFun residuals
             end
 
             % Store fit quality metrics in object
-            Obj.RMS = RMS;
-            Obj.Chi2 = Chi2;
-            Obj.DOF = DOF;
+            Obj.RMS = StageRMS;
+            Obj.Chi2 = StageChi2;
+            Obj.DOF = StageDOF;
 
             FitResult = struct();
             FitResult.Cost = Cost;
-            FitResult.RMS = RMS;
+            FitResult.RMS = StageRMS;
             FitResult.Residuals = Residuals;
             FitResult.NumObs = length(CurrentObs);
             FitResult.NumClipped = NumClipped;
             FitResult.KeepMask = KeepMask;  % Logical mask of which original observations survived
             FitResult.ConvergedSigmaClip = ConvergedSigmaClip;
-            FitResult.Chi2 = Chi2;
-            FitResult.DOF = DOF;
+            FitResult.Chi2 = StageChi2;
+            FitResult.DOF = StageDOF;
 
             if Args.Verbose
                 fprintf('\nTransmission optimization complete\n');
                 fprintf('  Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
-                fprintf('  RMS: %.4f\n', RMS);
+                fprintf('  RMS: %.4f\n', StageRMS);
             end
         end
 
@@ -2674,8 +2786,8 @@ classdef CompositeFun < handle
             % Author : D. Kovaleva (Nov 2025)
 
             % Use stored Obj.OptSeq directly (already set by fitPar)
-            OptSeq = Obj.OptSeq;
-            NumStages = length(OptSeq);
+            Stages = Obj.OptSeq;
+            NumStages = length(Stages);
 
             % Initialize results array
             FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
@@ -2714,7 +2826,7 @@ classdef CompositeFun < handle
 
             % Loop through optimization stages
             for IStage = 1:NumStages
-                Stage = OptSeq(IStage);
+                Stage = Stages(IStage);
                 StageName = Stage.StageName;
                 FreeParamsStage = Stage.FreeParams;
                 SigmaClip = Stage.SigmaClip;
@@ -2842,12 +2954,12 @@ classdef CompositeFun < handle
                     end
 
                     % Build StageResult structure
-                    RMS = std(Residuals);
+                    StageRMS = std(Residuals);
                     NumClipped = sum(~KeepMaskNorm);
 
                     StageResult = struct();
                     StageResult.Cost = sum(Residuals.^2);
-                    StageResult.RMS = RMS;
+                    StageResult.RMS = StageRMS;
                     StageResult.Residuals = Residuals;
                     StageResult.NumObs = length(CurrentObsNorm);
                     StageResult.NumClipped = NumClipped;
@@ -2857,7 +2969,7 @@ classdef CompositeFun < handle
                     StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
 
                     if Args.Verbose
-                        fprintf('  RMS: %.4f mag, Observations: %d\n', RMS, length(CurrentObsNorm));
+                        fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
                     end
 
                 elseif IsFieldCorrectionStage
@@ -2870,7 +2982,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
-                        'OptimizationSequence', OptSeq(IStage), ...
+                        'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 else
@@ -2902,7 +3014,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
-                        'OptimizationSequence', OptSeq(IStage), ...
+                        'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 end

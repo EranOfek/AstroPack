@@ -121,9 +121,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.OutUnits         = 'rad'       % Output coordinate units: 'rad'|'deg'
         Args.TapUnits         = 'deg'       % TAP input coordinate units: 'rad'|'deg'
         Args.HTM_Level        = 7           % HTM level (or 'auto' for automatic)
-        Args.AutoLevelMaxSrc  = 1e6         % Max sources per cell for auto-level
+        Args.AutoLevelMaxSrc  = 1e3         % Max sources per cell for auto-level
         Args.AutoLevelRange   = [4, 10]    % [min, max] HTM level range for auto-selection
-        Args.NfilesInHDF      = 100         % HTM cells per HDF5 file
+        Args.NfilesInHDF      = 30         % HTM cells per HDF5 file
         Args.IndStep          = 30          % Index sampling step for HDF5
         Args.DecRange         = [-pi/2, pi/2]   % Dec range to process [rad]
         Args.RARange          = [0, 2*pi]       % RA range to process [rad]
@@ -189,7 +189,35 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     end
 
     %----------------------------------------------------------------------
-    % 2. AUTO-LEVEL SELECTION (if requested)
+    % 2. DETECT COLUMNS AND SAVE COLCELL FILE
+    %----------------------------------------------------------------------
+
+    if isempty(Args.ColCell)
+        if Args.Verbose
+            fprintf('Querying TAP for column names...\n');
+        end
+        SampleQuery = sprintf('SELECT TOP 1 %s FROM %s', ColumnsStr, TableName);
+        T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', 60, ...
+                      'Method', Args.QueryMethod, 'WorkDir', Args.LocalDir);
+        if isempty(T) || ~istable(T)
+            error('VO:buildHTMfromTopCat:NoColumns', ...
+                'Could not query column names from TAP service');
+        end
+        [~, Args.ColCell] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+        if Args.Verbose
+            fprintf('Detected %d columns: %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
+        end
+    end
+
+    % Save ColCell file immediately
+    ColCellPath = fullfile(Args.LocalDir, Args.CatName);
+    HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
+    if Args.Verbose
+        fprintf('Saved column metadata: %s_htmColCell.mat\n', ColCellPath);
+    end
+
+    %----------------------------------------------------------------------
+    % 3. AUTO-LEVEL SELECTION (if requested)
     %----------------------------------------------------------------------
 
     if ischar(Args.HTM_Level) && strcmpi(Args.HTM_Level, 'auto')
@@ -230,13 +258,11 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % Initialize source count matrix
     Nsrc = zeros(Nhtm, 2);
 
-    % Track column names (will be set from first successful query)
-    ColNamesDetected = {};
-
     StartTime = tic;
     ProcessedCount = 0;
     SkippedCount = 0;
     FailedCells = [];
+    CurrentHDFFile = '';  % Track current HDF5 file for remote copy
 
     %----------------------------------------------------------------------
     % 4. MAIN LOOP: Process each HTM cell
@@ -248,6 +274,20 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
     for Ihtm = 1:Nhtm
         IndHTM = ListIndexHTM(Ihtm);
+
+        % Check if we've moved to a new HDF5 file - if so, copy the completed one
+        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+        if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+            % Previous file is complete, copy to remote
+            FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+            if isfile(FullPath)
+                tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                if Args.Verbose
+                    fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                end
+            end
+        end
+        CurrentHDFFile = ThisFileName;
 
         % Get HTM cell center
         MeanRA  = mean(HTM(IndHTM).coo(:,1));   % radians
@@ -284,15 +324,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
                 ProcessedCount = ProcessedCount + 1;
 
-                % Store column names from first successful query
-                if isempty(ColNamesDetected) && ~isempty(ColNames)
-                    ColNamesDetected = ColNames;
-                end
-
                 % Print progress
                 if Args.Verbose && (mod(ProcessedCount, 10) == 0 || ProcessedCount == 1)
                     printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount);
                 end
+            end
+        end
+    end
+
+    % Copy the last HDF5 file to remote (if any processing was done)
+    if ~isempty(CurrentHDFFile) && ~isempty(Args.TargetDir)
+        FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+        if isfile(FullPath)
+            tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            if Args.Verbose
+                fprintf('  Copied completed file: %s\n', CurrentHDFFile);
             end
         end
     end
@@ -308,56 +354,10 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         fprintf('Failed: %d cells\n', numel(FailedCells));
     end
 
-    % Save index file and column metadata
+    % Save HTM index file
     if Args.SaveInd
         if Args.Verbose
-            fprintf('Saving HTM index and column metadata...\n');
-        end
-
-        % Prepare column cell
-        if isempty(Args.ColCell) && ~isempty(ColNamesDetected)
-            Args.ColCell = ColNamesDetected;
-        end
-
-        % If still empty (e.g., all cells skipped in resume mode), try to read from existing colcell file
-        if isempty(Args.ColCell) && Args.Resume
-            ExistingColCellFile = fullfile(Args.LocalDir, sprintf('%s_htmColCell.mat', Args.CatName));
-            if isfile(ExistingColCellFile)
-                try
-                    LoadedData = load(ExistingColCellFile, 'ColCell', 'ColUnits');
-                    if isfield(LoadedData, 'ColCell')
-                        Args.ColCell = LoadedData.ColCell;
-                        if isfield(LoadedData, 'ColUnits') && isempty(Args.ColUnits)
-                            Args.ColUnits = LoadedData.ColUnits;
-                        end
-                        if Args.Verbose
-                            fprintf('Loaded column names from existing file: %s\n', ExistingColCellFile);
-                        end
-                    end
-                catch
-                    % Could not load - will try TAP query next
-                end
-            end
-        end
-
-        % If still empty, query TAP for a small sample to get column names
-        if isempty(Args.ColCell)
-            if Args.Verbose
-                fprintf('Querying TAP for column names...\n');
-            end
-            try
-                SampleQuery = sprintf('SELECT TOP 1 %s FROM %s', ColumnsStr, TableName);
-                T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', 60, 'Method', Args.QueryMethod, 'WorkDir', Args.LocalDir);
-                if ~isempty(T) && istable(T)
-                    [~, Args.ColCell] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
-                    if Args.Verbose
-                        fprintf('Detected %d columns from TAP query\n', numel(Args.ColCell));
-                    end
-                end
-            catch ME
-                warning('VO:buildHTMfromTopCat:ColCellQuery', ...
-                    'Could not query column names: %s', ME.message);
-            end
+            fprintf('Saving HTM index...\n');
         end
 
         % Delete old index file if exists
@@ -369,27 +369,19 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         % Save HTM index using tracked Nsrc
         HDF5.save_htm_ind(HTM, IndFileName, sprintf('%s_HTM', Args.CatName), {}, Nsrc);
 
-        % Copy index file to remote directory if specified
-  %      if ~isempty(Args.TargetDir)
-  %          tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-  %      end
+        if Args.Verbose
+            fprintf('Saved HTM index: %s\n', IndFileName);
+        end
 
-        % Save column metadata
-        if ~isempty(Args.ColCell)
-            ColCellPath = fullfile(Args.LocalDir, Args.CatName);
-            HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
-            ColCellFileName = sprintf('%s_htmColCell.mat', ColCellPath);
-            if Args.Verbose
-                fprintf('Saved column metadata: %s\n', ColCellFileName);
-            end
+        % Copy index file to remote
+        if ~isempty(Args.TargetDir)
+            tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true); 
+        end
 
-            % Copy colcell file to remote directory if specified
-            if ~isempty(Args.TargetDir)
-                tools.os.copyFileOverNFS({ColCellFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-            end
-        else
-            warning('VO:buildHTMfromTopCat:NoColCell', ...
-                'Column names could not be detected (no successful queries). ColCell file not created.');
+        % Copy ColCell file to remote
+        ColCellFileName = fullfile(Args.LocalDir, sprintf('%s_htmColCell.mat', Args.CatName));
+        if ~isempty(Args.TargetDir) && isfile(ColCellFileName)
+            tools.os.copyFileOverNFS({ColCellFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
         end
     end
 
@@ -616,11 +608,6 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
         [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
         FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
-
-        % Copy to remote directory if specified
-  %      if ~isempty(Args.TargetDir)
-  %          tools.os.copyFileOverNFS({FileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-  %      end
     end
 end
 

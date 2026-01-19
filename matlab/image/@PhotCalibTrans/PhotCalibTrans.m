@@ -112,6 +112,15 @@ classdef PhotCalibTrans < Component
                                 %   Multi-stage:  FitResults(i).StageName, .Method, .Cost, .RMS, .Residuals,
                                 %                 .NumObs, .NumClipped, .KeepMask, .IsFieldCorrection, .Chi2, .DOF
 
+        % Status log for error/warning tracking (pipeline-safe execution)
+        StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {})
+                                % Struct array for accumulating status messages:
+                                %   .Function   - Method name that generated the status
+                                %   .Level      - 'error', 'warning', or 'info'
+                                %   .Message    - Status message text
+                                %   .Identifier - Error identifier (from ME.identifier)
+                                %   .Timestamp  - Time of occurrence
+
     end
 
     properties (Constant, Hidden)
@@ -160,6 +169,105 @@ classdef PhotCalibTrans < Component
                             'Property "%s" does not exist and will be ignored.', PropName);
                     end
                 end
+            end
+        end
+    end
+
+    methods % Status logging utilities
+        function Obj = addStatus(Obj, FunctionName, Level, Message, Identifier)
+            % Add a status entry to the log
+            % Input  : - Obj - PhotCalibTrans object
+            %          - FunctionName - Name of the method generating the status
+            %          - Level - 'error', 'warning', or 'info'
+            %          - Message - Status message text
+            %          - Identifier - (optional) Error identifier. Default is ''.
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Obj = Obj.addStatus('calibrate', 'warning', 'AIRMASS not found', '');
+
+            arguments
+                Obj
+                FunctionName char
+                Level char
+                Message char
+                Identifier char = ''
+            end
+
+            NewEntry.Function = FunctionName;
+            NewEntry.Level = Level;
+            NewEntry.Message = Message;
+            NewEntry.Identifier = Identifier;
+            NewEntry.Timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Obj.StatusLog = NewEntry;
+            else
+                Obj.StatusLog(end+1) = NewEntry;
+            end
+        end
+
+        function Log = getStatus(Obj, Level)
+            % Get status log entries, optionally filtered by level
+            % Input  : - Obj - PhotCalibTrans object
+            %          - Level - (optional) Filter: 'error', 'warning', 'info', or 'all'
+            %                    Default is 'all'.
+            % Output : - Log - Struct array of status entries
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Errors = PC.getStatus('error');
+
+            arguments
+                Obj
+                Level char = 'all'
+            end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Log = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+                return;
+            end
+
+            if strcmp(Level, 'all')
+                Log = Obj.StatusLog;
+            else
+                Mask = strcmp({Obj.StatusLog.Level}, Level);
+                Log = Obj.StatusLog(Mask);
+            end
+        end
+
+        function Obj = clearStatus(Obj)
+            % Clear all status log entries
+            % Input  : - Obj - PhotCalibTrans object
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: PC = PC.clearStatus();
+
+            Obj.StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+        end
+
+        function Result = hasErrors(Obj)
+            % Check if any error-level status entries exist
+            % Input  : - Obj - PhotCalibTrans object
+            % Output : - Result - Logical, true if errors present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if PC.hasErrors(), disp('Errors occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'error'));
+            end
+        end
+
+        function Result = hasWarnings(Obj)
+            % Check if any warning-level status entries exist
+            % Input  : - Obj - PhotCalibTrans object
+            % Output : - Result - Logical, true if warnings present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if PC.hasWarnings(), disp('Warnings occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'warning'));
             end
         end
     end
@@ -727,10 +835,77 @@ classdef PhotCalibTrans < Component
                 if ismember(FluxErrColName, ObsTab.Properties.VariableNames)
                     Obs_FluxErr = ObsTab.(FluxErrColName);
                 else
-                    Obs_FluxErr = sqrt(Obs_Flux);  % Use Poisson approximation
+                    Obs_FluxErr = sqrt(abs(Obs_Flux));  % Use Poisson approximation
                     if Args.Verbose
                         fprintf('  Warning: %s not found, using sqrt(flux) for errors\n', FluxErrColName);
                     end
+                end
+
+                % ============================================================
+                % DATA VALIDATION: Check for invalid values in calibrator data
+                % Invalid calibrators will be excluded from fitting but logged
+                % ============================================================
+                Nsources_before = length(Obs_Flux);
+
+                % Validate Flux
+                InvalidFlux = isnan(Obs_Flux) | isinf(Obs_Flux) | (Obs_Flux <= 0);
+                if any(InvalidFlux)
+                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
+                        sprintf('Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
+                        sum(InvalidFlux), Nsources_before));
+                end
+
+                % Validate X, Y coordinates
+                InvalidXY = isnan(Obs_X) | isinf(Obs_X) | isnan(Obs_Y) | isinf(Obs_Y);
+                if any(InvalidXY)
+                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
+                        sprintf('Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
+                        sum(InvalidXY), Nsources_before));
+                end
+
+                % Validate RA, Dec
+                InvalidRADec = isnan(Obs_RA) | isinf(Obs_RA) | isnan(Obs_Dec) | isinf(Obs_Dec);
+                if any(InvalidRADec)
+                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
+                        sprintf('Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
+                        sum(InvalidRADec), Nsources_before));
+                end
+
+                % Combined valid mask for calibrator selection
+                ValidCalibMask = ~InvalidFlux & ~InvalidXY & ~InvalidRADec;
+                Nvalid = sum(ValidCalibMask);
+
+                if Nvalid < Nsources_before
+                    % Keep only valid calibrators for fitting
+                    Obs_X = Obs_X(ValidCalibMask);
+                    Obs_Y = Obs_Y(ValidCalibMask);
+                    Obs_RA = Obs_RA(ValidCalibMask);
+                    Obs_Dec = Obs_Dec(ValidCalibMask);
+                    Obs_Flux = Obs_Flux(ValidCalibMask);
+                    Obs_FluxErr = Obs_FluxErr(ValidCalibMask);
+                    dist_rad = dist_rad(ValidCalibMask);
+                    nmatch = nmatch(ValidCalibMask);
+                    calIdx = calIdx(ValidCalibMask);
+                    Cal_RA = Cal_RA(ValidCalibMask);
+                    Cal_Dec = Cal_Dec(ValidCalibMask);
+                    SpecFlux = SpecFlux(ValidCalibMask, :);
+                    SpecErr = SpecErr(ValidCalibMask, :);
+
+                    if Args.Verbose
+                        fprintf('  Data validation: %d/%d calibrators have valid data\n', Nvalid, Nsources_before);
+                    end
+                end
+
+                Nmatch = Nvalid;
+
+                % Check if any valid calibrators remain
+                if Nmatch == 0
+                    Obj = Obj.addStatus('selectCalibrators', 'error', ...
+                        'No valid calibrators remain after data validation');
+                    Obj.SourceData = [];
+                    Obj.SpecData = [];
+                    Obj.CalFound = false;
+                    return;
                 end
 
                 % Convert distance to arcsec
@@ -1461,6 +1636,19 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Validate X, Y coordinates if position corrections enabled
+            Nrows = height(Tab);
+            ValidPosMask = true(Nrows, 1);
+            if ~isempty(X)
+                InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
+                if any(InvalidPos)
+                    Obj = Obj.addStatus('addMagAB', 'info', ...
+                        sprintf('Position validation: %d/%d sources have invalid X/Y - MagAB will be NaN at these positions', ...
+                        sum(InvalidPos), Nrows));
+                    ValidPosMask = ~InvalidPos;
+                end
+            end
+
             % Process each flux column
             for i = 1:length(FluxColNames)
                 FluxColName = FluxColNames{i};
@@ -1468,9 +1656,19 @@ classdef PhotCalibTrans < Component
                 % Get flux values [photons]
                 Flux = Tab.(FluxColName);
 
-                % Calculate calibrated AB magnitudes from flux
-                % MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
-                MagAB = Obj.evaluateMag(Flux, 'X', X, 'Y', Y);
+                % Initialize output as NaN
+                MagAB = nan(Nrows, 1);
+
+                % Calculate MagAB for sources with valid positions
+                % Note: evaluateMag handles negative/zero flux properly
+                if any(ValidPosMask)
+                    if ~isempty(X)
+                        MagAB(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
+                            'X', X(ValidPosMask), 'Y', Y(ValidPosMask));
+                    else
+                        MagAB(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask));
+                    end
+                end
 
                 % Create new calibrated magnitude column name
                 % FLUX_APER_3 → MAG_AB_APER_3
@@ -1492,22 +1690,42 @@ classdef PhotCalibTrans < Component
 
             Tab = CatObj.Table;
             if isempty(Tab) || height(Tab) == 0
-                warning('PhotCalibTrans:addZP:EmptyCatalog', 'Catalog is empty.');
+                Obj = Obj.addStatus('addZP', 'warning', 'Catalog is empty. No columns added.');
                 return;
             end
+
+            Nrows = height(Tab);
 
             % Extract X, Y coordinates
             AllColNames = Tab.Properties.VariableNames;
             if ~ismember('X', AllColNames) || ~ismember('Y', AllColNames)
-                error('PhotCalibTrans:addZP:NoCoords', 'X, Y columns not found in catalog.');
+                Obj = Obj.addStatus('addZP', 'error', ...
+                    'X, Y columns not found in catalog. ZP column set to NaN.');
+                ZP = nan(Nrows, 1);
+                CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
+                return;
             end
 
             X = Tab.X(:);
             Y = Tab.Y(:);
 
-            % Evaluate ZP at each position
-            ZP = Obj.evaluateZP('X', X, 'Y', Y);
-            ZP = ZP(:);  % Ensure column vector
+            % Validate X, Y coordinates
+            InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
+            if any(InvalidPos)
+                Obj = Obj.addStatus('addZP', 'info', ...
+                    sprintf('Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
+                    sum(InvalidPos), Nrows));
+            end
+
+            % Initialize ZP as NaN
+            ZP = nan(Nrows, 1);
+
+            % Evaluate ZP only for valid positions
+            ValidMask = ~InvalidPos;
+            if any(ValidMask)
+                ZP_valid = Obj.evaluateZP('X', X(ValidMask), 'Y', Y(ValidMask));
+                ZP(ValidMask) = ZP_valid(:);
+            end
 
             % Insert column
             CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
@@ -1882,8 +2100,8 @@ classdef PhotCalibTrans < Component
                       'Fit results not available. Run calibrate() first.');
             end
 
-            FitResults = Obj.FitResults;
-            Nstages = length(FitResults);
+            FitRes = Obj.FitResults;
+            Nstages = length(FitRes);
 
             % Extract metrics from each stage
             RMS_stages = zeros(Nstages, 1);
@@ -1891,12 +2109,12 @@ classdef PhotCalibTrans < Component
             DOF_stages = zeros(Nstages, 1);
 
             for i = 1:Nstages
-                RMS_stages(i) = FitResults(i).RMS;
-                if isfield(FitResults(i), 'Chi2')
-                    Chi2_stages(i) = FitResults(i).Chi2;
+                RMS_stages(i) = FitRes(i).RMS;
+                if isfield(FitRes(i), 'Chi2')
+                    Chi2_stages(i) = FitRes(i).Chi2;
                 end
-                if isfield(FitResults(i), 'DOF')
-                    DOF_stages(i) = FitResults(i).DOF;
+                if isfield(FitRes(i), 'DOF')
+                    DOF_stages(i) = FitRes(i).DOF;
                 end
             end
 
