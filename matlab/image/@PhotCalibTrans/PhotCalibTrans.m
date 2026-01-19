@@ -686,6 +686,8 @@ classdef PhotCalibTrans < Component
 
             if ~HasRADec
                 Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
+                Obj = Obj.addStatus('selectCalibrators', 'warning', ...
+                    'Catalog missing RA/Dec columns - cannot match calibrators');
                 if Args.Verbose
                     fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
                     fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
@@ -1230,6 +1232,9 @@ classdef PhotCalibTrans < Component
                 HistoryComments = cell(1, 300);
                 iComment = 0;
             end
+
+            % Remove all existing PT_* keywords to ensure clean ordering
+            HeaderObj = HeaderObj.deleteKey({'PT_.*'});
 
             % General results
             HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
