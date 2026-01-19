@@ -32,6 +32,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                               >0 = success, 0 = no calibrators found, -1 = RA/Dec missing
     %                     .NumClipped - Number of clipped outliers (0 if failed)
     %                     .Chi2 - Chi-squared value (NaN if failed)
+    %                     .StatusLog - Struct array of status messages with fields:
+    %                                  .Function, .Level, .Message, .Identifier, .Timestamp
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -100,13 +102,38 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                     'Residuals', cell(Nobj, 1), ...
                     'NumObs', cell(Nobj, 1), ...
                     'NumClipped', cell(Nobj, 1), ...
-                    'Chi2', cell(Nobj, 1));
+                    'Chi2', cell(Nobj, 1), ...
+                    'StatusLog', cell(Nobj, 1));
     for Iinit = 1:Nobj
         FitRes(Iinit).RMS = NaN;
         FitRes(Iinit).Residuals = [];
         FitRes(Iinit).NumObs = 0;
         FitRes(Iinit).NumClipped = 0;
         FitRes(Iinit).Chi2 = NaN;
+        FitRes(Iinit).StatusLog = struct('Function', {}, 'Level', {}, ...
+            'Message', {}, 'Identifier', {}, 'Timestamp', {});
+    end
+
+    % ====================================================================
+    % BUILD CALIBRATION ARGUMENTS (once, before loop)
+    % ====================================================================
+
+    CalibArgs = {...
+        'FunListName', Args.FunListName, ...
+        'OptSeqName', Args.OptSeqName, ...
+        'Tran2DType', Args.Tran2DType, ...
+        'SearchRadius', Args.SearchRadius, ...
+        'MagRange', Args.MagRange, ...
+        'Verbose', Args.Verbose};
+
+    % Add custom function list if provided
+    if ~isempty(Args.CustomFunList)
+        CalibArgs = [CalibArgs, {'CustomFunList', Args.CustomFunList}];
+    end
+
+    % Add custom optimization sequence if provided
+    if ~isempty(Args.CustomOptSeq)
+        CalibArgs = [CalibArgs, {'CustomOptSeq', Args.CustomOptSeq}];
     end
 
     % ====================================================================
@@ -120,25 +147,6 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
         % Create new PhotCalibTrans object for this image
         PC = PhotCalibTrans();
-
-        % Build calibration arguments
-        CalibArgs = {...
-            'FunListName', Args.FunListName, ...
-            'OptSeqName', Args.OptSeqName, ...
-            'Tran2DType', Args.Tran2DType, ...
-            'SearchRadius', Args.SearchRadius, ...
-            'MagRange', Args.MagRange, ...
-            'Verbose', Args.Verbose};
-
-        % Add custom function list if provided
-        if ~isempty(Args.CustomFunList)
-            CalibArgs = [CalibArgs, {'CustomFunList', Args.CustomFunList}];
-        end
-
-        % Add custom optimization sequence if provided
-        if ~isempty(Args.CustomOptSeq)
-            CalibArgs = [CalibArgs, {'CustomOptSeq', Args.CustomOptSeq}];
-        end
 
         % ----------------------------------------------------------------
         % Perform calibration
@@ -183,7 +191,79 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             end
         else
             if Args.Verbose
-                fprintf('  Calibration unsuccessful - skipping post-processing\n');
+                fprintf('  Calibration unsuccessful - adding NaN-filled columns for uniformity\n');
+            end
+
+            % Get catalog reference
+            if IsAstroImage
+                CatObj = Result(Iobj).CatData;
+            else
+                CatObj = Result(Iobj);
+            end
+
+            % Add NaN-filled columns for uniformity with successful calibrations
+            if ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0
+                Nrows = height(CatObj.Table);
+                NaNcol = nan(Nrows, 1);
+
+                % Add MAG_AB columns if requested
+                if Args.AddMagAB
+                    % Find FLUX columns and create corresponding MAG_AB columns
+                    ColNames = CatObj.Table.Properties.VariableNames;
+                    FluxCols = ColNames(startsWith(ColNames, 'FLUX_APER_') | strcmp(ColNames, 'FLUX_PSF'));
+                    for iCol = 1:length(FluxCols)
+                        NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', 'MAG_AB_');
+                        CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
+                    end
+                end
+
+                % Add ZP column if requested
+                if Args.AddZP
+                    CatObj = CatObj.insertCol(NaNcol, Inf, {'ZP'});
+                end
+
+                % Store back
+                if IsAstroImage
+                    Result(Iobj).CatData = CatObj;
+                else
+                    Result(Iobj) = CatObj;
+                end
+            end
+
+            % Write PT_* keywords to header with NaN values for uniformity
+            if Args.UpdateHeader && IsAstroImage
+                H = Result(Iobj).HeaderData;
+                H = H.replaceVal('PT_RMS', NaN);
+                H = H.replaceVal('PT_CHI2', NaN);
+                H = H.replaceVal('PT_DOF', NaN);
+                H = H.replaceVal('PT_NCALIB', -1);  % -1 = not searched (no RA/Dec), 0 = searched but none found
+                H = H.replaceVal('PT_SUCC', false);
+                H = H.replaceVal('PT_AREF', 'SMART v2.9.8');
+                H = H.replaceVal('PT_SREF', 'MLv0.1LAST');
+                H = H.replaceVal('PT_SPEC', 'GaiaDR3');
+
+                % Write function parameters with NaN values and 0 flags
+                if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.Funs)
+                    Funs = PC.TransModel.Funs;
+                    for iFun = 1:length(Funs)
+                        Fun = Funs(iFun);
+                        % Function reference
+                        if iFun == 1 && strcmp(Fun.Desc, 'Normalization')
+                            FunRef = '@(Lambda,Par)Par';
+                        else
+                            FunRef = func2str(Fun.Handle);
+                        end
+                        H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
+
+                        % Parameters: values = NaN, flags = 0
+                        for iPar = 1:length(Fun.Par)
+                            H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), NaN);
+                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), 0);
+                        end
+                    end
+                end
+
+                Result(Iobj).HeaderData = H;
             end
         end
 
@@ -199,6 +279,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             % Special code: RA/Dec columns missing in catalog
             FitRes(Iobj).NumObs = -1;
         end
+
+        % Merge StatusLog from PhotCalibTrans and CompositeFun (TransModel)
+        MergedLog = PC.StatusLog;
+        if ~isempty(PC.TransModel) && isprop(PC.TransModel, 'StatusLog') && ~isempty(PC.TransModel.StatusLog)
+            MergedLog = [MergedLog, PC.TransModel.StatusLog];  %#ok<AGROW>
+        end
+        FitRes(Iobj).StatusLog = MergedLog;
 
         % Store calibration object
         PhotCalib(Iobj) = PC;

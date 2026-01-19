@@ -1,8 +1,9 @@
-function Result = qeLegendreLAST(Lambda, unusedParam, Args)
+function Result = qeLegendreLAST(Lambda, Par, Args)
     % Legendre polynomial model for perturbations to instrumental
     % transmission optimized for LAST, Legendre coefficients from Ofek et al. (2023)
     % Input  : - Lambda (double array): Wavelength array in Angstrom.
-    %          - unusedParam - Dummy parameter for CompositeFun compatibility.
+    %          - Par (double array): Legendre coefficients [L0, L1, ..., L8].
+    %            Default values from Ofek et al. (2023).
     %            If GetArgNames flag is true, returns ArgNames structure.
     %          * ...,key,val,...
     %            'Return' - Pre-computed results for caching. Default is [].
@@ -16,20 +17,28 @@ function Result = qeLegendreLAST(Lambda, unusedParam, Args)
     %          QEpert = telescope.detector.qeLegendreLAST(Lambda);
     %          % Use with CompositeFun:
     %          Model = tools.math.fun.CompositeFun();
-    %          Model.addFun('QE Legendre', @telescope.detector.qeLegendreLAST, [], 'Par', [1], 'FitPar', [false]);
+    %          Li = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60];
+    %          Model.addFun('QE Legendre', @telescope.detector.qeLegendreLAST, [], 'Par', Li, 'FitPar', false(1,9));
 
     arguments
         Lambda = linspace(3000, 11000, 401)'
-        unusedParam = 1
+        % Default Legendre coefficients from Ofek et al. (2023)
+        Par = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60]
         Args.Return = []
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
         Args.GetArgNames logical = false
     end
 
-    % Return ArgNames structure if requested (dummy parameter for CompositeFun compatibility)
+    % Return ArgNames structure if requested
     if Args.GetArgNames
-        Result = struct('Name', {1}, 'Description', {'unusedParam'}, 'Min', {1}, 'Max', {1});
+        Result = struct('Name', {}, 'Description', {}, 'Min', {}, 'Max', {});
+        for i = 0:8
+            Result(i+1).Name = i+1;
+            Result(i+1).Description = sprintf('L%d', i);
+            Result(i+1).Min = -10;
+            Result(i+1).Max = 10;
+        end
         return;
     end
 
@@ -39,18 +48,19 @@ function Result = qeLegendreLAST(Lambda, unusedParam, Args)
         return;
     end
 
-    % Persistent cache
-    persistent CachedResult CachedLambda
+    % Persistent cache (includes both Lambda and Par)
+    persistent CachedResult CachedLambda CachedPar
 
     if Args.UsePersistentCache && ~isempty(CachedResult)
-        if compareParams(Lambda, CachedLambda, Args.Tolerance)
+        if compareParams(Lambda, CachedLambda, Args.Tolerance) && ...
+           compareParams(Par, CachedPar, Args.Tolerance)
             Result = CachedResult;
             return;
         end
     end
 
-    % Legendre coefficients (constants from Ofek et al. 2023)
-    Li = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60];
+    % Ensure Par is a row vector
+    Li = Par(:)';
 
     % Rescale wavelength to [-1, 1]
     Lam_rescaled = 2 * (Lambda - min(Lambda)) / (max(Lambda) - min(Lambda)) - 1;
@@ -72,6 +82,7 @@ function Result = qeLegendreLAST(Lambda, unusedParam, Args)
     if Args.UsePersistentCache
         CachedResult = Result;
         CachedLambda = Lambda;
+        CachedPar = Par;
     end
 end
 

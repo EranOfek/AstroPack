@@ -18,7 +18,7 @@ function [Result] = stitchCrops(AI, Args)
     %
     Ncrop = numel(AI);
     MaxX  = 1; MaxY  = 1;
-    MCat   = repmat(AstroCatalog,1,Ncrop);
+    MCat  = repmat(AstroCatalog,1,Ncrop);
        
     for Icrop = 1:Ncrop                
         ReadCCDSEC = AI(Icrop).getStructKey(Args.CCDSEC).(Args.CCDSEC);        

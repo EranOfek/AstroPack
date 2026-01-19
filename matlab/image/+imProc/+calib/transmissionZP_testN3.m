@@ -85,6 +85,9 @@ function [Result] = transmissionZP_testN3(Args)
         
         % read the data files into an AI
         AI = AstroImage.readProducts(FN,'ExtraOutProduct',"Cat");
+
+        % diagnostics:
+        fprintf('%d: %s\n', Ivis, FN)
         
         % process the AI (this is the main part where absolute calibration is performed)  
         [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
@@ -99,10 +102,11 @@ function [Result] = transmissionZP_testN3(Args)
        
         clear AI;
 
-        if ~isempty(Args.RemoteDir)
-            Err = tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-            if ~isempty(Err)
-                error(Err);
+        if ~isempty(Args.RemoteDir) && Result(Ivis).NumObs > 0 
+            try
+                tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            catch ME
+                fprintf('%d: movement of processed file %s failed due to %s\n', Ivis, FN1, ME.message)
             end
         end
     end

@@ -13,6 +13,8 @@ function Result = correctorTransmissionLAST(Lambda, unusedParam, Args)
     %                   Default is 1e-12.
     %            'GetArgNames' - Return ArgNames structure instead of calculating.
     %                   Default is false.
+    %            'DataPath' - Path to corrector transmission data file.
+    %                   Default is fullfile(getenv('HOME'), 'matlab/data/spec/Telescope/LAST/Corrector_transmission.mat').
     % Output : - Result - Corrector transmission values (0-1).
     %                   OR ArgNames structure if GetArgNames is true.
     % Author : D. Kovaleva (Oct 2025)
@@ -30,6 +32,7 @@ function Result = correctorTransmissionLAST(Lambda, unusedParam, Args)
         Args.UsePersistentCache logical = true
         Args.Tolerance = 1e-12
         Args.GetArgNames logical = false
+        Args.DataPath = fullfile(getenv('HOME'), 'matlab/data/spec/Telescope/LAST/Corrector_transmission.mat')
     end
 
     % Return ArgNames structure if requested (dummy unusedParam for the compatibility)
@@ -56,8 +59,7 @@ function Result = correctorTransmissionLAST(Lambda, unusedParam, Args)
 
     % Load and apply polynomial function handle
     % Note: Internal function handle expects nm, so convert from Angstrom
-    DataPath = fullfile(getenv('HOME'), 'matlab/data/spec/Telescope/LAST/Corrector_transmission.mat');
-    LoadedData = load(DataPath, 'Corrector_transmission');
+    LoadedData = load(Args.DataPath, 'Corrector_transmission');
     Lambda_nm = Lambda / 10;  % Convert Angstrom to nm (1 nm = 10 Angstrom)
     Result = LoadedData.Corrector_transmission(Lambda_nm);
 
