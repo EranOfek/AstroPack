@@ -381,6 +381,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'CreateNewObj',false);
+                ResultCoadd(Ifields).MidMidJD = MidMidJD;
             end
 
 

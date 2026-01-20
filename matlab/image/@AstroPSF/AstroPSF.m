@@ -606,6 +606,7 @@ classdef AstroPSF < Component
                 
             end
             
+            
             Cube     = images2cube(Obj,'PsfArgs',Args.PsfArgs);
             SizeCube = size(Cube);
             X = (SizeCube(2)-1).*0.5;

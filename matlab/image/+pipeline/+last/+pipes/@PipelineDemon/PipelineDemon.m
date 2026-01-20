@@ -3,7 +3,7 @@
 %
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
 % Example:
-%          D = pipeline.DemonLAST;
+%          D = pipeline.last.pipes.PipelineDemon;
 %          D.CalibPath = <put here the output directory of the calibration images>
 %          D.prepMasterDark
 %
@@ -24,12 +24,14 @@ classdef PipelineDemon < Component
 
         BasePath     = [];
    
-        NewPath      = 'new';    % if start with '/' then abs path
-        CalibPath    = 'calib';  % if start with '/' then abs path
-        FailedPath   = 'failed'; % if start with '/' then abs path
-        LogPath      = 'log';    % if start with '/' then abs path
+        NewPath      = []; %'new';    % if start with '/' then abs path
+        CalibPath    = []; %'calib';  % if start with '/' then abs path
+        FailedPath   = []; %'failed'; % if start with '/' then abs path
+        LogPath      = []; %'log';    % if start with '/' then abs path
 
-        SciPath      = 'science';
+        SciPath      = []; %'science';
+
+        AutoPath     = [];  % 'LAST',...
 
         RefPath      = [];
         
@@ -51,7 +53,7 @@ classdef PipelineDemon < Component
         DefCalibPath    = 'calib';  % if start with '/' then abs path
         DefFailedPath   = 'failed'; % if start with '/' then abs path
         DefLogPath      = 'log';    % if start with '/' then abs path
-        DefRefPath   = 'data/references';   %/last01e/data/refreences'
+        DefRefPath      = 'data/references';   %/last01e/data/refreences'
 
         FieldList       = pipeline.DemonLAST.fieldsListLAST;
     end
@@ -78,24 +80,38 @@ classdef PipelineDemon < Component
     end
     
     methods % setter/getters
-        function Result=get.BasePath(Obj)            
+        function Obj=set.AutoPath(Obj, Val)
+            % Setter for AutoPath
+            
+            if ~isempty(Val)
+                if isempty(Obj.BasePath)
+                    % BasePath is empty - first populate it:
+                    Obj.BasePath = pipeline.last.pipes.PipelineDemon.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
+                end
+                Obj.autoDetectPath(Val);
+                Obj.AutoPath = Val;
+            end
+
+        end
+
+        %function Result=get.BasePath(Obj)            
             % getter for BasePath
 
-            if isempty(Obj.BasePath)
-                if isempty(Obj.DataDir) && isempty(Obj.CamNumber)
-                    Result = [];
-                else
-                    % get base path
-                    Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
-                end
-            else
-                Result         = Obj.BasePath;
-                Obj.NewPath    = Obj.DefNewPath;
-                Obj.CalibPath  = Obj.DefCalibPath;
-                Obj.FailedPath = Obj.DefFailedPath;
-                Obj.LogPath    = Obj.DefLogPath;
-            end
-        end
+            % if isempty(Obj.BasePath)
+            %     if isempty(Obj.DataDir) && isempty(Obj.CamNumber)
+            %         Result = [];
+            %     else
+            %         % get base path
+            %         Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
+            %     end
+            % else
+            %     Result         = Obj.BasePath;
+            %     Obj.NewPath    = Obj.DefNewPath;
+            %     Obj.CalibPath  = Obj.DefCalibPath;
+            %     Obj.FailedPath = Obj.DefFailedPath;
+            %     Obj.LogPath    = Obj.DefLogPath;
+            % end
+        %end
 
         function Result=get.NewPath(Obj)
             % getter fore NewPath
@@ -211,7 +227,8 @@ classdef PipelineDemon < Component
     end
       
     methods (Static) % path and files
-        
+           
+
         function Result = constructProjectName(Project,Node,Mount,Camera)
             % Construct project name of the form LAST.01.02.03
             % Input  : - Project name.
@@ -230,13 +247,18 @@ classdef PipelineDemon < Component
         function [MountNumberStr, MountNumber]=getMountNumber            
             % Get mount number from computer name
             % Output : - Mount number string.
-            %          - Mount number.
+            %          - Mount number. NaN if not xxxx## name.
             % Author : Eran Ofek (Mar 2023)
 
             HostName = tools.os.get_computer;
-            MountNumberStr = HostName(5:6);
-            if nargout>1
-                MountNumber = str2double(MountNumberStr);
+            if numel(HostName)==6
+                MountNumberStr = HostName(5:6);
+                if nargout>1
+                    MountNumber = str2double(MountNumberStr);
+                end
+            else
+                MountNumberStr = '';
+                MountNumber    = NaN;
             end
         end
 
@@ -697,6 +719,57 @@ classdef PipelineDemon < Component
 
     
     methods % utilities
+        function Obj=autoDetectPath(Obj, Type)
+            % Auto detect path for various directories
+            % Input  : - self.
+            %          - One of the following options:
+            %            'LAST' - Path on some LAST computer (in site).
+            %            'test/data' - Path for local AstroPack data dir.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Jan 2026)
+
+            arguments
+                Obj
+                Type  = 'LAST';
+            end
+
+            switch lower(Type)
+                case 'last'
+
+                    if ~isempty(Obj.BasePath)
+                        Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                        Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                        Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                        Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                    
+                        Obj.RefPath    = sprintf('%s%s%s',tools.os.get_computer, filesep, Obj.DefRefPath);
+                    end
+                case 'marvin'
+                    % Obj.BasePath = '/marvin';
+                    % 
+                    % Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                    % Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                    % Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                    % Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                    % 
+                    % Obj.RefPath    = '/lastdata/references/v4';
+
+                case 'test/data'
+                    Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
+                    
+                    Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                    Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                    Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                    Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                    
+                    Obj.RefPath    = '/lastdata/references/v4';
+
+
+                otherwise
+                    error('Unknown Type option');
+            end
+
+        end
 
         function Result=getBasePathWithOutProjName(Obj)
             % Get the BasePath without the last directory
@@ -2345,20 +2418,29 @@ classdef PipelineDemon < Component
         function [Obj, PipeOk, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=runPipelineI(Obj, RawImageList, Args)
             % Reduce a single visit
             
-             try
+            arguments
+                Obj
+                RawImageList
+                Args.pipelineIArgs = {};
+            end
+
+
+            try
                 Tstart = clock;
 
-                [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
-                                                           Args.multiRaw2procCoaddArgs{:},...
-                                                           'SubDir',NaN,...
-                                                           'BasePath', Obj.BasePath,...
-                                                           'SaveAll',false,...                                                                       
-                                                           'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
-                                                           'GeoPos',Args.GeoPos,...
-                                                           'OrbEl',Args.OrbEl,...
-                                                           'INPOP',Args.INPOP,...
-                                                           'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
-                                                           'HostName',Args.HostName);
+                [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+
+                % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                %                                            Args.multiRaw2procCoaddArgs{:},...
+                %                                            'SubDir',NaN,...
+                %                                            'BasePath', Obj.BasePath,...
+                %                                            'SaveAll',false,...                                                                       
+                %                                            'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
+                %                                            'GeoPos',Args.GeoPos,...
+                %                                            'OrbEl',Args.OrbEl,...
+                %                                            'INPOP',Args.INPOP,...
+                %                                            'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
+                %                                            'HostName',Args.HostName);
                 
 
                 % Notify watchdog that process is running 
@@ -2764,7 +2846,7 @@ classdef PipelineDemon < Component
 
             % set Logger log file 
             Obj.setLogFile('HostName',Args.HostName);
-            Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
+            Obj.writeLog('******* pipeline.last.pipes.PipelineDemon started ********', LogLevel.Info);
             
             PWD = pwd;
             

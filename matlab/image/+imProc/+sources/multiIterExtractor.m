@@ -301,7 +301,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         %Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         %Args.RemovePSFCore             = false;  % not decided if this is useful and correct
 
-        Args.RedoUpIter = [1];
+        Args.RedoUpIter = [];
         
 
         Args.ColPsfFlux        = 'FLUX_PSF';
