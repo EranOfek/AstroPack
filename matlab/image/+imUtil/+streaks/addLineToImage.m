@@ -1,6 +1,5 @@
 function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
-    % One line description
-    %     Optional detailed description
+    % Add a line (or curved line) to image with start and end points.
     % Input  : - Image:     2D matrix (original image)
     %          - Coords:    A 4 column matrix, of [MinX, MaxX, MinY, MaxY],
     %            of the coordinates of the lines to add to image.
