@@ -2087,7 +2087,7 @@ classdef AstroFileName < Component
                 
                 AFN_I
                 Args.PathType                 = 'proc';
-                Args.BasePathIncludeProjName  = [];
+                %Args.BasePathIncludeProjName  = [];
                 Args.AddSubDir                = [];
 
                 Args.Type                     = [];
@@ -2128,13 +2128,18 @@ classdef AstroFileName < Component
             end
 
             % for Args.Path the treatment is different
-            AFN.Path = Args.Path;
-            
-            Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',Args.BasePathIncludeProjName);
-        
+            if ~isempty(Args.Path)
+                AFN.Path = Args.Path;
+            end
+
+            Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',AFN.BasePathIncludeProjName);
+            io.files.mkdir(Path);
+
             if strcmp(Args.PathType, 'proc')
                 AFN.generateSubDir('UpdateSubDir',true);
             end
+            Path = fullfile(Path,AFN.SubDir);
+
             File = AFN.genFile();
             Nf   = numel(File);
             Result = join([Path,repmat(filesep, Nf,1),File],'',2);
@@ -2348,6 +2353,7 @@ classdef AstroFileName < Component
             
             switch lower(Args.Method)
                 case 'funjd'
+                    
                     FJD = Args.FunJD(Obj.JD);
                     HMS = celestial.time.jd2date(FJD, 'H');
                     Result = sprintf('%02d%02d%02d',floor(HMS(4:6)));
@@ -2667,7 +2673,7 @@ classdef AstroFileName < Component
             %          - An AstroImage or AstroHeader object.
             %          * ...,key,val,...
             %            'Fields' - A cell array or string array of fields
-            %                   to read from header (uppre case will be
+            %                   to read from header (upper case will be
             %                   taken).
             %                   Default is AstroFileName.FIELDS.
             %            'CreateNewObj' - A logical indicating if to create
@@ -3060,6 +3066,33 @@ classdef AstroFileName < Component
         
     end
         
+    methods % duplicate
+        function duplicateCrop(Obj, Ncrop)
+            % Given file names, duplicated them Ncrop times with running CropID
+            %   For example, given a vector of Nepoch images, will duplicated the
+            %   image names Nepoch X Ncrop times, where the CropID is
+            %   running from 1 to Ncrop.
+            % Input  : - Self.
+            %          - Ncrop.
+            % Output : - A duplicated AstroFileName object
+            % Author : Eran Ofek (Jan 2026)
+
+            Nim = Obj.nFiles;
+            Nf = numel(Obj.FIELDS);
+            for If=1:1:Nf
+                if strcmp(Obj.FIELDS{If}, 'CropID')
+                    CropID = repmat((1:1:Ncrop).',1,Nim).';
+                    Obj.(Obj.FIELDS{If})  = CropID(:); 
+                else
+                    Obj.(Obj.FIELDS{If}) = repmat(Obj.(Obj.FIELDS{If}), Ncrop, 1);
+                end
+            end
+
+
+        end
+
+    end
+
         
     methods % move, copy, delete files
         

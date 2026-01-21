@@ -1680,6 +1680,7 @@ classdef PipelineDemon < Component
                 FN_Sci_Groups
                 Args
             end
+            SEC_DAY = 86400;
 
             % number of groups
             NinGroup = FN_Sci_Groups.nFiles;
@@ -2346,6 +2347,8 @@ classdef PipelineDemon < Component
             %                   Default is [].
             %            'FlatNearJD' - Like 'BiasNearJD', but for flat
             %                   file. Default is [].
+            %            'ForceReload' - A logical indicating if to force
+            %                   reload bias/flat images. Default is false.
             %
             % Output : - A ipeline.DemonLAST object in which the CI
             %            property is populated with bias, flat, and
@@ -2363,6 +2366,8 @@ classdef PipelineDemon < Component
                 Args.AddImages       = {'Mask'};
                 Args.BiasNearJD      = [];
                 Args.FlatNearJD      = [];
+
+                Args.ForceReload     = false;
             end
 
             PWD = pwd;
@@ -2376,31 +2381,40 @@ classdef PipelineDemon < Component
             %unix('df -h | grep data');
             %fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
+            
+            IsBiasEmpty = Obj.CI.Bias.isemptyImage;
+            IsFlatEmpty = Obj.CI.Flat.isemptyImage;
+
+
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
-                FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
-                if isempty(Args.BiasNearJD)
-                    [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
-                else
-                    [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                if Args.ForceReload || IsBiasEmpty
+                    FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    if isempty(Args.BiasNearJD)
+                        [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                    else
+                        [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                    end
+                        
+                    Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+                    Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
+                    %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
                 end
-                    
-                Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
-                %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
             end
 
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
-                FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
-                if isempty(Args.FlatNearJD)
-                    [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
-                else
-                    [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                if Args.ForceReload || IsFlatEmpty
+                    FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    if isempty(Args.FlatNearJD)
+                        [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                    else
+                        [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                    end
+                    Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+                    Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
+                    %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
                 end
-                Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
-                %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
             end
 
             % Read linearity file
@@ -2415,49 +2429,58 @@ classdef PipelineDemon < Component
 
 
 
-        function [Obj, PipeOk, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=runPipelineI(Obj, RawImageList, Args)
+        function [Obj, PipeOk, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce a single visit
             
             arguments
                 Obj
                 RawImageList
+                FN_I
                 Args.pipelineIArgs = {};
+                
+                
             end
 
 
             try
                 Tstart = clock;
 
-                [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
-
-                % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
-                %                                            Args.multiRaw2procCoaddArgs{:},...
-                %                                            'SubDir',NaN,...
-                %                                            'BasePath', Obj.BasePath,...
-                %                                            'SaveAll',false,...                                                                       
-                %                                            'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
-                %                                            'GeoPos',Args.GeoPos,...
-                %                                            'OrbEl',Args.OrbEl,...
-                %                                            'INPOP',Args.INPOP,...
-                %                                            'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
-                %                                            'HostName',Args.HostName);
-                
-
-                % Notify watchdog that process is running 
+                [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+                ProcImageList = TableRaw.FileNames;
+                % Notify watchdog that process is running
                 tools.systemd.mex.notify_watchdog;
 
                 RunTime = etime(clock, Tstart);
-                MsgF{1} = sprintf('pipeline.DemonLAST finished executing pipeline for visit');
+                MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon finished executing pipeline for visit');
                 MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                 Obj.writeLog(MsgF, LogLevel.Info);
+
+
+                % save products
+                % Debug: FN_I=AstroFileName.dir('LAST*.fits');
+                [Nim, Nsub] = size(AllSI);
+                FN_I.reorderEntries(TableRaw.SelectedImages);
+                FN_I.Level  = repmat("coadd", Nim, 1);
+                FN_I.duplicateCrop(Nsub);
+                FN_I.BasePath = Obj.BasePath;
+                FN_I.Path     = [];
+                FN_I.BasePathIncludeProjName = false;
+                FN_I.JD = FN_I.julday;
+
+                imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',DD.BasePath, 'OutProduct',["Image", "Mask", "PSF", "Cat"], 'WriteHeader',[true, false, false, true]);
+                %imProc.io.saveProductMatchedSources
+
 
                 PipeOk = true;
             catch MEp
                 % pipeline failed
-                
+               
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
                 Obj.writeLog(MEp, LogLevel.Info);
+
+                % Move images to failed directory:
+                Obj.moveImagesToFailedDir(RawImageList);
 
                 PipeOk = false;
             end
@@ -2679,22 +2702,22 @@ classdef PipelineDemon < Component
 
 
 
-        function moveImagesToFailedDir(RawImageList, FN_I, ME)
+        function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
 
             % extract errors
-            ErrorMsg = sprintf('PipelineI try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
+            %ErrorMsg = sprintf('PipelineI try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
             %warning(ErrorMsg);
-            Obj.writeLog(ErrorMsg, LogLevel.Error);
+            %Obj.writeLog(ErrorMsg, LogLevel.Error);
 
-            Obj.writeLog(ME, LogLevel.Error);
+            %Obj.writeLog(ME, LogLevel.Error);
             
             % write log file
             ErrorMsg = sprintf('PipelineI %d images moved to failed directory',numel(RawImageList));
             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
             % move images to failed/ dir
-            io.files.moveFiles(RawImageList, FN_I.genFull('FullPath',FailedPath));           
+            io.files.moveFiles(RawImageList, [], '', Obj.FailedPath);           
 
             Msg{1} = sprintf('PipelineI summary line - Failed - First image: %s', RawImageList{1});
             Obj.writeLog(Msg, LogLevel.Info);
@@ -2854,12 +2877,12 @@ classdef PipelineDemon < Component
             % remove files with zero size and day-time images:
             Obj.cleanNewDir;
 
-            IsRunningOnLAST = false;
-            if numel(Args.HostName)>=4
-                if contains(Args.HostName,'last')
-                    IsRunningOnLAST = true;
-                end
-            end
+            %IsRunningOnLAST = false;
+            %if numel(Args.HostName)>=4
+            %    if contains(Args.HostName,'last')
+            %        IsRunningOnLAST = true;
+            %    end
+            %end
 
 
             % Stop GUI
@@ -2898,6 +2921,7 @@ classdef PipelineDemon < Component
                         Obj.loadCalib;
                     end
                 end
+                
 
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
@@ -2990,7 +3014,7 @@ classdef PipelineDemon < Component
                         % if time difference between the last time
                         % calibration was loaded and current image >
                         % 0.7 days, then reload...
-                        Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr);
+                        Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
                         JDlastCalib = JDgr(1);
 
                         Msg = 'Reload calibration files';
@@ -3002,7 +3026,7 @@ classdef PipelineDemon < Component
 
 
                     % visit found - start reduction
-                    [Obj, PipeOk, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP] = runPipelineI(Obj, RawImageList, UpArgs);
+                    [Obj, PipeOk, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I); %, UpArgs);
 
                     %--- save data products ---
                     FN_I.BasePath = Obj.BasePath;

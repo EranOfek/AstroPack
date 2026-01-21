@@ -1,4 +1,4 @@
-function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
+function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -67,7 +67,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     [AI, TableForDB, TableHeader] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
-
+    TableRaw = [TableHeader, TableForDB];
     % basic calibration (bias, flat,...) 
     AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}); %17.1s
 
@@ -174,7 +174,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         % XXX?
 
         % mege into a single catalog:
-        AFP = AllFP(:).merge; % 0.05s
+        AllForcedPhot = AllFP(:).merge; % 0.05s
     end
 
     % match external / too expensive
@@ -264,7 +264,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
 
     % coadd: photometric calibration
     % Photometric calibration of coadd images:
-    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:});
+    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false);
 
     % proapage photometric calibration to individual images
 
