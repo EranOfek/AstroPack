@@ -19,6 +19,8 @@ function [Result] = stitchCrops(AI, Args)
     MCat  = repmat(AstroCatalog,1,Ncrop);
     Xmin  = zeros(Ncrop,1); Xmax  = zeros(Ncrop,1);
     Ymin  = zeros(Ncrop,1); Ymax  = zeros(Ncrop,1);
+    CCDSEC= zeros(Ncrop,4); 
+    Uniq  = zeros(Ncrop,4);
     
     % read the sizes and locations   
     for Icrop = 1:Ncrop                        
@@ -49,22 +51,22 @@ function [Result] = stitchCrops(AI, Args)
     
     for Icrop = 1:Ncrop
         if hasLeft(Icrop)
-            XUmin = Uniq(Icrop,1);
+            XUmin = round((Uniq(Icrop,1)+CCDSEC(Icrop,1))/2);
         else
             XUmin = CCDSEC(Icrop,1);
         end
         if hasRight(Icrop)
-            XUmax = Uniq(Icrop,2);
+            XUmax = round((Uniq(Icrop,2)+CCDSEC(Icrop,2))/2); 
         else
             XUmax = CCDSEC(Icrop,2);
         end
         if hasBottom(Icrop)
-            YUmin = Uniq(Icrop,3);
+            YUmin = round((Uniq(Icrop,3)+CCDSEC(Icrop,3))/2); 
         else
             YUmin = CCDSEC(Icrop,3);
         end
         if hasTop(Icrop)
-            YUmax = Uniq(Icrop,4);
+            YUmax = round((Uniq(Icrop,4)+CCDSEC(Icrop,4))/2); 
         else
             YUmax = CCDSEC(Icrop,4);
         end
