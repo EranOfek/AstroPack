@@ -28,8 +28,9 @@ function [Result] = stitchCrops(AI, Args)
         [Xmin(Icrop), Xmax(Icrop), Ymin(Icrop), Ymax(Icrop)] = deal(Orig(1),Orig(2),Orig(3),Orig(4));
     end
     
-    Nx = max(Xmax)-min(Xmin)+1;
-    Ny = max(Ymax)-min(Ymin)+1;
+    X0 = min(Xmin); Y0 = min(Ymin); % the corner of the stitch on the whole image 
+    Nx = max(Xmax)-X0+1;
+    Ny = max(Ymax)-Y0+1;
     Result = AstroImage({nan(Nx,Ny)},'Back',{nan(Nx,Ny)},'Var',{nan(Nx,Ny)});
     
     % determine the overlaps
@@ -69,13 +70,17 @@ function [Result] = stitchCrops(AI, Args)
         end
         
         AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);     
-        MCat(Icrop) = AIc.Catdata;
-        ShiftX = Orig(Icrop,1); ShiftY = Orig(Icrop,3);
+        MCat(Icrop) = AIc.CatData;
+        
+        ShiftX = Xmin(Icrop)-X0;
+        ShiftY = Ymin(Icrop)-Y0;
+        
         IndX = MCat(Icrop).colname2ind({'XPEAK','X1','X'});
         IndY = MCat(Icrop).colname2ind({'YPEAK','Y1','Y'});        
         MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + ShiftX;
         MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + ShiftY;
-        Result.Image([XUmin XUmax YUmin YUmax]) = AIc.Image;
+        
+        Result.Image(ShiftX+1:ShiftX+XUmax-XUmin+1, ShiftY+1:ShiftY+YUmax-YUmin+1) = AIc.Image';
     end
                     
     % merge the catalogs:
