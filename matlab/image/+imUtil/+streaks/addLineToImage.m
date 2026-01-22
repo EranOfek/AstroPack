@@ -11,8 +11,12 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
     %            if empty, no convolution is done. If scalar, then this is
     %            the sigma width of the Gaussian PSF.
     %          - Curvature of line measured in units of maximum deviation
-    %            from a straight line. Negative number means curved downward.
-    %            Default is 0.
+    %            from a straight line. Positive curvature means that the
+    %            line is bent with a positive offset in the anticlockwise
+    %            ortogonal direction to the oriented segment [(MinX,MinY),(MaxX,MaxY)]
+    %            Default is 0. If scalar, all lines get the same
+    %            curvature; if a vector, each element represents the
+    %            curvature of that line.
     %          * ...,key,val,...
     %            'Norm' - one of the following normalization options:
     %                   'None' - Default.
