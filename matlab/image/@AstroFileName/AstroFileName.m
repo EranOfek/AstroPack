@@ -134,7 +134,7 @@ classdef AstroFileName < Component
     properties (Hidden, Constant)
         ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log", "test"];
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
-        ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
+        ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Cat.forced", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
         FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
         PATH_FIELDS     = ["SubDir", "BasePath", "BasePathRef", "Path"];
@@ -2135,10 +2135,11 @@ classdef AstroFileName < Component
             Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',AFN.BasePathIncludeProjName);
             io.files.mkdir(Path);
 
-            if strcmp(Args.PathType, 'proc')
+            if strcmp(Args.PathType, 'proc') && (isempty(AFN_I.SubDir) || numel(char(AFN_I.SubDir))==0)
                 AFN.generateSubDir('UpdateSubDir',true);
+                Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',AFN.BasePathIncludeProjName, 'AddSubDir',Args.AddSubDir);
             end
-            Path = fullfile(Path,AFN.SubDir);
+            %Path = fullfile(Path,AFN.SubDir);
 
             File = AFN.genFile();
             Nf   = numel(File);
@@ -2348,8 +2349,13 @@ classdef AstroFileName < Component
             
             PWD = pwd;
             PathAboveVisit = Obj.genPath(1, 'PathType','proc', 'AddSubDir',false);
-            cd(PathAboveVisit);
-            DirList = io.files.dirDir;
+            if isfolder(PathAboveVisit)
+                cd(PathAboveVisit);
+                DirList = io.files.dirDir;
+                PathExist = true;
+            else
+                PathExist  = false;
+            end
             
             switch lower(Args.Method)
                 case 'funjd'
@@ -2360,13 +2366,17 @@ classdef AstroFileName < Component
                     
                     if Args.AddVersion
                         % search existing StrHMS
-                        StrFolder = string({DirList.folder});
-                        FlagContain = contains(StrFolder, Result);
-                        Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
-                        AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
-                        MaxVersion  = max(AllVersions);
-                        
-                        if isempty(MaxVersion)
+                        if PathExist
+                            StrFolder = string({DirList.folder});
+                            FlagContain = contains(StrFolder, Result);
+                            Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
+                            AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
+                            MaxVersion  = max(AllVersions);
+                            
+                            if isempty(MaxVersion)
+                                MaxVersion = 0;
+                            end
+                        else
                             MaxVersion = 0;
                         end
                         Result = sprintf("%sv%d",Result,MaxVersion+1);

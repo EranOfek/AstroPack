@@ -225,7 +225,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     % toc
 
     % Add image ID to coadd images: in: ID_PROC
-    [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'JD',[ResCoadd.MidMidJD], Args.generateImageIDArgs{:});  % 0.05 s
+    [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',[ResCoadd.MidMidJD], Args.generateImageIDArgs{:});  % 0.05 s
 
 
     % Add catsHTM MergedCat column to Coadd catalogs
@@ -249,8 +249,21 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     if Args.AddKnownAst
         % slower with parfor
         [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+        if sum(OnlyMP.sizeCatalog)>0
+            % add CropID, Node, Mount, Cam, ID_COADD:
+            Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
+            StKey = Coadd(1).getStructKey(Cols);
+            Vals  = struct2array(StKey);
+            AllCols = {'CROPID', Cols};
+            for Isub=1:1:Nsub
+                OnlyMP(Isub).CatData.insertCol([Isub, Vals], Inf, AllCols);
+            end
+            OnlyMP = OnlyMP.merge;
+        else
+            OnlyMP = AstroCatalog;
+        end
     else
-        OnlyMP = [];
+        OnlyMP = AstroCatalog;
     end
 
     % write drifts to header

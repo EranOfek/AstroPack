@@ -123,6 +123,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
                                                      'BasePathRef',Args.BasePathRef,...
                                                      'Path',Args.Path,...
                                                      'CreateNewObj',true);
+        FileName.SubDir = AFN.SubDir;
         Nim = numel(FileListImage);
         FileList = strings(Nim, Nprod);
         for Iprod=1:1:Nprod
