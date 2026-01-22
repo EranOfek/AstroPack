@@ -33,7 +33,7 @@ function [Result] = stitchCrops(AI, Args)
     X0 = min(Xmin); Y0 = min(Ymin); % the corner of the stitch on the whole image 
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({nan(Nx,Ny)},'Back',{nan(Nx,Ny)},'Var',{nan(Nx,Ny)});
+    Result = AstroImage({nan(Nx,Ny)}); % ,'Back',{nan(Nx,Ny)},'Var',{nan(Nx,Ny)});
     
     % determine the overlaps
     overlapX = (Xmin < Xmax.') & (Xmax > Xmin.');
@@ -92,6 +92,7 @@ function [Result] = stitchCrops(AI, Args)
     Dec0 = mean(Result.Table.Dec);
             
     % build WCS from the merged catalog 
-    [~, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData,'RA',RA0,'Dec',Dec0);
-    
+    [FitRes, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData,'RA',RA0,'Dec',Dec0);
+    Result.WCS=FitRes.WCS;
+    Result.propagateWCS('UpdateCat',false,'OnlyIfSuccess',false);  
 end
