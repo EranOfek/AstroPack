@@ -224,6 +224,25 @@ function Result = unitTest()
         error('Problem with tools.math.stat.mex.rstd_mex Dim=2');
     end
 
+    %% Test: tools.math.stat.mex.chi2_sigmaclip
+    A=randn(1e4,1); B=randn(1e4,1); C=randn(1e4,1).*0.5;
+    Z=(A-B)./C; Is = find(Z>-2 & Z<2);  Chi2=sum(( (A(Is)-B(Is))./C(Is)).^2); Nused=numel(Is);
+    [Chi1,Nused1]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);                         
+    if abs(Chi1-Chi2)>1e-11 || Nused~=Nused1
+        error('Problem with tools.math.stat.mex.chi2_sigmaclip')
+    end
+
+
+    %% Test: tools.math.stat.mex.sigma_clip_cube
+    A1=randn(1716,1716,20);
+    A2=A1;
+
+    [M,N] = tools.math.stat.mex.sigma_clip_cube(A1,[2 2]);
+    MA=mean(A2,3,'omitnan'); SA=std(A2,[],3,'omitnan'); Z= (A2-MA)./SA; Flag=Z<-2 | Z>2; A2(Flag)=NaN; M1=mean(A2,3,'omitnan'); N1=sum(~isnan(A2),3);
+    if max(abs(M1-M),[],'all')>1e-14 || max(abs(N1-N),[],'all')~=0
+        error('Problem with tools.math.stat.mex.sigma_clip_cube');
+    end
+
 
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');

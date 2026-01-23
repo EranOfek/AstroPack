@@ -94,8 +94,29 @@ function Result=perfTest()
     fprintf('Large matrix (2nd dim): tools.math.stat.mex.median (omitnan) is x %f faster then median\n',T2./T1);
 
 
-    %%
+    %% Test: tools.math.stat.mex.chi2_sigmaclip
+    A=randn(1e4,1); B=randn(1e4,1); C=randn(1e4,1).*0.5;
+    tic;for i=1:1e4, Z=(A-B)./C; Is = find(Z>-2 & Z<2);  Chi2=sum(( (A(Is)-B(Is))./C(Is)).^2); Nused=numel(Is); end,T1=toc;
+    tic;for i=1:1e4, [Chi1,Nused]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);end,T2=toc;                              
+    fprintf('tools.math.stat.mex.chi2_sigmaclip is x %f faster then matlab\n',T1./T2);
 
-        
+    %% Test: tools.math.stat.mex.sigma_clip_cube
+    A1=randn(1716,1716,20);
+    A2=A1;
+
+    tic;
+    [M,N] = tools.math.stat.mex.sigma_clip_cube(A1,[2 2]);
+    T1=toc;
+    tic;
+    MA=mean(A2,3,'omitnan'); SA=std(A2,[],3,'omitnan'); Z= (A2-MA)./SA; Flag=Z<-2 | Z>2; A2(Flag)=NaN; M1=mean(A2,3,'omitnan'); N1=sum(~isnan(A2),3);
+    T2=toc;
+    fprintf('tools.math.stat.mex.sigma_clip_cube is x %f faster then matlab\n',T2./T1);
+
+
+
+    
+
+
+
     Result = true;
 end
