@@ -104,6 +104,9 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
 
     end    
 
+    PWD = pwd;
+
+
     if ischar(Args.OutProduct)
         Args.OutProduct = string(Args.OutProduct);
     end
@@ -111,15 +114,16 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
  
     if isa(FileName, 'AstroFileName')
         %FileList = FileName.genProducts('OutProduct',Args.OutProduct, 'AddPath',false);
-        if isempty(Args.Path)
-            Args.Path = FileName.Path;
-        end
+        %if isempty(Args.Path)
+        %    Args.Path = FileName.Path;
+        %end
         [FileListImage,PathList,~,AFN]  = FileName.genFullPath('AddSubDir',Args.AddSubDir,...
                                                      'PathType',Args.PathType,...
                                                      'BasePath',Args.BasePath,...
                                                      'BasePathRef',Args.BasePathRef,...
                                                      'Path',Args.Path,...
                                                      'CreateNewObj',true);
+        FileName.SubDir = AFN.SubDir;
         Nim = numel(FileListImage);
         FileList = strings(Nim, Nprod);
         for Iprod=1:1:Nprod
@@ -198,4 +202,6 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
             end
         end
     end
+
+    cd(PWD);
 end

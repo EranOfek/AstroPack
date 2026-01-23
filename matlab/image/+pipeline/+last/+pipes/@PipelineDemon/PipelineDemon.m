@@ -1680,6 +1680,7 @@ classdef PipelineDemon < Component
                 FN_Sci_Groups
                 Args
             end
+            SEC_DAY = 86400;
 
             % number of groups
             NinGroup = FN_Sci_Groups.nFiles;
@@ -2346,6 +2347,8 @@ classdef PipelineDemon < Component
             %                   Default is [].
             %            'FlatNearJD' - Like 'BiasNearJD', but for flat
             %                   file. Default is [].
+            %            'ForceReload' - A logical indicating if to force
+            %                   reload bias/flat images. Default is false.
             %
             % Output : - A ipeline.DemonLAST object in which the CI
             %            property is populated with bias, flat, and
@@ -2363,6 +2366,8 @@ classdef PipelineDemon < Component
                 Args.AddImages       = {'Mask'};
                 Args.BiasNearJD      = [];
                 Args.FlatNearJD      = [];
+
+                Args.ForceReload     = false;
             end
 
             PWD = pwd;
@@ -2376,31 +2381,40 @@ classdef PipelineDemon < Component
             %unix('df -h | grep data');
             %fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
+            
+            IsBiasEmpty = Obj.CI.Bias.isemptyImage;
+            IsFlatEmpty = Obj.CI.Flat.isemptyImage;
+
+
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
-                FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
-                if isempty(Args.BiasNearJD)
-                    [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
-                else
-                    [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                if Args.ForceReload || IsBiasEmpty
+                    FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    if isempty(Args.BiasNearJD)
+                        [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                    else
+                        [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                    end
+                        
+                    Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+                    Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
+                    %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
                 end
-                    
-                Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
-                %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
             end
 
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
-                FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
-                if isempty(Args.FlatNearJD)
-                    [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
-                else
-                    [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                if Args.ForceReload || IsFlatEmpty
+                    FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    if isempty(Args.FlatNearJD)
+                        [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                    else
+                        [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                    end
+                    Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+                    Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
+                    %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
                 end
-                Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
-                %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
             end
 
             % Read linearity file
@@ -2415,51 +2429,75 @@ classdef PipelineDemon < Component
 
 
 
-        function [Obj, PipeOk, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=runPipelineI(Obj, RawImageList, Args)
-            % Reduce a single visit
+        function [Status, RawImageListFinal, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
+            % Reduce + save + error catcjing a single visit  
             
             arguments
                 Obj
                 RawImageList
-                Args.pipelineIArgs = {};
+                FN_I
+                Args   % struct of Args
             end
 
 
+            Status.PipeI   = false;
+            Status.WriteI  = false;
+            Status.MoveRaw = false;
+            
             try
                 Tstart = clock;
 
-                [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
-
-                % [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
-                %                                            Args.multiRaw2procCoaddArgs{:},...
-                %                                            'SubDir',NaN,...
-                %                                            'BasePath', Obj.BasePath,...
-                %                                            'SaveAll',false,...                                                                       
-                %                                            'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
-                %                                            'GeoPos',Args.GeoPos,...
-                %                                            'OrbEl',Args.OrbEl,...
-                %                                            'INPOP',Args.INPOP,...
-                %                                            'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
-                %                                            'HostName',Args.HostName);
-                
-
-                % Notify watchdog that process is running 
-                tools.systemd.mex.notify_watchdog;
-
+                % executing pipelineI
+                [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+                ProcImageList = TableRaw.FileNames;                
                 RunTime = etime(clock, Tstart);
-                MsgF{1} = sprintf('pipeline.DemonLAST finished executing pipeline for visit');
+                MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished executing pipeline for visit');
                 MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                 Obj.writeLog(MsgF, LogLevel.Info);
 
-                PipeOk = true;
+                Status.PipeI = true;
+
+                % Notify watchdog that process is running
+                tools.systemd.mex.notify_watchdog;
+
+                % saving data products of pipelineI
+                Tstart = clock;
+                [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
+                RunTime = etime(clock, Tstart);
+                MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
+                MsgF{2} = sprintf('pipeline run time : %f', RunTime);
+                Obj.writeLog(MsgF, LogLevel.Info);
+
+                Status.WriteI = true;
+
+                % Move images to raw/ dir
+                RawImageListFinal = FN_I.genPath('PathType','raw');
+                io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+
+                Status.MoveRaw = true;
+
+                % Pipeline II
+
+                %Status.PipeII = true;
+
+                % write data products II
+
+                % Status.WriteII = true;
+
             catch MEp
                 % pipeline failed
-                
+               
+                RawImageListFinal = [];
+                AllSI = [];
+                MS    = [];
+                Coadd = [];
+                OnlyMP = [];
+                AllForcedPhot = [];
+
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
                 Obj.writeLog(MEp, LogLevel.Info);
 
-                PipeOk = false;
             end
 
 
@@ -2467,119 +2505,79 @@ classdef PipelineDemon < Component
         end
 
 
-        function [FN_I, FN_Proc] = saveDataProductsI(Obj, FN_I, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP, UpArgs)
-            % Save data products
+        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args)
+            % Save data products for pipeline I
+
+          
 
 
-            %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
+            % save products
+            % Debug: FN_I=AstroFileName.dir('LAST*.fits');
+            FN_I.BasePathIncludeProjName = false;
+            FN_I.BasePath = Obj.BasePath;
+            FN_I.Path     = [];
+            %
+            FN_C = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            [Nim, Nsub] = size(AllSI);
+            FN_I.reorderEntries(TableRaw.SelectedImages);
+            FN_I.Level  = repmat("proc", Nim, 1);
+            FN_I.duplicateCrop(Nsub);
+            FN_I.JD = FN_I.julday;
+            % Coadd
+            FN_C.JD = Coadd(1).julday('KeyJD','MIDJD');
+            FN_C.julday2time;
+            FN_C.Level = "coadd";
+            FN_C.duplicateCrop(Nsub);
 
-            % save data products
-            FN_I = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables);  % 20 s
 
-            %{'EpochImage', 'EpochMask', 'EpochCat', 'EpochPSF', 'VisitImage','VisitMask', 'VisitCat', 'VisitPSF', 'MergedCat', 'MergedMat', 'MergedAsteroids'};
-
-            % the following call also update the AllSI.ImageData.FileName
-            Tstart = clock;
-
-            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',UpArgs.SaveEpochProduct, 'WriteHeader',[true false true false],...
-                                   'Level','proc',...
-                                   'LevelPath','proc',...
-                                   'FindSubDir',true,...
-                                   'AddSubDirKey',true,...
-                                   'WriteMethodImages',UpArgs.WriteMethodImages,...
-                                   'WriteMethodTables',UpArgs.WriteMethodTables);
-            Obj.writeLog(Status, LogLevel.Info);
+            % Coadd
+            FN_C.SubDir = FN_I.SubDir;
+            imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader);  % 3 s
             
-            RunTime = etime(clock, Tstart);
-            Msg{1} = sprintf('PipelineI finished saving PROC visit products / RunTime: %.1f', RunTime);
-            Obj.writeLog(Msg, LogLevel.Info);
+            % Asteroids:
+            if OnlyMP.sizeCatalog>0 && Args.Args.SaveVisitAsteroids
+                FN_A = FN_C.reorderEntries(1, 'CreateNewObj',true);
+                FN_A.CropID = 0;
+                FN_A.Product = "Asteroids.Known";
+                imProc.io.saveProductImage(OnlyMP, FN_A, 'BasePath',Obj.BasePath, 'OutProduct',["Cat"], 'WriteHeader',false);
+            else
+                FN_A = [];
+            end
 
-            % the following call also update the Coadd.ImageData.FileName
-            if ~isempty(Coadd)                                
-                Tstart = clock;
-                [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
-                    'Level','coadd',...
-                    'LevelPath','proc',...
-                    'SubDir',FN_Proc.SubDir,...
-                    'AddSubDirKey',true,...
-                    'WriteMethodImages',UpArgs.WriteMethodImages,...
-                    'WriteMethodTables',UpArgs.WriteMethodTables);
-                Obj.writeLog(Status, LogLevel.Info);
-                RunTime = etime(clock, Tstart);
-                Msg{1} = sprintf('PipelineI finished saving COADD visit products / RunTime: %.1f', RunTime);
-                Obj.writeLog(Msg, LogLevel.Info);
-    
-                if UpArgs.SaveMergedCat
-                    [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
-                        'Save',UpArgs.SaveMergedCat,...
-                        'Level','merged',...
-                        'LevelPath','proc',...
-                        'SubDir',FN_Proc.SubDir,...
-                        'WriteMethodImages',UpArgs.WriteMethodImages,...
-                        'WriteMethodTables',UpArgs.WriteMethodTables);
-                    Obj.writeLog(Status, LogLevel.Info);
-                end % if UpArgs.SaveMergedCat
+            % MatchedSources
+            if Args.SaveMergedMat
+                FN_MS = FN_C.copy;
+                FN_MS.Level    = repmat("merged", Nsub, 1);
+                FN_MS.Product  = repmat("MergedMat", Nsub, 1);
+                FN_MS.FileType = repmat("hdf5", Nsub, 1);
+                [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+            else
+                FN_MS = [];
+            end
 
-                if Args.SaveMergedMat
-                    Tstart = clock;
-                    [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
-                        'Save',UpArgs.SaveMergedMat,...
-                        'Level','merged',...
-                        'LevelPath','proc',...
-                        'SubDir',FN_Proc.SubDir,...
-                        'WriteMethodImages',UpArgs.WriteMethodImages,...
-                        'WriteMethodTables',UpArgs.WriteMethodTables);
-                    Obj.writeLog(Status, LogLevel.Info);
-                
-                    RunTime = etime(clock, Tstart);
-                    Msg{1} = sprintf('PipelineI finished saving Matched sources / RunTime: %.1f', RunTime);
-                    Obj.writeLog(Msg, LogLevel.Info);
-                end % if Args.SaveMergedMat
-                
-                if Args.SaveMergedAsteroids && ~isempty(ResultAsteroids)
-                    if numel(ResultAsteroids)>200
-                        % number of asteroids is too large - probably a problem - skip
-                        Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
-                        Obj.writeLog(Status, LogLevel.Info);
-                        clear ResultAsteroids;
-                    else
-                        SaveAst.MP = ResultAsteroids;
-                        [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                            'Save',UpArgs.SaveAsteroids,...
-                            'Level','merged',...
-                            'LevelPath','proc',...
-                            'SubDir',FN_Proc.SubDir,...
-                            'WriteMethodImages',UpArgs.WriteMethodImages,...
-                            'WriteMethodTables',UpArgs.WriteMethodTables);
-                        Obj.writeLog(Status, LogLevel.Info);
-                    end
-                    
-                end % if Args.SaveMergedAsteroids && ~isempty(ResultAsteroids)
-            
-                % Known Matched asteroids
-                if Args.SaveVisitAsteroids && ~isempty(OnlyMP)
-    %                                 MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
-                    % The JD column has been already added in pipeline.generic.procMergeCoadd
-                    Tstart = clock;
-                    MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',(1:1:numel(OnlyMP)).','AddColNames',{'SubImageIndex'});                               
-                    MergedAst.Table = MergedKnownAst.Catalog;
-                    [~,~,Status]=imProc.io.writeProduct(MergedAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                           'Save',UpArgs.SaveAsteroids,...
-                                           'Level','coadd',...
-                                           'LevelPath','proc',...
-                                           'SubDir',FN_Proc.SubDir,...
-                                           'WriteMethodImages',UpArgs.WriteMethodImages,...
-                                           'WriteMethodTables',UpArgs.WriteMethodTables);
-                    Obj.writeLog(Status, LogLevel.Info);
-                
-                    RunTime = etime(clock, Tstart);
-                    Msg{1} = sprintf('PipelineI finished saving Asteroid coadd visit data / RunTime: %.1f', RunTime);
-                    Obj.writeLog(Msg, LogLevel.Info);
+            % TableRaw
+            if Args.SaveTableRaw
+                FN_Raw = FN_I.reorderEntries(1, 'CreateNewObj',true);
+                FN_Raw.FileType = "mat";
+                FN_Raw.Level    = "raw";
+                FN_Raw.Product  = "Cat";
+                FN_Raw.Counter  = 0;
+                FN_Raw.CropID   = 0;
+                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath);
+            else
+                FN_Raw = [];
+            end
 
-                end % if Args.SaveVisitAsteroids && ~isempty(OnlyMP)
-            end % if ~isempty(Coadd) 
+            % AllForcedPhot
+            FN_FP = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            % FN_FP.FileType = "fits";
+            % FN_FP.Level    = "proc";
+            % FN_FP.Product  = "Cat.forced";
+            % FN_FP.Counter  = 0;
+            % FN_FP.CropID   = 0;
+            % imProc.io.saveProductImage(AllForcedPhot, FN_FP, 'BasePath',DD.BasePath, 'OutProduct',["Cat"], 'WriteHeader',false);
         end
-        
 
         function transientDetectionPipeline(Obj, Coadd, FN_Proc, UpArgs)
             % excute transients detection pipeline
@@ -2679,22 +2677,22 @@ classdef PipelineDemon < Component
 
 
 
-        function moveImagesToFailedDir(RawImageList, FN_I, ME)
+        function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
 
             % extract errors
-            ErrorMsg = sprintf('PipelineI try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
+            %ErrorMsg = sprintf('PipelineI try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
             %warning(ErrorMsg);
-            Obj.writeLog(ErrorMsg, LogLevel.Error);
+            %Obj.writeLog(ErrorMsg, LogLevel.Error);
 
-            Obj.writeLog(ME, LogLevel.Error);
+            %Obj.writeLog(ME, LogLevel.Error);
             
             % write log file
             ErrorMsg = sprintf('PipelineI %d images moved to failed directory',numel(RawImageList));
             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
             % move images to failed/ dir
-            io.files.moveFiles(RawImageList, FN_I.genFull('FullPath',FailedPath));           
+            io.files.moveFiles(RawImageList, [], '', Obj.FailedPath);           
 
             Msg{1} = sprintf('PipelineI summary line - Failed - First image: %s', RawImageList{1});
             Obj.writeLog(Msg, LogLevel.Info);
@@ -2738,7 +2736,7 @@ classdef PipelineDemon < Component
                 
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
-                
+                Args.pipelineIArgs  = {};
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 
@@ -2821,17 +2819,20 @@ classdef PipelineDemon < Component
 
 
                 % Save data products
-                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
-                Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};      % 'all'
+                Args.SaveEpochProduct  = ["Cat"]; %{[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
+                Args.SaveVisitProduct  = ["Image","Mask","Cat","PSF"];      % 'all'
+                Args.SaveEpochHeader  = true; %[true, false, false, true];
+                Args.SaveVisitHeader  = [true, false, false, true];
+
                 Args.SaveMergedCat     = false;
                 Args.SaveMergedMat     = true;
                 Args.SaveMergedAsteroids  = false;
-                Args.SaveVisitAsteroids  = false;
+                Args.SaveVisitAsteroids  = true;
+                Args.SaveTableRaw        = true;
 
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
                 Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
-
 
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
@@ -2850,16 +2851,18 @@ classdef PipelineDemon < Component
             
             PWD = pwd;
             
+            cd(Obj.NewPath);
+
             % clean Files from NewPath
             % remove files with zero size and day-time images:
             Obj.cleanNewDir;
 
-            IsRunningOnLAST = false;
-            if numel(Args.HostName)>=4
-                if contains(Args.HostName,'last')
-                    IsRunningOnLAST = true;
-                end
-            end
+            %IsRunningOnLAST = false;
+            %if numel(Args.HostName)>=4
+            %    if contains(Args.HostName,'last')
+            %        IsRunningOnLAST = true;
+            %    end
+            %end
 
 
             % Stop GUI
@@ -2899,6 +2902,8 @@ classdef PipelineDemon < Component
                     end
                 end
 
+                %--- Select group ---
+
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
                     deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
@@ -2918,136 +2923,26 @@ classdef PipelineDemon < Component
                 % look for new images
                 FN_Sci   = AstroFileName(Args.TempRawSci);
                 FN_Sci.JD=FN_Sci.julday;
-
                
-                % select observations by date
-                [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
-                FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
+                if FN_Sci.nFiles>Args.MinInGroup
 
-                % group images by counter
-                [Groups, FN_Sci_Groups] = groupByCounter(FN_Sci, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
-
-
-                % sort groups by JD (be default last observed group is
-                % first)
-                FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
-
-                % Select visit for reduction:
-                [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args);
-                
-                
-                % check if stop loop
-                if Args.StopButton && StopGUI()
-                    Cont = false;
-                end
-                if isfile(Args.AbortFileName)
-                    Cont = false;
-                    delete(Args.AbortFileName);
-                end
-
-                if isempty(IndStartGroup)
-                    % nof files for reduction found
-                    Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
-                    Obj.writeLog(Msg, LogLevel.Info);
-                    pause(Args.PauseNotFound);
-                else
-                    % visit found
-                    TstartAll = clock;
-
-                    % --- files compression ---
-                    % Check if images are compressed
-                    if any(FN_Sci_Groups(IndStartGroup).isCompressed)
-                        % files are compressed
-                        FN_Sci_Groups(IndStartGroup).uncompress('fz');
-                        FilesUncomp = true;
+                    % select observations by date
+                    [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
+                    FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
     
-                        Msg = 'Uncompress visit';
-                        Obj.writeLog(MsgV, LogLevel.Info);
+                    % group images by counter
+                    [Groups, FN_Sci_Groups] = groupByCounter(FN_Sci, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
     
-                    else
-                        FilesUncomp = false;
-                    end
-                    RepackRaw = Args.RepackRaw && FilesUncomp;
+    
+                    % sort groups by JD (be default last observed group is
+                    % first)
+                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+    
+                    % Select visit for reduction:
+                    [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args);
                     
-                    RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
-                    NimagesInVisit = numel(RawImageList);
-
-                    % log
-                    MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
-                    MsgV{2} = sprintf('New visit first image : %s', RawImageList{1});
-                    MsgV{3} = sprintf('New visit last image : %s', RawImageList{end});
-                    Obj.writeLog(MsgV, LogLevel.Info);
-
+                    %--- End Select group ---
                     
-                    % special instruction block
-                    % FFU
-                    UpArgs = Args;
-
-                    % reload calibration files
-                    FN_I = FN_Sci_Groups(IndStartGroup);
-                    JDgr = FN_I.juldayFun(@mean);
-                    if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
-                        % if time difference between the last time
-                        % calibration was loaded and current image >
-                        % 0.7 days, then reload...
-                        Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr);
-                        JDlastCalib = JDgr(1);
-
-                        Msg = 'Reload calibration files';
-                        Obj.writeLog(Msg, LogLevel.Info);
-                    end
-
-                    % insert raw images to DB
-                    % FFU
-
-
-                    % visit found - start reduction
-                    [Obj, PipeOk, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP] = runPipelineI(Obj, RawImageList, UpArgs);
-
-                    %--- save data products ---
-                    FN_I.BasePath = Obj.BasePath;
-                    FN_I.Path     = [];
-                    if PipeOk
-                        try
-                            [FN_I, FN_Proc] = saveDataProductsI(Obj, FN_I, AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP, UpArgs);
-
-                            SaveOk = true;
-                        catch MEp
-                            ErrorMsg = sprintf('Pipeline I save data products failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
-                            Obj.writeLog(ErrorMsg, LogLevel.Error);
-                            Obj.writeLog(MEp, LogLevel.Info);
-
-                            SaveOk = false;
-                        end
-                    end
-                    if ~PipeOK || ~SaveOk
-                        % Move data to failed directory
-                        Obj.moveImagesToFailedDir(RawImageList, FN_Sci_Groups(IndStartGroup), MEp)
-                    end
-
-                    if PipeOk && SaveOk
-                        % move raw images to final location
-                        RawImageListFinal = FN_Sci_Groups(Igroup).genFull;
-                        io.files.moveFiles(RawImageList, RawImageListFinal);
-
-
-                        %--- Pipeline II ---
-                        % transient detection
-                        Obj.transientDetectionPipeline(Coadd, FN_Proc, UpArgs);
- 
-                    end
-  
-                        
-                    % Write ready-to-transfer
-                    if Args.UpdateStatusFile
-                        writeStatus(Obj, FN_Proc.genPath);
-                        writeStatus(Obj, fileparts(RawImageListFinal{1}));
-                    end
-
-                    Msg = sprintf('Pipeline summary line - Finsh status: %d, Save status: %d', PipeOk, SaveOk);
-                    Obj.writeLog(Msg, LogLevel.Info);
-                    
-
                     % check if stop loop
                     if Args.StopButton && StopGUI()
                         Cont = false;
@@ -3057,37 +2952,130 @@ classdef PipelineDemon < Component
                         delete(Args.AbortFileName);
                     end
     
-                    % check disk storage state
-                    if ~isempty(Args.StopDiskFull)
-                        [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
-                        if DiskP>Args.StopDiskFull
+                    if isempty(IndStartGroup)
+                        % no files for reduction found
+                        Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
+                        Obj.writeLog(Msg, LogLevel.Info);
+                        pause(Args.PauseNotFound);
+                    else
+                        % visit found
+                        TstartAll = clock;
+    
+                        % --- files compression ---
+                        % Check if images are compressed
+                        if any(FN_Sci_Groups(IndStartGroup).isCompressed)
+                            % files are compressed
+                            FN_Sci_Groups(IndStartGroup).uncompress('fz');
+                            FilesUncomp = true;
+        
+                            Msg = 'Uncompress visit';
+                            Obj.writeLog(MsgV, LogLevel.Info);
+        
+                        else
+                            FilesUncomp = false;
+                        end
+                        RepackRaw = Args.RepackRaw && FilesUncomp;
+                        
+                        RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
+                        NimagesInVisit = numel(RawImageList);
+    
+                        % log
+                        MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
+                        MsgV{2} = sprintf('New visit first image : %s', RawImageList{1});
+                        MsgV{3} = sprintf('New visit last image : %s', RawImageList{end});
+                        Obj.writeLog(MsgV, LogLevel.Info);
+    
+                        
+                        % special instruction block
+                        % FFU
+                        UpArgs = Args;
+    
+                        % reload calibration files
+                        FN_I = FN_Sci_Groups(IndStartGroup);
+                        JDgr = FN_I.juldayFun(@mean);
+                        if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
+                            % if time difference between the last time
+                            % calibration was loaded and current image >
+                            % 0.7 days, then reload...
+                            Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
+                            JDlastCalib = JDgr(1);
+    
+                            Msg = 'Reload calibration files';
+                            Obj.writeLog(Msg, LogLevel.Info);
+                        end
+    
+                        % insert raw images to DB
+                        % FFU
+    
+    
+                        % visit found - start reduction
+                        [Status, RawImageListFinal, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+    
+                        if ~Status.PipeI || ~Status.WriteI
+                            % Move images to failed directory:
+                            Obj.moveImagesToFailedDir(RawImageList);
+                        end
+    
+                        if Status.PipeI && Status.WriteI && Status.MoveRaw
+                            % continue to pipeline II
+    
+                        end
+      
+                            
+                        % Write ready-to-transfer
+                        if Args.UpdateStatusFile
+                            writeStatus(Obj, FN_I.genPath);
+                            writeStatus(Obj, RawImageListFinal{1});
+                        end
+    
+    
+                        Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
+                        Obj.writeLog(Msg, LogLevel.Info);
+                        
+    
+                        % check if stop loop
+                        if Args.StopButton && StopGUI()
                             Cont = false;
                         end
-                    end 
-
-                    if RepackRaw
-                        FN_Sci_Groups(IndStartGroup).compress('fz');
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                        end
+        
+                        % check disk storage state
+                        if ~isempty(Args.StopDiskFull)
+                            [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                            if DiskP>Args.StopDiskFull
+                                Cont = false;
+                                Msg = sprintf('Pipeline stopped because disk is full');
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end
+                        end 
+    
+                        if RepackRaw
+                            FN_Sci_Groups(IndStartGroup).compress('fz');
+                            
+                            Msg = 'Re-compress visit';
+                            Obj.writeLog(MsgV, LogLevel.Info);  
+                        end
                         
-                        Msg = 'Re-compress visit';
-                        Obj.writeLog(MsgV, LogLevel.Info);  
+                        RunTime = etime(clock, TstartAll);    
+                        Msg = sprintf('Visit total run time : %.1f',RunTime);
+                        Obj.writeLog(Msg, LogLevel.Info);
+    
+                    end % if isempty(IndStartGroup)
+    
+                    if ~Cont
+                        % exist the visit loop
+                        break;
+                    end
+         
+                    % stop when done
+                    if Args.StopWhenDone
+                        Cont = false;
                     end
                     
-                    RunTime = etime(clock, TstartAll);    
-                    Msg = sprintf('Visit total run time : %.1f',RunTime);
-                    Obj.writeLog(Msg, LogLevel.Info);
-
-                end % if isempty(IndStartGroup)
-
-                if ~Cont
-                    % exist the visit loop
-                    break;
-                end
-     
-                % stop when done
-                if Args.StopWhenDone
-                    Cont = false;
-                end
-                
+                end % if FN_Sci.nFiles>Args.MinInGrou
 
             end % while Cont
             cd(PWD);
