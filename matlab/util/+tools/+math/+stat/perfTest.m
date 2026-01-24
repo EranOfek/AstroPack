@@ -97,7 +97,9 @@ function Result=perfTest()
     %% Test: tools.math.stat.mex.chi2_sigmaclip
     A=randn(1e4,1); B=randn(1e4,1); C=randn(1e4,1).*0.5;
     tic;for i=1:1e4, Z=(A-B)./C; Is = find(Z>-2 & Z<2);  Chi2=sum(( (A(Is)-B(Is))./C(Is)).^2); Nused=numel(Is); end,T1=toc;
-    tic;for i=1:1e4, [Chi1,Nused]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);end,T2=toc;                              
+    tic;for i=1:1e4, [Chi1,Nused,Is1]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);end,T2=toc;    
+    %tic;for i=1:1e4, [Chi1,Nused,Is1]=chi2_sigmaclip(A,B,C,[2 2]);end,T2=toc;                              
+
     fprintf('tools.math.stat.mex.chi2_sigmaclip is x %f faster then matlab\n',T1./T2);
 
     %% Test: tools.math.stat.mex.sigma_clip_cube

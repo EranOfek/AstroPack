@@ -1,4 +1,5 @@
 % Fast mex for sigma clipped mean of a cube of images
+%   Ignoring NaNs.
 %   Analog to:
 %         MA=mean(A,3,'omitnan'); SA=std(A,[],3,'omitnan'); Z= (A-MA)./SA;
 %         Flag=Z<-2 | Z>2; A(Flag)=NaN; MA=mean(A,3,'omitnan'); NN=sum(~isnan(A),3);

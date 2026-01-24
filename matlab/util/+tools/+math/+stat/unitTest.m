@@ -226,9 +226,10 @@ function Result = unitTest()
 
     %% Test: tools.math.stat.mex.chi2_sigmaclip
     A=randn(1e4,1); B=randn(1e4,1); C=randn(1e4,1).*0.5;
-    Z=(A-B)./C; Is = find(Z>-2 & Z<2);  Chi2=sum(( (A(Is)-B(Is))./C(Is)).^2); Nused=numel(Is);
-    [Chi1,Nused1]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);                         
-    if abs(Chi1-Chi2)>1e-11 || Nused~=Nused1
+    Z=(A-B)./C; Is = (Z>-2 & Z<2);  Chi2=sum(( (A(Is)-B(Is))./C(Is)).^2); Nused=sum(Is);
+    [Chi1,Nused1,Is1]=tools.math.stat.mex.chi2_sigmaclip(A,B,C,[2 2]);  
+    %[Chi1,Nused1,Is1]=chi2_sigmaclip(A,B,C,[2 2]);      
+    if abs(Chi1-Chi2)>1e-11 || Nused~=Nused1 || any(Is~=Is1)
         error('Problem with tools.math.stat.mex.chi2_sigmaclip')
     end
 
