@@ -2430,7 +2430,7 @@ classdef PipelineDemon < Component
 
 
         function [Status, RawImageListFinal, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
-            % Reduce + save + error catcjing a single visit  
+            % Reduce + save + error catching a single visit  
             
             arguments
                 Obj
@@ -2750,7 +2750,7 @@ classdef PipelineDemon < Component
                 Args.PauseNight        = 30;
 
                 
-                
+                Args.UseParfor         = false;         % will be passed to pipelineI below 
 
                 % DataBase
                 
