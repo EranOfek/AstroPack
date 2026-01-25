@@ -3074,8 +3074,12 @@ classdef PipelineDemon < Component
                     if Args.StopWhenDone
                         Cont = false;
                     end
-                    
-                end % if FN_Sci.nFiles>Args.MinInGrou
+                else
+                    % slow down - 
+                    if FN_Sci.nFiles<Args.MinInGroup
+                        pause(20);
+                    end
+                end % if FN_Sci.nFiles>Args.MinInGroup
 
             end % while Cont
             cd(PWD);

@@ -2756,7 +2756,8 @@ classdef AstroFileName < Component
                 Result = Obj;
             end
             
-            if ~isempty(Ind)
+            
+            if ~isempty(Ind) && Obj.nFiles>0
                 Nfield = numel(Obj.FIELDS);
                 for Ifield=1:1:Nfield
                     Result.(Obj.FIELDS{Ifield}) = Obj.(Obj.FIELDS{Ifield})(Ind);
@@ -2860,17 +2861,21 @@ classdef AstroFileName < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                if Args.Str2Double
-                    PropVal = str2double(Result(Iobj).(Prop));
+                if Obj(Iobj).nFiles>0
+                    if Args.Str2Double
+                        PropVal = str2double(Result(Iobj).(Prop));
+                    else
+                        PropVal = Result(Iobj).(Prop);
+                    end
+                    Flag   = Args.Operator(PropVal, Val);
+                    if Args.SelectNot
+                        Flag = ~Flag;
+                    end
+                    if Args.SelectEntries
+                        Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                    end
                 else
-                    PropVal = Result(Iobj).(Prop);
-                end
-                Flag   = Args.Operator(PropVal, Val);
-                if Args.SelectNot
-                    Flag = ~Flag;
-                end
-                if Args.SelectEntries
-                    Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                    Flag = [];
                 end
             end
             
