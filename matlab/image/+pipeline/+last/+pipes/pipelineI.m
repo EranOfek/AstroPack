@@ -90,6 +90,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     JD = repmat(JD(:), 1, Nsub); % faster than getting the JD for AllSI
 
     % initiate parpool if needed
+    PP = [];
     if Args.UseParfor
         PP = gcp('nocreate');
         if isempty(PP)

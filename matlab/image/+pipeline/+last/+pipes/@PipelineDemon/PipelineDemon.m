@@ -2736,7 +2736,7 @@ classdef PipelineDemon < Component
                 
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
-                Args.pipelineIArgs  = {};
+                Args.pipelineIArgs  = {'UseParfor',false};
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 
@@ -2748,11 +2748,8 @@ classdef PipelineDemon < Component
                 Args.MinNumImageVisit  = 10;
                 Args.PauseDay          = 100;
                 Args.PauseNight        = 30;
-
-                
-                Args.UseParfor         = false;         % will be passed to pipelineI below 
-
-                % DataBase
+               
+                 % DataBase
                 
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
