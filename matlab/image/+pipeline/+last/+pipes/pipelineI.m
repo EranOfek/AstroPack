@@ -6,7 +6,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = true;
+        Args.UseParfor                     = false;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
