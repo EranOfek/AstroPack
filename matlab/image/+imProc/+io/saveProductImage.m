@@ -106,6 +106,9 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
 
     PWD = pwd;
 
+    if numel(Args.WriteHeader) < 4
+        Args.WriteHeader = [true, false, false, true];
+    end
 
     if ischar(Args.OutProduct)
         Args.OutProduct = string(Args.OutProduct);
