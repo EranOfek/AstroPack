@@ -70,17 +70,26 @@ classdef TooPlannerRunner < Component
             n = numel(cfg.plans);
             Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running %d TOO plans from %s', n, jsonFilename);
 
+            % Track all successfully created plan files
+            createdPlans = struct('run_id', {}, 'json_file', {}, 'mat_file', {}, 'plan_index', {}, 'status', {}, 'exposures_scheduled', {});
+
             for i = 1:n
                 planCfg = cfg.plans(i);
-                Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i);
+                planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i);
+                if ~isempty(planInfo)
+                    createdPlans(end+1) = planInfo; %#ok<AGROW>
+                end
             end
+
+            % Create summary JSON file with all created plans
+            Obj.createSummaryJson(outFolder, jsonFilename, createdPlans, n);
         end
     end
 
 
     methods (Access = private)
 
-        function runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex)
+        function planInfo = runOnePlanSafe(Obj, planCfg, probMapTable, outFolder, jsonFilename, planIndex)
             % Run one plan with try/catch so pipeline continues on failure.
 
             % runOnePlanSafe
@@ -90,7 +99,10 @@ classdef TooPlannerRunner < Component
             % :param outFolder: Path to output folder.
             % :param jsonFilename: Path to JSON file.
             % :param planIndex: Plan index.
-            % :return: None.
+            % :return: Struct with plan file information, or empty if failed.
+
+            % Initialize return value
+            planInfo = [];
 
             % Make run ID
             runId = Obj.makeRunId(planIndex, planCfg);
@@ -138,9 +150,18 @@ classdef TooPlannerRunner < Component
 
                 Obj.msgLog(LogLevel.Info, 'TOO run %s: done. exposures=%d json=%s', runId, height(planTable), outJson);
 
+                % Return file information with absolute paths
+                planInfo = struct();
+                planInfo.run_id = char(runId);
+                planInfo.json_file = char(Obj.getAbsolutePath(outJson));
+                planInfo.mat_file = char(Obj.getAbsolutePath(outMat));
+                planInfo.plan_index = planIndex;
+                planInfo.status = 'success';
+                planInfo.exposures_scheduled = height(planTable);
+
             catch Ex
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Plan %d failed (runId=%s): %s', planIndex, runId, Ex.message);
-                % Continue to next plan
+                % Return empty to indicate failure
             end
         end
 
@@ -369,7 +390,7 @@ classdef TooPlannerRunner < Component
 
             s = NaN;
         end
-        
+
 
         function savePlanJson(Obj, outJson, meta, targets)
             % savePlanJson
@@ -423,6 +444,80 @@ classdef TooPlannerRunner < Component
             txt = replace(txt, '{', sprintf('{\n  '));
             txt = replace(txt, '}', sprintf('\n}'));
             txt = char(txt);
+        end
+
+        function createSummaryJson(Obj, outFolder, jsonFilename, createdPlans, totalPlans)
+            % createSummaryJson
+            %
+            % Creates a summary JSON file listing all successfully created plan files.
+            %
+            % :param outFolder: Path to output folder.
+            % :param jsonFilename: Path to input JSON config file.
+            % :param createdPlans: Struct array with information about created plans.
+            % :param totalPlans: Total number of plans that were attempted.
+
+            summary = struct();
+            summary.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
+            summary.input_json = char(Obj.getAbsolutePath(string(jsonFilename)));
+            summary.output_folder = char(Obj.getAbsolutePath(string(outFolder)));
+            summary.total_plans_attempted = totalPlans;
+            summary.total_plans_succeeded = numel(createdPlans);
+            summary.total_plans_failed = totalPlans - numel(createdPlans);
+
+            % Convert createdPlans struct array to cell array for JSON encoding
+            if numel(createdPlans) > 0
+                plansList = cell(numel(createdPlans), 1);
+                for i = 1:numel(createdPlans)
+                    plansList{i} = createdPlans(i);
+                end
+                summary.plans = plansList;
+            else
+                summary.plans = {};
+            end
+
+            % Write summary JSON file
+            summaryFile = fullfile(outFolder, "summary.json");
+            try
+                txt = jsonencode(summary);
+                txt = Obj.prettyJson(txt);
+                fid = fopen(summaryFile, 'w');
+                fwrite(fid, txt);
+                fclose(fid);
+                Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Summary file created: %s', summaryFile);
+            catch Ex
+                Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed writing summary JSON %s: %s', summaryFile, Ex.message);
+            end
+        end
+
+        function absPath = getAbsolutePath(~, path)
+            % getAbsolutePath
+            %
+            % Converts a relative or absolute path to an absolute path.
+            %
+            % :param path: Path string (relative or absolute).
+            % :return: Absolute path string.
+
+            if isempty(path)
+                absPath = "";
+                return;
+            end
+
+            pathStr = string(path);
+            if isempty(pathStr) || pathStr == ""
+                absPath = "";
+                return;
+            end
+
+            % Check if already absolute (Windows: starts with drive letter, Unix: starts with /)
+            pathChar = char(pathStr);
+            isAbsolute = startsWith(pathChar, filesep) || (ispc && length(pathChar) >= 2 && pathChar(2) == ':');
+            
+            if isAbsolute
+                absPath = pathChar;
+            else
+                % Convert to absolute path
+                absPath = char(fullfile(pwd, pathChar));
+            end
         end
     end
 
