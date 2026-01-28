@@ -150,9 +150,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.PropShiftXY                      = 'ShiftXY';
         Args.IsShiftXYfiltered                = true;
         Args.UseMultiIterPSF                  = true;
+        Args.UseShift logical                 = true;
+        Args.UseInterp2 logical               = true;
+        Args.interp2affineArgs cell           = {};
+        Args.interp2wcsArgs cell              = {};
 
+        Args.StackMethod                      = 'sigmaclip';      
+        Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
 
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
+        
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
         Args.findMeasureSourcesArgs cell      = {};
@@ -166,16 +173,26 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                  'MAG_APER', 'MAGERR_APER',...
                                                  'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.Threshold                        = 5;
+       
+        Args.multiIterExtractorArgs           = {};
+
+
+        Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
-        Args.CatName                          = 'GAIAEDR3';
+        Args.CatName                          = 'GAIADR3';
         Args.photometricZPArgs cell           = {};                                                              
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
+
+        Args.FindStars                        = true;
+        Args.PhotCalibSimple                  = true;
+
+
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
         
@@ -254,7 +271,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
-        FlagGood = Args.IsGoodWCS(:,Ifields);
+        FlagGood = Args.IsGood(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
             % coadd images Args.MinNumCoadd
@@ -305,7 +322,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
-            [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+            [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
@@ -323,12 +340,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
 
             % Background
-            Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
-                                                                          'SubSizeXY',Args.BackSubSizeXY);
+            %Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
+            %                                                              'SubSizeXY',Args.BackSubSizeXY);
 
 
             % Mask Source noise dominated pixels
             Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+
+
+            
 
             % Mask pixels with less than X% of the images
             if ~isempty(Args.CoaddLessFrac)
@@ -336,56 +356,52 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 FlagCoaddLess = ResultCoadd(Ifields).CoaddN<(NregIm.*Args.CoaddLessFrac);
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
-            
-            if Args.UseMultiIterPSF
-                % search for stars in all images
-                [AllSI] = imProc.sources.multiIterExtractor(AI, Args.multiIterExtractorArgs{:},...
-                                                                'AddSkyCoo',true);
 
-            else
-
-                % Source finding
-                Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
-                                                           'RemoveBadSources',true,...
-                                                           'ZP',Args.ZP,...
-                                                           'ColCell',Args.ColCell,...
-                                                           'Threshold',Args.Threshold,...
-                                                           'CreateNewObj',false);
-    
-                % Estimate PSF 
-                [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
-    
-    
-                % PSF photometry
-                [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:}); 
+            if Args.FindStars
+                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
+                                                    'AddSkyCoo',false);
+                % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+                imProc.psf.fwhm(Coadd(Ifields));
             end
-            
-            % astrometry    
-            % Note that if available, will use the "X" & "Y" positions produced
-            % by the PSF photometry
-            MeanJD = mean(JD);
-            [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                    'WCS',AllSI(1,Ifields).WCS,...
-                                                                                                    'EpochOut',MeanJD,...
+
+            % astrometry / refine
+            if Args.RefineAstrometry
+                if isa(Args.CatName, 'AstroCatalog')
+                    AstrometricCat = Args.CatName(Ifields);
+                else
+                    AstrometricCat = Args.CatName;
+                end
+                IfirstGood = find(Args.IsGood(:,Ifields), 1, 'first');
+                MidMidJD = (MidJD(1) + MidJD(end)).*0.5;
+                [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
+                                                                                                    'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                                                                    'EpochOut',MidMidJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'CatName',Args.CatName,...
+                                                                                                    'SearchRadius',3,...
+                                                                                                    'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'CreateNewObj',false);
+                ResultCoadd(Ifields).MidMidJD = MidMidJD;
+            end
 
-            % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-            imProc.psf.fwhm(Coadd(Ifields));
+
+
+            
            
-            % photometric calibration
-            % change to PSF phot...
-            %CatColNameMag            = 'MAG_APER_3';
-            %CatColNameMagErr   = 'MAGERR_APER_3';
 
-            [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
-                                                                                                        'CreateNewObj',false,...
-                                                                                                        'MagZP',Args.ZP,...
-                                                                                                        'CatName',AstrometricCat,...
-                                                                                                        Args.photometricZPArgs{:});
-
+            % Need to check that the astrometry suceeded
+            if Args.PhotCalibSimple
+           
+                % photometric calibration
+                % change to PSF phot...
+                %CatColNameMag            = 'MAG_APER_3';
+                %CatColNameMagErr   = 'MAGERR_APER_3';
+                [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
+                                                                                                            'CreateNewObj',false,...
+                                                                                                            'MagZP',Args.ZP,...
+                                                                                                            'CatName',AstrometricCat,...
+                                                                                                            Args.photometricZPArgs{:});
+            end
          
 
         end
@@ -402,22 +418,22 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
     
     % 
-    
-    if Args.CoaddMatchMergedCat
-        % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
-    end
-    
-    % match Coadd catalog against MergedCat
-    [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
-    
-    % adding known minor planets
-    % FFU
-    if Args.SelectKnownAsteroid
-        [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
-    else
-        OnlyMP = [];
-    end
+ 
+    % if Args.CoaddMatchMergedCat
+    %     % match against external catalogs
+    %     Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
+    % end
+    % 
+    % % match Coadd catalog against MergedCat
+    % %[Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
+    % 
+    % % adding known minor planets
+    % % FFU
+    % if Args.SelectKnownAsteroid
+    %     [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
+    % else
+    %     OnlyMP = [];
+    % end
 
 
 end

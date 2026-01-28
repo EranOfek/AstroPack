@@ -2327,21 +2327,26 @@ classdef Scheduler < Component
             end
             RAD = 180./pi;
 
-            if isempty(JD)
-                JD = Obj.JD;
-            end
-            
-            LastReset = Obj.List.Catalog.LastMaxNightReset(1);
-            TimeSinceLastReset = JD - LastReset;
-
-            TimeSinceLastSunSet = Obj.timeSinceSunSet(JD);
-            DeltaTime = TimeSinceLastReset-TimeSinceLastSunSet;
-            if DeltaTime<0.5
-                % no need to reset because already reseted 
+            if Obj.Ntarget==0
                 Result = false;
             else
-               % new night identified
-               Result = true;
+
+                if isempty(JD)
+                    JD = Obj.JD;
+                end
+                
+                LastReset = Obj.List.Catalog.LastMaxNightReset(1);
+                TimeSinceLastReset = JD - LastReset;
+    
+                TimeSinceLastSunSet = Obj.timeSinceSunSet(JD);
+                DeltaTime = TimeSinceLastReset-TimeSinceLastSunSet;
+                if DeltaTime<0.5
+                    % no need to reset because already reseted 
+                    Result = false;
+                else
+                   % new night identified
+                   Result = true;
+                end
             end
 
         end

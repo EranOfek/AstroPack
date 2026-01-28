@@ -25,7 +25,7 @@ function match2Stars(Obj, StarCat, Args)
                'SearchRadius' - Initial search radius for matching with GAIA.
                       Default is 250.
                'SearchRadiusUnits' - Units of SearchRadius. Default is 'arcsec'.
-               'UserSpecialBright'- Bool on whether to use parametrized
+               'UseSpecialBright'- Bool on whether to use parametrized
                       threshold distance for bright stars. Parametrization 
                       is a*exp(-b*x)+c. Default is true.
                'BpBrightParams' - Parameters used for threshold estimation 

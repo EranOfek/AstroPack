@@ -1,18 +1,22 @@
-function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
-    % One line description
-    %     Optional detailed description
+function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, Args)
+    % Add a line (or curved line) to image with start and end points.
     % Input  : - Image:     2D matrix (original image)
     %          - Coords:    A 4 column matrix, of [MinX, MaxX, MinY, MaxY],
     %            of the coordinates of the lines to add to image.
     %          - Intensity: A vector of intensities (per line) to add along
-    %            each line. Default is 1.
+    %            each line, or a scalar (all ines with the same intensity).
+    %            Default is 1.
     %          - PSF:       Point Spread Function (2D array) to convolve
     %            with the image.
     %            if empty, no convolution is done. If scalar, then this is
     %            the sigma width of the Gaussian PSF.
     %          - Curvature of line measured in units of maximum deviation
-    %            from a straight line. Negative number means curved downward.
-    %            Default is 0.
+    %            from a straight line. Positive curvature means that the
+    %            line is bent with a positive offset in the anticlockwise
+    %            ortogonal direction to the oriented segment [(MinX,MinY),(MaxX,MaxY)]
+    %            Default is 0. If scalar, all lines get the same
+    %            curvature; if a vector, each element represents the
+    %            curvature of that line.
     %          * ...,key,val,...
     %            'Norm' - one of the following normalization options:
     %                   'None' - Default.
@@ -36,8 +40,12 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
     OutImage = Image;
 
     N = size(Coords,1);
+    fluxes = zeros(N,1);
     if numel(Intensity)==1
         Intensity=Intensity*ones(1,N);
+    end
+    if numel(Curvature)==1
+        Curvature=Curvature*ones(1,N);
     end
     Brightness=Intensity;
     for I=1:1:N
@@ -47,13 +55,13 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
         MinY = Coords(I,3);
         MaxY = Coords(I,4);
     
-        if Curvature==0
+        if Curvature(I)==0
             % Generate points along the line using linear interpolation
             NPoints = max(abs(MaxX - MinX), abs(MaxY - MinY)) + 1;
             X = round(linspace(MinX, MaxX, NPoints));
             Y = round(linspace(MinY, MaxY, NPoints));
         else
-            [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curvature);
+            [X,Y]=curvedLine(MinX, MaxX, MinY, MaxY, Curvature(I));
         end
             
         % Ensure coordinates are within bounds
@@ -75,16 +83,33 @@ function [OutImage] = addLineToImage(Image, Coords, Intensity, PSF, Curvature, A
             otherwise
                 error('Unknown Norm option');
         end
-        OutImage(Indices) = OutImage(Indices) + Brightness(I);
+        StreakImage=zeros(size(Image));
+        StreakImage(Indices) = Brightness(I);
+
+        % Convolve with PSF if provided
+        if ~isempty(PSF)
+            if numel(PSF)==1
+                PSF = imUtil.kernel2.gauss(PSF);
+            end
+            StreakImage = conv2(StreakImage, PSF, 'same');
+        end
+
+        % compute a posteriori the resulting fluxes before summing to the input
+        %  image
+        fluxes(I) = sum(StreakImage,'all');
+
+        switch lower(Args.Norm)
+            case 'none'
+                fluxes(I) = fluxes(I)/numel(Indices);
+            case 'lxi'
+                % normalize by Length X Intensity
+                % conserve flux
+                fluxes(I) = fluxes(I)/(Length*numel(Indices));
+        end
+
+        OutImage = OutImage+StreakImage;
     end
 
-    % Convolve with PSF if provided
-    if ~isempty(PSF)
-        if numel(PSF)==1
-            PSF = imUtil.kernel2.gauss(PSF);
-        end
-        OutImage = conv2(OutImage, PSF, 'same');
-    end
 end
 
 

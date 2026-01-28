@@ -196,18 +196,20 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     %% ====================================================================
 
     % QE - Legendre polynomial model (Ofek et al. 2023)
-    % Parameters: [DummyParam] - fixed at 1
+    % Parameters: [L0, L1, L2, L3, L4, L5, L6, L7, L8] - Legendre coefficients
     FunCatalog.QE_Legendre = struct();
     FunCatalog.QE_Legendre.Name = 'QE_Legendre';
     FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
     FunCatalog.QE_Legendre.HandleType = 'named';
-    FunCatalog.QE_Legendre.Params = [1];  % Dummy parameter
-    FunCatalog.QE_Legendre.FitPar = [false];
+    FunCatalog.QE_Legendre.Params = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60];  % Ofek et al. 2023
+    FunCatalog.QE_Legendre.FitPar = false(1, 9);  % All fixed by default
     FunCatalog.QE_Legendre.ParamInfo = struct(...
-        'Name', {'DummyParam'}, ...
-        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
-        'Min', {1}, ...
-        'Max', {1});
+        'Name', {'L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'}, ...
+        'Description', {'Legendre coeff 0', 'Legendre coeff 1', 'Legendre coeff 2', ...
+                        'Legendre coeff 3', 'Legendre coeff 4', 'Legendre coeff 5', ...
+                        'Legendre coeff 6', 'Legendre coeff 7', 'Legendre coeff 8'}, ...
+        'Min', {-10, -10, -10, -10, -10, -10, -10, -10, -10}, ...
+        'Max', {10, 10, 10, 10, 10, 10, 10, 10, 10});
 
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
     % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
@@ -224,11 +226,27 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
         'Max', {5000, 8000, 3000, 1});
 
     %% ====================================================================
+    %% FUNCTION LIST CATALOG
+    %% ====================================================================
+
+    % Default LAST function list (Garrappa et al. 2025)
+    FunCatalog.DefaultLASTFunList = [FunCatalog.Normalization, ...
+                                     FunCatalog.Rayleigh, ...
+                                     FunCatalog.Aerosol, ...
+                                     FunCatalog.Ozone, ...
+                                     FunCatalog.Water, ...
+                                     FunCatalog.UMG, ...
+                                     FunCatalog.Mirror, ...
+                                     FunCatalog.Corrector, ...
+                                     FunCatalog.QE_SkewedGaussian, ...
+                                     FunCatalog.QE_Legendre];
+
+    %% ====================================================================
     %% OPTIMIZATION STAGE CATALOG
     %% ====================================================================
 
     % Default optimization sequence for LAST (Garrappa et al. 2025)
-    StageCatalog.DefaultLAST = struct(...
+    StageCatalog.DefaultLASTOptSeq = struct(...
         'StageName', {'NormOnly_Initial', 'NormAndCenter', 'FieldCorrection_Adapted', 'Normalization_Refined', 'Atmospheric'}, ...
         'Method', {'nonlinear', 'nonlinear', 'linear', 'nonlinear', 'nonlinear'}, ...
         'FreeParams', {struct('Function', {'Normalization'}, 'Parameter', {'Norm'}), ...
@@ -241,9 +259,24 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
         'SigmaIter', {3, 3, 3, 0, 0}, ...
         'Description', {'Initial normalization with outlier removal', 'Optimize normalization and QE center', 'Field corrections using linear least squares', 'Refine normalization after field corrections', 'Optimize water vapor and aerosol'});
 
+    % LAST optimization sequence with linear Norm stages (faster)
+    % Stages 1 and 4 use analytical solution for Norm instead of nonlinear optimization
+    StageCatalog.LAST_NormLin = struct(...
+        'StageName', {'NormOnly_Initial', 'NormAndCenter', 'FieldCorrection_Adapted', 'Normalization_Refined', 'Atmospheric'}, ...
+        'Method', {'linear', 'nonlinear', 'linear', 'linear', 'nonlinear'}, ...
+        'FreeParams', {struct('Function', {'Normalization'}, 'Parameter', {'Norm'}), ...
+                       struct('Function', {'Normalization', 'QE_SkewedGaussian'}, 'Parameter', {'Norm', 'Center_Ang'}), ...
+                       [], ...
+                       struct('Function', {'Normalization'}, 'Parameter', {'Norm'}), ...
+                       struct('Function', {'Water', 'Aerosol'}, 'Parameter', {'PWV_cm', 'TauAod500'})}, ...
+        'SigmaClip', {true, true, true, false, false}, ...
+        'SigmaThresh', {3.0, 3.0, 2.0, 3.0, 3.0}, ...
+        'SigmaIter', {3, 3, 3, 0, 0}, ...
+        'Description', {'Initial normalization (analytical)', 'Optimize normalization and QE center', 'Field corrections using linear least squares', 'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
+
     % Individual stages for custom sequences
 
-    % Stage 1: Initial normalization only
+    % Stage 1: Initial normalization only (nonlinear version)
     StageCatalog.NormOnly_Initial = struct();
     StageCatalog.NormOnly_Initial.StageName = 'NormOnly_Initial';
     StageCatalog.NormOnly_Initial.Method = 'nonlinear';
@@ -252,6 +285,16 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     StageCatalog.NormOnly_Initial.SigmaThresh = 3.0;
     StageCatalog.NormOnly_Initial.SigmaIter = 3;
     StageCatalog.NormOnly_Initial.Description = 'Initial normalization with outlier removal';
+
+    % Stage 1 linear: Initial normalization using analytical solution
+    StageCatalog.NormOnly_Initial_Lin = struct();
+    StageCatalog.NormOnly_Initial_Lin.StageName = 'NormOnly_Initial_Lin';
+    StageCatalog.NormOnly_Initial_Lin.Method = 'linear';
+    StageCatalog.NormOnly_Initial_Lin.FreeParams = struct('Function', {'Normalization'}, 'Parameter', {'Norm'});
+    StageCatalog.NormOnly_Initial_Lin.SigmaClip = true;
+    StageCatalog.NormOnly_Initial_Lin.SigmaThresh = 3.0;
+    StageCatalog.NormOnly_Initial_Lin.SigmaIter = 3;
+    StageCatalog.NormOnly_Initial_Lin.Description = 'Initial normalization (analytical) with outlier removal';
 
     % Stage 2: Normalization + QE center
     StageCatalog.NormAndCenter = struct();
@@ -273,7 +316,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     StageCatalog.FieldCorrection_Adapted.SigmaIter = 3;
     StageCatalog.FieldCorrection_Adapted.Description = 'Field corrections using linear least squares';
 
-    % Stage 4: Refined normalization
+    % Stage 4: Refined normalization (nonlinear version)
     StageCatalog.Normalization_Refined = struct();
     StageCatalog.Normalization_Refined.StageName = 'Normalization_Refined';
     StageCatalog.Normalization_Refined.Method = 'nonlinear';
@@ -282,6 +325,16 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     StageCatalog.Normalization_Refined.SigmaThresh = 3.0;
     StageCatalog.Normalization_Refined.SigmaIter = 0;
     StageCatalog.Normalization_Refined.Description = 'Refine normalization after field corrections';
+
+    % Stage 4 linear: Refined normalization using analytical solution
+    StageCatalog.Normalization_Refined_Lin = struct();
+    StageCatalog.Normalization_Refined_Lin.StageName = 'Normalization_Refined_Lin';
+    StageCatalog.Normalization_Refined_Lin.Method = 'linear';
+    StageCatalog.Normalization_Refined_Lin.FreeParams = struct('Function', {'Normalization'}, 'Parameter', {'Norm'});
+    StageCatalog.Normalization_Refined_Lin.SigmaClip = false;
+    StageCatalog.Normalization_Refined_Lin.SigmaThresh = 3.0;
+    StageCatalog.Normalization_Refined_Lin.SigmaIter = 0;
+    StageCatalog.Normalization_Refined_Lin.Description = 'Refine normalization (analytical) after field corrections';
 
     % Stage 5: Atmospheric parameters
     StageCatalog.Atmospheric = struct();

@@ -14,13 +14,14 @@ function [Args] = prepArgsForAstrometry(Obj, Args)
 
     %
     
-    if isa(Obj, 'AstroImage')
-        % can read RA/Dec from Header if AstroImage
-        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    end
-        
+    if isempty(Args.RA) || isempty(Args.Dec)
+        if isa(Obj, 'AstroImage')
+            % can read RA/Dec from Header if AstroImage
+            [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+        else
+            [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+        end
+    end        
     
     % make sure Tran is a new copy, otherwise may overwrite other Tran
     Args.Tran = Args.Tran.copy;

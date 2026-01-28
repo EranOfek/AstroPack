@@ -121,9 +121,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.OutUnits         = 'rad'       % Output coordinate units: 'rad'|'deg'
         Args.TapUnits         = 'deg'       % TAP input coordinate units: 'rad'|'deg'
         Args.HTM_Level        = 7           % HTM level (or 'auto' for automatic)
-        Args.AutoLevelMaxSrc  = 1e6         % Max sources per cell for auto-level
+        Args.AutoLevelMaxSrc  = 1e3         % Max sources per cell for auto-level
         Args.AutoLevelRange   = [4, 10]    % [min, max] HTM level range for auto-selection
-        Args.NfilesInHDF      = 100         % HTM cells per HDF5 file
+        Args.NfilesInHDF      = 30         % HTM cells per HDF5 file
         Args.IndStep          = 30          % Index sampling step for HDF5
         Args.DecRange         = [-pi/2, pi/2]   % Dec range to process [rad]
         Args.RARange          = [0, 2*pi]       % RA range to process [rad]
@@ -189,7 +189,35 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     end
 
     %----------------------------------------------------------------------
-    % 2. AUTO-LEVEL SELECTION (if requested)
+    % 2. DETECT COLUMNS AND SAVE COLCELL FILE
+    %----------------------------------------------------------------------
+
+    if isempty(Args.ColCell)
+        if Args.Verbose
+            fprintf('Querying TAP for column names...\n');
+        end
+        SampleQuery = sprintf('SELECT TOP 1 %s FROM %s', ColumnsStr, TableName);
+        T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', 60, ...
+                      'Method', Args.QueryMethod, 'WorkDir', Args.LocalDir);
+        if isempty(T) || ~istable(T)
+            error('VO:buildHTMfromTopCat:NoColumns', ...
+                'Could not query column names from TAP service');
+        end
+        [~, Args.ColCell] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+        if Args.Verbose
+            fprintf('Detected %d columns: %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
+        end
+    end
+
+    % Save ColCell file immediately
+    ColCellPath = fullfile(Args.LocalDir, Args.CatName);
+    HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
+    if Args.Verbose
+        fprintf('Saved column metadata: %s_htmColCell.mat\n', ColCellPath);
+    end
+
+    %----------------------------------------------------------------------
+    % 3. AUTO-LEVEL SELECTION (if requested)
     %----------------------------------------------------------------------
 
     if ischar(Args.HTM_Level) && strcmpi(Args.HTM_Level, 'auto')
@@ -230,13 +258,11 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % Initialize source count matrix
     Nsrc = zeros(Nhtm, 2);
 
-    % Track column names (will be set from first successful query)
-    ColNamesDetected = {};
-
     StartTime = tic;
     ProcessedCount = 0;
     SkippedCount = 0;
     FailedCells = [];
+    CurrentHDFFile = '';  % Track current HDF5 file for remote copy
 
     %----------------------------------------------------------------------
     % 4. MAIN LOOP: Process each HTM cell
@@ -248,6 +274,20 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
     for Ihtm = 1:Nhtm
         IndHTM = ListIndexHTM(Ihtm);
+
+        % Check if we've moved to a new HDF5 file - if so, copy the completed one
+        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+        if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+            % Previous file is complete, copy to remote
+            FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+            if isfile(FullPath)
+                tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                if Args.Verbose
+                    fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                end
+            end
+        end
+        CurrentHDFFile = ThisFileName;
 
         % Get HTM cell center
         MeanRA  = mean(HTM(IndHTM).coo(:,1));   % radians
@@ -263,7 +303,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             Nsrc(Ihtm, :) = [IndHTM, 0];
 
         elseif AlreadyExists
-            % Skip: already processed (resume mode)
+            % Skip: already processed (resume mode) - but read source count
+            NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
+            Nsrc(Ihtm, :) = [IndHTM, NsrcExisting];
             SkippedCount = SkippedCount + 1;
             if Args.Verbose && mod(SkippedCount, 100) == 0
                 fprintf('  Skipped %d existing cells...\n', SkippedCount);
@@ -282,15 +324,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
                 ProcessedCount = ProcessedCount + 1;
 
-                % Store column names from first successful query
-                if isempty(ColNamesDetected) && ~isempty(ColNames)
-                    ColNamesDetected = ColNames;
-                end
-
                 % Print progress
                 if Args.Verbose && (mod(ProcessedCount, 10) == 0 || ProcessedCount == 1)
                     printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount);
                 end
+            end
+        end
+    end
+
+    % Copy the last HDF5 file to remote (if any processing was done)
+    if ~isempty(CurrentHDFFile) && ~isempty(Args.TargetDir)
+        FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+        if isfile(FullPath)
+            tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            if Args.Verbose
+                fprintf('  Copied completed file: %s\n', CurrentHDFFile);
             end
         end
     end
@@ -306,15 +354,10 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         fprintf('Failed: %d cells\n', numel(FailedCells));
     end
 
-    % Save index file and column metadata
+    % Save HTM index file
     if Args.SaveInd
         if Args.Verbose
-            fprintf('Saving HTM index and column metadata...\n');
-        end
-
-        % Prepare column cell
-        if isempty(Args.ColCell) && ~isempty(ColNamesDetected)
-            Args.ColCell = ColNamesDetected;
+            fprintf('Saving HTM index...\n');
         end
 
         % Delete old index file if exists
@@ -324,17 +367,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Save HTM index using tracked Nsrc
-        HDF5.save_htm_ind(HTM, IndFileName, [], {}, Nsrc);
+        HDF5.save_htm_ind(HTM, IndFileName, sprintf('%s_HTM', Args.CatName), {}, Nsrc);
 
-        % Copy index file to remote directory if specified
-        if ~isempty(Args.TargetDir)
-            tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+        if Args.Verbose
+            fprintf('Saved HTM index: %s\n', IndFileName);
         end
 
-        % Save column metadata
-        if ~isempty(Args.ColCell)
-            ColCellPath = fullfile(Args.LocalDir, Args.CatName);
-            HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
+        % Copy index file to remote
+        if ~isempty(Args.TargetDir)
+            tools.os.copyFileOverNFS({IndFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true); 
+        end
+
+        % Copy ColCell file to remote
+        ColCellFileName = fullfile(Args.LocalDir, sprintf('%s_htmColCell.mat', Args.CatName));
+        if ~isempty(Args.TargetDir) && isfile(ColCellFileName)
+            tools.os.copyFileOverNFS({ColCellFileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
         end
     end
 
@@ -407,6 +454,22 @@ function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF, LocalDir)
             Exists = any(strcmp({Info.Datasets.Name}, DataName));
         catch
             % File exists but can't be read - treat as not existing
+        end
+    end
+end
+
+
+function Nsrc = getHTMSourceCount(CatName, IndHTM, NfilesInHDF, LocalDir)
+    % Get source count from an existing HTM cell in HDF5 file
+    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NfilesInHDF);
+    FileName = fullfile(LocalDir, FileName);
+    Nsrc = 0;
+    if isfile(FileName)
+        try
+            Info = h5info(FileName, ['/' DataName]);
+            Nsrc = Info.Dataspace.Size(1);  % Number of rows = number of sources
+        catch
+            % Could not read - return 0
         end
     end
 end
@@ -545,11 +608,6 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
         [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
         FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, DataOut, Args.ColDecOut, Args.IndStep);
-
-        % Copy to remote directory if specified
-        if ~isempty(Args.TargetDir)
-            tools.os.copyFileOverNFS({FileName}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-        end
     end
 end
 

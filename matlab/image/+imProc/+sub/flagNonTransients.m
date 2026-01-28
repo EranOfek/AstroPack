@@ -216,7 +216,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ConfigFile = '';
 
         Args.PixelScale = 1.25;
-        Args.SaturatedNeighborDistanceThreshold = 200;
+        Args.SaturatedNeighborDistanceThreshold = 250;
     
         Args.flagNegatives logical = true;
 
@@ -260,6 +260,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PSFShapeCovD = [0.06467546, 0.02720397;...
             0.02720397, 0.06933742];
         Args.PSFShapeConfThreshD = 0.95;
+
+        Args.flagExtended logical = true;
+        Args.ExtendedSatDelta = 1.0;
         
         Args.flagLimitingMag logical = true;
 
@@ -273,7 +276,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.NumStreaks = 1;
 
         Args.flagDiffSpike logical = true;
-        Args.SatCentroidDistThreshold = 200;
+        Args.SatCentroidDistThreshold = 250;
         Args.DiffSpikeSNRThreshold = 2.0;
         Args.DiffSpikeFracThreshold = 0.5;
         
@@ -334,12 +337,15 @@ function TranCat = flagNonTransients(Obj, Args)
     % Get image mask bit dictionary
     BD_IM = BitDictionary('BitMask.Image.Default');
 
-    Arcsec2Rad = 4.84814e-6;
-    %Rad2Arcsec = 206265;
+    % Some unit conversion parameters
+    Rad2Arcsec = 3600.*180./pi; %206265;
+    Arcsec2Rad = 1./Rad2Arcsec; %4.84814e-6;
 
     for Iobj=Nobj:-1:1
         CandCat = Obj(Iobj).CatData;
         Score = CandCat.getCol('SCORE');
+
+        PointLimit = Obj(Iobj).PSFData.fwhm*Args.PixelScale*1.2739; % 3sig in arcsec
 
         % Get size of catalog and initialize an array holding the filtering
         % summary. Array is initialized as zero and will be updates with 
@@ -367,13 +373,19 @@ function TranCat = flagNonTransients(Obj, Args)
         MedDiffVar = median(Obj(Iobj).Var(:));
 
         % N and R PSF magnitudes
-        N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
-        R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
+        if CandCat.isColumn('N_MAG_PSF')
+            N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
+        end
+        if CandCat.isColumn('R_MAG_PSF')
+            R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
+        end
         
         % Get isolated and blended candidates
-        R_SN = CandCat.getCol('R_SN');
-        IsolatedCand = ((abs(R_SN) < 3) | (R_MAG_PSF > R_LIMMAG));
-        BlendedCand = ~IsolatedCand;
+        if CandCat.isColumn('R_SN')
+            R_SN = CandCat.getCol('R_SN');
+            IsolatedCand = ((abs(R_SN) < 3) | (R_MAG_PSF > R_LIMMAG));
+            BlendedCand = ~IsolatedCand;
+        end
 
         % Get candidate New and Ref bits masks values
         N_BM = CandCat.getCol('N_FLAGS');
@@ -389,7 +401,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Get candidates near saturated sources
         BitsSatCut = Obj(Iobj).MaskData.bitwise_cutouts([X,Y], ...
-                'or', 'HalfSize',Args.SaturatedNeighborDistanceThreshold);
+                'or', 'HalfSize', Args.SaturatedNeighborDistanceThreshold);
         NearSaturated = BD_IM.findBit(BitsSatCut,'Saturated');
 
         SaturatedPixels = BD_IM.findBit(Obj.Mask,'Saturated');
@@ -399,21 +411,33 @@ function TranCat = flagNonTransients(Obj, Args)
         SaturationCentroids = vertcat(SaturatedIslands_Props.Centroid);
 
         % Check N and R PSFs
-        N_X2 = CandCat.getCol('N_X2');
-        N_Y2 = CandCat.getCol('N_Y2');
+        if CandCat.isColumn('N_X2')
+            N_X2 = CandCat.getCol('N_X2');
+        end
+        if CandCat.isColumn('N_Y2')
+            N_Y2 = CandCat.getCol('N_Y2');
+        end
 
-        N_GoodPSF = ...
-                  (N_X2 < Args.SecondMomSoftLim) & ...
-                  (N_Y2 < Args.SecondMomSoftLim) & ...
-                  (abs(N_X2-N_Y2) < Args.SecondMomAsymLim);
+        if exist('N_X2', 'var') && exist('N_Y2', 'var')
+            N_GoodPSF = ...
+                      (N_X2 < Args.SecondMomSoftLim) & ...
+                      (N_Y2 < Args.SecondMomSoftLim) & ...
+                      (abs(N_X2-N_Y2) < Args.SecondMomAsymLim);
+        end
 
-        R_X2 = CandCat.getCol('R_X2');
-        R_Y2 = CandCat.getCol('R_Y2');
-
-        R_GoodPSF = ...
-                  (R_X2 < Args.SecondMomHardLim) & ...
-                  (R_Y2 < Args.SecondMomHardLim) & ...
-                  (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
+        if CandCat.isColumn('R_X2')
+            R_X2 = CandCat.getCol('R_X2');
+        end
+        if CandCat.isColumn('R_Y2')
+            R_Y2 = CandCat.getCol('R_Y2');
+        end
+        
+        if exist('R_X2', 'var') && exist('R_Y2', 'var')
+            R_GoodPSF = ...
+                      (R_X2 < Args.SecondMomHardLim) & ...
+                      (R_Y2 < Args.SecondMomHardLim) & ...
+                      (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
+        end
 
         % Get star matched candidates
         if CandCat.isColumn('STAR_N')
@@ -428,11 +452,16 @@ function TranCat = flagNonTransients(Obj, Args)
         else
             GalCand = false(NumCand,1);
         end
-                
+
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
-            NuclearCand = GalDist < 3.0;
+            % 4sig for nuclear check, dirty, I know
+            % TODO: rather than doing this here, match2Galaxies should be
+            % extended to determined if a source is nuclear or not,
+            % probably best to write a dedicated matchTransients2Galaxies
+            % function which uses the N, R, and D catalogs
+            NuclearCand = GalDist < PointLimit*4/3; 
         else
             NuclearCand = false(NumCand,1);
         end
@@ -582,6 +611,22 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % ----- PSF Shape -----
 
+        if Args.flagExtended && CandCat.isColumn('SN_ext')
+
+            SN_ext = CandCat.getCol('SN_ext');
+
+            ExtendedThreshold = zeros(NumCand,1);
+
+            if exist('NearSaturated', 'var')
+                ExtendedThreshold = ExtendedThreshold + Args.ExtendedSatDelta*NearSaturated;
+            end
+
+            ExtendedSource = abs(Score) - abs(SN_ext) < ExtendedThreshold;
+
+            FilterFlags = FilterFlags + ExtendedSource.*2.^BD_TF.name2bit('Extended');
+
+        end
+
         if Args.flagDPSFShape
             X2 = CandCat.getCol('X2');
             Y2 = CandCat.getCol('Y2');
@@ -683,7 +728,7 @@ function TranCat = flagNonTransients(Obj, Args)
                     DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
                     % Ignore self-contamination.
-                    IdxRef = IdxRef(DistRad > 3.0*Arcsec2Rad);
+                    IdxRef = IdxRef(DistRad > PointLimit*Arcsec2Rad);
 
                     if isempty(IdxRef)
                         N_Passes_Local(ICand) = true;
@@ -697,7 +742,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 
                     N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag);
                 end
-
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
@@ -892,7 +936,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % We're matching galaxy nuclei, so the matching radius is
                 % on candidate postions.
                 MatchResQSO = VO.search.search_sortedlat_multi( ...
-                    [QSOLon, QSOLat], RA, Dec, -3*Arcsec2Rad);
+                    [QSOLon, QSOLat], RA, Dec, -PointLimit*Arcsec2Rad);
     
                 % Flag candidates as variable if matched to a QSO.
                 VariableGal = vertcat(MatchResQSO.Nmatch) > 0;
@@ -906,7 +950,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Get star distances and find stars matched on candidate
             % position.
             StarDist = CandCat.getCol('STAR_DIST');
-            NearStar = StarDist <= 3.0;
+            NearStar = StarDist <= PointLimit;
 
             % Use the maxium candidate distance + maximum star distance
             % among candidates as search radius for variable stars.
@@ -1084,7 +1128,11 @@ function TranCat = flagNonTransients(Obj, Args)
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
-            ExcludeCand = IsolatedCand | (GalCand & ~NuclearCand & ~StarCand);
+            ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
+
+            if exist('IsolatedCand', 'var')
+                ExcludeCand = ExcludeCand | IsolatedCand;
+            end
 
             if exist('N_Passes_PSF_Global','var')
                 ExcludeCand = ExcludeCand & N_Passes_PSF_Global;

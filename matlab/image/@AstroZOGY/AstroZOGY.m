@@ -842,10 +842,10 @@ classdef AstroZOGY < AstroDiff
                 Args.PopS_delta logical      = true;
                 Args.DeltaWidth              = 0.1;
                 Args.DeltaStampSize          = [3 3];
-                Args.PopS_ext logical        = false;
+                Args.PopS_ext logical        = true;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
-                Args.ExtendedFunArgs             = [0.5];
+                Args.ExtendedFunArgs             = [1.0];
 
                 Args.Eps                    = 1e-5;
             end
@@ -866,9 +866,8 @@ classdef AstroZOGY < AstroDiff
                     PSF         = Obj(Iobj).PSFData.getPSF;
                     ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
                     ExtPSF      = conv2(PSF, ExtendedFun, 'same');
-                    FullExtPSF  = imUtil.psf.padShift(ExtPSF, size(Obj(Iobj).Image));
                     
-                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* ifft2(Obj(Iobj).D_hat.*conj(fft2(FullExtPSF)));
+                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, ExtPSF);
                 end
 
                 if Args.PopS_hat
@@ -1072,8 +1071,8 @@ classdef AstroZOGY < AstroDiff
                 Args.RN_New      = 2.7;  % Read noise in electrons [single image]
                 Args.RN_Ref      = 2.7;  % Read noise in electrons [single image]
 
-                Args.SysNoiseN   = [];
-                Args.SysNoiseR   = [];
+                Args.SysNoiseN   = 0.015;
+                Args.SysNoiseR   = 0.015;
 
                 Args.SigmaAstNew = 0.1;   % astrometric noise in pixels.
                 Args.SigmaAstRef = 0.1;   % astrometric noise in pixels.
@@ -1499,7 +1498,7 @@ classdef AstroZOGY < AstroDiff
         % Inject artificial sources to the New/Ref images
         %   Will store original New/Ref images in the OrigImage property.
 
-    end   
+    end
     
     methods (Static) % Unit-Test
         Result = unitTest()

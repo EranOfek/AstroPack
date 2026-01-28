@@ -116,9 +116,10 @@ classdef AstroTable < Component
             %                   'ipac' | 'txt' | 'mat' | ...
             %            'TableType' - FITS table type: ['auto'] | 'bintable' | 'table'
             %            'HDU' - FITS HDU number or HDF5 dataset name.
-            %            'ArgsreadTable1' - A cell array of additional
-            %                   arguments to pass to FITS.readTable1.
-            %                   Default is {}.
+            %            'readTableArgs' - A cell array of additional
+            %                   arguments to pass to FITS.readTable1, 
+            %                   e.g. {'ValidateColumnNames',true} to avoid column names started with "_"
+            %                   Default is {}. 
             %            'ConvertTable2array' - When eading a FITS table,
             %                   attempt to convert the table to an array (only of
             %                   all columns are of class double).
@@ -148,7 +149,7 @@ classdef AstroTable < Component
                 Args.FileType                 = []; % 'fits' | 'hdf5' | ...
                 Args.HDU                      = 1;  % HDU or dataset name
                 Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
-                Args.readTableArgs            = {};
+                Args.readTableArgs            = {}; % e.g., {'ValidateColumnNames',true} to avoid column names started with "_"
                 Args.ConvertTable2array       = true;  % only if all columns are double
             end
             
@@ -797,6 +798,22 @@ classdef AstroTable < Component
             end
         end
         
+        function ColUnit = colind2unit(Obj, ColInd)
+            % Return column units corresponding to column indices
+            % Input  : - A single element AstroCatlog object
+            %          - A vector of column indices.
+            % Output : - A cell array of column units corresponding to the
+            %            column indices.
+            % Example: colind2unit(AC,[2 1])
+           
+            if iscell(ColInd) || isstring(ColInd)
+                % assume already in cell format
+                ColUnit = ColInd;
+            else
+                ColUnit = Obj.ColUnits(ColInd);
+            end
+        end
+        
         function [ColInd, ColName, IndOfSelectedName] = colnameDict2ind(Obj, ColNames)
             % Given a list of column names, select the first that appear in Table
             % Input  : - An AstroTable (single element)
@@ -1241,6 +1258,7 @@ classdef AstroTable < Component
                 Args.IsTable logical          = false;
                 Args.AddEntryPerElement       = [];
                 Args.AddColNames cell         = {};
+                Args.AddColUnits cell         = {};
             end
             
             Nobj     = numel(Obj);
@@ -1254,7 +1272,8 @@ classdef AstroTable < Component
                 end
                 ColNames = colind2name(Obj(Imax), Columns);
                 ColIndC  = colname2ind(Obj(Imax), Columns);
-                
+                ColUnits = colind2unit(Obj(Imax), ColIndC);
+                                
                 Ncol     = numel(ColNames);
                 if isa(Obj, 'AstroCatalog')
                     NewObj   = AstroCatalog;
@@ -1266,6 +1285,7 @@ classdef AstroTable < Component
                 NextraCol    = size(Args.AddEntryPerElement,2);
     
                 NewObj.ColNames = [ColNames, Args.AddColNames];
+                NewObj.ColUnits = [ColUnits, Args.AddColUnits];
                 NewObj.Catalog = zeros(0,Ncol+NextraCol);
                 if Args.IsTable
                     NewObj.Catalog = array2table(NewObj.Catalog);

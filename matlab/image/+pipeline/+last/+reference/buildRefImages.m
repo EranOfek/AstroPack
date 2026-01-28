@@ -176,6 +176,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                  '_clear_',string(TabEpoch.fieldid(Icrop)),'_000_001_',compose('%03d',TabEpoch.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
                              AI(Icrop)= AstroImage.readProducts(FN); 
+                             AI(Icrop).CatData.JD = AI(Icrop).julday;
                              % NB: no data on background or variance is kept in the archive (Euclid), need to re-measure    
                         end
                         

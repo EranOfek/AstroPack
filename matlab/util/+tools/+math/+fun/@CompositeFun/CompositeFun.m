@@ -178,13 +178,13 @@ classdef CompositeFun < handle
     
        % Build transmission model with Tran2D position corrections and metadata injection
        Model = tools.math.fun.CompositeFun.model(FunList, ...
-           'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2), ...
-                                    'Pressure_mbar', 965, 'Temperature_C', 15), ...
+           'MetadataValues', {'ZenithAngle_deg', acosd(1.0/1.2), ...
+                              'Pressure_mbar', 965, 'Temperature_C', 15}, ...
            'UseTran2D', true, 'Tran2DType', 'cheby1_4_xt', ...
            'XPixel', 1726, 'YPixel', 1726, 'Verbose', true);
        % Or build model without position corrections
        Model = tools.math.fun.CompositeFun.model(FunList, ...
-           'MetadataValues', struct('ZenithAngle_deg', acosd(1.0/1.2)), ...
+           'MetadataValues', {'ZenithAngle_deg', acosd(1.0/1.2)}, ...
            'UseTran2D', false);
     
     % Example - Cost Function Evaluation with costFun:
@@ -266,9 +266,9 @@ classdef CompositeFun < handle
     
        % Setup CostArgs for TransmissionMode
        % WeightMatrix = calibrator spectra (default: Gaia DR3 XP, or synthetic/model spectra)
-       CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
+       CostArgs = {'WeightMatrix', Spec, 'TransmissionMode', true, ...
            'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
-           'Aperture_area_m2', pi * (0.1397)^2);
+           'Aperture_area_m2', pi * (0.1397)^2};
     
        % Fit transmission + position with sigma clipping
        % NOTE: FitPosition requires TransmissionMode (magnitude residuals)
@@ -317,9 +317,9 @@ classdef CompositeFun < handle
        Y = rand(N_calib, 1) * 1726;
     
        % Setup CostArgs for TransmissionMode
-       CostArgs = struct('WeightMatrix', Spec, 'TransmissionMode', true, ...
+       CostArgs = {'WeightMatrix', Spec, 'TransmissionMode', true, ...
            'CalibWavelength', SpecWvl, 'ExpTime', 20, ...
-           'Aperture_area_m2', pi * (0.1397)^2);
+           'Aperture_area_m2', pi * (0.1397)^2};
     
        % Run multi-stage optimization
        [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
@@ -439,11 +439,21 @@ classdef CompositeFun < handle
         % Position-dependent correction (Tran2D integration)
         Tran2DObj = []           % Tran2D object for spatial corrections
         UseTran2D logical = false  % Flag to enable Tran2D evaluation
+        NameTran2D = ''          % Name/type of Tran2D transformation (e.g., 'cheby1_3', 'poly_2')
 
         % Fit quality metrics (set by fitPar)
         RMS = NaN                % RMS of residuals from last fit
         Chi2 = NaN               % Chi-squared value from last fit
         DOF = NaN                % Degrees of freedom from last fit
+
+        % Status log for error/warning tracking (accumulated across method calls)
+        StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {})
+                                 % Struct array with fields:
+                                 %   .Function   - Method name that generated the status
+                                 %   .Level      - 'error', 'warning', or 'info'
+                                 %   .Message    - Status message text
+                                 %   .Identifier - Error identifier (from ME.identifier)
+                                 %   .Timestamp  - Time of occurrence (datestr)
     end
 
     methods % Constructor
@@ -460,6 +470,105 @@ classdef CompositeFun < handle
         end
     end
 
+    methods % Status logging utilities
+        function Obj = addStatus(Obj, FunctionName, Level, Message, Identifier)
+            % Add a status entry to the log
+            % Input  : - Obj - CompositeFun object
+            %          - FunctionName - Name of the method generating the status
+            %          - Level - 'error', 'warning', or 'info'
+            %          - Message - Status message text
+            %          - Identifier - (optional) Error identifier. Default is ''.
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Model.addStatus('fitPar', 'warning', 'Convergence issue', '');
+
+            arguments
+                Obj
+                FunctionName char
+                Level char
+                Message char
+                Identifier char = ''
+            end
+
+            NewEntry.Function = FunctionName;
+            NewEntry.Level = Level;
+            NewEntry.Message = Message;
+            NewEntry.Identifier = Identifier;
+            NewEntry.Timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Obj.StatusLog = NewEntry;
+            else
+                Obj.StatusLog(end+1) = NewEntry;
+            end
+        end
+
+        function Log = getStatus(Obj, Level)
+            % Get status log entries, optionally filtered by level
+            % Input  : - Obj - CompositeFun object
+            %          - Level - (optional) Filter: 'error', 'warning', 'info', or 'all'
+            %                    Default is 'all'.
+            % Output : - Log - Struct array of status entries
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Errors = Model.getStatus('error');
+
+            arguments
+                Obj
+                Level char = 'all'
+            end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Log = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+                return;
+            end
+
+            if strcmp(Level, 'all')
+                Log = Obj.StatusLog;
+            else
+                Mask = strcmp({Obj.StatusLog.Level}, Level);
+                Log = Obj.StatusLog(Mask);
+            end
+        end
+
+        function Obj = clearStatus(Obj)
+            % Clear all status log entries
+            % Input  : - Obj - CompositeFun object
+            % Output : - Obj - Updated object (for chaining)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Model.clearStatus();
+
+            Obj.StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
+        end
+
+        function Result = hasErrors(Obj)
+            % Check if any error-level status entries exist
+            % Input  : - Obj - CompositeFun object
+            % Output : - Result - Logical, true if errors present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if Model.hasErrors(), disp('Errors occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'error'));
+            end
+        end
+
+        function Result = hasWarnings(Obj)
+            % Check if any warning-level status entries exist
+            % Input  : - Obj - CompositeFun object
+            % Output : - Result - Logical, true if warnings present
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: if Model.hasWarnings(), disp('Warnings occurred'); end
+
+            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
+                Result = false;
+            else
+                Result = any(strcmp({Obj.StatusLog.Level}, 'warning'));
+            end
+        end
+    end
+
     methods (Static) % Factory methods
         function Obj = model(FunList, Args)
             % Build CompositeFun model from function specification list
@@ -471,8 +580,9 @@ classdef CompositeFun < handle
             %                   .params - Parameter values (numeric array)
             %                   .paraminfo - Struct array with fields: .name, .min, .max
             %          * ...,key,val,...
-            %            'MetadataValues' - Struct with metadata name-value pairs to inject
-            %                   Default is struct().
+            %            'MetadataValues' - Cell array with metadata name-value pairs to inject
+            %                   Format: {'Name1', Value1, 'Name2', Value2, ...}
+            %                   Default is {}.
             %            'OptimizationSequence' - Optimization sequence struct array defining multi-stage fitting.
             %                   Default is [] (no optimization sequence set).
             %            'UseTran2D' - Enable position-dependent corrections using Tran2D
@@ -494,13 +604,13 @@ classdef CompositeFun < handle
             %          FunList(1).ParamInfo(2).Name = 'param2';
             %          FunList(1).ParamInfo(2).Min = 0;
             %          FunList(1).ParamInfo(2).Max = 5;
-            %          Metadata = struct('param1', 1.5);
+            %          Metadata = {'param1', 1.5};
             %          Model = tools.math.fun.CompositeFun.model(FunList, ...
             %              'MetadataValues', Metadata, 'UseTran2D', true);
 
             arguments
                 FunList struct
-                Args.MetadataValues struct = struct()
+                Args.MetadataValues cell = {}
                 Args.OptimizationSequence = []
                 Args.UseTran2D logical = false
                 Args.Tran2DType = 'cheby1_4_xt'
@@ -535,11 +645,6 @@ classdef CompositeFun < handle
                     Params = cell2mat(Params);
                 end
 
-                % Validate Params is numeric array
-                if ~isnumeric(Params)
-                    error('Parameters for function %s must be numeric array', FunName);
-                end
-
                 % Convert paraminfo from cell array to struct array if needed (from YAML)
                 if iscell(ParamInfo)
                     ParamInfo = [ParamInfo{:}];
@@ -560,12 +665,6 @@ classdef CompositeFun < handle
                     end
                 else
                     FitPar = false(1, NumParams);
-                end
-
-                % Validate that params and paraminfo have matching lengths
-                if NumParams ~= length(ParamInfo)
-                    error('Function "%s" has %d params but %d paraminfo entries. These must match.', ...
-                          FunName, NumParams, length(ParamInfo));
                 end
 
                 % Build ArgNames structure
@@ -604,7 +703,8 @@ classdef CompositeFun < handle
             end
 
             % Inject metadata values if provided
-            if ~isempty(fieldnames(Args.MetadataValues))
+            % MetadataValues is a cell array: {'Name1', Value1, 'Name2', Value2, ...}
+            if ~isempty(Args.MetadataValues)
                 if Args.Verbose
                     fprintf('\nInjecting metadata values:\n');
                 end
@@ -612,11 +712,10 @@ classdef CompositeFun < handle
                 % Get all parameters structure from CompositeFun
                 AllFunPar = Obj.getAllFunPar();
 
-                % Update parameters by name matching
-                MetadataNames = fieldnames(Args.MetadataValues);
-                for I = 1:length(MetadataNames)
-                    MetaName = MetadataNames{I};
-                    MetaValue = Args.MetadataValues.(MetaName);
+                % Iterate through name-value pairs
+                for I = 1:2:length(Args.MetadataValues)
+                    MetaName = Args.MetadataValues{I};
+                    MetaValue = Args.MetadataValues{I+1};
 
                     % Find parameter with matching name
                     Idx = find(strcmp(AllFunPar.Name, MetaName), 1);
@@ -659,6 +758,9 @@ classdef CompositeFun < handle
                 % Add Tran2D to CompositeFun model without normalization
                 % (normalization not needed for iterative optimization)
                 Obj.addTran2D(T2D, 'Verbose', Args.Verbose);
+
+                % Store Tran2D transformation name
+                Obj.NameTran2D = Args.Tran2DType;
 
                 if Args.Verbose
                     fprintf('Tran2D added: %s (%d parameters)\n', Args.Tran2DType, Nparams);
@@ -897,36 +999,10 @@ classdef CompositeFun < handle
             %   AllFunPar.Max(2) = 500;     % Set upper bound
             %   Model.setAllFunPar(AllFunPar);
 
-            % Validate input structure
-            if ~isstruct(AllFunPar) || ~isfield(AllFunPar, 'Val') || ~isfield(AllFunPar, 'FitPar')
-                error('CompositeFun:setAllFunPar:InvalidInput', 'Input must be structure with Val and FitPar fields');
-            end
-
             NumAllFunPar = Obj.numAllFunPar();
 
-            % Validate sizes
-            if length(AllFunPar.Val) ~= NumAllFunPar
-                error('CompositeFun:setAllFunPar:ValuesSizeMismatch', ...
-                      'Val has %d elements but %d expected', length(AllFunPar.Val), NumAllFunPar);
-            end
-            if length(AllFunPar.FitPar) ~= NumAllFunPar
-                error('CompositeFun:setAllFunPar:FitParSizeMismatch', ...
-                      'FitPar has %d elements but %d expected', length(AllFunPar.FitPar), NumAllFunPar);
-            end
-
-            % Validate bounds if provided
-            UpdateBounds = false;
-            if isfield(AllFunPar, 'Min') && isfield(AllFunPar, 'Max')
-                if length(AllFunPar.Min) ~= NumAllFunPar
-                    error('CompositeFun:setAllFunPar:MinSizeMismatch', ...
-                          'Min has %d elements but %d expected', length(AllFunPar.Min), NumAllFunPar);
-                end
-                if length(AllFunPar.Max) ~= NumAllFunPar
-                    error('CompositeFun:setAllFunPar:MaxSizeMismatch', ...
-                          'Max has %d elements but %d expected', length(AllFunPar.Max), NumAllFunPar);
-                end
-                UpdateBounds = true;
-            end
+            % Check if bounds should be updated
+            UpdateBounds = isfield(AllFunPar, 'Min') && isfield(AllFunPar, 'Max');
 
             % Update all functions with new values, FitPar flags, and bounds
             for Ifun = 1:numel(Obj.Funs)
@@ -1035,7 +1111,7 @@ classdef CompositeFun < handle
 
                         % Add current entry to existing list
                         NewEntry = {Ifun, Ipar, ParamValue};
-                        ExistingEntries = [ExistingEntries, {NewEntry}];  % Concatenate instead of dynamic indexing
+                        ExistingEntries{end+1} = NewEntry;  %#ok<AGROW>
                         GlobalParamMap(GlobalIndex) = ExistingEntries;
                     else
                         % First time seeing this global parameter
@@ -1045,8 +1121,10 @@ classdef CompositeFun < handle
             end
 
             % Check for NaN fixed parameters (informational warning, not error)
-            % Use cell array to avoid size-changing warnings
-            NaNFixedParamsCell = {};
+            % Pre-allocate cell array to avoid size-changing in loop
+            TotalParams = sum(arrayfun(@(f) length(f.Par), Obj.Funs));
+            NaNFixedParamsCell = cell(1, TotalParams);
+            NaNCount = 0;
             for Ifun = 1:numel(Obj.Funs)
                 for Ipar = 1:length(Obj.Funs(Ifun).Par)
                     if ~Obj.Funs(Ifun).FitPar(Ipar) && isnan(Obj.Funs(Ifun).Par(Ipar))
@@ -1056,11 +1134,13 @@ classdef CompositeFun < handle
                         else
                             ParamName = sprintf('Param_%d', GlobalIndex);
                         end
-                        NewEntry = {GlobalIndex, Ifun, Ipar, ParamName, Obj.Funs(Ifun).Desc};
-                        NaNFixedParamsCell = [NaNFixedParamsCell, {NewEntry}];
+                        NaNCount = NaNCount + 1;
+                        NaNFixedParamsCell{NaNCount} = {GlobalIndex, Ifun, Ipar, ParamName, Obj.Funs(Ifun).Desc};
                     end
                 end
             end
+            % Trim to actual size
+            NaNFixedParamsCell = NaNFixedParamsCell(1:NaNCount);
 
             % Convert to matrix if there are any NaN fixed params
             if ~isempty(NaNFixedParamsCell)
@@ -1119,19 +1199,6 @@ classdef CompositeFun < handle
             try
                 % Call function with GetArgNames flag to get parameter info
                 ArgNames = FunctionHandle('GetArgNames', true);
-
-                if isempty(ArgNames) || ~isstruct(ArgNames)
-                    error('Function did not return valid ArgNames structure');
-                end
-
-                % Validate structure has required fields
-                RequiredFields = {'Name', 'Description', 'Min', 'Max'};
-                for i = 1:length(RequiredFields)
-                    if ~isfield(ArgNames, RequiredFields{i})
-                        error('ArgNames missing required field: %s', RequiredFields{i});
-                    end
-                end
-
             catch ME
                 error('CompositeFun:extractArgFuns:Failed', ...
                       'Cannot extract ArgNames from function handle: %s', ME.message);
@@ -1201,11 +1268,6 @@ classdef CompositeFun < handle
             % Set FitPar default if not provided
             if isempty(FitPar)
                 FitPar = false(size(Par));  % Already returns logical
-            end
-
-            % Validate sizes
-            if length(Par) ~= length(FitPar)
-                error('CompositeFun:addFun:SizeMismatch', 'Par and FitPar must have the same length');
             end
 
             % Create an entry for new function 
@@ -1279,15 +1341,6 @@ classdef CompositeFun < handle
 
             % Now process the last function's parameters
             for Ipar = 1:NumParams
-                % Validate ArgNames
-                if isempty(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:MissingArgNames', 'ArgNames is empty for function %s', CurrentFun.Name);
-                end
-                if Ipar > length(CurrentFun.ArgNames)
-                    error('CompositeFun:argMapping:ArgNamesMismatch', 'ArgNames has %d elements but Par has %d elements for function %s', ...
-                          length(CurrentFun.ArgNames), NumParams, CurrentFun.Name);
-                end
-
                 % Get parameter name (stored in Description field)
                 ParamName = CurrentFun.ArgNames(Ipar).Description;
 
@@ -1367,14 +1420,8 @@ classdef CompositeFun < handle
                 AllFunPar = [];
             end
 
-            % Validate AllFunPar size if provided
+            % Determine number of parameter sets
             if ~isempty(AllFunPar)
-                ExpectedSize = Obj.numAllFunPar();
-                if size(AllFunPar, 2) ~= ExpectedSize
-                    error('CompositeFun:evaluate:AllFunParSizeMismatch', ...
-                          'AllFunPar has %d columns but %d expected', ...
-                          size(AllFunPar, 2), ExpectedSize);
-                end
                 NumParamSets = size(AllFunPar, 1);
             else
                 NumParamSets = 1;
@@ -1641,7 +1688,7 @@ classdef CompositeFun < handle
             % Step 4: Calculate position-dependent correction in magnitude space
             % Use Tran2D's forward() method - it returns [Xi, Yi] where Xi is the magnitude correction
             Coo = [X, Y];
-            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(X, Y, 'false');
+            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(X, Y, false);
             FieldCorrectionMag = FieldCorrectionMag(:);  % [N_sources x 1]
 
             % Check for invalid values from Tran2D
@@ -1895,12 +1942,12 @@ classdef CompositeFun < handle
             DummyY = zeros(size(MagResid));
 
             % Use Tran2D's fitDesignMatrix method
-            % MagResid follows convention: Observed - Predicted (positive when model too bright)
-            % Combined with evaluation using +0.4 factor, this produces:
-            %   - ParX with same sign as legacy PosParams
-            %   - Transmission ≤ 1.0 for positive residuals (model too bright)
-            %   - Cost matching legacy method
-            [FitPosResult, Obj.Tran2DObj] = Obj.Tran2DObj.fitDesignMatrix(Hx, Hy, -MagResid, DummyY, ...
+            % MagResid follows convention: Mag_obs - Mag_pred (positive when model too bright in flux)
+            % ParX fitted to MagResid directly, so:
+            %   - FieldCorrectionMag = Hx * ParX ≈ MagResid
+            %   - T_correction = 10^(-0.4 * FieldCorrectionMag)
+            %   - If model too bright (MagResid > 0), T_correction < 1, reducing transmission
+            [FitPosResult, Obj.Tran2DObj] = Obj.Tran2DObj.fitDesignMatrix(Hx, Hy, MagResid, DummyY, ...
                                                                      'Method', Args.Method, ...
                                                                      'ErrX', Args.ErrMag, ...
                                                                      'ErrY', []);
@@ -2002,6 +2049,10 @@ classdef CompositeFun < handle
                 Args.ValInp logical = true
                 Args.Verbose logical = false
             end
+            
+            
+                H = constant.h('SI');      % Planck constant [J·s]
+                C = constant.c('SI');      % Speed of light [m/s]
 
             % ====================================================================
             % STEP 1: VALIDATE INPUTS
@@ -2173,8 +2224,6 @@ classdef CompositeFun < handle
                 A_vector = A_vector(:);  % [N_obs x 1]
 
                 % Convert to photons
-                H = constant.h('SI');      % Planck constant [J·s]
-                C = constant.c('SI');      % Speed of light [m/s]
                 B = H * C * 1e10;          % H*C with Angstrom to m conversion (1 Angstrom = 1e-10 m)
 
                 Dt = Args.ExpTime;
@@ -2294,8 +2343,8 @@ classdef CompositeFun < handle
             %          - ObservedValues - Observed values to be compared to
             %          the model [N_obs x 1] (e.g. observed flux)
             %          * ...,key,val,...
-            %            'CostArgs' - Struct with additional arguments to pass to Obj.costFun
-            %                   Default is struct().
+            %            'CostArgs' - Cell array with additional arguments to pass to Obj.costFun (key-value pairs)
+            %                   Default is {}.
             %            'X' - Source X coordinates [N_obs x 1] for Tran2D corrections
             %                   Required if UseTran2D is true. Default is [].
             %            'Y' - Source Y coordinates [N_obs x 1] for Tran2D corrections
@@ -2328,9 +2377,6 @@ classdef CompositeFun < handle
             %                   .SigmaIter - Number of sigma clipping iterations
             %                   .Description - Description of the stage
             %                   Default is [] (single-stage mode if Obj.OptSeq is also empty).
-            %            'ObsUncertainties' - Observation uncertainties [N_obs x 1]
-            %                   Used for Chi2 calculation. If empty, Chi2 = NaN.
-            %                   Default is [].
             %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - Updated CompositeFun object with fitted parameters
@@ -2338,13 +2384,14 @@ classdef CompositeFun < handle
             %          - FitResult - Structure with fields:
             %                   Single-stage mode:
             %                     .Cost - Final cost value
-            %                     .RMS - Final RMS of residuals
+            %                     .RMS - RMS of residuals from lsqNonLinWithFixed
             %                     .Residuals - Final residuals [N_obs x 1]
             %                     .NumObs - Number of observations after clipping
             %                     .NumClipped - Number of clipped outliers
+            %                     .KeepMask - Logical mask [N_obs_initial x 1] of surviving observations
             %                     .ConvergedSigmaClip - True if sigma clipping converged
-            %                     .Chi2 - Chi-squared value (NaN if uncertainties not provided)
-            %                     .DOF - Degrees of freedom
+            %                     .Chi2 - Chi-squared from lsqNonLinWithFixed
+            %                     .DOF - Degrees of freedom from lsqNonLinWithFixed
             %                   Multi-stage mode: Array of structs with per-stage results
             %                     FitResult(i).StageName, .Method, .Cost, .RMS, .Residuals,
             %                     .NumObs, .NumClipped, .IsFieldCorrection, .Chi2, .DOF
@@ -2376,8 +2423,8 @@ classdef CompositeFun < handle
             %          OptSeq(2).Description = 'Position-dependent field correction';
             %          % Build model with Tran2D
             %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
-            %          CostArgs = struct('WeightMatrix', CalibSpec, 'TransmissionMode', true, ...
-            %                           'CalibWavelength', SpecWvl, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
+            %          CostArgs = {'WeightMatrix', CalibSpec, 'TransmissionMode', true, ...
+            %                      'CalibWavelength', SpecWvl, 'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2};
             %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
             %              'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
             %              'OptimizationSequence', OptSeq, 'Verbose', true);
@@ -2389,7 +2436,7 @@ classdef CompositeFun < handle
                 Obj
                 InputValues
                 ObservedValues
-                Args.CostArgs struct = struct()
+                Args.CostArgs cell = {}
                 Args.X = []
                 Args.Y = []
                 Args.FitTransmission logical = true
@@ -2400,7 +2447,6 @@ classdef CompositeFun < handle
                 Args.SigmaIter = 5
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
-                Args.ObsUncertainties = []      % Observation uncertainties for Chi2 calculation
                 Args.ValInp logical = true
                 Args.Verbose logical = false
             end
@@ -2516,6 +2562,11 @@ classdef CompositeFun < handle
             CurrentX = Args.X;
             CurrentY = Args.Y;
 
+            % Initialize KeepMask to track which original observations survive clipping
+            NumObsInitial = length(ObservedValues);
+            KeepMask = true(NumObsInitial, 1);
+            CurrentIndices = (1:NumObsInitial)';  % Maps current obs to original indices
+
             NumIterations = Args.SigmaClip * Args.SigmaIter + ~Args.SigmaClip;
             ConvergedSigmaClip = false;
 
@@ -2545,13 +2596,12 @@ classdef CompositeFun < handle
                     % Signature: @(X_dummy, P) -> Residuals
                     % X_dummy is ignored, P is the full parameter vector
                     % Pass P directly to costFun via 'TransParams' argument
-                    CostArgsCell = [fieldnames(Args.CostArgs), struct2cell(Args.CostArgs)]';
                     if ~isempty(CurrentX)
                         ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
-                            CostArgsCell{:}, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY);
+                            Args.CostArgs{:}, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY);
                     else
                         ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
-                            CostArgsCell{:}, 'TransParams', P);
+                            Args.CostArgs{:}, 'TransParams', P);
                     end
 
                     % Dummy X (observation indices), Y = 0 (fit residuals to zero), uniform weights
@@ -2561,7 +2611,7 @@ classdef CompositeFun < handle
                     Sigma_weights = ones(NumCurrent, 1);
 
                     % Call lsqNonLinWithFixed
-                    [OptTransParams, ~, ~] = tools.math.fit.lsqNonLinWithFixed(...
+                    [OptTransParams, ~, MinimizerInfo] = tools.math.fit.lsqNonLinWithFixed(...
                         X_dummy, Y_target, Sigma_weights, ModelFun, ...
                         'InitPar', CurrentTransParams, ...
                         'FitPar', FitMask, ...
@@ -2572,10 +2622,6 @@ classdef CompositeFun < handle
                     % Update Obj with optimized parameters
                     AllFunPar.Val = OptTransParams;
                     Obj.setAllFunPar(AllFunPar);
-
-                    if Args.Verbose
-                        fprintf('Transmission optimization complete\n');
-                    end
                 end
 
                 % =============================================================
@@ -2594,12 +2640,11 @@ classdef CompositeFun < handle
                     Obj.Tran2DObj.ParX = zeros(1, length(SavedParX));
 
                     % Calculate residuals without position correction
-                    CostArgsCell = [fieldnames(Args.CostArgs), struct2cell(Args.CostArgs)]';
                     if ~isempty(CurrentX)
                         [BaseResiduals, ~, ~] = Obj.costFun(InputValues, CurrentObs, ...
-                            CostArgsCell{:}, 'X', CurrentX, 'Y', CurrentY);
+                            Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
                     else
-                        [BaseResiduals, ~, ~] = Obj.costFun(InputValues, CurrentObs, CostArgsCell{:});
+                        [BaseResiduals, ~, ~] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
                     end
 
                     % Restore position parameters
@@ -2609,10 +2654,6 @@ classdef CompositeFun < handle
                     % BaseResiduals are magnitude differences (Predicted - Observed)
                     [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
                         'Verbose', false);
-
-                    if Args.Verbose
-                        fprintf('Position optimization complete\n');
-                    end
                 end
 
                 % =============================================================
@@ -2620,18 +2661,17 @@ classdef CompositeFun < handle
                 % =============================================================
 
                 % Calculate current residuals with all fitted parameters
-                CostArgsCell = [fieldnames(Args.CostArgs), struct2cell(Args.CostArgs)]';
                 if ~isempty(CurrentX)
                     [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, ...
-                        CostArgsCell{:}, 'X', CurrentX, 'Y', CurrentY);
+                        Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
                 else
-                    [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, CostArgsCell{:});
+                    [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
                 end
 
-                RMS = sqrt(Cost / length(Residuals));
+                StageRMS = sqrt(Cost / length(Residuals));
 
                 if Args.Verbose
-                    fprintf('Current RMS: %.4f, NumObs: %d\n', RMS, length(Residuals));
+                    fprintf('Current RMS: %.4f, NumObs: %d\n', StageRMS, length(Residuals));
                 end
 
                 % Apply sigma clipping if enabled
@@ -2659,17 +2699,26 @@ classdef CompositeFun < handle
                     end
 
                     % Remove outliers
-                    KeepMask = ~OutlierMask;
-                    CurrentObs = CurrentObs(KeepMask);
+                    IterKeepMask = ~OutlierMask;
+
+                    % Update global KeepMask at original indices
+                    KeepMask(CurrentIndices(OutlierMask)) = false;
+                    CurrentIndices = CurrentIndices(IterKeepMask);
+
+                    CurrentObs = CurrentObs(IterKeepMask);
                     if ~isempty(CurrentX)
-                        CurrentX = CurrentX(KeepMask);
-                        CurrentY = CurrentY(KeepMask);
+                        CurrentX = CurrentX(IterKeepMask);
+                        CurrentY = CurrentY(IterKeepMask);
                     end
 
                     % Also subset WeightMatrix if present (for TransmissionMode)
-                    if isfield(Args.CostArgs, 'WeightMatrix') && ~isempty(Args.CostArgs.WeightMatrix)
+                    % Args.CostArgs is a cell array {key1, val1, key2, val2, ...}
+                    WeightMatrixIdx = find(strcmp(Args.CostArgs(1:2:end), 'WeightMatrix'));
+                    if ~isempty(WeightMatrixIdx)
+                        % WeightMatrixIdx is the index in the keys (1:2:end), so actual index is 2*WeightMatrixIdx
+                        ActualIdx = 2 * WeightMatrixIdx;
                         % WeightMatrix columns correspond to observations
-                        Args.CostArgs.WeightMatrix = Args.CostArgs.WeightMatrix(:, KeepMask);
+                        Args.CostArgs{ActualIdx} = Args.CostArgs{ActualIdx}(:, IterKeepMask);
                     end
 
                     if Args.Verbose
@@ -2688,32 +2737,37 @@ classdef CompositeFun < handle
 
             NumClipped = NumObsInitial - length(CurrentObs);
 
-            % Calculate Chi2 and DOF
-            [Chi2, DOF] = calculateChi2DOF(Obj, Residuals, Args.ObsUncertainties);
+            % Get quality metrics from minimizer if available
+            if exist('MinimizerInfo', 'var')
+                StageChi2 = MinimizerInfo.Chi2;
+                StageDOF = MinimizerInfo.Dof;
+                StageRMS = sqrt(sum(MinimizerInfo.Resid.^2) / length(MinimizerInfo.Resid));
+            else
+                StageChi2 = NaN;
+                StageDOF = NaN;
+                % StageRMS already calculated from costFun residuals
+            end
 
             % Store fit quality metrics in object
-            Obj.RMS = RMS;
-            Obj.Chi2 = Chi2;
-            Obj.DOF = DOF;
+            Obj.RMS = StageRMS;
+            Obj.Chi2 = StageChi2;
+            Obj.DOF = StageDOF;
 
             FitResult = struct();
             FitResult.Cost = Cost;
-            FitResult.RMS = RMS;
+            FitResult.RMS = StageRMS;
             FitResult.Residuals = Residuals;
             FitResult.NumObs = length(CurrentObs);
             FitResult.NumClipped = NumClipped;
+            FitResult.KeepMask = KeepMask;  % Logical mask of which original observations survived
             FitResult.ConvergedSigmaClip = ConvergedSigmaClip;
-            FitResult.Chi2 = Chi2;
-            FitResult.DOF = DOF;
+            FitResult.Chi2 = StageChi2;
+            FitResult.DOF = StageDOF;
 
             if Args.Verbose
-                fprintf('\n=== FITTING COMPLETE ===\n');
-                fprintf('Final cost: %.4e\n', Cost);
-                fprintf('Final RMS: %.4f\n', RMS);
-                fprintf('Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
-                if ~isnan(Chi2)
-                    fprintf('Chi2: %.4f, DOF: %d, Chi2/DOF: %.4f\n', Chi2, DOF, Chi2/DOF);
-                end
+                fprintf('\nTransmission optimization complete\n');
+                fprintf('  Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
+                fprintf('  RMS: %.4f\n', StageRMS);
             end
         end
 
@@ -2732,23 +2786,37 @@ classdef CompositeFun < handle
             % Author : D. Kovaleva (Nov 2025)
 
             % Use stored Obj.OptSeq directly (already set by fitPar)
-            OptSeq = Obj.OptSeq;
-            NumStages = length(OptSeq);
+            Stages = Obj.OptSeq;
+            NumStages = length(Stages);
 
             % Initialize results array
             FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
-                           'Residuals', {}, 'NumObs', {}, 'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
+                           'Residuals', {}, 'NumObs', {}, 'NumClipped', {}, 'KeepMask', {}, ...
+                           'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
 
             % Current data (will be updated after sigma clipping in each stage)
             CurrentObs = ObservedValues(:);
             CurrentX = Args.X(:);
             CurrentY = Args.Y(:);
-            if ~isempty(Args.ObsUncertainties)
-                CurrentUncertainties = Args.ObsUncertainties(:);  % Track uncertainties through clipping
-            else
-                CurrentUncertainties = [];
-            end
             CurrentCostArgs = Args.CostArgs;
+
+            % Track cumulative KeepMask across all stages (relative to original observations)
+            NumObsInitial = length(ObservedValues);
+            GlobalKeepMask = true(NumObsInitial, 1);
+            CurrentIndices = (1:NumObsInitial)';
+
+            % Setup optimization options once for all stages (avoid repeated optimoptions calls)
+            if isempty(Args.OptimOptions)
+                if Args.Verbose
+                    DisplayOpt = 'iter';
+                else
+                    DisplayOpt = 'off';
+                end
+                OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
+                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+            else
+                OptimOpts = Args.OptimOptions;
+            end
 
             if Args.Verbose
                 fprintf('\n=== MULTI-STAGE OPTIMIZATION ===\n');
@@ -2758,7 +2826,7 @@ classdef CompositeFun < handle
 
             % Loop through optimization stages
             for IStage = 1:NumStages
-                Stage = OptSeq(IStage);
+                Stage = Stages(IStage);
                 StageName = Stage.StageName;
                 FreeParamsStage = Stage.FreeParams;
                 SigmaClip = Stage.SigmaClip;
@@ -2768,7 +2836,18 @@ classdef CompositeFun < handle
                 % Detect field correction stage (empty freeparams)
                 IsFieldCorrectionStage = isempty(FreeParamsStage);
 
+                % Detect Norm-only linear stage (analytical solution)
+                IsNormOnlyLinear = false;
+                if ~IsFieldCorrectionStage && isfield(Stage, 'Method') && strcmp(Stage.Method, 'linear')
+                    % Check if only Norm parameter is being fitted
+                    if length(FreeParamsStage) == 1 && strcmp(FreeParamsStage(1).Parameter, 'Norm')
+                        IsNormOnlyLinear = true;
+                    end
+                end
+
                 if IsFieldCorrectionStage
+                    Method = 'linear';
+                elseif IsNormOnlyLinear
                     Method = 'linear';
                 else
                     Method = 'nonlinear';
@@ -2779,7 +2858,121 @@ classdef CompositeFun < handle
                     fprintf('Description: %s\n', Stage.Description);
                 end
 
-                if IsFieldCorrectionStage
+                if IsNormOnlyLinear
+                    % =============================================================
+                    % NORM-ONLY LINEAR STAGE: Analytical solution
+                    % =============================================================
+                    % Norm_opt = 10^(-mean(residuals_with_Norm1 / 2.5))
+                    % where residuals_with_Norm1 = 2.5 * log10(PredBase / Obs)
+
+                    if Args.Verbose
+                        fprintf('  Using analytical solution for Norm parameter\n');
+                    end
+
+                    % Get current Norm value and parameter index
+                    AllFunPar = Obj.getAllFunPar();
+                    NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+                    OriginalNorm = AllFunPar.Val(NormIdx);
+
+                    % Sigma clipping loop for Norm-only stage
+                    NumIterNorm = SigmaClip * SigmaIter + ~SigmaClip;
+                    CurrentObsNorm = CurrentObs;
+                    CurrentXNorm = CurrentX;
+                    CurrentYNorm = CurrentY;
+                    CurrentCostArgsNorm = CurrentCostArgs;
+                    KeepMaskNorm = true(length(CurrentObs), 1);
+
+                    for IterNorm = 1:NumIterNorm
+                        if Args.Verbose && SigmaClip
+                            fprintf('  Norm sigma clipping iteration %d/%d\n', IterNorm, SigmaIter);
+                        end
+
+                        % Set Norm=1 temporarily to get base residuals
+                        AllFunPar.Val(NormIdx) = 1.0;
+                        Obj.setAllFunPar(AllFunPar);
+
+                        % Compute residuals with Norm=1
+                        if ~isempty(CurrentXNorm)
+                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
+                        else
+                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:});
+                        end
+
+                        % Analytical solution: Norm_opt = 10^(-mean(residuals / 2.5))
+                        Norm_opt = 10^(-mean(Residuals_base) / 2.5);
+
+                        % Update Norm in model
+                        AllFunPar.Val(NormIdx) = Norm_opt;
+                        Obj.setAllFunPar(AllFunPar);
+
+                        if Args.Verbose
+                            fprintf('  Norm = %.6f (analytical)\n', Norm_opt);
+                        end
+
+                        % Compute final residuals with optimal Norm
+                        if ~isempty(CurrentXNorm)
+                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
+                        else
+                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                CurrentCostArgsNorm{:});
+                        end
+
+                        % Sigma clipping
+                        if SigmaClip && IterNorm < NumIterNorm
+                            ResidualStd = std(Residuals);
+                            OutlierMask = abs(Residuals) > SigmaThresh * ResidualStd;
+
+                            if any(OutlierMask)
+                                % Update KeepMask
+                                CurrentKeep = ~OutlierMask;
+                                KeepMaskNorm(KeepMaskNorm) = CurrentKeep;
+
+                                % Subset data
+                                CurrentObsNorm = CurrentObsNorm(CurrentKeep);
+                                if ~isempty(CurrentXNorm)
+                                    CurrentXNorm = CurrentXNorm(CurrentKeep);
+                                    CurrentYNorm = CurrentYNorm(CurrentKeep);
+                                end
+
+                                % Update WeightMatrix if present
+                                WeightMatrixIdx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
+                                if ~isempty(WeightMatrixIdx)
+                                    ActualIdx = 2 * WeightMatrixIdx;
+                                    CurrentCostArgsNorm{ActualIdx} = CurrentCostArgsNorm{ActualIdx}(:, CurrentKeep);
+                                end
+
+                                if Args.Verbose
+                                    fprintf('  Clipped %d outliers (%.1f sigma)\n', sum(OutlierMask), SigmaThresh);
+                                end
+                            else
+                                break;  % No more outliers
+                            end
+                        end
+                    end
+
+                    % Build StageResult structure
+                    StageRMS = std(Residuals);
+                    NumClipped = sum(~KeepMaskNorm);
+
+                    StageResult = struct();
+                    StageResult.Cost = sum(Residuals.^2);
+                    StageResult.RMS = StageRMS;
+                    StageResult.Residuals = Residuals;
+                    StageResult.NumObs = length(CurrentObsNorm);
+                    StageResult.NumClipped = NumClipped;
+                    StageResult.KeepMask = KeepMaskNorm;
+                    StageResult.ConvergedSigmaClip = true;
+                    StageResult.Chi2 = sum(Residuals.^2);
+                    StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
+
+                    if Args.Verbose
+                        fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
+                    end
+
+                elseif IsFieldCorrectionStage
                     % Field correction stage: fit position only
                     [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
                         'CostArgs', CurrentCostArgs, ...
@@ -2789,9 +2982,8 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
-                        'ObsUncertainties', CurrentUncertainties, ...
-                        'OptimizationSequence', OptSeq(IStage), ...
-                        'OptimOptions', Args.OptimOptions, ...
+                        'OptimizationSequence', Stages(IStage), ...
+                        'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 else
                     % Transmission parameter stage: set FitPar flags for specified parameters
@@ -2822,121 +3014,64 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
-                        'ObsUncertainties', CurrentUncertainties, ...
-                        'OptimizationSequence', OptSeq(IStage), ...
-                        'OptimOptions', Args.OptimOptions, ...
+                        'OptimizationSequence', Stages(IStage), ...
+                        'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
                 end
 
-                % Store stage results
+                % Update current data after sigma clipping using KeepMask from fitPar
+                if StageResult.NumClipped > 0
+                    % Use KeepMask directly from fitPar result (no recomputation needed)
+                    StageKeepMask = StageResult.KeepMask;
+
+                    % Update GlobalKeepMask at original indices
+                    ClippedInStage = ~StageKeepMask;
+                    GlobalKeepMask(CurrentIndices(ClippedInStage)) = false;
+                    CurrentIndices = CurrentIndices(StageKeepMask);
+
+                    if Args.Verbose
+                        fprintf('  Propagating clipped data: keeping %d/%d observations\n', ...
+                                sum(StageKeepMask), length(StageKeepMask));
+                    end
+
+                    % Update datasets for next stage
+                    CurrentObs = CurrentObs(StageKeepMask);
+                    if ~isempty(CurrentX)
+                        CurrentX = CurrentX(StageKeepMask);
+                        CurrentY = CurrentY(StageKeepMask);
+                    end
+
+                    % Update WeightMatrix if present (for TransmissionMode)
+                    WeightMatrixIdx = find(strcmp(CurrentCostArgs(1:2:end), 'WeightMatrix'));
+                    if ~isempty(WeightMatrixIdx)
+                        ActualIdx = 2 * WeightMatrixIdx;
+                        CurrentCostArgs{ActualIdx} = CurrentCostArgs{ActualIdx}(:, StageKeepMask);
+                    end
+                end
+
+                % Store stage results (after updating GlobalKeepMask)
                 FitResult(IStage).StageName = StageName;
                 FitResult(IStage).Method = Method;
                 FitResult(IStage).Cost = StageResult.Cost;
                 FitResult(IStage).RMS = StageResult.RMS;
                 FitResult(IStage).Residuals = StageResult.Residuals;
                 FitResult(IStage).NumObs = StageResult.NumObs;
-                FitResult(IStage).NumClipped = StageResult.NumClipped;
+                FitResult(IStage).NumClipped = NumObsInitial - sum(GlobalKeepMask);  % Cumulative clipped
+                FitResult(IStage).KeepMask = GlobalKeepMask;  % Cumulative mask relative to original
                 FitResult(IStage).IsFieldCorrection = IsFieldCorrectionStage;
                 FitResult(IStage).Chi2 = StageResult.Chi2;
                 FitResult(IStage).DOF = StageResult.DOF;
 
-                % Update current data after sigma clipping
-                if SigmaClip && StageResult.NumClipped > 0
-                    % Sigma clipping was enabled and observations were removed
-                    % We need to identify which observations to keep for the next stage
-
-                    % Calculate residuals with the fitted model
-                    CostArgsCell = [fieldnames(CurrentCostArgs), struct2cell(CurrentCostArgs)]';
-                    if ~isempty(CurrentX)
-                        [Residuals, ~, ~] = Obj.costFun(InputValues, CurrentObs, ...
-                            CostArgsCell{:}, 'X', CurrentX, 'Y', CurrentY);
-                    else
-                        [Residuals, ~, ~] = Obj.costFun(InputValues, CurrentObs, CostArgsCell{:});
-                    end
-
-                    % Apply sigma clipping to identify outliers
-                    MedianRes = median(Residuals);
-                    MAD = median(abs(Residuals - MedianRes));
-                    Sigma = 1.4826 * MAD;  % Convert MAD to std estimate
-
-                    % Find outliers
-                    OutlierMask = abs(Residuals - MedianRes) > SigmaThresh * Sigma;
-                    KeepMask = ~OutlierMask;
-
-                    if Args.Verbose
-                        fprintf('  Propagating sigma clipping: keeping %d/%d observations\n', ...
-                                sum(KeepMask), length(KeepMask));
-                    end
-
-                    % Update datasets for next stage
-                    CurrentObs = CurrentObs(KeepMask);
-                    if ~isempty(CurrentX)
-                        CurrentX = CurrentX(KeepMask);
-                        CurrentY = CurrentY(KeepMask);
-                    end
-                    if ~isempty(CurrentUncertainties)
-                        CurrentUncertainties = CurrentUncertainties(KeepMask);
-                    end
-
-                    % Update WeightMatrix if present (for TransmissionMode)
-                    if isfield(CurrentCostArgs, 'WeightMatrix') && ~isempty(CurrentCostArgs.WeightMatrix)
-                        % WeightMatrix is [N_wavelength x N_calibrators]
-                        % Keep only columns corresponding to non-outlier calibrators
-                        CurrentCostArgs.WeightMatrix = CurrentCostArgs.WeightMatrix(:, KeepMask);
-                    end
-                end
-
                 if Args.Verbose
-                    fprintf('Stage complete: Cost=%.4e, RMS=%.4f mag, NumObs=%d\n\n', ...
-                            StageResult.Cost, StageResult.RMS, StageResult.NumObs);
+                    fprintf('Stage complete: RMS=%.4f mag, NumObs=%d\n', ...
+                            StageResult.RMS, StageResult.NumObs);
+                    fprintf('\n');
                 end
             end
 
             if Args.Verbose
-                fprintf('=== MULTI-STAGE OPTIMIZATION COMPLETE ===\n\n');
+                fprintf('Transmission optimization complete\n\n');
             end
-        end
-    end
-
-    methods (Access = private)
-        function [Chi2, DOF] = calculateChi2DOF(Obj, Residuals, ObsUncertainties)
-            % Calculate Chi-squared and degrees of freedom from fit residuals
-            % Input  : - Obj - CompositeFun object
-            %          - Residuals - Fit residuals [N x 1]
-            %          - ObsUncertainties - Observation uncertainties [N x 1] or []
-            % Output : - Chi2 - Chi-squared value (NaN if uncertainties not provided)
-            %          - DOF - Degrees of freedom
-            % Author : D. Kovaleva (Dec 2025)
-
-            Chi2 = NaN;
-            DOF = NaN;
-
-            Residuals = Residuals(:);
-            NData = numel(Residuals);
-
-            % Calculate Chi2 if uncertainties are provided
-            if ~isempty(ObsUncertainties)
-                ObsUncertainties = ObsUncertainties(:);
-
-                % Ensure uncertainties match residuals size
-                if numel(ObsUncertainties) == NData && all(ObsUncertainties > 0)
-                    Chi2 = sum((Residuals ./ ObsUncertainties).^2);
-                end
-            end
-
-            % Count total number of free parameters from transmission model
-            NParams = Obj.numFittedPar();
-
-            % Add Tran2D parameters if present (position-dependent corrections)
-            if Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
-                % Count non-zero parameters in ParX (ParY not used for photometry)
-                if ~isempty(Obj.Tran2DObj.ParX)
-                    NParams = NParams + sum(Obj.Tran2DObj.ParX ~= 0);
-                end
-            end
-
-            % Calculate degrees of freedom
-            DOF = NData - NParams;
         end
     end
 
