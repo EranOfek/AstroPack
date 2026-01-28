@@ -1,0 +1,18 @@
+[Unit]
+Description=ULTRASAT SOC Python Slew FastAPI Service
+After=network.target
+
+[Service]
+Type=simple
+Environment="ULTRASAT_PATH=/home/soc/dev/Ultrasat.git"
+Environment="SOC_PATH=/home/soc/soc"
+WorkingDirectory=/home/soc/dev/Ultrasat.git/python/prj/src/soc/matlab_bridge/slew_bridge
+ExecStart=/home/soc/dev/Ultrasat.git/python/prj/src/soc/matlab_bridge/slew_bridge/run_soc_slew_service.sh
+Restart=always
+RestartSec=5
+User=soc
+StandardOutput=append:/home/soc/soc/slew/log/python_service.log
+StandardError=append:/home/soc/soc/slew/log/python_service.err
+
+[Install]
+WantedBy=multi-user.target
