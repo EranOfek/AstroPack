@@ -132,7 +132,12 @@ classdef TooPlannerRunner < Component
                     runId, upTOO.TOOMaxTargets, upTOO.TOOMinCoveredProb, tooWindowHours);
 
                 % Run planner
-                upTOO.buildTOO('Verbosity', verbosity, 'DrawMaps', drawMaps);
+                upTOO.buildTOO('Verbosity', verbosity, 'DrawMaps', drawMaps, ...
+                    'SaveMaps', true, ...
+                    'MapOutputDir', outFolder, ...
+                    'MapBaseName', runId, ...
+                    'MapFormats', {'png','fig'}, ...
+                    'CloseFigures', true);
 
                 % Extract results
                 planTable = upTOO.Plan;  % MATLAB table
@@ -467,9 +472,31 @@ classdef TooPlannerRunner < Component
             % Convert createdPlans struct array to cell array for JSON encoding
             if numel(createdPlans) > 0
                 plansList = cell(numel(createdPlans), 1);
+                
                 for i = 1:numel(createdPlans)
-                    plansList{i} = createdPlans(i);
+                    p = createdPlans(i);
+                
+                    runId = string(p.run_id);
+                
+                    % expected image files
+                    skyPng      = fullfile(outFolder, runId + "_sky.png");
+                    coveragePng = fullfile(outFolder, runId + "_coverage.png");
+                
+                    images = struct();
+                    if isfile(skyPng)
+                        images.sky_png = char(skyPng);
+                    end
+                    if isfile(coveragePng)
+                        images.coverage_png = char(coveragePng);
+                    end
+                
+                    if ~isempty(fieldnames(images))
+                        p.images = images;
+                    end
+                
+                    plansList{i} = p;
                 end
+
                 summary.plans = plansList;
             else
                 summary.plans = {};
@@ -543,5 +570,6 @@ classdef TooPlannerRunner < Component
 
             result = string(datestr(dt, 'yyyy-mm-ddTHH:MM:SS.FFFZ'));
         end
+
     end
 end
