@@ -158,6 +158,12 @@ function Targets = coverSky(Map, Args)
         Args.InitialGridFile  = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'
         Args.DrawMaps logical = true;
     end
+
+    % @Chen - Temporary solution (28/01/2026)
+    if ispc
+        Args.InitialGridFile = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT', 'all_sky_grid_charged_particles_350_rep1.txt');
+    end
+
     %
     RAD = 180/pi;    
     Grid0 = readmatrix(Args.InitialGridFile);
