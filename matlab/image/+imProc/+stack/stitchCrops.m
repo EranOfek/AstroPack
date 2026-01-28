@@ -64,6 +64,7 @@ function [Result] = stitchCrops(AI, Args)
         end
         if hasRight(Icrop)
             XUmax = CCDSEC(Icrop,2)-Uniq(Icrop,1)/2;
+%             XUmax = CCDSEC(Icrop,2)-Uniq(Icrop,1);
         else
             XUmax = CCDSEC(Icrop,2);
         end
@@ -76,11 +77,12 @@ function [Result] = stitchCrops(AI, Args)
         end
         if hasTop(Icrop)
             YUmax = CCDSEC(Icrop,4)-Uniq(Icrop,3)/2;
+%             YUmax = CCDSEC(Icrop,4)-Uniq(Icrop,3);
         else
             YUmax = CCDSEC(Icrop,4);
         end
         
-        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);     
+        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);             
         MCat(Icrop) = AIc.CatData;
         
         IndX = MCat(Icrop).colname2ind({'XPEAK','X1','X'});
@@ -88,7 +90,8 @@ function [Result] = stitchCrops(AI, Args)
         MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop);
         MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop);
         
-        Result.Image(ImaShiftX+1:ImaShiftX+XUmax-XUmin+1, ImaShiftY+1:ImaShiftY+YUmax-YUmin+1) = AIc.Image;
+%         Result.Image(ImaShiftX+1:ImaShiftX+XUmax-XUmin+1, ImaShiftY+1:ImaShiftY+YUmax-YUmin+1) = AIc.Image;
+        Result.Image(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.Image;
     end
                     
     % merge the catalogs:
