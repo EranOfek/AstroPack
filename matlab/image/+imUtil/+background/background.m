@@ -148,7 +148,11 @@ for Isub=1:1:Nsub
     
     if isempty(Args.VarFun)
         % assume the BackFun returns both background and variance
-        [SubImage(Isub).Back, SubImage(Isub).Var] = Args.BackFun(SubI,Args.BackFunPar{:});
+        if sum(~isnan(SubI),'all') > 0
+            [SubImage(Isub).Back, SubImage(Isub).Var] = Args.BackFun(SubI,Args.BackFunPar{:});
+        else
+            [SubImage(Isub).Back, SubImage(Isub).Var] = deal(NaN);
+        end
     else
          
          % different functions for background and variance
