@@ -11,7 +11,7 @@ PlannerApi:
     
     # URL of simple_file_server.py, currently should be run on host 'socsrv' 
     # server_url: "http://localhost:8090"
-    server_url: "http://socsrv:8090"
+    server_url: "http://socsrv"
     
     # Path of files on local file system, to be used as stand-alone
     local_db_path: ""

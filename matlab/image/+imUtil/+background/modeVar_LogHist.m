@@ -116,7 +116,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     if any(isnan(Edges))
         error('Edges is NaN use MinVal, MaxVal inputs');
     end
-    Nhist = matlab.internal.math.histcounts(LogArray, Edges);
+    Nhist = matlab.internal.math.histcounts(LogArray, Edges);    
 
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);

@@ -6,7 +6,7 @@ function [Result] = stitchCrops(AI, Args)
     % Output : - a stiched AI 
     % Author : A.M. Krassilchtchikov (2026 Jan) 
     % Example: AIs = imProc.stack.stitchCrops(AI)
-
+    % 
     arguments
         AI
         Args.CCDSEC                  = 'CCDSEC';
@@ -53,34 +53,33 @@ function [Result] = stitchCrops(AI, Args)
     hasBottom = any(fromBottom, 2);
     hasTop    = any(fromTop,    2);
     
-    for Icrop = 1:Ncrop
-                
+    for Icrop = 1:Ncrop                
         if hasLeft(Icrop)
-            XUmin = ceil((Uniq(Icrop,1)+CCDSEC(Icrop,1))/2);
+            XUmin = round((CCDSEC(Icrop,2)-Uniq(Icrop,2))/2);
             ImaShiftX = CCDSEC(Icrop,2)-XUmin;
         else
             XUmin = CCDSEC(Icrop,1);
             ImaShiftX = XUmin-1;
         end
         if hasRight(Icrop)
-            XUmax = CCDSEC(Icrop,2)-Uniq(Icrop,1)/2;
+            XUmax = round((CCDSEC(Icrop,2)+Uniq(Icrop,2))/2);
         else
             XUmax = CCDSEC(Icrop,2);
         end
         if hasBottom(Icrop)
-            YUmin = ceil((Uniq(Icrop,3)+CCDSEC(Icrop,3))/2); 
+            YUmin = round((CCDSEC(Icrop,4)-Uniq(Icrop,4))/2);
             ImaShiftY = CCDSEC(Icrop,4)-YUmin;
         else
             YUmin = CCDSEC(Icrop,3);
             ImaShiftY = YUmin-1;
         end
         if hasTop(Icrop)
-            YUmax = CCDSEC(Icrop,4)-Uniq(Icrop,3)/2;
+            YUmax = round((CCDSEC(Icrop,4)+Uniq(Icrop,4))/2);
         else
             YUmax = CCDSEC(Icrop,4);
         end
         
-        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);     
+        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);             
         MCat(Icrop) = AIc.CatData;
         
         IndX = MCat(Icrop).colname2ind({'XPEAK','X1','X'});
@@ -88,7 +87,7 @@ function [Result] = stitchCrops(AI, Args)
         MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop);
         MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop);
         
-        Result.Image(ImaShiftX+1:ImaShiftX+XUmax-XUmin+1, ImaShiftY+1:ImaShiftY+YUmax-YUmin+1) = AIc.Image;
+        Result.Image(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.Image;
     end
                     
     % merge the catalogs:
