@@ -1,5 +1,11 @@
 %==========================================================================
-% Author: Chen Tishler, Created: 02/11/2025, Updated: 02/11/2025
+% Project     : ULTRASAT SOC
+% Filename    : soc_too_matlab.py
+% Author      : Chen Tishler
+% Created     : 02/11/2025
+% Modified    : 04/11/2025
+% Description : MATLAB service to calculate Too time between targets
+%==========================================================================
 %
 % MATLAB R2023a is required.
 %
@@ -22,14 +28,22 @@
 %==========================================================================
 
 function soc_too_matlab()
-    % tooCalc App - Main function
+    % TooPlanner App - Main function
 
     global SOC_PATH;
 
-    % Set logfile name
-	fprintf('soc_too_matlab started, V1.00 (02/11/2025)\n');
-    LogFile.getSingleton('FileName', 'soc_too_matlab');
-            
+    % Set LogFile to use monthly log file
+	fprintf('soc_too_matlab started, V1.00 (29/01/2026)\n');
+    LF = LogFile.getSingleton('FileName', 'soc_too_calc_matlab', ...
+        'SubFolder', 'too_planner/matlab', ...
+        'UseMonthPrefix', true);
+           
+    % Link MsgLogger to the LogFile object
+    ML = MsgLogger.getSingleton();
+    ML.LogF = LF;
+    io.msgLog(LogLevel.Info, 'soc_too_matlab started');
+    
+
     % Print some info
     fprintf('getPid: %d\n', tools.os.getPid());
     fprintf('getProcessName: %s\n', tools.os.getProcessName());
@@ -52,7 +66,7 @@ function soc_too_matlab()
         if ispc
             SOC_PATH = 'c:/soc';
         else
-            SOC_PATH = '/var/opt/soc';
+            SOC_PATH = '/home/soc/soc';
         end
     end
 
@@ -103,9 +117,9 @@ function soc_too_matlab()
     %     09:50:58.133 [DBG] doProcessSnr: creating UltrasatPerf2GUI
     %     09:50:58.176 [DBG] UltrasatPerf2GUI: UltrasatPerf2GUI:load: c:\soc\snr\snr_matlab\P90_UP_test_60_ZP_Var_Cern_21.mat
     %     Warning: Variable 'UP' originally saved as a UltrasatPerf cannot be instantiated as an object and will be read in as a uint32.    
-    fprintf('Calling: Perf = UltrasatPerf(Init, false);\n');    
-    Perf = UltrasatPerf('Init', false);
-    fprintf('UltrasatPerf done\n');
+    %printf('Calling: Perf = UltrasatPerf(Init, false);\n');    
+    %Perf = UltrasatPerf('Init', false);
+    %fprintf('UltrasatPerf done\n');
     
     %try
         %if ~isdeployed
@@ -129,27 +143,29 @@ function Result = mainLoop()
     % Set the log level
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');
     MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
-    
-    % Log the start of the main loop
-    io.msgLog(LogLevel.Test, 'too mainLoop started');
 
     % Set the input path
-    InputPath = fullfile(SOC_PATH, 'too', 'input');
+    InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'input');
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'processed');    
+    % InputPath = fullfile(SOC_PATH, 'too', 'input');
+
+    % Log the start of the main loop
+    io.msgLog(LogLevel.Info, '=========== Too mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
 
     % Create the FileProcessor object
-    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
+    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json', 'ProcessedPath', ProcessedPath);
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
-    fp.WatchdogFileName = 'too_matlab_watchdog.txt';
+    fp.WatchdogFileName = 'soc_too_matlab_watchdog.txt';
     fp.WatchdogInterval = 10;
-    fp.MaxRunTime = hours(8);
+    %fp.MaxRunTime = hours(8);
 
     % Input loop will call FileProcessorCallback (below) for each input
     % file found in the folder
     % Note: Blocking function
     fp.process('DelaySec', 0.1);
     
-    io.msgStyle(LogLevel.Test, '@passed', 'too mainLoop passed');                          
+    io.msgStyle(LogLevel.Test, '@passed', 'TooPlanner mainLoop passed');                          
     Result = true;
 end
 
@@ -192,11 +208,11 @@ function Result = processItem(item)
             if item.y ~= 0
                 out.result = item.x / item.y;
             else
-                ME = MException('too:process', 'Division by zero');
+                ME = MException('Too:process', 'Division by zero');
                 throw(ME);
             end
 
-        % Call the too calculator, input is JSON text, output is struct            
+        % Call the TooPlanner, input is JSON text, output is struct            
         elseif strcmp(item.op, 'too')            
             out = processTooJson(item.json_text);
         else
