@@ -110,4 +110,12 @@ function [Result] = stitchCrops(AI, Args)
     if Args.UpdateZP
         [Result, ~, ~] = imProc.calib.photometricZP(Result);
     end
+    
+    % add a mean JD (should be the same, but still):
+    MeanJD = mean(julday(AI));        
+    Result.HeaderData = replaceVal(Result.HeaderData, 'JD', MeanJD);
+    
+    % add a mean EXPTIME:
+    MeanExp = mean([AI.getStructKey('EXPTIME').EXPTIME]);
+    Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', MeanExp);
 end
