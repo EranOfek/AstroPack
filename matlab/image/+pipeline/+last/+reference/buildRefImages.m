@@ -190,9 +190,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             % var1
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                             try % 
-%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
-%                                     'WriteFile',false, Args.StitchPars{:});
-                                StitchedImage = imProc.stack.stitchCrops(AI);
+%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true, 'WriteFile',false, Args.StitchPars{:});
+                                StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
                             catch ME
                                 fprintf('%s\n',ME.message);
                                 cprintf('err','However stitching failed, we are going on with other epochs\n');
@@ -249,9 +248,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        % employ imProc.stack.coaddW or a simliar function                
-        % should do with 'PH_ZP' which requires photometricZP to be run on each of the RegisteredImage 
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);

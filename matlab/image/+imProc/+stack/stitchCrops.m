@@ -12,7 +12,8 @@ function [Result] = stitchCrops(AI, Args)
         Args.CCDSEC                  = 'CCDSEC';
         Args.UNIQSEC                 = 'UNIQSEC';
         Args.ORIGSEC                 = 'ORIGSEC';
-        Args.Properties              = {'Image','Back','Var','Mask','PSF','Cat'};
+        Args.UpdateWCS               = false;
+        Args.UpdateZP                = false;
     end
     %
     Ncrop = numel(AI);
@@ -97,7 +98,16 @@ function [Result] = stitchCrops(AI, Args)
     Dec0 = mean(Result.CatData.getCol('Dec'));
             
     % build WCS from the merged catalog 
-    [FitRes, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData,'RA',RA0,'Dec',Dec0);
-    Result.WCS=FitRes.WCS;
-    Result.propagateWCS('UpdateCat',false,'OnlyIfSuccess',false);  
+    if Args.UpdateWCS
+        [FitRes, Result.CatData, ~] = imProc.astrometry.astrometryRefine(Result.CatData,'RA',RA0,'Dec',Dec0);
+        Result.WCS         = FitRes.WCS;
+        Result.WCS.Tran2D  = FitRes.Tran;
+        Result.WCS.ResFit  = FitRes.ResFit;
+        Result.WCS.Success = FitRes.Success;
+        Result.propagateWCS('UpdateCat',false);
+    end
+    % calculate a new photometric ZP
+    if Args.UpdateZP
+        [Result, ~, ~] = imProc.calib.photometricZP(Result);
+    end
 end
