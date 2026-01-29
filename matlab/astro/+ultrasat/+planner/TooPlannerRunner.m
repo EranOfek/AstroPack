@@ -16,10 +16,11 @@ classdef TooPlannerRunner < Component
         end
 
 
-        function runFromJson(Obj, jsonFilename)
+        function summaryFileName = runFromJson(Obj, jsonFilename)
             % runFromJson
             %
             % :param jsonFilename: Path to JSON config file.
+            summaryFileName = [];
 
             try
                 cfg = Obj.loadJson(jsonFilename);
@@ -82,7 +83,7 @@ classdef TooPlannerRunner < Component
             end
 
             % Create summary JSON file with all created plans
-            Obj.createSummaryJson(outFolder, jsonFilename, createdPlans, n);
+            summaryFileName = Obj.createSummaryJson(outFolder, jsonFilename, createdPlans, n);            
         end
     end
 
@@ -451,7 +452,7 @@ classdef TooPlannerRunner < Component
             txt = char(txt);
         end
 
-        function createSummaryJson(Obj, outFolder, jsonFilename, createdPlans, totalPlans)
+        function summaryFileName = createSummaryJson(Obj, outFolder, jsonFilename, createdPlans, totalPlans)
             % createSummaryJson
             %
             % Creates a summary JSON file listing all successfully created plan files.
@@ -461,6 +462,7 @@ classdef TooPlannerRunner < Component
             % :param createdPlans: Struct array with information about created plans.
             % :param totalPlans: Total number of plans that were attempted.
 
+            summaryFileName = [];
             summary = struct();
             summary.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
             summary.input_json = char(Obj.getAbsolutePath(string(jsonFilename)));
@@ -511,6 +513,7 @@ classdef TooPlannerRunner < Component
                 fwrite(fid, txt);
                 fclose(fid);
                 Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Summary file created: %s', summaryFile);
+                summaryFileName = summaryFile;
             catch Ex
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed writing summary JSON %s: %s', summaryFile, Ex.message);
             end
