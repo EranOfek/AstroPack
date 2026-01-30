@@ -7,46 +7,57 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          * ...,key,val,...
     %            Calibrator selection:
     %            'SearchRadius' - Gaia matching radius [arcsec]. Default is 1.5.
-    %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
+    %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
     %            Transmission model:
     %            'FunListName' - Name of transmission function list. Default is 'DefaultLASTFunList'.
     %            'CustomFunList' - Custom function list (overrides FunListName). Default is [].
-    %            'OptSeqName' - Name of optimization sequence. Default is 'DefaultLASTOptSeq'.
+    %            'OptSeqName' - Name of optimization sequence. Default is 'LAST_NormLin'.
     %            'CustomOptSeq' - Custom optimization sequence (overrides OptSeqName). Default is [].
     %            'Tran2DType' - Position-dependent correction type. Default is 'cheby1_4_xt'.
+    %            'UseTran2D' - Enable position-dependent correction. Default is true.
+    %            Weighting:
+    %            'WeightingMode' - Weighting mode for fitting. Options:
+    %                              'none' - Unweighted least squares
+    %                              'spectral' - Weight by Gaia spectral error propagation (default)
+    %                              'flux' - Weight by LAST flux errors
+    %                              'combined' - Quadrature sum of spectral and flux errors
+    %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
+    %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+    %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
     %            Catalog update:
     %            'AddMagAB' - Add calibrated AB magnitude columns to catalog. Default is true.
     %            'FluxColName' - Flux column for calibration fitting. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column (position-dependent) to catalog. Default is false.
     %            Header update:
-    %            'UpdateHeader' - Update AstroImage header with ZP. Default is true.
+    %            'UpdateHeader' - Update AstroImage header with calibration results. Default is true.
     %            General:
     %            'CreateNewObj' - Copy input object. Default is false.
     %            'Verbose' - Enable verbose output. Default is true.
-    % Output : - Result - Input object, possibly with updated catalog and header.
+    % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - Array of PhotCalibTrans objects (one per input object).
     %          - FitRes - Struct array [Nobj x 1] with fit results from last stage:
-    %                     .RMS - Fit RMS [mag] (NaN if failed)
-    %                     .Residuals - Residuals vector (empty if failed)
-    %                     .NumObs - Number of calibrators used:
-    %                               >0 = success, 0 = no calibrators found, -1 = RA/Dec missing
-    %                     .NumClipped - Number of clipped outliers (0 if failed)
-    %                     .Chi2 - Chi-squared value (NaN if failed)
-    %                     .StatusLog - Struct array of status messages with fields:
-    %                                  .Function, .Level, .Message, .Identifier, .Timestamp
+    %                     .RMS - Fit RMS [mag]
+    %                     .Residuals - Residuals vector
+    %                     .NCalUsed - Number of calibrators used (final, after clipping)
+    %                     .NumClipped - Number of clipped outliers
+    %                     .Chi2 - Chi-squared value
+    %                     .StatusLog - Struct array of status messages
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI);
-    %          % Check results
-    %          fprintf('NumObs=%d, RMS=%.4f\n', FitRes.NumObs, FitRes.RMS);
+    %          fprintf('NCalUsed=%d, RMS=%.4f\n', FitRes.NCalUsed, FitRes.RMS);
+    %          % Without position correction:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'UseTran2D', false);
+    %          % With unweighted sigma clipping:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'WeightedClipping', false);
 
     arguments
         Obj  % AstroImage or AstroCatalog
 
         % Calibrator selection
         Args.SearchRadius = 1.5  % arcsec
-        Args.MagRange = [12 16]
+        Args.MagRange = [11.5 15.5]
 
         % Transmission model
         Args.FunListName = 'DefaultLASTFunList'
@@ -54,6 +65,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.OptSeqName =   'LAST_NormLin' %'DefaultLASTOptSeq'
         Args.CustomOptSeq = []
         Args.Tran2DType = 'cheby1_4_xt'
+        Args.UseTran2D logical = true  % Enable position-dependent correction
+
+        % Weighting options
+        Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
+        Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
+        Args.WeightedClipping logical = true  % Use weighted residuals (r/σ) for sigma clipping
+        Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
         % Catalog update
         Args.AddMagAB logical = true
@@ -71,7 +89,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % ====================================================================
     % VALIDATE INPUT
     % ====================================================================
- % tic
+ tic
     if isa(Obj, 'AstroImage')
         IsAstroImage = true;
     elseif isa(Obj, 'AstroCatalog')
@@ -100,14 +118,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Initialize output FitRes structure array
     FitRes = struct('RMS', cell(Nobj, 1), ...
                     'Residuals', cell(Nobj, 1), ...
-                    'NumObs', cell(Nobj, 1), ...
+                    'NCalUsed', cell(Nobj, 1), ...
                     'NumClipped', cell(Nobj, 1), ...
                     'Chi2', cell(Nobj, 1), ...
                     'StatusLog', cell(Nobj, 1));
     for Iinit = 1:Nobj
         FitRes(Iinit).RMS = NaN;
         FitRes(Iinit).Residuals = [];
-        FitRes(Iinit).NumObs = 0;
+        FitRes(Iinit).NCalUsed = 0;
         FitRes(Iinit).NumClipped = 0;
         FitRes(Iinit).Chi2 = NaN;
         FitRes(Iinit).StatusLog = struct('Function', {}, 'Level', {}, ...
@@ -122,8 +140,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         'FunListName', Args.FunListName, ...
         'OptSeqName', Args.OptSeqName, ...
         'Tran2DType', Args.Tran2DType, ...
+        'UseTran2D', Args.UseTran2D, ...
         'SearchRadius', Args.SearchRadius, ...
         'MagRange', Args.MagRange, ...
+        'WeightingMode', Args.WeightingMode, ...
+        'FluxErrColName', Args.FluxErrColName, ...
+        'WeightedClipping', Args.WeightedClipping, ...
+        'FluxErrorNorm', Args.FluxErrorNorm, ...
         'Verbose', Args.Verbose};
 
     % Add custom function list if provided
@@ -272,12 +295,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             LastStage = PC.FitResults(end);
             FitRes(Iobj).RMS = LastStage.RMS;
             FitRes(Iobj).Residuals = LastStage.Residuals;
-            FitRes(Iobj).NumObs = LastStage.NumObs;
+            FitRes(Iobj).NCalUsed = LastStage.NCalUsed;
             FitRes(Iobj).NumClipped = LastStage.NumClipped;
             FitRes(Iobj).Chi2 = LastStage.Chi2;
         elseif PC.NoRADec
             % Special code: RA/Dec columns missing in catalog
-            FitRes(Iobj).NumObs = -1;
+            FitRes(Iobj).NCalUsed = -1;
         end
 
         % Merge StatusLog from PhotCalibTrans and CompositeFun (TransModel)
@@ -290,7 +313,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Store calibration object
         PhotCalib(Iobj) = PC;
     end
- % toc
+  toc
     % ====================================================================
     % SUMMARY
     % ====================================================================
