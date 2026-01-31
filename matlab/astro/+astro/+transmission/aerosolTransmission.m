@@ -64,7 +64,7 @@ function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
 
     % Validate input dimensions
     if size(ParamMatrix, 2) ~= 3
-        error('ParamMatrix must have 3 columns: [ZenithAngle_deg, Tau_aod500, ZngstromExponent]');
+        error('ParamMatrix must have 3 columns: [ZenithAngle_deg, Tau_aod500, AngstromExponent]');
     end
 
     % Extract parameters
@@ -89,7 +89,7 @@ function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
         Am_aerosol = Airmasses.aerosol;
 
         % Calculate aerosol optical depth using Angstrom law
-        TauLambda = astro.atmosphere.aerosolScattering(Lambda, TauAod500(i), AngstromExponent(i), 'nm');
+        TauLambda = astro.atmosphere.aerosolScattering(Lambda, TauAod500(i), AngstromExponent(i), 'Ang');
 
         % Calculate transmission
         Result(:, i) = exp(-Am_aerosol .* TauLambda);

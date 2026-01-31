@@ -123,7 +123,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.HTM_Level        = 7           % HTM level (or 'auto' for automatic)
         Args.AutoLevelMaxSrc  = 1e3         % Max sources per cell for auto-level
         Args.AutoLevelRange   = [4, 10]    % [min, max] HTM level range for auto-selection
-        Args.NfilesInHDF      = 30         % HTM cells per HDF5 file
+        Args.NfilesInHDF      = 100        % HTM cells per HDF5 file (matches catsHTM default)
         Args.IndStep          = 30          % Index sampling step for HDF5
         Args.DecRange         = [-pi/2, pi/2]   % Dec range to process [rad]
         Args.RARange          = [0, 2*pi]       % RA range to process [rad]
@@ -196,16 +196,96 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         if Args.Verbose
             fprintf('Querying TAP for column names...\n');
         end
+
+        % Run sample query to get data
         SampleQuery = sprintf('SELECT TOP 1 %s FROM %s', ColumnsStr, TableName);
+
+        % Use STILTS directly to save CSV and preserve original column names
+        OriginalColNames = {};
+        if strcmp(ColumnsStr, '*')
+            try
+                % Run STILTS directly to get CSV with original column names
+                TempCsvFile = fullfile(Args.LocalDir, 'temp_colnames.csv');
+                JarPath = VO.TopCat.getStiltsJarPath();
+                TapUrlClean = char(Args.TapUrl);
+                if endsWith(TapUrlClean, '/'), TapUrlClean = TapUrlClean(1:end-1); end
+
+                % Escape ADQL for shell
+                AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(SampleQuery);
+
+                % Build STILTS command
+                cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=csv out="%s" sync=true 2>&1', ...
+                    JarPath, TapUrlClean, AdqlEsc, TempCsvFile);
+
+                [status, ~] = system(cmd);
+
+                if status == 0 && isfile(TempCsvFile)
+                    % Read original column names from CSV header
+                    fid = fopen(TempCsvFile, 'r');
+                    headerLine = fgetl(fid);
+                    fclose(fid);
+
+                    % Parse CSV header properly (handle quoted fields that may contain commas)
+                    OriginalColNames = parseCSVHeader(headerLine);
+
+                    if Args.Verbose
+                        fprintf('Retrieved %d original column names from CSV header.\n', numel(OriginalColNames));
+                    end
+                    delete(TempCsvFile);
+                end
+            catch ME
+                if Args.Verbose
+                    fprintf('Could not read original column names from CSV: %s\n', ME.message);
+                end
+            end
+        end
+
+        % Run sample query to get data and MATLAB-sanitized column names
         T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', 60, ...
                       'Method', Args.QueryMethod, 'WorkDir', Args.LocalDir);
         if isempty(T) || ~istable(T)
             error('VO:buildHTMfromTopCat:NoColumns', ...
                 'Could not query column names from TAP service');
         end
-        [~, Args.ColCell] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+
+        % Get column info with filtering details so we can apply same to original names
+        [~, Args.ColCell, numericMask, reorderIdx] = tableToMatrixWithInfo(T, Args.ColRA, Args.ColDec, Args.TapUnits);
         if Args.Verbose
-            fprintf('Detected %d columns: %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
+            fprintf('Detected %d columns (MATLAB names): %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
+        end
+
+        % If user specified '*', rebuild ColumnsStr using original TAP column names
+        % to ensure consistent columns across all HTM cell queries
+        if strcmp(ColumnsStr, '*')
+            if ~isempty(OriginalColNames) && numel(OriginalColNames) == numel(numericMask)
+                % Apply same filtering (numeric only) and reordering to original names
+                OriginalColNamesFiltered = OriginalColNames(numericMask);
+                OriginalColNamesReordered = OriginalColNamesFiltered(reorderIdx);
+
+                % Filter out VizieR internal columns (starting with '_') as they cannot be queried
+                VizierInternalMask = cellfun(@(x) ~isempty(x) && x(1) == '_', OriginalColNamesReordered);
+                if any(VizierInternalMask)
+                    if Args.Verbose
+                        fprintf('Excluding %d VizieR internal columns (starting with _).\n', sum(VizierInternalMask));
+                    end
+                    OriginalColNamesReordered = OriginalColNamesReordered(~VizierInternalMask);
+                    Args.ColCell = Args.ColCell(~VizierInternalMask);
+                end
+
+                % Use original names from CSV header (quoted for safety)
+                QuotedCols = cellfun(@(x) ['"' x '"'], OriginalColNamesReordered, 'UniformOutput', false);
+                ColumnsStr = strjoin(QuotedCols, ', ');
+                if Args.Verbose
+                    fprintf('Using %d original TAP column names for queries.\n', numel(OriginalColNamesReordered));
+                end
+            else
+                % Fallback: use MATLAB-sanitized names (may fail for special chars)
+                QuotedCols = cellfun(@(x) ['"' x '"'], Args.ColCell, 'UniformOutput', false);
+                ColumnsStr = strjoin(QuotedCols, ', ');
+                if Args.Verbose
+                    fprintf('Warning: Using MATLAB-sanitized column names (may fail for columns with special characters).\n');
+                end
+            end
         end
     end
 
@@ -241,6 +321,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     end
 
     % Get list of HTM indices at target level
+    % htm_build(N) builds levels 0 to N-1, so LevelHTM(N) gives level N-1
     ListIndexHTM = LevelHTM(Args.HTM_Level).ptr;
     Nhtm = numel(ListIndexHTM);
 
@@ -296,7 +377,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         % Determine cell status
         OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                        MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
-        AlreadyExists = Args.Resume && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
+        % Check for existing files in both LocalDir and TargetDir (for Resume after files moved to server)
+        AlreadyExists = Args.Resume && (checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir) || ...
+                        (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.TargetDir)));
 
         if OutsideRange
             % Skip: outside requested RA/Dec range
@@ -304,7 +387,11 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
         elseif AlreadyExists
             % Skip: already processed (resume mode) - but read source count
+            % Try LocalDir first, then TargetDir
             NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
+            if NsrcExisting == 0 && ~isempty(Args.TargetDir)
+                NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.TargetDir);
+            end
             Nsrc(Ihtm, :) = [IndHTM, NsrcExisting];
             SkippedCount = SkippedCount + 1;
             if Args.Verbose && mod(SkippedCount, 100) == 0
@@ -484,6 +571,22 @@ function [Data, ColNames] = tableToMatrix(T, ColRA, ColDec, TapUnits)
     % Output : - Data: numeric matrix with RA/Dec in radians (columns 1,2)
     %          - ColNames: cell array of column names
 
+    [Data, ColNames, ~, ~] = tableToMatrixWithInfo(T, ColRA, ColDec, TapUnits);
+end
+
+
+function [Data, ColNames, numericMask, reorderIdx] = tableToMatrixWithInfo(T, ColRA, ColDec, TapUnits)
+    % Convert MATLAB table to numeric matrix with RA/Dec in columns 1,2
+    % Also returns filtering info to apply same transformation to original column names
+    % Input  : - T: MATLAB table from TAP query
+    %          - ColRA: RA column name
+    %          - ColDec: Dec column name
+    %          - TapUnits: coordinate units from TAP ('rad'|'deg')
+    % Output : - Data: numeric matrix with RA/Dec in radians (columns 1,2)
+    %          - ColNames: cell array of column names (filtered and reordered)
+    %          - numericMask: logical mask of which original columns are numeric
+    %          - reorderIdx: indices showing how filtered columns were reordered
+
     ColNames = T.Properties.VariableNames;
 
     % Find RA/Dec columns (case-insensitive)
@@ -512,8 +615,11 @@ function [Data, ColNames] = tableToMatrix(T, ColRA, ColDec, TapUnits)
     % Reorder so RA=col1, Dec=col2
     if idxRA ~= 1 || idxDec ~= 2
         otherCols = setdiff(1:width(T), [idxRA, idxDec]);
-        Data = Data(:, [idxRA, idxDec, otherCols]);
-        ColNames = ColNames([idxRA, idxDec, otherCols]);
+        reorderIdx = [idxRA, idxDec, otherCols];
+        Data = Data(:, reorderIdx);
+        ColNames = ColNames(reorderIdx);
+    else
+        reorderIdx = 1:width(T);
     end
 
     % Convert to radians (always output radians for in_polysphere)
@@ -628,6 +734,60 @@ function printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount)
 end
 
 
+function ColNames = parseCSVHeader(headerLine)
+    % Parse CSV header line, properly handling quoted fields
+    % Input  : - headerLine: string containing CSV header
+    % Output : - ColNames: cell array of column names
+
+    ColNames = {};
+    headerLine = char(headerLine);
+    pos = 1;
+    len = length(headerLine);
+
+    while pos <= len
+        if headerLine(pos) == '"'
+            % Quoted field - find matching close quote
+            pos = pos + 1;  % skip opening quote
+            fieldStart = pos;
+            while pos <= len
+                if headerLine(pos) == '"'
+                    if pos < len && headerLine(pos+1) == '"'
+                        % Escaped quote - skip both
+                        pos = pos + 2;
+                    else
+                        % End of quoted field
+                        break;
+                    end
+                else
+                    pos = pos + 1;
+                end
+            end
+            field = headerLine(fieldStart:pos-1);
+            % Unescape double quotes
+            field = strrep(field, '""', '"');
+            ColNames{end+1} = field; %#ok<AGROW>
+            pos = pos + 1;  % skip closing quote
+            % Skip comma if present
+            if pos <= len && headerLine(pos) == ','
+                pos = pos + 1;
+            end
+        else
+            % Unquoted field - find comma or end
+            fieldStart = pos;
+            while pos <= len && headerLine(pos) ~= ','
+                pos = pos + 1;
+            end
+            field = strtrim(headerLine(fieldStart:pos-1));
+            ColNames{end+1} = field; %#ok<AGROW>
+            % Skip comma
+            if pos <= len && headerLine(pos) == ','
+                pos = pos + 1;
+            end
+        end
+    end
+end
+
+
 function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRange, WhereClause, TimeoutSec, Verbose)
     % Automatically select HTM level based on estimated catalog size
 
@@ -667,8 +827,9 @@ function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRan
     end
 
     % Find appropriate level within specified range
+    % htm_build(Level) creates levels 0 to Level-1, so level Level-1 has 8*4^(Level-1) cells
     for Level = LevelRange(1):LevelRange(2)
-        Ncells = 8 * 4^Level;
+        Ncells = 8 * 4^(Level - 1);
         SrcPerCell = TotalSrc / Ncells;
         if SrcPerCell < MaxSrcPerCell
             break;

@@ -1123,15 +1123,13 @@ classdef AstroDiff < AstroImage
                 % AstroZOGY
                 Args.RadiusTS = 5;
                 Args.useFWHM logical = true;
-                Args.applyDSDFcorrection = true;
             end
             
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.measureTransients(Obj(Iobj),...
-                    'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM, ...
-                    'applyDSDFcorrection', Args.applyDSDFcorrection);
+                    'RadiusTS', Args.RadiusTS, 'useFWHM', Args.useFWHM);
             end
 
         end

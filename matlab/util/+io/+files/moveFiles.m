@@ -71,11 +71,8 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         DestPathInFile = false;
     end
     
-    if (ischar(DestPath) || (isstring(DestPath) && isscalar(DestPath))) && Args.MkDir
-        DirCreated = true;
+    if ischar(DestPath) && Args.MkDir
         mkdir(DestPath)
-    else
-        DirCreated = false;
     end
     
     Nfile = numel(SourceFiles);
@@ -96,7 +93,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
             end
         end
         % make sure diirectory exist
-        if ~DirCreated
+        if ~ischar(DestPath) && Args.MkDir
             if ~isfolder(DestPath{Ifile})
                 mkdir(DestPath{Ifile});
             end

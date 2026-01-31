@@ -1586,7 +1586,7 @@ classdef ds9 < handle
                 Args.MarkerUnits   = 'pix';
                 Args.Color         = 'r';
                 Args.Marker        = 'o';       % 'o','s'
-                Args.CooType       = 'image';   % 'image'|'fk5','icrs'
+                Args.Coo           = 'image';   % 'image'|'fk5','icrs'
                 Args.Width         = 1;
                 Args.Text          = '';
                 Args.Font          = 'helvetica';  %'helvetica 16 normal'
@@ -1646,12 +1646,12 @@ classdef ds9 < handle
                 case {'o','circle'}
                     Args.Marker = 'circle';
                 case {'s','box'}
-                    Args.Marker = 'box';                
+                    Args.Marker = 'box';
                 otherwise
                     error('Unknown Marker option');
             end
             
-            varargin = {'Coo',Args.CooType, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
+            varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
                         'Size',Args.MarkerSize, 'Width',Args.Width,...
                         'Text',Args.Text, 'Font',Args.Font, 'FontSize', Args.FontSize, 'FontStyle',Args.FontStyle,...
                         'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
