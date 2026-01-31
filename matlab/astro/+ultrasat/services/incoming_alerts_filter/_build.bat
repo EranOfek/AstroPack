@@ -20,11 +20,11 @@
 
 pause
 
-call mcc -m soc_too_matlab.m
+call mcc -m soc_slew_calc_worker_matlab.m
 
 rem applicationCompiler
 rem zip a -r
 
 pause
 
-copy soc_too_matlab.exe %SOC_PATH%\too\too_matlab\
+copy soc_slew_calc_worker_matlab.exe %SOC_PATH%\slew_calc\slew_calc_worker_matlab\

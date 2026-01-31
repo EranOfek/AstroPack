@@ -189,9 +189,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % 4.2 merge the set of covering crops                         
                             % var1
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                            try % a temporary try-catch until a new version of stitch is made 
-                                [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
-                                    'WriteFile',false, Args.StitchPars{:});
+                            try % 
+%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true, 'WriteFile',false, Args.StitchPars{:});
+                                StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
                             catch ME
                                 fprintf('%s\n',ME.message);
                                 cprintf('err','However stitching failed, we are going on with other epochs\n');
@@ -201,16 +201,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             if isnan(julday(StitchedImage))
                                 StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
                             end
-
-                        % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
-%                           % var2 
-%                         MergedAI = imProc.transIm.stitch(AI); % a new function to be written?
-%                           1. estimate the size of the stitched image
-%                           2. adopt WCS0 from the 1st image
-%                           3. use xy2sky with WCS1, then sky2xy with WCS0 or remap with interp2wcs? 
-%                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
-%                           5. for each pixel of the merge take an inverse variance weighted mean of the merged pixel values
-%                                                                                                 
+                                                                                                 
                         % 4.3 rotate, align, and cut the merged crops to 
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
@@ -225,7 +216,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'CreateNewObj',true);
                         end  
                         
-                        % 4.4 measure background, find sources
+                        % 4.4 measure background, find sources, populate PSF
                         RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
                         
                         RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
@@ -237,25 +228,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                                        'ZP',Args.ZP,...
                                                        'CreateNewObj',false);                                            
                                                                            
-                        % re-measure PSF, do PSF photometry -- do we really need it here?
+                        % re-measure PSF [do PSF photometry -- do we really need it here?]
                         RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
-                        RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);    
-
-                        % DOES not work yet, need to debug with EO? 
-                        
-%                         [~, RegisteredImage, AstrometricCat] = imProc.astrometry.astrometrySubImages(RegisteredImage, ...
-%                                                                             'EpochOut',TabEpoch.jd_start(Iepoch),...
-%                                                                             'CCDSEC',[1, Args.Naxis1, 1, Args.Naxis2],...
-%                                                                             'Scale',Args.PixScale,...
-%                                                                             'CatName',Args.CatName,...                                                                            
-%                                                                             'Tran',Args.Tran,...
-%                                                                             'CreateNewObj',false);
-%                                         
-%                         [RegisteredImage, RegisteredImage.ZP, RegisteredImage.PhotCat] = ... 
-%                                               imProc.calib.photometricZP(RegisteredImage,...
-%                                                                         'CreateNewObj',false,...
-%                                                                         'MagZP',Args.ZP,...
-%                                                                         'CatName',AstrometricCat);
+%                         RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);    
 
                         % 4.5 add the RegisteredImage to the stack
                         if exist('StackImages','var')
@@ -273,9 +248,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        % employ imProc.stack.coaddW or a simliar function                
-        % should do with 'PH_ZP' which requires photometricZP to be run on each of the RegisteredImage 
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
@@ -292,8 +265,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % re-measure PSF, do PSF photometry 
         RefImage = imProc.psf.populatePSF(RefImage, 'RePopulatePSF', true, 'DataType',@single);
         RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
-        
-        
+                
         MeanJD = mean(julday(StackImages));        
         RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'JD', MeanJD);
                            

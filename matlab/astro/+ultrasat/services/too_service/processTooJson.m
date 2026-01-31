@@ -1,33 +1,32 @@
-
-function Result = processSlewJson(json_text)
-    % Process Slew calculation for ULTRASAT
+function Result = processTooJson(json_text)
+    % Process TooPlanner request for ULTRASAT
     % 
     % Input   : - json_text (string) with fields:
-    %              ra1, dec1, ra2, dec2, time (ISO format)
+    %              json_file (string) with path to JSON file
     % Output  : struct ResponseMessage with fields:
     %              message, result, json_text
     %
-    % Author  : Chen Tishler (2025)
+    % Author  : Chen Tishler (2026)
     % Example : 
-    %   json_in = '{"ra1":10.5,"dec1":-20.0,"ra2":15.8,"dec2":-22.1,"time":"2028-07-01T12:00:00Z"}';
-    %   out = processSlewJson(json_in);
+    %   json_in = '{"json_file": "s:/too_planner/runner1.json"}';
+    %   out = processTooJson(json_in);
 
     % Decode JSON input
     input_data = jsondecode(json_text);
 
     out = struct;
-    out.message   = 'MATLAB: processSlew started';
+    out.message   = 'MATLAB: processTooJson started';
     out.result    = -1;
     out.json_text = '';
 
     % Actual processing
-    [slew_out, message] = doProcessSlew(input_data);
+    [too_out, message] = doProcessToo(input_data);
 
     % Done
     out.message   = message;
-    slew_out.message = '';
+    too_out.message = '';
     out.result    = 0;
-    out.json_text = jsonencode(slew_out);
+    out.json_text = jsonencode(too_out);
     out.json_text = strrep(out.json_text, '"', '\"');  % Escape quotes for JSON string safety
 
     Result = out;
@@ -35,48 +34,32 @@ end
 
 % ------------------------------------------------------------------------
 
-function [Result, Message] = doProcessSlew(Params)
-    % Process Slew calculation
-    % See ultrasat.tools.calcSlew
-    %
+function [Result, Message] = doProcessToo(Params)
+    % Process TooPlanner request
+    % See ultrasat.planner.TooPlannerRunner.m
     % Input  : Params struct with:
-    %            ra1, dec1, ra2, dec2, time (ISO string)
+    %            json_file (string) with path to JSON file
     % Output : Result struct with:
-    %            slew_time (sec)
-    %            direct_slew (bool)
-    %          Message string with info or error
+    %            message (string) with info or error
+    %            result (int) with 0 for success, -1 for error
+    %            json_text (string) with JSON response
     %
-    % Author : Chen Tishler (2025)
+    % Author : Chen Tishler (2026)
 
-    %io.msgLog(LogLevel.Debug, 'doProcessSlew: started - Params:');
+    %io.msgLog(LogLevel.Debug, 'doProcessToo: started - Params:');
     %disp(Params);
 
     try
         % Create helper (if class-based environment, else call directly)
-        dt = parseIsoDatetime(Params.time);  % convert ISO to datetime
-        jd = juliandate(dt);           % datetime to Julian
-
-        [T_sec, DirectSlewBool] = ultrasat.tools.calcSlew( ...
-            Params.ra1, Params.dec1, Params.ra2, Params.dec2, ...
-            'Units', 'deg', 'JD', jd);
-
-        % Truncate or round to 1 digits after decimal
-        T_sec = round(T_sec, 1);
-
-        io.msgLog(LogLevel.Info, sprintf( ...
-            'doProcessSlew: calcSlew(ra1=%.3f, dec1=%.3f, ra2=%.3f, dec2=%.3f, JD=%.5f) -> SLEW=%.1f sec, direct=%d', ...
-            Params.ra1, Params.dec1, Params.ra2, Params.dec2, jd, T_sec, DirectSlewBool));
-
+        runner = ultrasat.planner.TooPlannerRunner();
+        summaryFileName = runner.runFromJson(Params.filename);
         Result = struct;
-        Result.slew   = T_sec;
-        Result.direct = DirectSlewBool;
-        Message = 'calcSlew: OK';
-        %io.msgLog(LogLevel.Debug, sprintf('doProcessSlew: done - slew=%.2f sec, direct=%d', T_sec, DirectSlewBool));
+        Result.summaryFileName = summaryFileName;
+        Message = 'TooPlanner: OK';
     catch ex
-        Message = sprintf("doProcessSlew: error: identifier='%s', message='%s'", ex.identifier, ex.message);
-        io.msgLog(LogLevel.Error, Message);
         Result = struct;
-        Result.slew   = -1;
-        Result.direct = false;
+        Result.summaryFileName = '';
+        Message = sprintf("doProcessToo: error: identifier='%s', message='%s'", ex.identifier, ex.message);
+        io.msgLog(LogLevel.Error, Message);
     end
 end

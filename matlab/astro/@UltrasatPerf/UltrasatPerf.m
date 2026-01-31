@@ -78,6 +78,8 @@ classdef UltrasatPerf < Component
         AOI_dist(:,:)       double = [];  % [%]  2D (AOI vs R) AOI distribution for filter+detector
 
         chromPSF(:,:)       double = [];  % [arcsec] 2D (WL vs. R) chromatic PSF
+
+        TR_degradation                double = 0.95;%1.0     %  Degradation due to contamination / optical elemenets - deafult is 5% loss at launch
         
         % SNR param
         Aper                double = 33;     % Aperture [cm]
@@ -131,6 +133,7 @@ classdef UltrasatPerf < Component
                 Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};{'FF1_fname','FF1_asBuilt','SC1_fname','SC1_0'};
                 Args.calcPerf  = false;
                 Args.calcPerfFunPar    = {};%{'SpecsFunPar',{'MStype',[],'T_BB',2e4}};%{};%
+                Args.TR_degradation  = [];%
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
             
@@ -138,13 +141,17 @@ classdef UltrasatPerf < Component
             Obj.msgLog(LogLevel.Debug, 'constructor started');
             
             if Args.Init
-                
                 % create an empty AstroWCS object
                 List = cell(Nobj);
                 Nh = numel(List);
                 for Ih=1:1:Nh
                     Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
+                    
+                    if ~isempty(Args.TR_degradation)
+                        Obj(Ih).TR_degradation = Args.TR_degradation;
+                    end
                     Obj(Ih).populate_Design(Args.DesignFunPar{:});%'PSF_name',Args.PSF_name); % Populate design
+
                     if Args.calcPerf
                         Obj(Ih).calculatePerformance(Args.calcPerfFunPar{:});
                     end
@@ -635,6 +642,8 @@ classdef UltrasatPerf < Component
                 N_CaF2 = N_CaF2-2;
             end
             totT = totT.*(Obj.T_CaF2.^N_CaF2);
+
+            totT = totT.* Obj.TR_degradation;
         end
         
         function Obj = populate_QE(Obj,Args)

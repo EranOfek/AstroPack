@@ -1,0 +1,18 @@
+[Unit]
+Description=ULTRASAT SOC MATLAB TooPlanner Service
+After=network.target
+
+[Service]
+Type=simple
+Environment="ASTROPACK_PATH=/home/soc/dev/AstroPack.git"
+Environment="SOC_PATH=/home/soc/soc"
+WorkingDirectory=/home/soc/dev/AstroPack.git/matlab/astro/+ultrasat/services/too_service
+ExecStart=/home/soc/dev/AstroPack.git/matlab/astro/+ultrasat/services/too_service/run_soc_too_matlab.sh --loop --watchdog
+Restart=always
+RestartSec=10
+User=soc
+StandardOutput=append:/home/soc/soc/too/log/matlab_service.log
+StandardError=append:/home/soc/soc/too/log/matlab_service.err
+
+[Install]
+WantedBy=multi-user.target

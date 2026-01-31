@@ -1,4 +1,10 @@
-# ULTRASAT SOC – Slew Calculator Subsystem
+# ULTRASAT SOC – Incoming Alerts Filter
+
+https://chatgpt.com/c/6925ce86-4ec8-8332-b8c1-c4ebd6d293d7
+
+https://chatgpt.com/c/6925b2ac-3170-832b-a788-defe9890a408
+
+
 
 This document describes the structure and roles of the Slew Calculation 
 subsystem used by ULTRASAT Mission Control.  
