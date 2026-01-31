@@ -248,7 +248,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','PH_ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
@@ -268,15 +268,16 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 
         MeanJD = mean(julday(StackImages));        
         RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'JD', MeanJD);
-                           
-        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
-                                            'EpochOut',MeanJD,...
-                                            'Scale',Args.PixScale,...
-                                            'CatName',Args.CatName,...
-                                            'Tran',Args.Tran,...
-                                            'CreateNewObj',false);                    
-                                        
-        RefImage = imProc.calib.photometricZP(RefImage);
+%                            
+%         [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
+%                                             'EpochOut',MeanJD,...
+%                                             'Scale',Args.PixScale,...
+%                                             'CatName',Args.CatName,...
+%                                             'Tran',Args.Tran,...
+%                                             'CreateNewObj',false);                    
+%                                         
+        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage);
+%         RefImage = imProc.calib.photometricZP(RefImage);
         
 %         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
 %         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));
