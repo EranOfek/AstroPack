@@ -358,6 +358,13 @@ classdef CompositeFun < handle
     %   fitPar() - Fit parameters with sigma clipping and optional multi-stage optimization
     %                          Supports single-stage (default) or multi-stage via OptimizationSequence
     %   fitMultiStage() - Execute multi-stage optimization sequence
+    %   fitMCMC() - MCMC sampling for parameter uncertainty estimation (uses mcmcstat)
+    %
+    % MCMC Support Methods:
+    %   getFreeParamVector() - Extract free parameters as vector for MCMC
+    %   setFreeParamVector() - Set free parameters from vector
+    %   buildMCMCParams() - Build mcmcstat-compatible parameter cell array
+    %   buildMCMCModel() - Build mcmcstat model structure with ssfun
     %
     % Methods using Tran2D class object (Position-Dependent Corrections):
     %   addTran2D() - Add Tran2D object for spatial corrections
@@ -1024,6 +1031,249 @@ classdef CompositeFun < handle
             % Clear any pre-calculated values since parameters may have changed
             if ~isempty(Obj.Funs)
                 [Obj.Funs.PreCalc] = deal([]);  % Vectorized assignment
+            end
+        end
+
+        % ================================================================
+        % MCMC SUPPORT METHODS
+        % ================================================================
+
+        function [ParamVec, ParamInfo] = getFreeParamVector(Obj, Args)
+            % Get free parameter values as a vector for MCMC sampling
+            % Description: Extracts all parameters marked with FitPar=true
+            %              into a single vector, optionally including Tran2D
+            %              position parameters.
+            % Input  : - Obj - CompositeFun object.
+            %          * ...,key,val,...
+            %            'IncludeTran2D' - Include Tran2D position parameters.
+            %                   Default is false (transmission params only).
+            % Output : - ParamVec - Vector of free parameter values [N_free x 1].
+            %          - ParamInfo - Structure with fields:
+            %                   .Names - Cell array of parameter names
+            %                   .Indices - Global indices of free parameters
+            %                   .Min - Lower bounds
+            %                   .Max - Upper bounds
+            %                   .NumTrans - Number of transmission parameters
+            %                   .NumPos - Number of position parameters (0 if not included)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: [ParVec, Info] = Model.getFreeParamVector();
+            %          [ParVec, Info] = Model.getFreeParamVector('IncludeTran2D', true);
+
+            arguments
+                Obj
+                Args.IncludeTran2D logical = false
+            end
+
+            % Get transmission parameters
+            AllFunPar = Obj.getAllFunPar();
+            FreeIndicesTrans = find(AllFunPar.FitPar);
+            ParamVecTrans = AllFunPar.Val(FreeIndicesTrans);
+            NamesTrans = AllFunPar.Name(FreeIndicesTrans);
+            MinTrans = AllFunPar.Min(FreeIndicesTrans);
+            MaxTrans = AllFunPar.Max(FreeIndicesTrans);
+
+            % Initialize output
+            ParamVec = ParamVecTrans(:);
+            ParamInfo.Names = NamesTrans;
+            ParamInfo.Indices = FreeIndicesTrans(:);
+            ParamInfo.Min = MinTrans(:);
+            ParamInfo.Max = MaxTrans(:);
+            ParamInfo.NumTrans = length(ParamVecTrans);
+            ParamInfo.NumPos = 0;
+
+            % Add Tran2D parameters if requested
+            if Args.IncludeTran2D && Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
+                PosPar = Obj.getTran2DPar();
+                FreeIndicesPos = find(PosPar.FitPar);
+                ParamVecPos = PosPar.Val(FreeIndicesPos);
+                NamesPos = PosPar.Name(FreeIndicesPos);
+
+                % Position parameters have physical bounds [-10, 10] mag
+                % (typical field corrections are <0.1 mag, 10 is very conservative)
+                NumPos = length(FreeIndicesPos);
+                MinPos = -10 * ones(NumPos, 1);
+                MaxPos = 10 * ones(NumPos, 1);
+
+                % Concatenate
+                ParamVec = [ParamVec; ParamVecPos(:)];
+                ParamInfo.Names = [ParamInfo.Names; NamesPos];
+                ParamInfo.Indices = [ParamInfo.Indices; ...
+                    FreeIndicesPos(:) + length(AllFunPar.Val)];  % Offset for Tran2D
+                ParamInfo.Min = [ParamInfo.Min; MinPos];
+                ParamInfo.Max = [ParamInfo.Max; MaxPos];
+                ParamInfo.NumPos = NumPos;
+            end
+        end
+
+        function Obj = setFreeParamVector(Obj, ParamVec, Args)
+            % Set free parameter values from a vector
+            % Description: Updates parameters marked with FitPar=true from
+            %              a vector, optionally including Tran2D parameters.
+            % Input  : - Obj - CompositeFun object.
+            %          - ParamVec - Vector of free parameter values.
+            %          * ...,key,val,...
+            %            'IncludeTran2D' - ParamVec includes Tran2D parameters.
+            %                   Default is false.
+            % Output : - Obj - Updated CompositeFun object.
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Model.setFreeParamVector(NewParams);
+
+            arguments
+                Obj
+                ParamVec
+                Args.IncludeTran2D logical = false
+            end
+
+            ParamVec = ParamVec(:);
+
+            % Get current parameter structure
+            AllFunPar = Obj.getAllFunPar();
+            FreeIndicesTrans = find(AllFunPar.FitPar);
+            NumTrans = length(FreeIndicesTrans);
+
+            % Update transmission parameters
+            if length(ParamVec) >= NumTrans
+                AllFunPar.Val(FreeIndicesTrans) = ParamVec(1:NumTrans);
+                Obj.setAllFunPar(AllFunPar);
+            else
+                error('CompositeFun:setFreeParamVector:DimensionMismatch', ...
+                    'ParamVec length (%d) is less than number of free transmission parameters (%d)', ...
+                    length(ParamVec), NumTrans);
+            end
+
+            % Update Tran2D parameters if included
+            if Args.IncludeTran2D && Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
+                PosPar = Obj.getTran2DPar();
+                FreeIndicesPos = find(PosPar.FitPar);
+                NumPos = length(FreeIndicesPos);
+
+                if length(ParamVec) >= NumTrans + NumPos
+                    PosParams = ParamVec(NumTrans+1:NumTrans+NumPos);
+                    Obj.Tran2DObj.ParX(FreeIndicesPos) = PosParams;
+                else
+                    error('CompositeFun:setFreeParamVector:DimensionMismatch', ...
+                        'ParamVec length (%d) is less than total free parameters (%d)', ...
+                        length(ParamVec), NumTrans + NumPos);
+                end
+            end
+        end
+
+        function Params = buildMCMCParams(Obj, Args)
+            % Build mcmcstat-compatible parameter cell array
+            % Description: Creates the params structure for mcmcrun from
+            %              the model's free parameters.
+            % Input  : - Obj - CompositeFun object.
+            %          * ...,key,val,...
+            %            'IncludeTran2D' - Include Tran2D parameters. Default is false.
+            %            'PriorType' - Prior type for all parameters:
+            %                   'uniform' - Uniform prior (min, max bounds)
+            %                   'none' - No prior (improper uniform)
+            %                   Default is 'uniform'.
+            % Output : - Params - Cell array for mcmcrun:
+            %                   {{name, init, min, max, pri_mu, pri_sig}, ...}
+            % Author : D. Kovaleva (Jan 2026)
+            % Reference: mcmcstat toolbox by Marko Laine
+            % Example: Params = Model.buildMCMCParams();
+
+            arguments
+                Obj
+                Args.IncludeTran2D logical = false
+                Args.PriorType = 'uniform'
+            end
+
+            [ParamVec, ParamInfo] = Obj.getFreeParamVector('IncludeTran2D', Args.IncludeTran2D);
+            NumParams = length(ParamVec);
+
+            Params = cell(1, NumParams);
+            for I = 1:NumParams
+                Name = ParamInfo.Names{I};
+                Init = ParamVec(I);
+                MinVal = ParamInfo.Min(I);
+                MaxVal = ParamInfo.Max(I);
+
+                % Set prior parameters based on type
+                switch lower(Args.PriorType)
+                    case 'uniform'
+                        % Uniform prior: pri_mu and pri_sig not used by mcmcstat
+                        % when bounds are finite
+                        PriMu = NaN;
+                        PriSig = Inf;
+                    case 'none'
+                        % Improper uniform (no bounds enforced by prior)
+                        PriMu = NaN;
+                        PriSig = Inf;
+                    otherwise
+                        PriMu = NaN;
+                        PriSig = Inf;
+                end
+
+                % mcmcstat format: {name, initial, min, max, pri_mu, pri_sig}
+                Params{I} = {Name, Init, MinVal, MaxVal, PriMu, PriSig};
+            end
+        end
+
+        function Model = buildMCMCModel(Obj, InputValues, ObservedValues, Args)
+            % Build mcmcstat-compatible model structure
+            % Description: Creates the model structure for mcmcrun with
+            %              ssfun wrapping the costFun method.
+            % Input  : - Obj - CompositeFun object.
+            %          - InputValues - Wavelength grid for transmission.
+            %          - ObservedValues - Observed flux values.
+            %          * ...,key,val,...
+            %            'CostArgs' - Cell array of additional costFun arguments.
+            %                   Default is {}.
+            %            'X' - X coordinates for position correction. Default is [].
+            %            'Y' - Y coordinates for position correction. Default is [].
+            %            'IncludeTran2D' - Include Tran2D in parameter vector.
+            %                   Default is false.
+            % Output : - Model - Structure for mcmcrun with fields:
+            %                   .ssfun - Sum-of-squares function handle
+            %                   .N - Number of observations
+            %                   (only mcmcstat-valid fields)
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Model = Obj.buildMCMCModel(Lambda, ObsFlux, 'CostArgs', CostArgs);
+
+            arguments
+                Obj
+                InputValues
+                ObservedValues
+                Args.CostArgs cell = {}
+                Args.X = []
+                Args.Y = []
+                Args.IncludeTran2D logical = false
+            end
+
+            % Capture data in closure (not in Model struct - mcmcstat rejects unknown fields)
+            CapturedInputValues = InputValues;
+            CapturedObservedValues = ObservedValues;
+            CapturedCostArgs = Args.CostArgs;
+            CapturedX = Args.X;
+            CapturedY = Args.Y;
+            CapturedIncludeTran2D = Args.IncludeTran2D;
+            CapturedObj = Obj;  % Handle class - reference is captured
+
+            % Build sum-of-squares function using closure
+            % mcmcstat calls: ss = ssfun(par, data)
+            % par = parameter vector, data = passed but we use closure instead
+            Model.ssfun = @mcmcSSFun;
+            Model.N = length(ObservedValues);
+
+            % Nested function captures all data via closure
+            function SS = mcmcSSFun(ParVec, ~)
+                % Update model parameters (handle class - modifies in place)
+                CapturedObj.setFreeParamVector(ParVec, 'IncludeTran2D', CapturedIncludeTran2D);
+
+                % Call costFun to get residuals
+                if ~isempty(CapturedX)
+                    [~, ~, ~, Residuals] = CapturedObj.costFun(CapturedInputValues, CapturedObservedValues, ...
+                        CapturedCostArgs{:}, 'X', CapturedX, 'Y', CapturedY);
+                else
+                    [~, ~, ~, Residuals] = CapturedObj.costFun(CapturedInputValues, CapturedObservedValues, ...
+                        CapturedCostArgs{:});
+                end
+
+                % Sum of squared residuals (magnitude residuals)
+                SS = sum(Residuals.^2);
             end
         end
 
@@ -2007,8 +2257,14 @@ classdef CompositeFun < handle
                 Args.ValInp logical = true
                 Args.Verbose logical = false
             end
-            
-            
+
+            % Initialize outputs for early return on validation error
+            Residuals = [];
+            Cost = Inf;
+            PredictedValues = [];
+            UnweightedResiduals = [];
+            MagErr = [];
+
           %      H = constant.h('SI');      % Planck constant [J·s]
                 H = 6.62607015e-34;         % SI 2019 Plank constant
                 C = constant.c('SI');      % Speed of light [m/s]
@@ -2019,7 +2275,11 @@ classdef CompositeFun < handle
 
             if Args.ValInp
                 if ~isa(Obj, 'tools.math.fun.CompositeFun')
-                    error('Obj must be a tools.math.fun.CompositeFun object');
+                    Obj.addStatus('costFun', 'error', 'Obj must be a tools.math.fun.CompositeFun object', 'CompositeFun:InvalidObject');
+                    Residuals = NaN;
+                    PredictedValues = NaN;
+                    UnweightedResiduals = NaN;
+                    return;
                 end
             end
 
@@ -2034,8 +2294,11 @@ classdef CompositeFun < handle
                 if Args.ValInp
                     ExpectedNumParams = Obj.numAllFunPar();
                     if length(TransParams) ~= ExpectedNumParams
-                        error('TransParams size (%d) does not match Obj parameter count (%d)', ...
-                              length(TransParams), ExpectedNumParams);
+                        Obj.addStatus('costFun', 'error', sprintf('TransParams size (%d) does not match Obj parameter count (%d)', length(TransParams), ExpectedNumParams), 'CompositeFun:ParamCountMismatch');
+                        Residuals = NaN;
+                        PredictedValues = NaN;
+                        UnweightedResiduals = NaN;
+                        return;
                     end
                 end
                 if Args.Verbose
@@ -2045,7 +2308,11 @@ classdef CompositeFun < handle
 
             if Args.ValInp
                 if any(isnan(TransParams))
-                    error('TransParams contains NaN');
+                    Obj.addStatus('costFun', 'error', 'TransParams contains NaN', 'CompositeFun:NaNParams');
+                    Residuals = NaN;
+                    PredictedValues = NaN;
+                    UnweightedResiduals = NaN;
+                    return;
                 end
             end
 
@@ -2062,19 +2329,35 @@ classdef CompositeFun < handle
 
             if Args.ValInp
                 if NCalUsed == 0
-                    error('ObservedValues is empty');
+                    Obj.addStatus('costFun', 'error', 'ObservedValues is empty', 'CompositeFun:EmptyObserved');
+                    Residuals = NaN;
+                    PredictedValues = NaN;
+                    UnweightedResiduals = NaN;
+                    return;
                 end
                 if Ninput == 0
-                    error('InputValues is empty');
+                    Obj.addStatus('costFun', 'error', 'InputValues is empty', 'CompositeFun:EmptyInput');
+                    Residuals = NaN;
+                    PredictedValues = NaN;
+                    UnweightedResiduals = NaN;
+                    return;
                 end
 
                 % Validate X, Y if using Tran2D and coordinates are provided
                 if Obj.UseTran2D && ~isempty(Args.X) && ~isempty(Args.Y)
                     if length(Args.X) ~= NCalUsed
-                        error('X size (%d) does not match number of observations (%d)', length(Args.X), NCalUsed);
+                        Obj.addStatus('costFun', 'error', sprintf('X size (%d) does not match number of observations (%d)', length(Args.X), NCalUsed), 'CompositeFun:XSizeMismatch');
+                        Residuals = nan(NCalUsed, 1);
+                        PredictedValues = nan(NCalUsed, 1);
+                        UnweightedResiduals = nan(NCalUsed, 1);
+                        return;
                     end
                     if length(Args.Y) ~= NCalUsed
-                        error('Y size (%d) does not match number of observations (%d)', length(Args.Y), NCalUsed);
+                        Obj.addStatus('costFun', 'error', sprintf('Y size (%d) does not match number of observations (%d)', length(Args.Y), NCalUsed), 'CompositeFun:YSizeMismatch');
+                        Residuals = nan(NCalUsed, 1);
+                        PredictedValues = nan(NCalUsed, 1);
+                        UnweightedResiduals = nan(NCalUsed, 1);
+                        return;
                     end
                 end
 
@@ -2082,8 +2365,11 @@ classdef CompositeFun < handle
                 if ~isempty(Args.WeightMatrix) && ~Args.TransmissionMode
                     [WRows, WCols] = size(Args.WeightMatrix);
                     if WRows ~= NCalUsed || WCols ~= Ninput
-                        error('WeightMatrix size [%d x %d] must match [NCalUsed=%d x Ninput=%d]', ...
-                              WRows, WCols, NCalUsed, Ninput);
+                        Obj.addStatus('costFun', 'error', sprintf('WeightMatrix size [%d x %d] must match [NCalUsed=%d x Ninput=%d]', WRows, WCols, NCalUsed, Ninput), 'CompositeFun:WeightMatrixSize');
+                        Residuals = nan(NCalUsed, 1);
+                        PredictedValues = nan(NCalUsed, 1);
+                        UnweightedResiduals = nan(NCalUsed, 1);
+                        return;
                     end
                 end
             end
@@ -2106,7 +2392,11 @@ classdef CompositeFun < handle
                 % TRANSMISSION-SPECIFIC MODE
                 % ============================================================
                 if isempty(Args.WeightMatrix)
-                    error('TransmissionMode requires WeightMatrix (spectra)');
+                    Obj.addStatus('costFun', 'error', 'TransmissionMode requires WeightMatrix (spectra)', 'CompositeFun:MissingWeightMatrix');
+                    Residuals = nan(NCalUsed, 1);
+                    PredictedValues = nan(NCalUsed, 1);
+                    UnweightedResiduals = nan(NCalUsed, 1);
+                    return;
                 end
 
                 % Evaluate model
@@ -2261,8 +2551,11 @@ classdef CompositeFun < handle
                     if Ninput == NCalUsed
                         PredictedValues = ModelOutput;
                     else
-                        error('Direct comparison requires Ninput (%d) == NCalUsed (%d) or use WeightMatrix', ...
-                              Ninput, NCalUsed);
+                        Obj.addStatus('costFun', 'error', sprintf('Direct comparison requires Ninput (%d) == NCalUsed (%d) or use WeightMatrix', Ninput, NCalUsed), 'CompositeFun:InputObsMismatch');
+                        Residuals = nan(NCalUsed, 1);
+                        PredictedValues = nan(NCalUsed, 1);
+                        UnweightedResiduals = nan(NCalUsed, 1);
+                        return;
                     end
                 end
 
@@ -2282,7 +2575,9 @@ classdef CompositeFun < handle
                 case 'rmse'
                     Cost = sqrt(mean(Residuals.^2));
                 otherwise
-                    error('Unknown CostType: %s', Args.CostType);
+                    Obj.addStatus('costFun', 'error', sprintf('Unknown CostType: %s', Args.CostType), 'CompositeFun:UnknownCostType');
+                    % Cost already initialized to Inf, Residuals already set
+                    return;
             end
 
             % Set default UnweightedResiduals and MagErr for non-TransmissionMode paths
@@ -2769,6 +3064,206 @@ classdef CompositeFun < handle
                 fprintf('\nTransmission optimization complete\n');
                 fprintf('  Final observations: %d (clipped: %d)\n', length(CurrentObs), NumClipped);
                 fprintf('  RMS: %.4f\n', StageRMS);
+            end
+        end
+
+        function [Obj, MCMCResult] = fitMCMC(Obj, InputValues, ObservedValues, Args)
+            % MCMC sampling for parameter uncertainty estimation
+            % Description: Uses mcmcstat package to sample the posterior
+            %              distribution of transmission model parameters.
+            % Input  : - Obj - CompositeFun object with model setup.
+            %          - InputValues - Wavelength grid [N_wvl x 1].
+            %          - ObservedValues - Observed flux values [N_obs x 1].
+            %          * ...,key,val,...
+            %            'CostArgs' - Cell array of costFun arguments. Default is {}.
+            %            'X' - X coordinates for position correction. Default is [].
+            %            'Y' - Y coordinates for position correction. Default is [].
+            %            'IncludeTran2D' - Include Tran2D in sampling. Default is false.
+            %            'Nsimu' - Number of MCMC samples. Default is 10000.
+            %            'BurnIn' - Burn-in samples to discard. Default is [] (20%).
+            %            'Method' - MCMC method: 'dram', 'am', 'dr', 'mh', 'ram'.
+            %                   Default is 'dram' (Delayed Rejection Adaptive Metropolis).
+            %            'InitFromFit' - Initialize from lsqnonlin fit. Default is true.
+            %            'AdaptInt' - Adaptation interval. Default is 100.
+            %            'Verbosity' - mcmcstat verbosity (0-2). Default is 1.
+            %            'WaitBar' - Show progress waitbar. Default is false.
+            %            'Verbose' - Enable verbose output. Default is true.
+            % Output : - Obj - Updated CompositeFun with median posterior parameters.
+            %          - MCMCResult - Structure with fields:
+            %                   .Chain - MCMC chain [Nsimu x Nparams]
+            %                   .Results - mcmcstat results structure
+            %                   .ParamNames - Parameter names
+            %                   .Median - Median values
+            %                   .Std - Standard deviations
+            %                   .CI95 - 95% credible intervals [Nparams x 2]
+            %                   .AcceptRate - Acceptance rate
+            %                   .Tau - Integrated autocorrelation times
+            % Author : D. Kovaleva (Jan 2026)
+            % Reference: mcmcstat toolbox by Marko Laine (2003)
+            % Example: [Model, MCMCRes] = Model.fitMCMC(Lambda, ObsFlux, ...
+            %              'CostArgs', CostArgs, 'X', X, 'Y', Y, 'Nsimu', 20000);
+
+            arguments
+                Obj
+                InputValues
+                ObservedValues
+                Args.CostArgs cell = {}
+                Args.X = []
+                Args.Y = []
+                Args.IncludeTran2D logical = false
+                Args.Nsimu = 10000
+                Args.BurnIn = []
+                Args.Method = 'dram'
+                Args.InitFromFit logical = true
+                Args.AdaptInt = 100
+                Args.Verbosity = 1
+                Args.WaitBar logical = false
+                Args.Verbose logical = true
+            end
+
+            if Args.Verbose
+                fprintf('\n=== MCMC PARAMETER SAMPLING ===\n');
+                fprintf('Method: %s, Samples: %d\n', Args.Method, Args.Nsimu);
+            end
+
+            % ================================================================
+            % STEP 1: INITIALIZE FROM LEAST-SQUARES FIT (optional)
+            % ================================================================
+
+            if Args.InitFromFit
+                if Args.Verbose
+                    fprintf('Initializing from least-squares fit...\n');
+                end
+
+                % Run a quick fit to get good starting point
+                [Obj, ~] = Obj.fitPar(InputValues, ObservedValues, ...
+                    'CostArgs', Args.CostArgs, 'X', Args.X, 'Y', Args.Y, ...
+                    'FitTransmission', true, 'FitPosition', false, ...
+                    'SigmaClip', false, 'Verbose', false);
+            end
+
+            % ================================================================
+            % STEP 2: BUILD MCMC STRUCTURES
+            % ================================================================
+
+            % Build parameter array for mcmcstat
+            Params = Obj.buildMCMCParams('IncludeTran2D', Args.IncludeTran2D);
+
+            if Args.Verbose
+                fprintf('Free parameters: %d\n', length(Params));
+                for I = 1:min(length(Params), 5)
+                    fprintf('  %s: %.4g [%.4g, %.4g]\n', ...
+                        Params{I}{1}, Params{I}{2}, Params{I}{3}, Params{I}{4});
+                end
+                if length(Params) > 5
+                    fprintf('  ... and %d more\n', length(Params) - 5);
+                end
+            end
+
+            % Build model structure
+            Model = Obj.buildMCMCModel(InputValues, ObservedValues, ...
+                'CostArgs', Args.CostArgs, 'X', Args.X, 'Y', Args.Y, ...
+                'IncludeTran2D', Args.IncludeTran2D);
+
+            % ================================================================
+            % STEP 3: CONFIGURE MCMC OPTIONS
+            % ================================================================
+
+            Options.nsimu = Args.Nsimu;
+            Options.method = Args.Method;
+            Options.adaptint = Args.AdaptInt;
+            Options.verbosity = Args.Verbosity;
+            Options.waitbar = Args.WaitBar;
+
+            % ================================================================
+            % STEP 4: RUN MCMC
+            % ================================================================
+
+            if Args.Verbose
+                fprintf('Running MCMC sampling...\n');
+                TicStart = tic;
+            end
+
+            % Call mcmcstat
+            % Model contains only valid mcmcstat fields (ssfun, N)
+            % Data argument is ignored by our ssfun (uses closure), pass empty struct
+            Data = struct();
+            [Results, Chain, S2Chain, SSChain] = mcmcrun(Model, Data, Params, Options);
+
+            if Args.Verbose
+                ElapsedTime = toc(TicStart);
+                fprintf('MCMC completed in %.1f seconds\n', ElapsedTime);
+                fprintf('Acceptance rate: %.1f%%\n', (1 - Results.rejected) * 100);
+            end
+
+            % ================================================================
+            % STEP 5: PROCESS RESULTS
+            % ================================================================
+
+            % Determine burn-in
+            if isempty(Args.BurnIn)
+                BurnIn = floor(Args.Nsimu / 5);  % Default: discard first 20%
+            else
+                BurnIn = Args.BurnIn;
+            end
+
+            % Trim chain
+            ChainTrimmed = Chain(BurnIn+1:end, :);
+            NumSamples = size(ChainTrimmed, 1);
+            NumParams = size(ChainTrimmed, 2);
+
+            % Compute statistics
+            MedianVals = median(ChainTrimmed, 1)';
+            StdVals = std(ChainTrimmed, 0, 1)';
+            CI95 = prctile(ChainTrimmed, [2.5, 97.5], 1)';
+
+            % Integrated autocorrelation time (if available in mcmcstat)
+            try
+                TauVals = iact(ChainTrimmed);
+            catch
+                TauVals = nan(NumParams, 1);
+            end
+
+            % ================================================================
+            % STEP 6: UPDATE MODEL WITH MEDIAN PARAMETERS
+            % ================================================================
+
+            Obj.setFreeParamVector(MedianVals, 'IncludeTran2D', Args.IncludeTran2D);
+
+            % ================================================================
+            % STEP 7: BUILD OUTPUT STRUCTURE
+            % ================================================================
+
+            MCMCResult.Chain = ChainTrimmed;
+            MCMCResult.FullChain = Chain;
+            MCMCResult.S2Chain = S2Chain;
+            MCMCResult.SSChain = SSChain;
+            MCMCResult.Results = Results;
+            MCMCResult.ParamNames = Results.names;
+            MCMCResult.Median = MedianVals;
+            MCMCResult.Std = StdVals;
+            MCMCResult.CI95 = CI95;
+            MCMCResult.AcceptRate = 1 - Results.rejected;
+            MCMCResult.Tau = TauVals;
+            MCMCResult.BurnIn = BurnIn;
+            MCMCResult.Nsimu = Args.Nsimu;
+            MCMCResult.NumSamples = NumSamples;
+
+            % ================================================================
+            % STEP 8: PRINT SUMMARY
+            % ================================================================
+
+            if Args.Verbose
+                fprintf('\n--- MCMC Parameter Summary ---\n');
+                fprintf('%-20s %12s %12s %12s %12s\n', 'Parameter', 'Median', 'Std', 'CI95_low', 'CI95_high');
+                fprintf('%s\n', repmat('-', 1, 70));
+                for I = 1:NumParams
+                    fprintf('%-20s %12.4g %12.4g %12.4g %12.4g\n', ...
+                        Results.names{I}, MedianVals(I), StdVals(I), CI95(I,1), CI95(I,2));
+                end
+                fprintf('%s\n', repmat('-', 1, 70));
+                fprintf('Effective samples: %.0f (tau_mean=%.1f)\n', ...
+                    NumSamples / nanmean(TauVals), nanmean(TauVals));
             end
         end
 

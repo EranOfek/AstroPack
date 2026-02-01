@@ -292,7 +292,7 @@ classdef PhotCalibTrans < Component
             %            'Tran2DType' - Position-dependent correction type. Default is 'cheby1_4_xt'.
             %            'UseTran2D' - Enable position-dependent correction. Default is true.
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 1.5.
-            %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
+            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
             %            'WeightingMode' - 'none', 'spectral', 'flux', 'combined'. Default is 'spectral'.
             %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
             %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
@@ -324,13 +324,13 @@ classdef PhotCalibTrans < Component
                 Args.Tran2DType = 'cheby1_4_xt'
                 Args.UseTran2D logical = true  % Enable position-dependent correction
                 Args.SearchRadius = 1.5
-                Args.MagRange = [12 16]
+                Args.MagRange = [11.5 15.5]
 
                 % Weighting options
                 Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
                 Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
                 Args.WeightedClipping logical = true  % Use weighted residuals for sigma clipping
-                Args.FluxErrorNorm = 1.0  % Normalization for synthetic flux in error calculation
+                Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
                 Args.Verbose logical = true
             end
@@ -600,45 +600,32 @@ classdef PhotCalibTrans < Component
 
                     % Count unique free function parameters across all stages
                     if ~isempty(Obj.TransModel.OptSeq)
-                        Funs = Obj.TransModel.Funs;
-                        for iFun = 1:length(Funs)
-                            Fun = Funs(iFun);
-                            for iPar = 1:length(Fun.Par)
-                                % Check if this parameter was freed in any stage
-                                WasFreed = false;
-                                for iStage = 1:length(Obj.TransModel.OptSeq)
-                                    Stage = Obj.TransModel.OptSeq(iStage);
-                                    if ~isempty(Stage.FreeParams)
-                                        for iFree = 1:length(Stage.FreeParams)
-                                            if strcmp(Stage.FreeParams(iFree).Function, Fun.Desc)
-                                                if ~isempty(Fun.ArgNames) && iPar <= length(Fun.ArgNames)
-                                                    ParName = Fun.ArgNames(iPar).Description;
-                                                    if strcmp(Stage.FreeParams(iFree).Parameter, ParName)
-                                                        WasFreed = true;
-                                                        break;
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                    if WasFreed
-                                        break;
+                        % Collect unique parameter names from all stages
+                        FittedParamNames = {};
+                        HasFieldCorrection = false;
+
+                        for iStage = 1:length(Obj.TransModel.OptSeq)
+                            Stage = Obj.TransModel.OptSeq(iStage);
+                            if ~isempty(Stage.FreeParams)
+                                for iFree = 1:length(Stage.FreeParams)
+                                    ParamName = Stage.FreeParams(iFree).Parameter;
+                                    if ~any(strcmp(FittedParamNames, ParamName))
+                                        FittedParamNames{end+1} = ParamName; %#ok<AGROW>
                                     end
                                 end
-                                if WasFreed
-                                    NFreeParams = NFreeParams + 1;
+                            else
+                                % Empty FreeParams indicates field correction stage
+                                if ~isempty(Obj.TransModel.Tran2DObj)
+                                    HasFieldCorrection = true;
                                 end
                             end
                         end
 
+                        NFreeParams = length(FittedParamNames);
+
                         % Count position correction parameters if fitted
-                        for iStage = 1:length(Obj.TransModel.OptSeq)
-                            Stage = Obj.TransModel.OptSeq(iStage);
-                            if isempty(Stage.FreeParams) && ~isempty(Obj.TransModel.Tran2DObj)
-                                % Field correction stage
-                                NFreeParams = NFreeParams + length(Obj.TransModel.Tran2DObj.ParX);
-                                break; % Count only once
-                            end
+                        if HasFieldCorrection
+                            NFreeParams = NFreeParams + length(Obj.TransModel.Tran2DObj.ParX);
                         end
                     else
                         % No OptSeq, use initial FitPar configuration
@@ -683,7 +670,7 @@ classdef PhotCalibTrans < Component
             %          - Cat - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 1.5.
-            %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
+            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
             %            'MinSN' - Minimum S/N for calibrators. Default is 5.
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
@@ -702,7 +689,7 @@ classdef PhotCalibTrans < Component
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
-            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 1.5, 'MagRange', [12 16]);
+            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 1.5, 'MagRange', [11.5 15.5]);
             %          PC = PC.selectCalibrators(Cat, 'SpFluxCol', [7, 349, 350, 692]);
             % Note: Default implementation uses Gaia DR3 XP spectra from GAIADR3spec catalog.
             %       Default telescope/instrument configuration is for LAST.
@@ -712,7 +699,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 Cat  % AstroCatalog
                 Args.SearchRadius = 1.5  % arcsec
-                Args.MagRange = [12 16]
+                Args.MagRange = [11.5 15.5]
                 Args.MinSN = 5
                 Args.MaxSN = 1000
                 Args.FilterBadFlags logical = true
@@ -1299,6 +1286,130 @@ classdef PhotCalibTrans < Component
             [~, ~, PredictedFlux] = Obj.TransModel.costFun(Obj.TransWvl, Flux, CostArgs{:});
         end
 
+        function ParamsInfo = getMCMCParamsInfo(Obj, Args)
+            % Get parameter information for MCMC sampling
+            % Description: Extracts parameters that were fitted in ANY optimization
+            %              stage (not just current FitPar flags). This ensures MCMC
+            %              samples all physically relevant parameters.
+            % Input  : - Obj - PhotCalibTrans object (must be calibrated)
+            %          * ...,key,val,...
+            %            'IncludeTran2D' - Include position coefficients. Default is false.
+            %            'PosBounds' - Bounds for position coefficients [min, max].
+            %                   Default is [-10, 10].
+            % Output : - ParamsInfo - Structure with fields:
+            %                   .Names - Cell array of parameter names
+            %                   .Values - Current parameter values [N x 1]
+            %                   .Min - Lower bounds [N x 1]
+            %                   .Max - Upper bounds [N x 1]
+            %                   .NumTrans - Number of transmission parameters
+            %                   .NumPos - Number of position parameters
+            %                   .TransIndices - Indices into Funs structure (for setFreeParamVector)
+            %                   .WasFitted - Logical array indicating which were fitted
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: Info = PC.getMCMCParamsInfo('IncludeTran2D', true);
+
+            arguments
+                Obj
+                Args.IncludeTran2D logical = false
+                Args.PosBounds = [-10, 10]
+            end
+
+            if isempty(Obj.TransModel)
+                error('PhotCalibTrans:getMCMCParamsInfo:NoModel', ...
+                    'TransModel is empty. Run calibration first.');
+            end
+
+            OptSeq = Obj.TransModel.OptSeq;
+
+            % Get all parameters via getAllFunPar (consistent with optimization code)
+            AllFunPar = Obj.TransModel.getAllFunPar();
+            NumAllParams = length(AllFunPar.Val);
+
+            % Collect parameters that were fitted in ANY stage
+            Names = {};
+            Values = [];
+            MinVals = [];
+            MaxVals = [];
+            TransIndices = [];  % Global indices for setFreeParamVector
+            WasFitted = [];
+
+            if ~isempty(OptSeq)
+                % Use OptSeq to determine fitted parameters
+                % Look up parameters by name directly (same approach as optimization code)
+                FittedParamNames = {};
+
+                for iStage = 1:length(OptSeq)
+                    Stage = OptSeq(iStage);
+                    if ~isempty(Stage.FreeParams)
+                        for iFree = 1:length(Stage.FreeParams)
+                            ParamName = Stage.FreeParams(iFree).Parameter;
+                            % Add to list if not already present
+                            if ~any(strcmp(FittedParamNames, ParamName))
+                                FittedParamNames{end+1} = ParamName; %#ok<AGROW>
+                            end
+                        end
+                    end
+                end
+
+                % Now find each fitted parameter in AllFunPar by name
+                for iParam = 1:length(FittedParamNames)
+                    ParamName = FittedParamNames{iParam};
+                    % Look up parameter by name (same as CompositeFun.runTransmissionOptimization)
+                    Idx = find(strcmp(AllFunPar.Name, ParamName), 1);
+                    if ~isempty(Idx)
+                        Names{end+1} = ParamName; %#ok<AGROW>
+                        Values(end+1) = AllFunPar.Val(Idx); %#ok<AGROW>
+                        MinVals(end+1) = AllFunPar.Min(Idx); %#ok<AGROW>
+                        MaxVals(end+1) = AllFunPar.Max(Idx); %#ok<AGROW>
+                        TransIndices(end+1) = Idx; %#ok<AGROW>
+                        WasFitted(end+1) = true; %#ok<AGROW>
+                    end
+                end
+            else
+                % No OptSeq, use FitPar flags (fallback)
+                for Idx = 1:NumAllParams
+                    if AllFunPar.FitPar(Idx)
+                        Names{end+1} = AllFunPar.Name{Idx}; %#ok<AGROW>
+                        Values(end+1) = AllFunPar.Val(Idx); %#ok<AGROW>
+                        MinVals(end+1) = AllFunPar.Min(Idx); %#ok<AGROW>
+                        MaxVals(end+1) = AllFunPar.Max(Idx); %#ok<AGROW>
+                        TransIndices(end+1) = Idx; %#ok<AGROW>
+                        WasFitted(end+1) = true; %#ok<AGROW>
+                    end
+                end
+            end
+
+            NumTrans = length(Names);
+
+            % Add position parameters if requested
+            NumPos = 0;
+            if Args.IncludeTran2D && Obj.TransModel.UseTran2D && ~isempty(Obj.TransModel.Tran2DObj)
+                ParX = Obj.TransModel.Tran2DObj.ParX;
+                NCoeff = length(ParX);
+
+                for iCoeff = 1:NCoeff
+                    Names{end+1} = sprintf('PosCoeff_%d', iCoeff);  %#ok<AGROW>
+                    Values(end+1) = ParX(iCoeff);  %#ok<AGROW>
+                    MinVals(end+1) = Args.PosBounds(1);  %#ok<AGROW>
+                    MaxVals(end+1) = Args.PosBounds(2);  %#ok<AGROW>
+                    % Position parameter indices are offset from transmission parameters
+                    TransIndices(end+1) = NumAllParams + iCoeff;  %#ok<AGROW>
+                    WasFitted(end+1) = true;  %#ok<AGROW>
+                end
+                NumPos = NCoeff;
+            end
+
+            % Build output structure
+            ParamsInfo.Names = Names(:);
+            ParamsInfo.Values = Values(:);
+            ParamsInfo.Min = MinVals(:);
+            ParamsInfo.Max = MaxVals(:);
+            ParamsInfo.NumTrans = NumTrans;
+            ParamsInfo.NumPos = NumPos;
+            ParamsInfo.TransIndices = TransIndices(:);
+            ParamsInfo.WasFitted = WasFitted(:);
+        end
+
         function MagErr = computeMagErr(Obj, Flux, FluxErrVector, Args)
             % Pre-compute magnitude errors for all calibrators (expensive, do once)
             % This avoids recalculating error propagation on every costFun call.
@@ -1312,7 +1423,7 @@ classdef PhotCalibTrans < Component
             %                   Default is @telescope.optics.refTransmissionLAST.
             %            'FluxErrorNorm' - Normalization constant for synthetic flux in error
             %                   calculation. Scales synthetic flux to match model normalization.
-            %                   Default is 1.0.
+            %                   Default is 0.5
             % Output : - MagErr - Magnitude errors [N_calib x 1]
             % Author : D. Kovaleva (Jan 2026)
             % Example: MagErr = PC.computeMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
@@ -1324,7 +1435,7 @@ classdef PhotCalibTrans < Component
                 Args.WeightingMode = 'spectral'
                 Args.ExpTime = []
                 Args.RefTransmissionFun = @telescope.optics.refTransmissionLAST
-                Args.FluxErrorNorm = 1.0
+                Args.FluxErrorNorm = 0.5
             end
 
             % Get effective exposure time
@@ -1522,6 +1633,22 @@ classdef PhotCalibTrans < Component
             Funs = Obj.TransModel.Funs;
             NFuns = length(Funs);
 
+            % Pre-compute fitted parameter names from OptSeq (same approach as getMCMCParamsInfo)
+            FittedParamNames = {};
+            if ~isempty(Obj.TransModel.OptSeq)
+                for iStage = 1:length(Obj.TransModel.OptSeq)
+                    Stage = Obj.TransModel.OptSeq(iStage);
+                    if ~isempty(Stage.FreeParams)
+                        for iFree = 1:length(Stage.FreeParams)
+                            ParamName = Stage.FreeParams(iFree).Parameter;
+                            if ~any(strcmp(FittedParamNames, ParamName))
+                                FittedParamNames{end+1} = ParamName; %#ok<AGROW>
+                            end
+                        end
+                    end
+                end
+            end
+
             for iFun = 1:NFuns
                 Fun = Funs(iFun);
 
@@ -1544,45 +1671,26 @@ classdef PhotCalibTrans < Component
                     % Value
                     KeyName = sprintf('PT_%d_V%d', iFun, iPar);
                     HeaderObj = HeaderObj.replaceVal(KeyName, Fun.Par(iPar));
-                    if Args.WriteComments
-                        % Get parameter name from ArgNames if available
-                        iComment = iComment + 1;
-                        if ~isempty(Fun.ArgNames) && iPar <= length(Fun.ArgNames)
-                            ParName = Fun.ArgNames(iPar).Description;
-                            HistoryComments{iComment} = sprintf('%s: %s [%s]', KeyName, Fun.Desc, ParName);
-                        else
-                            HistoryComments{iComment} = sprintf('%s: %s parameter %d', KeyName, Fun.Desc, iPar);
-                        end
+
+                    % Get parameter name from ArgNames if available
+                    if ~isempty(Fun.ArgNames) && iPar <= length(Fun.ArgNames)
+                        ParName = Fun.ArgNames(iPar).Description;
+                    else
+                        ParName = sprintf('%s_Par%d', Fun.Desc, iPar);
                     end
 
-                    % Fit flag - check if parameter was fitted in ANY optimization stage
+                    if Args.WriteComments
+                        iComment = iComment + 1;
+                        HistoryComments{iComment} = sprintf('%s: %s [%s]', KeyName, Fun.Desc, ParName);
+                    end
+
+                    % Fit flag - check if parameter name is in fitted list
                     KeyName = sprintf('PT_%d_F%d', iFun, iPar);
 
                     % Determine if parameter was ever freed during optimization
-                    WasFitted = false;
                     if ~isempty(Obj.TransModel.OptSeq)
-                        % Check all optimization stages
-                        for iStage = 1:length(Obj.TransModel.OptSeq)
-                            Stage = Obj.TransModel.OptSeq(iStage);
-                            if ~isempty(Stage.FreeParams)
-                                % Check if this parameter was freed in this stage
-                                for iFree = 1:length(Stage.FreeParams)
-                                    if strcmp(Stage.FreeParams(iFree).Function, Fun.Desc)
-                                        % Get parameter name from ArgNames
-                                        if ~isempty(Fun.ArgNames) && iPar <= length(Fun.ArgNames)
-                                            ParName = Fun.ArgNames(iPar).Description;
-                                            if strcmp(Stage.FreeParams(iFree).Parameter, ParName)
-                                                WasFitted = true;
-                                                break;
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                            if WasFitted
-                                break;
-                            end
-                        end
+                        % Check if parameter name is in the fitted list
+                        WasFitted = any(strcmp(FittedParamNames, ParName));
                     else
                         % No OptSeq defined, use initial FitPar configuration
                         WasFitted = Fun.FitPar(iPar);
