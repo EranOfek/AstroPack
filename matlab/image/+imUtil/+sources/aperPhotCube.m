@@ -147,9 +147,13 @@ function Result = aperPhotCube(Cube, X, Y, Args)
             % need to prepare a new version of MatR2 with the correct
             % positions
             
-            VecX  = X(:) - (1:1:SizeX);
-            VecY  = Y(:) - (1:1:SizeY);
+            % BUG:
+            %VecX  = X(:) - (1:1:SizeX);
+            %VecY  = Y(:) - (1:1:SizeY);
             
+            VecX = (1:1:SizeX) - ShiftXY(:,1);
+            VecY = (1:1:SizeY) - ShiftXY(:,2);
+
             MatR2 = zeros(SizeY, SizeX, Nim);
             for Iim=1:1:Nim
                 MatR2(:,:,Iim) = VecX(Iim,:).^2 + (VecY(Iim,:).').^2;
