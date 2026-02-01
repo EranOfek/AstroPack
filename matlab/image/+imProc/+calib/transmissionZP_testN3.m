@@ -102,7 +102,7 @@ function [Result] = transmissionZP_testN3(Args)
        
         clear AI;
 
-        if ~isempty(Args.RemoteDir) && Result(Ivis).NumObs > 0 
+        if ~isempty(Args.RemoteDir) && Result(Ivis).NCalUsed > 0 
             try
                 tools.os.copyFileOverNFS(FN1, Args.RemoteDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
             catch ME

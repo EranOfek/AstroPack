@@ -113,7 +113,7 @@ function [Result] = stitchCrops(AI, Args)
     
     % add a mean JD (should be the same, but still):
     MeanJD = mean(julday(AI));        
-    Result.HeaderData = replaceVal(Result.HeaderData, 'JD', MeanJD);
+    Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', MeanJD);
     
     % add a mean EXPTIME:
     MeanExp = mean([AI.getStructKey('EXPTIME').EXPTIME]);
