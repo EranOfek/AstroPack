@@ -51,21 +51,6 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
 
     end
 
-    if isempty(Image)
-        % early return
-        FWHM=NaN;
-        Nstars=0;
-        Info.X1 = NaN;
-        Info.Y1 = NaN;
-        Info.X2 = NaN;
-        Info.Y2 = NaN;
-        Info.XY = NaN;
-        Info.MinorSig = NaN;
-        Info.MajorSig = NaN;
-        Info.Angle    = NaN;
-        return
-    end
-
     Image = single(Image);
 
     if ~isempty(Args.CCDSEC)
@@ -84,7 +69,7 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     Back = median(Image,'all','omitnan');
     Var  = tools.math.stat.rstd(Image).^2;
 
-    Result = imUtil.sources.findSources(Image, 'Threshold',Args.MinSN, 'PsfFun',Args.PsfFun, 'PsfFunPar',Args.PsfFunPar, 'BackIm',Back, 'VarIm',Var);
+    [Result,Template,FiltImage,FiltImageVar] = imUtil.sources.findSources(Image, 'Threshold',Args.MinSN, 'PsfFun',Args.PsfFun, 'PsfFunPar',Args.PsfFunPar, 'BackIm',Back, 'VarIm',Var);
 
     FlagStars = Result.SN(:,2)>Result.SN(:,1) | Result.SN(:,3)>Result.SN(:,1);
 
@@ -106,6 +91,6 @@ function [FWHM,Nstars,Info] = fwhm_fromMoments(Image, Args)
     Info.MinorSig = min(Lambda1, Lambda2);
     Info.MajorSig = max(Lambda1, Lambda2);
     Info.Angle    = 0.5.*atan2(2.*median(M2.XY), (median(M2.X2) - median(M2.Y2)));
-    FWHM     = sqrt(2*log(2)) * (Info.MinorSig + Info.MajorSig);
+    FWHM     = 2.35.*0.5.*(Info.MinorSig + Info.MajorSig);
 
 end

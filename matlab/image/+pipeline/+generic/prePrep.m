@@ -166,14 +166,11 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         Args.KeyRawID                    = 'ID_RAW';
         Args.ClassID                     = @uint64;
 
-        Args.Keys2table                  = {'EXPMODE','FILTER','JD','EXPTIME','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
+        Args.Keys2table                  = {'EXPMODE','FILTER','JD','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
                                             'M_RA','M_DEC','M_HA',...
                                             'M_JRA','M_JDEC','M_JHA',...
-                                            'RA','Dec','HA',...
                                             'AZ','ALT','AIRMASS','TRK_RA','TRK_DEC',...
-                                            'MNTTEMP','FOCUS','PREVFOCUS',...
-                                            'FIELDID','COUNTER','NODENUMB','MOUNTNUM','CAMNUM',...
-                                            'ID_RAW'};
+                                            'MNTTEMP','FOCUS','PREVFOCUS'};
         Args.TableForDB                  = true; % if given then update table with header + results.
 
         
@@ -191,14 +188,6 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     else
         % assume input is a list of images
         AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
-
-        % Add Time string to header:
-        Literals = AstroFileName.parseString2literals(Images);
-        Nim = numel(AI);
-        for Iim=1:1:Nim
-            AI(Iim).setKeyVal('TIME',Literals{Iim,2});
-        end
-
     end
     AI = AI(:);
     Nim = numel(AI);
@@ -353,7 +342,7 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         TableHeader = [];
     end
 
-    
+
     % write log
     if ~isempty(Args.LogObj)
         Nim = numel(AI);

@@ -188,7 +188,7 @@ classdef CompositeFun < handle
            'UseTran2D', false);
     
     % Example - Cost Function Evaluation with costFun:
-       % Simple direct comparison (NumInput == NumObs)
+       % Simple direct comparison (Ninput == NCalUsed)
        Lambda = linspace(4000, 9000, 100)';
        ObservedValues = randn(100, 1);  % Simulated observations
        [Residuals, Cost, Predicted] = Model.costFun(Lambda, ObservedValues);
@@ -277,7 +277,7 @@ classdef CompositeFun < handle
            'FitTransmission', true, 'FitPosition', true, ...
            'SigmaClip', true, 'SigmaThresh', 3.0, 'Verbose', true);
        fprintf('Final RMS: %.4f mag, Calibrators: %d/%d\n', ...
-               Result.RMS, Result.NumObs, length(ObsFlux));
+               Result.RMS, Result.NCalUsed, length(ObsFlux));
     
     % Example - Multi-Stage Optimization with OptimizationSequence:
        % Build transmission model with Tran2D (as above)
@@ -327,10 +327,10 @@ classdef CompositeFun < handle
            'OptimizationSequence', OptSeq, 'Verbose', true);
     
        % Access per-stage results
-       fprintf('Stage 1 (Aerosol):     RMS=%.4f mag, NumObs=%d\n', ...
-               FitResult(1).RMS, FitResult(1).NumObs);
-       fprintf('Stage 2 (Field Corr):  RMS=%.4f mag, NumObs=%d\n', ...
-               FitResult(2).RMS, FitResult(2).NumObs);
+       fprintf('Stage 1 (Aerosol):     RMS=%.4f mag, NCalUsed=%d\n', ...
+               FitResult(1).RMS, FitResult(1).NCalUsed);
+       fprintf('Stage 2 (Field Corr):  RMS=%.4f mag, NCalUsed=%d\n', ...
+               FitResult(2).RMS, FitResult(2).NCalUsed);
     
        % Get fitted position correction parameters
        PosParams = Model.Tran2DObj.ParX;  % [kx0, kx, kx2, ..., kxy]
@@ -1769,7 +1769,7 @@ classdef CompositeFun < handle
 
             % Evaluate correction at reference position
             Coo_ref = [X_ref, Y_ref];
-            [P_ref, ~] = Obj.Tran2DObj.forward(Coo_ref);
+            [P_ref, ~] = Obj.Tran2DObj.forward(Coo_ref, false);
 
             if Args.Verbose
                 fprintf('Normalizing position polynomial\n');
@@ -1789,7 +1789,7 @@ classdef CompositeFun < handle
                 Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) - P_ref;
 
                 % Verify normalization
-                [P_ref_new, ~] = Obj.Tran2DObj.forward(Coo_ref);
+                [P_ref_new, ~] = Obj.Tran2DObj.forward(Coo_ref, false);
 
                 if Args.Verbose
                     fprintf('  Correction at reference after normalization: %.6f mag\n', P_ref_new);
@@ -1961,76 +1961,33 @@ classdef CompositeFun < handle
             end
         end
 
-        function [Residuals, Cost, PredictedValues] = costFun(Obj, InputValues, ObservedValues, Args)
-            % General cost function for CompositeFun optimization with optional Tran2D.
-            % Evaluates CompositeFun model, compares predictions to observations, calculates residuals.
-            %
-            % Input  : - Obj - CompositeFun object
-            %          - InputValues - Input values for function evaluation (e.g., wavelength grid)
-            %                   Column vector [N_input x 1]
-            %          - ObservedValues - Observed output values for comparison
-            %                   Column vector [N_obs x 1] where N_obs is number of observations
+        function [Residuals, Cost, PredictedValues, UnweightedResiduals, MagErr] = costFun(Obj, InputValues, ObservedValues, Args)
+            % Cost function for CompositeFun optimization with optional Tran2D
+            % Input  : - Obj - CompositeFun object.
+            %          - InputValues - Wavelength grid [N_input x 1].
+            %          - ObservedValues - Observed flux [N_obs x 1].
             %          * ...,key,val,...
-            %            'TransParams' - Parameter values vector to override Obj parameters
-            %                   If empty, uses current parameters from Obj.
+            %            'TransParams' - Parameter override vector. Default is [].
+            %            'X' - Source X coordinates [N_obs x 1]. Default is [].
+            %            'Y' - Source Y coordinates [N_obs x 1]. Default is [].
+            %            'WeightMatrix' - Calibrator spectra [N_wvl x N_obs]. Default is [].
+            %            'PrecomputedMagErr' - Pre-computed magnitude errors [N_obs x 1].
+            %                   Must be computed before optimization via PhotCalibTrans.computeMagErr.
             %                   Default is [].
-            %            'X' - Source X coordinates [N_obs x 1] for Tran2D corrections
-            %                   Required if UseTran2D is true. Default is [].
-            %            'Y' - Source Y coordinates [N_obs x 1] for Tran2D corrections
-            %                   Required if UseTran2D is true. Default is [].
-            %            'WeightMatrix' - Optional weight matrix for observations [N_obs x N_input]
-            %                   Used when integrating model output (e.g., spectral weights)
-            %                   For transmission mode: calibrator spectra [N_wvl x N_obs]
-            %                   (Gaia XP, synthetic, or model spectra)
-            %                   If empty, direct comparison is used. Default is [].
-            %            'IntegrationDim' - Dimension along which to integrate (1 or 2)
-            %                   Used when WeightMatrix is provided. Default is 2.
-            %            'TransmissionMode' - Enable transmission-specific calculations
-            %                   When true, performs photon conversion and magnitude residuals
-            %                   Requires WeightMatrix (calibrator spectra). Default is false.
-            %            'CalibWavelength' - Calibrator spectral wavelength grid [N_wvl x 1] in Angstrom
-            %                   Works with any calibrator spectra (default: Gaia DR3 XP)
-            %                   Used in transmission mode. Default is CompositeFun.SpecWvl.
-            %            'ExpTime' - Exposure time [s] for photon conversion
-            %                   Used in transmission mode. Default is 20.
-            %            'Aperture_area_m2' - Telescope aperture area [m^2]
-            %                   Used in transmission mode. Default is pi * (0.1397)^2 (LAST).
-            %            'CostType' - Type of cost function:
-            %                   'sse' - Sum of squared errors (default)
-            %                   'mae' - Mean absolute error
-            %                   'rmse' - Root mean squared error
-            %                   Default is 'sse'.
-            %            'ValInp' - Boolean flag for validation of inputs. Default is true.
-            %            'Verbose' - Enable verbose output. Default is false.
-            % Output : - Residuals - Differences between predicted and observed [N_obs x 1]
-            %          - Cost - Scalar cost value (depends on CostType)
-            %          - PredictedValues - Model predictions [N_obs x 1]
+            %            'IntegrationDim' - Integration dimension (1 or 2). Default is 2.
+            %            'TransmissionMode' - Enable transmission mode. Default is false.
+            %            'CalibWavelength' - Calibrator wavelength grid [Angstrom]. Default is SpecWvl.
+            %            'ExpTime' - Exposure time [s]. Default is 20.
+            %            'Aperture_area_m2' - Aperture area [m^2]. Default is LAST.
+            %            'CostType' - 'sse', 'mae', or 'rmse'. Default is 'sse'.
+            %            'ValInp' - Validate inputs. Default is true.
+            %            'Verbose' - Verbose output. Default is false.
+            % Output : - Residuals - Weighted residuals [N_obs x 1] (r/σ if MagErr available).
+            %          - Cost - Scalar cost value.
+            %          - PredictedValues - Model-predicted flux [N_obs x 1] (in TransmissionMode).
+            %          - UnweightedResiduals - Unweighted magnitude residuals [N_obs x 1].
+            %          - MagErr - Magnitude errors [N_obs x 1] (from PrecomputedMagErr).
             % Author : D. Kovaleva (Dec 2025)
-            % Example: % Simple 1D function without position corrections
-            %          Model = tools.math.fun.CompositeFun.model(FunList);
-            %          InputVals = linspace(300, 1110, 10)';
-            %          ObsVals = randn(5, 1);  % 5 observations
-            %          [Res, Cost, Pred] = Model.costFun(InputVals, ObsVals);
-            %          % With Tran2D position corrections
-            %          Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
-            %          X = [100; 200; 300; 400; 500];  % 5 sources
-            %          Y = [100; 200; 300; 400; 500];
-            %          [Res, Cost, Pred] = Model.costFun(InputVals, ObsVals, 'X', X, 'Y', Y);
-            %          % TransmissionMode with calibrator spectra (photometric calibration)
-            %          % This mode integrates transmission×spectrum, converts to photons,
-            %          % and returns magnitude residuals: DeltaMag = 2.5*log10(Pred/Obs)
-            %          Lambda = (300:2:1100)';   % Transmission wavelength grid [nm], 401 points
-            %          SpecWvl = (336:2:1020)';  % Calibrator spectral wavelength grid [nm], 343 points (e.g., Gaia DR3 XP)
-            %          % Use calibrator spectra (e.g., Gaia DR3 XP, or synthetic/model spectra)
-            %          Spec = randn(343, 3) * 1e-17 + 1e-16;  % Calibrator spectra [343 x 3]
-            %          ObsFlux = [1.2e5; 2.5e5; 1.8e5];  % Observed photon counts [3 x 1]
-            %          X = [200; 863; 1500];  % Source positions [pixels]
-            %          Y = [200; 863; 1500];
-            %          [ResMag, Cost, PredFlux] = Model.costFun(Lambda, ObsFlux, ...
-            %              'WeightMatrix', Spec, 'TransmissionMode', true, ...
-            %              'CalibWavelength', SpecWvl, 'X', X, 'Y', Y, ...
-            %              'ExpTime', 20, 'Aperture_area_m2', pi*0.1397^2);
-            %          % ResMag are magnitude differences [mag], PredFlux are photons
 
             arguments
                 Obj
@@ -2039,10 +1996,11 @@ classdef CompositeFun < handle
                 Args.TransParams = []                 % Parameter override
                 Args.X = []                           % X coordinates [N_obs x 1]
                 Args.Y = []                           % Y coordinates [N_obs x 1]
-                Args.WeightMatrix = []                % Weight matrix [N_obs x N_input] or calibrator spectra
+                Args.WeightMatrix = []                % Calibrator spectra [N_wvl x N_obs]
+                Args.PrecomputedMagErr = []           % Pre-computed magnitude errors [N_obs x 1]
                 Args.IntegrationDim = 2               % Integration dimension
                 Args.TransmissionMode logical = false % Enable transmission-specific mode
-                Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator spectra wavelength grid [Angstrom] (default: Gaia DR3 XP)
+                Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator wavelength grid [Angstrom]
                 Args.ExpTime = 20                     % Exposure time [s]
                 Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
                 Args.CostType = 'sse'                 % Cost function type
@@ -2051,7 +2009,8 @@ classdef CompositeFun < handle
             end
             
             
-                H = constant.h('SI');      % Planck constant [J·s]
+          %      H = constant.h('SI');      % Planck constant [J·s]
+                H = 6.62607015e-34;         % SI 2019 Plank constant
                 C = constant.c('SI');      % Speed of light [m/s]
 
             % ====================================================================
@@ -2094,41 +2053,45 @@ classdef CompositeFun < handle
             InputValues = InputValues(:);
             ObservedValues = ObservedValues(:);
 
-            NumObs = length(ObservedValues);
-            NumInput = length(InputValues);
+            NCalUsed = length(ObservedValues);
+            Ninput = length(InputValues);
+
+            % Initialize outputs for all paths
+            UnweightedResiduals = [];
+            MagErr = [];
 
             if Args.ValInp
-                if NumObs == 0
+                if NCalUsed == 0
                     error('ObservedValues is empty');
                 end
-                if NumInput == 0
+                if Ninput == 0
                     error('InputValues is empty');
                 end
 
                 % Validate X, Y if using Tran2D and coordinates are provided
                 if Obj.UseTran2D && ~isempty(Args.X) && ~isempty(Args.Y)
-                    if length(Args.X) ~= NumObs
-                        error('X size (%d) does not match number of observations (%d)', length(Args.X), NumObs);
+                    if length(Args.X) ~= NCalUsed
+                        error('X size (%d) does not match number of observations (%d)', length(Args.X), NCalUsed);
                     end
-                    if length(Args.Y) ~= NumObs
-                        error('Y size (%d) does not match number of observations (%d)', length(Args.Y), NumObs);
+                    if length(Args.Y) ~= NCalUsed
+                        error('Y size (%d) does not match number of observations (%d)', length(Args.Y), NCalUsed);
                     end
                 end
 
                 % Validate WeightMatrix if provided (skip for TransmissionMode - different dimensions)
                 if ~isempty(Args.WeightMatrix) && ~Args.TransmissionMode
                     [WRows, WCols] = size(Args.WeightMatrix);
-                    if WRows ~= NumObs || WCols ~= NumInput
-                        error('WeightMatrix size [%d x %d] must match [NumObs=%d x NumInput=%d]', ...
-                              WRows, WCols, NumObs, NumInput);
+                    if WRows ~= NCalUsed || WCols ~= Ninput
+                        error('WeightMatrix size [%d x %d] must match [NCalUsed=%d x Ninput=%d]', ...
+                              WRows, WCols, NCalUsed, Ninput);
                     end
                 end
             end
 
             if Args.Verbose
                 fprintf('=== COMPOSITEFUN COST FUNCTION ===\n');
-                fprintf('Number of observations: %d\n', NumObs);
-                fprintf('Number of input points: %d\n', NumInput);
+                fprintf('Number of observations: %d\n', NCalUsed);
+                fprintf('Number of input points: %d\n', Ninput);
                 fprintf('Input range: %.3f - %.3f\n', min(InputValues), max(InputValues));
             end
 
@@ -2162,88 +2125,86 @@ classdef CompositeFun < handle
                     end
                 end
 
-                % WeightMatrix = calibrator spectra [N_SpecWvl x N_obs]
+                % Calibrator spectra [N_SpecWvl x N_obs] and wavelength grid [Angstrom]
                 Spec = Args.WeightMatrix;
                 SpecWvl = Args.CalibWavelength(:);
 
-                % Determine integration range from InputValues (Lambda)
-                Lambda_min = min(InputValues);
-                Lambda_max = max(InputValues);
+                % Calibrator spectral boundaries (e.g., Gaia XP: 3360-10200 Angstrom)
+                SpecWvlMin = min(SpecWvl);
+                SpecWvlMax = max(SpecWvl);
 
-                % Find spectral wavelengths within Lambda range
-                SpecInRange = (SpecWvl >= Lambda_min) & (SpecWvl <= Lambda_max);
-                SpecWvl_InRange = SpecWvl(SpecInRange);
+                % Wavelength region masks for extrapolation
+                MaskGaia = (InputValues >= SpecWvlMin) & (InputValues <= SpecWvlMax);
+                MaskUV = (InputValues < SpecWvlMin);
+                MaskIR = (InputValues > SpecWvlMax);
+                WvlGaiaRegion = InputValues(MaskGaia);
 
-                % Build integration wavelength grid (with extrapolation if needed)
-                SpecWvl_Integration = SpecWvl_InRange;
-                NeedExtrapolationBelow = Lambda_min < SpecWvl(1);
-                NeedExtrapolationAbove = Lambda_max > SpecWvl(end);
+                % Interpolate calibrator spectra onto transmission grid (vectorized)
+                SpecFluxMatrix = zeros(Ninput, NCalUsed);
+                SpecFluxMatrix(MaskGaia, :) = interp1(SpecWvl, Spec, WvlGaiaRegion, 'linear');
 
-                if NeedExtrapolationBelow
-                    SpecWvl_Integration = [Lambda_min; SpecWvl_Integration];
+                % UV/IR extrapolation: constant boundary values
+                if any(MaskUV)
+                    EdgeValuesUV = interp1(SpecWvl, Spec, SpecWvlMin, 'linear');
+                    SpecFluxMatrix(MaskUV, :) = repmat(EdgeValuesUV, sum(MaskUV), 1);
                 end
-                if NeedExtrapolationAbove
-                    SpecWvl_Integration = [SpecWvl_Integration; Lambda_max];
+                if any(MaskIR)
+                    EdgeValuesIR = interp1(SpecWvl, Spec, SpecWvlMax, 'linear');
+                    SpecFluxMatrix(MaskIR, :) = repmat(EdgeValuesIR, sum(MaskIR), 1);
                 end
 
-                % Interpolate transmission onto integration grid
+                % Apply transmission to spectra
+                % ModelOutput: [NCalUsed x Ninput] with position corrections, [Ninput x 1] without
                 if UsePositionCorrections
-                    % ModelOutput is [N_obs x N_lambda]
-                    % Transpose to [N_lambda x N_obs], interpolate, transpose back
-                    Transmission_Spec = interp1(InputValues, ModelOutput', SpecWvl_Integration, 'linear');
-                    % Result: [N_integration_points x N_obs]
+                    TransmittedSpectra = SpecFluxMatrix .* ModelOutput';  % [Ninput x NCalUsed]
                 else
-                    % ModelOutput is [N_lambda x 1]
-                    Transmission_Spec = interp1(InputValues, ModelOutput, SpecWvl_Integration, 'linear');
-                    % Result: [N_integration_points x 1], broadcasts to all calibrators
+                    TransmittedSpectra = SpecFluxMatrix .* ModelOutput;   % [Ninput x NCalUsed] via broadcast
                 end
 
-                % Extract and extrapolate calibrator spectra for integration range
-                SpecFluxMatrix = Spec(SpecInRange, :);  % [NumInRange x N_obs]
+                % Integrate: Int[Flux(Lambda) * T(Lambda) * Lambda] dLambda
+                % Gaia flux is W/m^2/nm, so Lambda in nm for dimensional consistency
+                LambdaNm = InputValues / 10;  % Angstrom to nm
+                Integrand = TransmittedSpectra' .* LambdaNm(:)';  % [NCalUsed x Ninput]
+                Avector = tools.math.integral.trapzmat(InputValues(:)', Integrand, 2);
+                Avector = Avector(:);
 
-                if NeedExtrapolationBelow
-                    FirstRow = Spec(1, :);
-                    SpecFluxMatrix = [FirstRow; SpecFluxMatrix];
+                % Convert to photon counts
+                B = H * C * 1e10;  % h*c with Angstrom-to-m conversion
+                PredictedFlux = Args.ExpTime * Args.Aperture_area_m2 * Avector / B;
+
+                % Magnitude errors: must be pre-computed and stored in SourceData
+                % (computed once by PhotCalibTrans.computeMagErr before optimization)
+                UseWeighting = ~isempty(Args.PrecomputedMagErr);
+                if UseWeighting
+                    MagErr = Args.PrecomputedMagErr(:);
+                    if length(MagErr) ~= NCalUsed
+                        warning('CompositeFun:MagErrMismatch', ...
+                            'PrecomputedMagErr length (%d) != NCalUsed (%d). Using unweighted.', ...
+                            length(MagErr), NCalUsed);
+                        UseWeighting = false;
+                        MagErr = [];
+                    end
+                else
+                    MagErr = [];
                 end
-                if NeedExtrapolationAbove
-                    LastRow = Spec(end, :);
-                    SpecFluxMatrix = [SpecFluxMatrix; LastRow];
+
+                % Magnitude residuals: DiffMag = 2.5*log10(Pred/Obs) = Mag_obs - Mag_pred
+                % Positive when model too bright in flux space
+                DiffMag = 2.5 * log10(PredictedFlux ./ ObservedValues);
+                DiffMag(isnan(DiffMag) | isinf(DiffMag)) = 0;
+
+                % Apply weights if available (for lsqnonlin: r_weighted = r/sigma)
+                if UseWeighting
+                    Residuals = DiffMag ./ MagErr;
+                else
+                    Residuals = DiffMag;
                 end
-                % Now: [N_integration_points x N_obs]
-
-                % Apply transmission to all spectra
-                TransmittedSpectra = SpecFluxMatrix .* Transmission_Spec;  % [N_integration_points x N_obs]
-
-                % Integrate: ∫ Flux(λ) × Transmission(λ) × λ dλ
-                % NOTE: Gaia flux is in W/m²/nm, so λ must be in nm for dimensional consistency
-                TransmittedSpectraT = TransmittedSpectra';  % [N_obs x N_integration_points]
-                SpecWvl_nm = SpecWvl_Integration / 10;  % Convert Angstrom to nm (Gaia flux is per nm)
-                Integrand = TransmittedSpectraT .* SpecWvl_nm(:)';
-                % Integration still uses Angstrom grid (physical step size unchanged)
-                A_vector = tools.math.integral.trapzmat(SpecWvl_Integration(:)', Integrand, 2);
-                A_vector = A_vector(:);  % [N_obs x 1]
-
-                % Convert to photons
-                B = H * C * 1e10;          % H*C with Angstrom to m conversion (1 Angstrom = 1e-10 m)
-
-                Dt = Args.ExpTime;
-                Ageom = Args.Aperture_area_m2;
-
-                PredictedFlux_photons = Dt * Ageom * A_vector / B;  % [N_obs x 1]
-
-                % Calculate magnitude difference
-                % Formula: 2.5 * log10(Predicted/Observed) = Mag_obs - Mag_pred
-                % Residual convention: Observed - Predicted (in magnitude space)
-                % Positive when Mag_obs > Mag_pred → model too bright (in flux space)
-                DiffMag = 2.5 * log10(PredictedFlux_photons ./ ObservedValues);
-
-                % For transmission mode, residuals are magnitude differences
-                Residuals = DiffMag;
-                PredictedValues = PredictedFlux_photons;
+                UnweightedResiduals = DiffMag;
+                PredictedValues = PredictedFlux;
 
                 if Args.Verbose
-                    fprintf('Transmission mode: integrated over %d wavelength points\n', length(SpecWvl_Integration));
-                    fprintf('Predicted flux range: %.2e - %.2e photons\n', min(PredictedFlux_photons), max(PredictedFlux_photons));
+                    fprintf('Transmission mode: %d wavelength points, flux range %.2e - %.2e\n', ...
+                        Ninput, min(PredictedFlux), max(PredictedFlux));
                 end
 
             elseif ~isempty(Args.WeightMatrix)
@@ -2297,11 +2258,11 @@ classdef CompositeFun < handle
                     % Evaluate without position corrections: [N_input x 1]
                     ModelOutput = Obj.evaluateAllFunParInput(InputValues, TransParams(:)');
                     % Need to match with [N_obs x 1]
-                    if NumInput == NumObs
+                    if Ninput == NCalUsed
                         PredictedValues = ModelOutput;
                     else
-                        error('Direct comparison requires NumInput (%d) == NumObs (%d) or use WeightMatrix', ...
-                              NumInput, NumObs);
+                        error('Direct comparison requires Ninput (%d) == NCalUsed (%d) or use WeightMatrix', ...
+                              Ninput, NCalUsed);
                     end
                 end
 
@@ -2324,8 +2285,16 @@ classdef CompositeFun < handle
                     error('Unknown CostType: %s', Args.CostType);
             end
 
+            % Set default UnweightedResiduals and MagErr for non-TransmissionMode paths
+            if ~exist('UnweightedResiduals', 'var')
+                UnweightedResiduals = Residuals;
+            end
+            if ~exist('MagErr', 'var')
+                MagErr = [];
+            end
+
             if Args.Verbose
-                fprintf('Residuals: mean=%.4e, std=%.4e\n', mean(Residuals), std(Residuals));
+                fprintf('Residuals: mean=%.4e, std=%.4e\n', mean(UnweightedResiduals), std(UnweightedResiduals));
                 fprintf('Cost (%s): %.4e\n', Args.CostType, Cost);
                 fprintf('=== COMPOSITEFUN COST FUNCTION COMPLETE ===\n\n');
             end
@@ -2362,6 +2331,9 @@ classdef CompositeFun < handle
             %                   Default is 3.0.
             %            'SigmaIter' - Maximum sigma clipping iterations
             %                   Default is 5.
+            %            'WeightedClipping' - Use weighted residuals (r/σ) for sigma clipping
+            %                   when MagErr available. If false, uses MAD-based unweighted clipping.
+            %                   Default is true.
             %            'OptimOptions' - Options structure for lsqnonlin
             %                   Passed via tools.math.fit.lsqNonLinWithFixed wrapper.
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
@@ -2375,6 +2347,7 @@ classdef CompositeFun < handle
             %                   .SigmaClip - Enable sigma clipping for this stage
             %                   .SigmaThresh - Threshold for sigma clipping [sigma units]
             %                   .SigmaIter - Number of sigma clipping iterations
+            %                   .WeightedClipping - Use weighted residuals for clipping (optional, defaults to Args.WeightedClipping)
             %                   .Description - Description of the stage
             %                   Default is [] (single-stage mode if Obj.OptSeq is also empty).
             %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
@@ -2384,17 +2357,21 @@ classdef CompositeFun < handle
             %          - FitResult - Structure with fields:
             %                   Single-stage mode:
             %                     .Cost - Final cost value
-            %                     .RMS - RMS of residuals from lsqNonLinWithFixed
+            %                     .RMS - RMS of residuals
             %                     .Residuals - Final residuals [N_obs x 1]
-            %                     .NumObs - Number of observations after clipping
+            %                     .WeightedResiduals - Weighted residuals (r/σ)
+            %                     .NCalUsed - Number of observations after clipping
             %                     .NumClipped - Number of clipped outliers
-            %                     .KeepMask - Logical mask [N_obs_initial x 1] of surviving observations
+            %                     .KeepMask - Logical mask of surviving observations
             %                     .ConvergedSigmaClip - True if sigma clipping converged
-            %                     .Chi2 - Chi-squared from lsqNonLinWithFixed
-            %                     .DOF - Degrees of freedom from lsqNonLinWithFixed
+            %                     .Chi2 - Chi-squared value
+            %                     .DOF - Degrees of freedom
+            %                     .MagErr - Magnitude errors
+            %                     .PredictedFlux - Model-predicted flux values
             %                   Multi-stage mode: Array of structs with per-stage results
             %                     FitResult(i).StageName, .Method, .Cost, .RMS, .Residuals,
-            %                     .NumObs, .NumClipped, .IsFieldCorrection, .Chi2, .DOF
+            %                     .NCalUsed, .NumClipped, .IsFieldCorrection, .Chi2, .DOF,
+            %                     .MagErr, .PredictedFlux
             % Author : D. Kovaleva (Dec 2025)
             % Example: % Example 1: Simple single-stage fit
             %          Model = tools.math.fun.CompositeFun.model(FunList);
@@ -2445,6 +2422,7 @@ classdef CompositeFun < handle
                 Args.SigmaClip logical = false
                 Args.SigmaThresh = 3.0
                 Args.SigmaIter = 5
+                Args.WeightedClipping logical = true  % Use weighted residuals (r/σ) for clipping when MagErr available
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
                 Args.ValInp logical = true
@@ -2482,15 +2460,15 @@ classdef CompositeFun < handle
             InputValues = InputValues(:);
             ObservedValues = ObservedValues(:);
 
-            NumObsInitial = length(ObservedValues);
+            NCalUsedInitial = length(ObservedValues);
 
             if Args.ValInp
                 if Obj.UseTran2D && Args.FitPosition
                     if isempty(Args.X) || isempty(Args.Y)
                         error('X and Y coordinates required when fitting position parameters');
                     end
-                    if length(Args.X) ~= NumObsInitial || length(Args.Y) ~= NumObsInitial
-                        error('X, Y size must match number of observations (%d)', NumObsInitial);
+                    if length(Args.X) ~= NCalUsedInitial || length(Args.Y) ~= NCalUsedInitial
+                        error('X, Y size must match number of observations (%d)', NCalUsedInitial);
                     end
                 end
 
@@ -2523,7 +2501,7 @@ classdef CompositeFun < handle
 
             if Args.Verbose
                 fprintf('=== COMPOSITEFUN PARAMETER FITTING ===\n');
-                fprintf('Initial observations: %d\n', NumObsInitial);
+                fprintf('Initial observations: %d\n', NCalUsedInitial);
                 fprintf('Fit transmission parameters: %d\n', Args.FitTransmission);
                 fprintf('Fit position parameters: %d\n', Args.FitPosition && Obj.UseTran2D);
                 fprintf('Sigma clipping: %d (thresh=%.1f, max_iter=%d)\n\n', ...
@@ -2563,9 +2541,9 @@ classdef CompositeFun < handle
             CurrentY = Args.Y;
 
             % Initialize KeepMask to track which original observations survive clipping
-            NumObsInitial = length(ObservedValues);
-            KeepMask = true(NumObsInitial, 1);
-            CurrentIndices = (1:NumObsInitial)';  % Maps current obs to original indices
+            NCalUsedInitial = length(ObservedValues);
+            KeepMask = true(NCalUsedInitial, 1);
+            CurrentIndices = (1:NCalUsedInitial)';  % Maps current obs to original indices
 
             NumIterations = Args.SigmaClip * Args.SigmaIter + ~Args.SigmaClip;
             ConvergedSigmaClip = false;
@@ -2593,9 +2571,7 @@ classdef CompositeFun < handle
                     FitMask(FreeParamIndices) = true;
 
                     % Model function for lsqNonLinWithFixed
-                    % Signature: @(X_dummy, P) -> Residuals
-                    % X_dummy is ignored, P is the full parameter vector
-                    % Pass P directly to costFun via 'TransParams' argument
+                    % Returns weighted residuals (1st output of costFun)
                     if ~isempty(CurrentX)
                         ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
                             Args.CostArgs{:}, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY);
@@ -2633,27 +2609,30 @@ classdef CompositeFun < handle
                         fprintf('Fitting position parameters (linear)...\n');
                     end
 
-                    % Save current Tran2D parameters
-                    SavedParX = Obj.Tran2DObj.ParX;
-
                     % Zero out position correction to get base residuals
-                    Obj.Tran2DObj.ParX = zeros(1, length(SavedParX));
+                    Obj.Tran2DObj.ParX = zeros(1, length(Obj.Tran2DObj.ParX));
 
                     % Calculate residuals without position correction
+                    % Capture unweighted residuals (4th) and MagErr (5th) for weighted position fitting
                     if ~isempty(CurrentX)
-                        [BaseResiduals, ~, ~] = Obj.costFun(InputValues, CurrentObs, ...
+                        [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, ...
                             Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
                     else
-                        [BaseResiduals, ~, ~] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
+                        [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
                     end
 
-                    % Restore position parameters
-                    Obj.Tran2DObj.ParX = SavedParX;
-
-                    % Fit position polynomial with base residuals
-                    % BaseResiduals are magnitude differences (Predicted - Observed)
-                    [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
-                        'Verbose', false);
+                    % Fit position polynomial with weighted residuals
+                    % BaseResiduals are magnitude differences, weighted by 1/MagErr^2
+                    % Use 'lscov' method when errors are available for proper weighting
+                    if ~isempty(BaseMagErr) && all(BaseMagErr > 0)
+                        [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
+                            'Method', 'lscov', 'ErrMag', BaseMagErr, 'Verbose', false);
+                    else
+                        warning('CompositeFun:UnweightedPositionFit', ...
+                            'MagErr unavailable or invalid, using unweighted position polynomial fit.');
+                        [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
+                            'Verbose', false);
+                    end
                 end
 
                 % =============================================================
@@ -2661,34 +2640,49 @@ classdef CompositeFun < handle
                 % =============================================================
 
                 % Calculate current residuals with all fitted parameters
+                % Capture both weighted (for optimizer) and unweighted (for sigma clipping, RMS)
+                % Also capture PredictedFlux (3rd output) and MagErr (5th output) for storing in FitResult
                 if ~isempty(CurrentX)
-                    [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, ...
+                    [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, ...
                         Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
                 else
-                    [Residuals, Cost, ~] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
+                    [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
                 end
 
-                StageRMS = sqrt(Cost / length(Residuals));
+                % RMS from unweighted residuals
+                StageRMS = sqrt(mean(UnweightedResiduals.^2));
 
                 if Args.Verbose
-                    fprintf('Current RMS: %.4f, NumObs: %d\n', StageRMS, length(Residuals));
+                    fprintf('Current RMS: %.4f, NCalUsed: %d\n', StageRMS, length(UnweightedResiduals));
                 end
 
                 % Apply sigma clipping if enabled
+                % Use weighted (normalized) residuals r/σ when enabled and MagErr available
                 if Args.SigmaClip
-                    % Calculate robust statistics
-                    MedianRes = median(Residuals);
-                    MAD = median(abs(Residuals - MedianRes));
-                    Sigma = 1.4826 * MAD;  % Convert MAD to std estimate
-
-                    % Find outliers
-                    OutlierMask = abs(Residuals - MedianRes) > Args.SigmaThresh * Sigma;
-                    NumOutliers = sum(OutlierMask);
-
-                    if Args.Verbose
-                        fprintf('Sigma clipping: median=%.4f, MAD=%.4f, outliers=%d\n', ...
-                                MedianRes, MAD, NumOutliers);
+                    % Choose residuals for clipping based on WeightedClipping flag
+                    if Args.WeightedClipping && ~isempty(MagErr)
+                        % Weighted residuals: r_i/σ_i (normalized by errors)
+                        ClipResiduals = WeightedResiduals;
+                        % For normalized residuals, expected scatter is 1
+                        % Use direct threshold without MAD scaling
+                        OutlierMask = abs(ClipResiduals) > Args.SigmaThresh;
+                        if Args.Verbose
+                            fprintf('Sigma clipping (weighted): threshold=%.1f sigma, outliers=%d\n', ...
+                                Args.SigmaThresh, sum(OutlierMask));
+                        end
+                    else
+                        % Unweighted: use MAD-based robust statistics
+                        ClipResiduals = UnweightedResiduals;
+                        MedianRes = median(ClipResiduals);
+                        MAD = median(abs(ClipResiduals - MedianRes));
+                        Sigma = 1.4826 * MAD;  % Convert MAD to std estimate
+                        OutlierMask = abs(ClipResiduals - MedianRes) > Args.SigmaThresh * Sigma;
+                        if Args.Verbose
+                            fprintf('Sigma clipping (unweighted): median=%.4f, MAD=%.4f, outliers=%d\n', ...
+                                MedianRes, MAD, sum(OutlierMask));
+                        end
                     end
+                    NumOutliers = sum(OutlierMask);
 
                     if NumOutliers == 0
                         ConvergedSigmaClip = true;
@@ -2711,14 +2705,16 @@ classdef CompositeFun < handle
                         CurrentY = CurrentY(IterKeepMask);
                     end
 
-                    % Also subset WeightMatrix if present (for TransmissionMode)
-                    % Args.CostArgs is a cell array {key1, val1, key2, val2, ...}
-                    WeightMatrixIdx = find(strcmp(Args.CostArgs(1:2:end), 'WeightMatrix'));
-                    if ~isempty(WeightMatrixIdx)
-                        % WeightMatrixIdx is the index in the keys (1:2:end), so actual index is 2*WeightMatrixIdx
-                        ActualIdx = 2 * WeightMatrixIdx;
-                        % WeightMatrix columns correspond to observations
-                        Args.CostArgs{ActualIdx} = Args.CostArgs{ActualIdx}(:, IterKeepMask);
+                    % Subset CostArgs arrays for remaining observations
+                    % WeightMatrix: [Nwvl x NCalUsed] -> subset columns
+                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'WeightMatrix'));
+                    if ~isempty(Idx)
+                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
+                    end
+                    % PrecomputedMagErr: [NCalUsed x 1] -> subset rows
+                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedMagErr'));
+                    if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
+                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
                     end
 
                     if Args.Verbose
@@ -2735,13 +2731,15 @@ classdef CompositeFun < handle
             % STEP 4: FINALIZE RESULTS
             % ====================================================================
 
-            NumClipped = NumObsInitial - length(CurrentObs);
+            NumClipped = NCalUsedInitial - length(CurrentObs);
 
             % Get quality metrics from minimizer if available
+            % Note: MinimizerInfo.Resid contains weighted residuals, so we use
+            % UnweightedResiduals for RMS calculation (calculated in last sigma clip iteration)
             if exist('MinimizerInfo', 'var')
                 StageChi2 = MinimizerInfo.Chi2;
                 StageDOF = MinimizerInfo.Dof;
-                StageRMS = sqrt(sum(MinimizerInfo.Resid.^2) / length(MinimizerInfo.Resid));
+                % RMS from unweighted residuals (StageRMS already set in sigma clipping loop)
             else
                 StageChi2 = NaN;
                 StageDOF = NaN;
@@ -2756,13 +2754,16 @@ classdef CompositeFun < handle
             FitResult = struct();
             FitResult.Cost = Cost;
             FitResult.RMS = StageRMS;
-            FitResult.Residuals = Residuals;
-            FitResult.NumObs = length(CurrentObs);
+            FitResult.Residuals = UnweightedResiduals;  % Unweighted for diagnostics
+            FitResult.WeightedResiduals = WeightedResiduals;  % Weighted for reference
+            FitResult.NCalUsed = length(CurrentObs);
             FitResult.NumClipped = NumClipped;
             FitResult.KeepMask = KeepMask;  % Logical mask of which original observations survived
             FitResult.ConvergedSigmaClip = ConvergedSigmaClip;
             FitResult.Chi2 = StageChi2;
             FitResult.DOF = StageDOF;
+            FitResult.MagErr = MagErr;  % Magnitude errors from error propagation
+            FitResult.PredictedFlux = PredictedFlux;  % Model-predicted flux for calibrators
 
             if Args.Verbose
                 fprintf('\nTransmission optimization complete\n');
@@ -2782,6 +2783,7 @@ classdef CompositeFun < handle
             %   OptSeq(i).SigmaClip - Enable sigma clipping for this stage
             %   OptSeq(i).SigmaThresh - Threshold for sigma clipping
             %   OptSeq(i).SigmaIter - Number of sigma clipping iterations
+            %   OptSeq(i).WeightedClipping - Use weighted residuals for clipping (default true)
             %   OptSeq(i).Description - Description of the stage
             % Author : D. Kovaleva (Nov 2025)
 
@@ -2791,7 +2793,7 @@ classdef CompositeFun < handle
 
             % Initialize results array
             FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
-                           'Residuals', {}, 'NumObs', {}, 'NumClipped', {}, 'KeepMask', {}, ...
+                           'Residuals', {}, 'NCalUsed', {}, 'NumClipped', {}, 'KeepMask', {}, ...
                            'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
 
             % Current data (will be updated after sigma clipping in each stage)
@@ -2801,9 +2803,9 @@ classdef CompositeFun < handle
             CurrentCostArgs = Args.CostArgs;
 
             % Track cumulative KeepMask across all stages (relative to original observations)
-            NumObsInitial = length(ObservedValues);
-            GlobalKeepMask = true(NumObsInitial, 1);
-            CurrentIndices = (1:NumObsInitial)';
+            NCalUsedInitial = length(ObservedValues);
+            GlobalKeepMask = true(NCalUsedInitial, 1);
+            CurrentIndices = (1:NCalUsedInitial)';
 
             % Setup optimization options once for all stages (avoid repeated optimoptions calls)
             if isempty(Args.OptimOptions)
@@ -2832,6 +2834,12 @@ classdef CompositeFun < handle
                 SigmaClip = Stage.SigmaClip;
                 SigmaThresh = Stage.SigmaThresh;
                 SigmaIter = Stage.SigmaIter;
+                % WeightedClipping: use stage-specific value if set, otherwise use Args
+                if isfield(Stage, 'WeightedClipping')
+                    WeightedClipping = Stage.WeightedClipping;
+                else
+                    WeightedClipping = Args.WeightedClipping;
+                end
 
                 % Detect field correction stage (empty freeparams)
                 IsFieldCorrectionStage = isempty(FreeParamsStage);
@@ -2892,38 +2900,54 @@ classdef CompositeFun < handle
                         Obj.setAllFunPar(AllFunPar);
 
                         % Compute residuals with Norm=1
+                        % Get unweighted residuals (4th output) and MagErr (5th output)
                         if ~isempty(CurrentXNorm)
-                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                            [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
                                 CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
                         else
-                            Residuals_base = Obj.costFun(InputValues, CurrentObsNorm, ...
+                            [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
                                 CurrentCostArgsNorm{:});
                         end
 
-                        % Analytical solution: Norm_opt = 10^(-mean(residuals / 2.5))
-                        Norm_opt = 10^(-mean(Residuals_base) / 2.5);
+                        % Analytical solution using weighted mean if errors available
+                        % Weighted mean: Delta m = Sigma (wᵢ × rᵢ) / Sigma (wᵢ) where wᵢ = 1/sigmaᵢ^2
+                        if ~isempty(MagErr_base) && all(MagErr_base > 0)
+                            Weights = 1 ./ (MagErr_base.^2);
+                            MeanResidual = sum(Residuals_base .* Weights) / sum(Weights);
+                        else
+                            % Fall back to unweighted mean if no errors
+                            MeanResidual = mean(Residuals_base);
+                        end
+                        Norm_opt = 10^(-MeanResidual / 2.5);
 
                         % Update Norm in model
                         AllFunPar.Val(NormIdx) = Norm_opt;
                         Obj.setAllFunPar(AllFunPar);
 
                         if Args.Verbose
-                            fprintf('  Norm = %.6f (analytical)\n', Norm_opt);
+                            fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
                         end
 
                         % Compute final residuals with optimal Norm
+                        % Capture weighted, unweighted residuals and PredictedFlux
                         if ~isempty(CurrentXNorm)
-                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                            [WeightedRes, ~, PredictedFluxNorm, Residuals, MagErr_norm] = Obj.costFun(InputValues, CurrentObsNorm, ...
                                 CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
                         else
-                            Residuals = Obj.costFun(InputValues, CurrentObsNorm, ...
+                            [WeightedRes, ~, PredictedFluxNorm, Residuals, MagErr_norm] = Obj.costFun(InputValues, CurrentObsNorm, ...
                                 CurrentCostArgsNorm{:});
                         end
 
-                        % Sigma clipping
+                        % Sigma clipping: use weighted residuals if enabled and errors available
                         if SigmaClip && IterNorm < NumIterNorm
-                            ResidualStd = std(Residuals);
-                            OutlierMask = abs(Residuals) > SigmaThresh * ResidualStd;
+                            if WeightedClipping && ~isempty(MagErr_norm)
+                                % Weighted: normalized residuals, threshold directly in sigma
+                                OutlierMask = abs(WeightedRes) > SigmaThresh;
+                            else
+                                % Unweighted: use std-based threshold
+                                ResidualStd = std(Residuals);
+                                OutlierMask = abs(Residuals) > SigmaThresh * ResidualStd;
+                            end
 
                             if any(OutlierMask)
                                 % Update KeepMask
@@ -2937,11 +2961,14 @@ classdef CompositeFun < handle
                                     CurrentYNorm = CurrentYNorm(CurrentKeep);
                                 end
 
-                                % Update WeightMatrix if present
-                                WeightMatrixIdx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
-                                if ~isempty(WeightMatrixIdx)
-                                    ActualIdx = 2 * WeightMatrixIdx;
-                                    CurrentCostArgsNorm{ActualIdx} = CurrentCostArgsNorm{ActualIdx}(:, CurrentKeep);
+                                % Subset CostArgs arrays
+                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
+                                if ~isempty(Idx)
+                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                end
+                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedMagErr'));
+                                if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
+                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
                                 end
 
                                 if Args.Verbose
@@ -2961,12 +2988,15 @@ classdef CompositeFun < handle
                     StageResult.Cost = sum(Residuals.^2);
                     StageResult.RMS = StageRMS;
                     StageResult.Residuals = Residuals;
-                    StageResult.NumObs = length(CurrentObsNorm);
+                    StageResult.WeightedResiduals = [];  % No weighted fitting in normalization stage
+                    StageResult.NCalUsed = length(CurrentObsNorm);
                     StageResult.NumClipped = NumClipped;
                     StageResult.KeepMask = KeepMaskNorm;
                     StageResult.ConvergedSigmaClip = true;
                     StageResult.Chi2 = sum(Residuals.^2);
                     StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
+                    StageResult.MagErr = MagErr_norm;  % Magnitude errors from error propagation
+                    StageResult.PredictedFlux = PredictedFluxNorm;  % Model-predicted flux
 
                     if Args.Verbose
                         fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
@@ -2982,6 +3012,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
+                        'WeightedClipping', WeightedClipping, ...
                         'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
@@ -3014,6 +3045,7 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
+                        'WeightedClipping', WeightedClipping, ...
                         'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
@@ -3041,11 +3073,14 @@ classdef CompositeFun < handle
                         CurrentY = CurrentY(StageKeepMask);
                     end
 
-                    % Update WeightMatrix if present (for TransmissionMode)
-                    WeightMatrixIdx = find(strcmp(CurrentCostArgs(1:2:end), 'WeightMatrix'));
-                    if ~isempty(WeightMatrixIdx)
-                        ActualIdx = 2 * WeightMatrixIdx;
-                        CurrentCostArgs{ActualIdx} = CurrentCostArgs{ActualIdx}(:, StageKeepMask);
+                    % Update WeightMatrix and PrecomputedMagErr if present (for TransmissionMode)
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'WeightMatrix'));
+                    if ~isempty(Idx)
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(StageKeepMask);
                     end
                 end
 
@@ -3055,16 +3090,19 @@ classdef CompositeFun < handle
                 FitResult(IStage).Cost = StageResult.Cost;
                 FitResult(IStage).RMS = StageResult.RMS;
                 FitResult(IStage).Residuals = StageResult.Residuals;
-                FitResult(IStage).NumObs = StageResult.NumObs;
-                FitResult(IStage).NumClipped = NumObsInitial - sum(GlobalKeepMask);  % Cumulative clipped
+                FitResult(IStage).WeightedResiduals = StageResult.WeightedResiduals;  % For weighted fitting reference
+                FitResult(IStage).NCalUsed = StageResult.NCalUsed;
+                FitResult(IStage).NumClipped = NCalUsedInitial - sum(GlobalKeepMask);  % Cumulative clipped
                 FitResult(IStage).KeepMask = GlobalKeepMask;  % Cumulative mask relative to original
                 FitResult(IStage).IsFieldCorrection = IsFieldCorrectionStage;
                 FitResult(IStage).Chi2 = StageResult.Chi2;
                 FitResult(IStage).DOF = StageResult.DOF;
+                FitResult(IStage).MagErr = StageResult.MagErr;  % Magnitude errors from error propagation
+                FitResult(IStage).PredictedFlux = StageResult.PredictedFlux;  % Model-predicted flux
 
                 if Args.Verbose
-                    fprintf('Stage complete: RMS=%.4f mag, NumObs=%d\n', ...
-                            StageResult.RMS, StageResult.NumObs);
+                    fprintf('Stage complete: RMS=%.4f mag, NCalUsed=%d\n', ...
+                            StageResult.RMS, StageResult.NCalUsed);
                     fprintf('\n');
                 end
             end

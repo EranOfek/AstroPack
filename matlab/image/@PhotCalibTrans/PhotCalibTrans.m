@@ -55,7 +55,8 @@ classdef PhotCalibTrans < Component
     %   Evaluation Methods:
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     evaluateZP - Evaluate photometric zero point at specific positions
-    %     evaluateMag - Evaluate calibrated AB magnitudes from instrumental magnitudes
+    %     evaluateMag - Evaluate calibrated AB magnitudes from observed flux
+    %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Header I/O Methods:
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
@@ -97,7 +98,7 @@ classdef PhotCalibTrans < Component
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
-                                %   After calibration: Used (logical, non-clipped), Residuals (valid for Used)
+                                %   After calibration: Used, Residuals, MAG_AB, PredictedFlux, MagErr
 
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
         NoRADec = false         % Flag indicating RA/Dec columns missing (set by selectCalibrators)
@@ -277,46 +278,36 @@ classdef PhotCalibTrans < Component
             % Perform transmission-based photometric calibration
             % Input  : - Obj - PhotCalibTrans object (scalar)
             %          - Cat - AstroImage or AstroCatalog object with observed sources (scalar)
-            %                  For multi-object processing, use external wrapper loop
             %                  Metadata source is determined automatically:
             %                    AstroImage: metadata from Cat.HeaderData
-            %                    AstroCatalog: metadata from Args.Metadata (if provided),
-            %                                  otherwise use object property defaults
+            %                    AstroCatalog: metadata from Args.Metadata (if provided)
             %          * ...,key,val,...
             %            'Metadata' - Metadata source (for AstroCatalog only). Can be:
-            %                         AstroHeader object: extract metadata from header
-            %                         Cell array: {key1, val1, key2, val2, ...} with metadata key-value pairs
-            %                         Empty []: use object property defaults
+            %                         AstroHeader object, cell array {key1, val1, ...}, or [].
             %                         Default is [].
-            %            'FunListName' - Name of transmission function list from FunCatalog.
-            %                            Default is 'DefaultLASTFunList'.
-            %                            (10 functions, Garrappa et al. 2025)
+            %            'FunListName' - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList' - Custom function list (overrides FunListName). Default is [].
-            %            'OptSeqName' - Name of optimization sequence from StageCatalog.
-            %                           Default is 'DefaultLASTOptSeq' (5-stage sequence, Garrappa et al. 2025).
-            %            'CustomOptSeq' - Custom optimization sequence (overrides OptSeqName). Default is [].
-            %            'Tran2DType' - Type of 2D transformation for field corrections. Default is 'cheby1_4_xt'.
+            %            'OptSeqName' - Optimization sequence name. Default is 'DefaultLASTOptSeq'.
+            %            'CustomOptSeq' - Custom optimization sequence. Default is [].
+            %            'Tran2DType' - Position-dependent correction type. Default is 'cheby1_4_xt'.
+            %            'UseTran2D' - Enable position-dependent correction. Default is true.
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 1.5.
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [12 16].
+            %            'WeightingMode' - 'none', 'spectral', 'flux', 'combined'. Default is 'spectral'.
+            %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
+            %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+            %            'FluxErrorNorm' - Normalization for synthetic flux in error calc. Default is 1.0.
             %            'Verbose' - Enable verbose output. Default is true.
-            % Output : - Obj - PhotCalibTrans object with calibration results
-            %                  Properties: .CalFound, .SpecData, .SourceData, .TransModel, metadata
-            %                  Methods available: Obj.evaluateZP(), Obj.evaluateTransmission(), etc.
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: % AstroImage with auto metadata (from FITS headers)
-            %          PC = PhotCalibTrans();
+            % Output : - Obj - PhotCalibTrans object with calibration results.
+            %                  SourceData catalog includes: Used, Residuals, MAG_AB, PredictedFlux, MagErr
+            % Author : D. Kovaleva (Jan 2026)
+            % Reference: Garrappa et al. 2025, A&A 699, A50.
+            % Example: PC = PhotCalibTrans();
             %          PC = PC.calibrate(AI);
-            %
-            %          % AstroCatalog with metadata from cell array
-            %          PC = PhotCalibTrans();
-            %          PC = PC.calibrate(Cat, 'Metadata', {'AirMass', 1.5, 'ExpTime', 20, ...
-            %                                               'NCoadd', 1, 'Temp', 15, 'Pressure', 965});
-            %
-            %          % AstroCatalog with metadata from AstroHeader
-            %          PC = PC.calibrate(Cat, 'Metadata', HeaderObj);
-            %
-            %          % AstroCatalog with object property defaults
-            %          PC = PC.calibrate(Cat);
+            %          % Without position correction:
+            %          PC = PC.calibrate(AI, 'UseTran2D', false);
+            %          % With unweighted sigma clipping:
+            %          PC = PC.calibrate(AI, 'WeightedClipping', false);
 
             arguments
                 Obj
@@ -331,8 +322,16 @@ classdef PhotCalibTrans < Component
                 Args.OptSeqName = 'DefaultLASTOptSeq'
                 Args.CustomOptSeq = []
                 Args.Tran2DType = 'cheby1_4_xt'
+                Args.UseTran2D logical = true  % Enable position-dependent correction
                 Args.SearchRadius = 1.5
                 Args.MagRange = [12 16]
+
+                % Weighting options
+                Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
+                Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
+                Args.WeightedClipping logical = true  % Use weighted residuals for sigma clipping
+                Args.FluxErrorNorm = 1.0  % Normalization for synthetic flux in error calculation
+
                 Args.Verbose logical = true
             end
 
@@ -451,7 +450,7 @@ classdef PhotCalibTrans < Component
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
                 'MetadataValues', MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
-                'UseTran2D', true, ...
+                'UseTran2D', Args.UseTran2D, ...
                 'Tran2DType', Args.Tran2DType);
 
             % ====================================================================
@@ -492,13 +491,50 @@ classdef PhotCalibTrans < Component
                 X = Obj.SourceData.getCol('X');
                 Y = Obj.SourceData.getCol('Y');
 
+                % Extract flux errors if using flux-based weighting
+                FluxErrVector = [];
+                if ismember(lower(Args.WeightingMode), {'flux', 'combined'})
+                    try
+                        FluxErrVector = Obj.SourceData.getCol(Args.FluxErrColName);
+                        if Args.Verbose
+                            fprintf('  Extracted flux errors from %s column\n', Args.FluxErrColName);
+                        end
+                    catch
+                        warning('PhotCalibTrans:NoFluxErr', ...
+                            'Could not extract flux errors from %s. Falling back to spectral weighting.', ...
+                            Args.FluxErrColName);
+                        if strcmpi(Args.WeightingMode, 'flux')
+                            Args.WeightingMode = 'none';
+                        else  % 'combined'
+                            Args.WeightingMode = 'spectral';
+                        end
+                    end
+                end
+
                 % Calculate effective exposure time (accounting for coadding)
                 ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
 
-                % Setup CostArgs for TransmissionMode using SpecData
-                % (arguments for the costFun method of CompositeFun)
+                % Pre-compute MagErr for all calibrators (expensive, do once)
+                % This avoids recalculating error propagation on every costFun call
+                PrecomputedMagErr = Obj.computeMagErr(Flux, FluxErrVector, ...
+                    'WeightingMode', Args.WeightingMode, ...
+                    'ExpTime', ExpTime_eff, ...
+                    'FluxErrorNorm', Args.FluxErrorNorm);
+
+                % Store pre-computed MagErr in SourceData
+                if istable(Obj.SourceData.Catalog)
+                    Obj.SourceData.Catalog.MagErr = PrecomputedMagErr;
+                else
+                    Tab = Obj.SourceData.Table;
+                    Tab.MagErr = PrecomputedMagErr;
+                    Obj.SourceData.Catalog = Tab;
+                end
+
+                % Setup CostArgs for TransmissionMode
+                % MagErr pre-computed and stored in SourceData.MagErr
                 CostArgs = {...
                     'WeightMatrix', Obj.SpecData.Spec', ...
+                    'PrecomputedMagErr', PrecomputedMagErr, ...
                     'TransmissionMode', true, ...
                     'CalibWavelength', Obj.SpecData.SpecWvl, ...
                     'ExpTime', ExpTime_eff, ...
@@ -508,6 +544,7 @@ classdef PhotCalibTrans < Component
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
+                    'WeightedClipping', Args.WeightedClipping, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -529,15 +566,30 @@ classdef PhotCalibTrans < Component
                     Residuals = nan(NCalib, 1);
                     Residuals(Used) = FinalResult.Residuals(:);
 
-                    % Add columns directly to the catalog
+                    % MagErr was pre-computed and stored in SourceData before fitting
+                    % Keep the original pre-computed values for all calibrators
+
+                    % Calculate calibrated magnitudes for calibrators
+                    % MAG_AB = -2.5*log10(Flux/ExpTime_eff) + ZP(X,Y)
+                    MAG_AB = Obj.evaluateMag(Flux, 'X', X, 'Y', Y);
+
+                    % Get predicted flux from FitResult (calculated by costFun during optimization)
+                    PredictedFlux = nan(NCalib, 1);
+                    PredictedFlux(Used) = FinalResult.PredictedFlux(:);
+
+                    % Add columns directly to the catalog (MagErr already present from pre-computation)
                     if istable(Obj.SourceData.Catalog)
                         Obj.SourceData.Catalog.Used = Used;
                         Obj.SourceData.Catalog.Residuals = Residuals;
+                        Obj.SourceData.Catalog.MAG_AB = MAG_AB;
+                        Obj.SourceData.Catalog.PredictedFlux = PredictedFlux;
                     else
                         % Convert to table, add columns, convert back
                         Tab = Obj.SourceData.Table;
                         Tab.Used = Used;
                         Tab.Residuals = Residuals;
+                        Tab.MAG_AB = MAG_AB;
+                        Tab.PredictedFlux = PredictedFlux;
                         Obj.SourceData.Catalog = Tab;
                     end
 
@@ -751,8 +803,8 @@ classdef PhotCalibTrans < Component
                 isCR = bitget(flags, 15);
                 isNearEdge = bitget(flags, 24);
 
-                % Mark as bad if it has multiple problematic flags
-                badFlagsMask = (isSaturated + isNaN + isNegative + isCR + isNearEdge) >= 2;
+                % Mark as bad if ANY of these flags is true
+                badFlagsMask = isSaturated | isNaN | isNegative | isCR | isNearEdge;
                 goodMask = goodMask & ~badFlagsMask;
 
                 if Args.Verbose
@@ -1101,42 +1153,54 @@ classdef PhotCalibTrans < Component
             end
 
             Fnu = constant.Fnu('SI');  % AB system flux density [W/m^2/Hz]
-            H = constant.h('SI');  % Planck constant [J·s]
-              
+            H = 6.62607015e-34;         % SI 2019 Plank constant
+
             % Use constant wavelength grid
             Lambda = Obj.TransWvl;
 
-            % Evaluate transmission at positions (or field center if X, Y empty)
-            % Trans is [N_lambda x 1] if no positions, or [N_pos x N_lambda] if positions provided
-            Trans = Obj.evaluateTransmission('X', Args.X, 'Y', Args.Y);
+            % Evaluate BASE transmission (without position-dependent correction)
+            % Tran2D correction is a magnitude offset, not a transmission modification
+            TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
+            TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
 
             % Create flat Fnu spectrum for AB zero-point
             FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
 
             % Physical constants
-            B = H;  % For zero-point: B = H (not H*C as in flux conversion)
-
-            % Ensure Trans is 2D matrix for consistent handling
-            if isvector(Trans)
-                Trans = Trans(:)';  % Convert to row vector [1 x N_lambda]
-            end
-            % Now Trans is [N_pos x N_lambda]
-
-            % Apply transmission: multiply each row by FlatSpectrum
-            % FlatSpectrum is [N_lambda x 1], Trans is [N_pos x N_lambda]
-            SpecTrans = Trans .* FlatSpectrum';  % [N_pos x N_lambda]
+            B = H;  % For zero-point: B = H 
+            
+            % Apply transmission: multiply by FlatSpectrum
+            SpecTrans = TransBase .* FlatSpectrum';  % [1 x N_lambda]
 
             % Multiply by Lambda for integration
-            Integrand = SpecTrans ./ Lambda';  % [N_pos x N_lambda]
+            Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
 
-            % Integrate along wavelength dimension (dim=2) for each position
-            A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % [N_pos x 1]
+            % Integrate along wavelength dimension
+            A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
 
-            % Calculate zero-point flux for all positions
-            TotalFlux_ZP = Obj.Aperture * A / B;  % [N_pos x 1]
+            % Calculate base zero-point flux
+            TotalFlux_ZP = Obj.Aperture * A / B;  % scalar
 
-            % Convert to magnitude
-            ZP = 2.5 * log10(TotalFlux_ZP);  % [N_pos x 1]
+            % Convert to base magnitude ZP
+            ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
+
+            % Add position-dependent correction if positions provided and Tran2D exists
+            if ~isempty(Args.X) && ~isempty(Args.Y) && ...
+               ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
+                X = Args.X(:);
+                Y = Args.Y(:);
+                N_pos = length(X);
+
+                % Get field correction in magnitude space from Tran2D
+                [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
+                FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
+
+                % ZP at each position = base ZP + field correction
+                % (field correction is magnitude offset fitted to residuals)
+                ZP = ZP_base - FieldCorrectionMag;
+            else
+                ZP = ZP_base;
+            end
 
             % If single position, return scalar
             if length(ZP) == 1
@@ -1178,16 +1242,11 @@ classdef PhotCalibTrans < Component
 
             % Calculate ZP at positions (or field center if X, Y empty)
             ZP = Obj.evaluateZP('X', Args.X, 'Y', Args.Y);
+            ZP = ZP(:);  % Ensure column vector
 
             % Calculate calibrated AB magnitudes
             % MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
-            MagAB = convert.luptitude(Flux/ExpTime_eff,10.^(0.4.*ZP'));
-
-           % if isscalar(ZP)
-           %     MagAB = -2.5*log10(10^(-0.4*MagInst) - 10^(-0.4*ZP'));
-           % else
-           %     MagAB = MagInst + ZP(:);
-           % end
+            MagAB = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
 
             % Return magnitude errors if requested
             if nargout > 1
@@ -1198,6 +1257,198 @@ classdef PhotCalibTrans < Component
                     % Use provided magnitude errors directly
                     MagABErr = Args.MagErr(:);
                 end
+            end
+        end
+
+        function PredictedFlux = evaluatePredictedFlux(Obj, Args)
+            % Evaluate predicted flux for calibrators using fitted transmission model
+            % Input  : - Obj - PhotCalibTrans object (must have TransModel and SpecData)
+            %          * ...,key,val,...
+            %            'CostArgs' - Cell array of costFun arguments. Default uses stored data.
+            % Output : - PredictedFlux - Predicted photon counts [N_calib x 1]
+            % Author : D. Kovaleva (Jan 2026)
+            % Description: Calls costFun with stored or provided CostArgs to calculate predicted flux.
+            % Example: PredictedFlux = PC.evaluatePredictedFlux();
+            %          PredictedFlux = PC.evaluatePredictedFlux('CostArgs', CustomCostArgs);
+
+            arguments
+                Obj
+                Args.CostArgs = []
+            end
+
+            if isempty(Obj.TransModel) || isempty(Obj.SpecData)
+                error('PhotCalibTrans:evaluatePredictedFlux:NoModel', ...
+                    'TransModel and SpecData must be populated');
+            end
+
+            % Get stored data
+            Flux = Obj.SourceData.getCol('Flux');
+
+            % Build default CostArgs if not provided
+            if isempty(Args.CostArgs)
+                X = Obj.SourceData.getCol('X');
+                Y = Obj.SourceData.getCol('Y');
+                ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+                CostArgs = {'WeightMatrix', Obj.SpecData.Spec', 'TransmissionMode', true, ...
+                            'CalibWavelength', Obj.SpecData.SpecWvl, 'ExpTime', ExpTime_eff, ...
+                            'Aperture_area_m2', Obj.Aperture, 'X', X, 'Y', Y};
+            else
+                CostArgs = Args.CostArgs;
+            end
+
+            [~, ~, PredictedFlux] = Obj.TransModel.costFun(Obj.TransWvl, Flux, CostArgs{:});
+        end
+
+        function MagErr = computeMagErr(Obj, Flux, FluxErrVector, Args)
+            % Pre-compute magnitude errors for all calibrators (expensive, do once)
+            % This avoids recalculating error propagation on every costFun call.
+            % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
+            %          - Flux - Observed flux values [photons] [N_calib x 1]
+            %          - FluxErrVector - Relative flux errors [N_calib x 1] (can be [])
+            %          * ...,key,val,...
+            %            'WeightingMode' - 'spectral', 'flux', 'combined', 'none'. Default is 'spectral'.
+            %            'ExpTime' - Effective exposure time [s]. Default uses Obj.ExpTime/Obj.NCoadd.
+            %            'RefTransmissionFun' - Function handle for reference transmission.
+            %                   Default is @telescope.optics.refTransmissionLAST.
+            %            'FluxErrorNorm' - Normalization constant for synthetic flux in error
+            %                   calculation. Scales synthetic flux to match model normalization.
+            %                   Default is 1.0.
+            % Output : - MagErr - Magnitude errors [N_calib x 1]
+            % Author : D. Kovaleva (Jan 2026)
+            % Example: MagErr = PC.computeMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
+
+            arguments
+                Obj
+                Flux
+                FluxErrVector = []
+                Args.WeightingMode = 'spectral'
+                Args.ExpTime = []
+                Args.RefTransmissionFun = @telescope.optics.refTransmissionLAST
+                Args.FluxErrorNorm = 1.0
+            end
+
+            % Get effective exposure time
+            if isempty(Args.ExpTime)
+                ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+            else
+                ExpTime_eff = Args.ExpTime;
+            end
+
+            % Ensure column vectors
+            Flux = Flux(:);
+            N_calib = length(Flux);
+
+            % Initialize output
+            MagErr = zeros(N_calib, 1);
+
+            % Check weighting mode
+            UseSpectralWeighting = ismember(lower(Args.WeightingMode), {'spectral', 'combined'});
+            UseFluxWeighting = ismember(lower(Args.WeightingMode), {'flux', 'combined'});
+
+            if ~UseSpectralWeighting && ~UseFluxWeighting
+                % No weighting, return empty
+                MagErr = [];
+                return;
+            end
+
+            % Constants
+            H = 6.62607015e-34;  % Planck constant [J*s]
+            C = constant.c('SI');  % Speed of light [m/s]
+            B = H * C * 1e10;  % H*C with Angstrom to m conversion
+
+            % Get wavelength grid from TransModel or use default
+            if ~isempty(Obj.TransWvl)
+                SpecWvl_Integration = Obj.TransWvl(:);
+            else
+                SpecWvl_Integration = (3000:20:11000)';  % Default LAST grid
+            end
+            SpecWvl_nm = SpecWvl_Integration / 10;  % Convert to nm
+
+            % Compute dLambda for each wavelength bin
+            dLambda = diff(SpecWvl_Integration(:));
+            dLambda = [dLambda(1); (dLambda(1:end-1) + dLambda(2:end)) / 2; dLambda(end)];
+
+            % Get reference transmission (for error propagation)
+            T_ref_vec = Args.RefTransmissionFun(SpecWvl_Integration);  % [N_wvl x 1]
+
+            % Scaling factor (n_sigma = 3 in Garrappa et al. 2025)
+            n_sigma = 3;
+
+            MagErr_spectral = [];
+            MagErr_flux = [];
+
+            % Spectral error propagation
+            if UseSpectralWeighting && ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.SpecErr)
+                SpecErrMatrix = Obj.SpecData.SpecErr';  % [N_wvl x N_calib]
+                SpecWvl = Obj.SpecData.SpecWvl(:);
+
+                % Interpolate spectral errors onto integration grid (same as costFun)
+                N_integration = length(SpecWvl_Integration);
+                SpecWvl_min = min(SpecWvl);
+                SpecWvl_max = max(SpecWvl);
+
+                mask_gaia = (SpecWvl_Integration >= SpecWvl_min) & (SpecWvl_Integration <= SpecWvl_max);
+                mask_uv = (SpecWvl_Integration <= SpecWvl_min);
+                mask_ir = (SpecWvl_Integration >= SpecWvl_max);
+
+                SpecErrInterp = zeros(N_integration, N_calib);
+                wvl_gaia_region = SpecWvl_Integration(mask_gaia);
+
+                for iObs = 1:N_calib
+                    SpecErrInterp(mask_gaia, iObs) = interp1(SpecWvl, SpecErrMatrix(:, iObs), wvl_gaia_region, 'linear');
+                    if any(mask_uv)
+                        SpecErrInterp(mask_uv, iObs) = interp1(SpecWvl, SpecErrMatrix(:, iObs), SpecWvl_min, 'linear');
+                    end
+                    if any(mask_ir)
+                        SpecErrInterp(mask_ir, iObs) = interp1(SpecWvl, SpecErrMatrix(:, iObs), SpecWvl_max, 'linear');
+                    end
+                end
+
+                % Error propagation: sigma_Spec * T_ref * Lambda
+                T_ref = repmat(T_ref_vec(:), 1, N_calib);
+                TransmittedSpectraErr = SpecErrInterp .* T_ref;  % [N_wvl x N_calib]
+                TransmittedSpectraErrT = TransmittedSpectraErr';  % [N_calib x N_wvl]
+                ErrIntegrand = TransmittedSpectraErrT .* SpecWvl_nm(:)';  % [N_calib x N_wvl]
+
+                % Quadrature sum (scaled by FluxErrorNorm to match model normalization)
+                Dt = ExpTime_eff;
+                Ageom = Obj.Aperture;
+                PredictedFlux_err = Args.FluxErrorNorm * Dt * Ageom * sqrt(sum((n_sigma * ErrIntegrand .* dLambda(:)').^2, 2)) / B;
+
+                % Convert to magnitude error
+                MagErr_spectral = 2.5 * log10(1 + PredictedFlux_err ./ Flux);
+                MagErr_spectral(isinf(MagErr_spectral)) = 100;
+                MagErr_spectral(isnan(MagErr_spectral)) = 100;
+            end
+
+            % Flux error propagation (flat spectrum)
+            if UseFluxWeighting && ~isempty(FluxErrVector)
+                FluxErrVector = FluxErrVector(:);
+                if length(FluxErrVector) == N_calib
+                    % Compute bandpass factor
+                    T_lambda_dlambda = T_ref_vec(:) .* SpecWvl_nm(:) .* dLambda(:);
+                    BandpassNorm = sum(T_lambda_dlambda);
+                    BandpassQuad = sqrt(sum(T_lambda_dlambda.^2));
+                    BandpassFactor = BandpassQuad / BandpassNorm;
+
+                    % Propagated error
+                    FluxErrPropagated = n_sigma * FluxErrVector .* BandpassFactor;
+                    MagErr_flux = 2.5 * log10(1 + FluxErrPropagated);
+                    MagErr_flux(isinf(MagErr_flux)) = 100;
+                    MagErr_flux(isnan(MagErr_flux)) = 100;
+                    MagErr_flux(MagErr_flux <= 0) = 100;
+                end
+            end
+
+            % Combine errors based on weighting mode
+            if ~isempty(MagErr_spectral) && ~isempty(MagErr_flux)
+                MagErr = sqrt(MagErr_spectral.^2 + MagErr_flux.^2);
+            elseif ~isempty(MagErr_spectral)
+                MagErr = MagErr_spectral;
+            elseif ~isempty(MagErr_flux)
+                MagErr = MagErr_flux;
+            else
+                MagErr = [];
             end
         end
     end
@@ -1240,7 +1491,17 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
             HeaderObj = HeaderObj.replaceVal('PT_CHI2', Obj.TransModel.Chi2);
             HeaderObj = HeaderObj.replaceVal('PT_DOF', Obj.TransModel.DOF);
-            HeaderObj = HeaderObj.replaceVal('PT_NCALIB', size(Obj.SpecData.Spec, 1));
+            % Use final calibrator count (after sigma clipping) from last stage
+            if ~isempty(Obj.FitResults)
+                if numel(Obj.FitResults) > 1
+                    NCalFinal = Obj.FitResults(end).NCalUsed;
+                else
+                    NCalFinal = Obj.FitResults.NCalUsed;
+                end
+            else
+                NCalFinal = size(Obj.SpecData.Spec, 1);  % Fallback to initial
+            end
+            HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_SUCC', Obj.Success);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SREF', 'MLv0.1LAST');
@@ -1600,7 +1861,7 @@ classdef PhotCalibTrans < Component
                 Args.FluxColNames = []
                 Args.ApplyPosCorrection logical = true
             end
-
+           
             % Get catalog table
             Tab = CatObj.Table;
 
@@ -1683,6 +1944,7 @@ classdef PhotCalibTrans < Component
                 % Insert column into catalog
                 CatObj = CatObj.insertCol(MagAB, Inf, {NewMagColName});
             end
+
         end
 
         function CatObj = addZP(Obj, CatObj)
@@ -1698,7 +1960,7 @@ classdef PhotCalibTrans < Component
                 Obj = Obj.addStatus('addZP', 'warning', 'Catalog is empty. No columns added.');
                 return;
             end
-
+            
             Nrows = height(Tab);
 
             % Extract X, Y coordinates
@@ -1734,7 +1996,7 @@ classdef PhotCalibTrans < Component
 
             % Insert column
             CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
-        end
+        end      
     end
 
     methods % Display/Output methods

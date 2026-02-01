@@ -53,8 +53,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Tran               = Tran2D('poly3');
         Args.CatName            = 'GAIAEDR3';
         
-        Args.OutputDir          = '/Data2/NewRef/';
-        Args.WriteProp          = ['Image','Cat','Mask','PSF'];
+        Args.OutputDir          = '~/NewRef/';
+        Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % output DB table        
     end
@@ -248,7 +248,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','PH_ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
@@ -267,16 +267,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
                 
         MeanJD = mean(julday(StackImages));        
-        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'JD', MeanJD);
-                           
-        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
-                                            'EpochOut',MeanJD,...
-                                            'Scale',Args.PixScale,...
-                                            'CatName',Args.CatName,...
-                                            'Tran',Args.Tran,...
-                                            'CreateNewObj',false);                    
-                                        
-        RefImage = imProc.calib.photometricZP(RefImage);
+        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MIDJD', MeanJD);
+%                            
+%         [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
+%                                             'EpochOut',MeanJD,...
+%                                             'Scale',Args.PixScale,...
+%                                             'CatName',Args.CatName,...
+%                                             'Tran',Args.Tran,...
+%                                             'CreateNewObj',false);                    
+%                                         
+        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage);
+%         RefImage = imProc.calib.photometricZP(RefImage);
         
 %         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
 %         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));

@@ -24,12 +24,9 @@ function [Obj, ID] = generateImageID(Obj, Args)
     %                   if keyword value is NaN. If false, will insert 0.
     %                   Default is true.
     %            'WriteAsStr' - A logical indicating if to write the ID as
-    %                   string (true), or integer (false).
+    %                   string (true), ir integer (false).
     %                   Default is true because FITS writeKey diesnt
     %                   support uint64
-    %            'JD' - Optional array of JDs. If provided will be taken
-    %                   from this array. Default is [].
-    %
     % Output : - An AstroImage object with the updated header.
     %          - A vector of IDs (one per image).
     % Author : Eran Ofek (2024 Oct) 
@@ -43,7 +40,6 @@ function [Obj, ID] = generateImageID(Obj, Args)
         Args.KeyID             = 'ID_PROC';
         Args.ErrorOnNaN logical = true;
         Args.WriteAsStr logical = true;
-        Args.JD                 = [];
     end
 
     if isempty(Args.FormatSt)
@@ -68,16 +64,12 @@ function [Obj, ID] = generateImageID(Obj, Args)
             BitNum(Isub) = Args.FormatSt(Isub).BitNum;
             if BitNum(Isub)>0
                 % include in keyword value in ID
-                if ~isempty(Args.JD) && strcmp(Args.FormatSt(Isub).Key,'JD');
-                    TmpVal = Args.JD(Iobj);
+                if     isa(Obj, 'AstroImage')
+                    TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
+                elseif isa(Obj, 'AstroHeader')
+                    TmpVal       = Obj(Iobj).getVal( Args.FormatSt(Isub).Key );
                 else
-                    if     isa(Obj, 'AstroImage')
-                        TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
-                    elseif isa(Obj, 'AstroHeader')
-                        TmpVal       = Obj(Iobj).getVal( Args.FormatSt(Isub).Key );
-                    else
-                        error('Incorrect object type');
-                    end
+                    error('Incorrect object type');
                 end
                 BitVal(Isub) = Args.FormatSt(Isub).Fun(TmpVal);
                 if isnan(BitVal(Isub)) && Args.ErrorOnNaN
