@@ -1,4 +1,4 @@
-function Report = checkMaskPropagation(Input, Args)
+function [Report, AI] = checkMaskPropagation(Input, Args)
     % Check that mask bits are properly propagated to catalog FLAGS
     % Description: Validates that mask bits at source positions are correctly
     %              propagated to the FLAGS column in catalogs. For each source,
@@ -32,9 +32,18 @@ function Report = checkMaskPropagation(Input, Args)
     %            .Summary        - text summary
     %
     % Author : Dana Kovaleva (Jan 2026)
-    % Example: Report = pipeline.last.quality.checkMaskPropagation(AI)
-    %          Report = pipeline.last.quality.checkMaskPropagation('~/Downloads/tm/TestMask/')
-    %          Report = pipeline.last.quality.checkMaskPropagation('~/Downloads/tm/TestMask/', 'FileType', 'sci_coadd')
+    % Example: % Load from path and validate sci_proc files:
+    %          DataPath = '~/Downloads/tm/TestMask/';
+    %          Report = pipeline.last.quality.checkMaskPropagation(DataPath);
+    %
+    %          % Load from path with sci_coadd files:
+    %          Report = pipeline.last.quality.checkMaskPropagation(DataPath, 'FileType', 'sci_coadd');
+    %
+    %          % Save report to file:
+    %          Report = pipeline.last.quality.checkMaskPropagation(DataPath, 'ReportFile', fullfile(DataPath, 'report.mat'));
+    %
+    %          % Use with pre-loaded AstroImage:
+    %          Report = pipeline.last.quality.checkMaskPropagation(AI);
 
     arguments
         Input
@@ -129,6 +138,9 @@ function Report = checkMaskPropagation(Input, Args)
                          'MaskValue', cell(MaxFailures, 1), ...
                          'FlagsValue', cell(MaxFailures, 1), ...
                          'MissingBits', cell(MaxFailures, 1), ...
+                         'MaskBitInd', cell(MaxFailures, 1), ...
+                         'FlagsBitInd', cell(MaxFailures, 1), ...
+                         'MissingBitInd', cell(MaxFailures, 1), ...
                          'MaskBitNames', cell(MaxFailures, 1), ...
                          'FlagsBitNames', cell(MaxFailures, 1), ...
                          'MissingBitNames', cell(MaxFailures, 1));
@@ -166,8 +178,8 @@ function Report = checkMaskPropagation(Input, Args)
 
             % Bounds check
             if xi >= 1 && xi <= MaskSizeX && yi >= 1 && yi <= MaskSizeY
-                maskVal = double(MaskData(yi, xi));
-                flagsVal = double(FLAGS(Isrc));
+                maskVal = uint32(MaskData(yi, xi));
+                flagsVal = uint32(FLAGS(Isrc));
 
                 % Core validation: all mask bits must be in flags
                 if bitand(flagsVal, maskVal) ~= maskVal
@@ -183,10 +195,10 @@ function Report = checkMaskPropagation(Input, Args)
                     % Calculate missing bits
                     missingBits = bitand(maskVal, bitxor(maskVal, bitand(flagsVal, maskVal)));
 
-                    % Get bit names for reporting
-                    [maskBitNames, ~, ~] = bitdec2name(BD, maskVal);
-                    [flagsBitNames, ~, ~] = bitdec2name(BD, flagsVal);
-                    [missingBitNames, ~, ~] = bitdec2name(BD, missingBits);
+                    % Get bit indices and names using bitget (no toolbox required)
+                    [maskBitInd, maskBitNames] = getBitIndicesAndNames(BD, maskVal);
+                    [flagsBitInd, flagsBitNames] = getBitIndicesAndNames(BD, flagsVal);
+                    [missingBitInd, missingBitNames] = getBitIndicesAndNames(BD, missingBits);
 
                     % Store failure details
                     FailureData(FailIdx).FragmentIdx = Ifrag;
@@ -196,9 +208,12 @@ function Report = checkMaskPropagation(Input, Args)
                     FailureData(FailIdx).MaskValue = maskVal;
                     FailureData(FailIdx).FlagsValue = flagsVal;
                     FailureData(FailIdx).MissingBits = missingBits;
-                    FailureData(FailIdx).MaskBitNames = maskBitNames{1};
-                    FailureData(FailIdx).FlagsBitNames = flagsBitNames{1};
-                    FailureData(FailIdx).MissingBitNames = missingBitNames{1};
+                    FailureData(FailIdx).MaskBitInd = maskBitInd;
+                    FailureData(FailIdx).FlagsBitInd = flagsBitInd;
+                    FailureData(FailIdx).MissingBitInd = missingBitInd;
+                    FailureData(FailIdx).MaskBitNames = maskBitNames;
+                    FailureData(FailIdx).FlagsBitNames = flagsBitNames;
+                    FailureData(FailIdx).MissingBitNames = missingBitNames;
                 end
             end
         end
@@ -217,20 +232,26 @@ function Report = checkMaskPropagation(Input, Args)
             [FailureData.MaskValue]', ...
             [FailureData.FlagsValue]', ...
             [FailureData.MissingBits]', ...
+            {FailureData.MaskBitInd}', ...
+            {FailureData.FlagsBitInd}', ...
+            {FailureData.MissingBitInd}', ...
             {FailureData.MaskBitNames}', ...
             {FailureData.FlagsBitNames}', ...
             {FailureData.MissingBitNames}', ...
             'VariableNames', {'FragmentIdx', 'SourceIdx', 'X', 'Y', ...
                               'MaskValue', 'FlagsValue', 'MissingBits', ...
+                              'MaskBitInd', 'FlagsBitInd', 'MissingBitInd', ...
                               'MaskBitNames', 'FlagsBitNames', 'MissingBitNames'});
     else
         % Empty table with correct columns
-        FailuresTable = table('Size', [0, 10], ...
+        FailuresTable = table('Size', [0, 13], ...
             'VariableTypes', {'double', 'double', 'double', 'double', ...
-                              'double', 'double', 'double', ...
+                              'uint32', 'uint32', 'uint32', ...
+                              'cell', 'cell', 'cell', ...
                               'cell', 'cell', 'cell'}, ...
             'VariableNames', {'FragmentIdx', 'SourceIdx', 'X', 'Y', ...
                               'MaskValue', 'FlagsValue', 'MissingBits', ...
+                              'MaskBitInd', 'FlagsBitInd', 'MissingBitInd', ...
                               'MaskBitNames', 'FlagsBitNames', 'MissingBitNames'});
     end
 
@@ -243,7 +264,7 @@ function Report = checkMaskPropagation(Input, Args)
 
     % Build summary text
     Summary = sprintf(['Mask Propagation Validation Report\n', ...
-                       '===================================\n', ...Eran Ofek
+                       '===================================\n', ...
                        'Fragments processed: %d\n', ...
                        'Total sources checked: %d\n', ...
                        'Failed sources: %d\n', ...
@@ -283,4 +304,34 @@ function Report = checkMaskPropagation(Input, Args)
         end
     end
 
+end
+
+%% Local helper function
+function [BitInd, BitNames] = getBitIndicesAndNames(BD, DecVal)
+    % Convert decimal value to bit indices and names using bitget
+    % Does not require Communications Toolbox (unlike de2bi)
+    %
+    % Input  : - BD - BitDictionary object
+    %          - DecVal - Decimal value (uint32)
+    % Output : - BitInd - Array of bit indices (0-indexed)
+    %          - BitNames - Cell array of bit names from dictionary
+
+    % Get bit indices using bitget (1-indexed in MATLAB)
+    BitInd = [];
+    for Ibit = 1:32
+        if bitget(DecVal, Ibit)
+            BitInd = [BitInd, Ibit - 1];  % Convert to 0-indexed
+        end
+    end
+
+    % Look up bit names from dictionary
+    BitNames = cell(1, numel(BitInd));
+    for Ibit = 1:numel(BitInd)
+        idx = find(BD.Dic.BitInd == BitInd(Ibit));
+        if ~isempty(idx)
+            BitNames{Ibit} = BD.Dic.BitName{idx};
+        else
+            BitNames{Ibit} = sprintf('Bit%d', BitInd(Ibit));
+        end
+    end
 end
