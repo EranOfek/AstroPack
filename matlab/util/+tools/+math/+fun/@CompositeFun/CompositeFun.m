@@ -1704,8 +1704,11 @@ classdef CompositeFun < handle
 
                             % Check for NaN parameters
                             if any(isnan(ParMatrix(:)))
-                                error('CompositeFun:evaluate:NaNParameters', ...
-                                      'Cannot evaluate: some parameters contain NaN values. Use setAllFunParsStruct() to set parameter values first.');
+                                Obj.addStatus('evaluateAllFunParInput', 'error', ...
+                                    'Cannot evaluate: some parameters contain NaN values. Use setAllFunParsStruct() to set parameter values first.', ...
+                                    'CompositeFun:evaluate:NaNParameters');
+                                Y = nan(length(X), NumParamSets);
+                                return;
                             end
 
                             FunResult = Obj.Funs(Ifun).Handle(X, ParMatrix, Obj.Funs(Ifun).OptionalArgs{:});
