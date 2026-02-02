@@ -1,88 +1,139 @@
 function Report = compareMasksPipelines(OldPath, NewPath, Args)
     % Compare masks between two pipeline outputs
-    %
-    % Description: Compares mask values between two different pipeline outputs
-    %              for matching files. Handles different image sizes by applying
-    %              edge offset (old images are larger, new images are trimmed).
-    %
-    % Input:
-    %   OldPath - Path to old pipeline data (larger images, 1726x1726)
-    %   NewPath - Path to new pipeline data (trimmed images, 1716x1716)
-    %   * ...,key,val,...
-    %     'FileType'   - 'sci_coadd' or 'sci_proc'. Default is 'sci_coadd'.
-    %     'EdgeOffset' - Pixel offset for edge trimming. Default is 5.
-    %     'ReportFile' - Optional file path to save report (.mat).
-    %     'Verbose'    - Print progress to console. Default is true.
-    %
-    % Output:
-    %   Report - struct with comparison results
-    %
-    % Matching: Files matched by suffix _NNN_NNN_sci_{type}_Mask_{num}.fits
-    %
-    % Author: Dana Kovaleva (Jan 2026)
-    % Example:
-    %   OldPath = '/bigdata2/projects/last/testNewPipe/222635v0/';
-    %   NewPath = '/bigdata2/projects/last/testNewPipe/222625v1/';
-    %   Report = pipeline.last.quality.compareMasksPipelines(OldPath, NewPath);
+    % Input  : - OldPath: Path to old pipeline data directory, or path to
+    %            a single old mask file (if ends with .fits).
+    %          - NewPath: Path to new pipeline data directory, or path to
+    %            a single new mask file (if ends with .fits).
+    %          * ...,key,val,...
+    %            'FileType'         - 'sci_coadd' or 'sci_proc'. Default is 'sci_proc'.
+    %                                 Only used in directory mode.
+    %            'EdgeOffset'       - Pixel offset for edge trimming. Default is 5.
+    %            'MaxDetailsPerFile'- Max mismatch details to store per file.
+    %                                 Set to Inf for all details. Default is 100.
+    %            'ReportFile'       - Optional file path to save report (.mat).
+    %                                 Default is '' (no save).
+    %            'Verbose'          - Print progress to console. Default is true.
+    % Output : - Report: struct with comparison results containing fields:
+    %            .Timestamp           - datetime of comparison run
+    %            .OldPath             - path to old pipeline data
+    %            .NewPath             - path to new pipeline data
+    %            .FileType            - file type pattern used
+    %            .EdgeOffset          - edge offset applied
+    %            .NumFilesPaired      - number of matched file pairs
+    %            .TotalPixelsCompared - total pixels compared
+    %            .TotalMismatches     - number of mismatched pixels
+    %            .MatchRate           - percentage of matching pixels
+    %            .FileComparisons     - table with per-file comparison results
+    %            .MismatchDetails     - struct array with mismatch details
+    %            .Summary             - text summary
+    % Author : Dana Kovaleva (Jan 2026)
+    % Example: % Directory mode:
+    %          OldPath = '/bigdata2/projects/last/testNewPipe/222635v0/';
+    %          NewPath = '/bigdata2/projects/last/testNewPipe/222625v1/';
+    %          Report = pipeline.last.quality.compareMasksPipelines(OldPath, NewPath);
+    %          % Single file mode:
+    %          OldFile = '/bigdata2/projects/last/testNewPipe/222635v0/LAST.01.08.03_20230616.222635.384_clear_346+79_001_001_001_sci_proc_Mask_1.fits';
+    %          NewFile = '/bigdata2/projects/last/testNewPipe/222625v1/LAST.01.08.03_20230616.222625.384_clear_346+79_001_001_001_sci_proc_Mask_1.fits';
+    %          Report = pipeline.last.quality.compareMasksPipelines(OldFile, NewFile);
 
     arguments
         OldPath
         NewPath
-        Args.FileType   = 'sci_coadd';
-        Args.EdgeOffset = 5;
-        Args.ReportFile = '';
-        Args.Verbose    = true;
+        Args.FileType          = 'sci_proc';
+        Args.EdgeOffset        = 5;
+        Args.MaxDetailsPerFile = 1000000;
+        Args.ReportFile        = '';
+        Args.Verbose           = true;
     end
 
-    % Find mask files in both paths
-    OldFiles = dir(fullfile(OldPath, ['*_' Args.FileType '_Mask_*.fits']));
-    NewFiles = dir(fullfile(NewPath, ['*_' Args.FileType '_Mask_*.fits']));
+    % Detect if inputs are files or directories
+    IsFileMode = endsWith(OldPath, '.fits', 'IgnoreCase', true) && ...
+                 endsWith(NewPath, '.fits', 'IgnoreCase', true);
 
-    if isempty(OldFiles)
-        error('No mask files found in OldPath: %s', OldPath);
-    end
-    if isempty(NewFiles)
-        error('No mask files found in NewPath: %s', NewPath);
-    end
-
-    if Args.Verbose
-        fprintf('Found %d mask files in OldPath\n', numel(OldFiles));
-        fprintf('Found %d mask files in NewPath\n', numel(NewFiles));
-    end
-
-    % Extract matching keys from filenames
-    % Pattern: _NNN_NNN_sci_{type}_Mask_{num}.fits
-    keyPattern = '_(\d{3}_\d{3}_sci_\w+_Mask_\d+)\.fits';
-
-    OldKeys = cell(numel(OldFiles), 1);
-    for I = 1:numel(OldFiles)
-        tokens = regexp(OldFiles(I).name, keyPattern, 'tokens');
-        if ~isempty(tokens)
-            OldKeys{I} = tokens{1}{1};
-        else
-            OldKeys{I} = '';
+    if IsFileMode
+        % Single file comparison mode
+        if ~isfile(OldPath)
+            error('Old file not found: %s', OldPath);
         end
-    end
-
-    NewKeys = cell(numel(NewFiles), 1);
-    for I = 1:numel(NewFiles)
-        tokens = regexp(NewFiles(I).name, keyPattern, 'tokens');
-        if ~isempty(tokens)
-            NewKeys{I} = tokens{1}{1};
-        else
-            NewKeys{I} = '';
+        if ~isfile(NewPath)
+            error('New file not found: %s', NewPath);
         end
-    end
 
-    % Find matching pairs
-    [CommonKeys, OldIdx, NewIdx] = intersect(OldKeys, NewKeys);
+        if Args.Verbose
+            fprintf('Single file comparison mode\n');
+            fprintf('Old file: %s\n', OldPath);
+            fprintf('New file: %s\n', NewPath);
+        end
 
-    if isempty(CommonKeys)
-        error('No matching file pairs found between OldPath and NewPath');
-    end
+        % Create file info structures
+        [OldFolder, OldName, OldExt] = fileparts(OldPath);
+        [NewFolder, NewName, NewExt] = fileparts(NewPath);
 
-    if Args.Verbose
-        fprintf('Found %d matching file pairs\n\n', numel(CommonKeys));
+        OldFiles(1).folder = OldFolder;
+        OldFiles(1).name = [OldName, OldExt];
+        NewFiles(1).folder = NewFolder;
+        NewFiles(1).name = [NewName, NewExt];
+
+        CommonKeys = {[OldName, OldExt]};
+        OldIdx = 1;
+        NewIdx = 1;
+
+    else
+        % Directory comparison mode
+        OldFiles = dir(fullfile(OldPath, ['*_' Args.FileType '_Mask_*.fits']));
+        NewFiles = dir(fullfile(NewPath, ['*_' Args.FileType '_Mask_*.fits']));
+
+        if isempty(OldFiles)
+            error('No mask files found in OldPath: %s', OldPath);
+        end
+        if isempty(NewFiles)
+            error('No mask files found in NewPath: %s', NewPath);
+        end
+
+        if Args.Verbose
+            fprintf('Found %d mask files in OldPath\n', numel(OldFiles));
+            fprintf('Found %d mask files in NewPath\n', numel(NewFiles));
+        end
+
+        % Extract matching keys from filenames based on FileType
+        if contains(Args.FileType, 'coadd')
+            % For coadd: match by end pattern _NNN_NNN_sci_coadd_Mask_N.fits
+            KeyPattern = '_(\d{3}_\d{3}_sci_coadd_Mask_\d+\.fits)$';
+        else
+            % For proc: match by everything after _clear_
+            KeyPattern = '_clear_(.+)$';
+        end
+
+        OldKeys = cell(numel(OldFiles), 1);
+        for I = 1:numel(OldFiles)
+            Tokens = regexp(OldFiles(I).name, KeyPattern, 'tokens');
+            if ~isempty(Tokens)
+                OldKeys{I} = Tokens{1}{1};
+            else
+                OldKeys{I} = '';
+            end
+        end
+
+        NewKeys = cell(numel(NewFiles), 1);
+        for I = 1:numel(NewFiles)
+            Tokens = regexp(NewFiles(I).name, KeyPattern, 'tokens');
+            if ~isempty(Tokens)
+                NewKeys{I} = Tokens{1}{1};
+            else
+                NewKeys{I} = '';
+            end
+        end
+
+        % Find matching pairs
+        [CommonKeys, OldIdx, NewIdx] = intersect(OldKeys, NewKeys);
+
+        if isempty(CommonKeys)
+            error('No matching file pairs found between OldPath and NewPath');
+        end
+
+        if Args.Verbose
+            fprintf('Found %d matching file pairs\n\n', numel(CommonKeys));
+        end
     end
 
     % Initialize counters
@@ -94,23 +145,30 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
         'VariableTypes', {'string', 'string', 'string', 'double', 'double'}, ...
         'VariableNames', {'MatchKey', 'OldFile', 'NewFile', 'PixelsCompared', 'Mismatches'});
 
-    % Initialize mismatch details storage
-    MismatchDetails = [];
+    % Pre-allocate mismatch details storage for performance
+    MaxTotalDetails = Args.MaxDetailsPerFile * numel(CommonKeys);
+    MismatchDetails = struct('FileIdx', cell(MaxTotalDetails, 1), ...
+                             'MatchKey', cell(MaxTotalDetails, 1), ...
+                             'Row', cell(MaxTotalDetails, 1), ...
+                             'Col', cell(MaxTotalDetails, 1), ...
+                             'OldValue', cell(MaxTotalDetails, 1), ...
+                             'NewValue', cell(MaxTotalDetails, 1));
+    DetailIdx = 0;
 
     Offset = Args.EdgeOffset;
 
     % Compare each pair
     for I = 1:numel(CommonKeys)
-        oldFile = fullfile(OldFiles(OldIdx(I)).folder, OldFiles(OldIdx(I)).name);
-        newFile = fullfile(NewFiles(NewIdx(I)).folder, NewFiles(NewIdx(I)).name);
+        OldFile = fullfile(OldFiles(OldIdx(I)).folder, OldFiles(OldIdx(I)).name);
+        NewFile = fullfile(NewFiles(NewIdx(I)).folder, NewFiles(NewIdx(I)).name);
 
         if Args.Verbose
             fprintf('Comparing pair %d/%d: %s\n', I, numel(CommonKeys), CommonKeys{I});
         end
 
         % Load masks using AstroImage
-        OldAI = AstroImage(oldFile);
-        NewAI = AstroImage(newFile);
+        OldAI = AstroImage(OldFile);
+        NewAI = AstroImage(NewFile);
         OldMask = OldAI.Image;
         NewMask = NewAI.Image;
 
@@ -119,48 +177,55 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
         [NewSizeY, NewSizeX] = size(NewMask);
 
         % Verify size relationship
-        expectedOldY = NewSizeY + 2 * Offset;
-        expectedOldX = NewSizeX + 2 * Offset;
+        ExpectedOldY = NewSizeY + 2 * Offset;
+        ExpectedOldX = NewSizeX + 2 * Offset;
 
-        if OldSizeY ~= expectedOldY || OldSizeX ~= expectedOldX
+        if OldSizeY ~= ExpectedOldY || OldSizeX ~= ExpectedOldX
             warning('Size mismatch for %s: Old=%dx%d, New=%dx%d, Expected Old=%dx%d', ...
-                    CommonKeys{I}, OldSizeY, OldSizeX, NewSizeY, NewSizeX, expectedOldY, expectedOldX);
+                    CommonKeys{I}, OldSizeY, OldSizeX, NewSizeY, NewSizeX, ExpectedOldY, ExpectedOldX);
         else
             % Trim old mask to match new mask
             OldMaskTrimmed = OldMask((Offset+1):(end-Offset), (Offset+1):(end-Offset));
 
-            % Compare
-            mismatchMask = (OldMaskTrimmed ~= NewMask);
-            numMismatches = sum(mismatchMask, 'all');
-            numPixels = numel(NewMask);
+            % Compare masks
+            MismatchMask = (OldMaskTrimmed ~= NewMask);
+            NumMismatches = sum(MismatchMask, 'all');
+            NumPixels = numel(NewMask);
 
-            TotalPixels = TotalPixels + numPixels;
-            TotalMismatches = TotalMismatches + numMismatches;
+            TotalPixels = TotalPixels + NumPixels;
+            TotalMismatches = TotalMismatches + NumMismatches;
 
             % Store file comparison
             FileComparisons.MatchKey(I) = CommonKeys{I};
             FileComparisons.OldFile(I) = OldFiles(OldIdx(I)).name;
             FileComparisons.NewFile(I) = NewFiles(NewIdx(I)).name;
-            FileComparisons.PixelsCompared(I) = numPixels;
-            FileComparisons.Mismatches(I) = numMismatches;
+            FileComparisons.PixelsCompared(I) = NumPixels;
+            FileComparisons.Mismatches(I) = NumMismatches;
 
-            % Record mismatch details (limit to first 100 per file)
-            if numMismatches > 0
-                [rows, cols] = find(mismatchMask);
-                maxDetails = min(100, numMismatches);
-                for J = 1:maxDetails
-                    r = rows(J);
-                    c = cols(J);
-                    detail.FileIdx = I;
-                    detail.MatchKey = CommonKeys{I};
-                    detail.Row = r;
-                    detail.Col = c;
-                    detail.OldValue = OldMaskTrimmed(r, c);
-                    detail.NewValue = NewMask(r, c);
-                    MismatchDetails = [MismatchDetails; detail];
+            % Record mismatch details (limited by MaxDetailsPerFile)
+            if NumMismatches > 0
+                [Rows, Cols] = find(MismatchMask);
+                MaxDetails = min(Args.MaxDetailsPerFile, NumMismatches);
+                for J = 1:MaxDetails
+                    DetailIdx = DetailIdx + 1;
+                    R = Rows(J);
+                    C = Cols(J);
+                    MismatchDetails(DetailIdx).FileIdx = I;
+                    MismatchDetails(DetailIdx).MatchKey = CommonKeys{I};
+                    MismatchDetails(DetailIdx).Row = R;
+                    MismatchDetails(DetailIdx).Col = C;
+                    MismatchDetails(DetailIdx).OldValue = OldMaskTrimmed(R, C);
+                    MismatchDetails(DetailIdx).NewValue = NewMask(R, C);
                 end
             end
         end
+    end
+
+    % Trim pre-allocated mismatch details to actual size
+    if DetailIdx > 0
+        MismatchDetails = MismatchDetails(1:DetailIdx);
+    else
+        MismatchDetails = [];
     end
 
     % Calculate match rate
