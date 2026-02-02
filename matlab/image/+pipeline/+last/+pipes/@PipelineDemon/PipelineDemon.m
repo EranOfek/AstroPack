@@ -2634,7 +2634,7 @@ classdef PipelineDemon < Component
             % Output : - Updated object.
             % Author : Eran Ofek (Jul 2023)
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
-            %          D=pipeline.DemonLAST;
+            %          D=pipeline.last.pipes.PipelineDemon;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
             %          
             %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023], 'StopWhenDone',true, 'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'});

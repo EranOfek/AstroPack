@@ -23,11 +23,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
-        Args.Naxis1       = 1726;       % the pixel size of a reference image 
-        Args.Naxis2       = 1726;
+        Args.Naxis1            = 1726;  % the pixel size of a reference image 
+        Args.Naxis2            = 1726;
         
-        Args.UseInterp2WCS  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs = {};  
+        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.interp2wcsArgs    = {};  
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -81,12 +81,15 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
             % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PixScale',Args.PixScale); % temporary! 
+%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+%                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+                     'PixScale',Args.PixScale); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
         AIref.WCS = RefWCS;
+        AIref.HeaderData=AIref.WCS.wcs2header
         
         % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
@@ -161,6 +164,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
                         if Coverage < Args.MinAllowedCoverage   
                             fprintf('Incomplete coverage of %.2f, epoch %d is skipped\n', Coverage, Iepoch);
+                            continue % to the next epoch
+                        end
+                        
+                        %%% DEBUG: Nim = 6 causes errors 
+                        if Nim > 4
                             continue % to the next epoch
                         end
                         
