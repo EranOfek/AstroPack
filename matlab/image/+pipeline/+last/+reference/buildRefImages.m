@@ -26,7 +26,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Naxis1            = 1726;  % the pixel size of a reference image 
         Args.Naxis2            = 1726;
         
-        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.UseInterp2WCS     = false; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs    = {};  
         
         Args.RasterResolution   = 10;     % arcsec
@@ -167,7 +167,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue % to the next epoch
                         end
                         
-                        %%% DEBUG: Nim = 6 causes errors 
+                        %%% DEBUG: Nim = 6 causes errors in imProc.stack.stitchCrops  
                         if Nim > 4
                             continue % to the next epoch
                         end
@@ -214,6 +214,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
                             RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
+                                'Sampling',1,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
@@ -221,6 +222,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'TransWCS',true,...
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
+                                'Sampling',1,...
+                                'InterpMethod','linear',...
                                 'CreateNewObj',true);
                         end  
                         
