@@ -1,14 +1,12 @@
-function [Report, AI] = checkMaskPropagation(Input, Args)
+function Report = checkMaskPropagation(Input, Args)
     % Check that mask bits are properly propagated to catalog FLAGS
     % Description: Validates that mask bits at source positions are correctly
     %              propagated to the FLAGS column in catalogs. For each source,
     %              verifies that bitand(FLAGS, MASK_SRC) == MASK_SRC, meaning
     %              all mask bits are present in FLAGS.
-    %
-    % Input  : - Input - Either:
-    %            (1) AstroImage array with Mask and CatData populated, or
-    %            (2) Path string to directory containing FITS files
-    %          * ...,key,val,...
+    % Input  :   AstroImage array with Mask and CatData populated, or
+    %            Path string to directory containing FITS files
+    %            * ...,key,val,...
     %            'FileType'   - File type pattern when loading from path.
     %                           Options: 'sci_proc', 'sci_coadd', or custom.
     %                           Default is 'sci_proc'.
@@ -19,8 +17,7 @@ function [Report, AI] = checkMaskPropagation(Input, Args)
     %            'ReportFile' - Optional file path to save report (.mat).
     %                           Default is '' (no save).
     %            'Verbose'    - Print summary to console. Default is true.
-    %
-    % Output : - Report - struct with validation results:
+    % Output :   Report - struct with validation results:
     %            .Timestamp      - datetime of validation run
     %            .DataPath       - path to data (if loaded from files)
     %            .FileType       - file type pattern (if loaded from files)
@@ -35,13 +32,10 @@ function [Report, AI] = checkMaskPropagation(Input, Args)
     % Example: % Load from path and validate sci_proc files:
     %          DataPath = '~/Downloads/tm/TestMask/';
     %          Report = pipeline.last.quality.checkMaskPropagation(DataPath);
-    %
     %          % Load from path with sci_coadd files:
     %          Report = pipeline.last.quality.checkMaskPropagation(DataPath, 'FileType', 'sci_coadd');
-    %
     %          % Save report to file:
     %          Report = pipeline.last.quality.checkMaskPropagation(DataPath, 'ReportFile', fullfile(DataPath, 'report.mat'));
-    %
     %          % Use with pre-loaded AstroImage:
     %          Report = pipeline.last.quality.checkMaskPropagation(AI);
 
@@ -150,70 +144,64 @@ function [Report, AI] = checkMaskPropagation(Input, Args)
 
     for Ifrag = 1:1:Nfrag
         % Get catalog columns
-        if isempty(AI(Ifrag).CatData) || AI(Ifrag).CatData.sizeCatalog == 0
-            continue;
-        end
+        if ~isempty(AI(Ifrag).CatData) && AI(Ifrag).CatData.sizeCatalog > 0
+            X = AI(Ifrag).CatData.getCol(Args.ColX);
+            Y = AI(Ifrag).CatData.getCol(Args.ColY);
+            FLAGS = AI(Ifrag).CatData.getCol(Args.ColFlags);
 
-        X = AI(Ifrag).CatData.getCol(Args.ColX);
-        Y = AI(Ifrag).CatData.getCol(Args.ColY);
-        FLAGS = AI(Ifrag).CatData.getCol(Args.ColFlags);
+            if ~isempty(X) && ~isempty(Y) && ~isempty(FLAGS)
+                % Get mask data
+                MaskData = AI(Ifrag).Mask;
+                if ~isempty(MaskData)
+                    [MaskSizeY, MaskSizeX] = size(MaskData);
+                    Nsrc = numel(X);
+                    TotalSources = TotalSources + Nsrc;
 
-        if isempty(X) || isempty(Y) || isempty(FLAGS)
-            continue;
-        end
+                    for Isrc = 1:1:Nsrc
+                        xi = round(X(Isrc));
+                        yi = round(Y(Isrc));
 
-        % Get mask data
-        MaskData = AI(Ifrag).Mask;
-        if isempty(MaskData)
-            continue;
-        end
+                        % Bounds check
+                        if xi >= 1 && xi <= MaskSizeX && yi >= 1 && yi <= MaskSizeY
+                            maskVal = uint32(MaskData(yi, xi));
+                            flagsVal = uint32(FLAGS(Isrc));
 
-        [MaskSizeY, MaskSizeX] = size(MaskData);
-        Nsrc = numel(X);
-        TotalSources = TotalSources + Nsrc;
+                            % Core validation: all mask bits must be in flags
+                            if bitand(flagsVal, maskVal) ~= maskVal
+                                FailedCount = FailedCount + 1;
+                                FailIdx = FailIdx + 1;
 
-        for Isrc = 1:1:Nsrc
-            xi = round(X(Isrc));
-            yi = round(Y(Isrc));
+                                % Expand storage if needed
+                                if FailIdx > MaxFailures
+                                    MaxFailures = MaxFailures * 2;
+                                    FailureData(MaxFailures).FragmentIdx = [];
+                                end
 
-            % Bounds check
-            if xi >= 1 && xi <= MaskSizeX && yi >= 1 && yi <= MaskSizeY
-                maskVal = uint32(MaskData(yi, xi));
-                flagsVal = uint32(FLAGS(Isrc));
+                                % Calculate missing bits
+                                missingBits = bitand(maskVal, bitxor(maskVal, bitand(flagsVal, maskVal)));
 
-                % Core validation: all mask bits must be in flags
-                if bitand(flagsVal, maskVal) ~= maskVal
-                    FailedCount = FailedCount + 1;
-                    FailIdx = FailIdx + 1;
+                                % Get bit indices and names using bitget (no toolbox required)
+                                [maskBitInd, maskBitNames] = getBitIndicesAndNames(BD, maskVal);
+                                [flagsBitInd, flagsBitNames] = getBitIndicesAndNames(BD, flagsVal);
+                                [missingBitInd, missingBitNames] = getBitIndicesAndNames(BD, missingBits);
 
-                    % Expand storage if needed
-                    if FailIdx > MaxFailures
-                        MaxFailures = MaxFailures * 2;
-                        FailureData(MaxFailures).FragmentIdx = [];
+                                % Store failure details
+                                FailureData(FailIdx).FragmentIdx = Ifrag;
+                                FailureData(FailIdx).SourceIdx = Isrc;
+                                FailureData(FailIdx).X = xi;
+                                FailureData(FailIdx).Y = yi;
+                                FailureData(FailIdx).MaskValue = maskVal;
+                                FailureData(FailIdx).FlagsValue = flagsVal;
+                                FailureData(FailIdx).MissingBits = missingBits;
+                                FailureData(FailIdx).MaskBitInd = maskBitInd;
+                                FailureData(FailIdx).FlagsBitInd = flagsBitInd;
+                                FailureData(FailIdx).MissingBitInd = missingBitInd;
+                                FailureData(FailIdx).MaskBitNames = maskBitNames;
+                                FailureData(FailIdx).FlagsBitNames = flagsBitNames;
+                                FailureData(FailIdx).MissingBitNames = missingBitNames;
+                            end
+                        end
                     end
-
-                    % Calculate missing bits
-                    missingBits = bitand(maskVal, bitxor(maskVal, bitand(flagsVal, maskVal)));
-
-                    % Get bit indices and names using bitget (no toolbox required)
-                    [maskBitInd, maskBitNames] = getBitIndicesAndNames(BD, maskVal);
-                    [flagsBitInd, flagsBitNames] = getBitIndicesAndNames(BD, flagsVal);
-                    [missingBitInd, missingBitNames] = getBitIndicesAndNames(BD, missingBits);
-
-                    % Store failure details
-                    FailureData(FailIdx).FragmentIdx = Ifrag;
-                    FailureData(FailIdx).SourceIdx = Isrc;
-                    FailureData(FailIdx).X = xi;
-                    FailureData(FailIdx).Y = yi;
-                    FailureData(FailIdx).MaskValue = maskVal;
-                    FailureData(FailIdx).FlagsValue = flagsVal;
-                    FailureData(FailIdx).MissingBits = missingBits;
-                    FailureData(FailIdx).MaskBitInd = maskBitInd;
-                    FailureData(FailIdx).FlagsBitInd = flagsBitInd;
-                    FailureData(FailIdx).MissingBitInd = missingBitInd;
-                    FailureData(FailIdx).MaskBitNames = maskBitNames;
-                    FailureData(FailIdx).FlagsBitNames = flagsBitNames;
-                    FailureData(FailIdx).MissingBitNames = missingBitNames;
                 end
             end
         end

@@ -2724,6 +2724,21 @@ classdef CompositeFun < handle
                 Args.Verbose logical = false
             end
 
+            % Initialize FitResult with failure values for early return on validation error
+            FitResult = struct();
+            FitResult.Cost = Inf;
+            FitResult.RMS = NaN;
+            FitResult.Residuals = [];
+            FitResult.WeightedResiduals = [];
+            FitResult.NCalUsed = 0;
+            FitResult.NumClipped = 0;
+            FitResult.KeepMask = [];
+            FitResult.ConvergedSigmaClip = false;
+            FitResult.Chi2 = NaN;
+            FitResult.DOF = NaN;
+            FitResult.MagErr = [];
+            FitResult.PredictedFlux = [];
+
             % ====================================================================
             % STEP 0: MULTI-STAGE OPTIMIZATION (if OptimizationSequence provided)
             % ====================================================================
@@ -2760,10 +2775,14 @@ classdef CompositeFun < handle
             if Args.ValInp
                 if Obj.UseTran2D && Args.FitPosition
                     if isempty(Args.X) || isempty(Args.Y)
-                        error('X and Y coordinates required when fitting position parameters');
+                        Obj.addStatus('fitPar', 'error', 'X and Y coordinates required when fitting position parameters', 'CompositeFun:MissingCoordinates');
+                        FitResult.KeepMask = false(NCalUsedInitial, 1);
+                        return;
                     end
                     if length(Args.X) ~= NCalUsedInitial || length(Args.Y) ~= NCalUsedInitial
-                        error('X, Y size must match number of observations (%d)', NCalUsedInitial);
+                        Obj.addStatus('fitPar', 'error', sprintf('X, Y size must match number of observations (%d)', NCalUsedInitial), 'CompositeFun:CoordinateSizeMismatch');
+                        FitResult.KeepMask = false(NCalUsedInitial, 1);
+                        return;
                     end
                 end
 
@@ -3517,33 +3536,52 @@ classdef CompositeFun < handle
                     AllFunPar.FitPar(:) = false;  % Reset all to false
 
                     % Set FitPar for parameters specified in this stage
+                    StageHasError = false;
                     for I = 1:length(FreeParamsStage)
                         FunctionName = FreeParamsStage(I).Function;
                         ParameterName = FreeParamsStage(I).Parameter;
                         Idx = find(strcmp(AllFunPar.Name, ParameterName), 1);
                         if isempty(Idx)
-                            error('Parameter "%s" (from function "%s") not found in Model', ...
-                                  ParameterName, FunctionName);
+                            Obj.addStatus('fitMultiStage', 'error', sprintf('Parameter "%s" (from function "%s") not found in Model', ParameterName, FunctionName), 'CompositeFun:ParameterNotFound');
+                            StageHasError = true;
+                            break;
                         end
                         AllFunPar.FitPar(Idx) = true;
                     end
 
-                    % Apply FitPar flags
-                    Obj.setAllFunPar(AllFunPar);
+                    % If parameter lookup failed, create failure result; otherwise fit
+                    if StageHasError
+                        StageResult = struct();
+                        StageResult.Cost = Inf;
+                        StageResult.RMS = NaN;
+                        StageResult.Residuals = [];
+                        StageResult.WeightedResiduals = [];
+                        StageResult.NCalUsed = length(CurrentObs);
+                        StageResult.NumClipped = 0;
+                        StageResult.KeepMask = true(length(CurrentObs), 1);
+                        StageResult.ConvergedSigmaClip = false;
+                        StageResult.Chi2 = NaN;
+                        StageResult.DOF = NaN;
+                        StageResult.MagErr = [];
+                        StageResult.PredictedFlux = [];
+                    else
+                        % Apply FitPar flags
+                        Obj.setAllFunPar(AllFunPar);
 
-                    % Fit transmission parameters
-                    [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
-                        'CostArgs', CurrentCostArgs, ...
-                        'X', CurrentX, 'Y', CurrentY, ...
-                        'FitTransmission', true, ...
-                        'FitPosition', false, ...
-                        'SigmaClip', SigmaClip, ...
-                        'SigmaThresh', SigmaThresh, ...
-                        'SigmaIter', SigmaIter, ...
-                        'WeightedClipping', WeightedClipping, ...
-                        'OptimizationSequence', Stages(IStage), ...
-                        'OptimOptions', OptimOpts, ...
-                        'Verbose', Args.Verbose);
+                        % Fit transmission parameters
+                        [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
+                            'CostArgs', CurrentCostArgs, ...
+                            'X', CurrentX, 'Y', CurrentY, ...
+                            'FitTransmission', true, ...
+                            'FitPosition', false, ...
+                            'SigmaClip', SigmaClip, ...
+                            'SigmaThresh', SigmaThresh, ...
+                            'SigmaIter', SigmaIter, ...
+                            'WeightedClipping', WeightedClipping, ...
+                            'OptimizationSequence', Stages(IStage), ...
+                            'OptimOptions', OptimOpts, ...
+                            'Verbose', Args.Verbose);
+                    end
                 end
 
                 % Update current data after sigma clipping using KeepMask from fitPar
