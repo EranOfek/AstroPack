@@ -72,11 +72,11 @@ function [X1, Y1, Con] = moment1_cube(Cube, Back, Args)
             end
             [X1,Y1,Con] = imUtil.sources.mex.moment1_cube(Cube, Back, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, Args.RelToCenter, Args.MaxStepSize(2), Args.MaxStepSize(1));
 
-        case 'moment1_cibe_mle'
-            Con = []
-            MaxRadius = Args.SigmaWidth(end).*Args.TruncateSigma;
-            [X1,Y1] = wcentroid_cube_mle(Cube, Back, 'SigmaWidth',Args.SigmaWidth, 'MaxRadius',MaxRadius, 'MaxIter',Args.MaxIter,'RelToCenter',Args.RelToCenter);
-
+        % case 'moment1_cube_mle'
+        %     Con = []
+        %     MaxRadius = Args.SigmaWidth(end).*Args.TruncateSigma;
+        %     [X1,Y1] = wcentroid_cube_mle(Cube, Back, 'SigmaWidth',Args.SigmaWidth, 'MaxRadius',MaxRadius, 'MaxIter',Args.MaxIter,'RelToCenter',Args.RelToCenter);
+        % 
 
         case 'legeacy'
             [Ni, Nj, Nk] = size(Cube);
