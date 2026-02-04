@@ -26,7 +26,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Naxis1            = 1726;  % the pixel size of a reference image 
         Args.Naxis2            = 1726;
         
-        Args.UseInterp2WCS     = false; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs    = {};  
         
         Args.RasterResolution   = 10;     % arcsec
@@ -214,7 +214,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
                             RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
-                                'Sampling',1,...
+                                'Sampling',5,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
@@ -331,10 +331,10 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
         %
         WCS = AstroWCS();
-        WCS.ProjType  = 'TAN';
+        WCS.ProjType  = 'TPV';
         WCS.ProjClass = 'ZENITHAL';
         WCS.CooName   = {'RA'  'DEC'};
-        WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        WCS.CTYPE     = {'RA---TPV', 'DEC--TPV'};
         WCS.CUNIT     = {'deg', 'deg'};
         WCS.CD(1,1)   = PixScaleDeg;
         WCS.CD(2,2)   = PixScaleDeg;
@@ -348,7 +348,7 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         % rotate the WCS if a PA is given:  
         if ~isempty(Args.PA) 
             RotMatrix = [cos(Args.PA), -sin(Args.PA);
-                sin(Args.PA),  cos(Args.PA)];
+                         sin(Args.PA),  cos(Args.PA)];
             WCS.CD = RotMatrix * WCS.CD;
         end
 end
