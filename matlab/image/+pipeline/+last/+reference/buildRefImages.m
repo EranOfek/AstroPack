@@ -23,11 +23,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
-        Args.Naxis1       = 1726;       % the pixel size of a reference image 
-        Args.Naxis2       = 1726;
+        Args.Naxis1            = 1726;  % the pixel size of a reference image 
+        Args.Naxis2            = 1726;
         
-        Args.UseInterp2WCS  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs = {};  
+        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.interp2wcsArgs    = {};  
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -81,12 +81,15 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
             % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PixScale',Args.PixScale); % temporary! 
+%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+%                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+                     'PixScale',Args.PixScale); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
         AIref.WCS = RefWCS;
+        AIref.HeaderData = AIref.WCS.wcs2header;
         
         % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
@@ -164,6 +167,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue % to the next epoch
                         end
                         
+                        %%% DEBUG: Nim = 6 causes errors in imProc.stack.stitchCrops  
+                        if Nim > 4
+                            continue % to the next epoch
+                        end
+                        
                         % 4.1 retrieve the crop images 
                         fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
                         Nim = height(TabEpoch);                                               
@@ -206,6 +214,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
                             RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
+                                'Sampling',5,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
@@ -213,6 +222,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'TransWCS',true,...
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
+                                'Sampling',1,...
+                                'InterpMethod','linear',...
                                 'CreateNewObj',true);
                         end  
                         
@@ -320,10 +331,10 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
         %
         WCS = AstroWCS();
-        WCS.ProjType  = 'TAN';
+        WCS.ProjType  = 'TPV';
         WCS.ProjClass = 'ZENITHAL';
         WCS.CooName   = {'RA'  'DEC'};
-        WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        WCS.CTYPE     = {'RA---TPV', 'DEC--TPV'};
         WCS.CUNIT     = {'deg', 'deg'};
         WCS.CD(1,1)   = PixScaleDeg;
         WCS.CD(2,2)   = PixScaleDeg;
@@ -337,7 +348,7 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         % rotate the WCS if a PA is given:  
         if ~isempty(Args.PA) 
             RotMatrix = [cos(Args.PA), -sin(Args.PA);
-                sin(Args.PA),  cos(Args.PA)];
+                         sin(Args.PA),  cos(Args.PA)];
             WCS.CD = RotMatrix * WCS.CD;
         end
 end
