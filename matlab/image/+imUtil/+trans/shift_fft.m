@@ -1,6 +1,7 @@
 function [ShiftedImage,NY,NX,Nr,Nc,ShiftedImage_padded]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc,Args)
 % Shift Image using the sub pixel Fourier shift theorem (sinc interp.)
-% Package: imUtil.image
+%   The reverse transformation is accurate to about 6e-5.
+%   For better and faster function use: imUtil.trans.mex.shift_lanczos3
 % Description: Shift an image using the FFT shift thorem. This works well
 %              when the image does not contain sharp artifacts.
 %              Sharp artifacts will produce ringing.

@@ -8,41 +8,36 @@
 %==========================================================================
 
 function debug_MissionClient()
-    % Main debug function that calls all individual debug functions
+    % Main debug function for MissionApiClient (FastAPI plans_manager).
+    % Tests getPlansList, loadPlan, savePlan. Other methods are stubbed (Not supported).
 
-    % Configure log file name and temp folder for saving results
-    log_file = fullfile(tempdir, 'debug_mission_client.log');
-    temp_folder = tempdir;
+    fprintf('========== DEBUG MISSION API CLIENT (plans_manager) ==========\n');
+    fprintf('Set SOC_API_BASE (e.g. http://localhost:8321), SOC_API_KEY if required.\n');
+    fprintf('===============================================================\n\n');
 
-    % Write start marker to console
-    fprintf('========== DEBUG MISSION CLIENT ==========\n');
-    fprintf('Log file: %s\n', log_file);
-    fprintf('Temp folder: %s\n', temp_folder);
-    fprintf('==========================================\n\n');
-
-    % Run all debug functions
-    debugLogin();
-    debugLogout();
-    debugKeyValue();
-    debugGetApprovedTargets();
+    debugGetApprovedTargets();  % Stub: Not supported
     debugPlansList();
     debugLoadSavePlan();
-    debugValidateSubmitPlan();
-    debugPlanStatus();
-    debugDeletePlan();
-    debugExposure();
+    debugValidateSubmitPlan();  % Stub: Not supported
+    debugPlanStatus();          % Stub: Not supported
+    debugDeletePlan();          % Stub: Not supported
+    debugExposure();            % Stub: Not supported
 
-    % Write end marker to console
     fprintf('\n========== DEBUG COMPLETED ==========\n');
 end
 
 function client = createTestClient()
-    % Helper function to create a MissionClient for testing
+    % Helper function to create a MissionApiClient for FastAPI plans_manager testing.
+    % Set SOC_API_BASE, SOC_API_KEY, or pass defaults (localhost:8321).
 
-    % Define API URL and create client
-    client = ultrasat.api.MissionClient();
-    client.ApiUrl = 'http://localhost:8000';
-    fprintf('Created test client with API URL: %s\n', client.ApiUrl);
+    apiUrl = getenv('SOC_API_BASE');
+    if isempty(apiUrl)
+        apiUrl = 'http://localhost:8321';
+    end
+    apiKey = getenv('SOC_API_KEY');
+    namespace = 'OPER';
+    client = ultrasat.api.MissionApiClient('ApiUrl', apiUrl, 'Namespace', namespace, 'ApiKey', apiKey);
+    fprintf('Created MissionApiClient: ApiUrl=%s, Namespace=%s\n', client.ApiUrl, client.Client.Namespace);
 end
 
 function debugLogin()

@@ -21,6 +21,13 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
         Args.DrawMaps          = true;
         Args.CalcCoverageCurve = true;
         Args.Experimental      = false;
+    
+        % @Chen - for TooPlannerRunner (28/01/2026)
+        Args.SaveMaps      = false;     % save plots to files
+        Args.MapOutputDir  = '';        % folder to save plots
+        Args.MapBaseName   = 'too';     % prefix for files
+        Args.MapFormats    = {'png','fig'}; % {'png','jpg','fig'}
+        Args.CloseFigures  = true;      % close figures after saving        
     end        
     %
     Sr  = (180/pi)^2;  % deg(2)
@@ -62,10 +69,39 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
            [RA, Dec, Stat] = deal([]);
            return 
         end    
+
         if Args.DrawMaps
-            figure(1); subplot(3,1,1); plot(Map1.RA,Map1.DEC,'*')
-            subplot(3,1,2); plot(Map.RA,Map.DEC,'*')
-            subplot(3,1,3); plot.ungridded_image(Map.RA,Map.DEC,Map.PROBDENSITY);
+            figVisibility = 'off';
+            if usejava('desktop')
+                figVisibility = 'on';
+            end
+
+            hFig1 = figure('Visible',figVisibility,'Name','TOO Coverage');
+
+            ax1 = subplot(3,1,1, 'Parent', hFig1);
+            plot(ax1, Map1.RA, Map1.DEC, '.');
+            title(ax1, 'Cleaned map');
+        
+            ax2 = subplot(3,1,2, 'Parent',hFig1);
+            plot(ax2, Map.RA, Map.DEC, '.');
+            title(ax2, 'Thresholded map');
+        
+            ax3 = subplot(3,1,3, 'Parent',hFig1);
+            plot.ungridded_image(Map.RA, Map.DEC, Map.PROBDENSITY);
+            title(ax3, 'Probability density');            
+
+            %subplot(3,1,1); plot(Map1.RA,Map1.DEC,'*')
+            %subplot(3,1,2); plot(Map.RA,Map.DEC,'*')
+            %subplot(3,1,3); plot.ungridded_image(Map.RA,Map.DEC,Map.PROBDENSITY);
+
+            % Save to file @Chen
+            if Args.SaveMaps
+                saveFigureSafe(hFig1, Args.MapOutputDir, Args.MapBaseName, ...
+                               'coverage', Args.MapFormats);
+                if Args.CloseFigures
+                    %close(hFig1);
+                end
+            end            
         end
         
     %%%%%%%%%%%%%%% experimental coverage function:
@@ -81,7 +117,13 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     %%%%%%%%%%%%%%%
         
     % cover the region with targets
-    Targets0 = coverSky(Map,'FOVradius',Args.FOVradius,'DrawMaps',Args.DrawMaps);
+    [Targets0, axm] = coverSky(Map,'FOVradius',Args.FOVradius,'DrawMaps',Args.DrawMaps, ...
+        'SaveMaps',  Args.SaveMaps, ...
+        'MapOutputDir', Args.MapOutputDir, ...
+        'MapBaseName', Args.MapBaseName, ...
+        'MapFormats', Args.MapFormats, ...
+        'CloseFigures', Args.CloseFigures);        
+
     Ntarg0   = size(Targets0, 2);
     
         if Args.Verbosity > 1
@@ -129,18 +171,28 @@ function [RA, Dec, Stat] = coverProbMap(SkyMap, Args)
     TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
     Stat.CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius); % NB! sumProbability deals with overlaps
     
-%         if Args.Verbosity > 1
-            fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
-            fprintf('Covered probability: %.2f \n',Stat.CoveredProb) % with tiny overlaps, so might be > 1
-%         end    
-        if Args.DrawMaps        
-            for Itarg = 1:Stat.NCover
+%   if Args.Verbosity > 1
+        fprintf('Selected %d FOVs with highest probability \n',Stat.Ntarg)
+        fprintf('Covered probability: %.2f \n',Stat.CoveredProb) % with tiny overlaps, so might be > 1
+%   end    
+
+    if Args.DrawMaps        
+        if ~isempty(axm) && isvalid(axm)
+            fig = ancestor(axm,'figure');
+            if ~isempty(fig) && isvalid(fig)
+                figure(fig);
+            end
+            axes(axm);
+            hold(axm,'on');
+
+            for Itarg = 1:Stat.NCover                
                 plot.skyCircles(Targets0(Ind(Itarg)).Coo(1),Targets0(Ind(Itarg)).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','green');
             end
             for Itarg = 1:Stat.Ntarg
                 plot.skyCircles(Targets(Itarg).Coo(1),Targets(Itarg).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','red');
             end
         end
+    end
     
     % extract the output lists:
     RA  = arrayfun(@(t) t.Coo(1), Targets);
@@ -150,24 +202,55 @@ end
 
 %%% internal functions may be later replaced to calls to external tools
 
-function Targets = coverSky(Map, Args)
+function [Targets, axm] = coverSky(Map, Args)
     %
     arguments
         Map
         Args.FOVradius        = 7; % deg 
         Args.InitialGridFile  = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'
         Args.DrawMaps logical = true;
+
+        % add these
+        Args.SaveMaps      = false
+        Args.MapOutputDir  = ''
+        Args.MapBaseName   = 'too'
+        Args.MapFormats    = {'png','fig'}
+        Args.CloseFigures  = true        
     end
+
+    % @Chen - Temporary solution (28/01/2026)
+    if ispc
+        Args.InitialGridFile = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT', 'all_sky_grid_charged_particles_350_rep1.txt');
+    end
+
+    Targets = struct([]);
+    axm = [];
+
     %
     RAD = 180/pi;    
     Grid0 = readmatrix(Args.InitialGridFile);
     Np    = length(Grid0);
     
-        if Args.DrawMaps 
-            figure(2); clf
-            axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
-            plotm(Map.DEC./RAD,Map.RA./RAD,'*')
-        end           
+    if Args.DrawMaps 
+        figVisibility = 'off';
+        if usejava('desktop')
+            figVisibility = 'on';
+        end
+
+        hFig2 = figure('Visible',figVisibility, 'Name','TOO Sky Projection', 'Color','w');
+        axm = axesm('MapProjection','aitoff', ...
+              'AngleUnits','radians', ...
+              'LabelUnits','radians', ...
+              'Grid','on');
+
+        axm.Tag = 'TOO_MapAxes';  % @Chen
+
+        plotm(Map.DEC./RAD, Map.RA./RAD, '.');        
+
+        %axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
+        %plotm(Map.DEC./RAD,Map.RA./RAD,'*')
+    end           
+
     % find all the 7-deg all-sky grid pixels intersecting with any of the alert pixels
     ITarg = 0;
     for Ip = 1:Np        
@@ -177,12 +260,26 @@ function Targets = coverSky(Map, Args)
             ITarg = ITarg + 1;
             Targets(ITarg).Pr  = sumProbability(Map(Ind,:)); % probability of the points inside the FOV
             Targets(ITarg).Coo = Grid0(Ip,:);
-                if Args.DrawMaps
+
+            if Args.DrawMaps
+                if ~isempty(axm) && isvalid(axm)
+                    hold(axm,'on');
                     plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
                 end
-%               fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
+            end
+%           fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
         end
     end
+
+    % @Chen
+    if Args.DrawMaps && Args.SaveMaps
+        saveFigureSafe(hFig2, Args.MapOutputDir, Args.MapBaseName, ...
+                    'sky', Args.MapFormats);
+        if Args.CloseFigures
+            %close(hFig2);  % @Chen @Todo - does not work with findobj for - axm for now
+        end
+    end
+
 end
 
 function [SumProb, SumArea] = sumProbability(Map, Args)
@@ -231,4 +328,27 @@ end
 
 
 
+
+% @Chen (28/01/2026)        
+function saveFigureSafe(hFig, outDir, baseName, suffix, formats)
+    if ~isfolder(outDir)
+        mkdir(outDir);
+    end
+
+    for i = 1:numel(formats)
+        fmt = lower(formats{i});
+        fname = fullfile(outDir, sprintf('%s_%s.%s', baseName, suffix, fmt));
+
+        switch fmt
+            case 'png'
+                exportgraphics(hFig, fname, 'Resolution', 150);
+            case 'jpg'
+                exportgraphics(hFig, fname, 'Resolution', 150);
+            case 'fig'
+                savefig(hFig, fname);
+            otherwise
+                warning('Unknown figure format: %s', fmt);
+        end
+    end
+end
 

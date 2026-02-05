@@ -575,6 +575,13 @@ classdef uplanner < Component
                 Args.TimeBin           = 0.01; % [d] the time bin for visibility checks
                 Args.Verbosity         = 0;
                 Args.DrawMaps          = 0;
+
+                % @Chen - for TooPlannerRunner (28/01/2026)
+                Args.SaveMaps      = false;     % save plots to files
+                Args.MapOutputDir  = '';        % folder to save plots
+                Args.MapBaseName   = 'too';     % prefix for files
+                Args.MapFormats    = {'png','fig'}; % {'png','jpg','fig'}
+                Args.CloseFigures  = true;      % close figures after saving                        
             end
             
             % Verify that all relevant parameters are set and valid
@@ -612,9 +619,16 @@ classdef uplanner < Component
             
             % If a map is provided, cover the probability map
             if ~isempty(Args.Map)
+
                 [RA, Dec, Stat] = ultrasat.tools.coverProbMap(Args.Map,...
                     'MaxTarg',Obj.TOOMaxTargets,'MinProb',Obj.TOOMinCoveredProb,'MinAddedProb',Obj.TOOMinAddedProb,...
-                    'Verbosity',Args.Verbosity,'DrawMaps',Args.DrawMaps); 
+                    'Verbosity',Args.Verbosity,'DrawMaps',Args.DrawMaps, ...
+                    'SaveMaps',  Args.SaveMaps, ...
+                    'MapOutputDir', Args.MapOutputDir, ...
+                    'MapBaseName', Args.MapBaseName, ...
+                    'MapFormats', Args.MapFormats, ...
+                    'CloseFigures', Args.CloseFigures);        
+
                 Names = num2cell(1:numel(RA)); % may add "TOOfield.." to the name? 
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
                 

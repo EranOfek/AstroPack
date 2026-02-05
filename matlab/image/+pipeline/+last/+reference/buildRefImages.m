@@ -23,11 +23,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
-        Args.Naxis1       = 1726;       % the pixel size of a reference image 
-        Args.Naxis2       = 1726;
+        Args.Naxis1            = 1726;  % the pixel size of a reference image 
+        Args.Naxis2            = 1726;
         
-        Args.UseInterp2WCS  = true; % method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs = {};  
+        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
+        Args.interp2wcsArgs    = {};  
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -53,8 +53,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Tran               = Tran2D('poly3');
         Args.CatName            = 'GAIAEDR3';
         
-        Args.OutputDir          = '/Data2/NewRef/';
-        Args.WriteProp          = ['Image','Cat','Mask','PSF'];
+        Args.OutputDir          = '~/NewRef/';
+        Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % output DB table        
     end
@@ -81,12 +81,15 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
         else
             % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'PixScale',Args.PixScale); % temporary! 
+%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+%                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+                     'PixScale',Args.PixScale); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
         AIref.WCS = RefWCS;
+        AIref.HeaderData = AIref.WCS.wcs2header;
         
         % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
@@ -164,6 +167,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue % to the next epoch
                         end
                         
+                        %%% DEBUG: Nim = 6 causes errors in imProc.stack.stitchCrops  
+                        if Nim > 4
+                            continue % to the next epoch
+                        end
+                        
                         % 4.1 retrieve the crop images 
                         fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
                         Nim = height(TabEpoch);                                               
@@ -189,9 +197,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % 4.2 merge the set of covering crops                         
                             % var1
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                            try % a temporary try-catch until a new version of stitch is made 
-                                [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true,...
-                                    'WriteFile',false, Args.StitchPars{:});
+                            try % 
+%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true, 'WriteFile',false, Args.StitchPars{:});
+                                StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
                             catch ME
                                 fprintf('%s\n',ME.message);
                                 cprintf('err','However stitching failed, we are going on with other epochs\n');
@@ -201,20 +209,12 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             if isnan(julday(StitchedImage))
                                 StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
                             end
-
-                        % issues: imProc.stack.stitch does not yet operate on Back, Var, and Mask                                                 
-%                           % var2 
-%                         MergedAI = imProc.transIm.stitch(AI); % a new function to be written?
-%                           1. estimate the size of the stitched image
-%                           2. adopt WCS0 from the 1st image
-%                           3. use xy2sky with WCS1, then sky2xy with WCS0 or remap with interp2wcs? 
-%                           4. redistribute pixels (bilenear, like imProc.stack.addImageRedistributePixels)
-%                           5. for each pixel of the merge take an inverse variance weighted mean of the merged pixel values
-%                                                                                                 
+                                                                                                 
                         % 4.3 rotate, align, and cut the merged crops to 
                         % the ref. coordinates: warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
                             RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
+                                'Sampling',5,...
                                 'CreateNewObj',true,...
                                 Args.interp2wcsArgs{:});
                         else
@@ -222,10 +222,12 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 'TransWCS',true,...
                                 'FillValues',0,...
                                 'ReplaceNaN',true,...
+                                'Sampling',1,...
+                                'InterpMethod','linear',...
                                 'CreateNewObj',true);
                         end  
                         
-                        % 4.4 measure background, find sources
+                        % 4.4 measure background, find sources, populate PSF
                         RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
                         
                         RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
@@ -237,25 +239,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                                        'ZP',Args.ZP,...
                                                        'CreateNewObj',false);                                            
                                                                            
-                        % re-measure PSF, do PSF photometry -- do we really need it here?
+                        % re-measure PSF [do PSF photometry -- do we really need it here?]
                         RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
-                        RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);    
-
-                        % DOES not work yet, need to debug with EO? 
-                        
-%                         [~, RegisteredImage, AstrometricCat] = imProc.astrometry.astrometrySubImages(RegisteredImage, ...
-%                                                                             'EpochOut',TabEpoch.jd_start(Iepoch),...
-%                                                                             'CCDSEC',[1, Args.Naxis1, 1, Args.Naxis2],...
-%                                                                             'Scale',Args.PixScale,...
-%                                                                             'CatName',Args.CatName,...                                                                            
-%                                                                             'Tran',Args.Tran,...
-%                                                                             'CreateNewObj',false);
-%                                         
-%                         [RegisteredImage, RegisteredImage.ZP, RegisteredImage.PhotCat] = ... 
-%                                               imProc.calib.photometricZP(RegisteredImage,...
-%                                                                         'CreateNewObj',false,...
-%                                                                         'MagZP',Args.ZP,...
-%                                                                         'CatName',AstrometricCat);
+%                         RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);    
 
                         % 4.5 add the RegisteredImage to the stack
                         if exist('StackImages','var')
@@ -273,9 +259,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                   
-        % employ imProc.stack.coaddW or a simliar function                
-        % should do with 'PH_ZP' which requires photometricZP to be run on each of the RegisteredImage 
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'UpdateTimes',false,'FluxMatch','ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
@@ -292,19 +276,19 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % re-measure PSF, do PSF photometry 
         RefImage = imProc.psf.populatePSF(RefImage, 'RePopulatePSF', true, 'DataType',@single);
         RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
-        
-        
+                
         MeanJD = mean(julday(StackImages));        
-        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'JD', MeanJD);
-                           
-        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
-                                            'EpochOut',MeanJD,...
-                                            'Scale',Args.PixScale,...
-                                            'CatName',Args.CatName,...
-                                            'Tran',Args.Tran,...
-                                            'CreateNewObj',false);                    
-                                        
-        RefImage = imProc.calib.photometricZP(RefImage);
+        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MIDJD', MeanJD);
+%                            
+%         [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
+%                                             'EpochOut',MeanJD,...
+%                                             'Scale',Args.PixScale,...
+%                                             'CatName',Args.CatName,...
+%                                             'Tran',Args.Tran,...
+%                                             'CreateNewObj',false);                    
+%                                         
+        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage);
+%         RefImage = imProc.calib.photometricZP(RefImage);
         
 %         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
 %         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));
@@ -347,10 +331,10 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
         %
         WCS = AstroWCS();
-        WCS.ProjType  = 'TAN';
+        WCS.ProjType  = 'TPV';
         WCS.ProjClass = 'ZENITHAL';
         WCS.CooName   = {'RA'  'DEC'};
-        WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        WCS.CTYPE     = {'RA---TPV', 'DEC--TPV'};
         WCS.CUNIT     = {'deg', 'deg'};
         WCS.CD(1,1)   = PixScaleDeg;
         WCS.CD(2,2)   = PixScaleDeg;
@@ -364,7 +348,7 @@ function WCS = buildRefWCS(RA0, Dec0, Args)
         % rotate the WCS if a PA is given:  
         if ~isempty(Args.PA) 
             RotMatrix = [cos(Args.PA), -sin(Args.PA);
-                sin(Args.PA),  cos(Args.PA)];
+                         sin(Args.PA),  cos(Args.PA)];
             WCS.CD = RotMatrix * WCS.CD;
         end
 end

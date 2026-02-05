@@ -18,33 +18,50 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
 
 
     methods
-        function obj = MissionClient(Args)
-            % Constructor for MissionClient
+        function obj = MissionApiClient(Args)
+            % Constructor for MissionApiClient (FastAPI plans_manager).
             %
             % Parameters:
-            %   Args.SubUrl (string) - API endpoint path (default: '/mission')
-            %   Args.ApiUrl (string) - API base URL (default: from environment)
+            %   Args.ApiUrl (string) - Plans manager base URL (e.g. http://host:8321)
+            %   Args.Namespace (string) - Namespace header value
+            %   Args.ApiKey (string) - API key for authentication
+            %   Args.SubUrl (string) - Optional path suffix (default '')
             %
             % Returns:
-            %   obj - Initialized MissionClient object
+            %   obj - Initialized MissionApiClient object
             arguments
-                Args.SubUrl = '/mission';  % planner_backend
-                Args.ApiUrl = '';  % Will be fetched from environment if empty
+                Args.ApiUrl = '';
+                Args.Namespace = '';
+                Args.ApiKey = '';
+                Args.SubUrl = '';
                 Args.LogFileName = [];
             end
 
-            % Call parent constructor
-            ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.MissionClientBase(ArgsCell{:});
+            % Call parent constructor (MissionApiBase accepts only SubUrl, LogFileName)
+            baseArgs = struct('SubUrl', Args.SubUrl, 'LogFileName', Args.LogFileName);
+            baseArgsCell = namedargs2cell(baseArgs);
+            obj@ultrasat.api.MissionApiBase(baseArgsCell{:});
 
-            % Initialize API client
-            obj.Client = ultrasat.api.ClientBase('SubUrl', Args.SubUrl);
-
-            % Set API URL if provided
-            if ~isempty(Args.ApiUrl)
-                obj.ApiUrl = Args.ApiUrl;
-                obj.Client.BaseUrl = Args.ApiUrl;
+            % Base URL for plans_manager (no trailing slash)
+            baseUrl = Args.ApiUrl;
+            if isempty(baseUrl)
+                baseUrl = getenv('SOC_API_BASE');
             end
+            if isempty(baseUrl)
+                baseUrl = 'http://localhost:8321';
+            end
+            obj.ApiUrl = baseUrl;
+
+            % HTTP client with namespace and api-key for FastAPI plans_manager
+            apiKey = Args.ApiKey;
+            if isempty(apiKey)
+                apiKey = getenv('SOC_API_KEY');
+            end
+            obj.Client = ultrasat.api.ClientBase(...
+                'BaseUrl', baseUrl, ...
+                'SubUrl', Args.SubUrl, ...
+                'ApiKey', apiKey, ...
+                'Namespace', Args.Namespace);
         end
 
         % -------------------------------------------------------------------
@@ -123,35 +140,18 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
 
 
         function response = submitPlan(obj, Plan)
-            % Submits an observation plan to the mission control system.
-            %
-            % Parameters:
-            %   Plan - Array of structs containing observation data
-            %
-            % Returns:
-            %   response - Structure containing submission result
+            % Submits the plan by setting status to 'submitted' and saving via save_plan.
             obj.msglog('submitPlan: Submitting plan with pk=%d', obj.PlanData.pk);
-
-            % Convert date/time fields to UTC
-            Plan = obj.convertPlanTimesToUtc(Plan);
-
-            % Send request
-            params = struct('plan', Plan);
-            response = obj.Client.postRequest('/submit_plan/', params);
-
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-
-            if response.ok
-                % Update status
+            try
                 obj.PlanData.status = 'submitted';
-
-                % Add entry to history
                 obj.PlanData.addHistory(sprintf('plan submitted by %s', obj.PlanData.created_by));
-
-                obj.msglog('Plan %d submitted successfully.', obj.PlanData.pk);
-            else
-                obj.msglog('Plan submission failed: %s', response.message);
+                response = obj.savePlan();
+                if response.ok
+                    obj.msglog('Plan %d submitted successfully.', obj.PlanData.pk);
+                end
+            catch ME
+                obj.msglog('submitPlan failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'ok', false);
             end
         end
 
@@ -221,154 +221,183 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
         % =================================================================
 
         function response = getPlansList(obj, start_timestamp, end_timestamp, title_subtext)
-            % Retrieves a list of all observation plans from the server.
-            %
-            % Parameters:
-            %   start_timestamp (optional) - Start time for filtering plans
-            %   end_timestamp (optional) - End time for filtering plans
-            %   title_subtext (optional) - Substring to search in plan titles
-            %
-            % Returns:
-            %   response - Structure containing result
+            % Retrieves a list of plans from FastAPI plans_manager (POST /get_plans_list).
+            % Returns response.plans for GUI compatibility; API returns response.data.
             obj.msglog('getPlansList: Scanning for plans');
 
-            % Handle optional arguments
-            if nargin < 2
-                start_timestamp = [];
-            end
-            if nargin < 3
-                end_timestamp = [];
-            end
-            if nargin < 4
-                title_subtext = '';
-            end
+            if nargin < 2, start_timestamp = []; end
+            if nargin < 3, end_timestamp = []; end
+            if nargin < 4, title_subtext = ''; end
 
-            % Format dates for API if present
+            % Python API: start_time, end_time, status (ISO or null)
+            start_str = [];
+            end_str = [];
             if ~isempty(start_timestamp) && isdatetime(start_timestamp)
                 start_str = datestr(start_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
-            else
+            elseif ~isempty(start_timestamp)
                 start_str = start_timestamp;
             end
-
             if ~isempty(end_timestamp) && isdatetime(end_timestamp)
                 end_str = datestr(end_timestamp, 'yyyy-mm-ddTHH:MM:SS.FFFZ');
-            else
+            elseif ~isempty(end_timestamp)
                 end_str = end_timestamp;
             end
+            % title_subtext not in API; use as status filter if needed or omit
+            status_filter = [];
+            if ~isempty(title_subtext)
+                status_filter = title_subtext;
+            end
 
-            % Send request
-            params = struct(...
-                'start_timestamp', start_str, ...
-                'end_timestamp', end_str, ...
-                'title_subtext', title_subtext ...
-            );
+            params = struct('start_time', start_str, 'end_time', end_str, 'status', status_filter);
+            params = ultrasat.api.ModelBase.removeEmptyFields(params);
 
-            response = obj.Client.postRequest('/get_plans_list/', params);
+            try
+                response = obj.Client.postRequest('/get_plans_list', params);
+            catch ME
+                obj.msglog('getPlansList failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'data', [], 'ok', false);
+                response.plans = [];
+                return;
+            end
+
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
+            % Map API response.data -> response.plans for GUI; add create_time, update_time, ast_planner if missing
+            if response.ok && isfield(response, 'data') && ~isempty(response.data)
+                plansList = response.data;
+                if iscell(plansList)
+                    for i = 1:numel(plansList)
+                        p = plansList{i};
+                        if ~isfield(p, 'create_time'), p.create_time = []; end
+                        if ~isfield(p, 'update_time')
+                            p.update_time = [];
+                            if isfield(p, 'updated_time') && ~isempty(p.updated_time), p.update_time = p.updated_time; end
+                        end
+                        if ~isfield(p, 'ast_planner'), p.ast_planner = ''; end
+                        plansList{i} = p;
+                    end
+                else
+                    for i = 1:numel(plansList)
+                        if ~isfield(plansList(i), 'create_time'), plansList(i).create_time = []; end
+                        if ~isfield(plansList(i), 'update_time')
+                            plansList(i).update_time = [];
+                            if isfield(plansList(i), 'updated_time') && ~isempty(plansList(i).updated_time)
+                                plansList(i).update_time = plansList(i).updated_time;
+                            end
+                        end
+                        if ~isfield(plansList(i), 'ast_planner'), plansList(i).ast_planner = ''; end
+                    end
+                end
+                response.plans = plansList;
+            else
+                response.plans = [];
+            end
         end
 
 
         function response = loadPlan(obj, plan_pk)
-            % Loads a specific observation plan by its primary key.
-            %
-            % Parameters:
-            %   plan_pk (integer) - Primary key of the plan to load
-            %
-            % Returns:
-            %   response - Structure containing result
-            %
-            % Notes:
-            %   This method populates the obj.PlanData property.
+            % Loads a plan by pk from FastAPI plans_manager (POST /get_plan).
+            % Populates obj.PlanData; planner is left [] (no matlab_mat restore).
             obj.msglog('loadPlan: Loading plan with pk=%d', plan_pk);
 
-            % Send request
             params = struct('plan_pk', plan_pk);
-            response = obj.Client.postRequest('/load_plan/', params);
-
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-
-            % Populate PlanData if plan was returned
-            if response.ok && isfield(response, 'plan')
-                obj.PlanData = ultrasat.api.PlanData.fromStruct(response.plan);
-                obj.msglog('Plan %d loaded successfully.', plan_pk);
-            else
-                obj.msglog('Failed to load plan %d: %s', plan_pk, response.message);
+            try
+                response = obj.Client.postRequest('/get_plan', params);
+            catch ME
+                obj.msglog('loadPlan failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'data', [], 'ok', false);
+                return;
             end
+
+            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
+            if ~response.ok || ~isfield(response, 'data') || isempty(response.data)
+                obj.msglog('Failed to load plan %d: %s', plan_pk, getfield(response, 'message', ''));
+                return;
+            end
+
+            % Convert API PlanData to MATLAB (created_time->create_time, updated_time->update_time, decl->Dec)
+            apiPlan = response.data;
+            matlabPlan = obj.apiToPlanStruct(apiPlan);
+            matlabPlan.planner = [];  % No planner from API
+            obj.PlanData = ultrasat.api.PlanData.fromStruct(matlabPlan);
+            obj.msglog('Plan %d loaded successfully.', plan_pk);
         end
 
 
-        function response = savePlan(obj)
-            % Saves the current observation plan (from obj.PlanData) to the server.
-            %
-            % Returns:
-            %   response - Structure containing result
+        function response = savePlan(obj, Args)
+            % Saves the current plan to FastAPI plans_manager (POST /save_plan).
+            % Sends plan struct with MATLAB->API field mapping; response.data is pk.
+            arguments
+                obj
+                Args.forceSave (1,1) logical = false
+            end
             obj.msglog('savePlan: Saving plan with pk=%d', obj.PlanData.pk);
 
-            % Update planData from planner if available
             obj.updateFromPlanner();
+            planStruct = obj.PlanData.toStruct();
+            planStruct = rmfield(planStruct, 'planner');  % Do not send MATLAB object
+            apiPlan = obj.planStructToApi(planStruct);
 
-            % Send request (empty params since PlanData is on server)
-            params = struct();
-            response = obj.Client.postRequest('/save_plan/', params);
+            params = struct('plan', apiPlan);
+            try
+                response = obj.Client.postRequest('/save_plan', params);
+            catch ME
+                obj.msglog('savePlan failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'data', [], 'ok', false);
+                return;
+            end
 
-            % Update response.ok based on status
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-
-            if response.ok
+            if response.ok && isfield(response, 'data') && ~isempty(response.data)
+                obj.PlanData.pk = response.data;
+                if ~isempty(obj.PlanData.planner)
+                    obj.PlanData.planner.Pk = response.data;
+                end
                 obj.msglog('Plan %d saved successfully.', obj.PlanData.pk);
-            else
-                obj.msglog('Failed to save plan: %s', response.message);
+            elseif ~response.ok
+                obj.msglog('Failed to save plan: %s', getfield(response, 'message', ''));
             end
         end
 
 
         function response = deletePlan(obj, plan_pk)
-            % Deletes a specific observation plan by its primary key.
-            %
-            % Parameters:
-            %   plan_pk (integer) - Primary key of the plan to delete
-            %
-            % Returns:
-            %   response - Structure containing result
+            % Deletes a plan by calling POST /delete_plan with plan_pk.
             obj.msglog('deletePlan: Deleting plan with pk=%d', plan_pk);
-
-            % Send request
-            params = struct('plan_pk', plan_pk);
-            response = obj.Client.postRequest('/delete_plan/', params);
-
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-
-            if response.ok
-                obj.msglog('Plan %d deleted successfully.', plan_pk);
-            else
-                obj.msglog('Failed to delete plan %d: %s', plan_pk, response.message);
+            try
+                params = struct('plan_pk', plan_pk);
+                response = obj.Client.postRequest('/delete_plan', params);
+                response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
+                if response.ok
+                    obj.msglog('Plan %d deleted successfully.', plan_pk);
+                else
+                    obj.msglog('Failed to delete plan %d: %s', plan_pk, getfield(response, 'message', ''));
+                end
+            catch ME
+                obj.msglog('deletePlan failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'ok', false);
             end
         end
 
 
         function response = getPlanStatus(obj, plan_pk)
-            % Retrieves the current status of a specific observation plan.
-            %
-            % Parameters:
-            %   plan_pk (integer) - Primary key of the plan to check
-            %
-            % Returns:
-            %   response - Structure containing result
-            obj.msglog('getPlanStatus: Fetching status for plan with pk=%d', plan_pk);
+            % Not supported when using Plans Manager API (no get_plan_status endpoint).
+            obj.msglog('getPlanStatus: Not supported when using Plans Manager API');
+            response = struct('status', 'error', 'message', 'Not supported when using Plans Manager API', 'data', [], 'ok', false);
+        end
 
-            % Send request
-            params = struct('plan_pk', plan_pk);
-            response = obj.Client.postRequest('/get_plan_status/', params);
+        % -----------------------------------------------------------------
+        %                     Health
+        % -----------------------------------------------------------------
 
-            % Update response.ok based on status
-            response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
-
-            if response.ok
-                obj.msglog('Plan status fetched successfully for pk=%d', plan_pk);
-            else
-                obj.msglog('Failed to fetch plan status: %s', response.message);
+        function response = health(obj)
+            % Calls GET /health on the plans_manager API (no auth headers).
+            % Returns response with .status (e.g. 'ok') and .ok (true if healthy).
+            obj.msglog('health: GET /health');
+            try
+                response = obj.Client.getRequest('/health', false);
+                response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
+            catch ME
+                obj.msglog('health failed: %s', ME.message);
+                response = struct('status', 'error', 'message', ME.message, 'ok', false);
             end
         end
 
@@ -459,6 +488,75 @@ classdef MissionApiClient < ultrasat.api.MissionApiBase
                 end
             end
         end
+    end
 
+    methods (Access = private)
+        function apiStruct = planStructToApi(obj, s)
+            % Convert MATLAB plan struct to API (Python) field names.
+            % create_time -> created_time, update_time -> updated_time, targets Dec -> decl.
+            apiStruct = s;
+            if isfield(s, 'create_time')
+                apiStruct.created_time = s.create_time;
+                apiStruct = rmfield(apiStruct, 'create_time');
+            end
+            if isfield(apiStruct, 'update_time')
+                apiStruct.updated_time = apiStruct.update_time;
+                apiStruct = rmfield(apiStruct, 'update_time');
+            end
+            if isfield(apiStruct, 'targets') && ~isempty(apiStruct.targets)
+                t = apiStruct.targets;
+                if iscell(t)
+                    for i = 1:numel(t)
+                        if isfield(t{i}, 'Dec')
+                            t{i}.decl = t{i}.Dec;
+                            t{i} = rmfield(t{i}, 'Dec');
+                        end
+                    end
+                else
+                    for i = 1:numel(t)
+                        if isfield(t(i), 'Dec')
+                            t(i).decl = t(i).Dec;
+                            t(i) = rmfield(t(i), 'Dec');
+                        end
+                    end
+                end
+                apiStruct.targets = t;
+            end
+            % Convert datetimes to ISO strings for JSON (recursive)
+            apiStruct = ultrasat.api.ModelBase.convertDatetimeToString(apiStruct);
+        end
+
+        function matlabStruct = apiToPlanStruct(obj, apiStruct)
+            % Convert API (Python) plan struct to MATLAB field names.
+            % created_time -> create_time, updated_time -> update_time, targets decl -> Dec.
+            matlabStruct = apiStruct;
+            if isfield(apiStruct, 'created_time')
+                matlabStruct.create_time = apiStruct.created_time;
+                matlabStruct = rmfield(matlabStruct, 'created_time');
+            end
+            if isfield(matlabStruct, 'updated_time')
+                matlabStruct.update_time = matlabStruct.updated_time;
+                matlabStruct = rmfield(matlabStruct, 'updated_time');
+            end
+            if isfield(matlabStruct, 'targets') && ~isempty(matlabStruct.targets)
+                t = matlabStruct.targets;
+                if iscell(t)
+                    for i = 1:numel(t)
+                        if isfield(t{i}, 'decl')
+                            t{i}.Dec = t{i}.decl;
+                            t{i} = rmfield(t{i}, 'decl');
+                        end
+                    end
+                else
+                    for i = 1:numel(t)
+                        if isfield(t(i), 'decl')
+                            t(i).Dec = t(i).decl;
+                            t(i) = rmfield(t(i), 'decl');
+                        end
+                    end
+                end
+                matlabStruct.targets = t;
+            end
+        end
     end
 end

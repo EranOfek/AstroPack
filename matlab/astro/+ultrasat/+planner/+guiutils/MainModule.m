@@ -78,18 +78,34 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup ApiClient - CURRENTLY we use only Sim - with Local access
-            % to JSON files or or remote access using simple_file_server.py
-            UseSim = true;
+            % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
+            UseSim = obj.Preferences.get('UseSim', true);
             if UseSim
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionClientSim');
-                obj.ApiClient = ultrasat.api.MissionApiSim();   %'LogFileName', obj.LogFileName);
-                obj.UserClient = ultrasat.api.UserManagerSim();  %'LogFileName', obj.LogFileName);
+                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiSim');
+                obj.ApiClient = ultrasat.api.MissionApiSim();
+                obj.UserClient = ultrasat.api.UserManagerSim();
             else
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionClient');
-                obj.ApiClient = ultrasat.api.MissionApiClient();  % 'LogFileName', obj.LogFileName);
-                obj.ApiClient.ApiUrl = 'http://localhost:8215';
-                obj.UserClient = ultrasat.api.UserManagerClient();  %'LogFileName', obj.LogFileName);
+                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiClient (FastAPI plans_manager)');
+                apiUrl = obj.Preferences.get('PlansManagerApiUrl', '');
+                if isempty(apiUrl)
+                    apiUrl = getenv('SOC_API_BASE');
+                end
+                if isempty(apiUrl)
+                    apiUrl = 'http://localhost:8321';
+                end
+                apiKey = obj.Preferences.get('ApiKey', '');
+                if isempty(apiKey)
+                    apiKey = getenv('SOC_API_KEY');
+                end
+                namespace = obj.NamespaceId;
+                if isempty(namespace)
+                    namespace = 'OPER';
+                end
+                obj.ApiClient = ultrasat.api.MissionApiClient(...
+                    'ApiUrl', apiUrl, ...
+                    'Namespace', namespace, ...
+                    'ApiKey', apiKey);
+                obj.UserClient = ultrasat.api.UserManagerSim();
             end
 
             % Operational - When starting Planner from OPER, this is the
@@ -146,6 +162,10 @@ classdef MainModule < ultrasat.api.Loggable
 
                 % Set the namespace id for the PathUtils class, so any class derived from Loggable will use this namespace id
                 ultrasat.api.PathUtils.NamespaceId(obj.NamespaceId);
+                % When using MissionApiClient (FastAPI), update HTTP client namespace for plans_manager
+                if isa(obj.ApiClient, 'ultrasat.api.MissionApiClient') && ~isempty(obj.ApiClient.Client)
+                    obj.ApiClient.Client.Namespace = obj.NamespaceId;
+                end
                 Result = true;
             end
         end
