@@ -6,7 +6,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = false;
+        Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
@@ -88,7 +88,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     % get JD of all epoch - once
     JD = AI.julday;
     JD = repmat(JD(:), 1, Nsub); % faster than getting the JD for AllSI
-
+    
     % initiate parpool if needed
     if Args.UseParfor
         PP = gcp('nocreate');
@@ -97,6 +97,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
             % create new parpool
             PP = parpool(Args.Nworkers);
         end
+    else
+        PP = [];
     end
 
     % Add ImageID to individual cropped images: in ID_PROC
@@ -124,8 +126,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 24s
 
     % add coordinates to catalogs
-    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true);
+    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');
     
+    % Update Airmass header keyword to based on measured crop center
+    AllSI = imProc.header.addAirMass(AI, 'JD',JD);
     
     % Individual sub images : quality           
     % astrometry

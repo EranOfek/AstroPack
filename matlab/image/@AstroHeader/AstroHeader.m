@@ -1373,11 +1373,11 @@ classdef AstroHeader < Component
                 Obj
                 Args.KeyJD                             = [];  % if JD is known (for fast extraction)
                 Args.ExpTimeKey                        = 'EXPTIME';
-                Args.FunTimeKeys cell                  = {};
+                Args.FunTimeKeys                       = {};
                 %Args.TreatBug2000(1,1) logical                                  = true;
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo                                                 = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;

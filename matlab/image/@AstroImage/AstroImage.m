@@ -2077,7 +2077,8 @@ classdef AstroImage < Component
             % Return the Julian day for AstroImage object
             % Input  : - An AstroImage object
             %          * Arbitrary number of arguments to pass to the
-            %          AstroHeader/juday function.
+            %            AstroHeader/juday function.
+            %            For example 'KeyJD'...
             % Output : - An array of JD (one per AstroImage element).
             %          - An array of ExpTime.
             % Author : Eran Ofek
