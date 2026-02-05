@@ -10,6 +10,10 @@ classdef PhotCalibTrans < Component
     % Constant Properties (Hidden):
     %   TransWvl  - Transmission wavelength grid [Angstrom] (3000:20:11000, 20 Angstrom step, 401 points)
     %
+    % Inherited Properties (Hidden, from Component):
+    %   Logger    - MsgLogger object for status logging via msgLog(LogLevel, message, ...)
+    %               Supports LogLevel: Error, Warning, Info, Verbose, Debug
+    %
     % Properties:
     %   TransModel - CompositeFun object with fitted transmission model
     %   SpecData   - Structure with reference spectral data (calibrator spectra)
@@ -57,6 +61,9 @@ classdef PhotCalibTrans < Component
     %     evaluateZP - Evaluate photometric zero point at specific positions
     %     evaluateMag - Evaluate calibrated AB magnitudes from observed flux
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
+    %   Pre-computation Methods (for optimization performance):
+    %     computeMagErrCalib - Pre-compute magnitude errors for all calibrators
+    %     computeInterpolatedSpectra - Pre-compute interpolated spectra matrix for all calibrators
     %   Header I/O Methods:
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
@@ -95,6 +102,8 @@ classdef PhotCalibTrans < Component
                                 %   .SpecWvl [N_wvl x 1] - Wavelength grid [Angstrom] (e.g., 3360:20:10200 for Gaia DR3 XP)
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
+                                %   .SpecFluxMatrix [N_TransWvl x N_calib] - Pre-computed interpolated spectra
+                                %        (set by calibrate, computed by computeInterpolatedSpectra)
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
@@ -113,15 +122,6 @@ classdef PhotCalibTrans < Component
                                 %   Multi-stage:  FitResults(i).StageName, .Method, .Cost, .RMS, .Residuals,
                                 %                 .NumObs, .NumClipped, .KeepMask, .IsFieldCorrection, .Chi2, .DOF
 
-        % Status log for error/warning tracking (pipeline-safe execution)
-        StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {})
-                                % Struct array for accumulating status messages:
-                                %   .Function   - Method name that generated the status
-                                %   .Level      - 'error', 'warning', or 'info'
-                                %   .Message    - Status message text
-                                %   .Identifier - Error identifier (from ME.identifier)
-                                %   .Timestamp  - Time of occurrence
-
     end
 
     properties (Constant, Hidden)
@@ -132,7 +132,7 @@ classdef PhotCalibTrans < Component
     methods % Constructor
         function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
-            % Input  : -
+            % Input  : 
             %            * ...,key,val,...
             %            Metadata describing conditions of observations:
             %            'AirMass' - Airmass. Default is 1.2.
@@ -170,105 +170,6 @@ classdef PhotCalibTrans < Component
                             'Property "%s" does not exist and will be ignored.', PropName);
                     end
                 end
-            end
-        end
-    end
-
-    methods % Status logging utilities
-        function Obj = addStatus(Obj, FunctionName, Level, Message, Identifier)
-            % Add a status entry to the log
-            % Input  : - Obj - PhotCalibTrans object
-            %          - FunctionName - Name of the method generating the status
-            %          - Level - 'error', 'warning', or 'info'
-            %          - Message - Status message text
-            %          - Identifier - (optional) Error identifier. Default is ''.
-            % Output : - Obj - Updated object (for chaining)
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: Obj = Obj.addStatus('calibrate', 'warning', 'AIRMASS not found', '');
-
-            arguments
-                Obj
-                FunctionName char
-                Level char
-                Message char
-                Identifier char = ''
-            end
-
-            NewEntry.Function = FunctionName;
-            NewEntry.Level = Level;
-            NewEntry.Message = Message;
-            NewEntry.Identifier = Identifier;
-            NewEntry.Timestamp = datestr(now, 'yyyy-mm-dd HH:MM:SS');
-
-            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
-                Obj.StatusLog = NewEntry;
-            else
-                Obj.StatusLog(end+1) = NewEntry;
-            end
-        end
-
-        function Log = getStatus(Obj, Level)
-            % Get status log entries, optionally filtered by level
-            % Input  : - Obj - PhotCalibTrans object
-            %          - Level - (optional) Filter: 'error', 'warning', 'info', or 'all'
-            %                    Default is 'all'.
-            % Output : - Log - Struct array of status entries
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: Errors = PC.getStatus('error');
-
-            arguments
-                Obj
-                Level char = 'all'
-            end
-
-            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
-                Log = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
-                return;
-            end
-
-            if strcmp(Level, 'all')
-                Log = Obj.StatusLog;
-            else
-                Mask = strcmp({Obj.StatusLog.Level}, Level);
-                Log = Obj.StatusLog(Mask);
-            end
-        end
-
-        function Obj = clearStatus(Obj)
-            % Clear all status log entries
-            % Input  : - Obj - PhotCalibTrans object
-            % Output : - Obj - Updated object (for chaining)
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: PC = PC.clearStatus();
-
-            Obj.StatusLog = struct('Function', {}, 'Level', {}, 'Message', {}, 'Identifier', {}, 'Timestamp', {});
-        end
-
-        function Result = hasErrors(Obj)
-            % Check if any error-level status entries exist
-            % Input  : - Obj - PhotCalibTrans object
-            % Output : - Result - Logical, true if errors present
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: if PC.hasErrors(), disp('Errors occurred'); end
-
-            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
-                Result = false;
-            else
-                Result = any(strcmp({Obj.StatusLog.Level}, 'error'));
-            end
-        end
-
-        function Result = hasWarnings(Obj)
-            % Check if any warning-level status entries exist
-            % Input  : - Obj - PhotCalibTrans object
-            % Output : - Result - Logical, true if warnings present
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: if PC.hasWarnings(), disp('Warnings occurred'); end
-
-            if isempty(Obj.StatusLog) || isempty(fieldnames(Obj.StatusLog))
-                Result = false;
-            else
-                Result = any(strcmp({Obj.StatusLog.Level}, 'warning'));
             end
         end
     end
@@ -516,7 +417,7 @@ classdef PhotCalibTrans < Component
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
-                PrecomputedMagErr = Obj.computeMagErr(Flux, FluxErrVector, ...
+                PrecomputedMagErr = Obj.computeMagErrCalib(Flux, FluxErrVector, ...
                     'WeightingMode', Args.WeightingMode, ...
                     'ExpTime', ExpTime_eff, ...
                     'FluxErrorNorm', Args.FluxErrorNorm);
@@ -530,11 +431,16 @@ classdef PhotCalibTrans < Component
                     Obj.SourceData.Catalog = Tab;
                 end
 
+                % Pre-compute interpolated spectra matrix (expensive, do once)
+                % This avoids recalculating interpolation on every costFun call
+                Obj.SpecData.SpecFluxMatrix = Obj.computeInterpolatedSpectra();
+
                 % Setup CostArgs for TransmissionMode
-                % MagErr pre-computed and stored in SourceData.MagErr
+                % MagErr and SpecFluxMatrix pre-computed to avoid repeated calculations
                 CostArgs = {...
                     'WeightMatrix', Obj.SpecData.Spec', ...
                     'PrecomputedMagErr', PrecomputedMagErr, ...
+                    'PrecomputedSpecFluxMatrix', Obj.SpecData.SpecFluxMatrix, ...
                     'TransmissionMode', true, ...
                     'CalibWavelength', Obj.SpecData.SpecWvl, ...
                     'ExpTime', ExpTime_eff, ...
@@ -725,8 +631,7 @@ classdef PhotCalibTrans < Component
 
             if ~HasRADec
                 Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
-                Obj = Obj.addStatus('selectCalibrators', 'warning', ...
-                    'Catalog missing RA/Dec columns - cannot match calibrators');
+                Obj.msgLog(LogLevel.Warning, 'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators');
                 if Args.Verbose
                     fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
                     fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
@@ -891,25 +796,22 @@ classdef PhotCalibTrans < Component
                 % Validate Flux
                 InvalidFlux = isnan(Obs_Flux) | isinf(Obs_Flux) | (Obs_Flux <= 0);
                 if any(InvalidFlux)
-                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
-                        sprintf('Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
-                        sum(InvalidFlux), Nsources_before));
+                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
+                        sum(InvalidFlux), Nsources_before);
                 end
 
                 % Validate X, Y coordinates
                 InvalidXY = isnan(Obs_X) | isinf(Obs_X) | isnan(Obs_Y) | isinf(Obs_Y);
                 if any(InvalidXY)
-                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
-                        sprintf('Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
-                        sum(InvalidXY), Nsources_before));
+                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
+                        sum(InvalidXY), Nsources_before);
                 end
 
                 % Validate RA, Dec
                 InvalidRADec = isnan(Obs_RA) | isinf(Obs_RA) | isnan(Obs_Dec) | isinf(Obs_Dec);
                 if any(InvalidRADec)
-                    Obj = Obj.addStatus('selectCalibrators', 'info', ...
-                        sprintf('Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
-                        sum(InvalidRADec), Nsources_before));
+                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
+                        sum(InvalidRADec), Nsources_before);
                 end
 
                 % Combined valid mask for calibrator selection
@@ -941,8 +843,7 @@ classdef PhotCalibTrans < Component
 
                 % Check if any valid calibrators remain
                 if NmatchTotal == 0
-                    Obj = Obj.addStatus('selectCalibrators', 'error', ...
-                        'No valid calibrators remain after data validation');
+                    Obj.msgLog(LogLevel.Error, 'selectCalibrators: No valid calibrators remain after data validation');
                     Obj.SourceData = [];
                     Obj.SpecData = [];
                     Obj.CalFound = false;
@@ -1164,7 +1065,7 @@ classdef PhotCalibTrans < Component
 
             % Integrate along wavelength dimension
             A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
-
+ 
             % Calculate base zero-point flux
             TotalFlux_ZP = Obj.Aperture * A / B;  % scalar
 
@@ -1410,7 +1311,7 @@ classdef PhotCalibTrans < Component
             ParamsInfo.WasFitted = WasFitted(:);
         end
 
-        function MagErr = computeMagErr(Obj, Flux, FluxErrVector, Args)
+        function MagErr = computeMagErrCalib(Obj, Flux, FluxErrVector, Args)
             % Pre-compute magnitude errors for all calibrators (expensive, do once)
             % This avoids recalculating error propagation on every costFun call.
             % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
@@ -1426,7 +1327,7 @@ classdef PhotCalibTrans < Component
             %                   Default is 0.5
             % Output : - MagErr - Magnitude errors [N_calib x 1]
             % Author : D. Kovaleva (Jan 2026)
-            % Example: MagErr = PC.computeMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
+            % Example: MagErr = PC.computeMagErrCalib(Flux, FluxErrVector, 'WeightingMode', 'spectral');
 
             arguments
                 Obj
@@ -1562,6 +1463,71 @@ classdef PhotCalibTrans < Component
                 MagErr = [];
             end
         end
+
+        function SpecFluxMatrix = computeInterpolatedSpectra(Obj, Args)
+            % Pre-compute interpolated spectra matrix for all calibrators (expensive, do once)
+            % This avoids recalculating interpolation on every costFun call during optimization.
+            % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
+            %          * ...,key,val,...
+            %            'TransWvl' - Transmission wavelength grid [Angstrom]. Default uses Obj.TransWvl.
+            % Output : - SpecFluxMatrix - Interpolated spectra [N_TransWvl x N_calib]
+            %                             Calibrator spectra interpolated onto transmission wavelength grid
+            %                             with UV/IR boundary extrapolation.
+            % Author : D. Kovaleva (Feb 2026)
+            % Example: SpecFluxMatrix = PC.computeInterpolatedSpectra();
+            %          % Pass to costFun via CostArgs:
+            %          CostArgs = {..., 'PrecomputedSpecFluxMatrix', SpecFluxMatrix, ...};
+
+            arguments
+                Obj
+                Args.TransWvl = []
+            end
+
+            % Get transmission wavelength grid
+            if isempty(Args.TransWvl)
+                TransWvl = Obj.TransWvl(:);
+            else
+                TransWvl = Args.TransWvl(:);
+            end
+
+            % Check that SpecData is populated
+            if isempty(Obj.SpecData) || isempty(Obj.SpecData.Spec)
+                Obj.msgLog(LogLevel.Error, 'computeInterpolatedSpectra: SpecData.Spec is empty - run selectCalibrators first');
+                SpecFluxMatrix = [];
+                return;
+            end
+
+            % Get calibrator spectra and wavelength grid
+            Spec = Obj.SpecData.Spec';  % [N_SpecWvl x N_calib] (transpose from [N_calib x N_SpecWvl])
+            SpecWvl = Obj.SpecData.SpecWvl(:);
+
+            Ninput = length(TransWvl);
+            NCalib = size(Spec, 2);
+
+            % Calibrator spectral boundaries (e.g., Gaia XP: 3360-10200 Angstrom)
+            SpecWvlMin = min(SpecWvl);
+            SpecWvlMax = max(SpecWvl);
+
+            % Wavelength region masks for extrapolation
+            MaskGaia = (TransWvl >= SpecWvlMin) & (TransWvl <= SpecWvlMax);
+            MaskUV = (TransWvl < SpecWvlMin);
+            MaskIR = (TransWvl > SpecWvlMax);
+            WvlGaiaRegion = TransWvl(MaskGaia);
+
+            % Interpolate calibrator spectra onto transmission grid (vectorized)
+            SpecFluxMatrix = zeros(Ninput, NCalib);
+            SpecFluxMatrix(MaskGaia, :) = interp1(SpecWvl, Spec, WvlGaiaRegion, 'linear');
+
+            % UV/IR extrapolation: constant boundary values
+            if any(MaskUV)
+                EdgeValuesUV = interp1(SpecWvl, Spec, SpecWvlMin, 'linear');
+                SpecFluxMatrix(MaskUV, :) = repmat(EdgeValuesUV, sum(MaskUV), 1);
+            end
+            if any(MaskIR)
+                EdgeValuesIR = interp1(SpecWvl, Spec, SpecWvlMax, 'linear');
+                SpecFluxMatrix(MaskIR, :) = repmat(EdgeValuesIR, sum(MaskIR), 1);
+            end
+        end
     end
 
 
@@ -1633,7 +1599,7 @@ classdef PhotCalibTrans < Component
             Funs = Obj.TransModel.Funs;
             NFuns = length(Funs);
 
-            % Pre-compute fitted parameter names from OptSeq (same approach as getMCMCParamsInfo)
+            % Pre-compute fitted parameter names from OptSeq 
             FittedParamNames = {};
             if ~isempty(Obj.TransModel.OptSeq)
                 for IStage = 1:length(Obj.TransModel.OptSeq)
@@ -2016,9 +1982,8 @@ classdef PhotCalibTrans < Component
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
                 if any(InvalidPos)
-                    Obj = Obj.addStatus('addMagAB', 'info', ...
-                        sprintf('Position validation: %d/%d sources have invalid X/Y - MagAB will be NaN at these positions', ...
-                        sum(InvalidPos), Nrows));
+                    Obj.msgLog(LogLevel.Info, 'addMagAB: Position validation: %d/%d sources have invalid X/Y - MagAB will be NaN at these positions', ...
+                        sum(InvalidPos), Nrows);
                     ValidPosMask = ~InvalidPos;
                 end
             end
@@ -2065,7 +2030,7 @@ classdef PhotCalibTrans < Component
 
             Tab = CatObj.Table;
             if isempty(Tab) || height(Tab) == 0
-                Obj = Obj.addStatus('addZP', 'warning', 'Catalog is empty. No columns added.');
+                Obj.msgLog(LogLevel.Warning, 'addZP: Catalog is empty. No columns added.');
                 return;
             end
             
@@ -2074,8 +2039,7 @@ classdef PhotCalibTrans < Component
             % Extract X, Y coordinates
             AllColNames = Tab.Properties.VariableNames;
             if ~ismember('X', AllColNames) || ~ismember('Y', AllColNames)
-                Obj = Obj.addStatus('addZP', 'error', ...
-                    'X, Y columns not found in catalog. ZP column set to NaN.');
+                Obj.msgLog(LogLevel.Error, 'addZP: X, Y columns not found in catalog. ZP column set to NaN.');
                 ZP = nan(Nrows, 1);
                 CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
                 return;
@@ -2087,9 +2051,8 @@ classdef PhotCalibTrans < Component
             % Validate X, Y coordinates
             InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
             if any(InvalidPos)
-                Obj = Obj.addStatus('addZP', 'info', ...
-                    sprintf('Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
-                    sum(InvalidPos), Nrows));
+                Obj.msgLog(LogLevel.Info, 'addZP: Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
+                    sum(InvalidPos), Nrows);
             end
 
             % Initialize ZP as NaN

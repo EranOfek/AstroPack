@@ -13,7 +13,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %            'TapUrl'      - TAP service URL. If empty, uses TapName to resolve
 %                            or defaults to Gaia TAP. Default is [].
 %            'TapName'     - TAP service name (e.g., 'ESA Gaia Archive',
-%                            'VizieR TAP'). Used to resolve TapUrl via
+%                            'VizieR TAP (all VizieR catalogs)'). Used to resolve TapUrl via
 %                            VO.TopCat.searchTapList. Default is [].
 %            'CatName'     - Output catalog name. HDF5 files will be
 %                            named <CatName>_htm_NNNNNN.hdf5. If empty,
@@ -26,8 +26,13 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                            E.g., 'phot_g_mean_mag < 15' or
 %                            'parallax > 10 AND bp_rp > 0.5'.
 %                            Default is '' (no additional filter).
-%            'ColRA'       - RA column name in source table. Default is 'ra'.
-%            'ColDec'      - Dec column name in source table. Default is 'dec'.
+%            'ColRA'       - RA column name in output (after AS alias). Default is 'ra'.
+%            'ColDec'      - Dec column name in output (after AS alias). Default is 'dec'.
+%            'ColRASrc'    - RA column name in source table for spatial query.
+%                            Use when output has alias (e.g., 'm.ramean' when
+%                            SELECT has 'm.ramean AS ra'). If empty, uses ColRA.
+%            'ColDecSrc'   - Dec column name in source table for spatial query.
+%                            If empty, uses ColDec.
 %            'ColRAOut'    - RA column index in output matrix. Default is 1.
 %            'ColDecOut'   - Dec column index in output matrix. Default is 2.
 %            'OutUnits'    - Output coordinate units: 'rad'|'deg'.
@@ -78,6 +83,25 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %            'TargetDir'   - Remote directory where HDF5 files will be copied
 %                            via NFS after writing locally. If empty, files
 %                            are not copied. Default is '/euclid/catsHTM/NewCats/'.
+%            'NullValue'   - Value to replace with NaN in output data.
+%                            E.g., -999 for PS1 catalogs. Default is [] (no replacement).
+%            'ComputedColumns' - Cell array defining columns to compute from
+%                            existing columns. Each row: {NewName, Col1, Col2, Op}
+%                            where Op is 'minus', 'plus', 'times', 'divide'.
+%                            Computed after NullValue replacement.
+%                            E.g., {'g_delta_psf_kron','gmeanpsfmag','gmeankronmag','minus'}
+%                            Default is {} (no computed columns).
+%            'DropColumns' - Cell array of column names to drop after computing.
+%                            E.g., {'gmeankronmag','rmeankronmag'} to remove
+%                            intermediate columns used only for computation.
+%                            Default is {} (keep all columns).
+%            'NumWorkers'  - Number of parallel workers for batch downloading.
+%                            0 = sequential processing (default, original behavior).
+%                            >0 = parallel download with N workers, sequential write.
+%                            Requires Parallel Computing Toolbox.
+%            'BatchSize'   - Number of HTM cells per batch when NumWorkers > 0.
+%                            Downloads happen in parallel, writes are sequential.
+%                            Default is 50.
 % Output : - Nsrc: Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
 % Author : Dana Kovaleva (Dec 2025)
 % Example: % Download Gaia DR3 bright stars with polygon query (ESA supports polygon)
@@ -89,9 +113,15 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
               'WhereClause', 'phot_g_mean_mag < 15', ...
               'QueryType', 'polygon');
 
+    % Select columns by name using cell array
+    Nsrc = VO.prep.buildHTMfromTopCat('gaiaedr3.gaia_source', ...
+              'TapName', 'ESA Gaia Archive', ...
+              'CatName', 'GAIA_DR3_Parallax', ...
+              'Columns', {'source_id', 'ra', 'dec', 'parallax', 'pmra', 'pmdec'});
+
     % Download VizieR catalog (VizieR does not support polygon, uses cone)
     Nsrc = VO.prep.buildHTMfromTopCat('"II/349/ps1"', ...
-              'TapName', 'VizieR TAP', ...
+              'TapName', 'VizieR TAP (all VizieR catalogs)', ...
               'CatName', 'PS1_DR1');
 
     % Resume interrupted download
@@ -105,17 +135,31 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     Nsrc = VO.prep.buildHTMfromTopCat('gaiaedr3.gaia_source', ...
               'CatName', 'GAIA_Bright', ...
               'HTM', HTM, 'LevelHTM', LevelHTM);
+
+    % PS1DR2 with NullValue replacement and computed columns
+    Nsrc = VO.prep.buildHTMfromTopCat( ...
+              'dbo.meanobjectview AS m JOIN dbo.stackobjectview AS s ON m.objid = s.objid JOIN dbo.forcedmeanobject AS f ON m.objid = f.objid', ...
+              'TapUrl', 'https://mast.stsci.edu/vo-tap/api/v0.1/ps1dr2', ...
+              'CatName', 'PS1DR2', ...
+              'ColRA', 'ra', 'ColDec', 'dec', ...
+              'Columns', ['m.ramean AS ra, m.decmean AS dec, m.rameanerr AS raerr, ' ...
+                          'm.gmeanpsfmag, m.gmeankronmag, s.gpsflikelihood'], ...
+              'NullValue', -999, ...
+              'ComputedColumns', {'g_delta_psf_kron', 'gmeanpsfmag', 'gmeankronmag', 'minus'}, ...
+              'DropColumns', {'gmeankronmag'});
 %}
 
     arguments
         TableName                           % TAP table name
         Args.TapUrl           = []          % TAP service URL (or use TapName)
-        Args.TapName          = []          % TAP service name (e.g., 'VizieR TAP')
+        Args.TapName          = []          % TAP service name (e.g., 'VizieR TAP (all VizieR catalogs)')
         Args.CatName          = ''          % Output catalog base name
         Args.Columns          = '*'         % Columns to SELECT (string or cell array)
         Args.WhereClause      = ''          % Additional WHERE conditions
-        Args.ColRA            = 'ra'        % RA column name in source table
-        Args.ColDec           = 'dec'       % Dec column name in source table
+        Args.ColRA            = 'ra'        % RA column name in output (after alias)
+        Args.ColDec           = 'dec'       % Dec column name in output (after alias)
+        Args.ColRASrc         = ''          % RA column in source table for spatial query
+        Args.ColDecSrc        = ''          % Dec column in source table for spatial query
         Args.ColRAOut         = 1           % RA column index in output
         Args.ColDecOut        = 2           % Dec column index in output
         Args.OutUnits         = 'rad'       % Output coordinate units: 'rad'|'deg'
@@ -142,6 +186,11 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.SaveInd          = true        % Save index HDF file at the end
         Args.LocalDir         = '/home/dana/tmp'      % Local directory for writing HDF5 files
         Args.TargetDir        = '/euclid/catsHTM/NewCats/'  % Remote directory for copying files
+        Args.NullValue        = []          % Value to replace with NaN (e.g., -999)
+        Args.ComputedColumns  = {}          % {NewName, Col1, Col2, Op} for computed columns
+        Args.DropColumns      = {}          % Column names to drop after computing
+        Args.NumWorkers       = 0           % 0=sequential, >0=parallel with N workers
+        Args.BatchSize        = 50          % HTM cells per batch (for parallel mode)
     end
 
     RAD = constant.RAD;
@@ -171,6 +220,14 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.CatName = regexprep(TableName, '[^a-zA-Z0-9_]', '_');
         Args.CatName = regexprep(Args.CatName, '_+', '_');
         Args.CatName = regexprep(Args.CatName, '^_|_$', '');
+    end
+
+    % Set source column names for spatial query (default to output names)
+    if isempty(Args.ColRASrc)
+        Args.ColRASrc = Args.ColRA;
+    end
+    if isempty(Args.ColDecSrc)
+        Args.ColDecSrc = Args.ColDec;
     end
 
     % Format columns for query
@@ -289,6 +346,12 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
     end
 
+    % Update ColCell to reflect computed columns and dropped columns
+    Args.ColCell = applyColCellPostProcessing(Args.ColCell, Args.ComputedColumns, Args.DropColumns);
+    if Args.Verbose && (~isempty(Args.ComputedColumns) || ~isempty(Args.DropColumns))
+        fprintf('Final output columns (%d): %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
+    end
+
     % Save ColCell file immediately
     ColCellPath = fullfile(Args.LocalDir, Args.CatName);
     HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
@@ -346,64 +409,199 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     CurrentHDFFile = '';  % Track current HDF5 file for remote copy
 
     %----------------------------------------------------------------------
-    % 4. MAIN LOOP: Process each HTM cell
+    % 4. PRE-FILTER CELLS (for both sequential and parallel modes)
     %----------------------------------------------------------------------
 
     if Args.Verbose
-        fprintf('\nStarting HTM cell processing...\n');
+        fprintf('\nFiltering HTM cells by Dec/RA range...\n');
     end
+
+    CellsToProcess = [];
+    CellIndices = [];  % Maps position in CellsToProcess to position in Nsrc
 
     for Ihtm = 1:Nhtm
         IndHTM = ListIndexHTM(Ihtm);
+        MeanRA  = mean(HTM(IndHTM).coo(:,1));
+        MeanDec = mean(HTM(IndHTM).coo(:,2));
 
-        % Check if we've moved to a new HDF5 file - if so, copy the completed one
-        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
-        if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
-            % Previous file is complete, copy to remote
-            FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
-            if isfile(FullPath)
-                tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                if Args.Verbose
-                    fprintf('  Copied completed file: %s\n', CurrentHDFFile);
-                end
-            end
-        end
-        CurrentHDFFile = ThisFileName;
-
-        % Get HTM cell center
-        MeanRA  = mean(HTM(IndHTM).coo(:,1));   % radians
-        MeanDec = mean(HTM(IndHTM).coo(:,2));   % radians
-
-        % Determine cell status
         OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                        MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
-        % Check for existing files in both LocalDir and TargetDir (for Resume after files moved to server)
         AlreadyExists = Args.Resume && (checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir) || ...
                         (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, IndHTM, Args.NfilesInHDF, Args.TargetDir)));
 
         if OutsideRange
-            % Skip: outside requested RA/Dec range
             Nsrc(Ihtm, :) = [IndHTM, 0];
-
         elseif AlreadyExists
-            % Skip: already processed (resume mode) - but read source count
-            % Try LocalDir first, then TargetDir
             NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.LocalDir);
             if NsrcExisting == 0 && ~isempty(Args.TargetDir)
                 NsrcExisting = getHTMSourceCount(Args.CatName, IndHTM, Args.NfilesInHDF, Args.TargetDir);
             end
             Nsrc(Ihtm, :) = [IndHTM, NsrcExisting];
             SkippedCount = SkippedCount + 1;
-            if Args.Verbose && mod(SkippedCount, 100) == 0
-                fprintf('  Skipped %d existing cells...\n', SkippedCount);
-            end
-
         else
+            CellsToProcess = [CellsToProcess, IndHTM]; %#ok<AGROW>
+            CellIndices = [CellIndices, Ihtm]; %#ok<AGROW>
+        end
+
+        % Progress for filtering (every 100000 cells)
+        if Args.Verbose && mod(Ihtm, 100000) == 0
+            fprintf('  Filtered %d/%d cells...\n', Ihtm, Nhtm);
+        end
+    end
+
+    NumCellsToProcess = numel(CellsToProcess);
+    if Args.Verbose
+        fprintf('Cells to process: %d (skipped %d existing/out-of-range)\n', ...
+                NumCellsToProcess, Nhtm - NumCellsToProcess);
+    end
+
+    %----------------------------------------------------------------------
+    % 5. MAIN LOOP: Process filtered cells
+    %----------------------------------------------------------------------
+
+    if NumCellsToProcess == 0
+        if Args.Verbose
+            fprintf('No cells to process.\n');
+        end
+    elseif Args.NumWorkers > 0
+        %------------------------------------------------------------------
+        % PARALLEL BATCH PROCESSING
+        %------------------------------------------------------------------
+
+        if Args.Verbose
+            fprintf('\nStarting parallel processing: %d workers, batch size %d\n', ...
+                    Args.NumWorkers, Args.BatchSize);
+        end
+
+        % Extract HTM coordinates for cells to process (avoid passing full HTM to workers)
+        HTMCoo = cell(NumCellsToProcess, 1);
+        for iCell = 1:NumCellsToProcess
+            HTMCoo{iCell} = HTM(CellsToProcess(iCell)).coo;
+        end
+
+        % Start parallel pool if needed
+        try
+            pool = gcp('nocreate');
+            if isempty(pool)
+                pool = parpool(Args.NumWorkers);
+            elseif pool.NumWorkers ~= Args.NumWorkers
+                delete(pool);
+                pool = parpool(Args.NumWorkers);
+            end
+        catch ME
+            warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
+            Args.NumWorkers = 0;
+        end
+
+        if Args.NumWorkers > 0
+1            % Process in batches
+            NumBatches = ceil(NumCellsToProcess / Args.BatchSize);
+
+            for iBatch = 1:NumBatches
+                batchStart = (iBatch - 1) * Args.BatchSize + 1;
+                batchEnd = min(iBatch * Args.BatchSize, NumCellsToProcess);
+                batchCells = CellsToProcess(batchStart:batchEnd);
+                batchIndices = CellIndices(batchStart:batchEnd);
+                batchHTMCoo = HTMCoo(batchStart:batchEnd);
+                batchSize = numel(batchCells);
+
+                if Args.Verbose
+                    fprintf('Batch %d/%d: downloading cells %d-%d...\n', ...
+                            iBatch, NumBatches, batchStart, batchEnd);
+                end
+
+                % Parallel download phase - pass only necessary data
+                batchResults = cell(batchSize, 1);
+                batchFailed = false(batchSize, 1);
+
+                parfor iCell = 1:batchSize
+                    IndHTM = batchCells(iCell);
+                    cellCoo = batchHTMCoo{iCell};
+                    [Data, queryFailed] = downloadHTMCellLight( ...
+                        TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, Args);
+                    batchResults{iCell} = Data;
+                    batchFailed(iCell) = queryFailed;
+                end
+
+                % Sequential write phase
+                for iCell = 1:batchSize
+                    IndHTM = batchCells(iCell);
+                    Ihtm = batchIndices(iCell);
+                    Data = batchResults{iCell};
+
+                    if batchFailed(iCell)
+                        FailedCells = [FailedCells, IndHTM]; %#ok<AGROW>
+                        Nsrc(Ihtm, :) = [IndHTM, 0];
+                    else
+                        NsrcCell = writeHTMCell(Data, IndHTM, Args);
+                        Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
+                        ProcessedCount = ProcessedCount + 1;
+                    end
+
+                    % Handle file copying to remote
+                    [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+                    if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+                        FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                        if isfile(FullPath)
+                            tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                            if Args.Verbose
+                                fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                            end
+                        end
+                    end
+                    CurrentHDFFile = ThisFileName;
+                end
+
+                % Clear batch data to free memory
+                clear batchResults batchHTMCoo;
+
+                % Print batch progress
+                if Args.Verbose
+                    batchFailed_count = sum(batchFailed);
+                    Elapsed = toc(StartTime);
+                    Rate = ProcessedCount / Elapsed;
+                    Remaining = NumCellsToProcess - batchEnd;
+                    ETA = Remaining / max(Rate, 0.001);
+                    fprintf('[%d/%d] Processed %d cells (%.1f cells/min, ETA: %.1f min)\n', ...
+                            batchEnd, NumCellsToProcess, ProcessedCount, Rate * 60, ETA / 60);
+                    if batchFailed_count > 0
+                        fprintf('  Batch had %d failed cells\n', batchFailed_count);
+                    end
+                end
+            end
+        end
+    end
+
+    if Args.NumWorkers == 0 && NumCellsToProcess > 0
+        %------------------------------------------------------------------
+        % SEQUENTIAL PROCESSING
+        %------------------------------------------------------------------
+
+        if Args.Verbose
+            fprintf('\nStarting sequential processing...\n');
+        end
+
+        for iProc = 1:NumCellsToProcess
+            IndHTM = CellsToProcess(iProc);
+            Ihtm = CellIndices(iProc);
+
+            % Check if we've moved to a new HDF5 file - if so, copy the completed one
+            [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+            if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+                FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                if isfile(FullPath)
+                    tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                    if Args.Verbose
+                        fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                    end
+                end
+            end
+            CurrentHDFFile = ThisFileName;
+
             % Process this HTM cell
-            [NsrcCell, ColNames, QueryFailed] = processHTMCell( ...
+            [NsrcCell, ~, QueryFailed] = processHTMCell( ...
                 Tap, TableName, ColumnsStr, IndHTM, HTM, RAD, SearchRadiusDeg, Args);
 
-            % Update tracking variables
             if QueryFailed
                 FailedCells = [FailedCells, IndHTM]; %#ok<AGROW>
                 Nsrc(Ihtm, :) = [IndHTM, 0];
@@ -411,9 +609,8 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 Nsrc(Ihtm, :) = [IndHTM, NsrcCell];
                 ProcessedCount = ProcessedCount + 1;
 
-                % Print progress
                 if Args.Verbose && (mod(ProcessedCount, 10) == 0 || ProcessedCount == 1)
-                    printProgress(Ihtm, Nhtm, IndHTM, NsrcCell, StartTime, SkippedCount);
+                    printProgress(iProc, NumCellsToProcess, IndHTM, NsrcCell, StartTime, 0);
                 end
             end
         end
@@ -431,7 +628,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     end
 
     %----------------------------------------------------------------------
-    % 5. FINALIZATION
+    % 6. FINALIZATION
     %----------------------------------------------------------------------
 
     if Args.Verbose
@@ -668,8 +865,8 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
     % Get HTM vertices in degrees for polygon query
     HTMCooDeg = HTM(IndHTM).coo * RAD;
 
-    % Construct query
-    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRA, Args.ColDec, ...
+    % Construct query (use source column names for spatial constraint)
+    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
                                    HTMCooDeg, CenterRADeg, CenterDecDeg, ...
                                    SearchRadiusDeg, Args.QueryType, Args.WhereClause);
 
@@ -679,7 +876,7 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
                            Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
-            'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, ME.message);
+            'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
         QueryFailed = true;
         return;
     end
@@ -698,6 +895,10 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
         Flag = celestial.htm.in_polysphere(CooRad, HTM(IndHTM).coo, 2);
         Data = Data(Flag, :);
     end
+
+    % Apply post-processing: NullValue replacement, computed columns, drop columns
+    [Data, ColNames] = applyPostProcessing(Data, ColNames, Args.NullValue, ...
+                                            Args.ComputedColumns, Args.DropColumns);
 
     % Count sources
     NsrcCell = size(Data, 1);
@@ -817,7 +1018,7 @@ function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRan
         end
     catch ME
         warning('VO:buildHTMfromTopCat:CountQueryFailed', ...
-            'Could not query catalog size: %s. Using default level 7.', ME.message);
+            'Could not query catalog size: %s. Using default level 7.', char(ME.message));
         Level = 7;
         return;
     end
@@ -839,5 +1040,281 @@ function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRan
     if Verbose
         fprintf('Auto-selected HTM level %d (~%.0f sources/cell, %d cells)\n', ...
                 Level, SrcPerCell, Ncells);
+    end
+end
+
+
+function [Data, ColNames] = applyPostProcessing(Data, ColNames, NullValue, ComputedColumns, DropColumns)
+    % Apply post-processing to data matrix: NullValue->NaN, computed columns, drop columns
+    % Input  : - Data: numeric matrix
+    %          - ColNames: cell array of column names
+    %          - NullValue: value to replace with NaN (can be empty)
+    %          - ComputedColumns: cell array of {NewName, Col1, Col2, Op} or Nx4 cell
+    %          - DropColumns: cell array of column names to drop
+    % Output : - Data: processed matrix with computed columns appended
+    %          - ColNames: updated column names
+
+    if isempty(Data)
+        return;
+    end
+
+    % 1. Replace NullValue with NaN
+    if ~isempty(NullValue)
+        Data(Data == NullValue) = NaN;
+    end
+
+    % 2. Compute new columns
+    if ~isempty(ComputedColumns)
+        % Handle single row: {'name', 'col1', 'col2', 'op'}
+        if ~iscell(ComputedColumns{1})
+            ComputedColumns = {ComputedColumns};
+        end
+
+        for iComp = 1:numel(ComputedColumns)
+            compDef = ComputedColumns{iComp};
+            newName = compDef{1};
+            col1Name = compDef{2};
+            col2Name = compDef{3};
+            op = compDef{4};
+
+            % Find column indices
+            idx1 = find(strcmpi(ColNames, col1Name), 1);
+            idx2 = find(strcmpi(ColNames, col2Name), 1);
+
+            if isempty(idx1)
+                warning('ComputedColumns: column "%s" not found, skipping', col1Name);
+                continue;
+            end
+            if isempty(idx2)
+                warning('ComputedColumns: column "%s" not found, skipping', col2Name);
+                continue;
+            end
+
+            % Compute new column
+            switch lower(op)
+                case 'minus'
+                    newCol = Data(:, idx1) - Data(:, idx2);
+                case 'plus'
+                    newCol = Data(:, idx1) + Data(:, idx2);
+                case 'times'
+                    newCol = Data(:, idx1) .* Data(:, idx2);
+                case 'divide'
+                    newCol = Data(:, idx1) ./ Data(:, idx2);
+                otherwise
+                    warning('ComputedColumns: unknown operation "%s", skipping', op);
+                    continue;
+            end
+
+            % Append new column
+            Data = [Data, newCol]; %#ok<AGROW>
+            ColNames = [ColNames, {newName}]; %#ok<AGROW>
+        end
+    end
+
+    % 3. Drop columns
+    if ~isempty(DropColumns)
+        if ischar(DropColumns)
+            DropColumns = {DropColumns};
+        end
+
+        keepMask = true(1, numel(ColNames));
+        for iDrop = 1:numel(DropColumns)
+            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(idx)
+                keepMask(idx) = false;
+            end
+        end
+
+        Data = Data(:, keepMask);
+        ColNames = ColNames(keepMask);
+    end
+end
+
+
+function ColNames = applyColCellPostProcessing(ColNames, ComputedColumns, DropColumns)
+    % Update column names to reflect computed and dropped columns (for ColCell file)
+    % Input  : - ColNames: cell array of column names
+    %          - ComputedColumns: cell array of {NewName, Col1, Col2, Op} or Nx4 cell
+    %          - DropColumns: cell array of column names to drop
+    % Output : - ColNames: updated column names
+
+    % 1. Add computed column names
+    if ~isempty(ComputedColumns)
+        % Handle single row: {'name', 'col1', 'col2', 'op'}
+        if ~iscell(ComputedColumns{1})
+            ComputedColumns = {ComputedColumns};
+        end
+
+        for iComp = 1:numel(ComputedColumns)
+            compDef = ComputedColumns{iComp};
+            newName = compDef{1};
+            ColNames = [ColNames, {newName}]; %#ok<AGROW>
+        end
+    end
+
+    % 2. Drop columns
+    if ~isempty(DropColumns)
+        if ischar(DropColumns)
+            DropColumns = {DropColumns};
+        end
+
+        keepMask = true(1, numel(ColNames));
+        for iDrop = 1:numel(DropColumns)
+            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(idx)
+                keepMask(idx) = false;
+            end
+        end
+
+        ColNames = ColNames(keepMask);
+    end
+end
+
+
+function [Data, QueryFailed] = downloadHTMCell(TableName, ColumnsStr, IndHTM, HTM, RAD, SearchRadiusDeg, Args)
+    % Download and process a single HTM cell without writing to file
+    % Used for parallel batch processing
+    % Output : - Data: processed numeric matrix ready for HDF5 (empty if failed/no sources)
+    %          - QueryFailed: true if query failed after retries
+
+    Data = [];
+    QueryFailed = false;
+
+    % Create TopCat object for TAP queries (each worker needs its own)
+    Tap = VO.TopCat;
+
+    % Get cell center in degrees
+    MeanRA  = mean(HTM(IndHTM).coo(:,1));
+    MeanDec = mean(HTM(IndHTM).coo(:,2));
+    CenterRADeg  = MeanRA * RAD;
+    CenterDecDeg = MeanDec * RAD;
+
+    % Get HTM vertices in degrees for polygon query
+    HTMCooDeg = HTM(IndHTM).coo * RAD;
+
+    % Construct query (use source column names for spatial constraint)
+    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
+                                   HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                   SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+
+    % Execute query with retry logic
+    try
+        T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+    catch ME
+        warning('VO:buildHTMfromTopCat:QueryFailed', ...
+            'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
+        QueryFailed = true;
+        return;
+    end
+
+    % Handle empty result
+    if isempty(T) || height(T) == 0
+        return;
+    end
+
+    % Convert table to matrix (radians for in_polysphere filtering)
+    [Data, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+
+    % Filter sources to keep only those inside HTM triangle (for cone queries)
+    if strcmpi(Args.QueryType, 'cone')
+        CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, HTM(IndHTM).coo, 2);
+        Data = Data(Flag, :);
+    end
+
+    % Apply post-processing: NullValue replacement, computed columns, drop columns
+    [Data, ~] = applyPostProcessing(Data, ColNames, Args.NullValue, ...
+                                     Args.ComputedColumns, Args.DropColumns);
+
+    % Convert to output units
+    if ~isempty(Data) && strcmpi(Args.OutUnits, 'deg')
+        Data(:, 1) = Data(:, 1) * RAD;  % RA rad->deg
+        Data(:, 2) = Data(:, 2) * RAD;  % Dec rad->deg
+    end
+end
+
+
+function NsrcCell = writeHTMCell(Data, IndHTM, Args)
+    % Write processed data to HDF5 file
+    % Used for sequential write phase in parallel batch processing
+    % Output : - NsrcCell: number of sources written
+
+    NsrcCell = size(Data, 1);
+
+    if NsrcCell > 0
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, IndHTM, Args.NfilesInHDF);
+        FileName = fullfile(Args.LocalDir, FileName);
+        HDF5.save_cat(FileName, DataName, Data, Args.ColDecOut, Args.IndStep);
+    end
+end
+
+
+function [Data, QueryFailed] = downloadHTMCellLight(TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, Args)
+    % Lightweight version of downloadHTMCell for parallel processing
+    % Takes only cell coordinates instead of full HTM structure to reduce memory
+    % Input  : - TableName, ColumnsStr: query parameters
+    %          - IndHTM: HTM cell index (for error messages)
+    %          - cellCoo: 3x2 matrix of cell vertices [RA, Dec] in radians
+    %          - RAD: degrees per radian constant
+    %          - SearchRadiusDeg: cone search radius in degrees
+    %          - Args: argument structure
+    % Output : - Data: processed numeric matrix ready for HDF5 (empty if failed/no sources)
+    %          - QueryFailed: true if query failed after retries
+
+    Data = [];
+    QueryFailed = false;
+
+    % Create TopCat object for TAP queries (each worker needs its own)
+    Tap = VO.TopCat;
+
+    % Get cell center in degrees
+    MeanRA  = mean(cellCoo(:,1));
+    MeanDec = mean(cellCoo(:,2));
+    CenterRADeg  = MeanRA * RAD;
+    CenterDecDeg = MeanDec * RAD;
+
+    % Get HTM vertices in degrees for polygon query
+    HTMCooDeg = cellCoo * RAD;
+
+    % Construct query (use source column names for spatial constraint)
+    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
+                                   HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                   SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+
+    % Execute query with retry logic
+    try
+        T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+    catch ME
+        warning('VO:buildHTMfromTopCat:QueryFailed', ...
+            'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
+        QueryFailed = true;
+        return;
+    end
+
+    % Handle empty result
+    if isempty(T) || height(T) == 0
+        return;
+    end
+
+    % Convert table to matrix (radians for in_polysphere filtering)
+    [Data, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+
+    % Filter sources to keep only those inside HTM triangle (for cone queries)
+    if strcmpi(Args.QueryType, 'cone')
+        CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, cellCoo, 2);
+        Data = Data(Flag, :);
+    end
+
+    % Apply post-processing: NullValue replacement, computed columns, drop columns
+    [Data, ~] = applyPostProcessing(Data, ColNames, Args.NullValue, ...
+                                     Args.ComputedColumns, Args.DropColumns);
+
+    % Convert to output units
+    if ~isempty(Data) && strcmpi(Args.OutUnits, 'deg')
+        Data(:, 1) = Data(:, 1) * RAD;  % RA rad->deg
+        Data(:, 2) = Data(:, 2) * RAD;  % Dec rad->deg
     end
 end

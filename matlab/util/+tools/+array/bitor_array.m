@@ -26,10 +26,10 @@ function Val=bitor_array(Array, Dim, UseMex)
     end
 
 
-    if UseMex
-        % new version
-        Val = tools.array.mex.bitor_dim(Array, Dim);
-    else
+    %if UseMex
+    %    % new version
+    %    Val = tools.array.mex.bitor_dim(Array, Dim);
+    %else
         % old version
 
         if isempty(Array)
@@ -77,5 +77,5 @@ function Val=bitor_array(Array, Dim, UseMex)
                 Val = Fun(Val);    
             end
         end
-    end
+    %end
 end
