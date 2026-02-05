@@ -136,7 +136,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             if Args.applyDSDFcorrection && exist('DSDF','var')
                 Alpha = AD(Iobj).New.HeaderData.getVal(Args.photColorTermCol);
                 GAIA_Color = CandCat.getCol(Args.GAIA_BpCol) - CandCat.getCol(Args.GAIA_RpCol);
-                ColorCorrection = Alpha.*(GAIA_Color - Args.assumedColor).*DSDF;
+                ColorCorrection = Alpha.*abs(GAIA_Color - Args.assumedColor).*DSDF;
                 ColorCorrection(isnan(ColorCorrection)) = 0;
                 Scorr = Scorr + ColorCorrection;
             end

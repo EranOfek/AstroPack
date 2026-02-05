@@ -2099,10 +2099,10 @@ classdef AstroImage < Component
         function varargout = getImageVal(Obj, X, Y, Args)
             % Get AstroImage image value at specific positions.
             % Input  : - A single element AstroImage object.
-            %          - X coordinates, or indices/flags of image positions
+            %          - Rounded X coordinates, or indices/flags of image positions
             %            to return.
-            %          - Y coordinates. If empty, then assume 'X' is
-            %            indices oe flags. Default is [].
+            %          - Rounded Y coordinates. If empty, then assume 'X' is
+            %            indices or flags. Default is [].
             %          * ...,key,val,...
             %            'DataProp' - Cell of image data properties for which to
             %                   return values. Default is 
@@ -2122,6 +2122,7 @@ classdef AstroImage < Component
                 Args.DataProp    = {'Image','Back','Var','Mask','Exp'};
             end
             
+
             if ischar(Args.DataProp)
                 Args.DataProp = {Args.DataProp};
             end

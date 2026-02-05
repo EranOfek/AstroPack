@@ -456,7 +456,12 @@ function TranCat = flagNonTransients(Obj, Args)
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
-            NuclearCand = GalDist < PointLimit;
+            % 4sig for nuclear check, dirty, I know
+            % TODO: rather than doing this here, match2Galaxies should be
+            % extended to determined if a source is nuclear or not,
+            % probably best to write a dedicated matchTransients2Galaxies
+            % function which uses the N, R, and D catalogs
+            NuclearCand = GalDist < PointLimit*4/3; 
         else
             NuclearCand = false(NumCand,1);
         end
