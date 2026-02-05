@@ -2,8 +2,7 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
     % Staged MCMC parameter uncertainty estimation for transmission-based photometric calibration
     % Description: Runs MCMC sampling stage-by-stage following the optimization sequence
     %              from fitPhotCalibTrans. Each stage samples only its parameters while
-    %              keeping others fixed. Provides diagnostics comparing MCMC results
-    %              with analytical solutions for linear stages.
+    %              keeping others fixed. 
     % Input  : - Obj - One of:
     %                  (1) PhotCalibTrans object (already calibrated)
     %                  (2) AstroImage object (will run fitPhotCalibTrans first)

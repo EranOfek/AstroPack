@@ -391,6 +391,13 @@ classdef CompositeFun < handle
     %   getTran2DPar() - Get Tran2D parameters in standard format
     %   getAllFunParWithTran2D() - Get combined Funs + Tran2D parameters
     %
+    % Status Logging Utilities:
+    %   addStatus() - Add a status entry (error/warning/info) to StatusLog
+    %   getStatus() - Get status log entries, optionally filtered by level
+    %   clearStatus() - Clear all status log entries
+    %   hasErrors() - Check if any error-level status entries exist
+    %   hasWarnings() - Check if any warning-level status entries exist
+    %
     % Internal methods:
     %   extractArgFuns() - Extract argument information from function handles
     %   argMapping() - Map global parameters for newly added functions (builds from Funs structure)
@@ -2225,8 +2232,12 @@ classdef CompositeFun < handle
             %            'Y' - Source Y coordinates [N_obs x 1]. Default is [].
             %            'WeightMatrix' - Calibrator spectra [N_wvl x N_obs]. Default is [].
             %            'PrecomputedMagErr' - Pre-computed magnitude errors [N_obs x 1].
-            %                   Must be computed before optimization via PhotCalibTrans.computeMagErr.
+            %                   Must be computed before optimization via PhotCalibTrans.computeMagErrCalib.
             %                   Default is [].
+            %            'PrecomputedSpecFluxMatrix' - Pre-computed interpolated spectra [N_input x N_obs].
+            %                   Calibrator spectra interpolated onto transmission wavelength grid.
+            %                   Must be computed before optimization via PhotCalibTrans.computeInterpolatedSpectra.
+            %                   Avoids repeated interpolation on every costFun call. Default is [].
             %            'IntegrationDim' - Integration dimension (1 or 2). Default is 2.
             %            'TransmissionMode' - Enable transmission mode. Default is false.
             %            'CalibWavelength' - Calibrator wavelength grid [Angstrom]. Default is SpecWvl.
@@ -2251,6 +2262,7 @@ classdef CompositeFun < handle
                 Args.Y = []                           % Y coordinates [N_obs x 1]
                 Args.WeightMatrix = []                % Calibrator spectra [N_wvl x N_obs]
                 Args.PrecomputedMagErr = []           % Pre-computed magnitude errors [N_obs x 1]
+                Args.PrecomputedSpecFluxMatrix = []   % Pre-computed interpolated spectra [N_input x N_obs]
                 Args.IntegrationDim = 2               % Integration dimension
                 Args.TransmissionMode logical = false % Enable transmission-specific mode
                 Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator wavelength grid [Angstrom]
@@ -2422,28 +2434,38 @@ classdef CompositeFun < handle
                 Spec = Args.WeightMatrix;
                 SpecWvl = Args.CalibWavelength(:);
 
-                % Calibrator spectral boundaries (e.g., Gaia XP: 3360-10200 Angstrom)
-                SpecWvlMin = min(SpecWvl);
-                SpecWvlMax = max(SpecWvl);
+                % Use pre-computed interpolated spectra if provided, otherwise compute
+                if ~isempty(Args.PrecomputedSpecFluxMatrix)
+                    % Use pre-computed interpolated spectra matrix
+                    SpecFluxMatrix = Args.PrecomputedSpecFluxMatrix;
+                    if Args.Verbose
+                        fprintf('Using pre-computed SpecFluxMatrix [%d x %d]\n', size(SpecFluxMatrix, 1), size(SpecFluxMatrix, 2));
+                    end
+                else
+                    % Compute interpolated spectra (expensive, should be pre-computed for optimization)
+                    % Calibrator spectral boundaries (e.g., Gaia XP: 3360-10200 Angstrom)
+                    SpecWvlMin = min(SpecWvl);
+                    SpecWvlMax = max(SpecWvl);
 
-                % Wavelength region masks for extrapolation
-                MaskGaia = (InputValues >= SpecWvlMin) & (InputValues <= SpecWvlMax);
-                MaskUV = (InputValues < SpecWvlMin);
-                MaskIR = (InputValues > SpecWvlMax);
-                WvlGaiaRegion = InputValues(MaskGaia);
+                    % Wavelength region masks for extrapolation
+                    MaskGaia = (InputValues >= SpecWvlMin) & (InputValues <= SpecWvlMax);
+                    MaskUV = (InputValues < SpecWvlMin);
+                    MaskIR = (InputValues > SpecWvlMax);
+                    WvlGaiaRegion = InputValues(MaskGaia);
 
-                % Interpolate calibrator spectra onto transmission grid (vectorized)
-                SpecFluxMatrix = zeros(Ninput, NCalUsed);
-                SpecFluxMatrix(MaskGaia, :) = interp1(SpecWvl, Spec, WvlGaiaRegion, 'linear');
+                    % Interpolate calibrator spectra onto transmission grid (vectorized)
+                    SpecFluxMatrix = zeros(Ninput, NCalUsed);
+                    SpecFluxMatrix(MaskGaia, :) = interp1(SpecWvl, Spec, WvlGaiaRegion, 'linear');
 
-                % UV/IR extrapolation: constant boundary values
-                if any(MaskUV)
-                    EdgeValuesUV = interp1(SpecWvl, Spec, SpecWvlMin, 'linear');
-                    SpecFluxMatrix(MaskUV, :) = repmat(EdgeValuesUV, sum(MaskUV), 1);
-                end
-                if any(MaskIR)
-                    EdgeValuesIR = interp1(SpecWvl, Spec, SpecWvlMax, 'linear');
-                    SpecFluxMatrix(MaskIR, :) = repmat(EdgeValuesIR, sum(MaskIR), 1);
+                    % UV/IR extrapolation: constant boundary values
+                    if any(MaskUV)
+                        EdgeValuesUV = interp1(SpecWvl, Spec, SpecWvlMin, 'linear');
+                        SpecFluxMatrix(MaskUV, :) = repmat(EdgeValuesUV, sum(MaskUV), 1);
+                    end
+                    if any(MaskIR)
+                        EdgeValuesIR = interp1(SpecWvl, Spec, SpecWvlMax, 'linear');
+                        SpecFluxMatrix(MaskIR, :) = repmat(EdgeValuesIR, sum(MaskIR), 1);
+                    end
                 end
 
                 % Apply transmission to spectra
@@ -2466,7 +2488,7 @@ classdef CompositeFun < handle
                 PredictedFlux = Args.ExpTime * Args.Aperture_area_m2 * Avector / B;
 
                 % Magnitude errors: must be pre-computed and stored in SourceData
-                % (computed once by PhotCalibTrans.computeMagErr before optimization)
+                % (computed once by PhotCalibTrans.computeMagErrCalib before optimization)
                 UseWeighting = ~isempty(Args.PrecomputedMagErr);
                 if UseWeighting
                     MagErr = Args.PrecomputedMagErr(:);
@@ -3033,6 +3055,11 @@ classdef CompositeFun < handle
                     if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
                         Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
                     end
+                    % PrecomputedSpecFluxMatrix: [Nwvl x NCalUsed] -> subset columns
+                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                    if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
+                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
+                    end
 
                     if Args.Verbose
                         fprintf('Removed %d outliers, %d observations remaining\n', ...
@@ -3487,6 +3514,10 @@ classdef CompositeFun < handle
                                 if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
                                     CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
                                 end
+                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                                if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
+                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                end
 
                                 if Args.Verbose
                                     fprintf('  Clipped %d outliers (%.1f sigma)\n', sum(OutlierMask), SigmaThresh);
@@ -3609,7 +3640,7 @@ classdef CompositeFun < handle
                         CurrentY = CurrentY(StageKeepMask);
                     end
 
-                    % Update WeightMatrix and PrecomputedMagErr if present (for TransmissionMode)
+                    % Update WeightMatrix, PrecomputedMagErr, and PrecomputedSpecFluxMatrix if present (for TransmissionMode)
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'WeightMatrix'));
                     if ~isempty(Idx)
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
@@ -3617,6 +3648,10 @@ classdef CompositeFun < handle
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
                     if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(StageKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
                     end
                 end
 
