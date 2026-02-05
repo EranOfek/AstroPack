@@ -20,6 +20,10 @@ classdef Preferences < ultrasat.api.Loggable
 
         LocalPlanFileName           % Name of the file storing the local observation plan
         LocalPlanFolder             % Directory path where local plans are stored
+
+        UseSim = false              % If true use MissionApiSim (JSON files), else MissionApiClient (FastAPI plans_manager)
+        PlansManagerApiUrl = ''     % Base URL for plans_manager API (e.g. http://localhost:8321)
+        ApiKey = ''                 % API key for plans_manager authentication
     end
 
 
@@ -64,7 +68,10 @@ classdef Preferences < ultrasat.api.Loggable
                     'UniqueTargetsFileName', obj.UniqueTargetsFileName, ...
                     'UniqueTargetsFolder', obj.UniqueTargetsFolder, ...
                     'LocalPlanFileName', obj.LocalPlanFileName, ...
-                    'LocalPlanFolder', obj.LocalPlanFolder ...
+                    'LocalPlanFolder', obj.LocalPlanFolder, ...
+                    'UseSim', obj.UseSim, ...
+                    'PlansManagerApiUrl', obj.PlansManagerApiUrl, ...
+                    'ApiKey', obj.ApiKey ...
                 );
             catch ME
                 obj.msglog(sprintf('saveToJson: failed to create dataStruct: %s', ME.message));
@@ -157,11 +164,35 @@ classdef Preferences < ultrasat.api.Loggable
                 if isfield(dataStruct, 'UniqueTargetsFolder'), obj.UniqueTargetsFolder = dataStruct.UniqueTargetsFolder; end
                 if isfield(dataStruct, 'LocalPlanFileName'), obj.LocalPlanFileName = dataStruct.LocalPlanFileName; end
                 if isfield(dataStruct, 'LocalPlanFolder'), obj.LocalPlanFolder = dataStruct.LocalPlanFolder; end
+                if isfield(dataStruct, 'UseSim'), obj.UseSim = dataStruct.UseSim; end
+                if isfield(dataStruct, 'PlansManagerApiUrl'), obj.PlansManagerApiUrl = dataStruct.PlansManagerApiUrl; end
+                if isfield(dataStruct, 'ApiKey'), obj.ApiKey = dataStruct.ApiKey; end
             catch ME
                 obj.msglog(sprintf('loadFromJson: failed to update properties from file %s: %s', filePath, ME.message));
             end
         end
 
+        % =================================================================
+        %                                Get
+        % =================================================================
+
+        function v = get(obj, key, default)
+            % Returns the value of a preference key, or default if missing/empty.
+            %
+            % :param key: Property name (e.g. 'UseSim', 'PlansManagerApiUrl').
+            % :param default: Value to return if key is missing or empty.
+            % :return: Value of obj.(key) or default.
+            if isprop(obj, key)
+                v = obj.(key);
+                if isempty(v) && nargin >= 3
+                    v = default;
+                end
+            elseif nargin >= 3
+                v = default;
+            else
+                v = [];
+            end
+        end
     end
 end
 

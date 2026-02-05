@@ -360,8 +360,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
                                                     'AddSkyCoo',false);
-                % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-                imProc.psf.fwhm(Coadd(Ifields));
+                
             end
 
             % astrometry / refine
@@ -373,6 +372,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 end
                 IfirstGood = find(Args.IsGood(:,Ifields), 1, 'first');
                 MidMidJD = (MidJD(1) + MidJD(end)).*0.5;
+                % This part also add the RA/Dec coordinates [deg] to the
+                % catalog:
                 [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
                                                                                                     'WCS',AllSI(IfirstGood,Ifields).WCS,...
                                                                                                     'EpochOut',MidMidJD,...
@@ -384,8 +385,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 ResultCoadd(Ifields).MidMidJD = MidMidJD;
             end
 
-
-
+            if Args.FindStars
+                % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+                imProc.psf.fwhm(Coadd(Ifields));
+            end
             
            
 

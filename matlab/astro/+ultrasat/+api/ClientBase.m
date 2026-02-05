@@ -27,6 +27,7 @@ classdef ClientBase < ultrasat.api.Loggable
         SubUrl              % Service-specific URL path
         ApiUrl              % Full API endpoint URL
         ApiKey              % API Key for authentication
+        Namespace           % Namespace for plans_manager API (optional)
         Timeout = 30;       % Timeout for HTTP requests (seconds)
         LogFileName
     end
@@ -48,6 +49,7 @@ classdef ClientBase < ultrasat.api.Loggable
                 Args.BaseUrl        = getenv('SOC_API_BASE');
                 Args.SubUrl         = '';
                 Args.ApiKey         = getenv('SOC_API_KEY');
+                Args.Namespace      = '';
                 Args.Timeout        = getenv('SOC_API_TIMEOUT');
                 Args.LogFileName
             end
@@ -70,6 +72,7 @@ classdef ClientBase < ultrasat.api.Loggable
             obj.BaseUrl = Args.BaseUrl;
             obj.SubUrl = Args.SubUrl;
             obj.ApiKey = Args.ApiKey;
+            obj.Namespace = Args.Namespace;
             obj.Timeout = Args.Timeout;
 
             % Ensure SubUrl starts with `/` (but avoid `//`)
@@ -115,10 +118,13 @@ classdef ClientBase < ultrasat.api.Loggable
 
             % Create HTTP headers
             headers = [
-                HeaderField('Content-Type', 'application/json') % Ensure correct header
+                HeaderField('Content-Type', 'application/json')
             ];
             if ~isempty(obj.ApiKey)
-                headers = [headers, HeaderField('x-api-key', obj.ApiKey)];
+                headers = [headers, HeaderField('api-key', obj.ApiKey)];
+            end
+            if ~isempty(obj.Namespace)
+                headers = [headers, HeaderField('namespace', char(obj.Namespace))];
             end
 
             % Create and send the HTTP request
@@ -151,6 +157,65 @@ classdef ClientBase < ultrasat.api.Loggable
 
         % -----------------------------------------------------------------
 
+        function response = getRequest(obj, endpoint, includeAuth)
+            % Sends a synchronous GET request to the API.
+            %
+            % :param endpoint: API endpoint path (appended to ApiUrl).
+            % :param includeAuth: (optional) If true, send api-key and namespace headers; if false, omit them (e.g. for /health). Default true.
+            % :return: Response data as a struct (e.g. from GET /health).
+            arguments
+                obj
+                endpoint (1,1) string
+                includeAuth (1,1) logical = true
+            end
+            import matlab.net.*
+            import matlab.net.http.*
+
+            endpoint = char(endpoint);
+            if endpoint(1) ~= '/'
+                endpoint = ['/', endpoint];
+            end
+            url = [obj.ApiUrl, endpoint];
+
+            headers = [HeaderField('Content-Type', 'application/json')];
+            if includeAuth
+                if ~isempty(obj.ApiKey)
+                    headers = [headers, HeaderField('api-key', obj.ApiKey)];
+                end
+                if ~isempty(obj.Namespace)
+                    headers = [headers, HeaderField('namespace', char(obj.Namespace))];
+                end
+            end
+
+            request = RequestMessage('GET', headers);
+            options = HTTPOptions('ConnectTimeout', obj.Timeout);
+
+            try
+                rawResponse = send(request, url, options);
+                if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
+                    if isempty(rawResponse.Body.Data)
+                        response = struct();
+                    else
+                        respJson = jsonencode(rawResponse.Body.Data);
+                        response = ultrasat.api.ModelBase.fromJson(respJson);
+                    end
+                else
+                    error('HTTP Error: %s', char(rawResponse.StatusCode));
+                end
+            catch ME
+                switch ME.identifier
+                    case 'MATLAB:networklib:ConnectionFailed'
+                        error('Connection failed. Check server URL or network.');
+                    case 'MATLAB:webservices:Timeout'
+                        error('Request timed out after %d seconds.', obj.Timeout);
+                    otherwise
+                        rethrow(ME);
+                end
+            end
+        end
+
+        % -----------------------------------------------------------------
+
         function postRequestAsync(obj, endpoint, params, callback)
             % Sends an asynchronous POST request to the API
             %
@@ -171,16 +236,17 @@ classdef ClientBase < ultrasat.api.Loggable
             end
 
             % Remove empty fields and convert to JSON
-            cleanedData = soc.api.ModelBase.removeEmptyFields(params);
-            %jsonData = soc.api.ModelBase.struct2json(cleanedData);
+            cleanedData = ultrasat.api.ModelBase.removeEmptyFields(params);
 
-            % Create HTTP headers
-            headers = [
-                HeaderField('Content-Type', 'application/json'), ...
-                HeaderField('x-api-key', obj.ApiKey)
-            ];
+            % Create HTTP headers (match postRequest)
+            headers = [HeaderField('Content-Type', 'application/json')];
+            if ~isempty(obj.ApiKey)
+                headers = [headers, HeaderField('api-key', obj.ApiKey)];
+            end
+            if ~isempty(obj.Namespace)
+                headers = [headers, HeaderField('namespace', char(obj.Namespace))];
+            end
 
-            % Create the HTTP request
             body = MessageBody(cleanedData);
             request = RequestMessage('POST', headers, body);
 
