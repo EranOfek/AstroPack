@@ -123,6 +123,14 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   {'XPEAK','YPEAK', 'X1','Y1','X2','Y2','XY',...
     %                    'SN','BACK_IM','VAR_IM', 'BACK_ANNULUS','STD_ANNULUS',...
     %                    'FLUX_APER','FLUXERR_APER','MAG_APER','MAGERR_APER'}.
+    %            'ColNamesX' - X column names dictionary from which to get
+    %                   the X position for the flags retrival.
+    %                   Default is AstroCatalog.DefNamesX.
+    %                   Set it to 'X1' to expdite speed.
+    %            'ColNamesY' - Y column names dictionary from which to get
+    %                   the Y position for the flags retrival.
+    %                   Default is AstroCatalog.DefNamesY.
+    %                   Set it to 'Y1' to expdite speed.
     %
     %            --- Source cleaning and mask arguments ---
     %            'RemoveEdgeDist' - A scalar specifying the distance from
@@ -278,7 +286,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                         'BACK_ANNULUS', 'STD_ANNULUS', ...
                                         'FLUX_APER', 'FLUXERR_APER',...
                                         'MAG_APER', 'MAGERR_APER'};
-        
+        Args.ColNamesX                 = AstroCatalog.DefNamesX;
+        Args.ColNamesY                 = AstroCatalog.DefNamesY;
+
         % source cleaning and mask
         Args.RemoveEdgeDist            = 0;  % NaN for non removal
         Args.FlagCR logical            = true;
@@ -301,7 +311,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         %Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         %Args.RemovePSFCore             = false;  % not decided if this is useful and correct
 
-        Args.RedoUpIter = [1];
+        Args.RedoUpIter = [];
         
 
         Args.ColPsfFlux        = 'FLUX_PSF';
@@ -479,6 +489,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                           'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
                                                           'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
                                                           'ColCell',Args.ColCell,...
+                                                          'ColNamesX',Args.ColNamesX,...
+                                                          'ColNamesY',Args.ColNamesY,...
                                                           'BitDict',Args.BitDict,...
                                                           'JD',JD,...
                                                           'ZP',Args.ZP);

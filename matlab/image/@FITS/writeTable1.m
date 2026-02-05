@@ -200,7 +200,7 @@ function Result = writeTable1(Table, FileName, Args)
     matlab.io.fits.closeFile(Fptr);
     Result = (sign(Fptr) == 1);
 
-    if ~isempty(Path)
+    if ~isempty(PWD)
         cd(PWD);
     end
 end

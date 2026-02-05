@@ -118,4 +118,10 @@ function [Result] = stitchCrops(AI, Args)
     % add a mean EXPTIME:
     MeanExp = mean([AI.getStructKey('EXPTIME').EXPTIME]);
     Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', MeanExp);
+    
+    % add mount and camera number from the first crop:
+    Mount = AI(1).getStructKey('MOUNTNUM').MOUNTNUM; 
+    Camera= AI(1).getStructKey('CAMNUM').CAMNUM; 
+    Result.HeaderData = replaceVal(Result.HeaderData, 'MOUNTNUM', Mount);
+    Result.HeaderData = replaceVal(Result.HeaderData, 'CAMNUM'  , Camera);
 end
