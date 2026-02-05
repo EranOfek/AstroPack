@@ -1,4 +1,4 @@
-function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
+function [AllSI, MS, Coadd, OnlyMP, AFP] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -159,6 +159,8 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         end
         %toc
         AFP = AllFP(:).merge; % 0.05s
+    else
+        AFP = [];
     end
 
     % match external / too expensive
