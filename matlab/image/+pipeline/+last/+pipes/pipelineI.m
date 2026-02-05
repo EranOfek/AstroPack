@@ -130,7 +130,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');
     
     % Update Airmass header keyword to based on measured crop center
-    AllSI = imProc.header.addAirMass(AI, 'JD',JD);
+    AllSI = imProc.header.addAirMass(AllSI, 'JD',JD);
     
     % Individual sub images : quality           
     % astrometry
@@ -181,6 +181,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
 
         % mege into a single catalog:
         AllForcedPhot = AllFP(:).merge; % 0.05s
+    else
+        AllForcedPhot = [];
     end
 
     % match external / too expensive
