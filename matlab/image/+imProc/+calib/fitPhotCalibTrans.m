@@ -3,7 +3,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
     %              AstroImages or AstroCatalogs.
-    % Input  : - Obj - AstroImage or AstroCatalog object (scalar or vector).
+    % Input  :  Obj - AstroImage or AstroCatalog object (scalar or vector).
     %          * ...,key,val,...
     %            Calibrator selection:
     %            'SearchRadius' - Gaia matching radius [arcsec]. Default is 1.5.
@@ -41,7 +41,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                     .NCalUsed - Number of calibrators used (final, after clipping)
     %                     .NumClipped - Number of clipped outliers
     %                     .Chi2 - Chi-squared value
-    %                     .StatusLog - Struct array of status messages
+    %                     .StatusLog - Struct array of status messages (from CompositeFun.StatusLog)
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -303,12 +303,11 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             FitRes(Iobj).NCalUsed = -1;
         end
 
-        % Merge StatusLog from PhotCalibTrans and CompositeFun (TransModel)
-        MergedLog = PC.StatusLog;
+        % Get StatusLog from CompositeFun (TransModel)
+        % Note: PhotCalibTrans uses inherited Logger from Component class
         if ~isempty(PC.TransModel) && isprop(PC.TransModel, 'StatusLog') && ~isempty(PC.TransModel.StatusLog)
-            MergedLog = [MergedLog, PC.TransModel.StatusLog];  %#ok<AGROW>
+            FitRes(Iobj).StatusLog = PC.TransModel.StatusLog;
         end
-        FitRes(Iobj).StatusLog = MergedLog;
 
         % Store calibration object
         PhotCalib(Iobj) = PC;
