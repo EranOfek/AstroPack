@@ -2107,10 +2107,14 @@ classdef AstroImage < Component
             %            'DataProp' - Cell of image data properties for which to
             %                   return values. Default is 
             %                   {'Image','Back','Var','Mask','Exp'}
+            %            'ReturnNaN' - If true then return
+            %                   NaN if pixel is outside the image.
+            %                   If false, then return [].
+            %                   Default is false.
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
             %            If pixel position is out of image bounds than
-            %            return [].
+            %            return [] (or NaN).
             % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(100,80)});
             %          [V1] = getImageVal(AI,2,2)
@@ -2120,6 +2124,7 @@ classdef AstroImage < Component
                 X
                 Y                = [];
                 Args.DataProp    = {'Image','Back','Var','Mask','Exp'};
+                Args.ReturnNaN   = false;
             end
             
 
@@ -2160,6 +2165,9 @@ classdef AstroImage < Component
                     else
                         varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
                     end
+                end
+                if Args.ReturnNaN && isempty(varargout{Iarg})
+                    varargout{Iarg} = NaN;
                 end
             end
             
