@@ -830,7 +830,7 @@ function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, Timeo
     % Execute TAP query with retry logic
     for attempt = 1:MaxRetries
         try
-            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', '/home/dana/tmp/');
+            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', '~/tmp/');
             return;
         catch ME
             if attempt < MaxRetries
