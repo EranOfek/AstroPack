@@ -5,8 +5,11 @@ function Val=bitor_array(Array, Dim, UseMex)
     %              along a specific dimension.
     % Input  : - An array of integers.
     %          - Dimension along to perform the bitor operation. Default is 1.
-    %          - Flag, true to use MEX optimization if possible. Default is 1.
-    %            For more effient function use: tools.array.mex.bitorArray
+    %          - A logical - true for the new MEX optimization
+    %            (tools.array.mex.bitor_dim). false for old mex
+    %            (tools.array.mex.mex_bitor_array*)
+    %            if [false false], then use matlab implementation.
+    %            Default is [false false].
     % Output : - The result of the bitor operation. If input is empty, then
     %            the output is empty.
     % See also: sum_bitor.m (the same)
@@ -22,20 +25,19 @@ function Val=bitor_array(Array, Dim, UseMex)
     arguments
         Array
         Dim              = 1;
-        UseMex logical   = false;
+        UseMex logical   = [false false];
     end
 
 
-    %if UseMex
-    %    % new version
-    %    Val = tools.array.mex.bitor_dim(Array, Dim);
-    %else
+    if UseMex(1)
+        % new version
+        Val = tools.array.mex.bitor_dim(Array, Dim);
+    else
+        
         % old version
-
         if isempty(Array)
            Val = [];
-        else
-    
+        else    
             C = lower(class(Array));
             switch C
                 case {'uint8','int8'}
@@ -55,7 +57,7 @@ function Val=bitor_array(Array, Dim, UseMex)
             end
     
             % Check if we can use MEX implementation, convert input to uint64
-            if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
+            if isscalar(UseMex) && (ndims(Array) <= 3) && (Dim <= ndims(Array))
                 %Val = bitorArray(Array, Dim);
                 switch Nbit
                     case 8
@@ -77,5 +79,5 @@ function Val=bitor_array(Array, Dim, UseMex)
                 Val = Fun(Val);    
             end
         end
-    %end
+    end
 end

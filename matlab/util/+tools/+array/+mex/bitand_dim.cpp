@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #include <cmath>
 
 static void die(const char* msg) {
@@ -29,14 +30,24 @@ static int parseDim(const mxArray* A, mwSize ndA) {
     return dim;
 }
 
-static void buildOutDimsSqueezed(const mwSize* inDims, mwSize ndIn, int dim1based,
-                                std::vector<mwSize>& outDims) {
+// MATLAB squeeze special-casing for 2D:
+// - if input is 2D, keep it 2D after reduction (i.e., 1xN or Mx1), not Nx1.
+static void buildOutDimsLikeSqueeze(const mwSize* inDims, mwSize ndIn, int dim1based,
+                                   std::vector<mwSize>& outDims)
+{
     const int dim0 = dim1based - 1;
 
     std::vector<mwSize> redDims(inDims, inDims + ndIn);
     redDims[dim0] = 1;
 
     outDims.clear();
+
+    if (ndIn == 2) {
+        outDims.push_back(redDims[0]);
+        outDims.push_back(redDims[1]);
+        return;
+    }
+
     for (mwSize i = 0; i < ndIn; ++i) {
         if (redDims[i] != 1) outDims.push_back(redDims[i]);
     }
@@ -60,12 +71,11 @@ static void bitand_dim_core(const T* A, T* Y,
         for (mwSize i = 0; i < inner; ++i) {
             const T* p = A + outerBase + i;
 
-            // AND identity is "all bits set". Start from first element to avoid needing ~0 for all T.
+            // AND reduction identity:
+            // start with first element in the reduction axis (fast, avoids max-value init)
             T acc = p[0];
 
             mwSize k = 1;
-
-            // Unroll (start from k=1 since acc initialized)
             for (; k + 4 <= nAlong; k += 4) {
                 acc &= p[(k + 0) * inner];
                 acc &= p[(k + 1) * inner];
@@ -75,14 +85,14 @@ static void bitand_dim_core(const T* A, T* Y,
             for (; k < nAlong; ++k) {
                 acc &= p[k * inner];
             }
-
             yBlock[i] = acc;
         }
     }
 }
 
 template <typename T>
-static void copyReducedToSqueezed(const T* R, T* S, const std::vector<mwSize>& outDims)
+static void copyReducedToSqueezed(const T* R, T* S,
+                                  const std::vector<mwSize>& outDims)
 {
     mwSize nEl = 1;
     for (mwSize d : outDims) nEl *= d;
@@ -100,7 +110,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     if (mxIsSparse(A)) die("Sparse input not supported.");
 
     mxClassID cid = mxGetClassID(A);
-    bool isLogical = mxIsLogical(A);
+    const bool isLogical = mxIsLogical(A);
 
     if (!isLogical) {
         if (cid == mxSINGLE_CLASS || cid == mxDOUBLE_CLASS)
@@ -112,36 +122,42 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     const int dim = parseDim((nrhs == 2) ? prhs[1] : nullptr, ndA);
 
     std::vector<mwSize> outDims;
-    buildOutDimsSqueezed(dimsA, ndA, dim, outDims);
+    buildOutDimsLikeSqueeze(dimsA, ndA, dim, outDims);
 
     const mwSize nAlong = dimsA[dim - 1];
-
-    // AND over empty set: MATLAB "bitand.reduce" isn't defined; we choose 0-sized output if nAlong==0.
-    // We'll just return zeros of correct size (consistent with many reductions).
     if (nAlong == 0) {
-        plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(),
-                                      isLogical ? mxUINT8_CLASS : cid, mxREAL);
-        void* out = mxGetData(plhs[0]);
-        std::memset(out, 0, (size_t)mxGetNumberOfElements(plhs[0]) *
-                            (isLogical ? 1 : mxGetElementSize(plhs[0])));
+        // MATLAB-like behavior for AND over empty: identity is all-ones.
+        // For logical: true. For integers: all bits set (i.e., -1 for signed, max for unsigned).
+        mxClassID outClass = isLogical ? mxLOGICAL_CLASS : cid;
+        plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(), outClass, mxREAL);
+
+        const mwSize nOut = (mwSize)mxGetNumberOfElements(plhs[0]);
+
+        if (isLogical) {
+            mxLogical* out = (mxLogical*)mxGetData(plhs[0]);
+            std::memset(out, 1, (size_t)nOut * sizeof(mxLogical)); // true
+        } else {
+            // Fill with all-ones bytes => bit pattern 0xFF..FF
+            void* out = mxGetData(plhs[0]);
+            std::memset(out, 0xFF, (size_t)nOut * mxGetElementSize(plhs[0]));
+        }
         return;
     }
 
     std::vector<mwSize> redDims(dimsA, dimsA + ndA);
     redDims[dim - 1] = 1;
 
-    mxArray* Rarr = mxCreateNumericArray(ndA, redDims.data(),
-                                        isLogical ? mxUINT8_CLASS : cid, mxREAL);
-    plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(),
-                                  isLogical ? mxUINT8_CLASS : cid, mxREAL);
+    mxClassID outClass = isLogical ? mxLOGICAL_CLASS : cid;
+    mxArray* Rarr = mxCreateNumericArray(ndA, redDims.data(), outClass, mxREAL);
+    plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(), outClass, mxREAL);
 
     if (isLogical) {
-        const uint8_t* in = (const uint8_t*)mxGetData(A);
-        uint8_t* R = (uint8_t*)mxGetData(Rarr);
-        bitand_dim_core<uint8_t>(in, R, dimsA, ndA, dim);
+        const mxLogical* in = (const mxLogical*)mxGetData(A);
+        mxLogical* R = (mxLogical*)mxGetData(Rarr);
+        bitand_dim_core<mxLogical>(in, R, dimsA, ndA, dim);
 
-        uint8_t* out = (uint8_t*)mxGetData(plhs[0]);
-        copyReducedToSqueezed<uint8_t>(R, out, outDims);
+        mxLogical* out = (mxLogical*)mxGetData(plhs[0]);
+        copyReducedToSqueezed<mxLogical>(R, out, outDims);
     } else {
         const void* inV = mxGetData(A);
         void* RV = mxGetData(Rarr);
