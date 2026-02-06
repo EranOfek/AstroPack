@@ -5,8 +5,12 @@ function Val=bitand_array(Array, Dim, UseMex)
 	%              along a specific dimension.
 	% Input  : - An array of integers.
 	%          - Dimension along to perform the bitand operation. Default is 1.
-	%          - Flag, true to use MEX optimization if possible. Default is false.
-	% Output : - The result of the bitand operation.
+    %          - A logical - true for the new MEX optimization
+    %            (tools.array.mex.bitand_dim). false for old mex
+    %            (tools.array.mex.mex_bitand_array*)
+    %            if [false false], then use matlab implementation.
+    %            Default is [false false]
+    % Output : - The result of the bitand operation.
 	% See also: sum_bitor.m (the same)
 	% License: GNU general public license version 3
 	% Tested : Matlab R2015b
@@ -19,7 +23,7 @@ function Val=bitand_array(Array, Dim, UseMex)
     arguments
         Array
         Dim    = 1;
-        UseMex = false;
+        UseMex = [false false];
     end
    
     if UseMex
@@ -51,7 +55,7 @@ function Val=bitand_array(Array, Dim, UseMex)
 	    end
     
 	    % Check if we can use MEX implementation, convert input to uint64
-	    if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
+	    if isscalar(UseMex) && (ndims(Array) <= 3) && (Dim <= ndims(Array))
 		     switch Nbit
 			    case 8
 				    Val = tools.array.mex.mex_bitand_array_int8(Array, Dim);       

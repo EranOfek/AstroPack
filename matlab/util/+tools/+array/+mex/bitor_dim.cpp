@@ -1,10 +1,10 @@
-// bitor_dim.cpp
+// bitor_dim.cpp  (fixed output shape for dim=1/2 in 2D, verify other dims; keep fast)
 #include "mex.h"
 #include <cstdint>
 #include <cstring>
 #include <vector>
 #include <algorithm>
-#include <cmath>   // <-- FIX: std::floor / std::isfinite
+#include <cmath>
 
 static void die(const char* msg) {
     mexErrMsgIdAndTxt("bitor_dim:err", "%s", msg);
@@ -30,14 +30,27 @@ static int parseDim(const mxArray* A, mwSize ndA) {
     return dim;
 }
 
-static void buildOutDimsSqueezed(const mwSize* inDims, mwSize ndIn, int dim1based,
-                                std::vector<mwSize>& outDims) {
+// MATLAB squeeze special-casing for 2D:
+// - if input is 2D, keep it 2D after reduction (i.e., 1xN or Mx1), not Nx1.
+// For nd>2: standard squeeze behavior (drop singleton dims, keep scalar if all 1).
+static void buildOutDimsLikeSqueeze(const mwSize* inDims, mwSize ndIn, int dim1based,
+                                   std::vector<mwSize>& outDims)
+{
     const int dim0 = dim1based - 1;
 
     std::vector<mwSize> redDims(inDims, inDims + ndIn);
     redDims[dim0] = 1;
 
     outDims.clear();
+
+    if (ndIn == 2) {
+        // Keep 2D shape exactly (this is what you want)
+        outDims.push_back(redDims[0]);
+        outDims.push_back(redDims[1]);
+        return;
+    }
+
+    // ndIn > 2: squeeze-like (drop singleton dims)
     for (mwSize i = 0; i < ndIn; ++i) {
         if (redDims[i] != 1) outDims.push_back(redDims[i]);
     }
@@ -97,7 +110,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     if (mxIsSparse(A)) die("Sparse input not supported.");
 
     mxClassID cid = mxGetClassID(A);
-    bool isLogical = mxIsLogical(A);
+    const bool isLogical = mxIsLogical(A);
 
     if (!isLogical) {
         if (cid == mxSINGLE_CLASS || cid == mxDOUBLE_CLASS)
@@ -109,36 +122,38 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     const int dim = parseDim((nrhs == 2) ? prhs[1] : nullptr, ndA);
 
     std::vector<mwSize> outDims;
-    buildOutDimsSqueezed(dimsA, ndA, dim, outDims);
+    buildOutDimsLikeSqueeze(dimsA, ndA, dim, outDims);
 
     const mwSize nAlong = dimsA[dim - 1];
     if (nAlong == 0) {
-        plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(),
-                                      isLogical ? mxUINT8_CLASS : cid, mxREAL);
+        // Return zeros with correct class (logical stays logical)
+        mxClassID outClass = isLogical ? mxLOGICAL_CLASS : cid;
+        plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(), outClass, mxREAL);
+
         void* out = mxGetData(plhs[0]);
-        std::memset(out, 0, (size_t)mxGetNumberOfElements(plhs[0]) *
-                            (isLogical ? 1 : mxGetElementSize(plhs[0])));
+        std::memset(out, 0, (size_t)mxGetNumberOfElements(plhs[0]) * mxGetElementSize(plhs[0]));
         return;
     }
 
     const mwSize nElA = (mwSize)mxGetNumberOfElements(A);
     const mwSize nElR = nElA / nAlong;
+    (void)nElR;
 
     std::vector<mwSize> redDims(dimsA, dimsA + ndA);
     redDims[dim - 1] = 1;
 
-    mxArray* Rarr = mxCreateNumericArray(ndA, redDims.data(),
-                                        isLogical ? mxUINT8_CLASS : cid, mxREAL);
-    plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(),
-                                  isLogical ? mxUINT8_CLASS : cid, mxREAL);
+    // Reduced array (same nd as input) then memcpy into squeezed output
+    mxClassID outClass = isLogical ? mxLOGICAL_CLASS : cid;
+    mxArray* Rarr = mxCreateNumericArray(ndA, redDims.data(), outClass, mxREAL);
+    plhs[0] = mxCreateNumericArray((mwSize)outDims.size(), outDims.data(), outClass, mxREAL);
 
     if (isLogical) {
-        const uint8_t* in = (const uint8_t*)mxGetData(A);
-        uint8_t* R = (uint8_t*)mxGetData(Rarr);
-        bitor_dim_core<uint8_t>(in, R, dimsA, ndA, dim);
+        const mxLogical* in = (const mxLogical*)mxGetData(A);
+        mxLogical* R = (mxLogical*)mxGetData(Rarr);
+        bitor_dim_core<mxLogical>(in, R, dimsA, ndA, dim);
 
-        uint8_t* out = (uint8_t*)mxGetData(plhs[0]);
-        copyReducedToSqueezed<uint8_t>(R, out, outDims);
+        mxLogical* out = (mxLogical*)mxGetData(plhs[0]);
+        copyReducedToSqueezed<mxLogical>(R, out, outDims);
     } else {
         const void* inV = mxGetData(A);
         void* RV = mxGetData(Rarr);
