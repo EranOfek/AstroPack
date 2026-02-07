@@ -494,7 +494,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         if Args.NumWorkers > 0
-1            % Process in batches
+            % Process in batches
             NumBatches = ceil(NumCellsToProcess / Args.BatchSize);
 
             for iBatch = 1:NumBatches
