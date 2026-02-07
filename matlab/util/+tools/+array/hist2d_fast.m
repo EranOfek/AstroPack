@@ -7,12 +7,12 @@ function [Mat, VecX, VecY, BinX, BinY] = hist2d_fast(Xv,Yv, Xedges, Yedges, Step
     %       directions I like those of histcounts2.
     % Input  : - A vector of X coordinates.
     %          - A vector of Y coordinates.
-    %          - A vector of X edges.
-    %          - A vector of Y edges.
-    %          - Flag indicating if i/j or x/y output:
-    %            true (default) - i,j output (like histcounts2)
-    %               X axis is along i-dimension...
-    %            false - output like imUtil.patternMatch.hist2.
+    %          - A two element vector of X edges, or a vector of X edges.
+    %          - A two element vector of Y edges, or a vector of Y edges.
+    %          - An optional X step size. If provided, then will construct
+    %            an equally spaced X edges vector.
+    %          - An optional Y step size. If provided, then will construct
+    %            an equally spaced Y edges vector.
     % Output : - A matrix of 2-D histogram (X vs Y).
     %          - Vector of X coordinate of center of X bins. (unlike
     %            histcounts2).

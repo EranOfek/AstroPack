@@ -826,11 +826,11 @@ function [Data, ColNames, numericMask, reorderIdx] = tableToMatrixWithInfo(T, Co
 end
 
 
-function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, TimeoutSec, QueryMethod)
+function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, TimeoutSec, QueryMethod, WorkDir)
     % Execute TAP query with retry logic
     for attempt = 1:MaxRetries
         try
-            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', '/home/dana/tmp/');
+            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', WorkDir);
             return;
         catch ME
             if attempt < MaxRetries
@@ -873,7 +873,7 @@ function [NsrcCell, ColNames, QueryFailed] = processHTMCell(Tap, TableName, Colu
     % Execute query with retry logic
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.LocalDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
@@ -1200,7 +1200,7 @@ function [Data, QueryFailed] = downloadHTMCell(TableName, ColumnsStr, IndHTM, HT
     % Execute query with retry logic
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.LocalDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
@@ -1285,7 +1285,7 @@ function [Data, QueryFailed] = downloadHTMCellLight(TableName, ColumnsStr, IndHT
     % Execute query with retry logic
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.LocalDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'HTM %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
