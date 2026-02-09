@@ -26,6 +26,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
     %            Catalog update:
     %            'AddMag' - Add calibrated magnitude columns to catalog. Default is true.
+    %            'AddMagErr' - Add magnitude error columns (1.086*FluxErr/Flux).
+    %                         Default is true.
     %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
     %                         Default is 'AB'. Vega is not yet implemented.
     %            'FluxColName' - Flux column for calibration fitting. Default is 'FLUX_APER_3'.
@@ -77,6 +79,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
         % Catalog update
         Args.AddMag logical = true
+        Args.AddMagErr logical = true  % Add magnitude error columns
         Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
@@ -190,10 +193,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             if Args.AddMag
                 if IsAstroImage
                     Result(Iobj).CatData = PC.addMag(Result(Iobj).CatData, ...
-                        'MagSystem', Args.MagSystem);
+                        'MagSystem', Args.MagSystem, ...
+                        'AddMagErr', Args.AddMagErr);
                 else
                     Result(Iobj) = PC.addMag(Result(Iobj), ...
-                        'MagSystem', Args.MagSystem);
+                        'MagSystem', Args.MagSystem, ...
+                        'AddMagErr', Args.AddMagErr);
                 end
             end
 
