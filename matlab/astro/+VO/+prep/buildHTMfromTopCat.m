@@ -2,11 +2,17 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 % Build an HTM catalog in HDF5 format by downloading in segments via TAP
 % Package: VO.prep
 % Description: Build an HTM catalog from large online sources by downloading
-%              data in HTM-cell-sized segments via TAP protocol. Uses a
-%              coarse-query strategy: queries at a coarser HTM level where
-%              each cell fits within the TAP cone search limit, then locally
-%              distributes sources into fine-level cells via in_polysphere.
-%              This reduces the number of TAP queries by 4-16x.
+%              data in HTM-cell-sized segments via TAP protocol. Supports
+%              two query strategies selected automatically:
+%              1) Distribute-down: queries at a coarser HTM level, then
+%                 distributes sources into finer output cells via
+%                 in_polysphere. Used when QueryLevel <= HTM_Level.
+%              2) Aggregate-up: queries at a finer HTM level (required when
+%                 the TAP cone-search radius limit demands smaller cells
+%                 than the desired output resolution), then aggregates
+%                 results into coarser output cells with deduplication.
+%                 Activated automatically when MaxConeRadiusDeg requires
+%                 QueryLevel > HTM_Level.
 %              Parallel mode uses parfeval+fetchNext for straggler-free
 %              processing (no batch synchronization).
 % Input  : - TableName: TAP table name (e.g., 'gaiaedr3.gaia_source' or
@@ -41,13 +47,17 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                            Default is 'rad'.
 %            'TapUnits'    - Coordinate units returned by TAP: 'rad'|'deg'.
 %                            Default is 'deg'.
-%            'HTM_Level'   - HTM level or 'auto' for automatic selection
-%                            based on catalog size. Default is 7.
+%            'HTM_Level'   - Output HTM level or 'auto' for automatic
+%                            selection based on catalog size. This is
+%                            always the output resolution; QueryLevel can
+%                            independently exceed it when MaxConeRadiusDeg
+%                            requires finer queries (aggregate-up mode).
+%                            Default is 7.
 %            'AutoLevelMaxSrc' - Max sources per HTM segment for auto-level
 %                            selection. Default is 1e6.
 %            'AutoLevelRange' - [min, max] HTM level range for auto-selection.
 %                            Default is [4, 10].
-%            'NfilesInHDF' - Number of HTM cells per HDF5 file. Default is 100.
+%            'NcatInFile' - Number of HTM cells per HDF5 file. Default is 100.
 %            'IndStep'     - Index sampling step for HDF5 (for fast lookups).
 %                            Default is 30.
 %            'DecRange'    - [min, max] Dec range to process in radians.
@@ -104,6 +114,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %            'QueryLevel'  - HTM level at which TAP queries are issued.
 %                            'auto' selects the coarsest level where max
 %                            centroid-to-vertex distance fits MaxConeRadiusDeg.
+%                            Can exceed HTM_Level (triggers aggregate-up mode).
 %                            Can also be an integer level index. Default is 'auto'.
 %            'MaxConeRadiusDeg' - Maximum cone search radius in degrees
 %                            (TAP service limit). Default is 0.25.
@@ -172,7 +183,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.HTM_Level        = 7           % HTM level (or 'auto' for automatic)
         Args.AutoLevelMaxSrc  = 1e3         % Max sources per cell for auto-level
         Args.AutoLevelRange   = [4, 10]    % [min, max] HTM level range for auto-selection
-        Args.NfilesInHDF      = 100        % HTM cells per HDF5 file (matches catsHTM default)
+        Args.NcatInFile      = 100        % HTM cells per HDF5 file (matches catsHTM default)
         Args.IndStep          = 30          % Index sampling step for HDF5
         Args.DecRange         = [-pi/2, pi/2]   % Dec range to process [rad]
         Args.RARange          = [0, 2*pi]       % RA range to process [rad]
@@ -197,6 +208,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.NumWorkers       = 0           % 0=sequential, >0=parallel with N workers
         Args.QueryLevel       = 'auto'      % Query HTM level ('auto' or integer)
         Args.MaxConeRadiusDeg = 0.25        % Maximum cone search radius (TAP service limit)
+        Args.DedupCol         = ''          % TAP column name for deduplication (e.g. 'objID'); if set, used instead of coordinates
     end
 
     RAD = constant.RAD;
@@ -241,6 +253,17 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         ColumnsStr = strjoin(Args.Columns, ', ');
     else
         ColumnsStr = char(Args.Columns);
+    end
+
+    % Inject DedupCol into the query if specified and not already present
+    DedupColIdx = [];
+    if ~isempty(Args.DedupCol) && ~strcmp(ColumnsStr, '*')
+        if ~contains(lower(ColumnsStr), lower(Args.DedupCol))
+            ColumnsStr = sprintf('%s, %s', ColumnsStr, Args.DedupCol);
+            if Args.Verbose
+                fprintf('Added DedupCol "%s" to query columns for deduplication.\n', Args.DedupCol);
+            end
+        end
     end
 
     if Args.Verbose
@@ -317,6 +340,20 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             fprintf('Detected %d columns (MATLAB names): %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
         end
 
+        % Auto-detect column units from TAP VOTable metadata
+        if isempty(Args.ColUnits)
+            TapColUnits = extractUnitsFromVOTable(SampleQuery, Args.TapUrl, ...
+                                                   Args.LocalDir, Args.Verbose);
+            if ~isempty(TapColUnits) && numel(TapColUnits) == numel(numericMask)
+                % Apply same filtering (numeric only) and reordering as column names
+                FilteredUnits = TapColUnits(numericMask);
+                Args.ColUnits = FilteredUnits(reorderIdx);
+            else
+                % Fallback: empty string units with correct length
+                Args.ColUnits = repmat({''}, 1, numel(Args.ColCell));
+            end
+        end
+
         % If user specified '*', rebuild ColumnsStr using original TAP column names
         % to ensure consistent columns across all HTM cell queries
         if strcmp(ColumnsStr, '*')
@@ -333,6 +370,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     end
                     OriginalColNamesReordered = OriginalColNamesReordered(~VizierInternalMask);
                     Args.ColCell = Args.ColCell(~VizierInternalMask);
+                    if numel(Args.ColUnits) == numel(VizierInternalMask)
+                        Args.ColUnits = Args.ColUnits(~VizierInternalMask);
+                    end
                 end
 
                 % Use original names from CSV header (quoted for safety)
@@ -352,15 +392,60 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
     end
 
+    % Override RA/Dec units to match output coordinate system (radians)
+    if ~isempty(Args.ColUnits)
+        raIdx = find(strcmpi(Args.ColCell, Args.ColRA), 1);
+        if isempty(raIdx) && isnumeric(Args.ColRAOut), raIdx = Args.ColRAOut; end
+        decIdx = find(strcmpi(Args.ColCell, Args.ColDec), 1);
+        if isempty(decIdx) && isnumeric(Args.ColDecOut), decIdx = Args.ColDecOut; end
+        if ~isempty(raIdx) && raIdx <= numel(Args.ColUnits)
+            Args.ColUnits{raIdx} = Args.OutUnits;
+        end
+        if ~isempty(decIdx) && decIdx <= numel(Args.ColUnits)
+            Args.ColUnits{decIdx} = Args.OutUnits;
+        end
+    end
+
     % Update ColCell to reflect computed columns and dropped columns
+    % Save pre-processed ColCell for ColUnits post-processing
+    PreProcColCell = Args.ColCell;
     Args.ColCell = applyColCellPostProcessing(Args.ColCell, Args.ComputedColumns, Args.DropColumns);
+
+    % Update ColUnits to match (add computed column units, remove dropped column units)
+    if ~isempty(Args.ColUnits)
+        Args.ColUnits = applyColUnitsPostProcessing(Args.ColUnits, Args.ComputedColumns, Args.DropColumns, PreProcColCell);
+    end
+
     if Args.Verbose && (~isempty(Args.ComputedColumns) || ~isempty(Args.DropColumns))
         fprintf('Final output columns (%d): %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
     end
+    if Args.Verbose && ~isempty(Args.ColUnits)
+        fprintf('Column units: %s\n', strjoin(Args.ColUnits, ', '));
+    end
 
-    % Save ColCell file immediately
+    % Locate DedupCol in the post-processed ColCell (for dedup-then-strip)
+    if ~isempty(Args.DedupCol)
+        DedupColIdx = find(strcmpi(Args.ColCell, Args.DedupCol), 1);
+        if isempty(DedupColIdx)
+            warning('DedupCol "%s" not found in output columns — falling back to coordinate dedup.', Args.DedupCol);
+        else
+            if Args.Verbose
+                fprintf('Using DedupCol "%s" (column %d) for deduplication.\n', Args.DedupCol, DedupColIdx);
+            end
+        end
+    end
+
+    % Save ColCell file — strip DedupCol so it does not appear in the catalog metadata
+    SaveColCell = Args.ColCell;
+    SaveColUnits = Args.ColUnits;
+    if ~isempty(DedupColIdx)
+        SaveColCell(DedupColIdx) = [];
+        if ~isempty(SaveColUnits) && numel(SaveColUnits) >= DedupColIdx
+            SaveColUnits(DedupColIdx) = [];
+        end
+    end
     ColCellPath = fullfile(Args.LocalDir, Args.CatName);
-    HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
+    HDF5.save_cat_colcell(ColCellPath, SaveColCell, SaveColUnits);
     if Args.Verbose
         fprintf('Saved column metadata: %s_htmColCell.mat\n', ColCellPath);
     end
@@ -385,11 +470,23 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % At LevelHTM index L (depth L-1), side = 90/2^(L-1) deg.
     % Max centroid-to-vertex distance <= side, so need side*1.05 <= MaxConeRadiusDeg.
     MinBuildForQuery = ceil(1 + log2(1.05 * 90 / Args.MaxConeRadiusDeg));
-    UsePartialBuild = ~IsFullSky && isempty(Args.HTM) && Args.HTM_Level > MinBuildForQuery;
+
+    % Aggregate-up mode: query level exceeds output level (HTM_Level)
+    % Needed when TAP radius limit forces queries at a finer level than the
+    % desired output resolution. Multiple query cells are aggregated into
+    % each coarser output cell.
+    AggregateUp = (MinBuildForQuery > Args.HTM_Level) && isempty(Args.HTM);
+
+    UsePartialBuild = ~AggregateUp && ~IsFullSky && isempty(Args.HTM) && Args.HTM_Level > MinBuildForQuery;
 
     if ~isempty(Args.HTM) && ~isempty(Args.LevelHTM)
         HTM = Args.HTM;
         LevelHTM = Args.LevelHTM;
+    elseif AggregateUp
+        if Args.Verbose
+            fprintf('Aggregate-up mode: building HTM to level %d (output at level %d)\n', MinBuildForQuery, Args.HTM_Level);
+        end
+        [HTM, LevelHTM] = celestial.htm.htm_build(MinBuildForQuery);
     elseif UsePartialBuild
         BuildLevel = min(Args.HTM_Level, MinBuildForQuery);
         if Args.Verbose
@@ -438,6 +535,18 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         QueryLevelIdx = Args.QueryLevel;
     end
 
+    % Safety: if selectQueryLevel chose a level beyond HTM_Level but
+    % AggregateUp was not set (e.g., user provided a deep pre-built HTM),
+    % enable aggregate-up to avoid distribute-down with query finer than output.
+    if QueryLevelIdx > Args.HTM_Level && ~AggregateUp
+        AggregateUp = true;
+        UsePartialBuild = false;
+        if Args.Verbose
+            fprintf('Query level %d exceeds output level %d: enabling aggregate-up mode\n', ...
+                    QueryLevelIdx, Args.HTM_Level);
+        end
+    end
+
     QueryListHTM = LevelHTM(QueryLevelIdx).ptr;
     Nquery = numel(QueryListHTM);
 
@@ -446,9 +555,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         fprintf('Max cone radius limit: %.4f deg\n', Args.MaxConeRadiusDeg);
     end
 
-    % Build mapping: query cell -> fine-level descendants (+ coordinates if partial)
+    % Build mapping between query cells and output cells
+    OutputToQueryMap = {};  % Only used in aggregate-up mode
     QueryToFineMap = cell(Nquery, 1);
-    if UsePartialBuild
+    QueryToFineCoo = {};
+    if AggregateUp
+        % Aggregate-up: for each output cell, find its query-level descendants
+        OutputToQueryMap = cell(Nfine, 1);
+        for iF = 1:Nfine
+            OutputToQueryMap{iF} = getHTMDescendants(HTM, FineListHTM(iF));
+        end
+        if Args.Verbose
+            NDescPerOutput = 4^(QueryLevelIdx - Args.HTM_Level);
+            fprintf('Aggregate-up: %d query descendants per output cell\n', NDescPerOutput);
+        end
+    elseif UsePartialBuild
         % On-the-fly expansion: compute fine descendants from query cells
         % Only expand in-range cells (skip out-of-range for speed)
         QueryToFineCoo = cell(Nquery, 1);
@@ -476,7 +597,6 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
     else
         % Full tree: use getHTMDescendants (tree is fully built)
-        QueryToFineCoo = {};
         for iQ = 1:Nquery
             QueryToFineMap{iQ} = getHTMDescendants(HTM, QueryListHTM(iQ));
         end
@@ -501,165 +621,583 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % 5. PRE-FILTER QUERY CELLS (Dec/RA range + resume)
     %----------------------------------------------------------------------
 
-    if Args.Verbose
-        fprintf('\nFiltering query-level cells by Dec/RA range and resume status...\n');
-    end
+    % Aggregate-up mode: pre-filter output cells directly
+    OutputCellsToProcess = [];   % Output-level HTM indices (aggregate-up only)
+    OutputCellIndices = [];      % Position in FineListHTM (aggregate-up only)
+    NumOutputToProcess = 0;
 
+    % Distribute-down mode: pre-filter query cells
     QueryCellsToProcess = [];    % Query-level HTM indices to download
     QueryCellIndices = [];       % Position in QueryListHTM (1..Nquery)
     SkippedFineFromResume = {};  % Fine descendants already done (per query cell)
 
-    for iQ = 1:Nquery
-        IndQ = QueryListHTM(iQ);
-        fineDescendants = QueryToFineMap{iQ};
-
-        % Check if query cell center is within Dec/RA range
-        MeanRA  = mean(HTM(IndQ).coo(:,1));
-        MeanDec = mean(HTM(IndQ).coo(:,2));
-
-        OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
-                       MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
-
-        if OutsideRange
-            % Nsrc already initialized to [idx, 0] for all cells
-            continue;
+    if AggregateUp
+        if Args.Verbose
+            fprintf('\nFiltering output cells by Dec/RA range and resume status...\n');
         end
 
-        % Check resume status of fine descendants
-        if Args.Resume
-            allExist = true;
-            existMask = false(numel(fineDescendants), 1);
-            for iF = 1:numel(fineDescendants)
-                fIdx = fineDescendants(iF);
-                exists = checkHTMExists(Args.CatName, fIdx, Args.NfilesInHDF, Args.LocalDir) || ...
-                         (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, fIdx, Args.NfilesInHDF, Args.TargetDir));
-                existMask(iF) = exists;
-                if ~exists
-                    allExist = false;
-                end
-            end
+        for iF = 1:Nfine
+            fIdx = FineListHTM(iF);
 
-            if allExist
-                % All fine descendants exist - skip this query cell entirely
-                for iF = 1:numel(fineDescendants)
-                    fIdx = fineDescendants(iF);
-                    pos = FineIdxToNsrcPos(fIdx);
-                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NfilesInHDF, Args.LocalDir);
-                    if NsrcExisting == 0 && ~isempty(Args.TargetDir)
-                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NfilesInHDF, Args.TargetDir);
-                    end
-                    Nsrc(pos, :) = [fIdx, NsrcExisting];
-                end
-                SkippedCount = SkippedCount + numel(fineDescendants);
+            % Check if output cell center is within Dec/RA range
+            coo = HTM(fIdx).coo;
+            MeanRA  = mean(coo(:,1));
+            MeanDec = mean(coo(:,2));
+
+            if MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
+               MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2)
                 continue;
             end
 
-            % Some exist, some don't - we need to re-download but can skip writing existing ones
-            % Record which fine cells already exist for this query cell
-            skippedFine = fineDescendants(existMask);
-            for iF = 1:numel(skippedFine)
-                fIdx = skippedFine(iF);
-                pos = FineIdxToNsrcPos(fIdx);
-                NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NfilesInHDF, Args.LocalDir);
-                if NsrcExisting == 0 && ~isempty(Args.TargetDir)
-                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NfilesInHDF, Args.TargetDir);
+            % Resume check: skip output cells that already exist
+            if Args.Resume
+                exists = checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir) || ...
+                         (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir));
+                if exists
+                    pos = FineIdxToNsrcPos(fIdx);
+                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                    if NsrcExisting == 0 && ~isempty(Args.TargetDir)
+                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                    end
+                    Nsrc(pos, :) = [fIdx, NsrcExisting];
+                    SkippedCount = SkippedCount + 1;
+                    continue;
                 end
-                Nsrc(pos, :) = [fIdx, NsrcExisting];
-                SkippedCount = SkippedCount + 1;
             end
-        else
-            skippedFine = [];
+
+            OutputCellsToProcess = [OutputCellsToProcess, fIdx]; %#ok<AGROW>
+            OutputCellIndices = [OutputCellIndices, iF]; %#ok<AGROW>
+
+            if Args.Verbose && mod(iF, 10000) == 0
+                fprintf('  Filtered %d/%d output cells...\n', iF, Nfine);
+            end
         end
 
-        QueryCellsToProcess = [QueryCellsToProcess, IndQ]; %#ok<AGROW>
-        QueryCellIndices = [QueryCellIndices, iQ]; %#ok<AGROW>
-        SkippedFineFromResume{end+1} = skippedFine; %#ok<AGROW>
-
-        % Progress for filtering (every 10000 query cells)
-        if Args.Verbose && mod(iQ, 10000) == 0
-            fprintf('  Filtered %d/%d query cells...\n', iQ, Nquery);
-        end
-    end
-
-    NumQueryToProcess = numel(QueryCellsToProcess);
-    if Args.Verbose
-        fprintf('Query cells to process: %d / %d (skipped %d fine cells from resume)\n', ...
-                NumQueryToProcess, Nquery, SkippedCount);
-    end
-
-    %----------------------------------------------------------------------
-    % 6. MAIN LOOP: Download at query level, distribute to fine cells
-    %----------------------------------------------------------------------
-
-    if NumQueryToProcess == 0
-        if Args.Verbose
-            fprintf('No cells to process.\n');
-        end
-    elseif Args.NumWorkers > 0
-        %------------------------------------------------------------------
-        % PARALLEL PROCESSING: parfeval + fetchNext
-        %------------------------------------------------------------------
+        NumOutputToProcess = numel(OutputCellsToProcess);
+        NumQueryToProcess = 0;  % Skip distribute-down loops
 
         if Args.Verbose
-            fprintf('\nStarting parallel processing with %d workers (parfeval + fetchNext)\n', Args.NumWorkers);
-            if strcmpi(Args.QueryMethod, 'java')
-                fprintf('Note: Consider ''QueryMethod'',''http'' to avoid JVM startup overhead in parallel mode.\n');
-            end
+            fprintf('Output cells to process: %d / %d (skipped %d from resume)\n', ...
+                    NumOutputToProcess, Nfine, SkippedCount);
+        end
+    else
+        if Args.Verbose
+            fprintf('\nFiltering query-level cells by Dec/RA range and resume status...\n');
         end
 
-        % Start parallel pool if needed
-        try
-            pool = gcp('nocreate');
-            if isempty(pool)
-                pool = parpool(Args.NumWorkers);
-            elseif pool.NumWorkers ~= Args.NumWorkers
-                delete(pool);
-                pool = parpool(Args.NumWorkers);
-            end
-        catch ME
-            warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
-            Args.NumWorkers = 0;
-        end
+        for iQ = 1:Nquery
+            IndQ = QueryListHTM(iQ);
+            fineDescendants = QueryToFineMap{iQ};
 
-        if Args.NumWorkers > 0
-            % Extract data needed by workers (avoid passing full HTM)
-            QueryCellCoo = cell(NumQueryToProcess, 1);
-            QuerySearchRadii = zeros(NumQueryToProcess, 1);
-            for iProc = 1:NumQueryToProcess
-                IndQ = QueryCellsToProcess(iProc);
-                QueryCellCoo{iProc} = HTM(IndQ).coo;
-                QuerySearchRadii(iProc) = computeCellSearchRadius(HTM(IndQ).coo, RAD);
+            % Check if query cell center is within Dec/RA range
+            MeanRA  = mean(HTM(IndQ).coo(:,1));
+            MeanDec = mean(HTM(IndQ).coo(:,2));
+
+            OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
+                           MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
+
+            if OutsideRange
+                % Nsrc already initialized to [idx, 0] for all cells
+                continue;
             end
 
-            % Submit ALL query cells as parfeval futures
-            Futures(NumQueryToProcess) = parallel.FevalFuture;
-            for iProc = 1:NumQueryToProcess
-                Futures(iProc) = parfeval(pool, @downloadQueryCone, 2, ...
-                    TableName, ColumnsStr, QueryCellsToProcess(iProc), ...
-                    QueryCellCoo{iProc}, RAD, QuerySearchRadii(iProc), Args);
-            end
+            % Check resume status of fine descendants
+            if Args.Resume
+                allExist = true;
+                existMask = false(numel(fineDescendants), 1);
+                for iF = 1:numel(fineDescendants)
+                    fIdx = fineDescendants(iF);
+                    exists = checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir) || ...
+                             (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir));
+                    existMask(iF) = exists;
+                    if ~exists
+                        allExist = false;
+                    end
+                end
 
-            if Args.Verbose
-                fprintf('Submitted %d parfeval futures.\n', NumQueryToProcess);
-            end
-
-            % Process results as they complete via fetchNext
-            for iDone = 1:NumQueryToProcess
-                try
-                    [completedIdx, Data, queryFailed] = fetchNext(Futures);
-                catch ME
-                    warning('fetchNext error: %s', ME.message);
+                if allExist
+                    % All fine descendants exist - skip this query cell entirely
+                    for iF = 1:numel(fineDescendants)
+                        fIdx = fineDescendants(iF);
+                        pos = FineIdxToNsrcPos(fIdx);
+                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                        if NsrcExisting == 0 && ~isempty(Args.TargetDir)
+                            NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                        end
+                        Nsrc(pos, :) = [fIdx, NsrcExisting];
+                    end
+                    SkippedCount = SkippedCount + numel(fineDescendants);
                     continue;
                 end
 
-                IndQ = QueryCellsToProcess(completedIdx);
-                iQ = QueryCellIndices(completedIdx);
+                % Some exist, some don't - we need to re-download but can skip writing existing ones
+                % Record which fine cells already exist for this query cell
+                skippedFine = fineDescendants(existMask);
+                for iF = 1:numel(skippedFine)
+                    fIdx = skippedFine(iF);
+                    pos = FineIdxToNsrcPos(fIdx);
+                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                    if NsrcExisting == 0 && ~isempty(Args.TargetDir)
+                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                    end
+                    Nsrc(pos, :) = [fIdx, NsrcExisting];
+                    SkippedCount = SkippedCount + 1;
+                end
+            else
+                skippedFine = [];
+            end
+
+            QueryCellsToProcess = [QueryCellsToProcess, IndQ]; %#ok<AGROW>
+            QueryCellIndices = [QueryCellIndices, iQ]; %#ok<AGROW>
+            SkippedFineFromResume{end+1} = skippedFine; %#ok<AGROW>
+
+            % Progress for filtering (every 10000 query cells)
+            if Args.Verbose && mod(iQ, 10000) == 0
+                fprintf('  Filtered %d/%d query cells...\n', iQ, Nquery);
+            end
+        end
+
+        NumQueryToProcess = numel(QueryCellsToProcess);
+        if Args.Verbose
+            fprintf('Query cells to process: %d / %d (skipped %d fine cells from resume)\n', ...
+                    NumQueryToProcess, Nquery, SkippedCount);
+        end
+    end
+
+    %----------------------------------------------------------------------
+    % 5b. FILE COMPLETION MAP (for incremental NFS copy in parallel mode)
+    %----------------------------------------------------------------------
+    % Pre-count how many cells will be written to each HDF5 file.
+    % In parallel mode, results arrive in arbitrary order, so we track
+    % remaining cells per file and copy as soon as a file is complete.
+    FileRemainingCells = containers.Map('KeyType', 'char', 'ValueType', 'int32');
+    if AggregateUp && NumOutputToProcess > 0
+        for iProc = 1:NumOutputToProcess
+            [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, OutputCellsToProcess(iProc), Args.NcatInFile);
+            if FileRemainingCells.isKey(fn)
+                FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+            else
+                FileRemainingCells(fn) = int32(1);
+            end
+        end
+    elseif NumQueryToProcess > 0
+        for iProc = 1:NumQueryToProcess
+            iQ = QueryCellIndices(iProc);
+            fineDesc = QueryToFineMap{iQ};
+            skipped = SkippedFineFromResume{iProc};
+            for iF = 1:numel(fineDesc)
+                if ~ismember(fineDesc(iF), skipped)
+                    [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fineDesc(iF), Args.NcatInFile);
+                    if FileRemainingCells.isKey(fn)
+                        FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+                    else
+                        FileRemainingCells(fn) = int32(1);
+                    end
+                end
+            end
+        end
+    end
+
+    %----------------------------------------------------------------------
+    % 6. MAIN LOOP
+    %----------------------------------------------------------------------
+
+    if AggregateUp && NumOutputToProcess > 0
+        %==================================================================
+        % AGGREGATE-UP MODE: download query descendants, aggregate into
+        % coarser output cells
+        %==================================================================
+
+        if Args.NumWorkers > 0
+            %--------------------------------------------------------------
+            % AGGREGATE-UP PARALLEL PROCESSING
+            %--------------------------------------------------------------
+
+            if Args.Verbose
+                fprintf('\nStarting aggregate-up parallel processing with %d workers\n', Args.NumWorkers);
+                if strcmpi(Args.QueryMethod, 'java')
+                    fprintf('Note: Consider ''QueryMethod'',''http'' to avoid JVM startup overhead in parallel mode.\n');
+                end
+            end
+
+            % Start parallel pool if needed
+            try
+                pool = gcp('nocreate');
+                if isempty(pool)
+                    pool = parpool(Args.NumWorkers);
+                elseif pool.NumWorkers ~= Args.NumWorkers
+                    delete(pool);
+                    pool = parpool(Args.NumWorkers);
+                end
+            catch ME
+                warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
+                Args.NumWorkers = 0;
+            end
+
+            if Args.NumWorkers > 0
+                % Extract coordinates for workers (avoid passing full HTM)
+                OutputCellCoos = cell(NumOutputToProcess, 1);
+                QueryDescCooSets = cell(NumOutputToProcess, 1);
+                for iProc = 1:NumOutputToProcess
+                    iF = OutputCellIndices(iProc);
+                    fIdx = OutputCellsToProcess(iProc);
+                    OutputCellCoos{iProc} = HTM(fIdx).coo;
+                    qDescs = OutputToQueryMap{iF};
+                    qCoos = cell(numel(qDescs), 1);
+                    for j = 1:numel(qDescs)
+                        qCoos{j} = HTM(qDescs(j)).coo;
+                    end
+                    QueryDescCooSets{iProc} = qCoos;
+                end
+
+                % Submit one parfeval per output cell
+                Futures(NumOutputToProcess) = parallel.FevalFuture;
+                for iProc = 1:NumOutputToProcess
+                    Futures(iProc) = parfeval(pool, @downloadAggregateCell, 2, ...
+                        TableName, ColumnsStr, OutputCellCoos{iProc}, ...
+                        QueryDescCooSets{iProc}, RAD, Args, DedupColIdx);
+                end
+
+                if Args.Verbose
+                    fprintf('Submitted %d parfeval futures (aggregate-up).\n', NumOutputToProcess);
+                end
+
+                % Process results as they complete
+                for iDone = 1:NumOutputToProcess
+                    try
+                        [completedIdx, Data, queryFailed] = fetchNext(Futures);
+                    catch ME
+                        warning('fetchNext error: %s', ME.message);
+                        continue;
+                    end
+
+                    fIdx = OutputCellsToProcess(completedIdx);
+                    pos = FineIdxToNsrcPos(fIdx);
+
+                    if queryFailed
+                        FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
+                        Nsrc(pos, :) = [fIdx, 0];
+                    else
+                        NsrcCell = writeOutputCellDirect(Data, fIdx, Args, RAD);
+                        Nsrc(pos, :) = [fIdx, NsrcCell];
+                        ProcessedFineCells = ProcessedFineCells + 1;
+                    end
+
+                    % Incremental NFS copy: copy file when all its cells are done
+                    copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
+                        Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
+
+                    ProcessedQueryCells = ProcessedQueryCells + 1;
+
+                    if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1 || ProcessedQueryCells == NumOutputToProcess)
+                        Elapsed = toc(StartTime);
+                        Rate = ProcessedQueryCells / Elapsed;
+                        Remaining = NumOutputToProcess - ProcessedQueryCells;
+                        ETA = Remaining / max(Rate, 0.001);
+                        fprintf('[%d/%d output cells] %d cells written (%.1f cells/min, ETA: %.1f min)\n', ...
+                                ProcessedQueryCells, NumOutputToProcess, ProcessedFineCells, Rate * 60, ETA / 60);
+                    end
+                end
+
+                cancel(Futures);
+
+                % Final NFS sweep: copy any remaining files not yet transferred
+                if ~isempty(Args.TargetDir)
+                    hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
+                    hdfFiles = dir(hdfPattern);
+                    if ~isempty(hdfFiles) && Args.Verbose
+                        fprintf('\nCopying %d remaining HDF5 files to remote directory...\n', numel(hdfFiles));
+                    end
+                    for iFile = 1:numel(hdfFiles)
+                        FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
+                        tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                        if Args.Verbose
+                            fprintf('  Copied: %s\n', hdfFiles(iFile).name);
+                        end
+                    end
+                end
+
+                cleanupWorkerDirs(Args.LocalDir);
+            end
+        end
+
+        if Args.NumWorkers == 0 && NumOutputToProcess > 0
+            %--------------------------------------------------------------
+            % AGGREGATE-UP SEQUENTIAL PROCESSING
+            %--------------------------------------------------------------
+
+            if Args.Verbose
+                fprintf('\nStarting aggregate-up sequential processing...\n');
+            end
+
+            for iProc = 1:NumOutputToProcess
+                fIdx = OutputCellsToProcess(iProc);
+                iF = OutputCellIndices(iProc);
+                outputCoo = HTM(fIdx).coo;
+                qDescs = OutputToQueryMap{iF};
+
+                % Download all query descendants for this output cell
+                AllData = [];
+                AnyFailed = false;
+                for j = 1:numel(qDescs)
+                    qIdx = qDescs(j);
+                    qCoo = HTM(qIdx).coo;
+                    SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
+
+                    [D, qFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
+                        qIdx, qCoo, RAD, SearchRadiusDeg, Args);
+
+                    if qFailed
+                        AnyFailed = true;
+                    elseif ~isempty(D)
+                        AllData = [AllData; D]; %#ok<AGROW>
+                    end
+                end
+
+                pos = FineIdxToNsrcPos(fIdx);
+
+                if AnyFailed && isempty(AllData)
+                    FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
+                    Nsrc(pos, :) = [fIdx, 0];
+                else
+                    % Filter to output cell boundaries, deduplicate, strip DedupCol
+                    if ~isempty(AllData)
+                        CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
+                        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+                        AllData = AllData(Flag, :);
+                        % Deduplicate using DedupCol (e.g. objID) or coordinates
+                        if ~isempty(DedupColIdx)
+                            [~, uniqueIdx] = unique(AllData(:, DedupColIdx), 'first');
+                        else
+                            [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
+                        end
+                        if numel(uniqueIdx) < size(AllData, 1)
+                            Nremoved = size(AllData, 1) - numel(uniqueIdx);
+                            AllData = AllData(sort(uniqueIdx), :);
+                            if Args.Verbose
+                                fprintf('    Output cell %d: removed %d duplicate rows\n', fIdx, Nremoved);
+                            end
+                        end
+                        % Strip DedupCol before writing (not part of catalog)
+                        if ~isempty(DedupColIdx)
+                            AllData(:, DedupColIdx) = [];
+                        end
+                    end
+
+                    % Check if we've moved to a new HDF5 file - copy completed one
+                    [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
+                    if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+                        FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                        if isfile(FullPath)
+                            tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                            if Args.Verbose
+                                fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                            end
+                        end
+                    end
+                    CurrentHDFFile = ThisFileName;
+
+                    NsrcCell = writeOutputCellDirect(AllData, fIdx, Args, RAD);
+                    Nsrc(pos, :) = [fIdx, NsrcCell];
+                    ProcessedFineCells = ProcessedFineCells + 1;
+                end
+
+                ProcessedQueryCells = ProcessedQueryCells + 1;
+
+                if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1)
+                    Elapsed = toc(StartTime);
+                    Rate = ProcessedQueryCells / Elapsed;
+                    Remaining = NumOutputToProcess - ProcessedQueryCells;
+                    ETA = Remaining / max(Rate, 0.001);
+                    fprintf('[%d/%d output cells] %d cells written (%.1f cells/min, ETA: %.1f min)\n', ...
+                            ProcessedQueryCells, NumOutputToProcess, ProcessedFineCells, Rate * 60, ETA / 60);
+                end
+            end
+
+            % Copy the last HDF5 file to remote
+            if ~isempty(CurrentHDFFile) && ~isempty(Args.TargetDir)
+                FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                if isfile(FullPath)
+                    tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                    if Args.Verbose
+                        fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                    end
+                end
+            end
+        end
+
+    elseif NumQueryToProcess == 0 && NumOutputToProcess == 0
+        %==================================================================
+        % NO CELLS TO PROCESS
+        %==================================================================
+        if Args.Verbose
+            fprintf('No cells to process.\n');
+        end
+
+    elseif NumQueryToProcess > 0
+        %==================================================================
+        % DISTRIBUTE-DOWN MODE: download at query level, distribute to
+        % finer output cells
+        %==================================================================
+
+        if Args.NumWorkers > 0
+            %--------------------------------------------------------------
+            % DISTRIBUTE-DOWN PARALLEL PROCESSING: parfeval + fetchNext
+            %--------------------------------------------------------------
+
+            if Args.Verbose
+                fprintf('\nStarting parallel processing with %d workers (parfeval + fetchNext)\n', Args.NumWorkers);
+                if strcmpi(Args.QueryMethod, 'java')
+                    fprintf('Note: Consider ''QueryMethod'',''http'' to avoid JVM startup overhead in parallel mode.\n');
+                end
+            end
+
+            % Start parallel pool if needed
+            try
+                pool = gcp('nocreate');
+                if isempty(pool)
+                    pool = parpool(Args.NumWorkers);
+                elseif pool.NumWorkers ~= Args.NumWorkers
+                    delete(pool);
+                    pool = parpool(Args.NumWorkers);
+                end
+            catch ME
+                warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
+                Args.NumWorkers = 0;
+            end
+
+            if Args.NumWorkers > 0
+                % Extract data needed by workers (avoid passing full HTM)
+                QueryCellCoo = cell(NumQueryToProcess, 1);
+                QuerySearchRadii = zeros(NumQueryToProcess, 1);
+                for iProc = 1:NumQueryToProcess
+                    IndQ = QueryCellsToProcess(iProc);
+                    QueryCellCoo{iProc} = HTM(IndQ).coo;
+                    QuerySearchRadii(iProc) = computeCellSearchRadius(HTM(IndQ).coo, RAD);
+                end
+
+                % Submit ALL query cells as parfeval futures
+                Futures(NumQueryToProcess) = parallel.FevalFuture;
+                for iProc = 1:NumQueryToProcess
+                    Futures(iProc) = parfeval(pool, @downloadQueryCone, 2, ...
+                        TableName, ColumnsStr, QueryCellsToProcess(iProc), ...
+                        QueryCellCoo{iProc}, RAD, QuerySearchRadii(iProc), Args);
+                end
+
+                if Args.Verbose
+                    fprintf('Submitted %d parfeval futures.\n', NumQueryToProcess);
+                end
+
+                % Process results as they complete via fetchNext
+                for iDone = 1:NumQueryToProcess
+                    try
+                        [completedIdx, Data, queryFailed] = fetchNext(Futures);
+                    catch ME
+                        warning('fetchNext error: %s', ME.message);
+                        continue;
+                    end
+
+                    IndQ = QueryCellsToProcess(completedIdx);
+                    iQ = QueryCellIndices(completedIdx);
+                    fineDescendants = QueryToFineMap{iQ};
+                    skippedFine = SkippedFineFromResume{completedIdx};
+
+                    if queryFailed
+                        FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
+                        % Mark all non-skipped fine descendants as failed (0 sources)
+                        for iF = 1:numel(fineDescendants)
+                            fIdx = fineDescendants(iF);
+                            if ~ismember(fIdx, skippedFine)
+                                pos = FineIdxToNsrcPos(fIdx);
+                                Nsrc(pos, :) = [fIdx, 0];
+                                copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
+                                    Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
+                            end
+                        end
+                    else
+                        % Distribute data to fine-level cells
+                        for iF = 1:numel(fineDescendants)
+                            fIdx = fineDescendants(iF);
+
+                            % Skip fine cells that already exist from resume
+                            if ismember(fIdx, skippedFine)
+                                continue;
+                            end
+
+                            pos = FineIdxToNsrcPos(fIdx);
+                            if ~isempty(QueryToFineCoo)
+                                fineCoo = QueryToFineCoo{iQ}{iF};
+                            else
+                                fineCoo = HTM(fIdx).coo;
+                            end
+                            NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD, DedupColIdx);
+                            Nsrc(pos, :) = [fIdx, NsrcCell];
+                            ProcessedFineCells = ProcessedFineCells + 1;
+
+                            copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
+                                Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
+                        end
+                    end
+
+                    ProcessedQueryCells = ProcessedQueryCells + 1;
+
+                    % Progress reporting
+                    if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1 || ProcessedQueryCells == NumQueryToProcess)
+                        Elapsed = toc(StartTime);
+                        Rate = ProcessedQueryCells / Elapsed;
+                        Remaining = NumQueryToProcess - ProcessedQueryCells;
+                        ETA = Remaining / max(Rate, 0.001);
+                        fprintf('[%d/%d query cells] %d fine cells written (%.1f q/min, ETA: %.1f min)\n', ...
+                                ProcessedQueryCells, NumQueryToProcess, ProcessedFineCells, Rate * 60, ETA / 60);
+                    end
+                end
+
+                % Cancel any remaining futures (shouldn't be any)
+                cancel(Futures);
+
+                % Final NFS sweep: copy any remaining files not yet transferred
+                if ~isempty(Args.TargetDir)
+                    hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
+                    hdfFiles = dir(hdfPattern);
+                    if ~isempty(hdfFiles) && Args.Verbose
+                        fprintf('\nCopying %d remaining HDF5 files to remote directory...\n', numel(hdfFiles));
+                    end
+                    for iFile = 1:numel(hdfFiles)
+                        FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
+                        tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                        if Args.Verbose
+                            fprintf('  Copied: %s\n', hdfFiles(iFile).name);
+                        end
+                    end
+                end
+
+                % Cleanup per-worker temp directories
+                cleanupWorkerDirs(Args.LocalDir);
+            end
+        end
+
+        if Args.NumWorkers == 0 && NumQueryToProcess > 0
+            %--------------------------------------------------------------
+            % DISTRIBUTE-DOWN SEQUENTIAL PROCESSING
+            %--------------------------------------------------------------
+
+            if Args.Verbose
+                fprintf('\nStarting sequential processing...\n');
+            end
+
+            for iProc = 1:NumQueryToProcess
+                IndQ = QueryCellsToProcess(iProc);
+                iQ = QueryCellIndices(iProc);
                 fineDescendants = QueryToFineMap{iQ};
-                skippedFine = SkippedFineFromResume{completedIdx};
+                skippedFine = SkippedFineFromResume{iProc};
+                SearchRadiusDeg = computeCellSearchRadius(HTM(IndQ).coo, RAD);
+
+                % Download data for this query cell
+                [Data, queryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
+                    IndQ, HTM(IndQ).coo, RAD, SearchRadiusDeg, Args);
 
                 if queryFailed
                     FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
-                    % Mark all non-skipped fine descendants as failed (0 sources)
                     for iF = 1:numel(fineDescendants)
                         fIdx = fineDescendants(iF);
                         if ~ismember(fIdx, skippedFine)
@@ -677,13 +1215,26 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                             continue;
                         end
 
+                        % Check if we've moved to a new HDF5 file - copy completed one
+                        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
+                        if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
+                            FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                            if isfile(FullPath)
+                                tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                                if Args.Verbose
+                                    fprintf('  Copied completed file: %s\n', CurrentHDFFile);
+                                end
+                            end
+                        end
+                        CurrentHDFFile = ThisFileName;
+
                         pos = FineIdxToNsrcPos(fIdx);
                         if ~isempty(QueryToFineCoo)
                             fineCoo = QueryToFineCoo{iQ}{iF};
                         else
                             fineCoo = HTM(fIdx).coo;
                         end
-                        NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
+                        NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD, DedupColIdx);
                         Nsrc(pos, :) = [fIdx, NsrcCell];
                         ProcessedFineCells = ProcessedFineCells + 1;
                     end
@@ -691,8 +1242,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
                 ProcessedQueryCells = ProcessedQueryCells + 1;
 
-                % Progress reporting
-                if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1 || ProcessedQueryCells == NumQueryToProcess)
+                if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1)
                     Elapsed = toc(StartTime);
                     Rate = ProcessedQueryCells / Elapsed;
                     Remaining = NumQueryToProcess - ProcessedQueryCells;
@@ -702,113 +1252,14 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 end
             end
 
-            % Cancel any remaining futures (shouldn't be any)
-            cancel(Futures);
-
-            % Final NFS sweep: copy all local HDF5 files to remote
-            if ~isempty(Args.TargetDir)
-                if Args.Verbose
-                    fprintf('\nCopying HDF5 files to remote directory...\n');
-                end
-                hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
-                hdfFiles = dir(hdfPattern);
-                for iFile = 1:numel(hdfFiles)
-                    FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
+            % Copy the last HDF5 file to remote (sequential mode)
+            if ~isempty(CurrentHDFFile) && ~isempty(Args.TargetDir)
+                FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
+                if isfile(FullPath)
                     tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
                     if Args.Verbose
-                        fprintf('  Copied: %s\n', hdfFiles(iFile).name);
+                        fprintf('  Copied completed file: %s\n', CurrentHDFFile);
                     end
-                end
-            end
-
-            % Cleanup per-worker temp directories
-            cleanupWorkerDirs(Args.LocalDir);
-        end
-    end
-
-    if Args.NumWorkers == 0 && NumQueryToProcess > 0
-        %------------------------------------------------------------------
-        % SEQUENTIAL PROCESSING
-        %------------------------------------------------------------------
-
-        if Args.Verbose
-            fprintf('\nStarting sequential processing...\n');
-        end
-
-        for iProc = 1:NumQueryToProcess
-            IndQ = QueryCellsToProcess(iProc);
-            iQ = QueryCellIndices(iProc);
-            fineDescendants = QueryToFineMap{iQ};
-            skippedFine = SkippedFineFromResume{iProc};
-            SearchRadiusDeg = computeCellSearchRadius(HTM(IndQ).coo, RAD);
-
-            % Download data for this query cell
-            [Data, queryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
-                IndQ, HTM(IndQ).coo, RAD, SearchRadiusDeg, Args);
-
-            if queryFailed
-                FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
-                for iF = 1:numel(fineDescendants)
-                    fIdx = fineDescendants(iF);
-                    if ~ismember(fIdx, skippedFine)
-                        pos = FineIdxToNsrcPos(fIdx);
-                        Nsrc(pos, :) = [fIdx, 0];
-                    end
-                end
-            else
-                % Distribute data to fine-level cells
-                for iF = 1:numel(fineDescendants)
-                    fIdx = fineDescendants(iF);
-
-                    % Skip fine cells that already exist from resume
-                    if ismember(fIdx, skippedFine)
-                        continue;
-                    end
-
-                    % Check if we've moved to a new HDF5 file - copy completed one
-                    [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NfilesInHDF);
-                    if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
-                        FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
-                        if isfile(FullPath)
-                            tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                            if Args.Verbose
-                                fprintf('  Copied completed file: %s\n', CurrentHDFFile);
-                            end
-                        end
-                    end
-                    CurrentHDFFile = ThisFileName;
-
-                    pos = FineIdxToNsrcPos(fIdx);
-                    if ~isempty(QueryToFineCoo)
-                        fineCoo = QueryToFineCoo{iQ}{iF};
-                    else
-                        fineCoo = HTM(fIdx).coo;
-                    end
-                    NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
-                    Nsrc(pos, :) = [fIdx, NsrcCell];
-                    ProcessedFineCells = ProcessedFineCells + 1;
-                end
-            end
-
-            ProcessedQueryCells = ProcessedQueryCells + 1;
-
-            if Args.Verbose && (mod(ProcessedQueryCells, 10) == 0 || ProcessedQueryCells == 1)
-                Elapsed = toc(StartTime);
-                Rate = ProcessedQueryCells / Elapsed;
-                Remaining = NumQueryToProcess - ProcessedQueryCells;
-                ETA = Remaining / max(Rate, 0.001);
-                fprintf('[%d/%d query cells] %d fine cells written (%.1f q/min, ETA: %.1f min)\n', ...
-                        ProcessedQueryCells, NumQueryToProcess, ProcessedFineCells, Rate * 60, ETA / 60);
-            end
-        end
-
-        % Copy the last HDF5 file to remote (sequential mode)
-        if ~isempty(CurrentHDFFile) && ~isempty(Args.TargetDir)
-            FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
-            if isfile(FullPath)
-                tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                if Args.Verbose
-                    fprintf('  Copied completed file: %s\n', CurrentHDFFile);
                 end
             end
         end
@@ -876,16 +1327,18 @@ end
 % HELPER FUNCTIONS
 %==========================================================================
 
-function QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, HTM_Level, MaxConeRadiusDeg, RAD, Verbose)
+function QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, ~, MaxConeRadiusDeg, RAD, Verbose)
     % Select coarsest query level where all cells fit within MaxConeRadiusDeg
-    % Iterates from coarsest (L=1) to finest (L=HTM_Level) in LevelHTM.
+    % Iterates from coarsest (L=1) to finest available level in LevelHTM.
     % For each level, computes the max centroid-to-vertex angular distance.
     % First level where max_distance * 1.05 <= MaxConeRadiusDeg is selected.
+    % Result can exceed HTM_Level (triggers aggregate-up mode).
 
     MaxConeRadiusRad = MaxConeRadiusDeg / RAD;
 
-    % Cap at available levels (partial build may have fewer than HTM_Level)
-    MaxAvailLevel = min(HTM_Level, numel(LevelHTM));
+    % Cap at available levels (partial build may have fewer)
+    % Note: MaxAvailLevel can exceed HTM_Level in aggregate-up mode
+    MaxAvailLevel = numel(LevelHTM);
     QueryLevelIdx = MaxAvailLevel;  % default: deepest available level
 
     for L = 1:MaxAvailLevel
@@ -1126,13 +1579,14 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
 end
 
 
-function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
+function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD, DedupColIdx)
     % Filter raw query data to a single fine HTM cell and write to HDF5
     % Input  : - Data: numeric matrix from query (RA/Dec in radians, cols 1,2)
     %          - fineIdx: fine-level HTM index for HDF5 naming
     %          - fineCoo: 3x2 [Long, Lat] of fine cell vertices (radians)
     %          - Args: argument structure
     %          - RAD: degrees per radian
+    %          - DedupColIdx: column index for dedup ([] for coordinate-based)
     % Output : - NsrcCell: number of sources written
 
     NsrcCell = 0;
@@ -1146,6 +1600,26 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
     Flag = celestial.htm.in_polysphere(CooRad, fineCoo, 2);
     FineData = Data(Flag, :);
 
+    % Deduplicate using DedupCol (e.g. objID) or coordinates
+    if size(FineData, 1) > 1
+        NbeforeDedup = size(FineData, 1);
+        if ~isempty(DedupColIdx)
+            [~, uniqueIdx] = unique(FineData(:, DedupColIdx), 'first');
+        else
+            [~, uniqueIdx] = unique(FineData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
+        end
+        FineData = FineData(sort(uniqueIdx), :);
+        Nremoved = NbeforeDedup - size(FineData, 1);
+        if Nremoved > 0 && Args.Verbose
+            fprintf('    Cell %d: removed %d duplicate rows\n', fineIdx, Nremoved);
+        end
+    end
+
+    % Strip DedupCol before writing (not part of catalog)
+    if ~isempty(DedupColIdx)
+        FineData(:, DedupColIdx) = [];
+    end
+
     NsrcCell = size(FineData, 1);
 
     if NsrcCell > 0
@@ -1155,9 +1629,151 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
             FineData(:, 2) = FineData(:, 2) * RAD;  % Dec rad->deg
         end
 
-        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, fineIdx, Args.NfilesInHDF);
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, fineIdx, Args.NcatInFile);
         FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, FineData, Args.ColDecOut, Args.IndStep);
+    end
+end
+
+
+function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outputCoo, queryDescCoos, RAD, Args, DedupColIdx)
+    % Parallel worker for aggregate-up: download all query descendants for
+    % one output cell, concatenate, filter to output cell, deduplicate.
+    % Input  : - TableName: TAP table name
+    %          - ColumnsStr: columns for SELECT
+    %          - outputCoo: 3x2 [Long, Lat] of output cell (radians)
+    %          - queryDescCoos: cell array of 3x2 [Long, Lat] for each query descendant
+    %          - RAD: degrees per radian
+    %          - Args: argument structure
+    %          - DedupColIdx: column index for dedup ([] for coordinate-based)
+    % Output : - Data: deduplicated numeric matrix filtered to output cell, or empty
+    %          - QueryFailed: true if all queries failed
+
+    Data = [];
+    QueryFailed = false;
+
+    % Per-worker temp directory
+    try
+        w = getCurrentWorker();
+        workerPid = w.ProcessId;
+    catch
+        workerPid = feature('getpid');
+    end
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    if ~isfolder(WorkDir)
+        mkdir(WorkDir);
+    end
+
+    Tap = VO.TopCat;
+
+    AllData = [];
+    AnyFailed = false;
+
+    for j = 1:numel(queryDescCoos)
+        qCoo = queryDescCoos{j};
+        SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
+        CenterRADeg  = mean(qCoo(:,1)) * RAD;
+        CenterDecDeg = mean(qCoo(:,2)) * RAD;
+        HTMCooDeg = qCoo * RAD;
+
+        Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
+                                       HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                       SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+
+        try
+            T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, WorkDir);
+        catch
+            AnyFailed = true;
+            continue;
+        end
+
+        if ~isempty(T) && height(T) > 0
+            [D, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+            [D, ~] = applyPostProcessing(D, ColNames, Args.NullValue, ...
+                                          Args.ComputedColumns, Args.DropColumns);
+            AllData = [AllData; D]; %#ok<AGROW>
+        end
+    end
+
+    QueryFailed = AnyFailed && isempty(AllData);
+
+    % Filter to output cell boundaries, deduplicate, strip DedupCol
+    if ~isempty(AllData)
+        CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+        AllData = AllData(Flag, :);
+        % Deduplicate using DedupCol (e.g. objID) or coordinates
+        if ~isempty(DedupColIdx)
+            [~, uniqueIdx] = unique(AllData(:, DedupColIdx), 'first');
+        else
+            [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
+        end
+        if numel(uniqueIdx) < size(AllData, 1)
+            AllData = AllData(sort(uniqueIdx), :);
+        end
+        % Strip DedupCol before returning (not part of catalog)
+        if ~isempty(DedupColIdx)
+            AllData(:, DedupColIdx) = [];
+        end
+    end
+
+    Data = AllData;
+end
+
+
+function NsrcCell = writeOutputCellDirect(Data, cellIdx, Args, RAD)
+    % Write pre-filtered aggregated data directly to HDF5
+    % Input  : - Data: numeric matrix (already filtered and deduplicated)
+    %          - cellIdx: output-level HTM index for HDF5 naming
+    %          - Args: argument structure
+    %          - RAD: degrees per radian
+    % Output : - NsrcCell: number of sources written
+
+    NsrcCell = 0;
+
+    if isempty(Data)
+        return;
+    end
+
+    NsrcCell = size(Data, 1);
+
+    if NsrcCell > 0
+        % Convert to output units
+        if strcmpi(Args.OutUnits, 'deg')
+            Data(:, 1) = Data(:, 1) * RAD;
+            Data(:, 2) = Data(:, 2) * RAD;
+        end
+
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, cellIdx, Args.NcatInFile);
+        FileName = fullfile(Args.LocalDir, FileName);
+        HDF5.save_cat(FileName, DataName, Data, Args.ColDecOut, Args.IndStep);
+    end
+end
+
+
+function copyIfFileComplete(fIdx, CatName, NcatInFile, LocalDir, TargetDir, Verbose, FileRemainingCells)
+    % Decrement remaining-cell counter for the HDF5 file containing fIdx.
+    % When counter reaches zero, all expected cells have been processed
+    % and the file is copied to TargetDir (with local deletion).
+    % FileRemainingCells is a containers.Map (handle class) — modified in place.
+
+    if isempty(TargetDir)
+        return;
+    end
+
+    [fn, ~] = HDF5.get_file_var_from_htmid(CatName, fIdx, NcatInFile);
+    if FileRemainingCells.isKey(fn)
+        FileRemainingCells(fn) = FileRemainingCells(fn) - int32(1);
+        if FileRemainingCells(fn) <= 0
+            FullPath = fullfile(LocalDir, fn);
+            if isfile(FullPath)
+                tools.os.copyFileOverNFS({FullPath}, TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                if Verbose
+                    fprintf('  Copied completed file: %s\n', fn);
+                end
+            end
+        end
     end
 end
 
@@ -1216,9 +1832,9 @@ function Query = constructSpatialQuery(TableName, Columns, ColRA, ColDec, ...
 end
 
 
-function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF, LocalDir)
+function Exists = checkHTMExists(CatName, IndHTM, NcatInFile, LocalDir)
     % Check if an HTM cell already exists in HDF5 files
-    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NfilesInHDF);
+    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
     FileName = fullfile(LocalDir, FileName);
     Exists = false;
     if isfile(FileName)
@@ -1232,9 +1848,9 @@ function Exists = checkHTMExists(CatName, IndHTM, NfilesInHDF, LocalDir)
 end
 
 
-function Nsrc = getHTMSourceCount(CatName, IndHTM, NfilesInHDF, LocalDir)
+function Nsrc = getHTMSourceCount(CatName, IndHTM, NcatInFile, LocalDir)
     % Get source count from an existing HTM cell in HDF5 file
-    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NfilesInHDF);
+    [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
     FileName = fullfile(LocalDir, FileName);
     Nsrc = 0;
     if isfile(FileName)
@@ -1565,5 +2181,126 @@ function ColNames = applyColCellPostProcessing(ColNames, ComputedColumns, DropCo
         end
 
         ColNames = ColNames(keepMask);
+    end
+end
+
+
+function ColUnits = applyColUnitsPostProcessing(ColUnits, ComputedColumns, DropColumns, ColNames)
+    % Update column units to reflect computed and dropped columns
+    % Mirrors applyColCellPostProcessing but operates on units array
+    % Input  : - ColUnits: cell array of unit strings (same length as ColNames)
+    %          - ComputedColumns: cell array of {NewName, Col1, Col2, Op} or Nx4 cell
+    %          - DropColumns: cell array of column names to drop
+    %          - ColNames: cell array of column names BEFORE post-processing
+    % Output : - ColUnits: updated unit strings
+
+    if isempty(ColUnits)
+        return;
+    end
+
+    % 1. Add units for computed columns (inherit from first source column)
+    if ~isempty(ComputedColumns)
+        if ~iscell(ComputedColumns{1})
+            ComputedColumns = {ComputedColumns};
+        end
+
+        for iComp = 1:numel(ComputedColumns)
+            compDef = ComputedColumns{iComp};
+            col1Name = compDef{2};
+            % Inherit unit from first source column
+            idx1 = find(strcmpi(ColNames, col1Name), 1);
+            if ~isempty(idx1) && idx1 <= numel(ColUnits)
+                compUnit = ColUnits{idx1};
+            else
+                compUnit = '';
+            end
+            ColUnits = [ColUnits, {compUnit}]; %#ok<AGROW>
+            ColNames = [ColNames, compDef(1)]; %#ok<AGROW>  % keep in sync
+        end
+    end
+
+    % 2. Drop columns (by name, matching against ColNames which is kept in sync)
+    if ~isempty(DropColumns)
+        if ischar(DropColumns)
+            DropColumns = {DropColumns};
+        end
+
+        keepMask = true(1, numel(ColUnits));
+        for iDrop = 1:numel(DropColumns)
+            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(idx)
+                keepMask(idx) = false;
+            end
+        end
+
+        ColUnits = ColUnits(keepMask);
+    end
+end
+
+
+function ColUnits = extractUnitsFromVOTable(SampleQuery, TapUrl, LocalDir, Verbose)
+    % Extract column units from TAP service by querying VOTable metadata
+    % Runs STILTS with VOTable output for the sample query, then parses
+    % <FIELD unit="..."> attributes from the XML.
+    % Input  : - SampleQuery: ADQL query string (e.g., 'SELECT TOP 1 ...')
+    %          - TapUrl: TAP service URL
+    %          - LocalDir: local directory for temp files
+    %          - Verbose: print progress
+    % Output : - ColUnits: cell array of unit strings (one per FIELD in VOTable)
+    %            Empty {} if extraction fails.
+
+    ColUnits = {};
+    try
+        TempVotFile = fullfile(LocalDir, 'temp_units.vot');
+        JarPath = VO.TopCat.getStiltsJarPath();
+        TapUrlClean = char(TapUrl);
+        if endsWith(TapUrlClean, '/'), TapUrlClean = TapUrlClean(1:end-1); end
+        AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(SampleQuery);
+
+        cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=votable out="%s" sync=true 2>&1', ...
+            JarPath, TapUrlClean, AdqlEsc, TempVotFile);
+        [status, ~] = system(cmd);
+
+        if status == 0 && isfile(TempVotFile)
+            votContent = fileread(TempVotFile);
+            ColUnits = parseVOTableFieldUnits(votContent);
+            delete(TempVotFile);
+            if Verbose
+                fprintf('Extracted %d column units from VOTable metadata.\n', numel(ColUnits));
+            end
+        else
+            if Verbose
+                fprintf('Warning: Could not retrieve VOTable metadata for units.\n');
+            end
+        end
+    catch ME
+        if Verbose
+            fprintf('Could not extract column units from VOTable: %s\n', ME.message);
+        end
+    end
+end
+
+
+function ColUnits = parseVOTableFieldUnits(votContent)
+    % Parse FIELD elements from VOTable XML to extract unit attributes
+    % Input  : - votContent: string containing VOTable XML content
+    % Output : - ColUnits: cell array of unit strings in column order.
+    %            Fields without a unit attribute get empty string ''.
+
+    ColUnits = {};
+
+    % Match all <FIELD ...> elements (self-closing or with body)
+    fieldPattern = '<FIELD\s[^>]*?/?>';
+    fields = regexp(votContent, fieldPattern, 'match');
+
+    for iF = 1:numel(fields)
+        fieldTag = fields{iF};
+        % Extract unit attribute value if present
+        unitMatch = regexp(fieldTag, '\sunit="([^"]*)"', 'tokens');
+        if ~isempty(unitMatch)
+            ColUnits{end+1} = unitMatch{1}{1}; %#ok<AGROW>
+        else
+            ColUnits{end+1} = ''; %#ok<AGROW>
+        end
     end
 end

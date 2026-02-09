@@ -11,8 +11,8 @@ function [Result] = transmissionZP_testN3(Args)
     %          Res2 = imProc.calib.transmissionZP_testN3('DB',D,'FieldID','1678.c','MountNum',9);
     arguments
         Args.FieldID           = '1679.c'; % []
-        Args.MountNum          = 2; % []; % 2;
-        Args.CamNum            = 1; % []; % 1;
+        Args.MountNum          = []; % []; % 2;
+        Args.CamNum            = []; % []; % 1;
         Args.CropID            = []; % 10;
         Args.AddConstraints    = []; % e.g. 'jd_start > 2.46086240482600e+06 and jd_start < 2.46086240482700e+06'
         Args.Table             = 'N3_visit_images';
@@ -90,7 +90,7 @@ function [Result] = transmissionZP_testN3(Args)
         fprintf('%d: %s\n', Ivis, FN)
         
         % process the AI (this is the main part where absolute calibration is performed)  
-        [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
+        [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false, 'AddMagErr', false);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...

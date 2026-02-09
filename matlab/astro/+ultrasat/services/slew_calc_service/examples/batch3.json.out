@@ -1,1 +1,0 @@
-{"message":"MATLAB: processSlewBatch completed (3 items)","result":0,"json_text":"{\"results\":[{\"slew_time\":32.8,\"direct_slew\":true},{\"slew_time\":44.8,\"direct_slew\":true},{\"slew_time\":17.6,\"direct_slew\":true}]}"}
