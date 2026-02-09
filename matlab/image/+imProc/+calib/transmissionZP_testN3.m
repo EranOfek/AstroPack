@@ -90,7 +90,7 @@ function [Result] = transmissionZP_testN3(Args)
         fprintf('%d: %s\n', Ivis, FN)
         
         % process the AI (this is the main part where absolute calibration is performed)  
-        [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false);
+        [~,~, Result(Ivis)] = imProc.calib.fitPhotCalibTrans(AI, 'addZP', true, 'Verbose', false, 'AddMagErr', false);
         
         % write the output catalog to file 
         FN1 = strcat(Args.OutDir,'/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
