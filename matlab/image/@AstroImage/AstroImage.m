@@ -2077,7 +2077,8 @@ classdef AstroImage < Component
             % Return the Julian day for AstroImage object
             % Input  : - An AstroImage object
             %          * Arbitrary number of arguments to pass to the
-            %          AstroHeader/juday function.
+            %            AstroHeader/juday function.
+            %            For example 'KeyJD'...
             % Output : - An array of JD (one per AstroImage element).
             %          - An array of ExpTime.
             % Author : Eran Ofek
@@ -2098,18 +2099,22 @@ classdef AstroImage < Component
         function varargout = getImageVal(Obj, X, Y, Args)
             % Get AstroImage image value at specific positions.
             % Input  : - A single element AstroImage object.
-            %          - X coordinates, or indices/flags of image positions
+            %          - Rounded X coordinates, or indices/flags of image positions
             %            to return.
-            %          - Y coordinates. If empty, then assume 'X' is
-            %            indices oe flags. Default is [].
+            %          - Rounded Y coordinates. If empty, then assume 'X' is
+            %            indices or flags. Default is [].
             %          * ...,key,val,...
             %            'DataProp' - Cell of image data properties for which to
             %                   return values. Default is 
             %                   {'Image','Back','Var','Mask','Exp'}
+            %            'ReturnNaN' - If true then return
+            %                   NaN if pixel is outside the image.
+            %                   If false, then return [].
+            %                   Default is false.
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
             %            If pixel position is out of image bounds than
-            %            return [].
+            %            return [] (or NaN).
             % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(100,80)});
             %          [V1] = getImageVal(AI,2,2)
@@ -2119,8 +2124,10 @@ classdef AstroImage < Component
                 X
                 Y                = [];
                 Args.DataProp    = {'Image','Back','Var','Mask','Exp'};
+                Args.ReturnNaN   = false;
             end
             
+
             if ischar(Args.DataProp)
                 Args.DataProp = {Args.DataProp};
             end
@@ -2158,6 +2165,9 @@ classdef AstroImage < Component
                     else
                         varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
                     end
+                end
+                if Args.ReturnNaN && isempty(varargout{Iarg})
+                    varargout{Iarg} = NaN;
                 end
             end
             

@@ -116,9 +116,10 @@ classdef AstroTable < Component
             %                   'ipac' | 'txt' | 'mat' | ...
             %            'TableType' - FITS table type: ['auto'] | 'bintable' | 'table'
             %            'HDU' - FITS HDU number or HDF5 dataset name.
-            %            'ArgsreadTable1' - A cell array of additional
-            %                   arguments to pass to FITS.readTable1.
-            %                   Default is {}.
+            %            'readTableArgs' - A cell array of additional
+            %                   arguments to pass to FITS.readTable1, 
+            %                   e.g. {'ValidateColumnNames',true} to avoid column names started with "_"
+            %                   Default is {}. 
             %            'ConvertTable2array' - When eading a FITS table,
             %                   attempt to convert the table to an array (only of
             %                   all columns are of class double).
@@ -148,7 +149,7 @@ classdef AstroTable < Component
                 Args.FileType                 = []; % 'fits' | 'hdf5' | ...
                 Args.HDU                      = 1;  % HDU or dataset name
                 Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
-                Args.readTableArgs            = {};
+                Args.readTableArgs            = {}; % e.g., {'ValidateColumnNames',true} to avoid column names started with "_"
                 Args.ConvertTable2array       = true;  % only if all columns are double
             end
             

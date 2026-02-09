@@ -52,10 +52,20 @@ function Result = unitTest()
         H2c=tools.hist.histcounts2regular_mex(Dy(:),Dx(:),[RangeX, StepX],[RangeY, StepY], false);
     end
     toc
-    
 
     
-    %f max(abs(H2-single(H2c)),[],'all')>0
+    for i=1:Nsim
+        Dx=Xcat-FlipX.*Xref.';
+        Dy=Ycat-FlipY.*Yref.';
+        H2d=hist2d_fast_mex(Dy(:),Dx(:), RangeX, RangeY ,StepX, StepY);
+    end
+    toc
+
+    if sum(H2d~=H2a,'all')>0
+        error('Problem with tools.hist.mex.hist2d_fast_mex');
+    end
+    
+    %if max(abs(H2-single(H2c)),[],'all')>0
     %    error('Problem with tools.hist.histcounts2regular_mex');
     %end
     if max(abs(H2-H2a),[],'all')>0

@@ -995,6 +995,11 @@ classdef DS9analysis < handle
                 case {'t','table'}
                     Result = MS.convert2AstroCatalog;
                     Result = Result.toTable;
+
+                    Result.ExpTime = AI.HeaderData.Key.EXPTIME;
+                    ErrCoo = AI.PSFData.fwhm./2.35./Result.SN;
+                    Result.ErrRA  = ErrCoo;
+                    Result.ErrDec = ErrCoo;
                 otherwise
                     error('Unknown OutType option');
             end

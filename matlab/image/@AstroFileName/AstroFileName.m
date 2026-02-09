@@ -134,7 +134,7 @@ classdef AstroFileName < Component
     properties (Hidden, Constant)
         ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log", "test"];
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
-        ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
+        ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Cat.forced", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
         FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
         PATH_FIELDS     = ["SubDir", "BasePath", "BasePathRef", "Path"];
@@ -2087,7 +2087,7 @@ classdef AstroFileName < Component
                 
                 AFN_I
                 Args.PathType                 = 'proc';
-                Args.BasePathIncludeProjName  = [];
+                %Args.BasePathIncludeProjName  = [];
                 Args.AddSubDir                = [];
 
                 Args.Type                     = [];
@@ -2128,13 +2128,19 @@ classdef AstroFileName < Component
             end
 
             % for Args.Path the treatment is different
-            AFN.Path = Args.Path;
-            
-            Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',Args.BasePathIncludeProjName);
-        
-            if strcmp(Args.PathType, 'proc')
-                AFN.generateSubDir('UpdateSubDir',true);
+            if ~isempty(Args.Path)
+                AFN.Path = Args.Path;
             end
+
+            Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',AFN.BasePathIncludeProjName);
+            io.files.mkdir(Path);
+
+            if strcmp(Args.PathType, 'proc') && (isempty(AFN_I.SubDir) || numel(char(AFN_I.SubDir))==0)
+                AFN.generateSubDir('UpdateSubDir',true);
+                Path = AFN.genPath([],'PathType',Args.PathType, 'BasePathIncludeProjName',AFN.BasePathIncludeProjName, 'AddSubDir',Args.AddSubDir);
+            end
+            %Path = fullfile(Path,AFN.SubDir);
+
             File = AFN.genFile();
             Nf   = numel(File);
             Result = join([Path,repmat(filesep, Nf,1),File],'',2);
@@ -2343,24 +2349,34 @@ classdef AstroFileName < Component
             
             PWD = pwd;
             PathAboveVisit = Obj.genPath(1, 'PathType','proc', 'AddSubDir',false);
-            cd(PathAboveVisit);
-            DirList = io.files.dirDir;
+            if isfolder(PathAboveVisit)
+                cd(PathAboveVisit);
+                DirList = io.files.dirDir;
+                PathExist = true;
+            else
+                PathExist  = false;
+            end
             
             switch lower(Args.Method)
                 case 'funjd'
+                    
                     FJD = Args.FunJD(Obj.JD);
                     HMS = celestial.time.jd2date(FJD, 'H');
                     Result = sprintf('%02d%02d%02d',floor(HMS(4:6)));
                     
                     if Args.AddVersion
                         % search existing StrHMS
-                        StrFolder = string({DirList.folder});
-                        FlagContain = contains(StrFolder, Result);
-                        Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
-                        AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
-                        MaxVersion  = max(AllVersions);
-                        
-                        if isempty(MaxVersion)
+                        if PathExist
+                            StrFolder = string({DirList.folder});
+                            FlagContain = contains(StrFolder, Result);
+                            Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
+                            AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
+                            MaxVersion  = max(AllVersions);
+                            
+                            if isempty(MaxVersion)
+                                MaxVersion = 0;
+                            end
+                        else
                             MaxVersion = 0;
                         end
                         Result = sprintf("%sv%d",Result,MaxVersion+1);
@@ -2667,7 +2683,7 @@ classdef AstroFileName < Component
             %          - An AstroImage or AstroHeader object.
             %          * ...,key,val,...
             %            'Fields' - A cell array or string array of fields
-            %                   to read from header (uppre case will be
+            %                   to read from header (upper case will be
             %                   taken).
             %                   Default is AstroFileName.FIELDS.
             %            'CreateNewObj' - A logical indicating if to create
@@ -2740,7 +2756,8 @@ classdef AstroFileName < Component
                 Result = Obj;
             end
             
-            if ~isempty(Ind)
+            
+            if ~isempty(Ind) && Obj.nFiles>0
                 Nfield = numel(Obj.FIELDS);
                 for Ifield=1:1:Nfield
                     Result.(Obj.FIELDS{Ifield}) = Obj.(Obj.FIELDS{Ifield})(Ind);
@@ -2844,17 +2861,21 @@ classdef AstroFileName < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                if Args.Str2Double
-                    PropVal = str2double(Result(Iobj).(Prop));
+                if Obj(Iobj).nFiles>0
+                    if Args.Str2Double
+                        PropVal = str2double(Result(Iobj).(Prop));
+                    else
+                        PropVal = Result(Iobj).(Prop);
+                    end
+                    Flag   = Args.Operator(PropVal, Val);
+                    if Args.SelectNot
+                        Flag = ~Flag;
+                    end
+                    if Args.SelectEntries
+                        Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                    end
                 else
-                    PropVal = Result(Iobj).(Prop);
-                end
-                Flag   = Args.Operator(PropVal, Val);
-                if Args.SelectNot
-                    Flag = ~Flag;
-                end
-                if Args.SelectEntries
-                    Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+                    Flag = [];
                 end
             end
             
@@ -3060,6 +3081,33 @@ classdef AstroFileName < Component
         
     end
         
+    methods % duplicate
+        function duplicateCrop(Obj, Ncrop)
+            % Given file names, duplicated them Ncrop times with running CropID
+            %   For example, given a vector of Nepoch images, will duplicated the
+            %   image names Nepoch X Ncrop times, where the CropID is
+            %   running from 1 to Ncrop.
+            % Input  : - Self.
+            %          - Ncrop.
+            % Output : - A duplicated AstroFileName object
+            % Author : Eran Ofek (Jan 2026)
+
+            Nim = Obj.nFiles;
+            Nf = numel(Obj.FIELDS);
+            for If=1:1:Nf
+                if strcmp(Obj.FIELDS{If}, 'CropID')
+                    CropID = repmat((1:1:Ncrop).',1,Nim).';
+                    Obj.(Obj.FIELDS{If})  = CropID(:); 
+                else
+                    Obj.(Obj.FIELDS{If}) = repmat(Obj.(Obj.FIELDS{If}), Ncrop, 1);
+                end
+            end
+
+
+        end
+
+    end
+
         
     methods % move, copy, delete files
         

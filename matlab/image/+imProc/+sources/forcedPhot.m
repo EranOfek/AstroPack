@@ -418,8 +418,8 @@ function [Result] = forcedPhot(Obj, Args)
                         Result = AstroCatalog([Nobj 1]);
                     end
                     Result(Iobj).Catalog = [RA(:), Dec(:), Xpos(:), Ypos(:), X(:), Y(:), M2.X2(:), M2.Y2(:), M2.XY(:), single(FlagIn), single(FlagsXY), Aper.AnnulusBack(:), Aper.AnnulusStd(:), ResultPSF.SNm(:), ResultPSF.Flux, repmat(Args.ZP,Nsrc,1), convert.luptitude(ResultPSF.Flux(:), 10.^(0.4.*Args.ZP)), ResultPSF.Chi2(:), ResultPSF.Dof(:)];
-                    Result(Iobj).ColNames = {'RA','Dec','Xin','Yin', 'X',  'Y',   'X2',   'Y2',   'XY',   'FlagIn','FLAGS','BACK_ANNULUS','STD_ANNULUS','SN',  'FLUX_PSF','ZP', 'MAG_PSF','CHI2','DOF'};
-                    Result(Iobj).ColUnits = {'deg','deg','pix','pix','pix','pix', 'pix^2','pix^2','pix^2','',      '',     'e',           'e',          '','e','mag',     'mag','mag',    '',    ''};
+                    Result(Iobj).ColNames = {'RA','Dec', 'Xin','Yin','X',  'Y',   'X2',   'Y2',   'XY',   'FlagIn','FLAGS','BACK_ANNULUS','STD_ANNULUS','SN',  'FLUX_PSF','ZP', 'MAG_PSF','CHI2','DOF'};
+                    Result(Iobj).ColUnits = {'deg','deg','pix','pix','pix','pix', 'pix^2','pix^2','pix^2','',      '',     'e',           'e',          '',    'e',       'mag','mag',    '',    ''};
 
                 case 'MatchedSources'
                     % Store forced photometry results in MatchedSources object

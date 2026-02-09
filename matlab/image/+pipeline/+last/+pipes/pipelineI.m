@@ -1,4 +1,4 @@
-function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
+function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -6,7 +6,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = true;
+        Args.UseParfor                     = false;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
@@ -27,8 +27,8 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
-
-        
+        Args.generateImageIDArgs           = {};
+        Args.fitPhotCalibTransArgs         = {};
 
         Args.ForcedPhotCat               = 'WDEDR3';
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
@@ -46,6 +46,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         Args.KeysGlobalMotion = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
 
         Args.Logger                      = [];
+        Args.Sa
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -61,13 +62,12 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         RawImageList = {Files.name};
     end
 
-    
 
     Nepoch = numel(RawImageList);
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     [AI, TableForDB, TableHeader] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
-
+    TableRaw = [TableHeader, TableForDB];
     % basic calibration (bias, flat,...) 
     AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}); %17.1s
 
@@ -88,8 +88,9 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     % get JD of all epoch - once
     JD = AI.julday;
     JD = repmat(JD(:), 1, Nsub); % faster than getting the JD for AllSI
-
+    
     % initiate parpool if needed
+    PP = [];
     if Args.UseParfor
         PP = gcp('nocreate');
         if isempty(PP)
@@ -97,8 +98,14 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
             % create new parpool
             PP = parpool(Args.Nworkers);
         end
+    else
+        PP = [];
     end
 
+    % Add ImageID to individual cropped images: in ID_PROC
+    [AllSI, ID_Coadd] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
+   
+    
     % measure background, PSF, search for stars in all images
     if isempty(PP)
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
@@ -110,7 +117,7 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
-                                                    'AddSkyCoo',false);  % 193 s
+                                                    'AddSkyCoo',false);  % 193 s (on 16 cores)
         end
         %toc
     end
@@ -120,8 +127,10 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 24s
 
     % add coordinates to catalogs
-    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true);
+    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');
     
+    % Update Airmass header keyword to based on measured crop center
+    AllSI = imProc.header.addAirMass(AllSI, 'JD',JD);
     
     % Individual sub images : quality           
     % astrometry
@@ -130,11 +139,16 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     Nstars    = AllSI.sizeCatalog;
     % background variations
     MeanBack     = imProc.stat.mean(AllSI);
-    MeanVar      = imProc.stat.mean(AllSI);
+    %MeanVar      = imProc.stat.mean(AllSI);
     MeanMeanBack = mean(MeanBack, 1); % mean background over all sub images in each epoch
     MaxFracGrad  = (max(MeanBack,[],1) - min(MeanBack,[],1))./MeanMeanBack; % max fractional background gradient per epoch
 
     IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
+
+    % Photometric calibration of individual images:
+    %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
+
+
 
     % write stat data to header: Nstars, PSF, Scale, Rotation,...
     % background, var: written as part of the background estimation
@@ -152,9 +166,23 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
             % for each sub image - run over all epochs
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
             AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
+
+            %for Iepoch=1:1:Nepoch
+            %    AllSI(Iepoch,Isub).CatData.insertCol(AllFP)
+            %end
+
+            % need to add CropID to catalog
+            % XXX?
         end
         %toc
-        AFP = AllFP(:).merge; % 0.05s
+
+        % Merge AllFP into AllSI catalog
+        % XXX?
+
+        % mege into a single catalog:
+        AllForcedPhot = AllFP(:).merge; % 0.05s
+    else
+        AllForcedPhot = [];
     end
 
     % match external / too expensive
@@ -186,15 +214,29 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     % only multiIterationPSF: 35 s
     % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s 
     % (93 s with parfor)
-    %tic;
-    [Coadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
+    [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'CatName',CatName,...
                                               'ShiftXY',ShiftInfo,...
                                               'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
                                               'IsShiftXYfiltered',true);
-    %toc
+    
+    % tic;
+    % parfor Isub=1:1:Nsub
+    %     [Coadd(:,Isub)] = pipeline.generic.procCoadd(AllSI(:,Isub), Args.procCoaddArgs{:},...
+    %                                           'CatName',CatName(Isub),...
+    %                                           'ShiftXY',ShiftInfo(Isub),...
+    %                                           'IsGood',IsGood(:,Isub),...
+    %                                           'PropShiftXY','ShiftXY',...
+    %                                           'IsShiftXYfiltered',true);
+    % end
+    % toc
 
+    % Add image ID to coadd images: in: ID_PROC
+    [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',[ResCoadd.MidMidJD], Args.generateImageIDArgs{:});  % 0.05 s
+
+
+    % Add catsHTM MergedCat column to Coadd catalogs
     if Args.AddMergedCat
         %tic;
         if isempty(Args.UseParfor)
@@ -215,8 +257,21 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     if Args.AddKnownAst
         % slower with parfor
         [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+        if sum(OnlyMP.sizeCatalog)>0
+            % add CropID, Node, Mount, Cam, ID_COADD:
+            Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
+            StKey = Coadd(1).getStructKey(Cols);
+            Vals  = struct2array(StKey);
+            AllCols = {'CROPID', Cols};
+            for Isub=1:1:Nsub
+                OnlyMP(Isub).CatData.insertCol([Isub, Vals], Inf, AllCols);
+            end
+            OnlyMP = OnlyMP.merge;
+        else
+            OnlyMP = AstroCatalog;
+        end
     else
-        OnlyMP = [];
+        OnlyMP = AstroCatalog;
     end
 
     % write drifts to header
@@ -229,8 +284,12 @@ function [AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
 
 
     % coadd: photometric calibration
+    % Photometric calibration of coadd images:
+    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false);
 
+    % proapage photometric calibration to individual images
 
+    % propagae photometric calibration to MatchedSources
 
     % save products
     %imProc.io.saveProductImage

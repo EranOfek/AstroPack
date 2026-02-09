@@ -395,6 +395,10 @@ classdef FITS < handle
             %            'IdentifyNaN' - A logical indicating if to replace
             %                         -9.1191e-36 with NaN.
             %                         Default is true.
+            %             'ValidateColumnNames' -- repair matlab-invalid
+            %             column names with matlab.lang.makeValidName, in particlar, 
+            %             prepend the name with 'x' when the first
+            %             character is not alphabetical 
             % Output : - A table containing the FITS table content.
             %          - The FITS file header.
             %          - A structure array of additional columns
@@ -420,6 +424,7 @@ classdef FITS < handle
                 Args.NullVal                  = NaN;       % [] do nothing
                 Args.BreakRepCol(1,1) logical = true;
                 Args.IdentifyNaN logical      = true;
+                Args.ValidateColumnNames logical = false; 
             end
                       
             % get header as cell array
@@ -505,6 +510,9 @@ classdef FITS < handle
             end
             
             %
+            if Args.ValidateColumnNames
+                Col.Cell = matlab.lang.makeValidName(Col.Cell);
+            end
             Col.Col = cell2struct(num2cell(1:1:length(Col.Cell)), Col.Cell, 2);
 
             % Set output
