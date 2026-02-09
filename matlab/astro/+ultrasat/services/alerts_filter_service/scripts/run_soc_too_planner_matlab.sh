@@ -11,7 +11,7 @@
 #  Example:
 #     export ASTROPACK_PATH=/home/soc/dev/AstroPack.git
 #     export SOC_PATH=/home/soc/soc
-#     ./run_soc_too_matlab.sh --loop --watchdog
+#     ./run_soc_too_planner_matlab.sh --loop --watchdog
 #
 #
 #  Author  : Chen Tishler
@@ -24,14 +24,14 @@
 # ============================================================
 #
 #  1.  Make the script executable:
-#       chmod +x run_soc_too_matlab.sh
+#       chmod +x run_soc_too_planner_matlab.sh
 #
 #  2.  (Optional but recommended)
 #       Create a symbolic link from your SOC operational folder
 #       to simplify service control:
 #
 #         mkdir -p $SOC_PATH/too
-#         ln -sf $ASTROPACK_PATH/matlab/astro/+ultrasat/services/too_service/run_soc_too_matlab.sh \
+#         ln -sf $ASTROPACK_PATH/matlab/astro/+ultrasat/services/too_service/run_soc_too_planner_matlab.sh \
 #                $SOC_PATH/too/too.sh
 #
 #       Then you can simply start it from anywhere using:
@@ -42,17 +42,17 @@
 #         export SOC_PATH=/home/soc/soc
 #
 #  4.  Example runs:
-#         ./run_soc_too_matlab.sh
-#         ./run_soc_too_matlab.sh --watchdog
-#         ./run_soc_too_matlab.sh --loop --watchdog
+#         ./run_soc_too_planner_matlab.sh
+#         ./run_soc_too_planner_matlab.sh --watchdog
+#         ./run_soc_too_planner_matlab.sh --loop --watchdog
 #
 # ============================================================
 
 
 # --- CONFIGURATION ----------------------------------------------------------
 
-SERVICE_NAME="soc_too_matlab"
-SERVICE_FILE="soc_too_matlab.m"
+SERVICE_NAME="soc_too_planner_matlab"
+SERVICE_FILE="soc_too_planner_matlab.m"
 WATCHDOG_FILE="${SERVICE_NAME}_watchdog.txt"
 WATCHDOG_SCRIPT="watchdog_monitor.py"
 WATCHDOG_TIMEOUT=120
@@ -86,7 +86,7 @@ fi
 
 # --- PATHS ------------------------------------------------------------------
 
-SERVICE_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/too_service"
+SERVICE_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/too_planner_service"
 MATLAB_HOME="$ASTROPACK_PATH/matlab"
 LOG_DIR="$SOC_PATH/too/log"
 

@@ -11,7 +11,7 @@
 #  Example:
 #     export ASTROPACK_PATH=/home/soc/dev/AstroPack.git
 #     export SOC_PATH=/home/soc/soc
-#     ./run_soc_slew_matlab.sh --loop --watchdog
+#     ./run_soc_slew_calc_matlab.sh --loop --watchdog
 #
 #
 #  Author  : Chen Tishler
@@ -31,7 +31,7 @@
 #       to simplify service control:
 #
 #         mkdir -p $SOC_PATH/slew
-#         ln -sf $ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_service/run_soc_slew_matlab.sh \
+#         ln -sf $ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_calc_service/run_soc_slew_calc_matlab.sh \
 #                $SOC_PATH/slew/slew.sh
 #
 #       Then you can simply start it from anywhere using:
@@ -42,17 +42,17 @@
 #         export SOC_PATH=/home/soc/soc
 #
 #  4.  Example runs:
-#         ./run_soc_slew_matlab.sh
-#         ./run_soc_slew_matlab.sh --watchdog
-#         ./run_soc_slew_matlab.sh --loop --watchdog
+#         ./run_soc_slew_calc_matlab.sh
+#         ./run_soc_slew_calc_matlab.sh --watchdog
+#         ./run_soc_slew_calc_matlab.sh --loop --watchdog
 #
 # ============================================================
 
 
 # --- CONFIGURATION ----------------------------------------------------------
 
-SERVICE_NAME="soc_slew_matlab"
-SERVICE_FILE="soc_slew_matlab.m"
+SERVICE_NAME="soc_slew_calc_matlab"
+SERVICE_FILE="soc_slew_calc_matlab.m"
 WATCHDOG_FILE="${SERVICE_NAME}_watchdog.txt"
 WATCHDOG_SCRIPT="watchdog_monitor.py"
 WATCHDOG_TIMEOUT=120
@@ -86,7 +86,7 @@ fi
 
 # --- PATHS ------------------------------------------------------------------
 
-SERVICE_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_service"
+SERVICE_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_calc_service"
 MATLAB_HOME="$ASTROPACK_PATH/matlab"
 LOG_DIR="$SOC_PATH/slew/log"
 

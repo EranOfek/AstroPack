@@ -4,7 +4,7 @@
 # ============================================================
 
 SESSION="soc_slew_matlab"
-SCRIPT_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_service/run_soc_slew_matlab.sh"
+SCRIPT_PATH="$ASTROPACK_PATH/matlab/astro/+ultrasat/services/slew_calc_service/run_soc_slew_calc_matlab.sh"
 
 # Ensure environment
 if [ -z "$ASTROPACK_PATH" ]; then
