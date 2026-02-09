@@ -7,7 +7,7 @@
 %
 %==========================================================================
 
-function debug_MissionClient()
+function debug_MissionApiClient()
     % Main debug function for MissionApiClient (FastAPI plans_manager).
     % Tests getPlansList, loadPlan, savePlan. Other methods are stubbed (Not supported).
 
