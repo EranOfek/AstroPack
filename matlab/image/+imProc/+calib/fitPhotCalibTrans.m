@@ -25,7 +25,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
     %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
     %            Catalog update:
-    %            'AddMagAB' - Add calibrated AB magnitude columns to catalog. Default is true.
+    %            'AddMag' - Add calibrated magnitude columns to catalog. Default is true.
+    %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+    %                         Default is 'AB'. Vega is not yet implemented.
     %            'FluxColName' - Flux column for calibration fitting. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column (position-dependent) to catalog. Default is false.
     %            Header update:
@@ -74,7 +76,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
         % Catalog update
-        Args.AddMagAB logical = true
+        Args.AddMag logical = true
+        Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
 
@@ -147,6 +150,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         'FluxErrColName', Args.FluxErrColName, ...
         'WeightedClipping', Args.WeightedClipping, ...
         'FluxErrorNorm', Args.FluxErrorNorm, ...
+        'MagSystem', Args.MagSystem, ...
         'Verbose', Args.Verbose};
 
     % Add custom function list if provided
@@ -182,21 +186,25 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % ----------------------------------------------------------------
 
         if PC.Success
-            % Add AB magnitude columns if requested
-            if Args.AddMagAB
+            % Add calibrated magnitude columns if requested
+            if Args.AddMag
                 if IsAstroImage
-                    Result(Iobj).CatData = PC.addMagAB(Result(Iobj).CatData);
+                    Result(Iobj).CatData = PC.addMag(Result(Iobj).CatData, ...
+                        'MagSystem', Args.MagSystem);
                 else
-                    Result(Iobj) = PC.addMagAB(Result(Iobj));
+                    Result(Iobj) = PC.addMag(Result(Iobj), ...
+                        'MagSystem', Args.MagSystem);
                 end
             end
 
             % Add ZP column if requested
             if Args.AddZP
                 if IsAstroImage
-                    Result(Iobj).CatData = PC.addZP(Result(Iobj).CatData);
+                    Result(Iobj).CatData = PC.addZP(Result(Iobj).CatData, ...
+                        'MagSystem', Args.MagSystem);
                 else
-                    Result(Iobj) = PC.addZP(Result(Iobj));
+                    Result(Iobj) = PC.addZP(Result(Iobj), ...
+                        'MagSystem', Args.MagSystem);
                 end
             end
 
@@ -229,20 +237,25 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 Nrows = height(CatObj.Table);
                 NaNcol = nan(Nrows, 1);
 
-                % Add MAG_AB columns if requested
-                if Args.AddMagAB
-                    % Find FLUX columns and create corresponding MAG_AB columns
+                % Add magnitude columns if requested (NaN-filled for failed calibration)
+                if Args.AddMag
+                    % Dynamic prefix: MAG_AB_ or MAG_VEGA_
+                    MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                    % Find FLUX columns and create corresponding magnitude columns
                     ColNames = CatObj.Table.Properties.VariableNames;
                     FluxCols = ColNames(startsWith(ColNames, 'FLUX_APER_') | strcmp(ColNames, 'FLUX_PSF'));
                     for iCol = 1:length(FluxCols)
-                        NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', 'MAG_AB_');
+                        NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', MagPrefix);
                         CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
+                        % Add NaN-filled magnitude error column for uniformity
+                        CatObj = CatObj.insertCol(NaNcol, Inf, {[NewMagColName, '_ERR']});
                     end
                 end
 
                 % Add ZP column if requested
                 if Args.AddZP
-                    CatObj = CatObj.insertCol(NaNcol, Inf, {'ZP'});
+                    ZPColName = [Args.MagSystem, '_ZP'];
+                    CatObj = CatObj.insertCol(NaNcol, Inf, {ZPColName});
                 end
 
                 % Store back
