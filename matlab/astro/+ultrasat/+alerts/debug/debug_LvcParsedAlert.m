@@ -124,6 +124,6 @@ function debugFilterIntegration()
     alert = ultrasat.alerts.models.LvcParsedAlert( ...
         "alert_id", "G55", "prob_bns", 0.6, "prob_nsbh", 0.2, "far_per_year", 5.0);
     criteria = ultrasat.alerts.models.LvcFilterCriteria("bns_min", 0.3, "far_max", 10);
-    result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, []);
+    result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, MsgLogger.getSingleton());
     %fprintf('Filter result: score=%.2f, reasons=%s\n', result.score, strjoin(result.reasons, "; "));
 end

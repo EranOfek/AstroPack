@@ -13,20 +13,12 @@ function debug_lvc_filter_simple()
     % Debug script for lvc_filter_simple: mock logger and several scenarios.
 
     fprintf('--- Debugging lvc_filter_simple ---\n');
-
-    logger = makeMockLogger();
+    logger = MsgLogger.getSingleton();
 
     debugScenarioFullProbs(logger);
     debugScenarioSkymapLowFAR(logger);
     debugScenarioNoSkymapHighFAR(logger);
     debugScenarioMinimal(logger);
-end
-
-% -------------------------------------------------------------------------
-
-function logger = makeMockLogger()
-    logger = struct();
-    logger.info = @(varargin) fprintf([varargin{1} '\n'], varargin{2:end});
 end
 
 % -------------------------------------------------------------------------
@@ -39,7 +31,8 @@ function debugScenarioFullProbs(logger)
     result = ultrasat.alerts.filters.lvc_filter_simple(alert, logger);
     fprintf('score=%.2f\n', result.score);
     disp(result.class_probs);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin([result.reasons{:}], "; ");
+    fprintf('reasons: %s\n', msg);
     disp(result.flags);
 end
 
@@ -75,6 +68,7 @@ function debugScenarioMinimal(logger)
     result = ultrasat.alerts.filters.lvc_filter_simple(alert, logger);
     fprintf('score=%.2f\n', result.score);
     disp(result.class_probs);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    fprintf('reasons: %s\n', msg);
     disp(result.flags);
 end

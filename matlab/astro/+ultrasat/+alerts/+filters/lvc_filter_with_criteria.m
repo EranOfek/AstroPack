@@ -57,5 +57,6 @@ function result = lvc_filter_with_criteria(alert, criteria, logger)
     result.reasons = reasons;   
 
     % Log the result
-    logger.info("Filter result: score=%.2f, reasons=%s", result.score, strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    logger.info("Filter result: score=%.2f, reasons=%s", result.score, msg);
 end

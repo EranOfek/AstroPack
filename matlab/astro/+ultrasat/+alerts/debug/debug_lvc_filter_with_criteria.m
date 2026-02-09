@@ -14,19 +14,12 @@ function debug_lvc_filter_with_criteria()
 
     fprintf('--- Debugging lvc_filter_with_criteria ---\n');
 
-    logger = makeMockLogger();
+    logger = MsgLogger.getSingleton();
 
     debugScenarioBNS(logger);
     debugScenarioTerrestrial(logger);
     debugScenarioFAR(logger);
     debugScenarioMinimal(logger);
-end
-
-% -------------------------------------------------------------------------
-
-function logger = makeMockLogger()
-    logger = struct();
-    logger.info = @(varargin) fprintf([varargin{1} '\n'], varargin{2:end});
 end
 
 % -------------------------------------------------------------------------
@@ -39,7 +32,8 @@ function debugScenarioBNS(logger)
         "bns_min", 0.3, "nsbh_min", 0.2, "far_max", 10);
     result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, logger);
     fprintf('score=%.2f\n', result.score);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    fprintf('reasons: %s\n', msg);
     disp(result.flags);
 end
 
@@ -54,7 +48,8 @@ function debugScenarioTerrestrial(logger)
     result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, logger);
     fprintf('score=%.2f\n', result.score);
     fprintf('flags.rejected_terrestrial=%d\n', result.flags.rejected_terrestrial);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    fprintf('reasons: %s\n', msg);
 end
 
 % -------------------------------------------------------------------------
@@ -68,7 +63,8 @@ function debugScenarioFAR(logger)
     result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, logger);
     fprintf('score=%.2f\n', result.score);
     fprintf('flags.rejected_far=%d\n', result.flags.rejected_far);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    fprintf('reasons: %s\n', msg);
 end
 
 % -------------------------------------------------------------------------
@@ -79,6 +75,7 @@ function debugScenarioMinimal(logger)
     criteria = ultrasat.alerts.models.LvcFilterCriteria();
     result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, logger);
     fprintf('score=%.2f\n', result.score);
-    fprintf('reasons: %s\n', strjoin(result.reasons, "; "));
+    msg = strjoin(string(result.reasons), "; ");
+    fprintf('reasons: %s\n', msg);
     disp(result.flags);
 end
