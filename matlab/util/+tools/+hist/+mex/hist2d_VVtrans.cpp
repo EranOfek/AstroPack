@@ -1,223 +1,362 @@
-// hist2d_VVtrans_match.cpp
-// [H2, VecX, VecY] = hist2d_VVtrans_match(Xcat, Ycat, Xref, Yref, FlipX, FlipY, RangeX, StepX, RangeY, StepY)
+// hist2d_VVtrans_mex.c
 //
-// Matches your MATLAB result directly:
-//     H2 == histcounts2(Dx(:), Dy(:), EdgesX, EdgesY)
-// with Dx = Xcat - FlipX.*Xref.' , Dy = Ycat - FlipY.*Yref.'
-// EdgesX = RangeX(1):StepX:RangeX(2)   (X = columns)
-// EdgesY = RangeY(1):StepY:RangeY(2)   (Y = rows)
+// [Hist2D, EdgesX, EdgesY, BinCenterX, BinCenterY] = hist2d_VVtrans_mex( ...
+//     Xcat, Ycat, Xref, Yref, FlipX, FlipY, RangeX, StepX, RangeY, StepY)
 //
-// Layout HERE: rows = X bins (Dx), cols = Y bins (Dy)  -> linear idx = bx + Nx*by
-// (This is the transpose of MATLAB’s documented layout, but matches your observed output.)
-// Bins are half-open; last bin inclusive.
-// Inputs: real, full, single/double column vectors. Output H2 is double.
+// Computes 2D histogram of pairwise translated differences without materializing Dx/Dy:
+//   dx = Xcat(i) - FlipX * Xref(j)
+//   dy = Ycat(i) - FlipY * Yref(j)
+// and bins all (i,j) pairs into regular bins defined by
+//   EdgesX = RangeX(1):StepX:RangeX(2)
+//   EdgesY = RangeY(1):StepY:RangeY(2)
+// matching histcounts2 inclusion rules: [left,right) except last includes right edge.
 //
-// Build (OpenMP):
-//   clear mex; clear hist2d_VVtrans_match
-//   mex -O CXXFLAGS="-std=c++17 -O3 -march=native -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" hist2d_VVtrans_match.cpp
-// Build (no OpenMP):
-//   mex -O CXXFLAGS="-std=c++17 -O3 -march=native" hist2d_VVtrans_match.cpp
+// Inputs:
+//   Xcat,Ycat : column vectors (single or double), same length Nc
+//   Xref,Yref : column vectors (single or double), same length Nr
+//   FlipX,FlipY : scalar numeric/logical (typically +1 or -1)
+//   RangeX : [xmin xmax] (2 elements, finite, xmax>xmin)
+//   StepX  : positive scalar
+//   RangeY : [ymin ymax] (2 elements, finite, ymax>ymin)
+//   StepY  : positive scalar
+//
+// Outputs:
+//   Hist2D     : NbinsX x NbinsY double
+//   EdgesX     : (NbinsX+1) x 1 double  (optional)
+//   EdgesY     : (NbinsY+1) x 1 double  (optional)
+//   BinCenterX : NbinsX x 1 double      (optional)
+//   BinCenterY : NbinsY x 1 double      (optional)
+//
+// Notes:
+// - NaNs are ignored (like histcounts2) via NaN-safe comparisons.
+// - No intermediate Dx/Dy allocation; exactly one nested loop over (i,j).
+//
+// Build (Linux):
+//   mex -R2018a CFLAGS="\$CFLAGS -O3 -march=native -DNDEBUG -fopenmp" \
+//              LDFLAGS="\$LDFLAGS -fopenmp" hist2d_VVtrans_mex.c
+//
 
 #include "mex.h"
-#include <cmath>
-#include <cstdint>
-#include <vector>
-#include <algorithm>
-#include <limits>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
 
-#if defined(_OPENMP)
-  #include <omp.h>
+#ifdef _OPENMP
+#include <omp.h>
 #endif
 
-// ---- helpers ----
-static inline void mustRealVec(const mxArray* A, const char* n){
-    if ((!mxIsSingle(A) && !mxIsDouble(A)) || mxIsComplex(A) || mxIsSparse(A))
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Type","%s must be real single/double (full).", n);
-    if (mxGetNumberOfElements(A)==0)
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Empty","%s is empty.", n);
-}
-static inline double getScalarDouble(const mxArray* A, const char* n){
-    if (mxGetNumberOfElements(A)!=1 || (!mxIsSingle(A) && !mxIsDouble(A)))
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Scalar","%s must be real scalar.", n);
-    return mxIsDouble(A) ? *(const double*)mxGetData(A) : (double)(*(const float*)mxGetData(A));
-}
-static inline void getRangeStep(const mxArray* R, const mxArray* S, const char* rn, const char* sn,
-                                double& r1, double& r2, double& step, mwSize& nbin)
-{
-    if (!((mxIsSingle(R)||mxIsDouble(R)) && mxGetNumberOfElements(R)==2))
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Range","%s must be 2-element real vector.", rn);
-    if (!mxIsSingle(S) && !mxIsDouble(S))
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Step","%s must be real scalar.", sn);
+static void die(const char* msg) { mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s", msg); }
 
-    if (mxIsDouble(R)) { const double* p=(const double*)mxGetData(R); r1=p[0]; r2=p[1]; }
-    else               { const float*  p=(const float*) mxGetData(R); r1=p[0]; r2=p[1]; }
-    step = mxIsDouble(S) ? *(const double*)mxGetData(S) : (double)(*(const float*)mxGetData(S));
-
-    if (!(std::isfinite(r1)&&std::isfinite(r2)&&std::isfinite(step)) || step<=0.0 || r2<=r1)
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:RangeStep","Invalid %s/%s.", rn, sn);
-
-    const double nraw = std::floor((r2 - r1)/step); // nbin bins, edges k=0..nbin
-    if (nraw < 1.0) mexErrMsgIdAndTxt("hist2d_VVtrans_match:Bins","Range too small.");
-    nbin = (mwSize)nraw;
+static mwSize parsePosIntFromDouble(double v, const char* name) {
+    if (!mxIsFinite(v) || v <= 0.0) mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be > 0.", name);
+    mwSize iv = (mwSize)v;
+    if ((double)iv != v) mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be an integer.", name);
+    return iv;
 }
 
-// MATLAB bin policy: last bin inclusive
-template <typename T>
-static inline int bin_idx_inclusive(T v, T invS, T off, mwSize nbin, T lastEdge){
-    if (!std::isfinite(v)) return -1;
-    long b = (long)std::floor((double)(v*invS + off)); // off = -R1*invS
-    if (b >= 0 && b < (long)nbin) return (int)b;
-    const T tol = (T)(8.0 * std::numeric_limits<double>::epsilon()) *
-                  (T)std::max<T>(1, std::abs((double)lastEdge));
-    if (v <= lastEdge + tol && v >= lastEdge - tol) return (int)nbin - 1;
-    return -1;
+static double parseScalarDouble(const mxArray* a, const char* name) {
+    if (!mxIsNumeric(a) || mxIsComplex(a) || mxGetNumberOfElements(a) != 1)
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be a real numeric scalar.", name);
+    double v = mxGetScalar(a);
+    if (!mxIsFinite(v)) mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be finite.", name);
+    return v;
 }
 
-// ---- core (rows=X, cols=Y) ----
-template <typename T>
-static void run_core(const T* __restrict__ xc, const T* __restrict__ yc, size_t Ncat,
-                     const T* __restrict__ xrS, const T* __restrict__ yrS, size_t Nref,
-                     T invSx, T offX, mwSize Nx, T lastEdgeX,
-                     T invSy, T offY, mwSize Ny, T lastEdgeY,
-                     double* __restrict__ H2)   // idx = bx + Nx*by
-{
-    const size_t gridSize = (size_t)Nx * (size_t)Ny;
+static void parseRange2(const mxArray* a, const char* name, double* lo, double* hi) {
+    if (!mxIsNumeric(a) || mxIsComplex(a) || mxGetNumberOfElements(a) != 2)
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be a real numeric vector with 2 elements.", name);
+    const double* p = mxGetPr(a);
+    *lo = p[0];
+    *hi = p[1];
+    if (!mxIsFinite(*lo) || !mxIsFinite(*hi) || !(*hi > *lo))
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must satisfy finite lo < hi.", name);
+}
 
-    int nT = 1;
-#if defined(_OPENMP)
-    nT = omp_get_max_threads();
+static mwSize computeNbins(double lo, double hi, double step, const char* name) {
+    if (!(step > 0.0) || !mxIsFinite(step))
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s must be finite and > 0.", name);
+
+    // Expect regular grid: hi ~= lo + n*step
+    double nb = (hi - lo) / step;
+    if (!(nb > 0.0) || !mxIsFinite(nb))
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "%s invalid with given range.", name);
+
+    // round-to-nearest with tolerance
+    double nb_r = floor(nb + 0.5);
+    if (fabs(nb - nb_r) > 1e-9 * (1.0 + fabs(nb_r))) {
+        // still allow floor behavior, but warn-ish via error (safer correctness)
+        mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err",
+                          "%s does not evenly divide range (need (hi-lo)/step integer).", name);
+    }
+    mwSize nBins = (mwSize)nb_r;
+    if (nBins < 1) mexErrMsgIdAndTxt("hist2d_VVtrans_mex:err", "Computed %s bins < 1.", name);
+    return nBins;
+}
+
+static inline int bin1_nanSafe(double v, double lo, double hi, double invStep, mwSize nBins) {
+    // NaN-safe range test: comparisons are false for NaN -> reject.
+    if (!(v >= lo && v <= hi)) return -1;
+
+    double t = (v - lo) * invStep;      // ideally [0..nBins]
+    mwSize b = (mwSize)t;               // trunc
+    if (b >= nBins) {
+        // only allow exact right edge into last bin
+        if (v == hi) return (int)(nBins - 1);
+        return -1;
+    }
+    return (int)b;
+}
+
+// --- Tunables (similar spirit to your 1D code) ---
+#ifndef STACK_BINS_2D
+#define STACK_BINS_2D 4096u   // per-thread stack hist when total bins <= this
 #endif
-    const size_t bytesPer = gridSize * sizeof(uint32_t);
-    const size_t cap = 256ull * 1024ull * 1024ull;
-    const bool useLocal = (nT>1) && (bytesPer*(size_t)nT <= cap) && gridSize>0;
 
-    if (useLocal){
-        std::vector<uint32_t*> loc(nT,nullptr);
-        for(int t=0;t<nT;++t){
-            loc[t]=(uint32_t*)mxCalloc(gridSize, sizeof(uint32_t));
-            if(!loc[t]) mexErrMsgIdAndTxt("hist2d_VVtrans_match:Alloc","Local histogram alloc failed.");
-        }
+#ifndef PRIV_HIST_MAX_MB_2D
+#define PRIV_HIST_MAX_MB_2D 256u // per-thread heap privatization if total <= this
+#endif
 
-        #if defined(_OPENMP)
-        #pragma omp parallel for schedule(static, 1<<14)
-        #endif
-        for (ptrdiff_t ii=0; ii<(ptrdiff_t)Ncat; ++ii){
-            int tid=0;
-            #if defined(_OPENMP)
-            tid = omp_get_thread_num();
-            #endif
-            uint32_t* __restrict__ L = loc[tid];
-            const T xi = xc[ii], yi = yc[ii];
+#define IDX(bx, by, nBinsX) ((size_t)(bx) + (size_t)(by) * (size_t)(nBinsX))
 
-            for (size_t j=0; j<Nref; ++j){
-                const T dx = xi - xrS[j];
-                const T dy = yi - yrS[j];
-                const int bx = bin_idx_inclusive(dx, invSx, offX, Nx, lastEdgeX);
-                if (bx < 0) continue;
-                const int by = bin_idx_inclusive(dy, invSy, offY, Ny, lastEdgeY);
-                if (by < 0) continue;
-                L[(size_t)bx + (size_t)Nx*(size_t)by] += 1u; // rows=X, cols=Y
+template <typename T>
+static void hist2d_core(const T* xcat, const T* ycat, mwSize Nc,
+                        const T* xref, const T* yref, mwSize Nr,
+                        double flipX, double flipY,
+                        double x0, double x1, double invStepX, mwSize nBinsX,
+                        double y0, double y1, double invStepY, mwSize nBinsY,
+                        double* outD)
+{
+    const size_t nTot = (size_t)nBinsX * (size_t)nBinsY;
+
+    int maxThreads = 1;
+#ifdef _OPENMP
+    maxThreads = omp_get_max_threads();
+#endif
+
+    const int useStack = (nTot <= (size_t)STACK_BINS_2D);
+    const size_t bytesPerHist = nTot * sizeof(uint32_t);
+    const size_t totalBytes = bytesPerHist * (size_t)maxThreads;
+    const size_t limitBytes = (size_t)PRIV_HIST_MAX_MB_2D * (size_t)(1u << 20);
+    const int usePrivHeap = (!useStack && maxThreads > 1 && totalBytes <= limitBytes);
+
+    // ----------------------------
+    // (D2) stack per-thread hist
+    // ----------------------------
+    if (useStack && maxThreads > 1) {
+        uint64_t* global = (uint64_t*)mxMalloc(nTot * sizeof(uint64_t));
+        memset(global, 0, nTot * sizeof(uint64_t));
+
+#ifdef _OPENMP
+        #pragma omp parallel
+#endif
+        {
+            uint32_t loc[STACK_BINS_2D];
+            memset(loc, 0, nTot * sizeof(uint32_t));
+
+#ifdef _OPENMP
+            #pragma omp for schedule(static)
+#endif
+            for (ptrdiff_t i = 0; i < (ptrdiff_t)Nc; ++i) {
+                double xc = (double)xcat[i];
+                double yc = (double)ycat[i];
+
+                // NaN-safe reject: if either is NaN, skip i entirely
+                if (!(xc == xc) || !(yc == yc)) continue;
+
+                for (mwSize j = 0; j < Nr; ++j) {
+                    double dx = xc - flipX * (double)xref[j];
+                    double dy = yc - flipY * (double)yref[j];
+
+                    int bx = bin1_nanSafe(dx, x0, x1, invStepX, nBinsX);
+                    if (bx < 0) continue;
+                    int by = bin1_nanSafe(dy, y0, y1, invStepY, nBinsY);
+                    if (by < 0) continue;
+
+                    loc[IDX(bx, by, nBinsX)] += 1u;
+                }
+            }
+
+#ifdef _OPENMP
+            #pragma omp critical
+#endif
+            {
+                for (size_t k = 0; k < nTot; ++k) global[k] += (uint64_t)loc[k];
             }
         }
-        for(int t=0;t<nT;++t){
-            uint32_t* L = loc[t];
-            for(size_t k=0;k<gridSize;++k) H2[k] += (double)L[k];
-            mxFree(L);
-        }
-    }else{
-        #if defined(_OPENMP)
-        #pragma omp parallel for schedule(static, 1<<14)
-        #endif
-        for (ptrdiff_t ii=0; ii<(ptrdiff_t)Ncat; ++ii){
-            const T xi = xc[ii], yi = yc[ii];
-            for (size_t j=0; j<Nref; ++j){
-                const T dx = xi - xrS[j];
-                const T dy = yi - yrS[j];
-                const int bx = bin_idx_inclusive(dx, invSx, offX, Nx, lastEdgeX);
-                if (bx < 0) continue;
-                const int by = bin_idx_inclusive(dy, invSy, offY, Ny, lastEdgeY);
-                if (by < 0) continue;
-                const size_t idx = (size_t)bx + (size_t)Nx*(size_t)by; // rows=X, cols=Y
-                #if defined(_OPENMP)
-                #pragma omp atomic
-                #endif
-                H2[idx] += 1.0;
+
+        for (size_t k = 0; k < nTot; ++k) outD[k] = (double)global[k];
+        mxFree(global);
+        return;
+    }
+
+    // ----------------------------------------
+    // (A2,B2,C2) heap per-thread privatization
+    // ----------------------------------------
+    if (usePrivHeap) {
+        uint32_t* all = (uint32_t*)mxMalloc((size_t)maxThreads * nTot * sizeof(uint32_t));
+        memset(all, 0, (size_t)maxThreads * nTot * sizeof(uint32_t));
+
+#ifdef _OPENMP
+        #pragma omp parallel
+#endif
+        {
+#ifdef _OPENMP
+            int tid = omp_get_thread_num();
+#else
+            int tid = 0;
+#endif
+            uint32_t* loc = all + (size_t)tid * nTot;
+
+#ifdef _OPENMP
+            #pragma omp for schedule(static)
+#endif
+            for (ptrdiff_t i = 0; i < (ptrdiff_t)Nc; ++i) {
+                double xc = (double)xcat[i];
+                double yc = (double)ycat[i];
+                if (!(xc == xc) || !(yc == yc)) continue;
+
+                for (mwSize j = 0; j < Nr; ++j) {
+                    double dx = xc - flipX * (double)xref[j];
+                    double dy = yc - flipY * (double)yref[j];
+
+                    int bx = bin1_nanSafe(dx, x0, x1, invStepX, nBinsX);
+                    if (bx < 0) continue;
+                    int by = bin1_nanSafe(dy, y0, y1, invStepY, nBinsY);
+                    if (by < 0) continue;
+
+                    loc[IDX(bx, by, nBinsX)] += 1u;
+                }
             }
+        }
+
+        // reduce
+        for (size_t k = 0; k < nTot; ++k) {
+            uint64_t s = 0;
+            for (int t = 0; t < maxThreads; ++t) s += (uint64_t)all[(size_t)t * nTot + k];
+            outD[k] = (double)s;
+        }
+        mxFree(all);
+        return;
+    }
+
+    // ----------------------------
+    // fallback: single-thread
+    // ----------------------------
+    uint32_t* counts = (uint32_t*)mxMalloc(nTot * sizeof(uint32_t));
+    memset(counts, 0, nTot * sizeof(uint32_t));
+
+    for (mwSize i = 0; i < Nc; ++i) {
+        double xc = (double)xcat[i];
+        double yc = (double)ycat[i];
+        if (!(xc == xc) || !(yc == yc)) continue;
+
+        for (mwSize j = 0; j < Nr; ++j) {
+            double dx = xc - flipX * (double)xref[j];
+            double dy = yc - flipY * (double)yref[j];
+
+            int bx = bin1_nanSafe(dx, x0, x1, invStepX, nBinsX);
+            if (bx < 0) continue;
+            int by = bin1_nanSafe(dy, y0, y1, invStepY, nBinsY);
+            if (by < 0) continue;
+
+            counts[IDX(bx, by, nBinsX)] += 1u;
         }
     }
+
+    for (size_t k = 0; k < nTot; ++k) outD[k] = (double)counts[k];
+    mxFree(counts);
 }
 
-// ---- MEX entry ----
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
     if (nrhs != 10)
-        mexErrMsgIdAndTxt("hist2d_VVtrans_match:Args",
-            "Usage: [H2, VecX, VecY]=hist2d_VVtrans_match(Xcat, Ycat, Xref, Yref, FlipX, FlipY, RangeX, StepX, RangeY, StepY)");
+        die("Usage: [H,Ex,Ey,Cx,Cy]=hist2d_VVtrans_mex(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY)");
+    if (nlhs < 1 || nlhs > 5)
+        die("Outputs: H required; Ex/Ey/Cx/Cy optional.");
 
-    const mxArray *XcatA=prhs[0], *YcatA=prhs[1], *XrefA=prhs[2], *YrefA=prhs[3];
-    mustRealVec(XcatA,"Xcat"); mustRealVec(YcatA,"Ycat");
-    mustRealVec(XrefA,"Xref"); mustRealVec(YrefA,"Yref");
+    const mxArray* Xcat = prhs[0];
+    const mxArray* Ycat = prhs[1];
+    const mxArray* Xref = prhs[2];
+    const mxArray* Yref = prhs[3];
 
-    const size_t Ncat = (size_t)mxGetNumberOfElements(XcatA);
-    const size_t Nref = (size_t)mxGetNumberOfElements(XrefA);
-    if (mxGetNumberOfElements(YcatA)!=Ncat) mexErrMsgIdAndTxt("hist2d_VVtrans_match:Size","Ycat size mismatch.");
-    if (mxGetNumberOfElements(YrefA)!=Nref) mexErrMsgIdAndTxt("hist2d_VVtrans_match:Size","Yref size mismatch.");
+    if (mxIsSparse(Xcat) || mxIsSparse(Ycat) || mxIsSparse(Xref) || mxIsSparse(Yref)) die("Inputs must be full.");
+    if (mxIsComplex(Xcat) || mxIsComplex(Ycat) || mxIsComplex(Xref) || mxIsComplex(Yref)) die("Inputs must be real.");
+    if (mxGetNumberOfElements(Xcat) != mxGetNumberOfElements(Ycat)) die("Xcat and Ycat must have same length.");
+    if (mxGetNumberOfElements(Xref) != mxGetNumberOfElements(Yref)) die("Xref and Yref must have same length.");
 
-    const bool useDouble = mxIsDouble(XcatA) || mxIsDouble(YcatA) || mxIsDouble(XrefA) || mxIsDouble(YrefA);
+    mxClassID cid = mxGetClassID(Xcat);
+    if (!(cid == mxSINGLE_CLASS || cid == mxDOUBLE_CLASS)) die("Xcat/Ycat must be single or double.");
+    if (mxGetClassID(Ycat) != cid || mxGetClassID(Xref) != cid || mxGetClassID(Yref) != cid)
+        die("All coordinate inputs must have the same class (all single or all double).");
 
-    const double FlipX = getScalarDouble(prhs[4],"FlipX");
-    const double FlipY = getScalarDouble(prhs[5],"FlipY");
+    const mwSize Nc = (mwSize)mxGetNumberOfElements(Xcat);
+    const mwSize Nr = (mwSize)mxGetNumberOfElements(Xref);
 
-    double Rx1,Rx2,Sx; mwSize Nx; getRangeStep(prhs[6], prhs[7], "RangeX","StepX", Rx1,Rx2,Sx, Nx);
-    double Ry1,Ry2,Sy; mwSize Ny; getRangeStep(prhs[8], prhs[9], "RangeY","StepY", Ry1,Ry2,Sy, Ny);
+    // Flips
+    double flipX = parseScalarDouble(prhs[4], "FlipX");
+    double flipY = parseScalarDouble(prhs[5], "FlipY");
 
-    // Output: rows = X bins (Nx), cols = Y bins (Ny)
-    mwSize dims[2] = { Nx, Ny };
-    plhs[0] = mxCreateNumericArray(2, dims, mxDOUBLE_CLASS, mxREAL);
-    double* H2 = (double*)mxGetData(plhs[0]);
-    std::fill(H2, H2 + (size_t)Nx*(size_t)Ny, 0.0);
+    // Ranges and steps
+    double x0, x1, y0, y1;
+    parseRange2(prhs[6], "RangeX", &x0, &x1);
+    double stepX = parseScalarDouble(prhs[7], "StepX");
+    parseRange2(prhs[8], "RangeY", &y0, &y1);
+    double stepY = parseScalarDouble(prhs[9], "StepY");
 
-    // Bin centers
-    plhs[1] = mxCreateDoubleMatrix(Nx,1,mxREAL); // centers for Dx (X)
-    double* VecX = (double*)mxGetData(plhs[1]);
-    for (mwSize j=0;j<Nx;++j) VecX[j] = Rx1 + ((double)j + 0.5) * Sx;
+    const mwSize nBinsX = computeNbins(x0, x1, stepX, "NbinsX");
+    const mwSize nBinsY = computeNbins(y0, y1, stepY, "NbinsY");
 
-    plhs[2] = mxCreateDoubleMatrix(Ny,1,mxREAL); // centers for Dy (Y)
-    double* VecY = (double*)mxGetData(plhs[2]);
-    for (mwSize i=0;i<Ny;++i) VecY[i] = Ry1 + ((double)i + 0.5) * Sy;
+    const double invStepX = 1.0 / stepX;
+    const double invStepY = 1.0 / stepY;
 
-    // Precompute reciprocals/offsets and last edges
-    const double invSx = 1.0/Sx, offX = -Rx1*invSx, lastEdgeX = Rx1 + (double)Nx*Sx;
-    const double invSy = 1.0/Sy, offY = -Ry1*invSy, lastEdgeY = Ry1 + (double)Ny*Sy;
+    // Output histogram: NbinsX x NbinsY (like histcounts2)
+    plhs[0] = mxCreateDoubleMatrix(nBinsX, nBinsY, mxREAL);
+    double* H = mxGetPr(plhs[0]);
+    memset(H, 0, (size_t)nBinsX * (size_t)nBinsY * sizeof(double));
 
-    if (useDouble){
-        const double *xc=(const double*)mxGetData(XcatA);
-        const double *yc=(const double*)mxGetData(YcatA);
-        const double *xr=(const double*)mxGetData(XrefA);
-        const double *yr=(const double*)mxGetData(YrefA);
+    if (cid == mxDOUBLE_CLASS) {
+        const double* xcat = (const double*)mxGetData(Xcat);
+        const double* ycat = (const double*)mxGetData(Ycat);
+        const double* xref = (const double*)mxGetData(Xref);
+        const double* yref = (const double*)mxGetData(Yref);
+        hist2d_core<double>(xcat, ycat, Nc, xref, yref, Nr,
+                            flipX, flipY,
+                            x0, x1, invStepX, nBinsX,
+                            y0, y1, invStepY, nBinsY,
+                            H);
+    } else {
+        const float* xcat = (const float*)mxGetData(Xcat);
+        const float* ycat = (const float*)mxGetData(Ycat);
+        const float* xref = (const float*)mxGetData(Xref);
+        const float* yref = (const float*)mxGetData(Yref);
+        hist2d_core<float>(xcat, ycat, Nc, xref, yref, Nr,
+                           flipX, flipY,
+                           x0, x1, invStepX, nBinsX,
+                           y0, y1, invStepY, nBinsY,
+                           H);
+    }
 
-        std::vector<double> xrS(Nref), yrS(Nref);
-        for (size_t j=0;j<Nref;++j){ xrS[j]=FlipX*xr[j]; yrS[j]=FlipY*yr[j]; }
-
-        run_core<double>(xc,yc,Ncat,
-                         xrS.data(),yrS.data(),Nref,
-                         (double)invSx,(double)offX,Nx,(double)lastEdgeX,
-                         (double)invSy,(double)offY,Ny,(double)lastEdgeY,
-                         H2);
-    }else{
-        const float *xc=(const float*)mxGetData(XcatA);
-        const float *yc=(const float*)mxGetData(YcatA);
-        const float *xr=(const float*)mxGetData(XrefA);
-        const float *yr=(const float*)mxGetData(YrefA);
-
-        const float FlipXf=(float)FlipX, FlipYf=(float)FlipY;
-        std::vector<float> xrS(Nref), yrS(Nref);
-        for (size_t j=0;j<Nref;++j){ xrS[j]=FlipXf*xr[j]; yrS[j]=FlipYf*yr[j]; }
-
-        run_core<float>(xc,yc,Ncat,
-                        xrS.data(),yrS.data(),Nref,
-                        (float)invSx,(float)offX,Nx,(float)lastEdgeX,
-                        (float)invSy,(float)offY,Ny,(float)lastEdgeY,
-                        H2);
+    // Optional outputs: edges and centers (column vectors)
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateDoubleMatrix(nBinsX + 1, 1, mxREAL);
+        double* ex = mxGetPr(plhs[1]);
+        for (mwSize k = 0; k <= nBinsX; ++k) ex[k] = x0 + (double)k * stepX;
+    }
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateDoubleMatrix(nBinsY + 1, 1, mxREAL);
+        double* ey = mxGetPr(plhs[2]);
+        for (mwSize k = 0; k <= nBinsY; ++k) ey[k] = y0 + (double)k * stepY;
+    }
+    if (nlhs >= 4) {
+        plhs[3] = mxCreateDoubleMatrix(nBinsX, 1, mxREAL);
+        double* cx = mxGetPr(plhs[3]);
+        double base = x0 + 0.5 * stepX;
+        for (mwSize k = 0; k < nBinsX; ++k) cx[k] = base + (double)k * stepX;
+    }
+    if (nlhs >= 5) {
+        plhs[4] = mxCreateDoubleMatrix(nBinsY, 1, mxREAL);
+        double* cy = mxGetPr(plhs[4]);
+        double base = y0 + 0.5 * stepY;
+        for (mwSize k = 0; k < nBinsY; ++k) cy[k] = base + (double)k * stepY;
     }
 }
