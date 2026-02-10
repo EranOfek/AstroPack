@@ -38,7 +38,7 @@ classdef PhotCalibTrans < Component
      ZP = PC.evaluateZP();
 
      % Add calibrated magnitudes to catalog
-     Cat = PC.addMagAB(Cat);
+     Cat = PC.addMag(Cat);
 
      % Write results to header
      PC.photCalibTransToHeader(AI.HeaderData);
@@ -59,7 +59,7 @@ classdef PhotCalibTrans < Component
     %   Evaluation Methods:
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     evaluateZP - Evaluate photometric zero point at specific positions
-    %     evaluateMag - Evaluate calibrated AB magnitudes from observed flux
+    %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Pre-computation Methods (for optimization performance):
     %     computeMagErrCalib - Pre-compute magnitude errors for all calibrators
@@ -68,7 +68,7 @@ classdef PhotCalibTrans < Component
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
     %   Catalog Operations:
-    %     addMagAB - Add calibrated AB magnitude columns to catalog
+    %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
     %     addZP - Add position-dependent ZP column to catalog
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
@@ -107,7 +107,7 @@ classdef PhotCalibTrans < Component
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
-                                %   After calibration: Used, Residuals, MAG_AB, PredictedFlux, MagErr
+                                %   After calibration: Used, Residuals, MAG_<System>, PredictedFlux, MagErr
 
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
         NoRADec = false         % Flag indicating RA/Dec columns missing (set by selectCalibrators)
@@ -198,9 +198,11 @@ classdef PhotCalibTrans < Component
             %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
             %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
             %            'FluxErrorNorm' - Normalization for synthetic flux in error calc. Default is 1.0.
+            %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+            %                         Default is 'AB'. Vega is not yet implemented.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - Obj - PhotCalibTrans object with calibration results.
-            %                  SourceData catalog includes: Used, Residuals, MAG_AB, PredictedFlux, MagErr
+            %                  SourceData catalog includes: Used, Residuals, MAG_<System>, PredictedFlux, MagErr
             % Author : D. Kovaleva (Jan 2026)
             % Reference: Garrappa et al. 2025, A&A 699, A50.
             % Example: PC = PhotCalibTrans();
@@ -233,7 +235,16 @@ classdef PhotCalibTrans < Component
                 Args.WeightedClipping logical = true  % Use weighted residuals for sigma clipping
                 Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
+                % Magnitude system
+                Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+
                 Args.Verbose logical = true
+            end
+
+            % Vega magnitude system placeholder — not yet implemented
+            if strcmpi(Args.MagSystem, 'Vega')
+                error('PhotCalibTrans:calibrate:VegaNotImplemented', ...
+                      'Vega magnitude system is not yet implemented.');
             end
 
             if Args.Verbose
@@ -476,8 +487,12 @@ classdef PhotCalibTrans < Component
                     % Keep the original pre-computed values for all calibrators
 
                     % Calculate calibrated magnitudes for calibrators
-                    % MAG_AB = -2.5*log10(Flux/ExpTime_eff) + ZP(X,Y)
-                    MAG_AB = Obj.evaluateMag(Flux, 'X', X, 'Y', Y);
+                    % MAG = -2.5*log10(Flux/ExpTime_eff) + ZP(X,Y)
+                    MagCalib = Obj.evaluateMag(Flux, 'X', X, 'Y', Y, ...
+                                               'MagSystem', Args.MagSystem);
+
+                    % Dynamic column name: MAG_AB or MAG_VEGA
+                    MagColName = ['MAG_', Args.MagSystem];
 
                     % Get predicted flux from FitResult (calculated by costFun during optimization)
                     PredictedFlux = nan(NCalib, 1);
@@ -487,14 +502,14 @@ classdef PhotCalibTrans < Component
                     if istable(Obj.SourceData.Catalog)
                         Obj.SourceData.Catalog.Used = Used;
                         Obj.SourceData.Catalog.Residuals = Residuals;
-                        Obj.SourceData.Catalog.MAG_AB = MAG_AB;
+                        Obj.SourceData.Catalog.(MagColName) = MagCalib;
                         Obj.SourceData.Catalog.PredictedFlux = PredictedFlux;
                     else
                         % Convert to table, add columns, convert back
                         Tab = Obj.SourceData.Table;
                         Tab.Used = Used;
                         Tab.Residuals = Residuals;
-                        Tab.MAG_AB = MAG_AB;
+                        Tab.(MagColName) = MagCalib;
                         Tab.PredictedFlux = PredictedFlux;
                         Obj.SourceData.Catalog = Tab;
                     end
@@ -881,7 +896,7 @@ classdef PhotCalibTrans < Component
                 Obj.CalFound = false;
             end
 
-            % Clean up temporary columns added by match_catsHTM to input catalog
+            % Clean up temporary columns added by ee to input catalog
             if HasRADec
                 CatTab = Cat.Table;
                 if ismember('Dist', CatTab.Properties.VariableNames)
@@ -1022,25 +1037,34 @@ classdef PhotCalibTrans < Component
 
         function ZP = evaluateZP(Obj, Args)
             % Evaluate photometric zero point at specific positions
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - Obj - PhotCalibTrans object.
             %          * ...,key,val,...
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
-            % Output : - ZP - Zero point(s) [N_pos x 1] or scalar
-            %                 If X, Y provided: vector with ZP for each position
-            %                 If X, Y empty: scalar ZP at field center
+            %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+            %                         Default is 'AB'. Vega is not yet implemented.
+            % Output : - ZP - Zero point(s) [N_pos x 1] or scalar.
+            %                 If X, Y provided: vector with ZP for each position.
+            %                 If X, Y empty: scalar ZP at field center.
             % Author : D. Kovaleva (Dec 2025)
             % Example: ZP = PC.evaluateZP();  % ZP at field center
             %          ZP = PC.evaluateZP('X', X, 'Y', Y);  % ZP at specific positions
-            
+            %          ZP = PC.evaluateZP('MagSystem', 'AB');
 
             arguments
                 Obj
                 Args.X = []
                 Args.Y = []
+                Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
             end
 
-            Fnu = constant.Fnu('SI');  % AB system flux density [W/m^2/Hz]
+            % Vega magnitude system placeholder — not yet implemented
+            if strcmpi(Args.MagSystem, 'Vega')
+                error('PhotCalibTrans:evaluateZP:VegaNotImplemented', ...
+                      'Vega magnitude system is not yet implemented.');
+            end
+
+            Fnu = constant.Fnu('SI');  % AB system reference flux density [W/m^2/Hz]
             H = 6.62607015e-34;         % SI 2019 Plank constant
 
             % Use constant wavelength grid
@@ -1096,21 +1120,24 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function [MagAB, MagABErr] = evaluateMag(Obj, Flux, Args)
-            % Evaluate calibrated AB magnitudes from observed flux
-            % Input  : - Obj - PhotCalibTrans object
-            %          - Flux - Observed flux values [photons] [N x 1]
+        function [Mag, MagErr] = evaluateMag(Obj, Flux, Args)
+            % Evaluate calibrated magnitudes from observed flux
+            % Input  : - Obj - PhotCalibTrans object.
+            %          - Flux - Observed flux values [photons] [N x 1].
             %          * ...,key,val,...
             %            'X' - X coordinates [N x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N x 1]. Default is [] (field center).
             %            'MagErr' - Magnitude errors [N x 1]. Default is [].
-            % Output : - MagAB - Calibrated AB magnitudes [N x 1]
-            %          - MagABErr - Calibrated AB magnitude errors [N x 1] (optional)
+            %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+            %                         Default is 'AB'. Vega is not yet implemented.
+            % Output : - Mag - Calibrated magnitudes [N x 1].
+            %          - MagErr - Calibrated magnitude errors [N x 1] (optional).
             % Author : D. Kovaleva (Jan 2026)
-            % Example: MagAB = PC.evaluateMag(Flux);
-            %          [MagAB, MagABErr] = PC.evaluateMag(Flux, 'X', X, 'Y', Y, 'MagErr', MagErr);
-            % Description: Converts observed flux to calibrated AB magnitudes.
-            %              MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
+            % Example: Mag = PC.evaluateMag(Flux);
+            %          [Mag, MagErr] = PC.evaluateMag(Flux, 'X', X, 'Y', Y, 'MagErr', MagErr);
+            %          Mag = PC.evaluateMag(Flux, 'MagSystem', 'AB');
+            % Description: Converts observed flux to calibrated magnitudes.
+            %              MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
             %              Uses evaluateZP to calculate position-dependent zero points.
             %              Errors are provided directly (e.g., from MAGERR columns).
 
@@ -1120,6 +1147,13 @@ classdef PhotCalibTrans < Component
                 Args.X = []          % X coordinates [N x 1]
                 Args.Y = []          % Y coordinates [N x 1]
                 Args.MagErr = []     % Magnitude errors [N x 1]
+                Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+            end
+
+            % Vega magnitude system placeholder — not yet implemented
+            if strcmpi(Args.MagSystem, 'Vega')
+                error('PhotCalibTrans:evaluateMag:VegaNotImplemented', ...
+                      'Vega magnitude system is not yet implemented.');
             end
 
             % Calculate effective exposure time (accounting for coadding)
@@ -1129,21 +1163,22 @@ classdef PhotCalibTrans < Component
             Flux = Flux(:);
 
             % Calculate ZP at positions (or field center if X, Y empty)
-            ZP = Obj.evaluateZP('X', Args.X, 'Y', Args.Y);
+            ZP = Obj.evaluateZP('X', Args.X, 'Y', Args.Y, ...
+                                'MagSystem', Args.MagSystem);
             ZP = ZP(:);  % Ensure column vector
 
-            % Calculate calibrated AB magnitudes
-            % MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
-            MagAB = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
+            % Calculate calibrated magnitudes
+            % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
+            Mag = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
 
             % Return magnitude errors if requested
             if nargout > 1
                 if isempty(Args.MagErr)
                     % No errors provided
-                    MagABErr = [];
+                    MagErr = [];
                 else
                     % Use provided magnitude errors directly
-                    MagABErr = Args.MagErr(:);
+                    MagErr = Args.MagErr(:);
                 end
             end
         end
@@ -1911,21 +1946,38 @@ classdef PhotCalibTrans < Component
     end
 
     methods % Catalog operations
-        function CatObj = addMagAB(Obj, CatObj, Args)
-            % Add calibrated AB magnitude columns to catalog
-            % Input  : - Obj - PhotCalibTrans object
-            %          - CatObj - AstroCatalog object with flux measurements
+        function CatObj = addMag(Obj, CatObj, Args)
+            % Add calibrated magnitude columns to catalog
+            % Input  : - Obj - PhotCalibTrans object.
+            %          - CatObj - AstroCatalog object with flux measurements.
             %          * ...,key,val,...
-            %            'FluxColNames' - Flux column names to calibrate. Default is all FLUX_* columns.
-            %            'ApplyPosCorrection' - Apply position-dependent corrections. Default is true.
-            % Output : - CatObj - AstroCatalog with added calibrated AB magnitude columns
-            %                     (e.g., FLUX_APER_3 → MAG_AB_APER_3, FLUX_PSF → MAG_AB_PSF)
+            %            'FluxColNames' - Flux column names to calibrate.
+            %                             Default is all FLUX_* columns.
+            %            'ApplyPosCorrection' - Apply position-dependent
+            %                                   corrections. Default is true.
+            %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+            %                         Default is 'AB'. Vega is not yet implemented.
+            %            'AddMagErr' - Add magnitude error columns. Default is true.
+            %                         Error formula: MagErr = 1.086 * FluxErr / Flux.
+            %                         Requires FLUXERR_<suffix> columns in catalog.
+            %                         Column naming: MAG_<System>_<suffix>_ERR.
+            %            'PropagateCalibratedErr' - Propagate calibrated magnitude
+            %                         errors. Default is false. Not yet implemented.
+            % Output : - CatObj - AstroCatalog with added calibrated magnitude columns.
+            %                     Column naming: FLUX_<suffix> -> MAG_<System>_<suffix>
+            %                     (e.g., FLUX_APER_3 -> MAG_AB_APER_3)
+            %                     If AddMagErr=true, also: MAG_<System>_<suffix>_ERR
+            %                     (e.g., MAG_AB_APER_3_ERR)
             % Author : D. Kovaleva (Jan 2026)
-            % Example: Cat = PC.addMagAB(Cat);
-            %          Cat = PC.addMagAB(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
-            % Description: Creates new columns with calibrated AB magnitudes from flux measurements.
-            %              Formula: MAG_AB = -2.5*log10(FLUX/ExpTime_eff) + ZP
-            %              For each FLUX_<something> column, creates MAG_AB_<something> column.
+            % Example: Cat = PC.addMag(Cat);
+            %          Cat = PC.addMag(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
+            %          Cat = PC.addMag(Cat, 'MagSystem', 'AB');
+            %          Cat = PC.addMag(Cat, 'AddMagErr', false);
+            % Description: Creates new columns with calibrated magnitudes from flux measurements.
+            %              Formula: MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
+            %              For each FLUX_<suffix> column, creates MAG_<System>_<suffix> column.
+            %              If AddMagErr=true, also creates MAG_<System>_<suffix>_ERR column
+            %              with error = 1.086 * FLUXERR_<suffix> / FLUX_<suffix>.
             %              Preserves original flux columns.
             %              Applies position-dependent corrections if available.
 
@@ -1934,13 +1986,25 @@ classdef PhotCalibTrans < Component
                 CatObj
                 Args.FluxColNames = []
                 Args.ApplyPosCorrection logical = true
+                Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+                Args.AddMagErr logical = true  % Add magnitude error columns
+                Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
-           
+
+            % Vega magnitude system placeholder — not yet implemented
+            if strcmpi(Args.MagSystem, 'Vega')
+                error('PhotCalibTrans:addMag:VegaNotImplemented', ...
+                      'Vega magnitude system is not yet implemented.');
+            end
+
+            % Build dynamic column prefix: MAG_AB_ or MAG_VEGA_
+            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+
             % Get catalog table
             Tab = CatObj.Table;
 
             if isempty(Tab) || height(Tab) == 0
-                warning('PhotCalibTrans:addMagAB:EmptyCatalog', 'Catalog is empty. No columns added.');
+                warning('PhotCalibTrans:addMag:EmptyCatalog', 'Catalog is empty. No columns added.');
                 return;
             end
 
@@ -1959,7 +2023,7 @@ classdef PhotCalibTrans < Component
             end
 
             if isempty(FluxColNames)
-                warning('PhotCalibTrans:addMagAB:NoFluxCols', 'No FLUX_* columns found in catalog.');
+                warning('PhotCalibTrans:addMag:NoFluxCols', 'No FLUX_* columns found in catalog.');
                 return;
             end
 
@@ -1971,7 +2035,7 @@ classdef PhotCalibTrans < Component
                     X = Tab.X;
                     Y = Tab.Y;
                 else
-                    warning('PhotCalibTrans:addMagAB:NoCoords', ...
+                    warning('PhotCalibTrans:addMag:NoCoords', ...
                             'X, Y columns not found. Position corrections disabled.');
                 end
             end
@@ -1982,7 +2046,7 @@ classdef PhotCalibTrans < Component
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
                 if any(InvalidPos)
-                    Obj.msgLog(LogLevel.Info, 'addMagAB: Position validation: %d/%d sources have invalid X/Y - MagAB will be NaN at these positions', ...
+                    Obj.msgLog(LogLevel.Info, 'addMag: Position validation: %d/%d sources have invalid X/Y - magnitude will be NaN at these positions', ...
                         sum(InvalidPos), Nrows);
                     ValidPosMask = ~InvalidPos;
                 end
@@ -1996,52 +2060,97 @@ classdef PhotCalibTrans < Component
                 Flux = Tab.(FluxColName);
 
                 % Initialize output as NaN
-                MagAB = nan(Nrows, 1);
+                Mag = nan(Nrows, 1);
 
-                % Calculate MagAB for sources with valid positions
+                % Calculate magnitude for sources with valid positions
                 % Note: evaluateMag handles negative/zero flux properly
                 if any(ValidPosMask)
                     if ~isempty(X)
-                        MagAB(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
-                            'X', X(ValidPosMask), 'Y', Y(ValidPosMask));
+                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
+                            'X', X(ValidPosMask), 'Y', Y(ValidPosMask), ...
+                            'MagSystem', Args.MagSystem);
                     else
-                        MagAB(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask));
+                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
+                            'MagSystem', Args.MagSystem);
                     end
                 end
 
                 % Create new calibrated magnitude column name
-                % FLUX_APER_3 → MAG_AB_APER_3
-                % FLUX_PSF → MAG_AB_PSF
-                NewMagColName = strrep(FluxColName, 'FLUX_', 'MAG_AB_');
+                % e.g., FLUX_APER_3 -> MAG_AB_APER_3
+                NewMagColName = strrep(FluxColName, 'FLUX_', MagPrefix);
 
-                % Insert column into catalog
-                CatObj = CatObj.insertCol(MagAB, Inf, {NewMagColName});
+                % Insert magnitude column into catalog
+                CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
+
+                % Add magnitude error column if requested
+                if Args.AddMagErr
+                    % Derive corresponding flux error column name
+                    % e.g., FLUX_APER_3 -> FLUXERR_APER_3
+                    FluxErrColName = strrep(FluxColName, 'FLUX_', 'FLUXERR_');
+                    MagErrColName = [NewMagColName, '_ERR'];
+
+                    if ismember(FluxErrColName, AllColNames)
+                        FluxErr = Tab.(FluxErrColName);
+                        % MagErr = 1.086 * FluxErr / Flux  (first-order error propagation)
+                        MagErr = nan(Nrows, 1);
+                        ValidFlux = Flux > 0 & ~isnan(Flux) & ~isnan(FluxErr);
+                        MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux(ValidFlux);
+                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
+                    else
+                        % No flux error column found — insert NaN column
+                        Obj.msgLog(LogLevel.Info, ...
+                            'addMag: Flux error column %s not found - %s set to NaN', ...
+                            FluxErrColName, MagErrColName);
+                        CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrColName});
+                    end
+                end
+
+                % Propagate calibrated magnitude error if requested (placeholder)
+                if Args.PropagateCalibratedErr
+                    % TODO: call dedicated method for calibrated error propagation
+                    error('PhotCalibTrans:addMag:PropagateCalibratedErrNotImplemented', ...
+                          'Calibrated magnitude error propagation is not yet implemented.');
+                end
             end
 
         end
 
-        function CatObj = addZP(Obj, CatObj)
+        function CatObj = addZP(Obj, CatObj, Args)
             % Add position-dependent ZP column to catalog
-            % Input  : - Obj - PhotCalibTrans object
-            %          - CatObj - AstroCatalog object
+            % Input  : - Obj - PhotCalibTrans object.
+            %          - CatObj - AstroCatalog object.
+            %          * ...,key,val,...
+            %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
+            %                         Default is 'AB'. Vega is not yet implemented.
             % Output : - CatObj - AstroCatalog with added ZP column
+            %                     (AB_ZP or VEGA_ZP depending on MagSystem).
             % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addZP(Cat);
+            %          Cat = PC.addZP(Cat, 'MagSystem', 'AB');
+
+            arguments
+                Obj
+                CatObj
+                Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+            end
 
             Tab = CatObj.Table;
             if isempty(Tab) || height(Tab) == 0
                 Obj.msgLog(LogLevel.Warning, 'addZP: Catalog is empty. No columns added.');
                 return;
             end
-            
+
             Nrows = height(Tab);
 
             % Extract X, Y coordinates
             AllColNames = Tab.Properties.VariableNames;
+            % Dynamic column name: AB_ZP or VEGA_ZP
+            ZPColName = [Args.MagSystem, '_ZP'];
+
             if ~ismember('X', AllColNames) || ~ismember('Y', AllColNames)
                 Obj.msgLog(LogLevel.Error, 'addZP: X, Y columns not found in catalog. ZP column set to NaN.');
                 ZP = nan(Nrows, 1);
-                CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
+                CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
                 return;
             end
 
@@ -2061,13 +2170,14 @@ classdef PhotCalibTrans < Component
             % Evaluate ZP only for valid positions
             ValidMask = ~InvalidPos;
             if any(ValidMask)
-                ZP_valid = Obj.evaluateZP('X', X(ValidMask), 'Y', Y(ValidMask));
+                ZP_valid = Obj.evaluateZP('X', X(ValidMask), 'Y', Y(ValidMask), ...
+                                          'MagSystem', Args.MagSystem);
                 ZP(ValidMask) = ZP_valid(:);
             end
 
             % Insert column
-            CatObj = CatObj.insertCol(ZP, Inf, {'MAG_ZP'});
-        end      
+            CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
+        end
     end
 
     methods % Display/Output methods

@@ -2,8 +2,52 @@ function [Result] = unitTest()
     % unitTest for tools.hist
     % Example: tools.hist.unitTest
 
+    %% tools.hist.mex.hist1reg_mex
+    X = rand(1e5,1);
+    Nsim = 1e4;
+    [N]=matlab.internal.math.histcounts(X, (0:1./100:1));
+    [N1,E,C] = tools.hist.mex.hist1reg_mex(X, [0 1], 100, 1,0);
+    if max(abs(N(:)-N1(:)))>(10.*eps)
+        error('Problem with tools.hist.mex.hist1reg_mex');
+    end
+
+    %% tools.hist.mex.hist2reg_mex
+    X = rand(1e5,1);
+    Y = rand(1e5,1);
+    [N]=histcounts2(X, Y, (0:1./100:1), (0:1./50:1));
+    [N1] = tools.hist.mex.hist2reg_mex(X, Y, [0 1], [0 1], 100, 50, 1,0);
+    if max(abs(N(:)-N1(:)))>(10.*eps)
+        error('Problem with tools.hist.mex.hist1reg_mex');
+    end
+
+    %% tools.hist.mex.hist2d_VVtrans
+    Xcat=rand(1e3,1).*1024; Ycat=rand(1e3,1).*1024; Xref=[Xcat+2;1]; Yref=[Ycat+1;2];
+    FlipX=1; FlipY=1;
+    RangeX=[-2000 2000]; 
+    RangeY=[-1000 1000]; 
+    StepX=400;
+    StepY=400;
+
+    Dx=Xcat-FlipX.*Xref.';
+    Dy=Ycat-FlipY.*Yref.';
+    %[H2] = histcounts2(Dy(:),Dx(:), (RangeY(1):StepY:RangeY(2)),(RangeX(1):StepX:RangeX(2)) );
+    [H2] = histcounts2(Dx(:),Dy(:), (RangeX(1):StepX:RangeX(2)),(RangeY(1):StepY:RangeY(2)) );
+
+
+    %[H2b,VecYa,VecXa] = hist2d_VVtrans(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
+    %[H2b,VecXa,VecYa] = tools.hist.mex.hist2d_VVtrans(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
+    [H2b] = tools.hist.mex.hist2d_VVtrans(Xcat,Ycat,Xref,Yref,FlipX,FlipY,RangeX,StepX,RangeY,StepY);
+
+    if max(abs(H2 - H2b),[],'all')>eps
+        error('Problem with tools.hist.mex.hist2d_VVtrans');
+    end
     
-    % tools.hist.histcounts2regular_mex
+
+
+
+
+    
+    %% tools.hist.histcounts2regular_mex
     X=rand(1e6,1);
     Y=rand(1e6,1);
     E=(0:0.01:1);
@@ -18,20 +62,8 @@ function [Result] = unitTest()
         error('histcounts2regular_mex not consistent with histcounts2 (double)');
     end
     
-    % speed
-    tic;for I=1:1:1e2, N1=histcounts2(X,Y,E,E);end,toc
-    tic;for I=1:1:1e2, N2=tools.hist.histcounts2regular_mex(X,Y,E,E);end,toc
-    tic;for I=1:1:1e2, N2=tools.hist.histcounts2regular_mex(X,Y,[0 1 0.01],[0 1 0.01],false);end,toc
     
-    %tic; for I=1:1:1e2, [Mat1,vx1,vy1,bx1,by1] = tools.array.hist2d_fast(X,Y, [0 1], [0 1], 0.01, 0.01); end, toc
-
-    
-
-
-    %          tic; for I=1:1:1000, [Mat1,vx1,vy1,bx1,by1] = tools.array.hist2d_fast(Xv,Yv, Xed, Yed); end, toc              
-    %          tic; for I=1:1:1000, [Mat1,vx1,vy1,bx1,by1] = histcounts2(Xv,Yv, Xed, Yed); end, toc
-    
-
+    %%
     
     if 1==0
     Xs=single(X);
