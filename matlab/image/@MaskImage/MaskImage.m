@@ -136,7 +136,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                         if numel(Flag)==numel(Result(Iobj).Image)
                             % assume that Flag in logical array of the same
                             % size 
-                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, BitInd, SetVal, true, true);
+                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, squeeze(Flag), BitInd, SetVal, true, true);
                         else
                             % Flag is indices:
                             Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);

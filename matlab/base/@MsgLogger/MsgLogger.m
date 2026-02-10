@@ -486,8 +486,66 @@ classdef MsgLogger < handle
             Obj.msgLog(Level, '');
         end   
        
-    end
+        % =================================================================
+        %                                Shortcuts
+        % =================================================================
 
+        function debug(Obj, varargin)
+            % Log debug message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.debug('This is a debug message');
+            Obj.msgLog(LogLevel.Debug, varargin{:});
+        end
+        
+        function info(Obj, varargin)
+            % Log info message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.info('This is an info message');
+            Obj.msgLog(LogLevel.Info, varargin{:});
+        end
+
+        function warning(Obj, varargin)
+            % Log warning message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.warning('This is a warning message');
+            Obj.msgLog(LogLevel.Warning, varargin{:});
+        end
+        
+        function error(Obj, varargin)
+            % Log error message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.error('This is an error message');
+            Obj.msgLog(LogLevel.Error, varargin{:});
+        end
+        
+        function fatal(Obj, varargin)
+            % Log fatal message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.fatal('This is a fatal message');
+            Obj.msgLog(LogLevel.Fatal, varargin{:});
+        end
+        
+        function assert(Obj, varargin)
+            % Log assert message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.assert('This is an assert message');
+            Obj.msgLog(LogLevel.Assert, varargin{:});
+        end
+        
+        function test(Obj, varargin)        
+            % Log test message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.test('This is a test message');
+            Obj.msgLog(LogLevel.Test, varargin{:});
+        end
+    end
 
 
     methods(Static) % Static functions
