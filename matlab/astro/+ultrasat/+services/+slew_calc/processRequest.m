@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : ultrasat/+services/+slew_calc/processRequest.m
+% Author      : Chen Tishler
+% Created     : 02/11/2025
+% Modified    : 10/02/2026
+% Description : MATLAB service to calculate slew time between targets
+%==========================================================================
+
 function Output = processRequest(Input)
 % Process request: dispatch on action (flat JSON, no inner json_text).
 %
@@ -33,6 +42,8 @@ end
 function Output = processSlew(Input)
 
     try
+
+        % Get input parameters
         ra1 = Input.from.ra;
         dec1 = Input.from.dec;
         ra2 = Input.to.ra;
@@ -41,16 +52,18 @@ function Output = processSlew(Input)
         if isfield(Input, 'time') && ~isempty(Input.time)
             timeIso = Input.time;
         end
-        [res, msg] = ultrasat.services.slew_calc_service.doProcessSlew(ra1, dec1, ra2, dec2, timeIso);
+
+        % Calculate
+        res = ultrasat.services.slew_calc.calcSlewWrapper(ra1, dec1, ra2, dec2, timeIso);
 
         % Prepare output struct
-        Output.message = msg;
         Output.status  = 'ok';
+        Output.message = '';
         Output.slew    = res.slew;
         Output.direct  = res.direct;
     catch ex
+        Output.status  = 'error';        
         Output.message = sprintf('MATLAB: processSlew exception: %s', ex.message);
-        Output.status  = 'error';
         io.msgLog(LogLevel.Error, Output.message);
     end
 end
@@ -64,25 +77,29 @@ function Output = processSlewBatch(Input)
         end
         pairs = Input.pairs;
         timeIso = '';
-        if isfield(item, 'time') && ~isempty(item.time)
-            timeIso = item.time;
+        if isfield(Input, 'time') && ~isempty(Input.time)
+            timeIso = Input.time;
         end
         N = numel(pairs);
         results = repmat(struct('slew', [], 'direct', []), 1, N);
+
+        % Calculate pair at a time
         for i = 1:N
             p = pairs(i);
             ra1 = p.from.ra;
             dec1 = p.from.dec;
             ra2 = p.to.ra;
             dec2 = p.to.dec;
-            [res, ~] = ultrasat.services.slew_calc_service.doProcessSlew(ra1, dec1, ra2, dec2, timeIso);
+
+            % Calculate
+            res = ultrasat.services.slew_calc.calcSlewWrapper(ra1, dec1, ra2, dec2, timeIso);
             results(i).slew   = res.slew;
             results(i).direct = res.direct;
         end
 
         % Prepare output struct
+        Output.status   = 'ok';        
         Output.message  = sprintf('MATLAB: processSlewBatch completed (%d items)', N);
-        Output.status   = 'ok';
         Output.results  = results;
     catch ex
         Output.message = sprintf('MATLAB: processSlewBatch exception: %s', ex.message);

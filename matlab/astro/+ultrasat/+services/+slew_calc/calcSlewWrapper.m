@@ -1,4 +1,13 @@
-function [Result, Message] = calcSlew(ra1, dec1, ra2, dec2, TimeIso)
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : ultrasat/+services/+slew_calc/calcSlewWrapper.m
+% Author      : Chen Tishler
+% Created     : 02/11/2025
+% Modified    : 10/02/2026
+% Description : Wrapper for calcSlew to calculate slew time between targets and return result in struct
+%==========================================================================
+
+function Result = calcSlewWrapper(ra1, dec1, ra2, dec2, TimeIso)
     % Single slew calculation: ra/dec in deg, optional TimeIso (ISO string).
     % Used by processSlew and processSlewBatch.
     %
@@ -29,13 +38,9 @@ function [Result, Message] = calcSlew(ra1, dec1, ra2, dec2, TimeIso)
     T_sec = round(T_sec, 1);
 
     io.msgLog(LogLevel.Info, sprintf( ...
-        'doProcessSlew: calcSlew(ra1=%.3f, dec1=%.3f, ra2=%.3f, dec2=%.3f, JD=%.5f) -> SLEW=%.1f sec, direct=%d', ...
+        'calcSlew(ra1=%.3f, dec1=%.3f, ra2=%.3f, dec2=%.3f, JD=%.5f) -> SLEW=%.1f sec, direct=%d', ...
         ra1, dec1, ra2, dec2, jd, T_sec, DirectSlewBool));
 
     % Return result in struct
     Result = struct('slew', T_sec, 'direct', DirectSlewBool);
-
-    % Return message
-    Message = 'calcSlew: OK';
 end
-
