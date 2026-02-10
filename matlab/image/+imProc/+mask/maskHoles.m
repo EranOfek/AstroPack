@@ -72,6 +72,8 @@ function Result = maskHoles(Obj, Args)
         
         % mask positions (only peak pixel is masked)
         Ind                   = imUtil.image.sub2ind_fast(size(Obj(Iobj).MaskData), Pos(:,2), Pos(:,1));
+        %Ind                   = imUtil.image.mex.sub2ind_mex(size(Obj(Iobj).MaskData), Pos(:,2), Pos(:,1));
+
 %         if isempty(Obj(Iobj).MaskData.Image)
 %             % Mask image is empty - create
 %             Obj(Iobj).MaskData.Dict.Class(zeros(size(Obj(Iobj).Image)));

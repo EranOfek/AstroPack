@@ -76,6 +76,7 @@ RoundY = RoundYorig + Radius + ExtraPad;
 XcooMat = SubMatX(:).' + RoundX;
 YcooMat = SubMatY(:).' + RoundY;
 Ind  = imUtil.image.sub2ind_fast(SizePadMatrix,YcooMat,XcooMat);
+%Ind  = imUtil.image.mex.sub2ind_mex(SizePadMatrix,YcooMat,XcooMat);
 Cube = reshape(PadMatrix(Ind)',Radius.*2+1,Radius.*2+1,Nsrc);
 
 if Circle

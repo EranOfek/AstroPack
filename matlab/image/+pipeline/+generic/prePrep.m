@@ -1,4 +1,4 @@
-function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
+function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     % pre-preparation of astronomical images (cast, quality checks)
     %     Optional steps include:
     %       Read images from local directory or get an AstroImage object.
@@ -72,6 +72,9 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     %            'AddFileNameLiteralsToHeader' - Cell array of literal names
     %                   (e.g., {'ProjName','FieldID'}) to inject from file
     %                   names into the FITS header. Default is {'ProjName','FieldID'}.
+    %            'TimeZone' - Observatory time zone (used for dir name
+    %                   construction). Must be consistent with AddHeadKeys
+    %                   argument. Default is 2.
     %            'AddHeadKeys' - A two columns cell array of additional header kewyords
     %                   to head to the header {KeyName, KeyValue}.
     %                   Default is : {'FILTER','clear';...
@@ -94,6 +97,12 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     %                   Default is 'ID_RAW'.
     %            'ClassID' - Function handle for ID numeric class (e.g., @uint64).
     %                   Default is @uint64.
+    %            'KeyDirDate' - If not empty, add to the header the directory
+    %                   day, month, year under these keywords.
+    %                   Default is {'DIRDAY', 'DIRMON', 'DIRYEAR'}
+    %            'FixJD' - A logical indicating if to fix JD using
+    %                   imProc.header.fixJD.
+    %                   Default is true.
     %            'Keys2table' - Cell array of header keys to export into the
     %                   TableHeader output. Default is
     %                   {'EXPMODE','FILTER','JD','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
@@ -112,6 +121,7 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
     %          - Optional table with the selected header keywords for all
     %            the images. The columns in this table corresponds to the
     %            header keyword names in the Args.Keys2table argument.
+    %          - A vector of mid JD (UTC) of images.
     % Author : Eran Ofek (2025 Sep) 
     % Example: [AI, TFD]=pipeline.generic.prePrep(AI);
 
@@ -150,6 +160,7 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         Args.MaxFWHM                     = 5;
         Args.UseMex                      = true;
 
+        Args.TimeZone                    = 2;  % must be consistent with AddHeadKeys
         Args.AddHeadKeys                 = {'FILTER','clear';...
                                             'TIMEZONE',2;...
                                             'CCDID',1;...
@@ -165,6 +176,9 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         Args.AddRawImageID               = true;
         Args.KeyRawID                    = 'ID_RAW';
         Args.ClassID                     = @uint64;
+        Args.KeyDirDate                  = {'DIRDAY', 'DIRMON', 'DIRYEAR'};
+        Args.FixJD                       = true;
+        
 
         Args.Keys2table                  = {'EXPMODE','FILTER','JD','EXPTIME','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
                                             'M_RA','M_DEC','M_HA',...
@@ -211,6 +225,8 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
             %AI(Iim).Image = single(AI(Iim).Image);
         end
     end
+
+    
 
     
     % allocate TableForDB:
@@ -353,7 +369,22 @@ function [AI, TableForDB, TableHeader] = prePrep(Images, Args)
         TableHeader = [];
     end
 
-    
+    % write DIRYEAR, DIRMON, DIRDAY, FILETIME
+    if Args.FixJD
+        [AI, JD_AI, ExpTime] = imProc.header.fixJD(AI);
+    else
+        JD_AI = AI.julday;
+    end
+    if ~isempty(Args.KeyDirDate)
+        [Date, DateDir] = AstroFileName.jd2datedir(JD_AI(1), Args.TimeZone);
+        Data = [Args.KeyDirDate.', num2cell(Date(1:3).')];
+        for Iai=1:1:NimGood
+            AI(Iai).HeaderData.insertKey(Data, Inf);
+        end
+    end
+   
+
+
     % write log
     if ~isempty(Args.LogObj)
         Nim = numel(AI);

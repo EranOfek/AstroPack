@@ -65,7 +65,8 @@ function [Result,FlagGood] = xpeak_x1_diff(Obj, Args)
         if Args.SetMask && ~isempty(Args.BitNameDiffXY)
             IndFlag = find(~FlagGood);
             %FlagImage = false(SizeImage);
-            Find = imUtil.image.sub2ind_fast(Obj(Iobj).sizeImage, round(Y1(IndFlag)), round(X1(IndFlag)));
+            Find = imUtil.image.sub2ind_fast(Obj(Iobj).sizeImage,round(Y1(IndFlag)), round(X1(IndFlag)));
+            %Find = imUtil.image.mex.sub2ind_mex(Obj(Iobj).sizeImage, round(Y1(IndFlag)), round(X1(IndFlag)));
             %FlagImage(Find) = true;
             %Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagImage, Args.BitNameCR, 1);
             Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Find, Args.BitNameDiffXY, 1);

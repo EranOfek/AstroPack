@@ -66,7 +66,7 @@ function Result = unitTest()
     LI = randi(prod(Size),Npt,1);
     [I1, J1]=ind2sub(Size, LI);
     [I2, J2]=imUtil.image.ind2sub_fast(Size, LI);
-    [I3, J3]=ind2sub_mex(Size, LI);
+    [I3, J3]=imUtil.image.mex.ind2sub_mex(Size, LI);
 
     if ~all(I1==I2) || ~all(J1==J2)
         error('Problem with imUtil.image.ind2sub_fast');

@@ -90,6 +90,7 @@ function S = injectSources_NS(Image,Cat,PSFin,Args)
         flag = ~(Xind<=0 | Yind<=0 | Xind>SizeImageX | Yind>SizeImageY);
         %ind = sub2ind([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
         Ind = imUtil.image.sub2ind_fast([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
+        %Ind = imUtil.image.mex.sub2ind_mex([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
 
         % ind(isnan(ind))=[]; % ? for what pathological case ind may be NaN?
 

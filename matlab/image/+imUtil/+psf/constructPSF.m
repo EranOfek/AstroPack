@@ -270,6 +270,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         if ~isempty(Args.Back)
             % read back at X/Y positions
             Ind  = imUtil.image.sub2ind_fast(size(Args.Back), round(Args.Y), round(Args.X));
+            %Ind  = imUtil.image.mex.sub2ind_mex(size(Args.Back), round(Args.Y), round(Args.X));
             Back = Args.Back(Ind(IndGoodPsf));
         else
             Back = Args.Back;

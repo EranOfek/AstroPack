@@ -50,6 +50,7 @@ switch lower(Args.Method)
         % use convolution
         FullImage = zeros(fliplr(OutSize));
         Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+        %Ind = imUtil.image.mex.sub2ind_mex(OutSize, floor(Y(:)), floor(X(:)) );
         FullImage(Ind) = Image(:);
         
         % convolve delta functions with circ
@@ -64,6 +65,7 @@ switch lower(Args.Method)
         % use inpaintn
         FullImage = nan(fliplr(OutSize));
         Ind = imUtil.image.sub2ind_fast(OutSize, floor(Y(:)), floor(X(:)) );
+        %Ind = imUtil.image.mex.sub2ind_mex(OutSize, floor(Y(:)), floor(X(:)) );
         FullImage(Ind) = Image(:);
         IntImage  = inpaintn(FullImage);
         

@@ -98,6 +98,9 @@ function [Result] = forcedPhotNew(Obj, Args)
     end
 
     Ncol = numel(Args.ColCell);
+
+    BUG - NEED to extend ColNames, ColUnits to umerical additions:
+    
     if isempty(Args.ColUnits)
         [Args.ColUnits{1:Ncol}] = deal(''); 
     end
@@ -272,8 +275,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                         
         
         
-        Xpos = XI(:).' + ResultPSF.DX(:).';
-        Ypos = YI(:).' + ResultPSF.DY(:).';
+        Xpos = XI(:) + ResultPSF.DX(:);
+        Ypos = YI(:) + ResultPSF.DY(:);
         [RAI, DecI] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
         
@@ -335,28 +338,28 @@ function [Result] = forcedPhotNew(Obj, Args)
                     Data(:,K) = ResultPSF.Chi2./ResultPSF.Dof;
                 case 'FLUX_APER'
                     Cat(:,K:K+Naper-1) = Aper.AperPhot;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:NC)));
+                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'FLUXERR_APER'
                     Cat(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
 
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
+                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
-                case 'MAG_APER_'
+                case 'MAG_APER'
                     Cat(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
+                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
-                case 'MAGERR_APER_'
+                case 'MAGERR_APER'
                     Cat(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
+                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'APER_AREA'
                     Cat(:,K:K+Naper-1) = Aper.AperArea;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
+                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'BACK_IM'
@@ -365,6 +368,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                     Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Var'});
                 case 'BACK_ANNULUS'
                     Data(:,K) = Aper.AnnulusBack;
+                case 'BACKMAG_ANNULUS'
+                    Data(:,K) = convert.luptitude(Aper.AnnulusBack, 10.^(0.4.*Args.ZP));
                 case 'STD_ANNULUS'
                     Data(:,K) = Aper.AnnulusStd;
                 case 'FLAGS'

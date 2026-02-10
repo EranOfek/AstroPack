@@ -1903,6 +1903,9 @@ classdef AstroImage < Component
             %          - Bit name, or bit index (start from 0), to set.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
+            %            'DefBitDict' - Default bit dictionary if
+            %                   not exist. Default is
+            %                   BitDictionary('BitMask.Image.Default').
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -1920,6 +1923,7 @@ classdef AstroImage < Component
                 Flag                         % matrix of logicals
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
+                Args.DefBitDict           = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical = false;
             end
             
@@ -1931,7 +1935,7 @@ classdef AstroImage < Component
                     
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'CreateNewObj', Args.CreateNewObj);
+                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'DefBitDict',Args.DefBitDict, 'CreateNewObj', Args.CreateNewObj);
             end
          
         end
@@ -2142,10 +2146,13 @@ classdef AstroImage < Component
             if isempty(Y)
                 Ind = X;
             else
-                FlagOut = X<1 | Y<1 | X>SizeX | Y>SizeY;
-                XNN = X(~FlagOut);
-                YNN = Y(~FlagOut);
+                FlagOut = ~(X<1 | Y<1 | X>SizeX | Y>SizeY | isnan(X) | isnan(Y));
+                XNN = X(FlagOut);
+                YNN     = Y(FlagOut);
                 Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(YNN), round(XNN));
+                Nfull = numel(FlagOut);
+                %Ind = imUtil.image.mex.sub2ind_mex([SizeY, SizeX], round(YNN), round(XNN));
+                %Ind = sub2ind([SizeY, SizeX], round(YNN), round(XNN));
 %                 
 %                 if X<1 || Y<1 || X>SizeX || Y>SizeY
 %                     Ind = NaN;
@@ -2163,7 +2170,8 @@ classdef AstroImage < Component
                     if isnan(Ind)
                         varargout{Iarg} = [];
                     else
-                        varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                        varargout{Iarg} = nan(Nfull,1);
+                        varargout{Iarg}(FlagOut) = Obj.(Args.DataProp{Iarg})(Ind);
                     end
                 end
                 if Args.ReturnNaN && isempty(varargout{Iarg})

@@ -146,6 +146,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         % Measure value at Pos
         if Args.AddValAtPos
             PosInd = imUtil.image.sub2ind_fast(size(Image), Pos(:,2), Pos(:,1));
+            %PosInd = imUtil.image.mex.sub2ind_mex(size(Image), Pos(:,2), Pos(:,1));
             ValPos = Image(PosInd);
         else
             ValPos = [];

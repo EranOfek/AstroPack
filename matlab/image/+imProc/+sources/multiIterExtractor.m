@@ -599,7 +599,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 CK = CK./max(CK,[],'all');
                 EdgesVarMap = repmat(single(0), SizeImage);
                 ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
-                LinIndex = imUtil.image.sub2ind_fast(SizeImage, ColData(:,2), ColData(:,1));
+                LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
+                %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
                 %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
                 %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
                 

@@ -25,6 +25,17 @@ function [Result] = addAirMass(AI, Args)
     %                   Default is 'deg'.
     %            'GeoPos' - Geodetic position [Lon, Lat, Height[m]].
     %                   Default is [35.04, 30.05 415].
+    %
+    %            --- Add UPIX* --- Insert Healpix ID to header
+    %            'HealpixType' - 'nested'|'ring'.
+    %                   If [], then do not insert UPIX to header
+    %                   Default is 'nested'.
+    %            'HealpixLevel' - Default is 2.^[3, 8, 16]
+    %            'KeyHealpix' - Default is ["NSIDE_PARTITION", "NSIDE_LOW", "NSIDE_HIGH"]
+    %            'UniqueID' - A logical flag indicating if to return a
+    %                   unique ID (using celestial.healpix.pix2uniqueId).
+    %                   Default is false.
+    %
     %            'UseDict' - A logical indicating if to use keywords
     %                   dictionary. Default is false.
     %            'CreateNewObj' - A logical indicating if to create a new
@@ -44,10 +55,17 @@ function [Result] = addAirMass(AI, Args)
         Args.CooUnits          = 'deg';
         Args.GeoPos            = [35.04, 30.05 415]; % [deg deg m]
 
+        % Add UPIX keywords (healpix indexing)
+        Args.HealpixType       = 'nested';  % [] for none
+        Args.HealpixLevel      = 2.^[3, 8, 16];   % diamater ~ 13 deg, 0.4 deg, 5.7"
+        Args.KeyHealpix        = ["UPIX_PAR", "UPIX_LOW", "UPIX_HIG"];
+        Args.UniqueID logical = true;
+
         Args.UseDict           = false;
         Args.CreateNewObj      = false;
     end
-    
+    Nlevel = numel(Args.HealpixLevel);
+
     if Args.CreateNewObj
         Result = AI.copy;
     else
@@ -69,17 +87,29 @@ function [Result] = addAirMass(AI, Args)
     if isempty(Args.Coo)
         % read RA/Dec from header
         TmpCoo   = AI.getStructKey(Args.KeyCoo, 'UseDict',Args.UseDict);
-        Args.Coo = [TmpCoo.(Args.KeyCoo{1}), TmpCoo.(Args.KeyCoo{2})];
+        Args.Coo = [[TmpCoo.(Args.KeyCoo{1})].', [TmpCoo.(Args.KeyCoo{2})].'];
     end
     Args.Coo         = Args.Coo.*Conv;   % convert to radians
     Args.GeoPos(1:2) = Args.GeoPos(1:2).*Conv; 
     
-    for Iai=1:1:Nai
-        % calculate Hardie airmass
-        AirMass = celestial.coo.airmass(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), Args.GeoPos);
+    % calculate Hardie airmass
+    AirMass = celestial.coo.airmass(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), Args.GeoPos);
 
+    for Iai=1:1:Nai
+        
         % insert airmass to header
-        Result(Iai).HeaderData.replaceVal(Args.KeyAM, AirMass);
+        Result(Iai).HeaderData.replaceVal(Args.KeyAM, AirMass(Iai));
+
+        if ~isempty(Args.HealpixType)
+            UpixVal = zeros(Nlevel,1, 'int64');
+            for Ilevel=1:1:Nlevel
+                UpixVal(Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Args.Coo(Iai,1), Args.Coo(Iai,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
+            end
+            Data = [{Args.KeyHealpix{:}}.', num2cell(UpixVal)];
+            Result(Iai).HeaderData.insertKey(Data, Inf);
+        end
     end
+
+    
 
 end

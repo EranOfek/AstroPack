@@ -168,7 +168,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                 % XY provided by user
                 XY = Args.XY;
                 % get Back/Var at these positions
-                Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image), XY(:,1), XY(:,2));
+                Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image),XY(:,2), XY(:,1));
+                %Ind  = imUtil.image.mex.sub2ind_mex(size(Obj(Iobj).Image), XY(:,2), XY(:,1));
                 Back = Obj(Iobj).Back(Ind);
                 Var  = Obj(Iobj).Var(Ind);
                 Std  = sqrt(Var);
