@@ -1,2 +1,6 @@
 
+# Data file - put in C:\AstroPack\matlab\data\ULTRASAT
+all_sky_grid_charged_particles_350_rep1.txt
+
+# CSV file extracted from the alert
 lvc_2024_04_01_00_40_58_000000.csv
