@@ -5,19 +5,17 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
     %      every bit present in the proc mask is also set in the coadd mask.
     %      Reports per-proc-file results (ProcFileResults).
     %   2. Coadd->Procs: For each coadd mask, computes the bitwise OR of all
-    %      parent proc masks and verifies that every bit in the coadd is
-    %      present in at least one proc. Reports per-coadd results
-    %      (CoaddFileResults).
-    %   Files are matched by mount_subframe_CCD key extracted from filenames.
-    % Input  : - Input: path string to directory containing both sci_proc
-    %            and sci_coadd FITS mask files.
+    %      parent proc masks and identifies bits in coadd that are not in
+    %      any proc (CoaddOnly). Reports per-coadd results (CoaddFileResults).
+    %      Proc files are assigned to Coadd by key extracted from filenames (may need to be adjusted).
+    % Input  : path string to directory containing both sci_proc and sci_coadd FITS mask files.
     %          * ...,key,val,...
     %            'BitDictName' - BitDictionary name for per-bit breakdown.
     %                            Default is 'BitMask.Image.Default'.
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print progress to console. Default is true.
-    % Output : - Report: struct with fields:
+    % Output :   Report: struct with fields:
     %            .Timestamp      - datetime of validation run
     %            .DataPath       - path to data
     %            .NumCoadds      - number of coadd groups
@@ -34,8 +32,10 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
     %              NumProcs       - number of parent proc files
     %              SizeY, SizeX   - coadd mask size
     %              CoaddAndProcs  - pixels with bits in both coadd and proc OR
-    %              CoaddOnly      - bits in coadd but not in any proc (informational)
-    %            .ProcBitBreakdown  - per-bit missing counts (proc->coadd direction)
+    %              CoaddOnly      - bits in coadd but not in any proc
+    %                (expected: coaddition adds its own bits)
+    %            .ProcBitBreakdown  - per-bit counts (proc->coadd direction)
+    %            .CoaddBitBreakdown - per-bit counts of CoaddOnly pixels
     %            .Summary       - text summary
     %            .Note          - description of check logic
     % Author : Dana Kovaleva (Feb 2026)
@@ -141,6 +141,9 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
     % Per-bit pixel counters for Proc->Coadd direction
     ProcBitPropagated = zeros(Nbits, 1);  % properly propagated (in both)
     ProcBitProcOnly   = zeros(Nbits, 1);  % in proc but missing in coadd
+
+    % Per-bit pixel counters for Coadd->Procs direction
+    CoaddBitCoaddOnly = zeros(Nbits, 1);  % in coadd but not in any proc
 
     ProcRow = 0;  % running index into ProcFileResults
 
@@ -253,6 +256,15 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
         NumCoaddAndProcs = sum(BothMaskCoadd > 0, 'all');
         NumCoaddOnly     = sum(CoaddOnlyMask > 0, 'all');
 
+        % Per-bit breakdown of CoaddOnly
+        if NumCoaddOnly > 0
+            for Ibit = 1:Nbits
+                BitVal = uint32(2^BD.Dic.BitInd(Ibit));
+                CoaddBitCoaddOnly(Ibit) = CoaddBitCoaddOnly(Ibit) + ...
+                    sum(bitand(CoaddOnlyMask, BitVal) > 0, 'all');
+            end
+        end
+
         CoaddFileResults.CoaddFile(Ik)     = DmCoadd(CoaddIdx).name;
         CoaddFileResults.NumProcs(Ik)      = Nprocs;
         CoaddFileResults.SizeY(Ik)         = SizeY;
@@ -274,6 +286,11 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
         'VariableNames', {'BitName', 'BitIndex', 'ProcAndCoaddPixels', 'ProcOnlyPixels'});
     ProcBitBreakdown = sortrows(ProcBitBreakdown, 'ProcOnlyPixels', 'descend');
 
+    % --- Build CoaddBitBreakdown table ---
+    CoaddBitBreakdown = table(BD.Dic.BitName(:), BD.Dic.BitInd(:), CoaddBitCoaddOnly, ...
+        'VariableNames', {'BitName', 'BitIndex', 'CoaddOnlyPixels'});
+    CoaddBitBreakdown = sortrows(CoaddBitBreakdown, 'CoaddOnlyPixels', 'descend');
+
     % --- Build Report ---
     NProcPass = sum(ProcFileResults.Pass);
     TotalProcOnly = sum(ProcFileResults.ProcOnly(ProcFileResults.ProcOnly >= 0));
@@ -287,6 +304,7 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
     Report.ProcFileResults = ProcFileResults;
     Report.CoaddFileResults = CoaddFileResults;
     Report.ProcBitBreakdown = ProcBitBreakdown;
+    Report.CoaddBitBreakdown = CoaddBitBreakdown;
 
     SummaryLines = {};
     SummaryLines{end+1} = 'Mask Propagation to Coadd Report';
@@ -310,10 +328,10 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
         '  corresponding coadd mask. ProcOnly = bits in proc but missing\n', ...
         '  in coadd (failure). Pass requires ProcOnly==0 per proc file.\n\n', ...
         'Direction 2 (Coadd->Procs): For each coadd mask, computes the\n', ...
-        '  bitwise OR of all parent proc masks and checks that every bit\n', ...
-        '  in the coadd is present in at least one proc. CoaddOnly = bits\n', ...
-        '  in coadd but not in any proc (informational; coadd may add\n', ...
-        '  bits like CoaddLessImages).\n\n', ...
+        '  bitwise OR of all parent proc masks and identifies bits in\n', ...
+        '  the coadd that are not in any proc. CoaddOnly pixels are\n', ...
+        '  expected: the coaddition process adds its own bits\n', ...
+        '  (e.g. CoaddLessImages, NaN from interpolation).\n\n', ...
         'Proc files matched to coadd by mount_subframe_CCD key.']);
 
     if Args.Verbose
@@ -338,8 +356,15 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
         % Print per-bit breakdown (non-zero only)
         NonZeroBits = ProcBitBreakdown(ProcBitBreakdown.ProcOnlyPixels > 0, :);
         if height(NonZeroBits) > 0
-            fprintf('\nPer-bit missing pixel breakdown (Proc->Coadd):\n');
+            fprintf('\nPer-bit ProcOnly breakdown (Proc->Coadd):\n');
             disp(NonZeroBits);
+        end
+
+        % Print CoaddOnly per-bit breakdown
+        NonZeroCoaddBits = CoaddBitBreakdown(CoaddBitBreakdown.CoaddOnlyPixels > 0, :);
+        if height(NonZeroCoaddBits) > 0
+            fprintf('\nPer-bit CoaddOnly breakdown (bits added by coaddition):\n');
+            disp(NonZeroCoaddBits);
         end
     end
 
