@@ -40,36 +40,48 @@ function soc_slew_calc_matlab()
     end           
 
     % Set SOC_PATH and load FileMap when deployed (reusable bootstrap)
-    ultrasat.services.runDeployedBootstrap('slew/slew_matlab/AstroPackFileMap_1.mat');
+    % ultrasat.services.runDeployedBootstrap('slew/slew_matlab/AstroPackFileMap_1.mat');
 
-    % Create component to trigger Config loading
-    fprintf('Creating Comp\n');
-    Comp = Component();
-    fprintf('Config.Path: %s\n', Comp.Config.Path);
-    fprintf('Comp.Config.Data.MsgLogger.FileName: %s\n', Comp.Config.Data.MsgLogger.FileName);
-
-    % Call UltrasatPerf() to force the mcc compiler linking this class and
-    % its related sources. Otherwise we will get this error:
-    %     09:50:58.133 [DBG] doProcessSnr: creating UltrasatPerf2GUI
-    %     09:50:58.176 [DBG] UltrasatPerf2GUI: UltrasatPerf2GUI:load: c:\soc\snr\snr_matlab\P90_UP_test_60_ZP_Var_Cern_21.mat
-    %     Warning: Variable 'UP' originally saved as a UltrasatPerf cannot be instantiated as an object and will be read in as a uint32.    
-    fprintf('Calling: Perf = UltrasatPerf(Init, false);\n');    
-    Perf = UltrasatPerf('Init', false);
-    fprintf('UltrasatPerf done\n');
-    
-    fprintf('Calling JsonFileIpc run\n');
-    global SOC_PATH;
-    InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
-    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');
-    ipc = ultrasat.services.common.JsonFileIpc( ...
-        'InputPath', InputPath, ...
-        'ProcessedPath', ProcessedPath, ...
-        'Handler', @ultrasat.services.slew_calc.processRequest, ...
-        'WatchdogFileName', 'soc_slew_matlab_watchdog.txt', ...
-        'WatchdogInterval', 10, ...
-        'DelaySec', 0.1);
-    ipc.run();
-    fprintf('Returned from JsonFileIpc run\n');
 
     fprintf('soc_slew_matlab done\n');
+end
+
+%==========================================================================
+
+function setup()
+
+end
+
+%==========================================================================
+
+function mainLoop()
+    % mainLoop - Blocking function
+    global SOC_PATH;
+
+    % Set the log level
+    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'file');
+    MsgLogger.setLogLevel(LogLevel.Info, 'type', 'disp');            
+
+    % Set the input path
+    InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');    
+
+    % Log the start of the main loop
+    io.msgLog(LogLevel.Info, '=========== Slew mainLoop started - Input folder: %s', strrep(InputPath, '\', '\\'));
+
+    % Create the FileProcessor object
+    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json', 'ProcessedPath', ProcessedPath);
+    fp.ProcessFileFunc = @fileProcessorCallback;
+    fp.EnableDelete = true;
+    fp.WatchdogFileName = 'soc_slew_matlab_watchdog.txt';
+    fp.WatchdogInterval = 10;
+    %fp.MaxRunTime = hours(8);
+
+    % Input loop will call FileProcessorCallback (below) for each input
+    % file found in the folder
+    % Note: Blocking function
+    fp.process('DelaySec', 0.1);
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'Slew mainLoop passed');                          
+    Result = true;
 end

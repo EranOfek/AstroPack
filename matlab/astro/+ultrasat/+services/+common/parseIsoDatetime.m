@@ -1,3 +1,11 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : ultrasat.services.common.parseIsoDatetime.m
+% Author      : Chen Tishler
+% Created     : 02/11/2021
+% Modified    : 10/02/2026
+% Description : JSON file IPC class
+%==========================================================================
 
 function dt = parseIsoDatetime(str)
     % @TODO - Move to common file - like +api/TimeUtils.m ?
