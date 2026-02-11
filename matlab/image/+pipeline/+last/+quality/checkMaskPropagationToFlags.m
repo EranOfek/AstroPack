@@ -259,7 +259,7 @@ function Report = checkMaskPropagationToFlags(Input, Args)
                        'Pass rate: %.2f%%\n'], ...
                        Nfrag, TotalSources, FailedCount, PassRate);
 
-    % Build report structuremg
+    % Build report structure"
     Report = struct();
     Report.Timestamp = datetime('now');
     Report.DataPath = DataPath;
