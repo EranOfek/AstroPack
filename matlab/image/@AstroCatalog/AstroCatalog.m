@@ -56,7 +56,7 @@ classdef AstroCatalog < AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
 
-%            Obj@AstroTable(varargin{:});
+            %Obj = Obj@AstroTable(varargin{:});
 
             % construct AstroTable
             AT   = AstroTable(varargin{:});
