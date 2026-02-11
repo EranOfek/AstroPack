@@ -152,17 +152,49 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
               'CatName', 'GAIA_Bright', ...
               'HTM', HTM, 'LevelHTM', LevelHTM);
 
-    % PS1DR2 with NullValue replacement and computed columns
-    Nsrc = VO.prep.buildHTMfromTopCat( ...
-              'dbo.meanobjectview AS m JOIN dbo.stackobjectview AS s ON m.objid = s.objid JOIN dbo.forcedmeanobject AS f ON m.objid = f.objid', ...
-              'TapUrl', 'https://mast.stsci.edu/vo-tap/api/v0.1/ps1dr2', ...
-              'CatName', 'PS1DR2', ...
-              'ColRA', 'ra', 'ColDec', 'dec', ...
-              'Columns', ['m.ramean AS ra, m.decmean AS dec, m.rameanerr AS raerr, ' ...
-                          'm.gmeanpsfmag, m.gmeankronmag, s.gpsflikelihood'], ...
-              'NullValue', -999, ...
-              'ComputedColumns', {'g_delta_psf_kron', 'gmeanpsfmag', 'gmeankronmag', 'minus'}, ...
-              'DropColumns', {'gmeankronmag'});
+  
+   % PS1DR2 real usecase with parallel downloading and NullValue replacement and computed columns
+    TableName = [ ...
+      'dbo.meanobjectview AS m ' ...
+      'LEFT OUTER JOIN dbo.forcedmeanobject AS f ON m.objid = f.objid'];
+    Columns = strjoin({ ...
+    'm.ramean AS RA', 'm.decmean AS Dec', 'm.rameanerr AS raerr', 'm.decmeanerr AS decerr', ...
+    'm.objinfoflag', 'm.qualityflag', 'm.epochmean', 'm.posmeanchisq', ...
+    'm.gqfperfect', 'm.gmeanpsfmag', 'm.gmeanpsfmagerr', 'm.gmeanpsfmagstd', ...
+    'm.gmeanpsfmagnpt', 'm.gmeanpsfmagmin', 'm.gmeanpsfmagmax', 'm.gmeankronmag', ...
+    'm.rqfperfect', 'm.rmeanpsfmag', 'm.rmeanpsfmagerr', 'm.rmeanpsfmagstd', ...
+    'm.rmeanpsfmagnpt', 'm.rmeanpsfmagmin', 'm.rmeanpsfmagmax', 'm.rmeankronmag', ...
+    'm.iqfperfect', 'm.imeanpsfmag', 'm.imeanpsfmagerr', 'm.imeanpsfmagstd', ...
+    'm.imeanpsfmagnpt', 'm.imeanpsfmagmin', 'm.imeanpsfmagmax', 'm.imeankronmag', ...
+    'm.zqfperfect', 'm.zmeanpsfmag', 'm.zmeanpsfmagerr', 'm.zmeanpsfmagstd', ...
+    'm.zmeanpsfmagnpt', 'm.zmeanpsfmagmin', 'm.zmeanpsfmagmax', ...
+    'm.yqfperfect', 'm.ymeanpsfmag', 'm.ymeanpsfmagerr', 'm.ymeanpsfmagstd', ...
+    'm.ymeanpsfmagnpt', 'm.ymeanpsfmagmin', 'm.ymeanpsfmagmax', ...
+    'f.gfmeanmagr5', 'f.gfmeanmagr5err', 'f.rfmeanmagr5', 'f.rfmeanmagr5err', ...
+    'f.ifmeanmagr5', 'f.ifmeanmagr5err', 'f.zfmeanmagr5', 'f.zfmeanmagr5err', ...
+    'f.yfmeanmagr5', 'f.yfmeanmagr5err',}, ', ');
+    CompCols = { ...
+    {'g_delta_psf_kron', 'gmeanpsfmag', 'gmeankronmag', 'minus'}; ...
+    {'r_delta_psf_kron', 'rmeanpsfmag', 'rmeankronmag', 'minus'}; ...
+    {'i_delta_psf_kron', 'imeanpsfmag', 'imeankronmag', 'minus'}};
+    DropCols = {'gmeankronmag', 'rmeankronmag', 'imeankronmag'};
+    Nsrc = VO.prep.buildHTMfromTopCat(TableName, ...
+    'TapUrl', 'https://mast.stsci.edu/vo-tap/api/v0.1/ps1dr2',...
+    'CatName', 'PS1DR2',...
+    'HTM_Level', 9,...
+    'MaxConeRadiusDeg', 0.25,...
+    'ColRA', 'RA', 'ColDec', 'Dec',...
+    'ColRASrc', 'm.ramean', 'ColDecSrc', 'm.decmean',...
+    'Columns', Columns,...
+    'NullValue', -999,...
+    'ComputedColumns', CompCols,...
+    'DropColumns', DropCols,...
+    'RARange', [0, 1] .* pi/180, 'DecRange', [0, 1] .* pi/180,...
+    'WhereClause', 'm.ndetections > 2', ...
+    'TargetDir', '/euclid/catsHTM/NewCats/PS1DR2/',...
+    'LocalDir', '~/tmp/',...
+    'NumWorkers', 4,...
+    'Verbose', true);
 %}
 
     arguments
@@ -208,7 +240,6 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.NumWorkers       = 0           % 0=sequential, >0=parallel with N workers
         Args.QueryLevel       = 'auto'      % Query HTM level ('auto' or integer)
         Args.MaxConeRadiusDeg = 0.25        % Maximum cone search radius (TAP service limit)
-        Args.DedupCol         = ''          % TAP column name for deduplication (e.g. 'objID'); if set, used instead of coordinates
     end
 
     RAD = constant.RAD;
@@ -253,17 +284,6 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         ColumnsStr = strjoin(Args.Columns, ', ');
     else
         ColumnsStr = char(Args.Columns);
-    end
-
-    % Inject DedupCol into the query if specified and not already present
-    DedupColIdx = [];
-    if ~isempty(Args.DedupCol) && ~strcmp(ColumnsStr, '*')
-        if ~contains(lower(ColumnsStr), lower(Args.DedupCol))
-            ColumnsStr = sprintf('%s, %s', ColumnsStr, Args.DedupCol);
-            if Args.Verbose
-                fprintf('Added DedupCol "%s" to query columns for deduplication.\n', Args.DedupCol);
-            end
-        end
     end
 
     if Args.Verbose
@@ -336,6 +356,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
         % Get column info with filtering details so we can apply same to original names
         [~, Args.ColCell, numericMask, reorderIdx] = tableToMatrixWithInfo(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+        % Force RA/Dec names to match user-specified ColRA/ColDec (MATLAB may change case)
+        Args.ColCell{1} = Args.ColRA;
+        Args.ColCell{2} = Args.ColDec;
         if Args.Verbose
             fprintf('Detected %d columns (MATLAB names): %s\n', numel(Args.ColCell), strjoin(Args.ColCell, ', '));
         end
@@ -423,29 +446,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         fprintf('Column units: %s\n', strjoin(Args.ColUnits, ', '));
     end
 
-    % Locate DedupCol in the post-processed ColCell (for dedup-then-strip)
-    if ~isempty(Args.DedupCol)
-        DedupColIdx = find(strcmpi(Args.ColCell, Args.DedupCol), 1);
-        if isempty(DedupColIdx)
-            warning('DedupCol "%s" not found in output columns — falling back to coordinate dedup.', Args.DedupCol);
-        else
-            if Args.Verbose
-                fprintf('Using DedupCol "%s" (column %d) for deduplication.\n', Args.DedupCol, DedupColIdx);
-            end
-        end
-    end
-
-    % Save ColCell file — strip DedupCol so it does not appear in the catalog metadata
-    SaveColCell = Args.ColCell;
-    SaveColUnits = Args.ColUnits;
-    if ~isempty(DedupColIdx)
-        SaveColCell(DedupColIdx) = [];
-        if ~isempty(SaveColUnits) && numel(SaveColUnits) >= DedupColIdx
-            SaveColUnits(DedupColIdx) = [];
-        end
-    end
+    % Save ColCell file immediately
     ColCellPath = fullfile(Args.LocalDir, Args.CatName);
-    HDF5.save_cat_colcell(ColCellPath, SaveColCell, SaveColUnits);
+    HDF5.save_cat_colcell(ColCellPath, Args.ColCell, Args.ColUnits);
     if Args.Verbose
         fprintf('Saved column metadata: %s_htmColCell.mat\n', ColCellPath);
     end
@@ -855,7 +858,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 for iProc = 1:NumOutputToProcess
                     Futures(iProc) = parfeval(pool, @downloadAggregateCell, 2, ...
                         TableName, ColumnsStr, OutputCellCoos{iProc}, ...
-                        QueryDescCooSets{iProc}, RAD, Args, DedupColIdx);
+                        QueryDescCooSets{iProc}, RAD, Args);
                 end
 
                 if Args.Verbose
@@ -867,7 +870,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     try
                         [completedIdx, Data, queryFailed] = fetchNext(Futures);
                     catch ME
-                        warning('fetchNext error: %s', ME.message);
+                        warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
                     end
 
@@ -960,27 +963,18 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
                     Nsrc(pos, :) = [fIdx, 0];
                 else
-                    % Filter to output cell boundaries, deduplicate, strip DedupCol
+                    % Filter to output cell boundaries and deduplicate by coordinates
                     if ~isempty(AllData)
                         CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
                         Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
                         AllData = AllData(Flag, :);
-                        % Deduplicate using DedupCol (e.g. objID) or coordinates
-                        if ~isempty(DedupColIdx)
-                            [~, uniqueIdx] = unique(AllData(:, DedupColIdx), 'first');
-                        else
-                            [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
-                        end
+                        [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
                         if numel(uniqueIdx) < size(AllData, 1)
                             Nremoved = size(AllData, 1) - numel(uniqueIdx);
                             AllData = AllData(sort(uniqueIdx), :);
                             if Args.Verbose
                                 fprintf('    Output cell %d: removed %d duplicate rows\n', fIdx, Nremoved);
                             end
-                        end
-                        % Strip DedupCol before writing (not part of catalog)
-                        if ~isempty(DedupColIdx)
-                            AllData(:, DedupColIdx) = [];
                         end
                     end
 
@@ -1093,7 +1087,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     try
                         [completedIdx, Data, queryFailed] = fetchNext(Futures);
                     catch ME
-                        warning('fetchNext error: %s', ME.message);
+                        warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
                     end
 
@@ -1130,7 +1124,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                             else
                                 fineCoo = HTM(fIdx).coo;
                             end
-                            NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD, DedupColIdx);
+                            NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
                             Nsrc(pos, :) = [fIdx, NsrcCell];
                             ProcessedFineCells = ProcessedFineCells + 1;
 
@@ -1234,7 +1228,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                         else
                             fineCoo = HTM(fIdx).coo;
                         end
-                        NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD, DedupColIdx);
+                        NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
                         Nsrc(pos, :) = [fIdx, NsrcCell];
                         ProcessedFineCells = ProcessedFineCells + 1;
                     end
@@ -1579,14 +1573,13 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
 end
 
 
-function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD, DedupColIdx)
+function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
     % Filter raw query data to a single fine HTM cell and write to HDF5
     % Input  : - Data: numeric matrix from query (RA/Dec in radians, cols 1,2)
     %          - fineIdx: fine-level HTM index for HDF5 naming
     %          - fineCoo: 3x2 [Long, Lat] of fine cell vertices (radians)
     %          - Args: argument structure
     %          - RAD: degrees per radian
-    %          - DedupColIdx: column index for dedup ([] for coordinate-based)
     % Output : - NsrcCell: number of sources written
 
     NsrcCell = 0;
@@ -1600,24 +1593,15 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD, De
     Flag = celestial.htm.in_polysphere(CooRad, fineCoo, 2);
     FineData = Data(Flag, :);
 
-    % Deduplicate using DedupCol (e.g. objID) or coordinates
+    % Deduplicate by coordinates — same (RA,Dec) = same source
     if size(FineData, 1) > 1
         NbeforeDedup = size(FineData, 1);
-        if ~isempty(DedupColIdx)
-            [~, uniqueIdx] = unique(FineData(:, DedupColIdx), 'first');
-        else
-            [~, uniqueIdx] = unique(FineData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
-        end
+        [~, uniqueIdx] = unique(FineData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
         FineData = FineData(sort(uniqueIdx), :);
         Nremoved = NbeforeDedup - size(FineData, 1);
         if Nremoved > 0 && Args.Verbose
             fprintf('    Cell %d: removed %d duplicate rows\n', fineIdx, Nremoved);
         end
-    end
-
-    % Strip DedupCol before writing (not part of catalog)
-    if ~isempty(DedupColIdx)
-        FineData(:, DedupColIdx) = [];
     end
 
     NsrcCell = size(FineData, 1);
@@ -1636,7 +1620,7 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD, De
 end
 
 
-function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outputCoo, queryDescCoos, RAD, Args, DedupColIdx)
+function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outputCoo, queryDescCoos, RAD, Args)
     % Parallel worker for aggregate-up: download all query descendants for
     % one output cell, concatenate, filter to output cell, deduplicate.
     % Input  : - TableName: TAP table name
@@ -1645,7 +1629,6 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
     %          - queryDescCoos: cell array of 3x2 [Long, Lat] for each query descendant
     %          - RAD: degrees per radian
     %          - Args: argument structure
-    %          - DedupColIdx: column index for dedup ([] for coordinate-based)
     % Output : - Data: deduplicated numeric matrix filtered to output cell, or empty
     %          - QueryFailed: true if all queries failed
 
@@ -1698,23 +1681,14 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
 
     QueryFailed = AnyFailed && isempty(AllData);
 
-    % Filter to output cell boundaries, deduplicate, strip DedupCol
+    % Filter to output cell boundaries and deduplicate by coordinates
     if ~isempty(AllData)
         CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
         Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
         AllData = AllData(Flag, :);
-        % Deduplicate using DedupCol (e.g. objID) or coordinates
-        if ~isempty(DedupColIdx)
-            [~, uniqueIdx] = unique(AllData(:, DedupColIdx), 'first');
-        else
-            [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
-        end
+        [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
         if numel(uniqueIdx) < size(AllData, 1)
             AllData = AllData(sort(uniqueIdx), :);
-        end
-        % Strip DedupCol before returning (not part of catalog)
-        if ~isempty(DedupColIdx)
-            AllData(:, DedupColIdx) = [];
         end
     end
 
