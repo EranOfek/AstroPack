@@ -25,19 +25,21 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.ImageProp               = 'ImageData';
         Args.UseBack logical         = false;
 
-        Args.ColCell                 = {'JD', 'XPEAK','YPEAK','SN','BACK_IM','VAR_IM',...           
+        Args.ColCell                 = {'JD', 'XPEAK','YPEAK','BACK_IM','VAR_IM',...           
                                               'X1', 'Y1',...
                                               'X2','Y2','XY',...
                                               'FLUX_APER', 'APER_AREA', 'BACK_ANNULUS', 'STD_ANNULUS', ...
                                               'FLUXERR_APER',...
-                                              'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS'};
+                                              'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
+                                              'FLUX_PSF', 'MAG_PSF', 'MAGERR_PSF', 'SN', 'CHI2DOF'};
         Args.ColUnits                = {};  % copy as is!
-        Args.OutputType              = 'AstroCatalog';  % 'AstroCatalog'|'AstroImage'|'table'|'MatchedSources'
+        Args.OutputType              = 'concatai'; % 'AstroCatalog';  % 'ContcatAI'|'AstroCatalog'|'AstroImage'|'table'|'MatchedSources'
         Args.CreateNewObj            = true;  % relevant only for 'AstroImage' output
 
         Args.Moving logical          = false;
 
         Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','FLUXERR_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS','SN'};  % 'Chi2','Dof'
+        Args.ReadColFromHeader       = true;   % If column name doesn't exist try to read it from header
         Args.CooOutUnits             = 'deg';
         Args.MinEdgeDist             = 20;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
@@ -68,7 +70,6 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.ZP                      = 25; 
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
         
-        Args.OutType                 = 'MatchedSources';
     end
 
     RAD  = 180./pi;
@@ -77,7 +78,7 @@ function [Result] = forcedPhotNew(Obj, Args)
 
     Naper = numel(Args.AperRadius);
 
-    if strcmpi(Args.OutputType, 'astroimage')
+    if strcmpi(Args.OutputType, 'concatai') || strcmpi(Args.OutputType, 'astroimage')
         if Args.CreateNewObj
             Result = Obj.copy;
         else
@@ -99,8 +100,6 @@ function [Result] = forcedPhotNew(Obj, Args)
 
     Ncol = numel(Args.ColCell);
 
-    BUG - NEED to extend ColNames, ColUnits to umerical additions:
-    
     if isempty(Args.ColUnits)
         [Args.ColUnits{1:Ncol}] = deal(''); 
     end
@@ -167,8 +166,10 @@ function [Result] = forcedPhotNew(Obj, Args)
 
     Nobj = numel(Obj);
 
-    % convert RA/Dec to X/Y
-    if IsSpherical && Nobj>1 && ~CatIsUniform && Nsrc~=Nobj
+    % Two modes:
+    % Args.CatIsUniform=tru means that all sources are measured in all
+    % images
+    if IsSpherical && Nobj>1 && ~Args.CatIsUniform && Nsrc~=Nobj
         error('For CatIsUniform=false, number of sources should be equal to the number of images');
     end
 
@@ -196,9 +197,12 @@ function [Result] = forcedPhotNew(Obj, Args)
     if any(strcmp(Args.ColCell,'APER_AREA'))
         NcolOut = NcolOut + numel(Args.AperRadius) - 1;
     end
+    ColCellOut = cell(1,NcolOut);
+    [ColUnitsOut{1:1:NcolOut}] = deal('');
 
 
     for Iobj=1:1:Nobj
+        % convert RA/Dec to X/Y
         if IsSpherical
             if Args.CatIsUniform
                 [XI, YI] = Obj(Iobj).WCS.sky2xy(RA, Dec, 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
@@ -215,7 +219,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                 XI = X(Iobj);
                 YI = Y(Iobj);
             end
-        end
+        end % if IsSpherical
 
         % add reference stars
         if Nadd>0
@@ -277,6 +281,7 @@ function [Result] = forcedPhotNew(Obj, Args)
         
         Xpos = XI(:) + ResultPSF.DX(:);
         Ypos = YI(:) + ResultPSF.DY(:);
+        % RA, Dec of fitted position
         [RAI, DecI] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
         
@@ -299,6 +304,7 @@ function [Result] = forcedPhotNew(Obj, Args)
         K = 0;
         for Icol=1:1:Ncol
             K = K + 1;
+            ColCellOut{K} = Args.ColCell{Icol};
             switch Args.ColCell{Icol}
                 case 'X'
                     Data(:,K) = Xpos;
@@ -314,10 +320,14 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'YPEAK'
                     % This is Y initial rather than Ypeak
                     Data(:,K) = YI;
-                case 'RA'
+                case 'RA_IN'
                     Data(:,K) = RA;
-                case 'Dec'
+                case 'Dec_IN'
                     Data(:,K) = Dec;
+                case 'RA'
+                    Data(:,K) = RAI;
+                case 'Dec'
+                    Data(:,K) = DecI;    
                 case 'X2'
                     Data(:,K) = M2.X2;
                 case 'Y2'
@@ -337,28 +347,28 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'CHI2DOF'
                     Data(:,K) = ResultPSF.Chi2./ResultPSF.Dof;
                 case 'FLUX_APER'
-                    Cat(:,K:K+Naper-1) = Aper.AperPhot;
+                    Data(:,K:K+Naper-1) = Aper.AperPhot;
                     [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'FLUXERR_APER'
-                    Cat(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
+                    Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
 
                     [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'MAG_APER'
-                    Cat(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
+                    Data(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
                     [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'MAGERR_APER'
-                    Cat(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                    Data(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
                     [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
                     K = K + Naper - 1;
 
                 case 'APER_AREA'
-                    Cat(:,K:K+Naper-1) = Aper.AperArea;
+                    Data(:,K:K+Naper-1) = Aper.AperArea;
                     [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
                     K = K + Naper - 1;
 
@@ -375,35 +385,48 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'FLAGS'
                     Data(:,K) = FlagsXY;
                 case 'FLAG_IN'
-                    data(:,K) = FlagsIn;
-
-
-                
+                    Data(:,K) = FlagsIn;
+                case 'MITER'
+                    % do nothing
+                    % for forced photometry MITER is NaN
 
                 otherwise
                     % attempt to read value from header
 
-                    Val  = Obj(Iobj).HeaderData.getVal(Args.ColCell{Icol});
-                    if isnan(Val)
-                        error('Unknown ColCell name option: %s - not available also [as numeric] in header',Args.ColCell{Icol});
-                    else
-                        Data(:,K) = repmat(Val, NsrcAll, 1);
+                    if Args.ReadColFromHeader
+                        Val  = Obj(Iobj).HeaderData.getVal(Args.ColCell{Icol}, 'UseDict',false);
+                            
+                        if isnan(Val)
+                            % Any other column will be set to NaN
+                            %error('Unknown ColCell name option: %s - not available also [as numeric] in header',Args.ColCell{Icol});
+                        else
+                            Data(:,K) = repmat(Val, NsrcAll, 1);
+                        end
                     end
 
             end % switch Args.ColCell{Icol}
 
 
             switch lower(Args.OutputType)
+                case 'concatai'
+                    % concat catalog to AstroCatalog in input AstroImage
+                    Result(Iobj).CatData.Catalog = [Result(Iobj).CatData.Catalog; Data];
+
                 case {'astrocatalog','astroimage'}
-                    Out = AstroCatalog({Data}, 'ColNames',Args.ColCell, 'ColUnits',Args.ColUnits);
+                    %Out = AstroCatalog({Data}, 'ColNames',ColCellOut, 'ColUnits',ColUnitsOut);
 
                     if strcmpi(Args.OutputType, 'astroimage')
-                        Result(Iobj).CatData = Out;
+                        Result(Iobj).CatData.Catalog  = Data;
+                        Result(Iobj).CatData.ColNames = ColCellOut;
+                        Result(Iobj).CatData.ColUnits = ColUnitsOut;
                     else
                         if Iobj==1
                             Result = AstroCatalog([Nobj, 1]);
                         end
-                        Result(Iobj) = Out;
+                        %Result(Iobj) = Out;
+                        Result(Iobj).Catalog = Data;
+                        Result(Iobj).ColNames = ColCellOut;
+                        Resuly(Iobj).ColUnits = ColUnitsOut;
                     end
                 case 'table'
                     if Iobj==1

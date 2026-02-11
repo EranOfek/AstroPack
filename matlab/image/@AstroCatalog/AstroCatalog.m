@@ -55,32 +55,35 @@ classdef AstroCatalog < AstroTable
             % For parameters input see: AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
-            % construct AstroTable
-            AT   = AstroTable(varargin{:});
-            
-            %FN   = fieldnames(AT);
 
-            MC = metaclass(AT);
-            NonDep  = ~[MC.PropertyList.Dependent];
-            AllProp = {MC.PropertyList.Name};
-            FN      = AllProp(NonDep);
+            Obj@AstroTable(varargin{:});
 
-            Nfn  = numel(FN);
-            Nobj = numel(AT);
-            for Iobj=1:1:Nobj
-                for Ifn=1:1:Nfn
-%                     try
-                        Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
-%                     catch ME
-%                         fprintf('%s',ME);
-%                     end
-                end
-                Obj(Iobj).DataType = AstroDataType.Cat;
-            end
-
-            if nargin>0 && isnumeric(varargin{1})
-                Obj = reshape(Obj, size(AT));
-            end
+%             % construct AstroTable
+%             AT   = AstroTable(varargin{:});
+% 
+%             %FN   = fieldnames(AT);
+% 
+%             MC = metaclass(AT);
+%             NonDep  = ~[MC.PropertyList.Dependent];
+%             AllProp = {MC.PropertyList.Name};
+%             FN      = AllProp(NonDep);
+% 
+%             Nfn  = numel(FN);
+%             Nobj = numel(AT);
+%             for Iobj=1:1:Nobj
+%                 for Ifn=1:1:Nfn
+% %                     try
+%                         Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+% %                     catch ME
+% %                         fprintf('%s',ME);
+% %                     end
+%                 end
+%                 Obj(Iobj).DataType = AstroDataType.Cat;
+%             end
+% 
+%             if nargin>0 && isnumeric(varargin{1})
+%                 Obj = reshape(Obj, size(AT));
+%             end
                 
         end
     end

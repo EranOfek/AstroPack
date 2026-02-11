@@ -1,4 +1,4 @@
-function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImageList, CI, Args)
+function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -168,13 +168,18 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
         %tic;
         MidEpoch = ceil(Nepoch.*0.5);
         CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));  % 0.2
+        
+        ColNamesFF = AllSI(1).CatData.ColNames;
 
-        AllFP = AstroCatalog([Nepoch, Nsub]);
+        %AllFP = AstroCatalog([Nepoch, Nsub]);
         for Isub=1:1:Nsub
             % for each sub image - run over all epochs
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
-            AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
-
+            %if strcmpi(Args.OutputType, 'concatai')
+                AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 9.1 s [for all in loop]
+            %else
+            %    error('Currently, adding forced phot is supported only using the ConcatAI option');
+            %end
             %for Iepoch=1:1:Nepoch
             %    AllSI(Iepoch,Isub).CatData.insertCol(AllFP)
             %end
@@ -188,12 +193,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
         % XXX?
 
         % mege into a single catalog:
-        AllForcedPhot = AllFP(:).merge; % 0.05s
+        %AllForcedPhot = AllFP(:).merge; % 0.05s
     else
-        AllForcedPhot = [];
+        %AllForcedPhot = [];
     end
-
-[AllFP] = imProc.sources.forcedPhotNew(AllSI(1), 'Coo',Coo)
 
 
     % match external / too expensive

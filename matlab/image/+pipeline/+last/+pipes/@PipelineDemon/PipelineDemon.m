@@ -2448,7 +2448,7 @@ classdef PipelineDemon < Component
                 Tstart = clock;
 
                 % executing pipelineI
-                [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+                [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
                 ProcImageList = TableRaw.FileNames;                
                 RunTime = etime(clock, Tstart);
                 MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished executing pipeline for visit');

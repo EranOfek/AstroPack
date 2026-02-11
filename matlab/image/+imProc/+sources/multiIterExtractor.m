@@ -304,8 +304,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % Column names to add the catalog
         Args.ColRA                     = 'RA';
         Args.ColDec                    = 'Dec';
-        Args.ColPITER                  = 'PITER';  % column name for PSF iteration
-
+        Args.ColPITER                  = 'MITER';  % column name for the iteration index of the PSF multi-iteration
 
         % cleaning of the subtracted image:        
         %Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
@@ -518,7 +517,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                     Iiter,Args.Threshold(Iiter),mean(AI.Back,'all','omitnan'),mean(AI.Var,'all','omitnan'),NumSrc);
             end            
             % insert a column with iteration number into the source catalog
-            AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
+            %AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
             
             % measure the PSF (if we believe that the PSF is flux-dependent?) or use the previous one 
             ReCalcPSF = any(Args.ReCalcPsfIter==Iiter);
