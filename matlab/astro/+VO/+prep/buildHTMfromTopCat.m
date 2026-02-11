@@ -15,7 +15,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                 QueryLevel > HTM_Level.
 %              Parallel mode uses parfeval+fetchNext for straggler-free
 %              processing (no batch synchronization).
-% Input  : - TableName: TAP table name (e.g., 'gaiaedr3.gaia_source' or
+% Input  :   TableName: TAP table name (e.g., 'gaiaedr3.gaia_source' or
 %            '"II/349/ps1"' for VizieR catalogs with special characters).
 %          * ...,key,val,...
 %            'TapUrl'      - TAP service URL. If empty, uses TapName to resolve
@@ -118,7 +118,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                            Can also be an integer level index. Default is 'auto'.
 %            'MaxConeRadiusDeg' - Maximum cone search radius in degrees
 %                            (TAP service limit). Default is 0.25.
-% Output : - Nsrc: Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
+% Output :   Nsrc: Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
 % Author : Dana Kovaleva (Dec 2025)
 % Example: % Download Gaia DR3 bright stars with polygon query (ESA supports polygon)
 %{
@@ -808,7 +808,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         % coarser output cells
         %==================================================================
 
-        if Args.NumWorkers > 0
+        if Args.NumWorkers > 1
             %--------------------------------------------------------------
             % AGGREGATE-UP PARALLEL PROCESSING
             %--------------------------------------------------------------
@@ -1040,7 +1040,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         % finer output cells
         %==================================================================
 
-        if Args.NumWorkers > 0
+        if Args.NumWorkers > 1
             %--------------------------------------------------------------
             % DISTRIBUTE-DOWN PARALLEL PROCESSING: parfeval + fetchNext
             %--------------------------------------------------------------

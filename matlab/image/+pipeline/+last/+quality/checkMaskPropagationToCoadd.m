@@ -46,7 +46,7 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
         Input
         Args.BitDictName    = 'BitMask.Image.Default';
         Args.ReportFile     = '';
-        Args.Verbose        = true;
+        Args.Verbose        = false;
     end
 
     DataPath = char(Input);
