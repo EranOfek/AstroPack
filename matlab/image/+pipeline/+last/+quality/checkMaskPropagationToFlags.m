@@ -1,6 +1,6 @@
-function Report = checkMaskPropagation(Input, Args)
+function Report = checkMaskPropagationToFlags(Input, Args)
     % Check that mask bits are properly propagated to catalog FLAGS
-    % Input  : - Input: AstroImage array with Mask and CatData populated,
+    % Input  :   AstroImage array with Mask and CatData populated,
     %            or path string to directory containing FITS files.
     %          * ...,key,val,...
     %            'FileType'    - File type pattern when loading from path.
@@ -16,7 +16,7 @@ function Report = checkMaskPropagation(Input, Args)
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print summary to console. Default is true.
-    % Output : - Report: struct with validation results containing fields:
+    % Output :   Report: struct with validation results containing fields:
     %            .Timestamp    - datetime of validation run
     %            .DataPath     - path to data (if loaded from files)
     %            .FileType     - file type pattern (if loaded from files)
@@ -28,9 +28,9 @@ function Report = checkMaskPropagation(Input, Args)
     %            .Summary      - text summary
     % Author : Dana Kovaleva (Jan 2026)
     % Example: DataPath = '/bigdata2/projects/last/testNewPipe/222625v1/';
-    %          Report = pipeline.last.quality.checkMaskPropagation(DataPath);
-    %          Report = pipeline.last.quality.checkMaskPropagation(DataPath, 'FileType', 'sci_coadd');
-    %          Report = pipeline.last.quality.checkMaskPropagation(AI);
+    %          Report = pipeline.last.quality.checkMaskPropagationToFlags(DataPath);
+    %          Report = pipeline.last.quality.checkMaskPropagationToFlags(DataPath, 'FileType', 'sci_coadd');
+    %          Report = pipeline.last.quality.checkMaskPropagationToFlags(AI);
 
     arguments
         Input
@@ -259,7 +259,7 @@ function Report = checkMaskPropagation(Input, Args)
                        'Pass rate: %.2f%%\n'], ...
                        Nfrag, TotalSources, FailedCount, PassRate);
 
-    % Build report structure
+    % Build report structure"
     Report = struct();
     Report.Timestamp = datetime('now');
     Report.DataPath = DataPath;
