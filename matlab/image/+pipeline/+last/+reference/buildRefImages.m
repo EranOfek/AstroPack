@@ -6,13 +6,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %          * ...,key,val,... 
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
-    % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*')
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D);
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]);
+    % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]); % a short test
     arguments
         RefGrid
         DB                
-        Args.NsideSearch = 2^7; % we should start the search at a larger region 
+        Args.NsideSearch = 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'raw_images';
         % the list of table columns needed to check the overlaps + filtering + control 
@@ -23,11 +23,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
-        Args.Naxis1            = 1726;  % the pixel size of a reference image 
-        Args.Naxis2            = 1726;
+        Args.Naxis1            = 1726;  % the pixel size of a reference image:  
+        Args.Naxis2            = 1726;  % note: will like be reduced ro 1716 for the new LAST pipeline   
         
         Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs    = {};  
+        Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -210,13 +210,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
                             end
                                                                                                  
-                        % 4.3 rotate, align, and cut the merged crops to 
-                        % the ref. coordinates: warp with the reference grid WCS                                                  
+                        % 4.3 rotate, align, and cut the merged crops to the ref. coordinates: 
+                        % warp with the reference grid WCS                                                  
                         if Args.UseInterp2WCS
-                            RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref,...
-                                'Sampling',5,...
-                                'CreateNewObj',true,...
-                                Args.interp2wcsArgs{:});
+                            RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref, Args.interp2wcsArgs{:});
                         else
                             RegisteredImage = imProc.transIm.imwarp(StitchedImage, AIref,...
                                 'TransWCS',true,...
