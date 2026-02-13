@@ -1,10 +1,22 @@
-function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm)
+function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
 % detect streaks using a modified version of the LSD algorithm, detecting
 %  ridges in the Hessian of the filtered image
 %
 % Inputs:
 %    Im     - a single precision image array
 %    filtIm - the same image, cross-correlated with its PSF
+%
+% Optional named arguments:
+%     Subsample - empirical best subsample factor. Default 1/3. Probably a
+%                 good guess is ~1/FWHM of the image.
+%     AngTol    - empirical colinearity angular tolerance, default 5*pi/180 = 5°
+%     EdgeGuard - empirical edge guard, default 16 (pixel). Result segments
+%                 with both extremes closer than that to an edge are just
+%                 discarderd, they are artefacts of LSD. Probably a better
+%                 default should be proportional to max(size(Im))/scale.
+%     StripHalfWidth - empirical half width of the transverse streak aperture
+%                      window. Default 6 pixel, increase for long streaks
+%                      with pronounced concavity
 %
 % Outputs:
 %    segs   - 4xN array of detected segment coordinates (x1,y1,x2,y2)
@@ -28,20 +40,25 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm)
 %   Authors: Enrico Segre, February 2026
 %            LSD: Grompone von Gioi, Jakubowicz, Morel and Randall,
 %                 10.5201/ipol.2012.gjmr-lsd
+    arguments
+        Im single
+        filtIm
+        Args.Subsample = 1/3;  % 1/3 - empirical best subsample factor
+        Args.AngTol = 5*pi/180;  % 5° - empirical colinearity tolerance
+        Args.EdgeGuard = 16; % 16px - empirical edge guard
+        Args.StripHalfWidth = 6; % 6px - empirical half width of the transverse streak aperure window
+    end
 
-    % 1/3 - empirical best subsample factor
-    segs=imUtil.streaks.mex.lsd_single_scale_mex(Im,1/3);
+   
+    segs=imUtil.streaks.mex.lsd_single_scale_mex(Im,Args.subsample);
     
-    % 5° - empirical colinearity tolerance
-    segs=merge_segments(segs,[],5*pi/180);
+    segs=merge_segments(segs,[],Args.AngTol);
     
-     % 16px - empirical edge guard
-    segs=purge_edge_segments(segs,size(Im),16);
+    segs=purge_edge_segments(segs,size(Im),Args.EdgeGuard);
 
     % photometry on the original image
     % 1px - empirical longitudinal extension of the streak region (fixed, yet)
-    % 6pix - empirical half width of the transverse streak aperure window
-    [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,1,6);
+    [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,1,Args.StripHalfWidth);
     
 end
 

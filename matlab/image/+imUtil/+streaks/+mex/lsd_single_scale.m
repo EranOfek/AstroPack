@@ -11,4 +11,4 @@ function  lsd_single_scale
 %          description)
 %
 % Build the mex with:
-% mex('LSD_single/lsd_scale_mex.c', 'LSD_single/lsd.c', '-output', 'lsd_single_scale_mex', '-R2018a');
+% mex('lsd_scale_mex.c', lsd.c', '-output', 'lsd_single_scale_mex', '-R2018a');
