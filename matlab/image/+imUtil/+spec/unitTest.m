@@ -44,6 +44,9 @@ function [Result] = unitTest()
     %       (DONE) imUtil.spec.waveCalib.matchLines_Scale
     %       (DONE) imUtil.spec.waveCalib.matchLines_Shift
     %
+    % * Lines
+    %       (Done) imUtil.spec.lines.filterLines_WhittakerIRLS
+    %
     % * calibration/extinction
     %       (Done) AstroSpec/getSpecPhotStandard
     % * Telluric correction
