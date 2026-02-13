@@ -4,22 +4,27 @@ function [phot,extsegs,curve]=streak_photometry(im,segs,offlength,offside,sigmac
 % extremes. With the values of those pixels, compute:
 %  - the presumed extended extremes of the line. The streak is extended
 %     longitudinally as long as enough (define enough) pixels above a
-%     brightness threshold (define threshold) are found. Not yet.
+%     brightness threshold (define threshold) are found. Not yet
+%     implemented.
 %  - the estimate of the photometric intensity of the streak per length
 %     unit
-%  - the least squares best fitting curved line
+%  - the least squares best fitting parabola
 %
 % Inputs:
 %    im: a [background subtracted, std divided, PSF filtered] image
 %    segs: [x1; y1; x2; y2] segments (pixel coordinates)
 %    offlength: number of pixels to extend the search, along the direction
-%               of seg
-%    offside: number of the lateral pixels of the search region
+%               of seg. Default 1.
+%    offside: number of the lateral pixels of the search region. Default 3.
+%    sigmaclip: upper thresold of pixel intensity to consider for
+%               aperture photometry and curve fit, in units of std of the
+%               intensity over the search strip. Used to ignore bright 
+%               sources within the strip. Default 5.
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
-%    - curve: coefficients {a,b,c} of the parabolic fit
-%             to the offset, h(t) = a+b*t+c*t^2
+%    - curve: coefficients {a,b,c} of the parabolic fits
+%             to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
 %             where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
 %
 % Author: Enrico Segre, Jan 2026

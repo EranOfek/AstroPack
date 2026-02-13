@@ -49,7 +49,11 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         if isnumeric(Val)
             Val = num2cell(Val);
         else
-            Val = {Val};
+            if isstring(Val)
+                Val = {Val{:}};
+            else
+                Val = {Val};
+            end
         end
     end
     

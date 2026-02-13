@@ -2737,7 +2737,7 @@ classdef PipelineDemon < Component
                 
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
-                Args.pipelineIArgs  = {'UseParfor',false};
+                Args.pipelineIArgs  = {'UseParfor',true};
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 
