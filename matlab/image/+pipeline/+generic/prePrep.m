@@ -363,6 +363,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     TableForDB = struct2table(TableForDB);
 
     if nargout>2 && ~isempty(Args.Keys2table)
+        % preparing a catalog of images
         TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
         TableHeader.FileNames = string(Images(:));
     else

@@ -6,7 +6,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = false;
+        Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
@@ -71,8 +71,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     TableRaw = [TableHeader, TableForDB];
     % basic calibration (bias, flat,...) 
     % FixJD false, since already done in prePrep
-    AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %17.1s
+    AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
     
+
     % Add MIDJD to header % 0.03s
     Nepoch = numel(AI);
     for Iepoch=1:1:Nepoch
@@ -121,22 +122,21 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                                     'AddSkyCoo',false);  % 466 s
        
     else
-        tic;
+        %tic;
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
-                                                    'AddSkyCoo',false);  % 169 s (on 16 cores)
+                                                    'AddSkyCoo',false);  % 119 s (on 16 cores)
         end
-        toc
+        %toc
     end
-
 
     % solve astrometry of all images
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
     % add coordinates to catalogs
     AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
     
-
+    
     % Update Airmass header keyword to based on measured crop center
     AllSI = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested'); % 0.3s
 
@@ -161,6 +161,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % write stat data to header: Nstars, PSF, Scale, Rotation,...
     % background, var: written as part of the background estimation
     AllSI = imProc.header.writeStat2Header(AllSI, 'WriteBack',false);  % 4.2s
+
+    % ADD - IsGoodWCS, IsGood, MaxFracGrad to image header
+
 
     % forced photometry
     % forced photometry on pre-selected targets
@@ -198,6 +201,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         %AllForcedPhot = [];
     end
 
+    % Sort all catalogs by Dec
+    for Iim=1:1:Nsub.*Nepoch
+        AllSI(Iim).CatData.sortrows('Dec');  % 0.16s (for all in loop)
+    end
 
     % match external / too expensive
     %if Args.matchExternal_Indiv

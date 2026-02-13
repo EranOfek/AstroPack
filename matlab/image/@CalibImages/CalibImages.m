@@ -965,11 +965,11 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, ~] = Obj.checkObjImageSize(Image);
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 Iobj = min(Iim, Nobj);
-                % Note taht CreateNewObj was already done (if needed)
+                % Note that CreateNewObj was already done (if needed)
                 if isemptyImage(Obj(Iobj).Bias)
                     error('Bias image is empty');
                 end                
@@ -1048,9 +1048,9 @@ classdef CalibImages < Component
                 Result = Image;
             end
            
-            [Nobj, ~] = Obj.checkObjImageSize(Image);
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 % FFU: Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
@@ -1095,7 +1095,7 @@ classdef CalibImages < Component
             
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                        
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 if isemptyImage(Obj(Iobj).Flat)
@@ -1344,11 +1344,10 @@ classdef CalibImages < Component
                   
             Result.createMask;
             
-            for Iim=1:1:Nobj
-                % FFU: Iobj = min(Iim, Nobj);
-                
-                % mark satuarted pixels
-                if Args.MaskSaturated
+            % mark satuarted pixels
+            if Args.MaskSaturated
+               for Iim=1:1:Nim
+                    % FFU: Iobj = min(Iim, Nobj);
                     Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
                                                                      'DefBitDict', BD);
