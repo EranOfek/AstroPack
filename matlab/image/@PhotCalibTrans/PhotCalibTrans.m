@@ -196,7 +196,9 @@ classdef PhotCalibTrans < Component
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
             %            'WeightingMode' - 'none', 'spectral', 'flux', 'combined'. Default is 'spectral'.
             %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
-            %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+            %            'SigmaClipMethod' - Sigma clipping method:
+            %                   'median' - Astropy-style iterative clipping (default)
+            %                   'weighted' - Threshold on error-normalized residuals
             %            'FluxErrorNorm' - Normalization for synthetic flux in error calc. Default is 1.0.
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
@@ -209,8 +211,8 @@ classdef PhotCalibTrans < Component
             %          PC = PC.calibrate(AI);
             %          % Without position correction:
             %          PC = PC.calibrate(AI, 'UseTran2D', false);
-            %          % With unweighted sigma clipping:
-            %          PC = PC.calibrate(AI, 'WeightedClipping', false);
+            %          % With weighted sigma clipping:
+            %          PC = PC.calibrate(AI, 'SigmaClipMethod', 'weighted');
 
             arguments
                 Obj
@@ -232,7 +234,7 @@ classdef PhotCalibTrans < Component
                 % Weighting options
                 Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
                 Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
-                Args.WeightedClipping logical = true  % Use weighted residuals for sigma clipping
+                Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
                 Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
                 % Magnitude system
@@ -461,7 +463,7 @@ classdef PhotCalibTrans < Component
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
-                    'WeightedClipping', Args.WeightedClipping, ...
+                    'SigmaClipMethod', Args.SigmaClipMethod, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -1418,7 +1420,7 @@ classdef PhotCalibTrans < Component
             % Get reference transmission (for error propagation)
             T_ref_vec = Args.RefTransmissionFun(SpecWvl_Integration);  % [N_wvl x 1]
 
-            % Scaling factor (NSigma = 3 in Garrappa et al. 2025)
+            % Scaling factor 
             NSigma = 3;
 
             MagErr_spectral = [];
@@ -1461,7 +1463,7 @@ classdef PhotCalibTrans < Component
                 Dt = ExpTime_eff;
                 Ageom = Obj.Aperture;
                 PredictedFlux_err = Args.FluxErrorNorm * Dt * Ageom * sqrt(sum((NSigma * ErrIntegrand .* dLambda(:)').^2, 2)) / B;
-
+              
                 % Convert to magnitude error
                 MagErr_spectral = 2.5 * log10(1 + PredictedFlux_err ./ Flux);
                 MagErr_spectral(isinf(MagErr_spectral)) = 100;

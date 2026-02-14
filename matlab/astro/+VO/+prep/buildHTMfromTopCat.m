@@ -773,28 +773,32 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % Pre-count how many cells will be written to each HDF5 file.
     % In parallel mode, results arrive in arbitrary order, so we track
     % remaining cells per file and copy as soon as a file is complete.
+    % File completion map for incremental NFS copy (sequential mode only).
+    % Parallel mode uses batch merge + copy instead.
     FileRemainingCells = containers.Map('KeyType', 'char', 'ValueType', 'int32');
-    if AggregateUp && NumOutputToProcess > 0
-        for iProc = 1:NumOutputToProcess
-            [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, OutputCellsToProcess(iProc), Args.NcatInFile);
-            if FileRemainingCells.isKey(fn)
-                FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
-            else
-                FileRemainingCells(fn) = int32(1);
+    if Args.NumWorkers <= 1
+        if AggregateUp && NumOutputToProcess > 0
+            for iProc = 1:NumOutputToProcess
+                [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, OutputCellsToProcess(iProc), Args.NcatInFile);
+                if FileRemainingCells.isKey(fn)
+                    FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+                else
+                    FileRemainingCells(fn) = int32(1);
+                end
             end
-        end
-    elseif NumQueryToProcess > 0
-        for iProc = 1:NumQueryToProcess
-            iQ = QueryCellIndices(iProc);
-            fineDesc = QueryToFineMap{iQ};
-            skipped = SkippedFineFromResume{iProc};
-            for iF = 1:numel(fineDesc)
-                if ~ismember(fineDesc(iF), skipped)
-                    [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fineDesc(iF), Args.NcatInFile);
-                    if FileRemainingCells.isKey(fn)
-                        FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
-                    else
-                        FileRemainingCells(fn) = int32(1);
+        elseif NumQueryToProcess > 0
+            for iProc = 1:NumQueryToProcess
+                iQ = QueryCellIndices(iProc);
+                fineDesc = QueryToFineMap{iQ};
+                skipped = SkippedFineFromResume{iProc};
+                for iF = 1:numel(fineDesc)
+                    if ~ismember(fineDesc(iF), skipped)
+                        [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fineDesc(iF), Args.NcatInFile);
+                        if FileRemainingCells.isKey(fn)
+                            FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+                        else
+                            FileRemainingCells(fn) = int32(1);
+                        end
                     end
                 end
             end
@@ -853,22 +857,22 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     QueryDescCooSets{iProc} = qCoos;
                 end
 
-                % Submit one parfeval per output cell
+                % Submit one parfeval per output cell (workers write HDF5 to temp dirs)
                 Futures(NumOutputToProcess) = parallel.FevalFuture;
                 for iProc = 1:NumOutputToProcess
-                    Futures(iProc) = parfeval(pool, @downloadAggregateCell, 2, ...
+                    Futures(iProc) = parfeval(pool, @downloadAggregateCellWithWrite, 2, ...
                         TableName, ColumnsStr, OutputCellCoos{iProc}, ...
-                        QueryDescCooSets{iProc}, RAD, Args);
+                        QueryDescCooSets{iProc}, OutputCellsToProcess(iProc), RAD, Args);
                 end
 
                 if Args.Verbose
-                    fprintf('Submitted %d parfeval futures (aggregate-up).\n', NumOutputToProcess);
+                    fprintf('Submitted %d parfeval futures (aggregate-up, workers write HDF5).\n', NumOutputToProcess);
                 end
 
-                % Process results as they complete
+                % Process results as they complete (workers already wrote HDF5)
                 for iDone = 1:NumOutputToProcess
                     try
-                        [completedIdx, Data, queryFailed] = fetchNext(Futures);
+                        [completedIdx, NsrcCell, queryFailed] = fetchNext(Futures);
                     catch ME
                         warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
@@ -881,14 +885,9 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                         FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
                         Nsrc(pos, :) = [fIdx, 0];
                     else
-                        NsrcCell = writeOutputCellDirect(Data, fIdx, Args, RAD);
                         Nsrc(pos, :) = [fIdx, NsrcCell];
                         ProcessedFineCells = ProcessedFineCells + 1;
                     end
-
-                    % Incremental NFS copy: copy file when all its cells are done
-                    copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
-                        Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
 
                     ProcessedQueryCells = ProcessedQueryCells + 1;
 
@@ -904,12 +903,16 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
                 cancel(Futures);
 
-                % Final NFS sweep: copy any remaining files not yet transferred
+                % Merge worker temp files into grouped HDF5
+                mergeWorkerTempFiles(Args.LocalDir, Args.CatName, Args.NcatInFile, ...
+                    Args.ColDecOut, Args.IndStep, Args.Verbose);
+
+                % Batch NFS copy all grouped files
                 if ~isempty(Args.TargetDir)
                     hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
                     hdfFiles = dir(hdfPattern);
                     if ~isempty(hdfFiles) && Args.Verbose
-                        fprintf('\nCopying %d remaining HDF5 files to remote directory...\n', numel(hdfFiles));
+                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(hdfFiles));
                     end
                     for iFile = 1:numel(hdfFiles)
                         FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
@@ -1064,72 +1067,75 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 % Extract data needed by workers (avoid passing full HTM)
                 QueryCellCoo = cell(NumQueryToProcess, 1);
                 QuerySearchRadii = zeros(NumQueryToProcess, 1);
+                WorkerFineIndices = cell(NumQueryToProcess, 1);
+                WorkerFineCoos = cell(NumQueryToProcess, 1);
                 for iProc = 1:NumQueryToProcess
                     IndQ = QueryCellsToProcess(iProc);
+                    iQ = QueryCellIndices(iProc);
                     QueryCellCoo{iProc} = HTM(IndQ).coo;
                     QuerySearchRadii(iProc) = computeCellSearchRadius(HTM(IndQ).coo, RAD);
+                    fineDesc = QueryToFineMap{iQ};
+                    WorkerFineIndices{iProc} = fineDesc;
+                    coos = cell(numel(fineDesc), 1);
+                    for iF = 1:numel(fineDesc)
+                        if ~isempty(QueryToFineCoo) && ~isempty(QueryToFineCoo{iQ})
+                            coos{iF} = QueryToFineCoo{iQ}{iF};
+                        else
+                            coos{iF} = HTM(fineDesc(iF)).coo;
+                        end
+                    end
+                    WorkerFineCoos{iProc} = coos;
                 end
 
-                % Submit ALL query cells as parfeval futures
+                % Submit ALL query cells (workers download, distribute, and write HDF5)
                 Futures(NumQueryToProcess) = parallel.FevalFuture;
                 for iProc = 1:NumQueryToProcess
-                    Futures(iProc) = parfeval(pool, @downloadQueryCone, 2, ...
+                    Futures(iProc) = parfeval(pool, @downloadQueryConeWithWrite, 2, ...
                         TableName, ColumnsStr, QueryCellsToProcess(iProc), ...
-                        QueryCellCoo{iProc}, RAD, QuerySearchRadii(iProc), Args);
+                        QueryCellCoo{iProc}, RAD, QuerySearchRadii(iProc), ...
+                        WorkerFineIndices{iProc}, WorkerFineCoos{iProc}, ...
+                        SkippedFineFromResume{iProc}, Args);
                 end
 
                 if Args.Verbose
-                    fprintf('Submitted %d parfeval futures.\n', NumQueryToProcess);
+                    fprintf('Submitted %d parfeval futures (workers write HDF5).\n', NumQueryToProcess);
                 end
 
-                % Process results as they complete via fetchNext
+                % Process results as they complete (workers already wrote HDF5)
                 for iDone = 1:NumQueryToProcess
                     try
-                        [completedIdx, Data, queryFailed] = fetchNext(Futures);
+                        [completedIdx, NsrcResults, queryFailed] = fetchNext(Futures);
                     catch ME
                         warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
                     end
 
                     IndQ = QueryCellsToProcess(completedIdx);
-                    iQ = QueryCellIndices(completedIdx);
-                    fineDescendants = QueryToFineMap{iQ};
-                    skippedFine = SkippedFineFromResume{completedIdx};
 
                     if queryFailed
                         FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
-                        % Mark all non-skipped fine descendants as failed (0 sources)
+                        iQ = QueryCellIndices(completedIdx);
+                        fineDescendants = QueryToFineMap{iQ};
+                        skippedFine = SkippedFineFromResume{completedIdx};
                         for iF = 1:numel(fineDescendants)
                             fIdx = fineDescendants(iF);
                             if ~ismember(fIdx, skippedFine)
                                 pos = FineIdxToNsrcPos(fIdx);
                                 Nsrc(pos, :) = [fIdx, 0];
-                                copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
-                                    Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
                             end
                         end
                     else
-                        % Distribute data to fine-level cells
-                        for iF = 1:numel(fineDescendants)
-                            fIdx = fineDescendants(iF);
-
-                            % Skip fine cells that already exist from resume
+                        % Update Nsrc from worker results
+                        skippedFine = SkippedFineFromResume{completedIdx};
+                        for iR = 1:size(NsrcResults, 1)
+                            fIdx = NsrcResults(iR, 1);
                             if ismember(fIdx, skippedFine)
                                 continue;
                             end
-
+                            NsrcCell = NsrcResults(iR, 2);
                             pos = FineIdxToNsrcPos(fIdx);
-                            if ~isempty(QueryToFineCoo)
-                                fineCoo = QueryToFineCoo{iQ}{iF};
-                            else
-                                fineCoo = HTM(fIdx).coo;
-                            end
-                            NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
                             Nsrc(pos, :) = [fIdx, NsrcCell];
                             ProcessedFineCells = ProcessedFineCells + 1;
-
-                            copyIfFileComplete(fIdx, Args.CatName, Args.NcatInFile, ...
-                                Args.LocalDir, Args.TargetDir, Args.Verbose, FileRemainingCells);
                         end
                     end
 
@@ -1149,12 +1155,16 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 % Cancel any remaining futures (shouldn't be any)
                 cancel(Futures);
 
-                % Final NFS sweep: copy any remaining files not yet transferred
+                % Merge worker temp files into grouped HDF5
+                mergeWorkerTempFiles(Args.LocalDir, Args.CatName, Args.NcatInFile, ...
+                    Args.ColDecOut, Args.IndStep, Args.Verbose);
+
+                % Batch NFS copy all grouped files
                 if ~isempty(Args.TargetDir)
                     hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
                     hdfFiles = dir(hdfPattern);
                     if ~isempty(hdfFiles) && Args.Verbose
-                        fprintf('\nCopying %d remaining HDF5 files to remote directory...\n', numel(hdfFiles));
+                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(hdfFiles));
                     end
                     for iFile = 1:numel(hdfFiles)
                         FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
@@ -1764,6 +1774,239 @@ function cleanupWorkerDirs(LocalDir)
             end
         end
     end
+end
+
+
+function NsrcCell = writeOutputCellToTemp(Data, cellIdx, Args, RAD, WorkDir)
+    % Write aggregated data to a per-cell temp file in worker directory
+    % Same as writeOutputCellDirect but writes to WorkDir/cell_NNNNNN.hdf5
+
+    NsrcCell = 0;
+    if isempty(Data)
+        return;
+    end
+
+    NsrcCell = size(Data, 1);
+    if NsrcCell > 0
+        if strcmpi(Args.OutUnits, 'deg')
+            Data(:, 1) = Data(:, 1) * RAD;
+            Data(:, 2) = Data(:, 2) * RAD;
+        end
+        [~, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, cellIdx, Args.NcatInFile);
+        FileName = fullfile(WorkDir, sprintf('cell_%06d.hdf5', cellIdx));
+        HDF5.save_cat(FileName, DataName, Data, Args.ColDecOut, Args.IndStep);
+    end
+end
+
+
+function NsrcResults = writeFineCellsToTemp(Data, fineIndices, fineCoos, skippedFine, Args, RAD, WorkDir)
+    % Distribute query data to fine cells and write each to temp file
+    % Returns Nx2 matrix [fineIdx, NsrcCell]
+
+    NsrcResults = zeros(numel(fineIndices), 2);
+    NsrcResults(:, 1) = fineIndices(:);
+
+    if isempty(Data)
+        return;
+    end
+
+    for iF = 1:numel(fineIndices)
+        fIdx = fineIndices(iF);
+        if ismember(fIdx, skippedFine)
+            continue;
+        end
+
+        fineCoo = fineCoos{iF};
+        CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, fineCoo, 2);
+        FineData = Data(Flag, :);
+
+        if size(FineData, 1) > 1
+            [~, uniqueIdx] = unique(FineData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
+            FineData = FineData(sort(uniqueIdx), :);
+        end
+
+        NsrcCell = size(FineData, 1);
+        NsrcResults(iF, 2) = NsrcCell;
+
+        if NsrcCell > 0
+            if strcmpi(Args.OutUnits, 'deg')
+                FineData(:, 1) = FineData(:, 1) * RAD;
+                FineData(:, 2) = FineData(:, 2) * RAD;
+            end
+            [~, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
+            FileName = fullfile(WorkDir, sprintf('cell_%06d.hdf5', fIdx));
+            HDF5.save_cat(FileName, DataName, FineData, Args.ColDecOut, Args.IndStep);
+        end
+    end
+end
+
+
+function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep, Verbose)
+    % Merge per-cell temp files from worker directories into grouped HDF5 files
+    % Scans tap_w*/cell_*.hdf5, reads each dataset, writes to grouped file in LocalDir
+
+    d = dir(fullfile(LocalDir, 'tap_w*'));
+    workerDirs = {};
+    for i = 1:numel(d)
+        if d(i).isdir
+            workerDirs{end+1} = fullfile(LocalDir, d(i).name); %#ok<AGROW>
+        end
+    end
+
+    if isempty(workerDirs)
+        return;
+    end
+
+    if Verbose
+        fprintf('\nMerging worker temp files into grouped HDF5...\n');
+    end
+
+    mergedCount = 0;
+    for iDir = 1:numel(workerDirs)
+        cellFiles = dir(fullfile(workerDirs{iDir}, 'cell_*.hdf5'));
+        for iFile = 1:numel(cellFiles)
+            tempPath = fullfile(workerDirs{iDir}, cellFiles(iFile).name);
+            tokens = regexp(cellFiles(iFile).name, 'cell_(\d+)\.hdf5', 'tokens');
+            if isempty(tokens), continue; end
+            cellIdx = str2double(tokens{1}{1});
+
+            [~, DataName] = HDF5.get_file_var_from_htmid(CatName, cellIdx, NcatInFile);
+            try
+                Data = h5read(tempPath, ['/' DataName]);
+            catch
+                if Verbose
+                    fprintf('  Warning: could not read %s from %s\n', DataName, tempPath);
+                end
+                continue;
+            end
+
+            [GroupFileName, ~] = HDF5.get_file_var_from_htmid(CatName, cellIdx, NcatInFile);
+            GroupFilePath = fullfile(LocalDir, GroupFileName);
+            HDF5.save_cat(GroupFilePath, DataName, Data, ColDecOut, IndStep);
+            mergedCount = mergedCount + 1;
+
+            delete(tempPath);
+        end
+    end
+
+    if Verbose
+        fprintf('Merged %d cell files into grouped HDF5.\n', mergedCount);
+    end
+end
+
+
+function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, ColumnsStr, outputCoo, queryDescCoos, cellIdx, RAD, Args)
+    % Parallel worker: download, aggregate, filter, dedup, write to temp dir
+    % Returns scalar count instead of large data matrix
+
+    NsrcCell = 0;
+    QueryFailed = false;
+
+    try
+        w = getCurrentWorker();
+        workerPid = w.ProcessId;
+    catch
+        workerPid = feature('getpid');
+    end
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    if ~isfolder(WorkDir)
+        mkdir(WorkDir);
+    end
+
+    Tap = VO.TopCat;
+    AllData = [];
+    AnyFailed = false;
+
+    for j = 1:numel(queryDescCoos)
+        qCoo = queryDescCoos{j};
+        SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
+        CenterRADeg  = mean(qCoo(:,1)) * RAD;
+        CenterDecDeg = mean(qCoo(:,2)) * RAD;
+        HTMCooDeg = qCoo * RAD;
+
+        Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
+                                       HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                       SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+        try
+            T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, WorkDir);
+        catch
+            AnyFailed = true;
+            continue;
+        end
+
+        if ~isempty(T) && height(T) > 0
+            [D, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+            [D, ~] = applyPostProcessing(D, ColNames, Args.NullValue, ...
+                                          Args.ComputedColumns, Args.DropColumns);
+            AllData = [AllData; D]; %#ok<AGROW>
+        end
+    end
+
+    QueryFailed = AnyFailed && isempty(AllData);
+
+    if ~isempty(AllData)
+        CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
+        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+        AllData = AllData(Flag, :);
+        [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
+        if numel(uniqueIdx) < size(AllData, 1)
+            AllData = AllData(sort(uniqueIdx), :);
+        end
+    end
+
+    NsrcCell = writeOutputCellToTemp(AllData, cellIdx, Args, RAD, WorkDir);
+end
+
+
+function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, fineIndices, fineCoos, skippedFine, Args)
+    % Parallel worker: download query cone, distribute to fine cells, write to temp
+    % Returns small Nx2 matrix [fineIdx, NsrcCell] instead of large data matrix
+
+    NsrcResults = zeros(numel(fineIndices), 2);
+    NsrcResults(:, 1) = fineIndices(:);
+    QueryFailed = false;
+
+    try
+        w = getCurrentWorker();
+        workerPid = w.ProcessId;
+    catch
+        workerPid = feature('getpid');
+    end
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    if ~isfolder(WorkDir)
+        mkdir(WorkDir);
+    end
+
+    Tap = VO.TopCat;
+
+    CenterRADeg  = mean(cellCoo(:,1)) * RAD;
+    CenterDecDeg = mean(cellCoo(:,2)) * RAD;
+    HTMCooDeg = cellCoo * RAD;
+
+    Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
+                                   HTMCooDeg, CenterRADeg, CenterDecDeg, ...
+                                   SearchRadiusDeg, Args.QueryType, Args.WhereClause);
+    try
+        T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, WorkDir);
+    catch ME
+        warning('VO:buildHTMfromTopCat:QueryFailed', ...
+            'Query cell %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
+        QueryFailed = true;
+        return;
+    end
+
+    if isempty(T) || height(T) == 0
+        return;
+    end
+
+    [Data, ColNames] = tableToMatrix(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+    [Data, ~] = applyPostProcessing(Data, ColNames, Args.NullValue, ...
+                                     Args.ComputedColumns, Args.DropColumns);
+
+    NsrcResults = writeFineCellsToTemp(Data, fineIndices, fineCoos, skippedFine, Args, RAD, WorkDir);
 end
 
 

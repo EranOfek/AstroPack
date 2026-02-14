@@ -22,7 +22,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                              'flux' - Weight by LAST flux errors
     %                              'combined' - Quadrature sum of spectral and flux errors
     %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
-    %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+    %            'SigmaClipMethod' - Sigma clipping method:
+    %                              'median' - Astropy-style iterative clipping (default)
+    %                              'weighted' - Threshold on error-normalized residuals
     %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
     %            Catalog update:
     %            'AddMag' - Add calibrated magnitude columns to catalog. Default is true.
@@ -54,7 +56,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Without position correction:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'UseTran2D', false);
     %          % With unweighted sigma clipping:
-    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'WeightedClipping', false);
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'SigmaClipMethod', 'weighted');
 
     arguments
         Obj  % AstroImage or AstroCatalog
@@ -74,12 +76,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Weighting options
         Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
-        Args.WeightedClipping logical = true  % Use weighted residuals (r/σ) for sigma clipping
+        Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
         Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
         % Catalog update
         Args.AddMag logical = true
-        Args.AddMagErr logical = true  % Add magnitude error columns
+        Args.AddMagErr logical = false  % Add magnitude error columns
         Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
@@ -151,7 +153,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         'MagRange', Args.MagRange, ...
         'WeightingMode', Args.WeightingMode, ...
         'FluxErrColName', Args.FluxErrColName, ...
-        'WeightedClipping', Args.WeightedClipping, ...
+        'SigmaClipMethod', Args.SigmaClipMethod, ...
         'FluxErrorNorm', Args.FluxErrorNorm, ...
         'MagSystem', Args.MagSystem, ...
         'Verbose', Args.Verbose};
