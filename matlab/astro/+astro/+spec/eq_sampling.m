@@ -1,5 +1,6 @@
 function [NewList1,NewList2]=eq_sampling(List1,List2,Samp,Method)
 % Resample two [X,Y] lists to have the same sampling (x).
+%   Obsolete. Use astro.spec.eqSampling instead
 % Package: astro.spec
 % Description: Given two lists, each contains [X,Y], equalize the sampling
 %              frequency of the two lists by interpolating both lists to
