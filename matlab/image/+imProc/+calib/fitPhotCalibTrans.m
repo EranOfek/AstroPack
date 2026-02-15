@@ -2,8 +2,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Transmission-based absolute photometric calibration wrapper
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
-    %              AstroImages or AstroCatalogs.
-    % Input  :  Obj - AstroImage or AstroCatalog object (scalar or vector).
+    %              AstroImages, AstroCatalogs, AstroDiff, or AstroZOGY objects.
+    %              For AstroDiff/AstroZOGY input, calibrates the sub-images
+    %              specified by DiffCalibProps (default: .New and .Ref) via
+    %              recursive calls.
+    % Input  :  Obj - AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
+    %                 object (scalar or vector).
     %          * ...,key,val,...
     %            Calibrator selection:
     %            'SearchRadius' - Gaia matching radius [arcsec]. Default is 1.5.
@@ -26,6 +30,10 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                              'median' - Astropy-style iterative clipping (default)
     %                              'weighted' - Threshold on error-normalized residuals
     %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
+    %            AstroDiff/AstroZOGY:
+    %            'DiffCalibProps' - Cell array of property names to calibrate.
+    %                              Default is {'New', 'Ref'}. Each must be a
+    %                              property containing an AstroImage.
     %            Catalog update:
     %            'AddMag' - Add calibrated magnitude columns to catalog. Default is true.
     %            'AddMagErr' - Add magnitude error columns (1.086*FluxErr/Flux).
@@ -40,14 +48,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CreateNewObj' - Copy input object. Default is false.
     %            'Verbose' - Enable verbose output. Default is true.
     % Output : - Result - Input object with updated catalog and header.
-    %          - PhotCalib - Array of PhotCalibTrans objects (one per input object).
-    %          - FitRes - Struct array [Nobj x 1] with fit results from last stage:
-    %                     .RMS - Fit RMS [mag]
-    %                     .Residuals - Residuals vector
-    %                     .NCalUsed - Number of calibrators used (final, after clipping)
-    %                     .NumClipped - Number of clipped outliers
-    %                     .Chi2 - Chi-squared value
-    %                     .StatusLog - Struct array of status messages (from CompositeFun.StatusLog)
+    %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
+    %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
+    %                        (column per property, e.g., PhotCalib(i,1)=New).
+    %          - FitRes - For AstroImage/AstroCatalog: [Nobj x 1] struct array.
+    %                     For AstroDiff/AstroZOGY: [Nobj x Nprops] struct array.
+    %                     Fields: .RMS, .Residuals, .NCalUsed, .NumClipped,
+    %                             .Chi2, .StatusLog
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -55,8 +62,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          fprintf('NCalUsed=%d, RMS=%.4f\n', FitRes.NCalUsed, FitRes.RMS);
     %          % Without position correction:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'UseTran2D', false);
-    %          % With unweighted sigma clipping:
+    %          % With weighted sigma clipping:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'SigmaClipMethod', 'weighted');
+    %          % AstroDiff/AstroZOGY:
+    %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD);
+    %          % PC is [Nobj x 2]: PC(i,1) = New, PC(i,2) = Ref
+    %          % Calibrate only New:
+    %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD, 'DiffCalibProps', {'New'});
 
     arguments
         Obj  % AstroImage or AstroCatalog

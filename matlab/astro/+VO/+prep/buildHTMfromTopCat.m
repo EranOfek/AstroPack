@@ -15,8 +15,8 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                 QueryLevel > HTM_Level.
 %              Parallel mode uses parfeval+fetchNext for straggler-free
 %              processing (no batch synchronization).
-% Input  :   TableName: TAP table name (e.g., 'gaiaedr3.gaia_source' or
-%            '"II/349/ps1"' for VizieR catalogs with special characters).
+% Input  :   - TableName: TAP table name (e.g., 'gaiaedr3.gaia_source' or
+%                         '"II/349/ps1"' for VizieR catalogs with special characters).
 %          * ...,key,val,...
 %            'TapUrl'      - TAP service URL. If empty, uses TapName to resolve
 %                            or defaults to Gaia TAP. Default is [].
@@ -118,7 +118,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %                            Can also be an integer level index. Default is 'auto'.
 %            'MaxConeRadiusDeg' - Maximum cone search radius in degrees
 %                            (TAP service limit). Default is 0.25.
-% Output :   Nsrc: Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
+% Output :   - Nx2 matrix of [HTM_Index, Nsrc] with source counts per cell.
 % Author : Dana Kovaleva (Dec 2025)
 % Example: % Download Gaia DR3 bright stars with polygon query (ESA supports polygon)
 %{
@@ -238,8 +238,8 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.ComputedColumns  = {}          % {NewName, Col1, Col2, Op} for computed columns
         Args.DropColumns      = {}          % Column names to drop after computing
         Args.NumWorkers       = 0           % 0=sequential, >0=parallel with N workers
-        Args.QueryLevel       = 'auto'      % Query HTM level ('auto' or integer)
-        Args.MaxConeRadiusDeg = 0.25        % Maximum cone search radius (TAP service limit)
+        Args.QueryLevel       = 'auto'           % Query HTM level ('auto' or integer)
+        Args.MaxConeRadiusDeg = 2.0         % Maximum cone search radius, deg (TAP service limit)
     end
 
     RAD = constant.RAD;
@@ -271,12 +271,34 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.CatName = regexprep(Args.CatName, '^_|_$', '');
     end
 
+    % Remove underscores from CatName for catsHTM compatibility
+    % (catsHTM splits filenames by '_' to derive variable names)
+    Args.CatName = strrep(Args.CatName, '_', '');
+
     % Set source column names for spatial query (default to output names)
     if isempty(Args.ColRASrc)
         Args.ColRASrc = Args.ColRA;
     end
     if isempty(Args.ColDecSrc)
         Args.ColDecSrc = Args.ColDec;
+    end
+
+    % Auto-detect source column names from aliases in Columns spec
+    % e.g., 'RAJ2000 AS RA' with ColRA='ra' → ColRASrc='RAJ2000'
+    if iscell(Args.Columns)
+        for iCol = 1:numel(Args.Columns)
+            Tokens = regexpi(Args.Columns{iCol}, '^\s*(.+?)\s+AS\s+(\S+)\s*$', 'tokens');
+            if ~isempty(Tokens)
+                SrcName = Tokens{1}{1};
+                AliasName = Tokens{1}{2};
+                if strcmpi(AliasName, Args.ColRASrc)
+                    Args.ColRASrc = SrcName;
+                end
+                if strcmpi(AliasName, Args.ColDecSrc)
+                    Args.ColDecSrc = SrcName;
+                end
+            end
+        end
     end
 
     % Format columns for query
@@ -320,19 +342,19 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(SampleQuery);
 
                 % Build STILTS command
-                cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=csv out="%s" sync=true 2>&1', ...
+                Cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=csv out="%s" sync=true 2>&1', ...
                     JarPath, TapUrlClean, AdqlEsc, TempCsvFile);
 
-                [status, ~] = system(cmd);
+                [Status, ~] = system(Cmd);
 
-                if status == 0 && isfile(TempCsvFile)
+                if Status == 0 && isfile(TempCsvFile)
                     % Read original column names from CSV header
-                    fid = fopen(TempCsvFile, 'r');
-                    headerLine = fgetl(fid);
-                    fclose(fid);
+                    Fid = fopen(TempCsvFile, 'r');
+                    HeaderLine = fgetl(Fid);
+                    fclose(Fid);
 
                     % Parse CSV header properly (handle quoted fields that may contain commas)
-                    OriginalColNames = parseCSVHeader(headerLine);
+                    OriginalColNames = parseCSVHeader(HeaderLine);
 
                     if Args.Verbose
                         fprintf('Retrieved %d original column names from CSV header.\n', numel(OriginalColNames));
@@ -355,7 +377,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Get column info with filtering details so we can apply same to original names
-        [~, Args.ColCell, numericMask, reorderIdx] = tableToMatrixWithInfo(T, Args.ColRA, Args.ColDec, Args.TapUnits);
+        [~, Args.ColCell, NumericMask, ReorderIdx] = tableToMatrixWithInfo(T, Args.ColRA, Args.ColDec, Args.TapUnits);
         % Force RA/Dec names to match user-specified ColRA/ColDec (MATLAB may change case)
         Args.ColCell{1} = Args.ColRA;
         Args.ColCell{2} = Args.ColDec;
@@ -367,10 +389,10 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         if isempty(Args.ColUnits)
             TapColUnits = extractUnitsFromVOTable(SampleQuery, Args.TapUrl, ...
                                                    Args.LocalDir, Args.Verbose);
-            if ~isempty(TapColUnits) && numel(TapColUnits) == numel(numericMask)
+            if ~isempty(TapColUnits) && numel(TapColUnits) == numel(NumericMask)
                 % Apply same filtering (numeric only) and reordering as column names
-                FilteredUnits = TapColUnits(numericMask);
-                Args.ColUnits = FilteredUnits(reorderIdx);
+                FilteredUnits = TapColUnits(NumericMask);
+                Args.ColUnits = FilteredUnits(ReorderIdx);
             else
                 % Fallback: empty string units with correct length
                 Args.ColUnits = repmat({''}, 1, numel(Args.ColCell));
@@ -380,10 +402,10 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         % If user specified '*', rebuild ColumnsStr using original TAP column names
         % to ensure consistent columns across all HTM cell queries
         if strcmp(ColumnsStr, '*')
-            if ~isempty(OriginalColNames) && numel(OriginalColNames) == numel(numericMask)
+            if ~isempty(OriginalColNames) && numel(OriginalColNames) == numel(NumericMask)
                 % Apply same filtering (numeric only) and reordering to original names
-                OriginalColNamesFiltered = OriginalColNames(numericMask);
-                OriginalColNamesReordered = OriginalColNamesFiltered(reorderIdx);
+                OriginalColNamesFiltered = OriginalColNames(NumericMask);
+                OriginalColNamesReordered = OriginalColNamesFiltered(ReorderIdx);
 
                 % Filter out VizieR internal columns (starting with '_') as they cannot be queried
                 VizierInternalMask = cellfun(@(x) ~isempty(x) && x(1) == '_', OriginalColNamesReordered);
@@ -417,15 +439,15 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
     % Override RA/Dec units to match output coordinate system (radians)
     if ~isempty(Args.ColUnits)
-        raIdx = find(strcmpi(Args.ColCell, Args.ColRA), 1);
-        if isempty(raIdx) && isnumeric(Args.ColRAOut), raIdx = Args.ColRAOut; end
-        decIdx = find(strcmpi(Args.ColCell, Args.ColDec), 1);
-        if isempty(decIdx) && isnumeric(Args.ColDecOut), decIdx = Args.ColDecOut; end
-        if ~isempty(raIdx) && raIdx <= numel(Args.ColUnits)
-            Args.ColUnits{raIdx} = Args.OutUnits;
+        RaIdx = find(strcmpi(Args.ColCell, Args.ColRA), 1);
+        if isempty(RaIdx) && isnumeric(Args.ColRAOut), RaIdx = Args.ColRAOut; end
+        DecIdx = find(strcmpi(Args.ColCell, Args.ColDec), 1);
+        if isempty(DecIdx) && isnumeric(Args.ColDecOut), DecIdx = Args.ColDecOut; end
+        if ~isempty(RaIdx) && RaIdx <= numel(Args.ColUnits)
+            Args.ColUnits{RaIdx} = Args.OutUnits;
         end
-        if ~isempty(decIdx) && decIdx <= numel(Args.ColUnits)
-            Args.ColUnits{decIdx} = Args.OutUnits;
+        if ~isempty(DecIdx) && DecIdx <= numel(Args.ColUnits)
+            Args.ColUnits{DecIdx} = Args.OutUnits;
         end
     end
 
@@ -470,9 +492,15 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     IsFullSky = (Args.DecRange(1) <= -pi/2 + 0.01) && (Args.DecRange(2) >= pi/2 - 0.01) && ...
                 (Args.RARange(1) <= 0.01) && (Args.RARange(2) >= 2*pi - 0.01);
     % Compute minimum build level to contain the query level.
-    % At LevelHTM index L (depth L-1), side = 90/2^(L-1) deg.
-    % Max centroid-to-vertex distance <= side, so need side*1.05 <= MaxConeRadiusDeg.
-    MinBuildForQuery = ceil(1 + log2(1.05 * 90 / Args.MaxConeRadiusDeg));
+    % When QueryLevel is explicit, use it directly — MaxConeRadiusDeg only
+    % influences the build depth when QueryLevel is 'auto'.
+    if ischar(Args.QueryLevel) && strcmpi(Args.QueryLevel, 'auto')
+        % At LevelHTM index L (depth L-1), side = 90/2^(L-1) deg.
+        % Max centroid-to-vertex distance <= side, so need side*1.05 <= MaxConeRadiusDeg.
+        MinBuildForQuery = ceil(1 + log2(1.05 * 90 / Args.MaxConeRadiusDeg));
+    else
+        MinBuildForQuery = Args.QueryLevel;
+    end
 
     % Aggregate-up mode: query level exceeds output level (HTM_Level)
     % Needed when TAP radius limit forces queries at a finer level than the
@@ -486,10 +514,12 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         HTM = Args.HTM;
         LevelHTM = Args.LevelHTM;
     elseif AggregateUp
+        BuildLevel = MinBuildForQuery;
         if Args.Verbose
-            fprintf('Aggregate-up mode: building HTM to level %d (output at level %d)\n', MinBuildForQuery, Args.HTM_Level);
+            fprintf('Aggregate-up mode: building HTM to level %d (output at level %d, query at level %d)\n', ...
+                    BuildLevel, Args.HTM_Level, MinBuildForQuery);
         end
-        [HTM, LevelHTM] = celestial.htm.htm_build(MinBuildForQuery);
+        [HTM, LevelHTM] = celestial.htm.htm_build(BuildLevel);
     elseif UsePartialBuild
         BuildLevel = min(Args.HTM_Level, MinBuildForQuery);
         if Args.Verbose
@@ -532,10 +562,20 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     %----------------------------------------------------------------------
 
     % Select the coarsest HTM level where cells fit within MaxConeRadiusDeg
-    if ischar(Args.QueryLevel) && strcmpi(Args.QueryLevel, 'auto')
+    if AggregateUp
+        % Aggregate-up: query level is MinBuildForQuery (already computed from MaxConeRadiusDeg)
+        QueryLevelIdx = MinBuildForQuery;
+    elseif ischar(Args.QueryLevel) && strcmpi(Args.QueryLevel, 'auto')
         QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, Args.HTM_Level, Args.MaxConeRadiusDeg, RAD, Args.Verbose);
     else
         QueryLevelIdx = Args.QueryLevel;
+        % Warn if explicit query level cells may exceed TAP cone radius limit
+        ApproxSideDeg = 90 / 2^(QueryLevelIdx - 1);
+        if Args.Verbose && ApproxSideDeg * 1.05 > Args.MaxConeRadiusDeg
+            fprintf('Warning: Query level %d cells (side ~%.3f deg) exceed MaxConeRadiusDeg (%.3f deg).\n', ...
+                    QueryLevelIdx, ApproxSideDeg, Args.MaxConeRadiusDeg);
+            fprintf('  TAP queries may fail if the service enforces this radius limit.\n');
+        end
     end
 
     % Safety: if selectQueryLevel chose a level beyond HTM_Level but
@@ -550,23 +590,46 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
     end
 
-    QueryListHTM = LevelHTM(QueryLevelIdx).ptr;
+    if QueryLevelIdx <= numel(LevelHTM)
+        QueryListHTM = LevelHTM(QueryLevelIdx).ptr;
+    else
+        % Partial build: compute query cell list analytically
+        QueryDepthLevel = QueryLevelIdx - 1;
+        QueryStartIdx = 1 + round(8 * (4^QueryDepthLevel - 1) / 3);
+        QueryCount = 8 * 4^QueryDepthLevel;
+        QueryListHTM = QueryStartIdx:(QueryStartIdx + QueryCount - 1);
+    end
     Nquery = numel(QueryListHTM);
 
     if Args.Verbose
         fprintf('Query level: %d (LevelHTM index), %d query cells\n', QueryLevelIdx, Nquery);
-        fprintf('Max cone radius limit: %.4f deg\n', Args.MaxConeRadiusDeg);
+%        fprintf('Max cone radius limit: %.4f deg\n', Args.MaxConeRadiusDeg);
     end
 
     % Build mapping between query cells and output cells
     OutputToQueryMap = {};  % Only used in aggregate-up mode
+    OutputToQueryCoo = {};  % Pre-computed query descendant coordinates (partial build)
     QueryToFineMap = cell(Nquery, 1);
     QueryToFineCoo = {};
     if AggregateUp
         % Aggregate-up: for each output cell, find its query-level descendants
         OutputToQueryMap = cell(Nfine, 1);
-        for iF = 1:Nfine
-            OutputToQueryMap{iF} = getHTMDescendants(HTM, FineListHTM(iF));
+        if QueryLevelIdx <= numel(LevelHTM)
+            % Full tree available — use tree traversal
+            for iF = 1:Nfine
+                OutputToQueryMap{iF} = getHTMDescendants(HTM, FineListHTM(iF));
+            end
+        else
+            % Partial tree — expand analytically (avoids building deep tree)
+            OutputToQueryCoo = cell(Nfine, 1);
+            OutputDepthLevel = Args.HTM_Level - 1;
+            QueryDepthLevel = QueryLevelIdx - 1;
+            for iF = 1:Nfine
+                FIdx = FineListHTM(iF);
+                [QIndices, QCoos] = expandToFineLevel(HTM(FIdx).cosd, OutputDepthLevel, FIdx, QueryDepthLevel);
+                OutputToQueryMap{iF} = QIndices;
+                OutputToQueryCoo{iF} = QCoos;
+            end
         end
         if Args.Verbose
             NDescPerOutput = 4^(QueryLevelIdx - Args.HTM_Level);
@@ -579,24 +642,24 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         QueryDepthLevel = QueryLevelIdx - 1;  % LevelHTM index -> depth level
         FineDepthLevel = Args.HTM_Level - 1;
         for iQ = 1:Nquery
-            idx = QueryListHTM(iQ);
-            coo = HTM(idx).coo;
-            MeanRA = mean(coo(:,1));
-            MeanDec = mean(coo(:,2));
-            inRange = MeanRA >= Args.RARange(1) && MeanRA < Args.RARange(2) && ...
+            Idx = QueryListHTM(iQ);
+            Coo = HTM(Idx).coo;
+            MeanRA = mean(Coo(:,1));
+            MeanDec = mean(Coo(:,2));
+            InRange = MeanRA >= Args.RARange(1) && MeanRA < Args.RARange(2) && ...
                       MeanDec >= Args.DecRange(1) && MeanDec < Args.DecRange(2);
-            if inRange
-                [fi, fc] = expandToFineLevel(HTM(idx).cosd, QueryDepthLevel, idx, FineDepthLevel);
-                QueryToFineMap{iQ} = fi;
-                QueryToFineCoo{iQ} = fc;
+            if InRange
+                [Fi, Fc] = expandToFineLevel(HTM(Idx).cosd, QueryDepthLevel, Idx, FineDepthLevel);
+                QueryToFineMap{iQ} = Fi;
+                QueryToFineCoo{iQ} = Fc;
             else
                 QueryToFineMap{iQ} = [];
                 QueryToFineCoo{iQ} = {};
             end
         end
         if Args.Verbose
-            nExpanded = sum(~cellfun(@isempty, QueryToFineMap));
-            fprintf('Expanded %d/%d query cells to fine level (on-the-fly)\n', nExpanded, Nquery);
+            NExpanded = sum(~cellfun(@isempty, QueryToFineMap));
+            fprintf('Expanded %d/%d query cells to fine level (on-the-fly)\n', NExpanded, Nquery);
         end
     else
         % Full tree: use getHTMDescendants (tree is fully built)
@@ -640,12 +703,12 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         for iF = 1:Nfine
-            fIdx = FineListHTM(iF);
+            FIdx = FineListHTM(iF);
 
             % Check if output cell center is within Dec/RA range
-            coo = HTM(fIdx).coo;
-            MeanRA  = mean(coo(:,1));
-            MeanDec = mean(coo(:,2));
+            Coo = HTM(FIdx).coo;
+            MeanRA  = mean(Coo(:,1));
+            MeanDec = mean(Coo(:,2));
 
             if MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2)
@@ -654,21 +717,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             % Resume check: skip output cells that already exist
             if Args.Resume
-                exists = checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir) || ...
-                         (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir));
-                if exists
-                    pos = FineIdxToNsrcPos(fIdx);
-                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                CellExists = checkHTMExists(Args.CatName, FIdx, Args.NcatInFile, Args.LocalDir) || ...
+                         (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, FIdx, Args.NcatInFile, Args.TargetDir));
+                if CellExists
+                    Pos = FineIdxToNsrcPos(FIdx);
+                    NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.LocalDir);
                     if NsrcExisting == 0 && ~isempty(Args.TargetDir)
-                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                        NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.TargetDir);
                     end
-                    Nsrc(pos, :) = [fIdx, NsrcExisting];
+                    Nsrc(Pos, :) = [FIdx, NsrcExisting];
                     SkippedCount = SkippedCount + 1;
                     continue;
                 end
             end
 
-            OutputCellsToProcess = [OutputCellsToProcess, fIdx]; %#ok<AGROW>
+            OutputCellsToProcess = [OutputCellsToProcess, FIdx]; %#ok<AGROW>
             OutputCellIndices = [OutputCellIndices, iF]; %#ok<AGROW>
 
             if Args.Verbose && mod(iF, 10000) == 0
@@ -690,7 +753,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
         for iQ = 1:Nquery
             IndQ = QueryListHTM(iQ);
-            fineDescendants = QueryToFineMap{iQ};
+            FineDescendants = QueryToFineMap{iQ};
 
             % Check if query cell center is within Dec/RA range
             MeanRA  = mean(HTM(IndQ).coo(:,1));
@@ -706,53 +769,53 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             % Check resume status of fine descendants
             if Args.Resume
-                allExist = true;
-                existMask = false(numel(fineDescendants), 1);
-                for iF = 1:numel(fineDescendants)
-                    fIdx = fineDescendants(iF);
-                    exists = checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir) || ...
-                             (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir));
-                    existMask(iF) = exists;
-                    if ~exists
-                        allExist = false;
+                AllExist = true;
+                ExistMask = false(numel(FineDescendants), 1);
+                for iF = 1:numel(FineDescendants)
+                    FIdx = FineDescendants(iF);
+                    Exists = checkHTMExists(Args.CatName, FIdx, Args.NcatInFile, Args.LocalDir) || ...
+                             (~isempty(Args.TargetDir) && checkHTMExists(Args.CatName, FIdx, Args.NcatInFile, Args.TargetDir));
+                    ExistMask(iF) = Exists;
+                    if ~Exists
+                        AllExist = false;
                     end
                 end
 
-                if allExist
+                if AllExist
                     % All fine descendants exist - skip this query cell entirely
-                    for iF = 1:numel(fineDescendants)
-                        fIdx = fineDescendants(iF);
-                        pos = FineIdxToNsrcPos(fIdx);
-                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                    for iF = 1:numel(FineDescendants)
+                        FIdx = FineDescendants(iF);
+                        Pos = FineIdxToNsrcPos(FIdx);
+                        NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.LocalDir);
                         if NsrcExisting == 0 && ~isempty(Args.TargetDir)
-                            NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                            NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.TargetDir);
                         end
-                        Nsrc(pos, :) = [fIdx, NsrcExisting];
+                        Nsrc(Pos, :) = [FIdx, NsrcExisting];
                     end
-                    SkippedCount = SkippedCount + numel(fineDescendants);
+                    SkippedCount = SkippedCount + numel(FineDescendants);
                     continue;
                 end
 
                 % Some exist, some don't - we need to re-download but can skip writing existing ones
                 % Record which fine cells already exist for this query cell
-                skippedFine = fineDescendants(existMask);
-                for iF = 1:numel(skippedFine)
-                    fIdx = skippedFine(iF);
-                    pos = FineIdxToNsrcPos(fIdx);
-                    NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.LocalDir);
+                SkippedFine = FineDescendants(ExistMask);
+                for iF = 1:numel(SkippedFine)
+                    FIdx = SkippedFine(iF);
+                    Pos = FineIdxToNsrcPos(FIdx);
+                    NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.LocalDir);
                     if NsrcExisting == 0 && ~isempty(Args.TargetDir)
-                        NsrcExisting = getHTMSourceCount(Args.CatName, fIdx, Args.NcatInFile, Args.TargetDir);
+                        NsrcExisting = getHTMSourceCount(Args.CatName, FIdx, Args.NcatInFile, Args.TargetDir);
                     end
-                    Nsrc(pos, :) = [fIdx, NsrcExisting];
+                    Nsrc(Pos, :) = [FIdx, NsrcExisting];
                     SkippedCount = SkippedCount + 1;
                 end
             else
-                skippedFine = [];
+                SkippedFine = [];
             end
 
             QueryCellsToProcess = [QueryCellsToProcess, IndQ]; %#ok<AGROW>
             QueryCellIndices = [QueryCellIndices, iQ]; %#ok<AGROW>
-            SkippedFineFromResume{end+1} = skippedFine; %#ok<AGROW>
+            SkippedFineFromResume{end+1} = SkippedFine; %#ok<AGROW>
 
             % Progress for filtering (every 10000 query cells)
             if Args.Verbose && mod(iQ, 10000) == 0
@@ -779,25 +842,25 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     if Args.NumWorkers <= 1
         if AggregateUp && NumOutputToProcess > 0
             for iProc = 1:NumOutputToProcess
-                [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, OutputCellsToProcess(iProc), Args.NcatInFile);
-                if FileRemainingCells.isKey(fn)
-                    FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+                [Fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, OutputCellsToProcess(iProc), Args.NcatInFile);
+                if FileRemainingCells.isKey(Fn)
+                    FileRemainingCells(Fn) = FileRemainingCells(Fn) + int32(1);
                 else
-                    FileRemainingCells(fn) = int32(1);
+                    FileRemainingCells(Fn) = int32(1);
                 end
             end
         elseif NumQueryToProcess > 0
             for iProc = 1:NumQueryToProcess
                 iQ = QueryCellIndices(iProc);
-                fineDesc = QueryToFineMap{iQ};
-                skipped = SkippedFineFromResume{iProc};
-                for iF = 1:numel(fineDesc)
-                    if ~ismember(fineDesc(iF), skipped)
-                        [fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fineDesc(iF), Args.NcatInFile);
-                        if FileRemainingCells.isKey(fn)
-                            FileRemainingCells(fn) = FileRemainingCells(fn) + int32(1);
+                FineDesc = QueryToFineMap{iQ};
+                Skipped = SkippedFineFromResume{iProc};
+                for iF = 1:numel(FineDesc)
+                    if ~ismember(FineDesc(iF), Skipped)
+                        [Fn, ~] = HDF5.get_file_var_from_htmid(Args.CatName, FineDesc(iF), Args.NcatInFile);
+                        if FileRemainingCells.isKey(Fn)
+                            FileRemainingCells(Fn) = FileRemainingCells(Fn) + int32(1);
                         else
-                            FileRemainingCells(fn) = int32(1);
+                            FileRemainingCells(Fn) = int32(1);
                         end
                     end
                 end
@@ -829,12 +892,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             % Start parallel pool if needed
             try
-                pool = gcp('nocreate');
-                if isempty(pool)
-                    pool = parpool(Args.NumWorkers);
-                elseif pool.NumWorkers ~= Args.NumWorkers
-                    delete(pool);
-                    pool = parpool(Args.NumWorkers);
+                Pool = gcp('nocreate');
+                if isempty(Pool)
+                    Pool = parpool(Args.NumWorkers);
+                else
+                    % Cancel stale futures from previous interrupted runs
+                    if ~isempty(Pool.FevalQueue.QueuedFutures)
+                        cancel(Pool.FevalQueue.QueuedFutures);
+                    end
+                    if ~isempty(Pool.FevalQueue.RunningFutures)
+                        cancel(Pool.FevalQueue.RunningFutures);
+                    end
+                    if Pool.NumWorkers ~= Args.NumWorkers
+                        delete(Pool);
+                        Pool = parpool(Args.NumWorkers);
+                    end
                 end
             catch ME
                 warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
@@ -847,20 +919,25 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 QueryDescCooSets = cell(NumOutputToProcess, 1);
                 for iProc = 1:NumOutputToProcess
                     iF = OutputCellIndices(iProc);
-                    fIdx = OutputCellsToProcess(iProc);
-                    OutputCellCoos{iProc} = HTM(fIdx).coo;
-                    qDescs = OutputToQueryMap{iF};
-                    qCoos = cell(numel(qDescs), 1);
-                    for j = 1:numel(qDescs)
-                        qCoos{j} = HTM(qDescs(j)).coo;
+                    FIdx = OutputCellsToProcess(iProc);
+                    OutputCellCoos{iProc} = HTM(FIdx).coo;
+                    QDescs = OutputToQueryMap{iF};
+                    if ~isempty(OutputToQueryCoo)
+                        % Partial build: use precomputed coordinates
+                        QueryDescCooSets{iProc} = OutputToQueryCoo{iF};
+                    else
+                        QCoos = cell(numel(QDescs), 1);
+                        for j = 1:numel(QDescs)
+                            QCoos{j} = HTM(QDescs(j)).coo;
+                        end
+                        QueryDescCooSets{iProc} = QCoos;
                     end
-                    QueryDescCooSets{iProc} = qCoos;
                 end
 
                 % Submit one parfeval per output cell (workers write HDF5 to temp dirs)
                 Futures(NumOutputToProcess) = parallel.FevalFuture;
                 for iProc = 1:NumOutputToProcess
-                    Futures(iProc) = parfeval(pool, @downloadAggregateCellWithWrite, 2, ...
+                    Futures(iProc) = parfeval(Pool, @downloadAggregateCellWithWrite, 2, ...
                         TableName, ColumnsStr, OutputCellCoos{iProc}, ...
                         QueryDescCooSets{iProc}, OutputCellsToProcess(iProc), RAD, Args);
                 end
@@ -872,20 +949,20 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 % Process results as they complete (workers already wrote HDF5)
                 for iDone = 1:NumOutputToProcess
                     try
-                        [completedIdx, NsrcCell, queryFailed] = fetchNext(Futures);
+                        [CompletedIdx, NsrcCell, QueryFailed] = fetchNext(Futures);
                     catch ME
                         warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
                     end
 
-                    fIdx = OutputCellsToProcess(completedIdx);
-                    pos = FineIdxToNsrcPos(fIdx);
+                    FIdx = OutputCellsToProcess(CompletedIdx);
+                    Pos = FineIdxToNsrcPos(FIdx);
 
-                    if queryFailed
-                        FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
-                        Nsrc(pos, :) = [fIdx, 0];
+                    if QueryFailed
+                        FailedCells = [FailedCells, FIdx]; %#ok<AGROW>
+                        Nsrc(Pos, :) = [FIdx, 0];
                     else
-                        Nsrc(pos, :) = [fIdx, NsrcCell];
+                        Nsrc(Pos, :) = [FIdx, NsrcCell];
                         ProcessedFineCells = ProcessedFineCells + 1;
                     end
 
@@ -909,16 +986,16 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
                 % Batch NFS copy all grouped files
                 if ~isempty(Args.TargetDir)
-                    hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
-                    hdfFiles = dir(hdfPattern);
-                    if ~isempty(hdfFiles) && Args.Verbose
-                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(hdfFiles));
+                    HdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
+                    HdfFiles = dir(HdfPattern);
+                    if ~isempty(HdfFiles) && Args.Verbose
+                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(HdfFiles));
                     end
-                    for iFile = 1:numel(hdfFiles)
-                        FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
+                    for iFile = 1:numel(HdfFiles)
+                        FullPath = fullfile(Args.LocalDir, HdfFiles(iFile).name);
                         tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
                         if Args.Verbose
-                            fprintf('  Copied: %s\n', hdfFiles(iFile).name);
+                            fprintf('  Copied: %s\n', HdfFiles(iFile).name);
                         end
                     end
                 end
@@ -937,52 +1014,56 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             end
 
             for iProc = 1:NumOutputToProcess
-                fIdx = OutputCellsToProcess(iProc);
+                FIdx = OutputCellsToProcess(iProc);
                 iF = OutputCellIndices(iProc);
-                outputCoo = HTM(fIdx).coo;
-                qDescs = OutputToQueryMap{iF};
+                OutputCoo = HTM(FIdx).coo;
+                QDescs = OutputToQueryMap{iF};
 
                 % Download all query descendants for this output cell
                 AllData = [];
                 AnyFailed = false;
-                for j = 1:numel(qDescs)
-                    qIdx = qDescs(j);
-                    qCoo = HTM(qIdx).coo;
-                    SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
+                for j = 1:numel(QDescs)
+                    QIdx = QDescs(j);
+                    if ~isempty(OutputToQueryCoo)
+                        QCoo = OutputToQueryCoo{iF}{j};
+                    else
+                        QCoo = HTM(QIdx).coo;
+                    end
+                    SearchRadiusDeg = computeCellSearchRadius(QCoo, RAD);
 
-                    [D, qFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
-                        qIdx, qCoo, RAD, SearchRadiusDeg, Args);
+                    [D, QFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
+                        QIdx, QCoo, RAD, SearchRadiusDeg, Args);
 
-                    if qFailed
+                    if QFailed
                         AnyFailed = true;
                     elseif ~isempty(D)
                         AllData = [AllData; D]; %#ok<AGROW>
                     end
                 end
 
-                pos = FineIdxToNsrcPos(fIdx);
+                Pos = FineIdxToNsrcPos(FIdx);
 
                 if AnyFailed && isempty(AllData)
-                    FailedCells = [FailedCells, fIdx]; %#ok<AGROW>
-                    Nsrc(pos, :) = [fIdx, 0];
+                    FailedCells = [FailedCells, FIdx]; %#ok<AGROW>
+                    Nsrc(Pos, :) = [FIdx, 0];
                 else
                     % Filter to output cell boundaries and deduplicate by coordinates
                     if ~isempty(AllData)
                         CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
-                        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+                        Flag = celestial.htm.in_polysphere(CooRad, OutputCoo, 2);
                         AllData = AllData(Flag, :);
                         [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
                         if numel(uniqueIdx) < size(AllData, 1)
                             Nremoved = size(AllData, 1) - numel(uniqueIdx);
                             AllData = AllData(sort(uniqueIdx), :);
                             if Args.Verbose
-                                fprintf('    Output cell %d: removed %d duplicate rows\n', fIdx, Nremoved);
+                                fprintf('    Output cell %d: removed %d duplicate rows\n', FIdx, Nremoved);
                             end
                         end
                     end
 
                     % Check if we've moved to a new HDF5 file - copy completed one
-                    [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
+                    [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, FIdx, Args.NcatInFile);
                     if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
                         FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
                         if isfile(FullPath)
@@ -994,8 +1075,8 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     end
                     CurrentHDFFile = ThisFileName;
 
-                    NsrcCell = writeOutputCellDirect(AllData, fIdx, Args, RAD);
-                    Nsrc(pos, :) = [fIdx, NsrcCell];
+                    NsrcCell = writeOutputCellDirect(AllData, FIdx, Args, RAD);
+                    Nsrc(Pos, :) = [FIdx, NsrcCell];
                     ProcessedFineCells = ProcessedFineCells + 1;
                 end
 
@@ -1051,12 +1132,21 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             % Start parallel pool if needed
             try
-                pool = gcp('nocreate');
-                if isempty(pool)
-                    pool = parpool(Args.NumWorkers);
-                elseif pool.NumWorkers ~= Args.NumWorkers
-                    delete(pool);
-                    pool = parpool(Args.NumWorkers);
+                Pool = gcp('nocreate');
+                if isempty(Pool)
+                    Pool = parpool(Args.NumWorkers);
+                else
+                    % Cancel stale futures from previous interrupted runs
+                    if ~isempty(Pool.FevalQueue.QueuedFutures)
+                        cancel(Pool.FevalQueue.QueuedFutures);
+                    end
+                    if ~isempty(Pool.FevalQueue.RunningFutures)
+                        cancel(Pool.FevalQueue.RunningFutures);
+                    end
+                    if Pool.NumWorkers ~= Args.NumWorkers
+                        delete(Pool);
+                        Pool = parpool(Args.NumWorkers);
+                    end
                 end
             catch ME
                 warning('Could not start parallel pool: %s. Falling back to sequential.', char(ME.message));
@@ -1074,23 +1164,23 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                     iQ = QueryCellIndices(iProc);
                     QueryCellCoo{iProc} = HTM(IndQ).coo;
                     QuerySearchRadii(iProc) = computeCellSearchRadius(HTM(IndQ).coo, RAD);
-                    fineDesc = QueryToFineMap{iQ};
-                    WorkerFineIndices{iProc} = fineDesc;
-                    coos = cell(numel(fineDesc), 1);
-                    for iF = 1:numel(fineDesc)
+                    FineDesc = QueryToFineMap{iQ};
+                    WorkerFineIndices{iProc} = FineDesc;
+                    Coos = cell(numel(FineDesc), 1);
+                    for iF = 1:numel(FineDesc)
                         if ~isempty(QueryToFineCoo) && ~isempty(QueryToFineCoo{iQ})
-                            coos{iF} = QueryToFineCoo{iQ}{iF};
+                            Coos{iF} = QueryToFineCoo{iQ}{iF};
                         else
-                            coos{iF} = HTM(fineDesc(iF)).coo;
+                            Coos{iF} = HTM(FineDesc(iF)).coo;
                         end
                     end
-                    WorkerFineCoos{iProc} = coos;
+                    WorkerFineCoos{iProc} = Coos;
                 end
 
                 % Submit ALL query cells (workers download, distribute, and write HDF5)
                 Futures(NumQueryToProcess) = parallel.FevalFuture;
                 for iProc = 1:NumQueryToProcess
-                    Futures(iProc) = parfeval(pool, @downloadQueryConeWithWrite, 2, ...
+                    Futures(iProc) = parfeval(Pool, @downloadQueryConeWithWrite, 2, ...
                         TableName, ColumnsStr, QueryCellsToProcess(iProc), ...
                         QueryCellCoo{iProc}, RAD, QuerySearchRadii(iProc), ...
                         WorkerFineIndices{iProc}, WorkerFineCoos{iProc}, ...
@@ -1104,37 +1194,37 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                 % Process results as they complete (workers already wrote HDF5)
                 for iDone = 1:NumQueryToProcess
                     try
-                        [completedIdx, NsrcResults, queryFailed] = fetchNext(Futures);
+                        [CompletedIdx, NsrcResults, QueryFailed] = fetchNext(Futures);
                     catch ME
                         warning('VO:buildHTMfromTopCat:fetchNext', 'fetchNext error: %s', ME.message);
                         continue;
                     end
 
-                    IndQ = QueryCellsToProcess(completedIdx);
+                    IndQ = QueryCellsToProcess(CompletedIdx);
 
-                    if queryFailed
+                    if QueryFailed
                         FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
-                        iQ = QueryCellIndices(completedIdx);
-                        fineDescendants = QueryToFineMap{iQ};
-                        skippedFine = SkippedFineFromResume{completedIdx};
-                        for iF = 1:numel(fineDescendants)
-                            fIdx = fineDescendants(iF);
-                            if ~ismember(fIdx, skippedFine)
-                                pos = FineIdxToNsrcPos(fIdx);
-                                Nsrc(pos, :) = [fIdx, 0];
+                        iQ = QueryCellIndices(CompletedIdx);
+                        FineDescendants = QueryToFineMap{iQ};
+                        SkippedFine = SkippedFineFromResume{CompletedIdx};
+                        for iF = 1:numel(FineDescendants)
+                            FIdx = FineDescendants(iF);
+                            if ~ismember(FIdx, SkippedFine)
+                                Pos = FineIdxToNsrcPos(FIdx);
+                                Nsrc(Pos, :) = [FIdx, 0];
                             end
                         end
                     else
                         % Update Nsrc from worker results
-                        skippedFine = SkippedFineFromResume{completedIdx};
+                        SkippedFine = SkippedFineFromResume{CompletedIdx};
                         for iR = 1:size(NsrcResults, 1)
-                            fIdx = NsrcResults(iR, 1);
-                            if ismember(fIdx, skippedFine)
+                            FIdx = NsrcResults(iR, 1);
+                            if ismember(FIdx, SkippedFine)
                                 continue;
                             end
                             NsrcCell = NsrcResults(iR, 2);
-                            pos = FineIdxToNsrcPos(fIdx);
-                            Nsrc(pos, :) = [fIdx, NsrcCell];
+                            Pos = FineIdxToNsrcPos(FIdx);
+                            Nsrc(Pos, :) = [FIdx, NsrcCell];
                             ProcessedFineCells = ProcessedFineCells + 1;
                         end
                     end
@@ -1161,16 +1251,16 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
                 % Batch NFS copy all grouped files
                 if ~isempty(Args.TargetDir)
-                    hdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
-                    hdfFiles = dir(hdfPattern);
-                    if ~isempty(hdfFiles) && Args.Verbose
-                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(hdfFiles));
+                    HdfPattern = fullfile(Args.LocalDir, sprintf('%s_htm_*.hdf5', Args.CatName));
+                    HdfFiles = dir(HdfPattern);
+                    if ~isempty(HdfFiles) && Args.Verbose
+                        fprintf('\nCopying %d HDF5 files to remote directory...\n', numel(HdfFiles));
                     end
-                    for iFile = 1:numel(hdfFiles)
-                        FullPath = fullfile(Args.LocalDir, hdfFiles(iFile).name);
+                    for iFile = 1:numel(HdfFiles)
+                        FullPath = fullfile(Args.LocalDir, HdfFiles(iFile).name);
                         tools.os.copyFileOverNFS({FullPath}, Args.TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
                         if Args.Verbose
-                            fprintf('  Copied: %s\n', hdfFiles(iFile).name);
+                            fprintf('  Copied: %s\n', HdfFiles(iFile).name);
                         end
                     end
                 end
@@ -1192,35 +1282,35 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             for iProc = 1:NumQueryToProcess
                 IndQ = QueryCellsToProcess(iProc);
                 iQ = QueryCellIndices(iProc);
-                fineDescendants = QueryToFineMap{iQ};
-                skippedFine = SkippedFineFromResume{iProc};
+                FineDescendants = QueryToFineMap{iQ};
+                SkippedFine = SkippedFineFromResume{iProc};
                 SearchRadiusDeg = computeCellSearchRadius(HTM(IndQ).coo, RAD);
 
                 % Download data for this query cell
-                [Data, queryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
+                [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, ...
                     IndQ, HTM(IndQ).coo, RAD, SearchRadiusDeg, Args);
 
-                if queryFailed
+                if QueryFailed
                     FailedCells = [FailedCells, IndQ]; %#ok<AGROW>
-                    for iF = 1:numel(fineDescendants)
-                        fIdx = fineDescendants(iF);
-                        if ~ismember(fIdx, skippedFine)
-                            pos = FineIdxToNsrcPos(fIdx);
-                            Nsrc(pos, :) = [fIdx, 0];
+                    for iF = 1:numel(FineDescendants)
+                        FIdx = FineDescendants(iF);
+                        if ~ismember(FIdx, SkippedFine)
+                            Pos = FineIdxToNsrcPos(FIdx);
+                            Nsrc(Pos, :) = [FIdx, 0];
                         end
                     end
                 else
                     % Distribute data to fine-level cells
-                    for iF = 1:numel(fineDescendants)
-                        fIdx = fineDescendants(iF);
+                    for iF = 1:numel(FineDescendants)
+                        FIdx = FineDescendants(iF);
 
                         % Skip fine cells that already exist from resume
-                        if ismember(fIdx, skippedFine)
+                        if ismember(FIdx, SkippedFine)
                             continue;
                         end
 
                         % Check if we've moved to a new HDF5 file - copy completed one
-                        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
+                        [ThisFileName, ~] = HDF5.get_file_var_from_htmid(Args.CatName, FIdx, Args.NcatInFile);
                         if ~isempty(CurrentHDFFile) && ~strcmp(ThisFileName, CurrentHDFFile) && ~isempty(Args.TargetDir)
                             FullPath = fullfile(Args.LocalDir, CurrentHDFFile);
                             if isfile(FullPath)
@@ -1232,14 +1322,14 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
                         end
                         CurrentHDFFile = ThisFileName;
 
-                        pos = FineIdxToNsrcPos(fIdx);
+                        Pos = FineIdxToNsrcPos(FIdx);
                         if ~isempty(QueryToFineCoo)
-                            fineCoo = QueryToFineCoo{iQ}{iF};
+                            FineCoo = QueryToFineCoo{iQ}{iF};
                         else
-                            fineCoo = HTM(fIdx).coo;
+                            FineCoo = HTM(FIdx).coo;
                         end
-                        NsrcCell = writeFineCellFromQuery(Data, fIdx, fineCoo, Args, RAD);
-                        Nsrc(pos, :) = [fIdx, NsrcCell];
+                        NsrcCell = writeFineCellFromQuery(Data, FIdx, FineCoo, Args, RAD);
+                        Nsrc(Pos, :) = [FIdx, NsrcCell];
                         ProcessedFineCells = ProcessedFineCells + 1;
                     end
                 end
@@ -1346,41 +1436,41 @@ function QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, ~, MaxConeRadiusDeg, RA
     QueryLevelIdx = MaxAvailLevel;  % default: deepest available level
 
     for L = 1:MaxAvailLevel
-        ptrs = LevelHTM(L).ptr;
-        maxDist = 0;
+        Ptrs = LevelHTM(L).ptr;
+        MaxDist = 0;
 
         % Sample cells to compute max centroid-to-vertex distance
         % For efficiency, sample up to 200 cells (enough to catch polar extremes)
-        if numel(ptrs) <= 200
-            samplePtrs = ptrs;
+        if numel(Ptrs) <= 200
+            SamplePtrs = Ptrs;
         else
-            samplePtrs = ptrs(round(linspace(1, numel(ptrs), 200)));
+            SamplePtrs = Ptrs(round(linspace(1, numel(Ptrs), 200)));
         end
 
-        for iP = 1:numel(samplePtrs)
-            idx = samplePtrs(iP);
-            coo = HTM(idx).coo;  % 3x2 [Long, Lat] in radians
-            centerRA = mean(coo(:,1));
-            centerDec = mean(coo(:,2));
+        for iP = 1:numel(SamplePtrs)
+            Idx = SamplePtrs(iP);
+            Coo = HTM(Idx).coo;  % 3x2 [Long, Lat] in radians
+            CenterRA = mean(Coo(:,1));
+            CenterDec = mean(Coo(:,2));
 
             % Angular distance from centroid to each vertex
             for iV = 1:3
-                d = celestial.coo.sphere_dist_fast(centerRA, centerDec, coo(iV,1), coo(iV,2));
-                if d > maxDist
-                    maxDist = d;
+                D = celestial.coo.sphere_dist_fast(CenterRA, CenterDec, Coo(iV,1), Coo(iV,2));
+                if D > MaxDist
+                    MaxDist = D;
                 end
             end
         end
 
         % Apply 1.05 safety margin
-        searchRadius = maxDist * 1.05;
+        SearchRadius = MaxDist * 1.05;
 
         if Verbose
             fprintf('  Level %d: %d cells, max radius = %.4f deg (limit %.4f deg)\n', ...
-                    L, numel(ptrs), searchRadius * RAD, MaxConeRadiusDeg);
+                    L, numel(Ptrs), SearchRadius * RAD, MaxConeRadiusDeg);
         end
 
-        if searchRadius <= MaxConeRadiusRad
+        if SearchRadius <= MaxConeRadiusRad
             QueryLevelIdx = L;
             break;
         end
@@ -1392,96 +1482,96 @@ function QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, ~, MaxConeRadiusDeg, RA
 end
 
 
-function Descendants = getHTMDescendants(HTM, idx)
-    % Recursively find all leaf-level descendants of HTM cell idx
+function Descendants = getHTMDescendants(HTM, Idx)
+    % Recursively find all leaf-level descendants of HTM cell Idx
     % Returns vector of leaf indices (cells with no sons)
 
-    if isempty(HTM(idx).son)
+    if isempty(HTM(Idx).son)
         % This is a leaf node
-        Descendants = idx;
+        Descendants = Idx;
     else
         % Recurse into sons
         Descendants = [];
-        for iSon = 1:numel(HTM(idx).son)
-            Descendants = [Descendants, getHTMDescendants(HTM, HTM(idx).son(iSon))]; %#ok<AGROW>
+        for iSon = 1:numel(HTM(Idx).son)
+            Descendants = [Descendants, getHTMDescendants(HTM, HTM(Idx).son(iSon))]; %#ok<AGROW>
         end
     end
 end
 
 
-function [fineIndices, fineCoos] = expandToFineLevel(parentCosd, parentDepthLevel, parentFullIdx, targetDepthLevel)
+function [FineIndices, FineCoos] = expandToFineLevel(ParentCosd, ParentDepthLevel, ParentFullIdx, TargetDepthLevel)
     % Recursively subdivide an HTM cell to the target depth level
     % Computes correct full-tree indices and cell coordinates without
     % building the full HTM structure. Uses the same subdivision geometry
     % as celestial.htm.htm_build_son.
-    % Input  : - parentCosd: 3x3 cosine direction matrix of parent cell
-    %          - parentDepthLevel: depth level of parent (0-indexed)
-    %          - parentFullIdx: full-tree index of parent
-    %          - targetDepthLevel: target fine depth level
-    % Output : - fineIndices: 1xN vector of full-tree indices at target level
-    %          - fineCoos: 1xN cell array of 3x2 [Long,Lat] coordinate matrices
+    % Input  : - ParentCosd: 3x3 cosine direction matrix of parent cell
+    %          - ParentDepthLevel: depth level of parent (0-indexed)
+    %          - ParentFullIdx: full-tree index of parent
+    %          - TargetDepthLevel: target fine depth level
+    % Output : - FineIndices: 1xN vector of full-tree indices at target level
+    %          - FineCoos: 1xN cell array of 3x2 [Long,Lat] coordinate matrices
 
-    if parentDepthLevel == targetDepthLevel
+    if ParentDepthLevel == TargetDepthLevel
         % This IS the target level - return this cell
-        [Long, Lat] = celestial.coo.cosined2coo(parentCosd(:,1), parentCosd(:,2), parentCosd(:,3));
-        fineIndices = parentFullIdx;
-        fineCoos = {[Long, Lat]};
+        [Long, Lat] = celestial.coo.cosined2coo(ParentCosd(:,1), ParentCosd(:,2), ParentCosd(:,3));
+        FineIndices = ParentFullIdx;
+        FineCoos = {[Long, Lat]};
         return;
     end
 
     % Compute midpoints on great circles (same as htm_build_son)
-    V = parentCosd;
+    V = ParentCosd;
     Cen = celestial.htm.gc_mid_section([V(1,:);V(2,:);V(3,:)], [V(2,:);V(3,:);V(1,:)]);
 
     % 4 children's cosine directions (same order as htm_build_son)
-    childCosd = cell(4,1);
-    childCosd{1} = [V(1,:); Cen(1,:); Cen(3,:)];
-    childCosd{2} = [V(2,:); Cen(2,:); Cen(1,:)];
-    childCosd{3} = [V(3,:); Cen(3,:); Cen(2,:)];
-    childCosd{4} = [Cen(1,:); Cen(2,:); Cen(3,:)];
+    ChildCosd = cell(4,1);
+    ChildCosd{1} = [V(1,:); Cen(1,:); Cen(3,:)];
+    ChildCosd{2} = [V(2,:); Cen(2,:); Cen(1,:)];
+    ChildCosd{3} = [V(3,:); Cen(3,:); Cen(2,:)];
+    ChildCosd{4} = [Cen(1,:); Cen(2,:); Cen(3,:)];
 
     % Compute children's full-tree indices analytically
     % startIdx(k) = 1 + 8*(4^k - 1)/3 for depth k
-    childDepth = parentDepthLevel + 1;
-    childStartIdx = 1 + round(8 * (4^childDepth - 1) / 3);
-    parentStartIdx = 1 + round(8 * (4^parentDepthLevel - 1) / 3);
-    parentPos = parentFullIdx - parentStartIdx;  % 0-indexed position in level
-    childBaseIdx = childStartIdx + parentPos * 4;
+    ChildDepth = ParentDepthLevel + 1;
+    ChildStartIdx = 1 + round(8 * (4^ChildDepth - 1) / 3);
+    ParentStartIdx = 1 + round(8 * (4^ParentDepthLevel - 1) / 3);
+    ParentPos = ParentFullIdx - ParentStartIdx;  % 0-indexed position in level
+    ChildBaseIdx = ChildStartIdx + ParentPos * 4;
 
     % Recurse into children
-    fineIndices = [];
-    fineCoos = {};
+    FineIndices = [];
+    FineCoos = {};
     for s = 1:4
-        childIdx = childBaseIdx + (s - 1);
-        [fi, fc] = expandToFineLevel(childCosd{s}, childDepth, childIdx, targetDepthLevel);
-        fineIndices = [fineIndices, fi]; %#ok<AGROW>
-        fineCoos = [fineCoos, fc]; %#ok<AGROW>
+        ChildIdx = ChildBaseIdx + (s - 1);
+        [Fi, Fc] = expandToFineLevel(ChildCosd{s}, ChildDepth, ChildIdx, TargetDepthLevel);
+        FineIndices = [FineIndices, Fi]; %#ok<AGROW>
+        FineCoos = [FineCoos, Fc]; %#ok<AGROW>
     end
 end
 
 
-function SearchRadiusDeg = computeCellSearchRadius(cellCoo, RAD)
+function SearchRadiusDeg = computeCellSearchRadius(CellCoo, RAD)
     % Compute search radius for a query cell: max centroid-to-vertex distance * 1.05
-    % Input  : - cellCoo: 3x2 [Long, Lat] in radians
+    % Input  : - CellCoo: 3x2 [Long, Lat] in radians
     %          - RAD: degrees per radian
     % Output : - SearchRadiusDeg: cone search radius in degrees
 
-    centerRA = mean(cellCoo(:,1));
-    centerDec = mean(cellCoo(:,2));
+    CenterRA = mean(CellCoo(:,1));
+    CenterDec = mean(CellCoo(:,2));
 
-    maxDist = 0;
+    MaxDist = 0;
     for iV = 1:3
-        d = celestial.coo.sphere_dist_fast(centerRA, centerDec, cellCoo(iV,1), cellCoo(iV,2));
-        if d > maxDist
-            maxDist = d;
+        D = celestial.coo.sphere_dist_fast(CenterRA, CenterDec, CellCoo(iV,1), CellCoo(iV,2));
+        if D > MaxDist
+            MaxDist = D;
         end
     end
 
-    SearchRadiusDeg = maxDist * 1.05 * RAD;
+    SearchRadiusDeg = MaxDist * 1.05 * RAD;
 end
 
 
-function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, Args)
+function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, CellCoo, RAD, SearchRadiusDeg, Args)
     % Parallel worker function: download cone query data and return raw matrix in radians
     % Creates its own Tap object and per-worker temp directory.
     % Output : - Data: numeric matrix with RA/Dec in radians (cols 1,2), or empty
@@ -1492,12 +1582,12 @@ function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, 
 
     % Per-worker temp directory to avoid filesystem contention
     try
-        w = getCurrentWorker();
-        workerPid = w.ProcessId;
+        W = getCurrentWorker();
+        WorkerPid = W.ProcessId;
     catch
-        workerPid = feature('getpid');
+        WorkerPid = feature('getpid');
     end
-    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', WorkerPid));
     if ~isfolder(WorkDir)
         mkdir(WorkDir);
     end
@@ -1506,9 +1596,9 @@ function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, 
     Tap = VO.TopCat;
 
     % Compute query center in degrees
-    CenterRADeg  = mean(cellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(cellCoo(:,2)) * RAD;
-    HTMCooDeg = cellCoo * RAD;
+    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
+    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    HTMCooDeg = CellCoo * RAD;
 
     % Construct query
     Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
@@ -1540,7 +1630,7 @@ function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, 
 end
 
 
-function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, Args)
+function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, IndHTM, CellCoo, RAD, SearchRadiusDeg, Args)
     % Sequential version of downloadQueryCone: reuses existing Tap object
     % Output : - Data: numeric matrix with RA/Dec in radians (cols 1,2), or empty
     %          - QueryFailed: true if query failed after retries
@@ -1549,9 +1639,9 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
     QueryFailed = false;
 
     % Compute query center in degrees
-    CenterRADeg  = mean(cellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(cellCoo(:,2)) * RAD;
-    HTMCooDeg = cellCoo * RAD;
+    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
+    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    HTMCooDeg = CellCoo * RAD;
 
     % Construct query
     Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
@@ -1583,11 +1673,11 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
 end
 
 
-function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
+function NsrcCell = writeFineCellFromQuery(Data, FineIdx, FineCoo, Args, RAD)
     % Filter raw query data to a single fine HTM cell and write to HDF5
     % Input  : - Data: numeric matrix from query (RA/Dec in radians, cols 1,2)
-    %          - fineIdx: fine-level HTM index for HDF5 naming
-    %          - fineCoo: 3x2 [Long, Lat] of fine cell vertices (radians)
+    %          - FineIdx: fine-level HTM index for HDF5 naming
+    %          - FineCoo: 3x2 [Long, Lat] of fine cell vertices (radians)
     %          - Args: argument structure
     %          - RAD: degrees per radian
     % Output : - NsrcCell: number of sources written
@@ -1600,7 +1690,7 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
 
     % Filter sources to keep only those inside this fine HTM triangle
     CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
-    Flag = celestial.htm.in_polysphere(CooRad, fineCoo, 2);
+    Flag = celestial.htm.in_polysphere(CooRad, FineCoo, 2);
     FineData = Data(Flag, :);
 
     % Deduplicate by coordinates — same (RA,Dec) = same source
@@ -1610,7 +1700,7 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
         FineData = FineData(sort(uniqueIdx), :);
         Nremoved = NbeforeDedup - size(FineData, 1);
         if Nremoved > 0 && Args.Verbose
-            fprintf('    Cell %d: removed %d duplicate rows\n', fineIdx, Nremoved);
+            fprintf('    Cell %d: removed %d duplicate rows\n', FineIdx, Nremoved);
         end
     end
 
@@ -1623,20 +1713,20 @@ function NsrcCell = writeFineCellFromQuery(Data, fineIdx, fineCoo, Args, RAD)
             FineData(:, 2) = FineData(:, 2) * RAD;  % Dec rad->deg
         end
 
-        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, fineIdx, Args.NcatInFile);
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, FineIdx, Args.NcatInFile);
         FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, FineData, Args.ColDecOut, Args.IndStep);
     end
 end
 
 
-function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outputCoo, queryDescCoos, RAD, Args)
+function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, OutputCoo, QueryDescCoos, RAD, Args)
     % Parallel worker for aggregate-up: download all query descendants for
     % one output cell, concatenate, filter to output cell, deduplicate.
     % Input  : - TableName: TAP table name
     %          - ColumnsStr: columns for SELECT
-    %          - outputCoo: 3x2 [Long, Lat] of output cell (radians)
-    %          - queryDescCoos: cell array of 3x2 [Long, Lat] for each query descendant
+    %          - OutputCoo: 3x2 [Long, Lat] of output cell (radians)
+    %          - QueryDescCoos: cell array of 3x2 [Long, Lat] for each query descendant
     %          - RAD: degrees per radian
     %          - Args: argument structure
     % Output : - Data: deduplicated numeric matrix filtered to output cell, or empty
@@ -1647,12 +1737,12 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
 
     % Per-worker temp directory
     try
-        w = getCurrentWorker();
-        workerPid = w.ProcessId;
+        W = getCurrentWorker();
+        WorkerPid = W.ProcessId;
     catch
-        workerPid = feature('getpid');
+        WorkerPid = feature('getpid');
     end
-    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', WorkerPid));
     if ~isfolder(WorkDir)
         mkdir(WorkDir);
     end
@@ -1662,12 +1752,12 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
     AllData = [];
     AnyFailed = false;
 
-    for j = 1:numel(queryDescCoos)
-        qCoo = queryDescCoos{j};
-        SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
-        CenterRADeg  = mean(qCoo(:,1)) * RAD;
-        CenterDecDeg = mean(qCoo(:,2)) * RAD;
-        HTMCooDeg = qCoo * RAD;
+    for j = 1:numel(QueryDescCoos)
+        QCoo = QueryDescCoos{j};
+        SearchRadiusDeg = computeCellSearchRadius(QCoo, RAD);
+        CenterRADeg  = mean(QCoo(:,1)) * RAD;
+        CenterDecDeg = mean(QCoo(:,2)) * RAD;
+        HTMCooDeg = QCoo * RAD;
 
         Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
                                        HTMCooDeg, CenterRADeg, CenterDecDeg, ...
@@ -1694,7 +1784,7 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
     % Filter to output cell boundaries and deduplicate by coordinates
     if ~isempty(AllData)
         CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
-        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+        Flag = celestial.htm.in_polysphere(CooRad, OutputCoo, 2);
         AllData = AllData(Flag, :);
         [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
         if numel(uniqueIdx) < size(AllData, 1)
@@ -1706,10 +1796,10 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, outp
 end
 
 
-function NsrcCell = writeOutputCellDirect(Data, cellIdx, Args, RAD)
+function NsrcCell = writeOutputCellDirect(Data, CellIdx, Args, RAD)
     % Write pre-filtered aggregated data directly to HDF5
     % Input  : - Data: numeric matrix (already filtered and deduplicated)
-    %          - cellIdx: output-level HTM index for HDF5 naming
+    %          - CellIdx: output-level HTM index for HDF5 naming
     %          - Args: argument structure
     %          - RAD: degrees per radian
     % Output : - NsrcCell: number of sources written
@@ -1729,15 +1819,15 @@ function NsrcCell = writeOutputCellDirect(Data, cellIdx, Args, RAD)
             Data(:, 2) = Data(:, 2) * RAD;
         end
 
-        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, cellIdx, Args.NcatInFile);
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, CellIdx, Args.NcatInFile);
         FileName = fullfile(Args.LocalDir, FileName);
         HDF5.save_cat(FileName, DataName, Data, Args.ColDecOut, Args.IndStep);
     end
 end
 
 
-function copyIfFileComplete(fIdx, CatName, NcatInFile, LocalDir, TargetDir, Verbose, FileRemainingCells)
-    % Decrement remaining-cell counter for the HDF5 file containing fIdx.
+function copyIfFileComplete(FIdx, CatName, NcatInFile, LocalDir, TargetDir, Verbose, FileRemainingCells)
+    % Decrement remaining-cell counter for the HDF5 file containing FIdx.
     % When counter reaches zero, all expected cells have been processed
     % and the file is copied to TargetDir (with local deletion).
     % FileRemainingCells is a containers.Map (handle class) — modified in place.
@@ -1746,15 +1836,15 @@ function copyIfFileComplete(fIdx, CatName, NcatInFile, LocalDir, TargetDir, Verb
         return;
     end
 
-    [fn, ~] = HDF5.get_file_var_from_htmid(CatName, fIdx, NcatInFile);
-    if FileRemainingCells.isKey(fn)
-        FileRemainingCells(fn) = FileRemainingCells(fn) - int32(1);
-        if FileRemainingCells(fn) <= 0
-            FullPath = fullfile(LocalDir, fn);
+    [Fn, ~] = HDF5.get_file_var_from_htmid(CatName, FIdx, NcatInFile);
+    if FileRemainingCells.isKey(Fn)
+        FileRemainingCells(Fn) = FileRemainingCells(Fn) - int32(1);
+        if FileRemainingCells(Fn) <= 0
+            FullPath = fullfile(LocalDir, Fn);
             if isfile(FullPath)
                 tools.os.copyFileOverNFS({FullPath}, TargetDir, 'RemoteUser', 'euclid', 'RemoveOrigin', true);
                 if Verbose
-                    fprintf('  Copied completed file: %s\n', fn);
+                    fprintf('  Copied completed file: %s\n', Fn);
                 end
             end
         end
@@ -1764,11 +1854,11 @@ end
 
 function cleanupWorkerDirs(LocalDir)
     % Remove per-worker temp directories (tap_w*)
-    d = dir(fullfile(LocalDir, 'tap_w*'));
-    for i = 1:numel(d)
-        if d(i).isdir
+    D = dir(fullfile(LocalDir, 'tap_w*'));
+    for i = 1:numel(D)
+        if D(i).isdir
             try
-                rmdir(fullfile(LocalDir, d(i).name), 's');
+                rmdir(fullfile(LocalDir, D(i).name), 's');
             catch
                 % Ignore cleanup errors
             end
@@ -1777,9 +1867,9 @@ function cleanupWorkerDirs(LocalDir)
 end
 
 
-function NsrcCell = writeOutputCellToTemp(Data, cellIdx, Args, RAD, WorkDir)
-    % Write aggregated data to a per-cell temp file in worker directory
-    % Same as writeOutputCellDirect but writes to WorkDir/cell_NNNNNN.hdf5
+function NsrcCell = writeOutputCellToTemp(Data, CellIdx, Args, RAD, WorkDir)
+    % Write aggregated data to per-worker grouped file in worker directory
+    % Uses same grouped filename convention as final output
 
     NsrcCell = 0;
     if isempty(Data)
@@ -1792,33 +1882,33 @@ function NsrcCell = writeOutputCellToTemp(Data, cellIdx, Args, RAD, WorkDir)
             Data(:, 1) = Data(:, 1) * RAD;
             Data(:, 2) = Data(:, 2) * RAD;
         end
-        [~, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, cellIdx, Args.NcatInFile);
-        FileName = fullfile(WorkDir, sprintf('cell_%06d.hdf5', cellIdx));
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, CellIdx, Args.NcatInFile);
+        FileName = fullfile(WorkDir, FileName);
         HDF5.save_cat(FileName, DataName, Data, Args.ColDecOut, Args.IndStep);
     end
 end
 
 
-function NsrcResults = writeFineCellsToTemp(Data, fineIndices, fineCoos, skippedFine, Args, RAD, WorkDir)
+function NsrcResults = writeFineCellsToTemp(Data, FineIndices, FineCoos, SkippedFine, Args, RAD, WorkDir)
     % Distribute query data to fine cells and write each to temp file
-    % Returns Nx2 matrix [fineIdx, NsrcCell]
+    % Returns Nx2 matrix [FineIdx, NsrcCell]
 
-    NsrcResults = zeros(numel(fineIndices), 2);
-    NsrcResults(:, 1) = fineIndices(:);
+    NsrcResults = zeros(numel(FineIndices), 2);
+    NsrcResults(:, 1) = FineIndices(:);
 
     if isempty(Data)
         return;
     end
 
-    for iF = 1:numel(fineIndices)
-        fIdx = fineIndices(iF);
-        if ismember(fIdx, skippedFine)
+    for iF = 1:numel(FineIndices)
+        FIdx = FineIndices(iF);
+        if ismember(FIdx, SkippedFine)
             continue;
         end
 
-        fineCoo = fineCoos{iF};
+        FineCoo = FineCoos{iF};
         CooRad = Data(:, [Args.ColRAOut, Args.ColDecOut]);
-        Flag = celestial.htm.in_polysphere(CooRad, fineCoo, 2);
+        Flag = celestial.htm.in_polysphere(CooRad, FineCoo, 2);
         FineData = Data(Flag, :);
 
         if size(FineData, 1) > 1
@@ -1834,8 +1924,8 @@ function NsrcResults = writeFineCellsToTemp(Data, fineIndices, fineCoos, skipped
                 FineData(:, 1) = FineData(:, 1) * RAD;
                 FineData(:, 2) = FineData(:, 2) * RAD;
             end
-            [~, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, fIdx, Args.NcatInFile);
-            FileName = fullfile(WorkDir, sprintf('cell_%06d.hdf5', fIdx));
+            [FileName, DataName] = HDF5.get_file_var_from_htmid(Args.CatName, FIdx, Args.NcatInFile);
+            FileName = fullfile(WorkDir, FileName);
             HDF5.save_cat(FileName, DataName, FineData, Args.ColDecOut, Args.IndStep);
         end
     end
@@ -1843,18 +1933,21 @@ end
 
 
 function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep, Verbose)
-    % Merge per-cell temp files from worker directories into grouped HDF5 files
-    % Scans tap_w*/cell_*.hdf5, reads each dataset, writes to grouped file in LocalDir
+    % Merge per-worker grouped HDF5 files into final grouped files in LocalDir
+    % Workers write to tap_w{PID}/CatName_htm_NNNNNN.hdf5 (same naming as final).
+    % When only one worker contributed to a file and no pre-existing destination
+    % exists, the file is simply moved (fast path, no HDF5 re-processing).
+    % Otherwise datasets are read and re-written to the destination.
 
-    d = dir(fullfile(LocalDir, 'tap_w*'));
-    workerDirs = {};
-    for i = 1:numel(d)
-        if d(i).isdir
-            workerDirs{end+1} = fullfile(LocalDir, d(i).name); %#ok<AGROW>
+    D = dir(fullfile(LocalDir, 'tap_w*'));
+    WorkerDirs = {};
+    for i = 1:numel(D)
+        if D(i).isdir
+            WorkerDirs{end+1} = fullfile(LocalDir, D(i).name); %#ok<AGROW>
         end
     end
 
-    if isempty(workerDirs)
+    if isempty(WorkerDirs)
         return;
     end
 
@@ -1862,41 +1955,68 @@ function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep,
         fprintf('\nMerging worker temp files into grouped HDF5...\n');
     end
 
-    mergedCount = 0;
-    for iDir = 1:numel(workerDirs)
-        cellFiles = dir(fullfile(workerDirs{iDir}, 'cell_*.hdf5'));
-        for iFile = 1:numel(cellFiles)
-            tempPath = fullfile(workerDirs{iDir}, cellFiles(iFile).name);
-            tokens = regexp(cellFiles(iFile).name, 'cell_(\d+)\.hdf5', 'tokens');
-            if isempty(tokens), continue; end
-            cellIdx = str2double(tokens{1}{1});
-
-            [~, DataName] = HDF5.get_file_var_from_htmid(CatName, cellIdx, NcatInFile);
-            try
-                Data = h5read(tempPath, ['/' DataName]);
-            catch
-                if Verbose
-                    fprintf('  Warning: could not read %s from %s\n', DataName, tempPath);
-                end
-                continue;
+    % Collect all grouped HDF5 files across workers
+    % Key: filename, Value: cell array of source paths
+    FileMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+    Pattern = sprintf('%s_htm_*.hdf5', CatName);
+    for iDir = 1:numel(WorkerDirs)
+        HdfFiles = dir(fullfile(WorkerDirs{iDir}, Pattern));
+        for iFile = 1:numel(HdfFiles)
+            Fn = HdfFiles(iFile).name;
+            SrcPath = fullfile(WorkerDirs{iDir}, Fn);
+            if FileMap.isKey(Fn)
+                FileMap(Fn) = [FileMap(Fn), {SrcPath}];
+            else
+                FileMap(Fn) = {SrcPath};
             end
+        end
+    end
 
-            [GroupFileName, ~] = HDF5.get_file_var_from_htmid(CatName, cellIdx, NcatInFile);
-            GroupFilePath = fullfile(LocalDir, GroupFileName);
-            HDF5.save_cat(GroupFilePath, DataName, Data, ColDecOut, IndStep);
-            mergedCount = mergedCount + 1;
+    FileNames = FileMap.keys;
+    MovedCount = 0;
+    MergedDsCount = 0;
 
-            delete(tempPath);
+    for iF = 1:numel(FileNames)
+        Fn = FileNames{iF};
+        SrcPaths = FileMap(Fn);
+        DstPath = fullfile(LocalDir, Fn);
+
+        if numel(SrcPaths) == 1 && ~isfile(DstPath)
+            % Fast path: single worker source, no pre-existing file — just move
+            movefile(SrcPaths{1}, DstPath);
+            MovedCount = MovedCount + 1;
+        else
+            % Merge datasets from multiple workers (or into existing file)
+            for iSrc = 1:numel(SrcPaths)
+                try
+                    Info = h5info(SrcPaths{iSrc});
+                    for iDs = 1:numel(Info.Datasets)
+                        DsName = Info.Datasets(iDs).Name;
+                        % Skip index datasets — save_cat recreates them
+                        if endsWith(DsName, '_Ind')
+                            continue;
+                        end
+                        DsData = h5read(SrcPaths{iSrc}, ['/' DsName]);
+                        HDF5.save_cat(DstPath, DsName, DsData, ColDecOut, IndStep);
+                        MergedDsCount = MergedDsCount + 1;
+                    end
+                catch ME
+                    if Verbose
+                        fprintf('  Warning: could not merge %s: %s\n', SrcPaths{iSrc}, ME.message);
+                    end
+                end
+                delete(SrcPaths{iSrc});
+            end
         end
     end
 
     if Verbose
-        fprintf('Merged %d cell files into grouped HDF5.\n', mergedCount);
+        fprintf('Merged temp files: %d moved, %d datasets copied.\n', MovedCount, MergedDsCount);
     end
 end
 
 
-function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, ColumnsStr, outputCoo, queryDescCoos, cellIdx, RAD, Args)
+function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, ColumnsStr, OutputCoo, QueryDescCoos, CellIdx, RAD, Args)
     % Parallel worker: download, aggregate, filter, dedup, write to temp dir
     % Returns scalar count instead of large data matrix
 
@@ -1904,12 +2024,12 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
     QueryFailed = false;
 
     try
-        w = getCurrentWorker();
-        workerPid = w.ProcessId;
+        W = getCurrentWorker();
+        WorkerPid = W.ProcessId;
     catch
-        workerPid = feature('getpid');
+        WorkerPid = feature('getpid');
     end
-    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', WorkerPid));
     if ~isfolder(WorkDir)
         mkdir(WorkDir);
     end
@@ -1918,12 +2038,12 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
     AllData = [];
     AnyFailed = false;
 
-    for j = 1:numel(queryDescCoos)
-        qCoo = queryDescCoos{j};
-        SearchRadiusDeg = computeCellSearchRadius(qCoo, RAD);
-        CenterRADeg  = mean(qCoo(:,1)) * RAD;
-        CenterDecDeg = mean(qCoo(:,2)) * RAD;
-        HTMCooDeg = qCoo * RAD;
+    for j = 1:numel(QueryDescCoos)
+        QCoo = QueryDescCoos{j};
+        SearchRadiusDeg = computeCellSearchRadius(QCoo, RAD);
+        CenterRADeg  = mean(QCoo(:,1)) * RAD;
+        CenterDecDeg = mean(QCoo(:,2)) * RAD;
+        HTMCooDeg = QCoo * RAD;
 
         Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
                                        HTMCooDeg, CenterRADeg, CenterDecDeg, ...
@@ -1948,7 +2068,7 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
 
     if ~isempty(AllData)
         CooRad = AllData(:, [Args.ColRAOut, Args.ColDecOut]);
-        Flag = celestial.htm.in_polysphere(CooRad, outputCoo, 2);
+        Flag = celestial.htm.in_polysphere(CooRad, OutputCoo, 2);
         AllData = AllData(Flag, :);
         [~, uniqueIdx] = unique(AllData(:, [Args.ColRAOut, Args.ColDecOut]), 'rows', 'first');
         if numel(uniqueIdx) < size(AllData, 1)
@@ -1956,34 +2076,34 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
         end
     end
 
-    NsrcCell = writeOutputCellToTemp(AllData, cellIdx, Args, RAD, WorkDir);
+    NsrcCell = writeOutputCellToTemp(AllData, CellIdx, Args, RAD, WorkDir);
 end
 
 
-function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, ColumnsStr, IndHTM, cellCoo, RAD, SearchRadiusDeg, fineIndices, fineCoos, skippedFine, Args)
+function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, ColumnsStr, IndHTM, CellCoo, RAD, SearchRadiusDeg, FineIndices, FineCoos, SkippedFine, Args)
     % Parallel worker: download query cone, distribute to fine cells, write to temp
-    % Returns small Nx2 matrix [fineIdx, NsrcCell] instead of large data matrix
+    % Returns small Nx2 matrix [FineIdx, NsrcCell] instead of large data matrix
 
-    NsrcResults = zeros(numel(fineIndices), 2);
-    NsrcResults(:, 1) = fineIndices(:);
+    NsrcResults = zeros(numel(FineIndices), 2);
+    NsrcResults(:, 1) = FineIndices(:);
     QueryFailed = false;
 
     try
-        w = getCurrentWorker();
-        workerPid = w.ProcessId;
+        W = getCurrentWorker();
+        WorkerPid = W.ProcessId;
     catch
-        workerPid = feature('getpid');
+        WorkerPid = feature('getpid');
     end
-    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', workerPid));
+    WorkDir = fullfile(Args.LocalDir, sprintf('tap_w%d', WorkerPid));
     if ~isfolder(WorkDir)
         mkdir(WorkDir);
     end
 
     Tap = VO.TopCat;
 
-    CenterRADeg  = mean(cellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(cellCoo(:,2)) * RAD;
-    HTMCooDeg = cellCoo * RAD;
+    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
+    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    HTMCooDeg = CellCoo * RAD;
 
     Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
                                    HTMCooDeg, CenterRADeg, CenterDecDeg, ...
@@ -2006,7 +2126,7 @@ function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, Colu
     [Data, ~] = applyPostProcessing(Data, ColNames, Args.NullValue, ...
                                      Args.ComputedColumns, Args.DropColumns);
 
-    NsrcResults = writeFineCellsToTemp(Data, fineIndices, fineCoos, skippedFine, Args, RAD, WorkDir);
+    NsrcResults = writeFineCellsToTemp(Data, FineIndices, FineCoos, SkippedFine, Args, RAD, WorkDir);
 end
 
 
@@ -2094,7 +2214,7 @@ function [Data, ColNames] = tableToMatrix(T, ColRA, ColDec, TapUnits)
 end
 
 
-function [Data, ColNames, numericMask, reorderIdx] = tableToMatrixWithInfo(T, ColRA, ColDec, TapUnits)
+function [Data, ColNames, NumericMask, ReorderIdx] = tableToMatrixWithInfo(T, ColRA, ColDec, TapUnits)
     % Convert MATLAB table to numeric matrix with RA/Dec in columns 1,2
     % Also returns filtering info to apply same transformation to original column names
     % Input  : - T: MATLAB table from TAP query
@@ -2103,42 +2223,42 @@ function [Data, ColNames, numericMask, reorderIdx] = tableToMatrixWithInfo(T, Co
     %          - TapUnits: coordinate units from TAP ('rad'|'deg')
     % Output : - Data: numeric matrix with RA/Dec in radians (columns 1,2)
     %          - ColNames: cell array of column names (filtered and reordered)
-    %          - numericMask: logical mask of which original columns are numeric
-    %          - reorderIdx: indices showing how filtered columns were reordered
+    %          - NumericMask: logical mask of which original columns are numeric
+    %          - ReorderIdx: indices showing how filtered columns were reordered
 
     ColNames = T.Properties.VariableNames;
 
     % Find RA/Dec columns (case-insensitive)
-    idxRA = find(strcmpi(ColNames, ColRA), 1);
-    idxDec = find(strcmpi(ColNames, ColDec), 1);
+    IdxRA = find(strcmpi(ColNames, ColRA), 1);
+    IdxDec = find(strcmpi(ColNames, ColDec), 1);
 
-    if isempty(idxRA) || isempty(idxDec)
+    if isempty(IdxRA) || isempty(IdxDec)
         error('Could not find RA column "%s" or Dec column "%s" in table', ColRA, ColDec);
     end
 
     % Keep only numeric columns (drop strings, cells, etc.)
-    numericMask = varfun(@isnumeric, T, 'OutputFormat', 'uniform');
-    if ~numericMask(idxRA) || ~numericMask(idxDec)
+    NumericMask = varfun(@isnumeric, T, 'OutputFormat', 'uniform');
+    if ~NumericMask(IdxRA) || ~NumericMask(IdxDec)
         error('RA column "%s" or Dec column "%s" is not numeric', ColRA, ColDec);
     end
-    T = T(:, numericMask);
-    ColNames = ColNames(numericMask);
+    T = T(:, NumericMask);
+    ColNames = ColNames(NumericMask);
 
     % Update RA/Dec indices after filtering
-    idxRA = find(strcmpi(ColNames, ColRA), 1);
-    idxDec = find(strcmpi(ColNames, ColDec), 1);
+    IdxRA = find(strcmpi(ColNames, ColRA), 1);
+    IdxDec = find(strcmpi(ColNames, ColDec), 1);
 
     % Convert table to matrix
     Data = table2array(T);
 
     % Reorder so RA=col1, Dec=col2
-    if idxRA ~= 1 || idxDec ~= 2
-        otherCols = setdiff(1:width(T), [idxRA, idxDec]);
-        reorderIdx = [idxRA, idxDec, otherCols];
-        Data = Data(:, reorderIdx);
-        ColNames = ColNames(reorderIdx);
+    if IdxRA ~= 1 || IdxDec ~= 2
+        OtherCols = setdiff(1:width(T), [IdxRA, IdxDec]);
+        ReorderIdx = [IdxRA, IdxDec, OtherCols];
+        Data = Data(:, ReorderIdx);
+        ColNames = ColNames(ReorderIdx);
     else
-        reorderIdx = 1:width(T);
+        ReorderIdx = 1:width(T);
     end
 
     % Convert to radians (always output radians for in_polysphere)
@@ -2150,13 +2270,13 @@ end
 
 function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, TimeoutSec, QueryMethod, WorkDir)
     % Execute TAP query with retry logic
-    for attempt = 1:MaxRetries
+    for Attempt = 1:MaxRetries
         try
             T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'WorkDir', WorkDir);
             return;
         catch ME
-            if attempt < MaxRetries
-                fprintf('  Query failed (attempt %d/%d): %s\n', attempt, MaxRetries, ME.message);
+            if Attempt < MaxRetries
+                fprintf('  Query failed (attempt %d/%d): %s\n', Attempt, MaxRetries, ME.message);
                 pause(RetryPauseSec);
             else
                 rethrow(ME);
@@ -2166,54 +2286,54 @@ function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, Timeo
 end
 
 
-function ColNames = parseCSVHeader(headerLine)
+function ColNames = parseCSVHeader(HeaderLine)
     % Parse CSV header line, properly handling quoted fields
-    % Input  : - headerLine: string containing CSV header
+    % Input  : - HeaderLine: string containing CSV header
     % Output : - ColNames: cell array of column names
 
     ColNames = {};
-    headerLine = char(headerLine);
-    pos = 1;
-    len = length(headerLine);
+    HeaderLine = char(HeaderLine);
+    Pos = 1;
+    Len = length(HeaderLine);
 
-    while pos <= len
-        if headerLine(pos) == '"'
+    while Pos <= Len
+        if HeaderLine(Pos) == '"'
             % Quoted field - find matching close quote
-            pos = pos + 1;  % skip opening quote
-            fieldStart = pos;
-            while pos <= len
-                if headerLine(pos) == '"'
-                    if pos < len && headerLine(pos+1) == '"'
+            Pos = Pos + 1;  % skip opening quote
+            FieldStart = Pos;
+            while Pos <= Len
+                if HeaderLine(Pos) == '"'
+                    if Pos < Len && HeaderLine(Pos+1) == '"'
                         % Escaped quote - skip both
-                        pos = pos + 2;
+                        Pos = Pos + 2;
                     else
                         % End of quoted field
                         break;
                     end
                 else
-                    pos = pos + 1;
+                    Pos = Pos + 1;
                 end
             end
-            field = headerLine(fieldStart:pos-1);
+            Field = HeaderLine(FieldStart:Pos-1);
             % Unescape double quotes
-            field = strrep(field, '""', '"');
-            ColNames{end+1} = field; %#ok<AGROW>
-            pos = pos + 1;  % skip closing quote
+            Field = strrep(Field, '""', '"');
+            ColNames{end+1} = Field; %#ok<AGROW>
+            Pos = Pos + 1;  % skip closing quote
             % Skip comma if present
-            if pos <= len && headerLine(pos) == ','
-                pos = pos + 1;
+            if Pos <= Len && HeaderLine(Pos) == ','
+                Pos = Pos + 1;
             end
         else
             % Unquoted field - find comma or end
-            fieldStart = pos;
-            while pos <= len && headerLine(pos) ~= ','
-                pos = pos + 1;
+            FieldStart = Pos;
+            while Pos <= Len && HeaderLine(Pos) ~= ','
+                Pos = Pos + 1;
             end
-            field = strtrim(headerLine(fieldStart:pos-1));
-            ColNames{end+1} = field; %#ok<AGROW>
+            Field = strtrim(HeaderLine(FieldStart:Pos-1));
+            ColNames{end+1} = Field; %#ok<AGROW>
             % Skip comma
-            if pos <= len && headerLine(pos) == ','
-                pos = pos + 1;
+            if Pos <= Len && HeaderLine(Pos) == ','
+                Pos = Pos + 1;
             end
         end
     end
@@ -2302,43 +2422,43 @@ function [Data, ColNames] = applyPostProcessing(Data, ColNames, NullValue, Compu
         end
 
         for iComp = 1:numel(ComputedColumns)
-            compDef = ComputedColumns{iComp};
-            newName = compDef{1};
-            col1Name = compDef{2};
-            col2Name = compDef{3};
-            op = compDef{4};
+            CompDef = ComputedColumns{iComp};
+            NewName = CompDef{1};
+            Col1Name = CompDef{2};
+            Col2Name = CompDef{3};
+            Op = CompDef{4};
 
             % Find column indices
-            idx1 = find(strcmpi(ColNames, col1Name), 1);
-            idx2 = find(strcmpi(ColNames, col2Name), 1);
+            Idx1 = find(strcmpi(ColNames, Col1Name), 1);
+            Idx2 = find(strcmpi(ColNames, Col2Name), 1);
 
-            if isempty(idx1)
-                warning('ComputedColumns: column "%s" not found, skipping', col1Name);
+            if isempty(Idx1)
+                warning('ComputedColumns: column "%s" not found, skipping', Col1Name);
                 continue;
             end
-            if isempty(idx2)
-                warning('ComputedColumns: column "%s" not found, skipping', col2Name);
+            if isempty(Idx2)
+                warning('ComputedColumns: column "%s" not found, skipping', Col2Name);
                 continue;
             end
 
             % Compute new column
-            switch lower(op)
+            switch lower(Op)
                 case 'minus'
-                    newCol = Data(:, idx1) - Data(:, idx2);
+                    NewCol = Data(:, Idx1) - Data(:, Idx2);
                 case 'plus'
-                    newCol = Data(:, idx1) + Data(:, idx2);
+                    NewCol = Data(:, Idx1) + Data(:, Idx2);
                 case 'times'
-                    newCol = Data(:, idx1) .* Data(:, idx2);
+                    NewCol = Data(:, Idx1) .* Data(:, Idx2);
                 case 'divide'
-                    newCol = Data(:, idx1) ./ Data(:, idx2);
+                    NewCol = Data(:, Idx1) ./ Data(:, Idx2);
                 otherwise
-                    warning('ComputedColumns: unknown operation "%s", skipping', op);
+                    warning('ComputedColumns: unknown operation "%s", skipping', Op);
                     continue;
             end
 
             % Append new column
-            Data = [Data, newCol]; %#ok<AGROW>
-            ColNames = [ColNames, {newName}]; %#ok<AGROW>
+            Data = [Data, NewCol]; %#ok<AGROW>
+            ColNames = [ColNames, {NewName}]; %#ok<AGROW>
         end
     end
 
@@ -2348,16 +2468,16 @@ function [Data, ColNames] = applyPostProcessing(Data, ColNames, NullValue, Compu
             DropColumns = {DropColumns};
         end
 
-        keepMask = true(1, numel(ColNames));
+        KeepMask = true(1, numel(ColNames));
         for iDrop = 1:numel(DropColumns)
-            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
-            if ~isempty(idx)
-                keepMask(idx) = false;
+            Idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(Idx)
+                KeepMask(Idx) = false;
             end
         end
 
-        Data = Data(:, keepMask);
-        ColNames = ColNames(keepMask);
+        Data = Data(:, KeepMask);
+        ColNames = ColNames(KeepMask);
     end
 end
 
@@ -2377,9 +2497,9 @@ function ColNames = applyColCellPostProcessing(ColNames, ComputedColumns, DropCo
         end
 
         for iComp = 1:numel(ComputedColumns)
-            compDef = ComputedColumns{iComp};
-            newName = compDef{1};
-            ColNames = [ColNames, {newName}]; %#ok<AGROW>
+            CompDef = ComputedColumns{iComp};
+            NewName = CompDef{1};
+            ColNames = [ColNames, {NewName}]; %#ok<AGROW>
         end
     end
 
@@ -2389,15 +2509,15 @@ function ColNames = applyColCellPostProcessing(ColNames, ComputedColumns, DropCo
             DropColumns = {DropColumns};
         end
 
-        keepMask = true(1, numel(ColNames));
+        KeepMask = true(1, numel(ColNames));
         for iDrop = 1:numel(DropColumns)
-            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
-            if ~isempty(idx)
-                keepMask(idx) = false;
+            Idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(Idx)
+                KeepMask(Idx) = false;
             end
         end
 
-        ColNames = ColNames(keepMask);
+        ColNames = ColNames(KeepMask);
     end
 end
 
@@ -2422,17 +2542,17 @@ function ColUnits = applyColUnitsPostProcessing(ColUnits, ComputedColumns, DropC
         end
 
         for iComp = 1:numel(ComputedColumns)
-            compDef = ComputedColumns{iComp};
-            col1Name = compDef{2};
+            CompDef = ComputedColumns{iComp};
+            Col1Name = CompDef{2};
             % Inherit unit from first source column
-            idx1 = find(strcmpi(ColNames, col1Name), 1);
-            if ~isempty(idx1) && idx1 <= numel(ColUnits)
-                compUnit = ColUnits{idx1};
+            Idx1 = find(strcmpi(ColNames, Col1Name), 1);
+            if ~isempty(Idx1) && Idx1 <= numel(ColUnits)
+                CompUnit = ColUnits{Idx1};
             else
-                compUnit = '';
+                CompUnit = '';
             end
-            ColUnits = [ColUnits, {compUnit}]; %#ok<AGROW>
-            ColNames = [ColNames, compDef(1)]; %#ok<AGROW>  % keep in sync
+            ColUnits = [ColUnits, {CompUnit}]; %#ok<AGROW>
+            ColNames = [ColNames, CompDef(1)]; %#ok<AGROW>  % keep in sync
         end
     end
 
@@ -2442,15 +2562,15 @@ function ColUnits = applyColUnitsPostProcessing(ColUnits, ComputedColumns, DropC
             DropColumns = {DropColumns};
         end
 
-        keepMask = true(1, numel(ColUnits));
+        KeepMask = true(1, numel(ColUnits));
         for iDrop = 1:numel(DropColumns)
-            idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
-            if ~isempty(idx)
-                keepMask(idx) = false;
+            Idx = find(strcmpi(ColNames, DropColumns{iDrop}), 1);
+            if ~isempty(Idx)
+                KeepMask(Idx) = false;
             end
         end
 
-        ColUnits = ColUnits(keepMask);
+        ColUnits = ColUnits(KeepMask);
     end
 end
 
@@ -2474,13 +2594,13 @@ function ColUnits = extractUnitsFromVOTable(SampleQuery, TapUrl, LocalDir, Verbo
         if endsWith(TapUrlClean, '/'), TapUrlClean = TapUrlClean(1:end-1); end
         AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(SampleQuery);
 
-        cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=votable out="%s" sync=true 2>&1', ...
+        Cmd = sprintf('java -Xmx1g -jar "%s" tapquery tapurl="%s" language=ADQL adql="%s" omode=out ofmt=votable out="%s" sync=true 2>&1', ...
             JarPath, TapUrlClean, AdqlEsc, TempVotFile);
-        [status, ~] = system(cmd);
+        [Status, ~] = system(Cmd);
 
-        if status == 0 && isfile(TempVotFile)
-            votContent = fileread(TempVotFile);
-            ColUnits = parseVOTableFieldUnits(votContent);
+        if Status == 0 && isfile(TempVotFile)
+            VotContent = fileread(TempVotFile);
+            ColUnits = parseVOTableFieldUnits(VotContent);
             delete(TempVotFile);
             if Verbose
                 fprintf('Extracted %d column units from VOTable metadata.\n', numel(ColUnits));
@@ -2498,24 +2618,24 @@ function ColUnits = extractUnitsFromVOTable(SampleQuery, TapUrl, LocalDir, Verbo
 end
 
 
-function ColUnits = parseVOTableFieldUnits(votContent)
+function ColUnits = parseVOTableFieldUnits(VotContent)
     % Parse FIELD elements from VOTable XML to extract unit attributes
-    % Input  : - votContent: string containing VOTable XML content
+    % Input  : - VotContent: string containing VOTable XML content
     % Output : - ColUnits: cell array of unit strings in column order.
     %            Fields without a unit attribute get empty string ''.
 
     ColUnits = {};
 
     % Match all <FIELD ...> elements (self-closing or with body)
-    fieldPattern = '<FIELD\s[^>]*?/?>';
-    fields = regexp(votContent, fieldPattern, 'match');
+    FieldPattern = '<FIELD\s[^>]*?/?>';
+    Fields = regexp(VotContent, FieldPattern, 'match');
 
-    for iF = 1:numel(fields)
-        fieldTag = fields{iF};
+    for iF = 1:numel(Fields)
+        FieldTag = Fields{iF};
         % Extract unit attribute value if present
-        unitMatch = regexp(fieldTag, '\sunit="([^"]*)"', 'tokens');
-        if ~isempty(unitMatch)
-            ColUnits{end+1} = unitMatch{1}{1}; %#ok<AGROW>
+        UnitMatch = regexp(FieldTag, '\sunit="([^"]*)"', 'tokens');
+        if ~isempty(UnitMatch)
+            ColUnits{end+1} = UnitMatch{1}{1}; %#ok<AGROW>
         else
             ColUnits{end+1} = ''; %#ok<AGROW>
         end

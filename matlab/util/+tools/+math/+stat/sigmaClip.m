@@ -1,5 +1,6 @@
 function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
-    % Sigma clipping of residuals with selectable method
+    % Sigma clipping of residuals, method can be selected from
+    % 'median'/'weighted'
     % Package: tools.math.stat
     % Description: Identifies outliers in a residual vector using sigma
     %              clipping. Two methods are supported:
@@ -11,8 +12,8 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     %                           cenfunc='median', stdfunc='std', maxiters=5.
     %              On any error, returns no-outlier mask and a warning
     %              (pipeline-safe: never throws).
-    % Input  :  Residuals  - Residual vector [N x 1] (signed, in magnitudes)
-    %           SigmaThresh - Sigma threshold for clipping (e.g., 3.0)
+    % Input  :  - Residual vector [N x 1] (signed, in magnitudes)
+    %           - Sigma threshold for clipping (e.g., 3.0)
     %          * ...,key,val,...
     %            'Method'  - Clipping method:
     %                        'weighted' - |r_i / Errors_i| > SigmaThresh
@@ -22,8 +23,8 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     %                        method. Ignored for 'median'. Default is [].
     %            'MaxIter' - Max internal iterations for 'median' method.
     %                        Default is 5 (matches astropy default).
-    % Output :  OutlierMask - Logical [N x 1], true = outlier
-    %           Info - Struct with diagnostics:
+    % Output :  - OutlierMask, logical [N x 1], true = outlier
+    %           - Info, struct with diagnostics:
     %                   .NumOutliers - Number of flagged outliers
     %                   .Center - Center value used (0 for 'weighted',
     %                             median(abs(r)) for 'median')

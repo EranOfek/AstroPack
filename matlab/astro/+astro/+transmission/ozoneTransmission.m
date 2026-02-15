@@ -1,15 +1,15 @@
 function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     % Ozone transmission of the Earth atmosphere
-    % Input :   - Lambda - Wavelength array (Angstrom), column vector
+    % Input :   - Lambda, wavelength array (Angstrom), column vector
     %                     If empty, returns ArgNames structure for parameters
-    %           - ParamMatrix - Parameter matrix where each row is [ZenithAngle_deg, DobsonUnits]
+    %           - ParamMatrix, parameter matrix where each row is [ZenithAngle_deg, DobsonUnits]
     %                          ZenithAngle_deg: Solar zenith angle in degrees [0-90]
     %                          DobsonUnits: Total ozone column in Dobson units [typically 200-500]
     %          * ...,key,val,...
     %             'AbsorptionData': Pre-loaded AbsorptionData object for fast interpolation
     %             'Return': Pre-computed results for caching (external
     %             cache pattern). Default is [].
-    % Output :  - Result - Transmission matrix (wavelengths × parameter_sets) [0-1]
+    % Output :  - Result, transmission matrix (wavelengths × parameter_sets) [0-1]
     %                     OR ArgNames structure if Lambda is empty
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Author: D. Kovaleva (Oct 2025)
