@@ -56,7 +56,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.OutputDir          = '~/NewRef/';
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
-        Args.OutputRefTable    = 'ref_images_v5'; % output DB table        
+        Args.OutputRefTable    = 'ref_images_v5'; % output DB table    
+        Args.Verbosity         = 2;
     end
     % 
     RAD = 180/pi;  
@@ -75,7 +76,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     end
     
     % the main loop over the reference grid 
-    for Iref = RefNumbers                    
+    for Iref = RefNumbers   
+        if Args.Verbosity > 0
+            fprintf('Starting to build reference image for field %d\n',Iref);
+        end
         % if the WCS of the target Reference Image has not been read from the RefGrid object, build it here 
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
             RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
@@ -194,11 +198,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue
                         end
                         
-                        % 4.2 merge the set of covering crops                         
-                            % var1
+                        % 4.2 merge the set of covering crops                                                     
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                             try % 
-%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true, 'WriteFile',false, Args.StitchPars{:});
                                 StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
                             catch ME
                                 fprintf('%s\n',ME.message);
@@ -306,9 +308,12 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end
                                         
         % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)  
-        %    write the reference image catalog to the reference image catalog table of the DB?
+        %    write the reference image catalog to the reference image catalog table of the DB
                     
         end % for the particular reference grid position we have some coadds to build on  
+        if Args.Verbosity > 0
+            fprintf('Finished building reference image for field %d\n',Iref);
+        end
     end % reference image grid      
 end
 
