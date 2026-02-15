@@ -37,7 +37,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
         
         Args.RasterResolution   = 10;     % arcsec
-        Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
+        Args.MinAllowedCoverage = 0.999;  % 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
         
         Args.StitchPars         = {'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1}; % parameters passed to the stitch function
         
@@ -226,7 +226,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                  if Args.Verbosity > 1
                                      cprintf('err','However stitching of epoch %d failed, we are going on with other epochs\n',Iepoch);
                                  end
-                                continue
+                                 continue
                             end
                             
                             if isnan(julday(StitchedImage))
@@ -278,7 +278,14 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             end % camera
         end % mount
         
-        % 5. coadd the epochs from different telescopes and cameras                   
+        % 5. coadd the epochs from different telescopes and cameras                
+        if ~exist('StackImages','var')
+            if Args.Verbosity > 0
+                cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
+            end
+            continue
+        end
+        
         RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
