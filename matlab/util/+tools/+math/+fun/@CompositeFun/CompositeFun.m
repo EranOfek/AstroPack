@@ -3412,12 +3412,13 @@ classdef CompositeFun < handle
                     end
                 end
 
+                if IsFieldCorrectionStage || IsNormOnlyLinear
+                    Method = 'linear';
+                else
+                    Method = 'nonlinear';
+                end
+
                 if Args.Verbose
-                    if IsFieldCorrectionStage || IsNormOnlyLinear
-                        Method = 'linear';
-                    else
-                        Method = 'nonlinear';
-                    end
                     fprintf('=== Stage %d/%d: %s [%s] ===\n', IStage, NumStages, StageName, Method);
                     fprintf('Description: %s\n', Stage.Description);
                 end
