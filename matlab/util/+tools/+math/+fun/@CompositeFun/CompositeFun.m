@@ -2902,6 +2902,17 @@ classdef CompositeFun < handle
                     % =============================================================
 
                     if Args.SigmaClip && Iter > 1
+                        % Skip clipping if already below MinCalibrators
+                        if Args.MinCalibrators > 0 && length(CurrentObs) <= Args.MinCalibrators
+                            ConvergedSigmaClip = true;
+                            if Args.Verbose
+                                fprintf('--- Sigma clipping skipped: %d calibrators <= %d minimum ---\n', ...
+                                    length(CurrentObs), Args.MinCalibrators);
+                            end
+                        end
+                    end
+
+                    if Args.SigmaClip && Iter > 1 && ~ConvergedSigmaClip
                         if Args.Verbose
                             fprintf('--- Sigma clipping iteration %d/%d ---\n', Iter-1, Args.SigmaIter);
                         end
@@ -2910,6 +2921,19 @@ classdef CompositeFun < handle
                         [OutlierMask, ClipInfo] = tools.math.stat.sigmaClip(...
                             UnweightedResiduals, Args.SigmaThresh, ...
                             'Method', Args.SigmaClipMethod, 'Errors', MagErr);
+
+                        if ~ClipInfo.Success
+                            ConvergedSigmaClip = true;
+                            Obj.addStatus('fitPar', 'warning', ...
+                                sprintf('Sigma clipping failed: %s', ClipInfo.ErrorMsg), ...
+                                'CompositeFun:SigmaClipFailed');
+                            if Args.Verbose
+                                fprintf('Sigma clipping failed: %s; skipping\n', ClipInfo.ErrorMsg);
+                            end
+                        end
+                    end
+
+                    if Args.SigmaClip && Iter > 1 && ~ConvergedSigmaClip && ClipInfo.Success
                         NumOutliers = ClipInfo.NumOutliers;
 
                         if Args.Verbose
@@ -3430,6 +3454,17 @@ classdef CompositeFun < handle
 
                             % SIGMA CLIPPING (skip first iteration — no residuals yet)
                             if SigmaClip && IterNorm > 1
+                                % Skip clipping if already below MinCalibrators
+                                if MinCalibrators > 0 && length(CurrentObsNorm) <= MinCalibrators
+                                    ConvergedNorm = true;
+                                    if Args.Verbose
+                                        fprintf('  Sigma clipping skipped: %d calibrators <= %d minimum\n', ...
+                                            length(CurrentObsNorm), MinCalibrators);
+                                    end
+                                end
+                            end
+
+                            if SigmaClip && IterNorm > 1 && ~ConvergedNorm
                                 if Args.Verbose
                                     fprintf('  Norm sigma clipping iteration %d/%d\n', IterNorm-1, SigmaIter);
                                 end
@@ -3438,6 +3473,19 @@ classdef CompositeFun < handle
                                 [OutlierMask, ClipInfo] = tools.math.stat.sigmaClip(...
                                     Residuals, SigmaThresh, ...
                                     'Method', SigmaClipMethod, 'Errors', MagErr_base);
+
+                                if ~ClipInfo.Success
+                                    ConvergedNorm = true;
+                                    Obj.addStatus('fitMultiStage', 'warning', ...
+                                        sprintf('Norm sigma clipping failed: %s', ClipInfo.ErrorMsg), ...
+                                        'CompositeFun:SigmaClipFailed');
+                                    if Args.Verbose
+                                        fprintf('  Sigma clipping failed: %s; skipping\n', ClipInfo.ErrorMsg);
+                                    end
+                                end
+                            end
+
+                            if SigmaClip && IterNorm > 1 && ~ConvergedNorm && ClipInfo.Success
                                 NumOutliers = ClipInfo.NumOutliers;
 
                                 if Args.Verbose

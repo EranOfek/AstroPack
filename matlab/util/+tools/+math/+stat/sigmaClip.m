@@ -9,6 +9,8 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     %                           residuals: |abs(r_i) - median| > N * std
     %                           Replicates astropy.stats.sigma_clip with
     %                           cenfunc='median', stdfunc='std', maxiters=5.
+    %              On any error, returns no-outlier mask and a warning
+    %              (pipeline-safe: never throws).
     % Input  :  Residuals  - Residual vector [N x 1] (signed, in magnitudes)
     %           SigmaThresh - Sigma threshold for clipping (e.g., 3.0)
     %          * ...,key,val,...
@@ -28,6 +30,8 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     %                   .Scale  - Scale value used (NaN for 'weighted',
     %                             std(abs(r)) for 'median')
     %                   .NumIter - Number of iterations performed
+    %                   .Success - true if clipping completed, false on error
+    %                   .ErrorMsg - Error message (empty if successful)
     % Author : D. Kovaleva (Feb 2026)
     % Example: Residuals = randn(100,1);
     %          Residuals(1) = 10;  % outlier
@@ -46,52 +50,73 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
         Args.MaxIter = 5
     end
 
-    Info = struct('NumOutliers', 0, 'Center', NaN, 'Scale', NaN, 'NumIter', 0);
+    % Default safe output: no outliers
+    N = numel(Residuals);
+    OutlierMask = false(N, 1);
+    Info = struct('NumOutliers', 0, 'Center', NaN, 'Scale', NaN, ...
+                  'NumIter', 0, 'Success', true, 'ErrorMsg', '');
 
-    switch Args.Method
-        case 'weighted'
-            % Threshold on error-normalized residuals: |r_i / sigma_i| > N
-            if isempty(Args.Errors) || ~all(Args.Errors > 0)
-                error('sigmaClip:MissingErrors', ...
-                    'Positive per-observation Errors required for weighted method');
-            end
-            OutlierMask = abs(Residuals ./ Args.Errors) > SigmaThresh;
-            Info.Center = 0;
-            Info.Scale = NaN;
-            Info.NumIter = 1;
+    try
+        Performed = false;
 
-        case 'median'
-            % iterative sigma_clip on abs(residuals)
-            % cenfunc = median, stdfunc = std, applied to abs(residuals)
-            AbsRes = abs(Residuals);-
-            ClipMask = false(size(AbsRes));
-            Converged = false;
-            Center = NaN;
-            Scale = NaN;
-            IterDone = 0;
-
-            for Iter = 1:Args.MaxIter
-                if ~Converged
-                    ValidData = AbsRes(~ClipMask);
-                    Center = median(ValidData);
-                    Scale = std(ValidData);
-                    NewClipMask = abs(AbsRes - Center) > SigmaThresh * Scale;
-                    IterDone = Iter;
-                    if isequal(NewClipMask, ClipMask)
-                        Converged = true;
-                    end
-                    ClipMask = NewClipMask;
+        switch Args.Method
+            case 'weighted'
+                if isempty(Args.Errors) || ~all(Args.Errors > 0)
+                    warning('sigmaClip:MissingErrors', ...
+                        'Positive per-observation Errors required for weighted method; skipping clipping');
+                    Info.Success = false;
+                    Info.ErrorMsg = 'Missing or invalid Errors for weighted method';
+                else
+                    OutlierMask = abs(Residuals ./ Args.Errors) > SigmaThresh;
+                    Info.Center = 0;
+                    Info.Scale = NaN;
+                    Info.NumIter = 1;
+                    Performed = true;
                 end
-            end
-            OutlierMask = ClipMask;
-            Info.Center = Center;
-            Info.Scale = Scale;
-            Info.NumIter = IterDone;
 
-        otherwise
-            error('sigmaClip:UnknownMethod', ...
-                'Unknown method ''%s''. Use ''weighted'' or ''median''.', Args.Method);
+            case 'median'
+                AbsRes = abs(Residuals);
+                ClipMask = false(size(AbsRes));
+                Converged = false;
+                Center = NaN;
+                Scale = NaN;
+                IterDone = 0;
+
+                for Iter = 1:Args.MaxIter
+                    if ~Converged
+                        ValidData = AbsRes(~ClipMask);
+                        Center = median(ValidData);
+                        Scale = std(ValidData);
+                        NewClipMask = abs(AbsRes - Center) > SigmaThresh * Scale;
+                        IterDone = Iter;
+                        if isequal(NewClipMask, ClipMask)
+                            Converged = true;
+                        end
+                        ClipMask = NewClipMask;
+                    end
+                end
+                OutlierMask = ClipMask;
+                Info.Center = Center;
+                Info.Scale = Scale;
+                Info.NumIter = IterDone;
+                Performed = true;
+
+            otherwise
+                warning('sigmaClip:UnknownMethod', ...
+                    'Unknown method ''%s''; skipping clipping', Args.Method);
+                Info.Success = false;
+                Info.ErrorMsg = sprintf('Unknown method: %s', Args.Method);
+        end
+
+        if Performed
+            Info.NumOutliers = sum(OutlierMask);
+        end
+
+    catch ME
+        warning('sigmaClip:RuntimeError', ...
+            'Sigma clipping failed: %s; skipping clipping', ME.message);
+        OutlierMask = false(N, 1);
+        Info.Success = false;
+        Info.ErrorMsg = ME.message;
     end
-
-    Info.NumOutliers = sum(OutlierMask);
 end
