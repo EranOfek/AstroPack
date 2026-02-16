@@ -1581,7 +1581,7 @@ classdef PhotCalibTrans < Component
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
             %              Keywords: PT_RMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
-            %                        PT_AREF, PT_SREF, PT_SPEC,
+            %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true)
 
@@ -1618,7 +1618,6 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_SUCC', Obj.Success);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
-            HeaderObj = HeaderObj.replaceVal('PT_SREF', 'MLv0.1LAST');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
 
             if Args.WriteComments
@@ -1628,7 +1627,6 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SUCC: Calibration success flag';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_SREF: Software reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
             end
 

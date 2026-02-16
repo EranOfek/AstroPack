@@ -1853,14 +1853,23 @@ end
 
 
 function cleanupWorkerDirs(LocalDir)
-    % Remove per-worker temp directories (tap_w*)
+    % Remove per-worker temp directories (tap_w*), but only if empty
+    % Non-empty dirs indicate incomplete merges and should be preserved
     D = dir(fullfile(LocalDir, 'tap_w*'));
     for i = 1:numel(D)
         if D(i).isdir
-            try
-                rmdir(fullfile(LocalDir, D(i).name), 's');
-            catch
-                % Ignore cleanup errors
+            DirPath = fullfile(LocalDir, D(i).name);
+            Contents = dir(DirPath);
+            % dir() always returns '.' and '..' — check for additional entries
+            if numel(Contents) <= 2
+                try
+                    rmdir(DirPath);
+                catch
+                    % Ignore cleanup errors
+                end
+            else
+                warning('VO:buildHTMfromTopCat:WorkerDirNotEmpty', ...
+                    'Worker dir not empty (incomplete merge?): %s', DirPath);
             end
         end
     end
@@ -1975,6 +1984,7 @@ function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep,
     FileNames = FileMap.keys;
     MovedCount = 0;
     MergedDsCount = 0;
+    FailedDsCount = 0;
 
     for iF = 1:numel(FileNames)
         Fn = FileNames{iF};
@@ -1988,6 +1998,7 @@ function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep,
         else
             % Merge datasets from multiple workers (or into existing file)
             for iSrc = 1:numel(SrcPaths)
+                AllMerged = true;
                 try
                     Info = h5info(SrcPaths{iSrc});
                     for iDs = 1:numel(Info.Datasets)
@@ -1996,22 +2007,43 @@ function mergeWorkerTempFiles(LocalDir, CatName, NcatInFile, ColDecOut, IndStep,
                         if endsWith(DsName, '_Ind')
                             continue;
                         end
-                        DsData = h5read(SrcPaths{iSrc}, ['/' DsName]);
-                        HDF5.save_cat(DstPath, DsName, DsData, ColDecOut, IndStep);
-                        MergedDsCount = MergedDsCount + 1;
+                        try
+                            DsData = h5read(SrcPaths{iSrc}, ['/' DsName]);
+                            HDF5.save_cat(DstPath, DsName, DsData, ColDecOut, IndStep);
+                            MergedDsCount = MergedDsCount + 1;
+                        catch ME2
+                            AllMerged = false;
+                            FailedDsCount = FailedDsCount + 1;
+                            warning('VO:buildHTMfromTopCat:MergeDs', ...
+                                'Failed to merge dataset %s from %s: %s', DsName, SrcPaths{iSrc}, ME2.message);
+                        end
                     end
                 catch ME
-                    if Verbose
-                        fprintf('  Warning: could not merge %s: %s\n', SrcPaths{iSrc}, ME.message);
-                    end
+                    AllMerged = false;
+                    warning('VO:buildHTMfromTopCat:MergeFile', ...
+                        'Could not read source file %s: %s', SrcPaths{iSrc}, ME.message);
                 end
-                delete(SrcPaths{iSrc});
+                if AllMerged
+                    delete(SrcPaths{iSrc});
+                else
+                    warning('VO:buildHTMfromTopCat:MergeIncomplete', ...
+                        'Source file NOT deleted (merge incomplete): %s', SrcPaths{iSrc});
+                end
             end
         end
     end
 
     if Verbose
-        fprintf('Merged temp files: %d moved, %d datasets copied.\n', MovedCount, MergedDsCount);
+        fprintf('Merged temp files: %d moved, %d datasets merged', MovedCount, MergedDsCount);
+        if FailedDsCount > 0
+            fprintf(', %d FAILED', FailedDsCount);
+        end
+        fprintf('.\n');
+    end
+    if FailedDsCount > 0
+        warning('VO:buildHTMfromTopCat:MergeSummary', ...
+            '%d datasets failed to merge. Check worker dirs in %s for preserved source files.', ...
+            FailedDsCount, LocalDir);
     end
 end
 
