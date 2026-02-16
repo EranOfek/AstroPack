@@ -2,8 +2,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Transmission-based absolute photometric calibration wrapper
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
-    %              AstroImages or AstroCatalogs.
-    % Input  :  Obj - AstroImage or AstroCatalog object (scalar or vector).
+    %              AstroImages, AstroCatalogs, AstroDiff, or AstroZOGY objects.
+    %              For AstroDiff/AstroZOGY input, calibrates the sub-images
+    %              specified by DiffCalibProps (default: .New and .Ref) via
+    %              recursive calls.
+    % Input  :  Obj - AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
+    %                 object (scalar or vector).
     %          * ...,key,val,...
     %            Calibrator selection:
     %            'SearchRadius' - Gaia matching radius [arcsec]. Default is 1.5.
@@ -22,8 +26,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                              'flux' - Weight by LAST flux errors
     %                              'combined' - Quadrature sum of spectral and flux errors
     %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
-    %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+    %            'SigmaClipMethod' - Sigma clipping method:
+    %                              'median' - Astropy-style iterative clipping (default)
+    %                              'weighted' - Threshold on error-normalized residuals
     %            'FluxErrorNorm' - Normalization for synthetic flux in error calculation. Default is 0.5.
+    %            AstroDiff/AstroZOGY:
+    %            'DiffCalibProps' - Cell array of property names to calibrate.
+    %                              Default is {'New', 'Ref'}. Each must be a
+    %                              property containing an AstroImage.
     %            Catalog update:
     %            'AddMag' - Add calibrated magnitude columns to catalog. Default is true.
     %            'AddMagErr' - Add magnitude error columns (1.086*FluxErr/Flux).
@@ -38,14 +48,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CreateNewObj' - Copy input object. Default is false.
     %            'Verbose' - Enable verbose output. Default is true.
     % Output : - Result - Input object with updated catalog and header.
-    %          - PhotCalib - Array of PhotCalibTrans objects (one per input object).
-    %          - FitRes - Struct array [Nobj x 1] with fit results from last stage:
-    %                     .RMS - Fit RMS [mag]
-    %                     .Residuals - Residuals vector
-    %                     .NCalUsed - Number of calibrators used (final, after clipping)
-    %                     .NumClipped - Number of clipped outliers
-    %                     .Chi2 - Chi-squared value
-    %                     .StatusLog - Struct array of status messages (from CompositeFun.StatusLog)
+    %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
+    %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
+    %                        (column per property, e.g., PhotCalib(i,1)=New).
+    %          - FitRes - For AstroImage/AstroCatalog: [Nobj x 1] struct array.
+    %                     For AstroDiff/AstroZOGY: [Nobj x Nprops] struct array.
+    %                     Fields: .RMS, .Residuals, .NCalUsed, .NumClipped,
+    %                             .Chi2, .StatusLog
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -53,8 +62,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          fprintf('NCalUsed=%d, RMS=%.4f\n', FitRes.NCalUsed, FitRes.RMS);
     %          % Without position correction:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'UseTran2D', false);
-    %          % With unweighted sigma clipping:
-    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'WeightedClipping', false);
+    %          % With weighted sigma clipping:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, 'SigmaClipMethod', 'weighted');
+    %          % AstroDiff/AstroZOGY:
+    %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD);
+    %          % PC is [Nobj x 2]: PC(i,1) = New, PC(i,2) = Ref
+    %          % Calibrate only New:
+    %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD, 'DiffCalibProps', {'New'});
 
     arguments
         Obj  % AstroImage or AstroCatalog
@@ -74,12 +88,15 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Weighting options
         Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
-        Args.WeightedClipping logical = true  % Use weighted residuals (r/σ) for sigma clipping
+        Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
         Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
+
+        % AstroDiff/AstroZOGY
+        Args.DiffCalibProps cell = {'New', 'Ref'}  % Properties to calibrate
 
         % Catalog update
         Args.AddMag logical = true
-        Args.AddMagErr logical = true  % Add magnitude error columns
+        Args.AddMagErr logical = false  % Add magnitude error columns
         Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
@@ -96,12 +113,15 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % VALIDATE INPUT
     % ====================================================================
  %tic
-    if isa(Obj, 'AstroImage')
-        IsAstroImage = true;
+    % Check subclass before superclass (AstroDiff < AstroImage)
+    if isa(Obj, 'AstroDiff')        % also matches AstroZOGY (AstroZOGY < AstroDiff)
+        InputType = 'AstroDiff';
+    elseif isa(Obj, 'AstroImage')
+        InputType = 'AstroImage';
     elseif isa(Obj, 'AstroCatalog')
-        IsAstroImage = false;
+        InputType = 'AstroCatalog';
     else
-        error('Input must be AstroImage or AstroCatalog object');
+        error('Input must be AstroImage, AstroCatalog, AstroDiff, or AstroZOGY object');
     end
 
     % Copy object if requested
@@ -110,6 +130,67 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     else
         Result = Obj;
     end
+
+    % ====================================================================
+    % ASTRODIFF / ASTROZOGY: delegate to recursive calls per sub-property
+    % ====================================================================
+
+    if strcmp(InputType, 'AstroDiff')
+        Nobj = numel(Result);
+        Nprops = numel(Args.DiffCalibProps);
+
+        % Build passthrough Args as name-value cell array
+        ArgsPassthrough = buildArgsPassthrough(Args);
+
+        if Args.Verbose
+            fprintf('\n=== TRANSMISSION-BASED PHOTOMETRIC CALIBRATION ===\n');
+            fprintf('Input: %s, %d object(s), calibrating: %s\n', ...
+                class(Obj), Nobj, strjoin(Args.DiffCalibProps, ', '));
+        end
+
+        % Initialize output arrays [Nobj x Nprops]
+        PhotCalib = PhotCalibTrans.empty(0);
+        FitRes = struct('RMS', cell(Nobj, Nprops), ...
+                        'Residuals', cell(Nobj, Nprops), ...
+                        'NCalUsed', cell(Nobj, Nprops), ...
+                        'NumClipped', cell(Nobj, Nprops), ...
+                        'Chi2', cell(Nobj, Nprops), ...
+                        'StatusLog', cell(Nobj, Nprops));
+
+        for Iprop = 1:Nprops
+            PropName = Args.DiffCalibProps{Iprop};
+
+            % Extract AstroImage array from each element
+            Images = AstroImage.empty(0);
+            for Iobj = 1:Nobj
+                Images(Iobj) = Result(Iobj).(PropName);
+            end
+
+            if Args.Verbose
+                fprintf('\nCalibrating .%s images...\n', PropName);
+            end
+
+            % Recursive call — calibrate as regular AstroImage array
+            [Images, PC_prop, FR_prop] = imProc.calib.fitPhotCalibTrans(Images, ArgsPassthrough{:});
+
+            % Store calibrated images back into Result
+            for Iobj = 1:Nobj
+                Result(Iobj).(PropName) = Images(Iobj);
+            end
+
+            % Accumulate outputs: column Iprop
+            PhotCalib(1:Nobj, Iprop) = PC_prop(:);
+            FitRes(1:Nobj, Iprop) = FR_prop(:);
+        end
+
+        % Done — skip the AstroImage/AstroCatalog loop below
+    else
+
+    % ====================================================================
+    % ASTROIMAGE / ASTROCATALOG: main calibration path
+    % ====================================================================
+
+    IsAstroImage = strcmp(InputType, 'AstroImage');
 
     Nobj = numel(Result);
 
@@ -151,7 +232,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         'MagRange', Args.MagRange, ...
         'WeightingMode', Args.WeightingMode, ...
         'FluxErrColName', Args.FluxErrColName, ...
-        'WeightedClipping', Args.WeightedClipping, ...
+        'SigmaClipMethod', Args.SigmaClipMethod, ...
         'FluxErrorNorm', Args.FluxErrorNorm, ...
         'MagSystem', Args.MagSystem, ...
         'Verbose', Args.Verbose};
@@ -280,7 +361,6 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 H = H.replaceVal('PT_NCALIB', -1);  % -1 = not searched (no RA/Dec), 0 = searched but none found
                 H = H.replaceVal('PT_SUCC', false);
                 H = H.replaceVal('PT_AREF', 'SMART v2.9.8');
-                H = H.replaceVal('PT_SREF', 'MLv0.1LAST');
                 H = H.replaceVal('PT_SPEC', 'GaiaDR3');
 
                 % Write function parameters with NaN values and 0 flags
@@ -343,5 +423,27 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             RMSvals = [FitRes([PhotCalib.Success]).RMS];
             fprintf('RMS range: %.4f - %.4f mag\n', min(RMSvals), max(RMSvals));
         end
+    end
+
+    end  % end of if/else for AstroDiff vs AstroImage/AstroCatalog
+end
+
+% ========================================================================
+% LOCAL FUNCTIONS
+% ========================================================================
+
+function ArgsPassthrough = buildArgsPassthrough(Args)
+    % Convert Args struct to name-value cell array for recursive call
+    % Overrides CreateNewObj to false (copy already handled by caller)
+    ArgFields = fieldnames(Args);
+    ArgsPassthrough = cell(1, 2*numel(ArgFields));
+    for I = 1:numel(ArgFields)
+        ArgsPassthrough{2*I-1} = ArgFields{I};
+        ArgsPassthrough{2*I} = Args.(ArgFields{I});
+    end
+    % Override: copy was already handled by caller
+    Idx = find(strcmp(ArgsPassthrough(1:2:end), 'CreateNewObj'));
+    if ~isempty(Idx)
+        ArgsPassthrough{2*Idx} = false;
     end
 end

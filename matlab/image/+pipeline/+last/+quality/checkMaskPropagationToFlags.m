@@ -1,7 +1,7 @@
 function Report = checkMaskPropagationToFlags(Input, Args)
     % Check that mask bits are properly propagated to catalog FLAGS
-    % Input  :   AstroImage array with Mask and CatData populated,
-    %            or path string to directory containing FITS files.
+    % Input  :   - AstroImage array with Mask and CatData populated, OR
+    %            - path string to directory containing FITS files.
     %          * ...,key,val,...
     %            'FileType'    - File type pattern when loading from path.
     %                            Options: 'sci_proc', 'sci_coadd', or custom.
@@ -16,7 +16,7 @@ function Report = checkMaskPropagationToFlags(Input, Args)
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print summary to console. Default is true.
-    % Output :   Report: struct with validation results containing fields:
+    % Output :   - Struct with validation results containing fields:
     %            .Timestamp    - datetime of validation run
     %            .DataPath     - path to data (if loaded from files)
     %            .FileType     - file type pattern (if loaded from files)

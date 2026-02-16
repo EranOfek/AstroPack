@@ -34,7 +34,7 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
 
     arguments
         Lambda        = linspace(3000,11000,401)'
-        ParamMatrix   = [30, 1.0, 965]          % [ZenithAngle_deg, PWV_cm, Pressure_mbar]
+        ParamMatrix   = [30, 1.4, 965]          % [ZenithAngle_deg, PWV_cm, Pressure_mbar]
         Args.AbsorptionData = []
         Args.Return = []
         Args.UsePersistentCache logical = true  % Enable/disable persistent cache

@@ -10,7 +10,7 @@ function Report = checkMaskConsistency(Input, Args)
     %   valid)
     %   5. SrcDetected (bit 30) - source bit matches catalog positions
     %   (mask not implemented in pipeline yet)
-    % Input  : path string to directory containing FITS files.
+    % Input  : - path string to directory containing FITS files.
     %          * ...,key,val,...
     %            'FileType'    - 'sci_proc' or 'sci_coadd'. Default is 'sci_proc'.
     %            'Checks'      - Cell array of check names to run. Any subset
@@ -28,13 +28,12 @@ function Report = checkMaskConsistency(Input, Args)
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print progress to console. Default is true.
-    % Output :   Report: struct with fields per check (NearEdge, NaN_Check,
-    %            Saturated, Negative, SrcDetected), each containing a
-    %            FileResults table with columns:
+    % Output :   - Report: struct with overall Summary and fields per check (NearEdge, NaN_Check,
+    %              Saturated, Negative, SrcDetected), each containing a
+    %              FileResults table with columns:
     %              MaskAndImage - condition present in both mask and image
     %              MaskOnly     - bit set in mask but condition absent in image
     %              ImageOnly    - condition present in image but bit not in mask
-    %            plus overall Summary.
     % Author : Dana Kovaleva (Feb 2026)
     % Example: DataPath = '/bigdata2/projects/last/testNewPipe/222625v1/';
     %          Report = pipeline.last.quality.checkMaskConsistency(DataPath);

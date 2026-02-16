@@ -1,25 +1,32 @@
 function [Result] = buildRefImages(RefGrid, DB, Args)
-    % given a grid of reference images, build them from proc images
+    % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB 
-    % Input  : - a grid of reference images (number, RA1-RA4, Dec1-Dec4) 
-    %          - a DB object
+    % NB: the current version is rather LAST-specific (mounts, cameras,..)!
+    %
+    % Input  : - a grid of reference images: coordinates of image centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4) 
+    %          - a DB object (to retrieve original reduced images to be further stitched, fit, and stacked) 
+    %
     %          * ...,key,val,... 
+    %         'NsideSearch' -
+    %         'NsideLow'    -
+    %         'SearchTable' - name of the DB table containing image data
+    %
     % Output : - reference image files written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]); % a short test
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99950]); % a short test
     arguments
         RefGrid
-        DB                
+        DB            
+        
         Args.NsideSearch = 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
-        Args.SearchTable = 'visit_images'; % 'raw_images';
+        Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
-            
-        Args.Verbose     = 'false';
+                       
         Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
@@ -30,7 +37,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
         
         Args.RasterResolution   = 10;     % arcsec
-        Args.MinAllowedCoverage = 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
+        Args.MinAllowedCoverage = 0.999;  % 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
         
         Args.StitchPars         = {'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1}; % parameters passed to the stitch function
         
@@ -56,13 +63,14 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.OutputDir          = '~/NewRef/';
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
-        Args.OutputRefTable    = 'ref_images_v5'; % output DB table        
+        Args.OutputRefTable    = 'ref_images_v5'; % the output DB table name   
+        Args.Verbosity         = 1; % from 0 to 2 
     end
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid); 
     
-    % convert the RA to [0, 360]:    % later change Yossi's grid itself to avoid this 
+    % convert the RA to [0, 360]:    % TEMPORARY: change Yossi's grid itself to avoid this 
     RefGrid.RA  = RefGrid.RA  + 180; 
     RefGrid.RA1 = RefGrid.RA1 + 180; RefGrid.RA2 = RefGrid.RA2 + 180;
     RefGrid.RA3 = RefGrid.RA3 + 180; RefGrid.RA4 = RefGrid.RA4 + 180;
@@ -75,15 +83,18 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     end
     
     % the main loop over the reference grid 
-    for Iref = RefNumbers                    
+    for Iref = RefNumbers   
+                if Args.Verbosity > 0
+                    fprintf('Starting to build a reference image for field %d at RA %.2f Dec %.2f \n',Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+                end
         % if the WCS of the target Reference Image has not been read from the RefGrid object, build it here 
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
-            RefWCS = PrebuiltRefWCS(Iref,'Npix1',Args.Naxis1,'Npix2',Args.Naxis2); 
+            RefWCS = PrebuiltRefWCS(Iref); 
         else
             % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+%             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
 %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
-            RefWCS = buildRefWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+            RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
                      'PixScale',Args.PixScale); % temporary! 
         end         
         % create an empty reference AstroImage and attach the RefWCS to it
@@ -103,7 +114,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 %         if abs(RefGrid.Dec(Iref)) > 99. % 70. % ???
 %             UpixNeighb = UpixCenter;
 %         end
-        % translate the center and the neighbors to Args.NsideLow (as in the DB)                 
+        % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)                 
         UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
         % convert to UNIQ:    
@@ -124,22 +135,26 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         T = DB.query(strcat(StitchedImage,W)); % T = db.mex.query(strcat(S,W));
 
         if isempty(T)                       
-            if Args.Verbose
-                fprintf('No images to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+            if Args.Verbosity > 0
+                fprintf('No images ar found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
-        for Imount = 1:10      % loop on mounts
-            for Icam = 1:4     % loop on cameras
+        for Imount = 1:10      % loop on LAST mounts
+            for Icam = 1:4     % loop on LAST cameras
                 TabMountCam = T(T.mountnum==Imount & T.camnum==Icam,:);
                 if height(TabMountCam) > 0                    
                     [Grp, ~] = findgroups(TabMountCam.jd_start); 
-                    Nepoch   = max(Grp);        
-                    fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);                                                
+                    Nepoch   = max(Grp);      
+                    if Args.Verbosity > 0
+                        fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);
+                    end
                     %
                     for Iepoch = 1:Nepoch
                         TabEpoch  = TabMountCam(Grp == Iepoch, :);
                         Nim = height(TabEpoch);
-                        fprintf('M%dC%d epoch %d: %d images found\n',Imount,Icam,Iepoch,Nim);                                               
+                        if Args.Verbosity > 1
+                            fprintf('M%dC%d epoch %d: %d images found\n',Imount,Icam,Iepoch,Nim);
+                        end
                         
                         % 2. select exposures by specific obs. time, time span, etc.
                         %
@@ -152,7 +167,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         %
                         % T2 = T2(quality condition,:)
                         Nim = height(TabEpoch);   
-                        fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
+                        if Args.Verbosity > 1
+                            fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
+                        end
                         % if the total coverage is incomplete, skip to the next epoch                                                 
                         RasterC = [];
                         for Icrop = 1:Nim % merge the rasters of all the crops involved 
@@ -163,7 +180,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end
                         Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
                         if Coverage < Args.MinAllowedCoverage   
-                            fprintf('Incomplete coverage of %.2f, epoch %d is skipped\n', Coverage, Iepoch);
+                            if Args.Verbosity > 1
+                                fprintf('Incomplete coverage of %.2f, epoch %d is skipped\n', Coverage, Iepoch);
+                            end
                             continue % to the next epoch
                         end
                         
@@ -173,7 +192,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end
                         
                         % 4.1 retrieve the crop images 
-                        fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
+                        if Args.Verbosity > 1
+                            fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
+                        end
                         Nim = height(TabEpoch);                                               
                         AI = AstroImage([1 Nim]);
                         Mt  = compose('%02d',TabEpoch.mountnum(1)); Cam = compose('%02d',TabEpoch.camnum(1)); 
@@ -190,20 +211,22 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % check WCS
                         if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
-                            fprintf('WCS not correct in one or several crops, skipping the epoch..\n');
+                            if Args.Verbosity > 1
+                                fprintf('WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+                            end
                             continue
                         end
                         
-                        % 4.2 merge the set of covering crops                         
-                            % var1
+                        % 4.2 merge the set of covering crops                                                     
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                             try % 
-%                                 [StitchedImage, ~, ~]  = imProc.stack.stitch(AI,'OutputUnits','cts', 'WCSfromFirstIm',true, 'WriteFile',false, Args.StitchPars{:});
                                 StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
                             catch ME
                                 fprintf('%s\n',ME.message);
-                                cprintf('err','However stitching failed, we are going on with other epochs\n');
-                                continue
+                                 if Args.Verbosity > 1
+                                     cprintf('err','However stitching of epoch %d failed, we are going on with other epochs\n',Iepoch);
+                                 end
+                                 continue
                             end
                             
                             if isnan(julday(StitchedImage))
@@ -255,7 +278,14 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             end % camera
         end % mount
         
-        % 5. coadd the epochs from different telescopes and cameras                   
+        % 5. coadd the epochs from different telescopes and cameras                
+        if ~exist('StackImages','var')
+            if Args.Verbosity > 0
+                cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
+            end
+            continue
+        end
+        
         RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
         
         % measure the background, find and measure sources, measure the PSF
@@ -302,52 +332,18 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 6. save the new reference image and its catalog, mask, and PSF to the disk                 
         for Iprop=1:numel(Args.WriteProp)
             FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
-            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true)
+            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
         end
                                         
         % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)  
-        %    write the reference image catalog to the reference image catalog table of the DB?
+        %    write the reference image catalog to the reference image catalog table of the DB
                     
         end % for the particular reference grid position we have some coadds to build on  
+        if Args.Verbosity > 0
+            fprintf('Finished building a reference image for field %d: %d epochs stacked\n',...
+                Iref, RefImage.UserData.Nimages);
+        end
     end % reference image grid      
-end
-
-%%%%%%%%%%%%%%%
-
-function WCS = buildRefWCS(RA0, Dec0, Args) 
-        % builds a WCS from position, size, and rotation angle
-        arguments
-            RA0      
-            Dec0
-            Args.PA       = [];   % rad
-            Args.PixScale = 1.25; % arcsec
-            Args.Naxis1   = 1726; % pix
-            Args.Naxis2   = 1726; % pix 
-        end
-        %
-        PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
-        %
-        WCS = AstroWCS();
-        WCS.ProjType  = 'TPV';
-        WCS.ProjClass = 'ZENITHAL';
-        WCS.CooName   = {'RA'  'DEC'};
-        WCS.CTYPE     = {'RA---TPV', 'DEC--TPV'};
-        WCS.CUNIT     = {'deg', 'deg'};
-        WCS.CD(1,1)   = PixScaleDeg;
-        WCS.CD(2,2)   = PixScaleDeg;
-        WCS.CRVAL(1)  = RA0;
-        WCS.CRVAL(2)  = Dec0;
-        WCS.CRPIX(1)  = Args.Naxis1/2;
-        WCS.CRPIX(2)  = Args.Naxis2/2;
-        WCS.AlphaP    = RA0;
-        WCS.DeltaP    = Dec0;
-        WCS.PhiP      = 180;        
-        % rotate the WCS if a PA is given:  
-        if ~isempty(Args.PA) 
-            RotMatrix = [cos(Args.PA), -sin(Args.PA);
-                         sin(Args.PA),  cos(Args.PA)];
-            WCS.CD = RotMatrix * WCS.CD;
-        end
-end
+end 
 
 
