@@ -124,10 +124,6 @@ classdef Configuration < handle
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
 
-    properties (Hidden)
-        IsLoaded = false;
-    end
-
     properties (Constant)
         InputArgsLevel = 'InputArgs';
     end
@@ -252,7 +248,6 @@ classdef Configuration < handle
         function loadFolder(Obj, Path, Args)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
-            %   Also updated IsLoaded to true.
             % Input: - A Configuration object.
             %        - Path - folder name to look for *.yml files
             %        * ...,key,val,...
@@ -268,7 +263,7 @@ classdef Configuration < handle
             end
             
             Obj.Path = Path;
-            %io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
+            io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
 
             % Scan folder for YML files
             List = dir(fullfile(Path, '*.yml'));
@@ -281,7 +276,6 @@ classdef Configuration < handle
                     Obj.loadFolder(Folder);
                 end
             end
-            Obj.IsLoaded = true;
         end
 
 
@@ -525,7 +519,7 @@ classdef Configuration < handle
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
             % Example: Configuration.reloadSysConfig()          
-            %io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
+            io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
         end
@@ -541,21 +535,20 @@ classdef Configuration < handle
 
             % Optionally clear configuration
             if numel(varargin) > 0 && strcmp(varargin{1}, 'clear') && ~isempty(Conf)
-                %io.msgLog(LogLevel.Debug, 'Configuration.init: Clearing Conf');
-                
+                io.msgLog(LogLevel.Debug, 'Configuration.init: Clearing Conf');
                 Conf.Data = struct();
                 %Conf = [];
             end
 
             % Load/reload entire configuration
             if isempty(Conf)
-                %io.msgLog(LogLevel.Debug, 'Configuration.init: Creating Conf');
+                io.msgLog(LogLevel.Debug, 'Configuration.init: Creating Conf');
                 Conf = Configuration;
             end
 
             % Load ALL configuration files in Obj.SysConfig/ and Obj.SysConfig/local/
-            %if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
-            if ~Conf.IsLoaded
+            if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
+
                 % Get path to config
                 Path = Configuration.getSysConfigPath();
                 assert(~isempty(Path));
@@ -667,12 +660,12 @@ classdef Configuration < handle
                             FuncName = Value(2:end);
                             FuncHandle = str2func(FuncName);
                             Struct.(FieldName) = FuncHandle; 
-                            %io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                             
                         % Eval (any expression)
                         elseif startsWith(Value, 'eval(')
                             Struct.(FieldName) = eval(Value);
-                            %io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                         end
                     end
                 end
