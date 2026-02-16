@@ -56,7 +56,7 @@ function Ind = LASToverlapsNew
            3 7; 7 11; 11 15; 15 19; 19 23; ...
            4 8; 8 12; 12 16; 16 20; 20 24];   
 end
-
+%
 function Ind = LASToverlapsOld 
 % NB: this is LAST-specific!
     Ind = [1 7;   7 13; 13 19; ...
