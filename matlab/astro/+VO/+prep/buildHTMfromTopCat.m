@@ -277,8 +277,13 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
     % Append CatName as subdirectory to TargetDir so files go to
     % e.g., /euclid/catsHTM/NewCats/GALEXAIS/ (no underscores in path)
+    % Skip if TargetDir already ends with CatName.
     if ~isempty(Args.TargetDir)
-        Args.TargetDir = fullfile(Args.TargetDir, Args.CatName);
+        CleanDir = regexprep(Args.TargetDir, '[/\\]+$', '');
+        [~, LastDir] = fileparts(CleanDir);
+        if ~strcmp(LastDir, Args.CatName)
+            Args.TargetDir = fullfile(Args.TargetDir, Args.CatName);
+        end
     end
 
     % Set source column names for spatial query (default to output names)
@@ -888,9 +893,6 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             if Args.Verbose
                 fprintf('\nStarting aggregate-up parallel processing with %d workers\n', Args.NumWorkers);
-                if strcmpi(Args.QueryMethod, 'java')
-                    fprintf('Note: Consider ''QueryMethod'',''http'' to avoid JVM startup overhead in parallel mode.\n');
-                end
             end
 
             % Start parallel pool if needed
@@ -1128,10 +1130,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             if Args.Verbose
                 fprintf('\nStarting parallel processing with %d workers (parfeval + fetchNext)\n', Args.NumWorkers);
-                if strcmpi(Args.QueryMethod, 'java')
-                    fprintf('Note: Consider ''QueryMethod'',''http'' to avoid JVM startup overhead in parallel mode.\n');
-                end
-            end
+             end
 
             % Start parallel pool if needed
             try
