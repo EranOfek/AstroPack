@@ -2,8 +2,10 @@ function [Result] = stitchCrops(AI, Args)
     % Stitch together several crops originating from the same image 
     %     Optional detailed description
     % Input  : - a stack of AstroImages (containing individual crops)    
-    %          * ...,key,val,... 
-    % Output : - a stiched AI 
+    %         * ...,key,val,... 
+    %         'UpdateWCS' - whether to build a WCS for the stitched image from the merged catalog
+    %         'UpdateZP'  - whether to calculate a new photometric ZP for the stitched image  
+    % Output : - a stiched AstroImage 
     % Author : A.M. Krassilchtchikov (2026 Jan) 
     % Example: AIs = imProc.stack.stitchCrops(AI)
     % 
