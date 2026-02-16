@@ -15,7 +15,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[150000 150001]); % a short test
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99950]); % a short test
     arguments
         RefGrid
         DB            
