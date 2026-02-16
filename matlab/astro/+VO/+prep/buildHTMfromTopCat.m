@@ -275,6 +275,12 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     % (catsHTM splits filenames by '_' to derive variable names)
     Args.CatName = strrep(Args.CatName, '_', '');
 
+    % Append CatName as subdirectory to TargetDir so files go to
+    % e.g., /euclid/catsHTM/NewCats/GALEXAIS/ (no underscores in path)
+    if ~isempty(Args.TargetDir)
+        Args.TargetDir = fullfile(Args.TargetDir, Args.CatName);
+    end
+
     % Set source column names for spatial query (default to output names)
     if isempty(Args.ColRASrc)
         Args.ColRASrc = Args.ColRA;
@@ -644,8 +650,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         for iQ = 1:Nquery
             Idx = QueryListHTM(iQ);
             Coo = HTM(Idx).coo;
-            MeanRA = mean(Coo(:,1));
-            MeanDec = mean(Coo(:,2));
+            [MeanRA, MeanDec] = cellCentroid(Coo);
             InRange = MeanRA >= Args.RARange(1) && MeanRA < Args.RARange(2) && ...
                       MeanDec >= Args.DecRange(1) && MeanDec < Args.DecRange(2);
             if InRange
@@ -707,8 +712,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
             % Check if output cell center is within Dec/RA range
             Coo = HTM(FIdx).coo;
-            MeanRA  = mean(Coo(:,1));
-            MeanDec = mean(Coo(:,2));
+            [MeanRA, MeanDec] = cellCentroid(Coo);
 
             if MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2)
@@ -756,8 +760,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
             FineDescendants = QueryToFineMap{iQ};
 
             % Check if query cell center is within Dec/RA range
-            MeanRA  = mean(HTM(IndQ).coo(:,1));
-            MeanDec = mean(HTM(IndQ).coo(:,2));
+            [MeanRA, MeanDec] = cellCentroid(HTM(IndQ).coo);
 
             OutsideRange = MeanRA < Args.RARange(1) || MeanRA >= Args.RARange(2) || ...
                            MeanDec < Args.DecRange(1) || MeanDec >= Args.DecRange(2);
@@ -1450,8 +1453,7 @@ function QueryLevelIdx = selectQueryLevel(HTM, LevelHTM, ~, MaxConeRadiusDeg, RA
         for iP = 1:numel(SamplePtrs)
             Idx = SamplePtrs(iP);
             Coo = HTM(Idx).coo;  % 3x2 [Long, Lat] in radians
-            CenterRA = mean(Coo(:,1));
-            CenterDec = mean(Coo(:,2));
+            [CenterRA, CenterDec] = cellCentroid(Coo);
 
             % Angular distance from centroid to each vertex
             for iV = 1:3
@@ -1556,8 +1558,7 @@ function SearchRadiusDeg = computeCellSearchRadius(CellCoo, RAD)
     %          - RAD: degrees per radian
     % Output : - SearchRadiusDeg: cone search radius in degrees
 
-    CenterRA = mean(CellCoo(:,1));
-    CenterDec = mean(CellCoo(:,2));
+    [CenterRA, CenterDec] = cellCentroid(CellCoo);
 
     MaxDist = 0;
     for iV = 1:3
@@ -1595,9 +1596,10 @@ function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, 
     % Create TopCat object (each worker needs its own)
     Tap = VO.TopCat;
 
-    % Compute query center in degrees
-    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    % Compute query center in degrees (via cosine direction centroid)
+    [CenRA, CenDec] = cellCentroid(CellCoo);
+    CenterRADeg  = CenRA * RAD;
+    CenterDecDeg = CenDec * RAD;
     HTMCooDeg = CellCoo * RAD;
 
     % Construct query
@@ -1638,9 +1640,10 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
     Data = [];
     QueryFailed = false;
 
-    % Compute query center in degrees
-    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    % Compute query center in degrees (via cosine direction centroid)
+    [CenRA, CenDec] = cellCentroid(CellCoo);
+    CenterRADeg  = CenRA * RAD;
+    CenterDecDeg = CenDec * RAD;
     HTMCooDeg = CellCoo * RAD;
 
     % Construct query
@@ -1755,8 +1758,9 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, Outp
     for j = 1:numel(QueryDescCoos)
         QCoo = QueryDescCoos{j};
         SearchRadiusDeg = computeCellSearchRadius(QCoo, RAD);
-        CenterRADeg  = mean(QCoo(:,1)) * RAD;
-        CenterDecDeg = mean(QCoo(:,2)) * RAD;
+        [CenRA, CenDec] = cellCentroid(QCoo);
+        CenterRADeg  = CenRA * RAD;
+        CenterDecDeg = CenDec * RAD;
         HTMCooDeg = QCoo * RAD;
 
         Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
@@ -2073,8 +2077,9 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
     for j = 1:numel(QueryDescCoos)
         QCoo = QueryDescCoos{j};
         SearchRadiusDeg = computeCellSearchRadius(QCoo, RAD);
-        CenterRADeg  = mean(QCoo(:,1)) * RAD;
-        CenterDecDeg = mean(QCoo(:,2)) * RAD;
+        [CenRA, CenDec] = cellCentroid(QCoo);
+        CenterRADeg  = CenRA * RAD;
+        CenterDecDeg = CenDec * RAD;
         HTMCooDeg = QCoo * RAD;
 
         Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
@@ -2133,8 +2138,9 @@ function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, Colu
 
     Tap = VO.TopCat;
 
-    CenterRADeg  = mean(CellCoo(:,1)) * RAD;
-    CenterDecDeg = mean(CellCoo(:,2)) * RAD;
+    [CenRA, CenDec] = cellCentroid(CellCoo);
+    CenterRADeg  = CenRA * RAD;
+    CenterDecDeg = CenDec * RAD;
     HTMCooDeg = CellCoo * RAD;
 
     Query = constructSpatialQuery(TableName, ColumnsStr, Args.ColRASrc, Args.ColDecSrc, ...
@@ -2672,4 +2678,16 @@ function ColUnits = parseVOTableFieldUnits(VotContent)
             ColUnits{end+1} = ''; %#ok<AGROW>
         end
     end
+end
+
+
+function [CenLong, CenLat] = cellCentroid(Coo)
+    % Compute the centroid of an HTM cell in a wraparound-safe way
+    % by averaging in cosine direction (3D Cartesian) space.
+    % Input  : - Coo: 3x2 matrix [Long, Lat] in radians
+    % Output : - CenLong: centroid longitude in radians [0, 2*pi]
+    %          - CenLat:  centroid latitude in radians [-pi/2, pi/2]
+
+    [CD1, CD2, CD3] = celestial.coo.coo2cosined(Coo(:,1), Coo(:,2));
+    [CenLong, CenLat] = celestial.coo.cosined2coo(mean(CD1), mean(CD2), mean(CD3));
 end

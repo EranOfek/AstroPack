@@ -256,40 +256,12 @@ classdef PhotCalibTrans < Component
             IsAstroImage = isa(Cat, 'AstroImage');
 
             % ====================================================================
-            % STEP 1: Build TransModel structure
+            % STEP 1: Extract metadata
             % ====================================================================
 
             if Args.Verbose
-                fprintf('Step 1: Building transmission model structure...\n');
+                fprintf('Step 1: Extracting observation metadata...\n');
             end
-
-            % Load catalog
-            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
-
-            % Get transmission function list and optimization sequence
-            FunList = FunCat.(Args.FunListName);
-            OptSeq = StageCat.(Args.OptSeqName);
-
-            if Args.Verbose
-                if ~isempty(Args.CustomFunList)
-                    fprintf('  Using custom function list (%d functions)\n', length(FunList));
-                else
-                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
-                end
-                if ~isempty(Args.CustomOptSeq)
-                    fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
-                else
-                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
-                end
-            end
-
-            if Args.Verbose
-                fprintf('  Transmission functions and optimization sequence configured\n\n');
-            end
-
-            % ====================================================================
-            % STEP 2: Extract metadata
-            % ====================================================================
 
             % Extract metadata as cell array {key1, val1, key2, val2, ...}
             if iscell(Args.Metadata)
@@ -349,14 +321,51 @@ classdef PhotCalibTrans < Component
             end
 
             % ====================================================================
+            % STEP 2: Build TransModel structure with observation metadata
+            % ====================================================================
+
+            if Args.Verbose
+                fprintf('\nStep 2: Building transmission model structure...\n');
+            end
+
+            % Compute zenith angle from airmass: sec(z) = AirMass → z = acosd(1/AirMass)
+            ZenithAngle = acosd(1 / max(Obj.AirMass, 1.0));
+
+            % Load catalog with actual observation metadata
+            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun(...
+                'ZenithAngle_deg', ZenithAngle, ...
+                'Pressure_mbar', Obj.Pressure, ...
+                'Temperature_C', Obj.Temp);
+
+            % Get transmission function list and optimization sequence
+            FunList = FunCat.(Args.FunListName);
+            OptSeq = StageCat.(Args.OptSeqName);
+
+            if Args.Verbose
+                if ~isempty(Args.CustomFunList)
+                    fprintf('  Using custom function list (%d functions)\n', length(FunList));
+                else
+                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
+                end
+                if ~isempty(Args.CustomOptSeq)
+                    fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
+                else
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
+                end
+                fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
+            end
+
+            if Args.Verbose
+                fprintf('  Transmission functions and optimization sequence configured\n\n');
+            end
+
+            % ====================================================================
             % STEP 3: Build TransModel with real metadata
             % ====================================================================
 
-            % Build MetaValues from object properties (cell array format)
-            % Properties contain either extracted header values or class defaults
-            % Calculate Zenith angle from AirMass for atmospheric model
-            ZenithAngle_deg = acosd(1.0 / Obj.AirMass);
-            MetaValues = {'ZenithAngle_deg', ZenithAngle_deg, ...
+            % MetaValues for CompositeFun.model (already set in FunCatalog
+            % via predefSeqCompositeFun, kept here for backward compatibility)
+            MetaValues = {'ZenithAngle_deg', ZenithAngle, ...
                           'Pressure_mbar', Obj.Pressure, ...
                           'Temperature_C', Obj.Temp};
 

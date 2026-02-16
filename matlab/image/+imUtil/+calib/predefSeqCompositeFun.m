@@ -1,67 +1,131 @@
-function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
+function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % Predefined sequences of transmission functions and optimization stages for CompositeFun
     % Package: imUtil.calib
     % Description: Provides pre-configured building blocks for CompositeFun-based
     %              transmission calibration. Users select which functions and optimization
     %              stages they need from this catalog.
-    % Input  : None
+    %              All physical parameter values and bounds are exposed as optional
+    %              name-value arguments. When called with no arguments, LAST defaults
+    %              are used. Callers can override shared parameters (e.g., Pressure_mbar)
+    %              to set them consistently across all functions that use them.
+    % Input  : * ...,key,val,...
+    %            'ZenithAngle_deg'   - Zenith angle [deg]. Default is 45.
+    %            'Pressure_mbar'     - Atmospheric pressure [mbar]. Default is 965.
+    %            'Temperature_C'     - Temperature [C]. Default is 15.
+    %            'Norm'              - Normalization factor. Default is 0.5.
+    %            'DobsonUnits'       - Ozone column [DU]. Default is 300.
+    %            'TauAod500'         - Aerosol optical depth at 500nm. Default is 0.084.
+    %            'AngstromExponent'  - Angstrom exponent. Default is 0.6.
+    %            'PWV_cm'            - Precipitable water vapor [cm]. Default is 1.4.
+    %            '*_Min', '*_Max'    - Bounds for each parameter (see arguments block).
+    %            'QE_*'              - QE model parameters and bounds.
+    %            'QE_Legendre_Params'- Legendre coefficients [1x9]. Default is Ofek et al. 2023.
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
     %                        Available: Normalization, Rayleigh, Ozone, Aerosol, Water, UMG,
     %                                   Mirror, Corrector, QE_Legendre, QE_SkewedGaussian
     %          - StageCatalog: Structure with pre-configured optimization stages.
     %                          Available: NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
     %                                     Normalization_Refined, Atmospheric, DefaultLAST
-    %                          Note: StageCatalog.DefaultLAST is a 5-stage sequence from Garrappa et al. (2025):
-    %                                [NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
-    %                                 Normalization_Refined, Atmospheric]
+    %                          Note: StageCatalog.DefaultLAST is a 6-stage sequence from Garrappa et al. (2025):
+    %                                [NormOnly_Initial, NormAndCenter, OrphanClip,
+    %                                 FieldCorrection_Adapted, Normalization_Refined, Atmospheric]
     % Author   : D. Kovaleva (Dec 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example:
     %{
               [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
-    
+
+              % With observation metadata from header:
+              [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun(...
+                  'ZenithAngle_deg', 30, 'Pressure_mbar', 970, 'Temperature_C', 12);
+
               % Build FunList from selected functions
               FunList = [FunCat.Rayleigh, FunCat.Ozone, FunCat.Aerosol, FunCat.Water, FunCat.QE_Legendre];
-             
-              % Create model (metadata passed separately)
-              MetaValues = struct('ZenithAngle_deg', 45, 'Pressure_mbar', 965, ...
-                                  'Temperature_C', 15);
-              Model = tools.math.fun.CompositeFun.model(FunList, ...
-                  'MetadataValues', MetaValues, 'UseTran2D', true);
-             
+
+              % Create model
+              Model = tools.math.fun.CompositeFun.model(FunList, 'UseTran2D', true);
+
               % Example 1: Fit atmospheric parameters using pre-normalized transmission
-              % Use when you have direct transmission measurements [N_lambda x 1]
-              % (i.e., observed flux already normalized by reference spectra externally)
-              % Residuals: (ModelTransmission - ObservedTransmission)
-              Lambda = linspace(3360, 10200, 343)';  % Wavelength grid [Angstrom]
-              ObsFlux = Model.evaluateAllFunParInput(Lambda);  % Simulated transmission for demo
-              OptSeq = [StageCat.AerosolOpt, StageCat.WaterOpt];  % Simple atmospheric fit
-              % Or use: OptSeq = StageCat.DefaultLAST;  % 5-stage sequence from Garrappa et al. (2025)
+              Lambda = linspace(3360, 10200, 343)';
+              ObsFlux = Model.evaluateAllFunParInput(Lambda);
+              OptSeq = StageCat.DefaultLASTOptSeq;
               [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
                   'OptimizationSequence', OptSeq, 'Verbose', true);
 
                % Example 2: Fit transmission + field correction from photon counts
-               % Use when you have photon counts [N_stars x 1] and known reference spectra
-               % TransmissionMode compares: Model = Transmission × RefSpec × ExpTime × Area
-               % Residuals: 2.5*log10(Predicted/Observed) [magnitudes]
-               N = 50;  % Number of calibration stars
-               X = rand(N,1) * 1726;  % Star X positions [pixels]
-               Y = rand(N,1) * 1726;  % Star Y positions [pixels]
-               ObsFlux = 8e4 + 4e4 * rand(N,1);  % Observed photon counts per star [N x 1]
-               % Create reference spectra for calibrators [N_lambda x N_stars]
+               N = 50;
+               X = rand(N,1) * 1726;
+               Y = rand(N,1) * 1726;
+               ObsFlux = 8e4 + 4e4 * rand(N,1);
                RefSpec = zeros(343, N);
                for i = 1:N
-                   alpha = -2 + 3.5 * (i-1)/(N-1);  % Spectral index varying -2 to +1.5
+                   alpha = -2 + 3.5 * (i-1)/(N-1);
                    RefSpec(:, i) = (3e-17) ./ (Lambda / 500).^alpha;
                end
-               % Setup CostArgs with TransmissionMode
                CostArgs = struct('WeightMatrix', RefSpec, 'TransmissionMode', true, ...
                    'ExpTime', 20, 'Aperture_area_m2', pi * (0.1397)^2);
-               % Multi-stage optimization with field correction
-               OptSeq = StageCat.DefaultLAST;
+               OptSeq = StageCat.DefaultLASTOptSeq;
                [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
                    'CostArgs', CostArgs, 'X', X, 'Y', Y, 'OptimizationSequence', OptSeq, 'Verbose', true);
     %}
+
+    arguments
+        % --- Shared observation metadata ---
+        Args.ZenithAngle_deg      = 45
+        Args.ZenithAngle_deg_Min  = 0
+        Args.ZenithAngle_deg_Max  = 90
+
+        Args.Pressure_mbar        = 965
+        Args.Pressure_mbar_Min    = 960
+        Args.Pressure_mbar_Max    = 970
+
+        Args.Temperature_C        = 15
+        Args.Temperature_C_Min    = 0
+        Args.Temperature_C_Max    = 50
+
+        % --- Normalization ---
+        Args.Norm                 = 0.5
+        Args.Norm_Min             = 0.001
+        Args.Norm_Max             = 1.0
+
+        % --- Ozone ---
+        Args.DobsonUnits          = 300
+        Args.DobsonUnits_Min      = 200
+        Args.DobsonUnits_Max      = 500
+
+        % --- Aerosol ---
+        Args.TauAod500            = 0.084
+        Args.TauAod500_Min        = 0.01
+        Args.TauAod500_Max        = 1.0
+        Args.AngstromExponent     = 0.6
+        Args.AngstromExponent_Min = 0.5
+        Args.AngstromExponent_Max = 2.5
+
+        % --- Water vapor ---
+        Args.PWV_cm               = 1.4
+        Args.PWV_cm_Min           = 0.1
+        Args.PWV_cm_Max           = 10
+
+        % --- QE Skewed Gaussian ---
+        Args.QE_Amplitude         = 3281.936
+        Args.QE_Amplitude_Min     = 2000
+        Args.QE_Amplitude_Max     = 5000
+        Args.QE_Center_Ang        = 5709.73
+        Args.QE_Center_Ang_Min    = 5000
+        Args.QE_Center_Ang_Max    = 6000
+        Args.QE_Sigma_Ang         = 1397.7
+        Args.QE_Sigma_Ang_Min     = 500
+        Args.QE_Sigma_Ang_Max     = 3000
+        Args.QE_Gamma             = -0.1517
+        Args.QE_Gamma_Min         = -1
+        Args.QE_Gamma_Max         = 1
+
+        % --- QE Legendre coefficients ---
+        Args.QE_Legendre_Params   = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60]
+        Args.QE_Legendre_Min      = -10
+        Args.QE_Legendre_Max      = 10
+    end
+
     %% ====================================================================
     %% NORMALIZATION FUNCTION
     %% ====================================================================
@@ -72,13 +136,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.Normalization.Name = 'Normalization';
     FunCatalog.Normalization.Handle = '@(Lambda, Norm) Norm * ones(size(Lambda))';
     FunCatalog.Normalization.HandleType = 'anonymous';
-    FunCatalog.Normalization.Params = [0.5];  % Typical initial value
+    FunCatalog.Normalization.Params = [Args.Norm];
     FunCatalog.Normalization.FitPar = [true];  % Fit normalization factor
     FunCatalog.Normalization.ParamInfo = struct(...
         'Name', {'Norm'}, ...
         'Description', {'Normalization factor'}, ...
-        'Min', {0.001}, ...
-        'Max', {1.0});
+        'Min', {Args.Norm_Min}, ...
+        'Max', {Args.Norm_Max});
 
     %% ====================================================================
     %% ATMOSPHERIC TRANSMISSION FUNCTIONS
@@ -91,13 +155,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.Rayleigh.Name = 'Rayleigh';
     FunCatalog.Rayleigh.Handle = '@astro.transmission.rayleighTransmission';
     FunCatalog.Rayleigh.HandleType = 'named';
-    FunCatalog.Rayleigh.Params = [45, 965];  % [ZenithAngle_deg, Pressure_mbar]
+    FunCatalog.Rayleigh.Params = [Args.ZenithAngle_deg, Args.Pressure_mbar];
     FunCatalog.Rayleigh.FitPar = [false, false];  % Don't fit any parameters
     FunCatalog.Rayleigh.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'Pressure_mbar'}, ...
         'Description', {'Zenith angle [deg]', 'Atmospheric pressure [mbar]'}, ...
-        'Min', {0, 960}, ...
-        'Max', {90, 970});
+        'Min', {Args.ZenithAngle_deg_Min, Args.Pressure_mbar_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.Pressure_mbar_Max});
 
     % Ozone absorption
     % Parameters: [ZenithAngle_deg, DobsonUnits]
@@ -106,13 +170,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.Ozone.Name = 'Ozone';
     FunCatalog.Ozone.Handle = '@astro.transmission.ozoneTransmission';
     FunCatalog.Ozone.HandleType = 'named';
-    FunCatalog.Ozone.Params = [45, 300];  % [ZenithAngle_deg, DobsonUnits]
+    FunCatalog.Ozone.Params = [Args.ZenithAngle_deg, Args.DobsonUnits];
     FunCatalog.Ozone.FitPar = [false, false];  % Don't fit zenith angle, fit ozone column
     FunCatalog.Ozone.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'DobsonUnits'}, ...
         'Description', {'Zenith angle [deg]', 'Total ozone column [DU]'}, ...
-        'Min', {0, 200}, ...
-        'Max', {90, 500});
+        'Min', {Args.ZenithAngle_deg_Min, Args.DobsonUnits_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.DobsonUnits_Max});
 
     % Aerosol extinction
     % Parameters: [ZenithAngle_deg, TauAod500, AngstromExponent]
@@ -121,13 +185,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.Aerosol.Name = 'Aerosol';
     FunCatalog.Aerosol.Handle = '@astro.transmission.aerosolTransmission';
     FunCatalog.Aerosol.HandleType = 'named';
-    FunCatalog.Aerosol.Params = [45, 0.084, 0.6];  % [ZenithAngle_deg, TauAod500, AngstromExponent]
+    FunCatalog.Aerosol.Params = [Args.ZenithAngle_deg, Args.TauAod500, Args.AngstromExponent];
     FunCatalog.Aerosol.FitPar = [false, true, false];  % Don't fit zenith, fit AOD, fix Angstrom exponent
     FunCatalog.Aerosol.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'TauAod500', 'AngstromExponent'}, ...
         'Description', {'Zenith angle [deg]', 'Aerosol optical depth at 500nm', 'Angstrom exponent'}, ...
-        'Min', {0, 0.01, 0.5}, ...
-        'Max', {90, 1.0, 2.5});
+        'Min', {Args.ZenithAngle_deg_Min, Args.TauAod500_Min, Args.AngstromExponent_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.TauAod500_Max, Args.AngstromExponent_Max});
 
     % Water vapor absorption
     % Parameters: [ZenithAngle_deg, PWV_cm, Pressure_mbar]
@@ -136,13 +200,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.Water.Name = 'Water';
     FunCatalog.Water.Handle = '@astro.transmission.waterTransmission';
     FunCatalog.Water.HandleType = 'named';
-    FunCatalog.Water.Params = [45, 1.4, 965];  % [ZenithAngle_deg, PWV_cm, Pressure_mbar]
-    FunCatalog.Water.FitPar = [false, true, false];  % 
+    FunCatalog.Water.Params = [Args.ZenithAngle_deg, Args.PWV_cm, Args.Pressure_mbar];
+    FunCatalog.Water.FitPar = [false, true, false];
     FunCatalog.Water.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'PWV_cm', 'Pressure_mbar'}, ...
         'Description', {'Zenith angle [deg]', 'Precipitable water vapor [cm]', 'Atmospheric pressure [mbar]'}, ...
-        'Min', {0, 0.1, 960}, ...
-        'Max', {90, 10, 970});
+        'Min', {Args.ZenithAngle_deg_Min, Args.PWV_cm_Min, Args.Pressure_mbar_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.PWV_cm_Max, Args.Pressure_mbar_Max});
 
     % Uniformly Mixed Gases (UMG) transmission
     % Parameters: [ZenithAngle_deg, Temperature_C, Pressure_mbar]
@@ -151,13 +215,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.UMG.Name = 'UMG';
     FunCatalog.UMG.Handle = '@astro.transmission.umgTransmission';
     FunCatalog.UMG.HandleType = 'named';
-    FunCatalog.UMG.Params = [45, 15, 965];  % [ZenithAngle_deg, Temperature_C, Pressure_mbar]
+    FunCatalog.UMG.Params = [Args.ZenithAngle_deg, Args.Temperature_C, Args.Pressure_mbar];
     FunCatalog.UMG.FitPar = [false, false, false];  % Don't fit any parameters
     FunCatalog.UMG.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar'}, ...
         'Description', {'Zenith angle [deg]', 'Temperature [C]', 'Atmospheric pressure [mbar]'}, ...
-        'Min', {0, 0, 960}, ...
-        'Max', {90, 50, 970});
+        'Min', {Args.ZenithAngle_deg_Min, Args.Temperature_C_Min, Args.Pressure_mbar_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.Temperature_C_Max, Args.Pressure_mbar_Max});
 
     %% ====================================================================
     %% TELESCOPE OPTICS TRANSMISSION FUNCTIONS
@@ -197,19 +261,22 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
 
     % QE - Legendre polynomial model (Ofek et al. 2023)
     % Parameters: [L0, L1, L2, L3, L4, L5, L6, L7, L8] - Legendre coefficients
+    NLeg = numel(Args.QE_Legendre_Params);
     FunCatalog.QE_Legendre = struct();
     FunCatalog.QE_Legendre.Name = 'QE_Legendre';
     FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
     FunCatalog.QE_Legendre.HandleType = 'named';
-    FunCatalog.QE_Legendre.Params = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60];  % Ofek et al. 2023
-    FunCatalog.QE_Legendre.FitPar = false(1, 9);  % All fixed by default
+    FunCatalog.QE_Legendre.Params = Args.QE_Legendre_Params;
+    FunCatalog.QE_Legendre.FitPar = false(1, NLeg);  % All fixed by default
+    LegNames = arrayfun(@(k) sprintf('L%d', k), 0:(NLeg-1), 'UniformOutput', false);
+    LegDescs = arrayfun(@(k) sprintf('Legendre coeff %d', k), 0:(NLeg-1), 'UniformOutput', false);
+    LegMins  = num2cell(Args.QE_Legendre_Min * ones(1, NLeg));
+    LegMaxs  = num2cell(Args.QE_Legendre_Max * ones(1, NLeg));
     FunCatalog.QE_Legendre.ParamInfo = struct(...
-        'Name', {'L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'}, ...
-        'Description', {'Legendre coeff 0', 'Legendre coeff 1', 'Legendre coeff 2', ...
-                        'Legendre coeff 3', 'Legendre coeff 4', 'Legendre coeff 5', ...
-                        'Legendre coeff 6', 'Legendre coeff 7', 'Legendre coeff 8'}, ...
-        'Min', {-10, -10, -10, -10, -10, -10, -10, -10, -10}, ...
-        'Max', {10, 10, 10, 10, 10, 10, 10, 10, 10});
+        'Name', LegNames, ...
+        'Description', LegDescs, ...
+        'Min', LegMins, ...
+        'Max', LegMaxs);
 
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
     % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
@@ -217,13 +284,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     FunCatalog.QE_SkewedGaussian.Name = 'QE_SkewedGaussian';
     FunCatalog.QE_SkewedGaussian.Handle = '@telescope.detector.qeSkewedGaussianLAST';
     FunCatalog.QE_SkewedGaussian.HandleType = 'named';
-    FunCatalog.QE_SkewedGaussian.Params = [3281.936, 5709.73, 1397.7, -0.1517];  % Default LAST QHY600-PH
+    FunCatalog.QE_SkewedGaussian.Params = [Args.QE_Amplitude, Args.QE_Center_Ang, Args.QE_Sigma_Ang, Args.QE_Gamma];
     FunCatalog.QE_SkewedGaussian.FitPar = [false, true, false, false];  % Fit center wavelength only
     FunCatalog.QE_SkewedGaussian.ParamInfo = struct(...
         'Name', {'Amplitude', 'Center_Ang', 'Sigma_Ang', 'Gamma'}, ...
         'Description', {'Amplitude', 'Peak wavelength [Angstrom]', 'Width [Angstrom]', 'Skewness parameter'}, ...
-        'Min', {2000, 5000, 500, -1}, ...
-        'Max', {5000, 6000, 3000, 1});
+        'Min', {Args.QE_Amplitude_Min, Args.QE_Center_Ang_Min, Args.QE_Sigma_Ang_Min, Args.QE_Gamma_Min}, ...
+        'Max', {Args.QE_Amplitude_Max, Args.QE_Center_Ang_Max, Args.QE_Sigma_Ang_Max, Args.QE_Gamma_Max});
 
     %% ====================================================================
     %% FUNCTION LIST CATALOG
@@ -377,5 +444,5 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun()
     StageCatalog.Atmospheric.SigmaIter = 0;
     StageCatalog.Atmospheric.Description = 'Optimize water vapor and aerosol';
 
- 
+
  end
