@@ -2232,11 +2232,11 @@ classdef CompositeFun < handle
             %            'Y' - Source Y coordinates [N_obs x 1]. Default is [].
             %            'WeightMatrix' - Calibrator spectra [N_wvl x N_obs]. Default is [].
             %            'PrecomputedMagErr' - Pre-computed magnitude errors [N_obs x 1].
-            %                   Must be computed before optimization via PhotCalibTrans.computeMagErrCalib.
+            %                   Must be computed before optimization via PhotCalibTrans.propagateCalibratorMagErr.
             %                   Default is [].
             %            'PrecomputedSpecFluxMatrix' - Pre-computed interpolated spectra [N_input x N_obs].
             %                   Calibrator spectra interpolated onto transmission wavelength grid.
-            %                   Must be computed before optimization via PhotCalibTrans.computeInterpolatedSpectra.
+            %                   Must be computed before optimization via PhotCalibTrans.resampleCalibratorSpectra.
             %                   Avoids repeated interpolation on every costFun call. Default is [].
             %            'IntegrationDim' - Integration dimension (1 or 2). Default is 2.
             %            'TransmissionMode' - Enable transmission mode. Default is false.
@@ -2488,7 +2488,7 @@ classdef CompositeFun < handle
                 PredictedFlux = Args.ExpTime * Args.Aperture_area_m2 * Avector / B;
 
                 % Magnitude errors: must be pre-computed and stored in SourceData
-                % (computed once by PhotCalibTrans.computeMagErrCalib before optimization)
+                % (computed once by PhotCalibTrans.propagateCalibratorMagErr before optimization)
                 UseWeighting = ~isempty(Args.PrecomputedMagErr);
                 if UseWeighting
                     MagErr = Args.PrecomputedMagErr(:);
