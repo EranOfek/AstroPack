@@ -44,7 +44,12 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.INPOP                       = celestial.INPOP.init;
         Args.AsteroidSearchRadius        = 10;
 
-        Args.KeysGlobalMotion = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
+        Args.KeysGlobalMotion            = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
+
+        Args.Header_addAirMassArgs       = {};
+        Args.Cat_addAirMassArgs          = {};
+        Args.AddSrcAM                    = true;
+        
 
         Args.Logger                      = [];
         Args.Sa
@@ -138,7 +143,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     
     
     % Update Airmass header keyword to based on measured crop center
-    AllSI = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested'); % 0.3s
+    [AllSI, AllImagesAirMass] = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
 
     % Individual sub images : quality           
     % astrometry
@@ -254,8 +259,11 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % toc
 
     % Add image ID to coadd images: in: ID_PROC
-    [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',[ResCoadd.MidMidJD], Args.generateImageIDArgs{:});  % 0.05 s
+    JD_Coadd = [ResCoadd.MidMidJD];
+    [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
 
+    % Update Airmass (And UPIX) header keyword to based on measured crop center
+    [Coadd, AllCoaddAirMass] = imProc.header.addAirMass(Coadd, 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
 
     % Add catsHTM MergedCat column to Coadd catalogs
     if Args.AddMergedCat
@@ -301,12 +309,28 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Coadd(Isub).HeaderData.insertKey(DataGM,'end');
     end
     
+    tic;
+    if Args.AddSrcAM
+        AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+        Coadd = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+    end
+    toc
 
 
+    % photometric calibration
+    tic;
+    for Isub=1:1:Nsub
+        [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
+        [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+    end
+    toc
 
-    % coadd: photometric calibration
+    % Coadd images
     % Photometric calibration of coadd images:
-    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false);
+    tic;
+    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
+    toc
+
 
     % proapage photometric calibration to individual images
 

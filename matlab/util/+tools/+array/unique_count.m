@@ -46,20 +46,20 @@ function [UnVal,Count]=unique_count(Vec, CmpFun, Algo, IsRows)
                 end
             end
         case 'scan'
-            UnVal = []; %unique(Vec);
+            UnVal = unique(Vec);
             Nun   = numel(UnVal);
-            Count = 0; %zeros(Nun,1);
+            Count = zeros(Nun,1);
 
-            Nall = numel(Vec);
+            Nall = numel(UnVal);
             if isnumeric(Vec)
                 for Iall=1:1:Nall
-                    I = find(Vec(Iall)==UnVal);
-                    Count(I) = Count(I) + 1;
+                    I = find(Vec==UnVal(Iall));
+                    Count(Iall) = Count(Iall) + numel(I);
                 end
             else
                 for Iall=1:1:Nall
-                    I = find(CmpFun(Vec(Iall),UnVal));
-                    Count(I) = Count(I) + 1;
+                    I = find(CmpFun(Vec,UnVal{Iall}));
+                    Count(Iall) = Count(Iall) + numel(I);
                 end
             end
             

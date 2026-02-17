@@ -23,6 +23,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is 1000.
     %            'MinSN' - Min S/N to use for limiting magnitude estimate.
     %                   Default is 7.
+    %            'IsGoodImage' - An array (same size as the input
+    %                   AstroImage/AstroCatalaog) with logicals indicating
+    %                   if image is good. Images with false will not be
+    %                   calibrated.
+    %                   If empty, then will attempt to use the WCS object
+    %                   (Sucess property).
+    %                   Default is [].
     %            'CatColNameMag' - Mag. column name in Catalog.
     %                   This magnitude will be calibrated.
     %                   Default is {'MAG_PSF','MAG_APER_3'}.
@@ -130,6 +137,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.MaxErr                   = 0.02;
         Args.MaxSN                    = 1000;  % if empty, do not use
         Args.MinSN                    = 7;
+
+        Args.IsGoodImage               = [];
         
         Args.CatColNameMag            = 'MAG_APER_3'; %{'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
         Args.CatColNameMagErr         = {'MAGERR_PSF', 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
@@ -211,39 +220,68 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     'Nsrc',cell(Nobj,1),...
                     'LimMag',cell(Nobj,1),...
                     'BackMag',cell(Nobj,1));
-                
           
-    PhotCat = AstroCatalog([Nobj 1]);
+    if isempty(Args.IsGoodImage)
+        % Read IsGoodImage from WCS
+        if isa(Obj, 'AstroCatalog')
+            % set IsGoodImage to all true
+            IsGoodImage = true(size(Obj));
+        else
+            % AstroImage, AstroZOGY, ...
+            IsGoodImage = true(size(Obj));
+            for Iobj=1:1:Nobj
+                IsGoodImage(Iobj) = Result(Iobj).WCS.Success;
+            end
+        end
+    else
+        if isscalar(Args.IsGoodImage)
+            IsGoodImage = repmat(Args.IsGoodImage, size(Obj));
+        else
+            IsGoodImage = Args.IsGoodImage;
+        end
+    end
+
+    
     %PhotCat = [];
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroCatalog')
             Cat = Result(Iobj);
-            GoodAstrometry = true;   % assume astrometry is goog
+            %GoodAstrometry = true;   % assume astrometry is goog
         elseif isa(Obj, 'AstroImage')
             Cat = Result(Iobj).CatData;
-            GoodAstrometry = Result(Iobj).WCS.Success;
+            %GoodAstrometry = Result(Iobj).WCS.Success;
         else
             error('Unknown input object type - first input arg must be AstroCatalog or AstroImage');
         end
         
-        if GoodAstrometry
+        %if GoodAstrometry
+        if IsGoodImage(Iobj)
             if isa(Args.CatName, 'AstroCatalog')
                 % skip get astrometric cat
-                PhotCat = Args.CatName;
-                Npc     = numel(PhotCat);
-                Ipc     = min(Npc, Iobj);
+                if isscalar(Args.CatName)
+                    PhotCat = Args.CatName;
+                    Npc     = numel(PhotCat);
+                    Ipc     = 1; %min(Npc, Iobj);
+                else
+                    if numel(Args.CatName)~=numel(Obj)
+                        error('Number of catalogs in CatName is not consistent');
+                    end
+                end
             else
                 % RA/Dec bounding box
                 if isempty(Args.CatRadius)
-
                     [RA, Dec, CircleRadius] = boundingCircle(Cat, 'OutUnits','rad', 'CooType','sphere');
                 else
                     CircleRadius = Args.CatRadius;
                     error('CatRadius is not yet supported, use empty');
                 end
 
+                if Iobj==1
+                    PhotCat = AstroCatalog([Nobj 1]);
+                end
+
                 % get photometric catalog
-                Ipc = 1;
+                Ipc = Iobj;
                 [PhotCat(Iobj)] = imProc.cat.getAstrometricCatalog(RA, Dec, 'CatName',Args.CatName,...
                                                                       'CatOrigin',Args.CatOrigin,...
                                                                       'Radius',CircleRadius,...
@@ -259,20 +297,20 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             end
 
             if Args.UseOnlyMainSeq
-                PhotCat(Iobj) = imProc.calib.selectMainSequenceFromGAIA(PhotCat(Iobj), 'CreateNewObj',true);
+                PhotCat(Ipc) = imProc.calib.selectMainSequenceFromGAIA(PhotCat(Ipc), 'CreateNewObj',true);
             end
 
             % match Cat against reference (photometric) catalog
             %PhotCat(Ipc).sortrows('Dec');
-            PhotCat(Iobj).sortrows('Dec');
+            PhotCat(Ipc).sortrows('Dec');
             %Cat.sortrows('Dec');
 
-            ResMatch = imProc.match.matchReturnIndices(PhotCat(Iobj), Cat, 'Radius',Args.Radius,...
+            ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
                                                                           'RadiusUnits',Args.RadiusUnits,...
                                                                           'CooType','sphere',...
                                                                           Args.matchReturnIndicesArgs{:});
 
-            MatchedPhotCat = selectRows(PhotCat(Iobj), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+            MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
 
 
 
@@ -324,10 +362,12 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
                             GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
 
-                            I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                            %I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                            I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
                             RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
 
-                            I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                            %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                            I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
                             RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
                             %end
                         otherwise
