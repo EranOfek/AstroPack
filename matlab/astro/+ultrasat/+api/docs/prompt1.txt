@@ -1,6 +1,18 @@
 PLAN MODE - PROMPT 1 - CREATE FOLDERS + MOVE FILES (NO LOGIC CHANGES)
 
-Goal: create the new folder structure and move files to +clients/+models/+utils/obsolete, while keeping behavior unchanged.
+ROOT FOLDER (SCOPE OF CHANGES):
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api
+
+Goal:
+Create the new folder structure and move files to +clients/+models/+utils/obsolete, while keeping behavior unchanged.
+
+HARD RULES FOR THIS PROMPT:
+- Do NOT change any business logic.
+- Do NOT change any API semantics.
+- Do NOT modify code behavior.
+- Do NOT touch files outside the ROOT FOLDER.
+- Only move/rename files and update package paths / imports.
+- Prefer updating references over creating wrapper files, but wrappers are allowed if needed for backward compatibility.
 
 Create folders if missing:
 
@@ -49,9 +61,13 @@ Move JSON simulation to obsolete (ONLY MOVE, DO NOT REWRITE YET):
 - UserManagerSim.m
 - Any other sim/json-file API files discovered
 
-After moving, update all references and package imports so everything still runs.
+After moving:
+- Update all MATLAB package paths and imports so everything still runs.
+- Fix broken references within +api only.
+- If necessary, leave thin deprecated wrapper files in the old locations that forward to the new class.
 
-If package name changes are needed, keep public names stable by leaving small wrapper files in the old locations (deprecated) that call the new class, BUT prefer updating references instead of wrappers if it is safe.
-
+STOP CONDITION:
 Stop after folder creation + file moves + reference fixes.
-Do not split clients yet. Do not change behavior yet.
+Do NOT split clients yet.
+Do NOT change behavior yet.
+Do NOT proceed to later phases.

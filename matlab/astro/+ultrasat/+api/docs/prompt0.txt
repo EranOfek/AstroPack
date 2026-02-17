@@ -5,6 +5,11 @@ You are refactoring an existing MATLAB codebase for ULTRASAT SOC API clients and
 ROOT FOLDER:
 C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api
 
+python sources for backend and clients:
+C:\Ultrasat\Ultrasat.git\python\prj\nova\soc
+C:\Ultrasat\Ultrasat.git\python\prj\nova\soc\common\clients
+
+
 HARD RULES:
 - Do NOT invent new business logic.
 - Do NOT change API semantics.
