@@ -8,14 +8,14 @@ function Report = checkMaskPropagationToCoadd(Input, Args)
     %      parent proc masks and identifies bits in coadd that are not in
     %      any proc (CoaddOnly). Reports per-coadd results (CoaddFileResults).
     %      Proc files are assigned to Coadd by key extracted from filenames (may need to be adjusted).
-    % Input  : path string to directory containing both sci_proc and sci_coadd FITS mask files.
+    % Input  : - path string to directory containing both sci_proc and sci_coadd FITS mask files.
     %          * ...,key,val,...
     %            'BitDictName' - BitDictionary name for per-bit breakdown.
     %                            Default is 'BitMask.Image.Default'.
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print progress to console. Default is true.
-    % Output :   Report: struct with fields:
+    % Output :  - Struct with fields:
     %            .Timestamp      - datetime of validation run
     %            .DataPath       - path to data
     %            .NumCoadds      - number of coadd groups
