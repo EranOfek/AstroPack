@@ -1,0 +1,57 @@
+PLAN MODE - PROMPT 1 - CREATE FOLDERS + MOVE FILES (NO LOGIC CHANGES)
+
+Goal: create the new folder structure and move files to +clients/+models/+utils/obsolete, while keeping behavior unchanged.
+
+Create folders if missing:
+
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+models
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+clients
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+utils
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\obsolete
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug\+clients
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug\+models
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug\+utils
+
+Move files (no content changes except package path fixes):
+
+Move to +utils:
+- EncodeUtils.m
+- PathUtils.m
+- parseIsoDateTime.m
+- Config.m
+- Loggable.m
+- LogManager.m
+- Any other stateless helper utils discovered
+
+Move to +clients (even if not split yet):
+- ClientBase.m
+- MissionApiBase.m
+- MissionApiClient.m
+- VirtualTimeClient.m (if it is a client)
+- UserManagerBase.m (if it is a client base)
+- MissionClientInterface.m (if it is a client interface)
+
+Move to +models:
+- MissionApiModels.m (if it is models)
+- MissionModels.m
+- VirtualTimeModels.m
+- PlanData.m
+- ModelBase.m
+- ModelFactoryBase.m
+- Any other model-like files discovered
+
+Move JSON simulation to obsolete (ONLY MOVE, DO NOT REWRITE YET):
+- ApiSimProvider.m
+- MissionApiSim.m
+- SimpleFileClient.m
+- SimpleFileLocal.m
+- ValidatorSim.m
+- UserManagerSim.m
+- Any other sim/json-file API files discovered
+
+After moving, update all references and package imports so everything still runs.
+
+If package name changes are needed, keep public names stable by leaving small wrapper files in the old locations (deprecated) that call the new class, BUT prefer updating references instead of wrappers if it is safe.
+
+Stop after folder creation + file moves + reference fixes.
+Do not split clients yet. Do not change behavior yet.

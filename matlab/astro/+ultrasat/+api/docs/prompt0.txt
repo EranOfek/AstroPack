@@ -1,0 +1,25 @@
+PLAN MODE - PROMPT 0 - CONSTRAINTS AND WORK STYLE
+
+You are refactoring an existing MATLAB codebase for ULTRASAT SOC API clients and models.
+
+ROOT FOLDER:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api
+
+HARD RULES:
+- Do NOT invent new business logic.
+- Do NOT change API semantics.
+- Do NOT delete any files. Only move/rename and refactor safely.
+- Prefer small diffs. If uncertain, leave TODO comments.
+- Keep backward compatibility where possible by leaving thin wrapper files that call the new location/class (deprecated wrappers allowed).
+- Do not create new backend endpoints. Only align MATLAB with existing Python service boundaries.
+- No client may read/write JSON files as an API mechanism after the refactor (JSON sim goes to obsolete).
+- Clients must not use filesystem paths by namespace. Filesystem usage allowed only in obsolete simulation or debug utilities.
+
+WORKFLOW:
+- First, scan and summarize current file roles.
+- Then implement the changes in the scope of THIS prompt only.
+- After changes, update all package paths and references.
+- Ensure matlab package usage remains ultrasat.api.<...>.
+
+STOP CONDITION:
+- Only do tasks explicitly requested in this prompt. Do not continue to next phases.

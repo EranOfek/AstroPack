@@ -1,0 +1,65 @@
+PLAN MODE - PROMPT 5 - DEBUG SCRIPTS REFACTOR (SUBFOLDERS + TEMPLATE)
+
+Goal: refactor debug scripts to match new folder structure and standard template.
+
+Scope:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug
+
+Tasks:
+1) Move debug files into:
++debug/+clients
++debug/+models
++debug/+utils
+
+2) Rename debug files to match refactored class names:
+- debug_PlansManagerClient.m
+- debug_ScheduleManagerClient.m
+- debug_ValidatorClient.m
+- debug_VirtualTimeClient.m
+- debug_PlanData.m
+- debug_JsonUtils.m
+etc.
+
+3) Update each debug file to follow this exact structure:
+- Header block
+- Main function name matches filename
+- Local subfunctions below
+- Main function prints start/end banners
+
+Use this template:
+
+%==========================================================================
+% ULTRASAT
+%
+% File:        debug_ApiUtils.m
+% Author:      Chen Tishler
+% Created:     DD/MM/YYYY
+% Updated:     DD/MM/YYYY
+% Description:
+%==========================================================================
+%
+% Debug function for ultrasat.api.ApiUtils class
+% Run by: ultrasat.api.debug_ApiUtils()
+%
+
+function debug_ApiUtils()
+    fprintf('=== Running ApiUtils Debug Tests ===\n');
+    debug_msglog();
+    debug_logException();
+    fprintf('=== All ApiUtils Debug Tests Completed ===\n');
+end
+
+% ------------------------------------------------------------------------
+
+function debug_msglog()
+end
+
+% ------------------------------------------------------------------------
+
+function debug_logException()
+end
+
+4) Debug scripts must not use JSON simulation.
+They may use real clients (HTTP), but if backend not available, tests should fail gracefully with clear message.
+
+Stop after debug scripts are reorganized + runnable.
