@@ -8,16 +8,16 @@ function saveHTMIndexFast(Level, FileName, VarName, Attrib, Nsrc)
 %              and the O(N^2) Nsrc lookup of save_htm_ind.
 %              For HTM level 11 (~11M nodes), runs in tens of seconds
 %              instead of hours. Output is identical to save_htm_ind.
-% Input  : - Level: HTM level (integer). Tree has levels 0..Level-1.
-%            Level L has 8*4^L cells. Total nodes = 8*(4^Level - 1)/3.
-%          - FileName: HDF5 file name for output.
-%          - VarName: Variable name for the HTM dataset.
-%            Default is derived from FileName (e.g., 'PS1DR2_HTM').
-%          - Attrib: Cell array of attributes {Key,Val} for 'ColNames'
-%            dataset. Default is {}.
-%          - Nsrc: Matrix [IndHTM, Nsrc] with source counts per leaf cell.
-%            Default is [].
-% Output : null
+% Input  :   - Level: HTM level (integer). Tree has levels 0..Level-1.
+%                     Level L has 8*4^L cells. Total nodes = 8*(4^Level - 1)/3.
+%            - FileName: HDF5 file name for output.
+%            - VarName: Variable name for the HTM dataset.
+%                       Default is derived from FileName (e.g., 'PS1DR2_HTM').
+%            - Attrib: Cell array of attributes {Key,Val} for 'ColNames'
+%                      dataset. Default is {}.
+%            - Nsrc: Matrix [IndHTM, Nsrc] with source counts per leaf cell.
+%                    Default is [].
+% Output :   null
 % Author : Dana Kovaleva (Feb 2026)
 % Example: VO.prep.saveHTMIndexFast(7, 'PS1DR2_htm.hdf5', 'PS1DR2_HTM', {}, Nsrc)
 

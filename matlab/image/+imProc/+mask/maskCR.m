@@ -82,11 +82,12 @@ function [Result,FlagGood] = maskCR(Obj, Args)
                 SN2  = Cols(:,4);
 
                 % use find because this is needed twice below, so faster...
-                FlagGood = SN1<(SN2+Args.DeltaSN);
+                FlagGood = SN1<(SN2+Args.DeltaSN); % also omits NaNs
                 if Args.SetMask
                     IndFlag = find(~FlagGood);
                     %FlagImage = false(SizeImage);
                     Find = imUtil.image.sub2ind_fast(Obj(Iobj).sizeImage, Y(IndFlag), X(IndFlag));
+                    %Find = imUtil.image.mex.sub2ind_mex(Obj(Iobj).sizeImage, Y(IndFlag), X(IndFlag));
                     %FlagImage(Find) = true;
                     %Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagImage, Args.BitNameCR, 1);
                     Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, Find, Args.BitNameCR, 1, 'DefBitDict',Args.BitDict);

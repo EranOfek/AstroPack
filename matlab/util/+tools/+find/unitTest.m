@@ -3,7 +3,18 @@ function Result = unitTest()
     % Example: tools.find.unitTest
     
 
-    % tools.find.mfind_bin
+    %% tols.find.binarySearch
+
+    Vec = sort(rand(1e3,1));
+    Tar = rand(1,2000);
+    Res = tools.find.mex.binarySearch(Vec,Tar);
+    ResM  = tools.find.mfind_bin(Vec,Tar, false);
+    if max(abs(double(ResM) - Res))>1
+        error('Problem with tools.find.mex.binarySearch');
+    end
+
+
+    %% tools.find.mfind_bin
     X = rand(1e4,1);
     X = sort(X);
     Vals = rand(1,1e3);

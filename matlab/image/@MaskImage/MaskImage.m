@@ -90,7 +90,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Flag                         % matrix of logicals, or vector of indices
                 BitName                      % name or bit index (start with zero)
                 SetVal                            = 1;
-                Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
+                Args.DefBitDict                   = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
                 Args.UseFlags logical             = false;
                 Args.UseMex logical               = true;

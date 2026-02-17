@@ -55,9 +55,12 @@ classdef AstroCatalog < AstroTable
             % For parameters input see: AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
+
+            %Obj = Obj@AstroTable(varargin{:});
+
             % construct AstroTable
             AT   = AstroTable(varargin{:});
-            
+
             %FN   = fieldnames(AT);
 
             MC = metaclass(AT);

@@ -2232,11 +2232,11 @@ classdef CompositeFun < handle
             %            'Y' - Source Y coordinates [N_obs x 1]. Default is [].
             %            'WeightMatrix' - Calibrator spectra [N_wvl x N_obs]. Default is [].
             %            'PrecomputedMagErr' - Pre-computed magnitude errors [N_obs x 1].
-            %                   Must be computed before optimization via PhotCalibTrans.computeMagErrCalib.
+            %                   Must be computed before optimization via PhotCalibTrans.propagateCalibratorMagErr.
             %                   Default is [].
             %            'PrecomputedSpecFluxMatrix' - Pre-computed interpolated spectra [N_input x N_obs].
             %                   Calibrator spectra interpolated onto transmission wavelength grid.
-            %                   Must be computed before optimization via PhotCalibTrans.computeInterpolatedSpectra.
+            %                   Must be computed before optimization via PhotCalibTrans.resampleCalibratorSpectra.
             %                   Avoids repeated interpolation on every costFun call. Default is [].
             %            'IntegrationDim' - Integration dimension (1 or 2). Default is 2.
             %            'TransmissionMode' - Enable transmission mode. Default is false.
@@ -2488,7 +2488,7 @@ classdef CompositeFun < handle
                 PredictedFlux = Args.ExpTime * Args.Aperture_area_m2 * Avector / B;
 
                 % Magnitude errors: must be pre-computed and stored in SourceData
-                % (computed once by PhotCalibTrans.computeMagErrCalib before optimization)
+                % (computed once by PhotCalibTrans.propagateCalibratorMagErr before optimization)
                 UseWeighting = ~isempty(Args.PrecomputedMagErr);
                 if UseWeighting
                     MagErr = Args.PrecomputedMagErr(:);
@@ -2651,9 +2651,12 @@ classdef CompositeFun < handle
             %                   Default is 3.0.
             %            'SigmaIter' - Maximum sigma clipping iterations
             %                   Default is 5.
-            %            'WeightedClipping' - Use weighted residuals (r/σ) for sigma clipping
-            %                   when MagErr available. If false, uses MAD-based unweighted clipping.
-            %                   Default is true.
+            %            'SigmaClipMethod' - Sigma clipping method:
+            %                   'median' - Astropy-style iterative clipping on abs(residuals)
+            %                              using median center and std scale (default)
+            %                   'weighted' - Threshold on error-normalized residuals |r/σ| > N
+            %            'MinCalibrators' - Minimum calibrators to keep during clipping.
+            %                   If clipping would leave fewer, clipping stops. Default is 0 (no limit).
             %            'OptimOptions' - Options structure for lsqnonlin
             %                   Passed via tools.math.fit.lsqNonLinWithFixed wrapper.
             %                   Default is optimoptions('lsqnonlin', 'Display', 'off').
@@ -2667,7 +2670,8 @@ classdef CompositeFun < handle
             %                   .SigmaClip - Enable sigma clipping for this stage
             %                   .SigmaThresh - Threshold for sigma clipping [sigma units]
             %                   .SigmaIter - Number of sigma clipping iterations
-            %                   .WeightedClipping - Use weighted residuals for clipping (optional, defaults to Args.WeightedClipping)
+            %                   .SigmaClipMethod - Clipping method (optional, defaults to Args.SigmaClipMethod)
+            %                   .MinCalibrators - Min calibrators to keep (optional, defaults to Args.MinCalibrators)
             %                   .Description - Description of the stage
             %                   Default is [] (single-stage mode if Obj.OptSeq is also empty).
             %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
@@ -2742,7 +2746,8 @@ classdef CompositeFun < handle
                 Args.SigmaClip logical = false
                 Args.SigmaThresh = 3.0
                 Args.SigmaIter = 5
-                Args.WeightedClipping logical = true  % Use weighted residuals (r/σ) for clipping when MagErr available
+                Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
+                Args.MinCalibrators = 0  % Minimum calibrators to keep (0 = no limit)
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
                 Args.ValInp logical = true
@@ -2884,190 +2889,193 @@ classdef CompositeFun < handle
             KeepMask = true(NCalUsedInitial, 1);
             CurrentIndices = (1:NCalUsedInitial)';  % Maps current obs to original indices
 
-            NumIterations = Args.SigmaClip * Args.SigmaIter + ~Args.SigmaClip;
+            % Loop structure: initial fit, then [clip → refit] × SigmaIter
+            % Matches Python fit_transmission: 1 initial fit + N clip-refit cycles
+            NumIterations = 1 + Args.SigmaClip * Args.SigmaIter;
             ConvergedSigmaClip = false;
 
             for Iter = 1:NumIterations
-                if Args.Verbose && Args.SigmaClip
-                    fprintf('--- Sigma clipping iteration %d/%d ---\n', Iter, Args.SigmaIter);
-                end
+                if ~ConvergedSigmaClip
 
-                % =============================================================
-                % FIT TRANSMISSION PARAMETERS (if requested)
-                % =============================================================
+                    % =============================================================
+                    % SIGMA CLIPPING (skip first iteration — no residuals yet)
+                    % =============================================================
 
-                if Args.FitTransmission && ~isempty(FreeParamIndices)
-                    if Args.Verbose
-                        fprintf('Fitting transmission parameters (nonlinear)...\n');
-                    end
-
-                    % Get bounds and current parameter values
-                    AllFunPar = Obj.getAllFunPar();
-                    CurrentTransParams = AllFunPar.Val;
-
-                    % Setup FitMask for all parameters
-                    FitMask = false(size(CurrentTransParams));
-                    FitMask(FreeParamIndices) = true;
-
-                    % Model function for lsqNonLinWithFixed
-                    % Returns weighted residuals (1st output of costFun)
-                    if ~isempty(CurrentX)
-                        ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
-                            Args.CostArgs{:}, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY);
-                    else
-                        ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
-                            Args.CostArgs{:}, 'TransParams', P);
-                    end
-
-                    % Dummy X (observation indices), Y = 0 (fit residuals to zero), uniform weights
-                    NumCurrent = length(CurrentObs);
-                    X_dummy = (1:NumCurrent)';
-                    Y_target = zeros(NumCurrent, 1);
-                    Sigma_weights = ones(NumCurrent, 1);
-
-                    % Call lsqNonLinWithFixed
-                    [OptTransParams, ~, MinimizerInfo] = tools.math.fit.lsqNonLinWithFixed(...
-                        X_dummy, Y_target, Sigma_weights, ModelFun, ...
-                        'InitPar', CurrentTransParams, ...
-                        'FitPar', FitMask, ...
-                        'Lb', AllFunPar.Min, ...
-                        'Ub', AllFunPar.Max, ...
-                        'Opts', OptimOpts);
-
-                    % Update Obj with optimized parameters
-                    AllFunPar.Val = OptTransParams;
-                    Obj.setAllFunPar(AllFunPar);
-                end
-
-                % =============================================================
-                % FIT POSITION PARAMETERS (if requested and Tran2D enabled)
-                % =============================================================
-
-                if Args.FitPosition && Obj.UseTran2D
-                    if Args.Verbose
-                        fprintf('Fitting position parameters (linear)...\n');
-                    end
-
-                    % Zero out position correction to get base residuals
-                    Obj.Tran2DObj.ParX = zeros(1, length(Obj.Tran2DObj.ParX));
-
-                    % Calculate residuals without position correction
-                    % Capture unweighted residuals (4th) and MagErr (5th) for weighted position fitting
-                    if ~isempty(CurrentX)
-                        [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, ...
-                            Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
-                    else
-                        [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
-                    end
-
-                    % Fit position polynomial with weighted residuals
-                    % BaseResiduals are magnitude differences, weighted by 1/MagErr^2
-                    % Use 'lscov' method when errors are available for proper weighting
-                    if ~isempty(BaseMagErr) && all(BaseMagErr > 0)
-                        [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
-                            'Method', 'lscov', 'ErrMag', BaseMagErr, 'Verbose', false);
-                    else
-                        warning('CompositeFun:UnweightedPositionFit', ...
-                            'MagErr unavailable or invalid, using unweighted position polynomial fit.');
-                        [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
-                            'Verbose', false);
-                    end
-                end
-
-                % =============================================================
-                % CALCULATE RESIDUALS AND APPLY SIGMA CLIPPING
-                % =============================================================
-
-                % Calculate current residuals with all fitted parameters
-                % Capture both weighted (for optimizer) and unweighted (for sigma clipping, RMS)
-                % Also capture PredictedFlux (3rd output) and MagErr (5th output) for storing in FitResult
-                if ~isempty(CurrentX)
-                    [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, ...
-                        Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
-                else
-                    [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
-                end
-
-                % RMS from unweighted residuals
-                StageRMS = sqrt(mean(UnweightedResiduals.^2));
-
-                if Args.Verbose
-                    fprintf('Current RMS: %.4f, NCalUsed: %d\n', StageRMS, length(UnweightedResiduals));
-                end
-
-                % Apply sigma clipping if enabled
-                % Use weighted (normalized) residuals r/σ when enabled and MagErr available
-                if Args.SigmaClip
-                    % Choose residuals for clipping based on WeightedClipping flag
-                    if Args.WeightedClipping && ~isempty(MagErr)
-                        % Weighted residuals: r_i/σ_i (normalized by errors)
-                        ClipResiduals = WeightedResiduals;
-                        % For normalized residuals, expected scatter is 1
-                        % Use direct threshold without MAD scaling
-                        OutlierMask = abs(ClipResiduals) > Args.SigmaThresh;
-                        if Args.Verbose
-                            fprintf('Sigma clipping (weighted): threshold=%.1f sigma, outliers=%d\n', ...
-                                Args.SigmaThresh, sum(OutlierMask));
-                        end
-                    else
-                        % Unweighted: use MAD-based robust statistics
-                        ClipResiduals = UnweightedResiduals;
-                        MedianRes = median(ClipResiduals);
-                        MAD = median(abs(ClipResiduals - MedianRes));
-                        Sigma = 1.4826 * MAD;  % Convert MAD to std estimate
-                        OutlierMask = abs(ClipResiduals - MedianRes) > Args.SigmaThresh * Sigma;
-                        if Args.Verbose
-                            fprintf('Sigma clipping (unweighted): median=%.4f, MAD=%.4f, outliers=%d\n', ...
-                                MedianRes, MAD, sum(OutlierMask));
+                    if Args.SigmaClip && Iter > 1
+                        % Skip clipping if already below MinCalibrators
+                        if Args.MinCalibrators > 0 && length(CurrentObs) <= Args.MinCalibrators
+                            ConvergedSigmaClip = true;
+                            if Args.Verbose
+                                fprintf('--- Sigma clipping skipped: %d calibrators <= %d minimum ---\n', ...
+                                    length(CurrentObs), Args.MinCalibrators);
+                            end
                         end
                     end
-                    NumOutliers = sum(OutlierMask);
 
-                    if NumOutliers == 0
-                        ConvergedSigmaClip = true;
+                    if Args.SigmaClip && Iter > 1 && ~ConvergedSigmaClip
                         if Args.Verbose
-                            fprintf('Sigma clipping converged (no outliers)\n');
+                            fprintf('--- Sigma clipping iteration %d/%d ---\n', Iter-1, Args.SigmaIter);
                         end
-                        break;
+
+                        % Sigma clipping via helper function
+                        [OutlierMask, ClipInfo] = tools.math.stat.sigmaClip(...
+                            UnweightedResiduals, Args.SigmaThresh, ...
+                            'Method', Args.SigmaClipMethod, 'Errors', MagErr);
+
+                        if ~ClipInfo.Success
+                            ConvergedSigmaClip = true;
+                            Obj.addStatus('fitPar', 'warning', ...
+                                sprintf('Sigma clipping failed: %s', ClipInfo.ErrorMsg), ...
+                                'CompositeFun:SigmaClipFailed');
+                            if Args.Verbose
+                                fprintf('Sigma clipping failed: %s; skipping\n', ClipInfo.ErrorMsg);
+                            end
+                        end
                     end
 
-                    % Remove outliers
-                    IterKeepMask = ~OutlierMask;
+                    if Args.SigmaClip && Iter > 1 && ~ConvergedSigmaClip && ClipInfo.Success
+                        NumOutliers = ClipInfo.NumOutliers;
 
-                    % Update global KeepMask at original indices
-                    KeepMask(CurrentIndices(OutlierMask)) = false;
-                    CurrentIndices = CurrentIndices(IterKeepMask);
+                        if Args.Verbose
+                            fprintf('Sigma clipping (%s): threshold=%.1f, outliers=%d\n', ...
+                                Args.SigmaClipMethod, Args.SigmaThresh, NumOutliers);
+                        end
 
-                    CurrentObs = CurrentObs(IterKeepMask);
-                    if ~isempty(CurrentX)
-                        CurrentX = CurrentX(IterKeepMask);
-                        CurrentY = CurrentY(IterKeepMask);
+                        % MinCalibrators safeguard: stop clipping if too few would remain
+                        NRemaining = sum(~OutlierMask);
+                        SafeguardTriggered = NumOutliers > 0 && Args.MinCalibrators > 0 ...
+                            && NRemaining < Args.MinCalibrators;
+
+                        if SafeguardTriggered
+                            ConvergedSigmaClip = true;
+                            if Args.Verbose
+                                fprintf('Sigma clipping stopped: would leave %d < %d calibrators\n', ...
+                                    NRemaining, Args.MinCalibrators);
+                            end
+                        elseif NumOutliers == 0
+                            ConvergedSigmaClip = true;
+                            if Args.Verbose
+                                fprintf('Sigma clipping converged (no outliers)\n');
+                            end
+                        else
+                            % Remove outliers
+                            IterKeepMask = ~OutlierMask;
+
+                            % Update global KeepMask at original indices
+                            KeepMask(CurrentIndices(OutlierMask)) = false;
+                            CurrentIndices = CurrentIndices(IterKeepMask);
+
+                            CurrentObs = CurrentObs(IterKeepMask);
+                            if ~isempty(CurrentX)
+                                CurrentX = CurrentX(IterKeepMask);
+                                CurrentY = CurrentY(IterKeepMask);
+                            end
+
+                            % Subset CostArgs arrays for remaining observations
+                            Idx = find(strcmp(Args.CostArgs(1:2:end), 'WeightMatrix'));
+                            if ~isempty(Idx)
+                                Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
+                            end
+                            Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedMagErr'));
+                            if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
+                                Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
+                            end
+                            Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                            if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
+                                Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
+                            end
+
+                            if Args.Verbose
+                                fprintf('Removed %d outliers, %d observations remaining\n', ...
+                                        NumOutliers, length(CurrentObs));
+                            end
+                        end
                     end
 
-                    % Subset CostArgs arrays for remaining observations
-                    % WeightMatrix: [Nwvl x NCalUsed] -> subset columns
-                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'WeightMatrix'));
-                    if ~isempty(Idx)
-                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
-                    end
-                    % PrecomputedMagErr: [NCalUsed x 1] -> subset rows
-                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedMagErr'));
-                    if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
-                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
-                    end
-                    % PrecomputedSpecFluxMatrix: [Nwvl x NCalUsed] -> subset columns
-                    Idx = find(strcmp(Args.CostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
-                    if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
-                        Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
-                    end
+                    % =============================================================
+                    % FIT PARAMETERS AND COMPUTE RESIDUALS
+                    % (skip if sigma clipping just converged — previous residuals valid)
+                    % =============================================================
 
-                    if Args.Verbose
-                        fprintf('Removed %d outliers, %d observations remaining\n', ...
-                                NumOutliers, length(CurrentObs));
+                    if ~ConvergedSigmaClip
+
+                        % FIT TRANSMISSION PARAMETERS (if requested)
+                        if Args.FitTransmission && ~isempty(FreeParamIndices)
+                            if Args.Verbose
+                                fprintf('Fitting transmission parameters (nonlinear)...\n');
+                            end
+
+                            AllFunPar = Obj.getAllFunPar();
+                            CurrentTransParams = AllFunPar.Val;
+
+                            FitMask = false(size(CurrentTransParams));
+                            FitMask(FreeParamIndices) = true;
+
+                            if ~isempty(CurrentX)
+                                ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
+                                    Args.CostArgs{:}, 'TransParams', P, 'X', CurrentX, 'Y', CurrentY);
+                            else
+                                ModelFun = @(X_dummy, P) Obj.costFun(InputValues, CurrentObs, ...
+                                    Args.CostArgs{:}, 'TransParams', P);
+                            end
+
+                            NumCurrent = length(CurrentObs);
+                            X_dummy = (1:NumCurrent)';
+                            Y_target = zeros(NumCurrent, 1);
+                            Sigma_weights = ones(NumCurrent, 1);
+
+                            [OptTransParams, ~, MinimizerInfo] = tools.math.fit.lsqNonLinWithFixed(...
+                                X_dummy, Y_target, Sigma_weights, ModelFun, ...
+                                'InitPar', CurrentTransParams, ...
+                                'FitPar', FitMask, ...
+                                'Lb', AllFunPar.Min, ...
+                                'Ub', AllFunPar.Max, ...
+                                'Opts', OptimOpts);
+
+                            AllFunPar.Val = OptTransParams;
+                            Obj.setAllFunPar(AllFunPar);
+                        end
+
+                        % FIT POSITION PARAMETERS (if requested and Tran2D enabled)
+                        if Args.FitPosition && Obj.UseTran2D
+                            if Args.Verbose
+                                fprintf('Fitting position parameters (linear)...\n');
+                            end
+
+                            Obj.Tran2DObj.ParX = zeros(1, length(Obj.Tran2DObj.ParX));
+
+                            if ~isempty(CurrentX)
+                                [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, ...
+                                    Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
+                            else
+                                [~, ~, ~, BaseResiduals, BaseMagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
+                            end
+
+                            if ~isempty(BaseMagErr) && all(BaseMagErr > 0)
+                                [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
+                                    'Method', 'lscov', 'ErrMag', BaseMagErr, 'Verbose', false);
+                            else
+                                warning('CompositeFun:UnweightedPositionFit', ...
+                                    'MagErr unavailable or invalid, using unweighted position polynomial fit.');
+                                [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
+                                    'Verbose', false);
+                            end
+                        end
+
+                        % CALCULATE RESIDUALS with all fitted parameters
+                        if ~isempty(CurrentX)
+                            [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, ...
+                                Args.CostArgs{:}, 'X', CurrentX, 'Y', CurrentY);
+                        else
+                            [WeightedResiduals, Cost, PredictedFlux, UnweightedResiduals, MagErr] = Obj.costFun(InputValues, CurrentObs, Args.CostArgs{:});
+                        end
+
+                        StageRMS = sqrt(mean(UnweightedResiduals.^2));
+
+                        if Args.Verbose
+                            fprintf('Current RMS: %.4f, NCalUsed: %d\n', StageRMS, length(UnweightedResiduals));
+                        end
                     end
-                else
-                    % No sigma clipping, exit after first iteration
-                    break;
                 end
             end
 
@@ -3327,7 +3335,8 @@ classdef CompositeFun < handle
             %   OptSeq(i).SigmaClip - Enable sigma clipping for this stage
             %   OptSeq(i).SigmaThresh - Threshold for sigma clipping
             %   OptSeq(i).SigmaIter - Number of sigma clipping iterations
-            %   OptSeq(i).WeightedClipping - Use weighted residuals for clipping (default true)
+            %   OptSeq(i).SigmaClipMethod - 'median' or 'weighted' (defaults to Args.SigmaClipMethod)
+            %   OptSeq(i).MinCalibrators - Min calibrators to keep (defaults to Args.MinCalibrators)
             %   OptSeq(i).Description - Description of the stage
             % Author : D. Kovaleva (Nov 2025)
 
@@ -3378,11 +3387,17 @@ classdef CompositeFun < handle
                 SigmaClip = Stage.SigmaClip;
                 SigmaThresh = Stage.SigmaThresh;
                 SigmaIter = Stage.SigmaIter;
-                % WeightedClipping: use stage-specific value if set, otherwise use Args
-                if isfield(Stage, 'WeightedClipping')
-                    WeightedClipping = Stage.WeightedClipping;
+                % SigmaClipMethod: use stage-specific value if set, otherwise use Args
+                if isfield(Stage, 'SigmaClipMethod')
+                    SigmaClipMethod = Stage.SigmaClipMethod;
                 else
-                    WeightedClipping = Args.WeightedClipping;
+                    SigmaClipMethod = Args.SigmaClipMethod;
+                end
+                % MinCalibrators: use stage-specific value if set, otherwise use Args
+                if isfield(Stage, 'MinCalibrators')
+                    MinCalibrators = Stage.MinCalibrators;
+                else
+                    MinCalibrators = Args.MinCalibrators;
                 end
 
                 % Detect field correction stage (empty freeparams)
@@ -3397,9 +3412,7 @@ classdef CompositeFun < handle
                     end
                 end
 
-                if IsFieldCorrectionStage
-                    Method = 'linear';
-                elseif IsNormOnlyLinear
+                if IsFieldCorrectionStage || IsNormOnlyLinear
                     Method = 'linear';
                 else
                     Method = 'nonlinear';
@@ -3421,109 +3434,146 @@ classdef CompositeFun < handle
                         fprintf('  Using analytical solution for Norm parameter\n');
                     end
 
-                    % Get current Norm value and parameter index
+                    % Get current Norm parameter index
                     AllFunPar = Obj.getAllFunPar();
                     NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
-                    OriginalNorm = AllFunPar.Val(NormIdx);
 
                     % Sigma clipping loop for Norm-only stage
-                    NumIterNorm = SigmaClip * SigmaIter + ~SigmaClip;
+                    % Loop structure: initial fit, then [clip → refit] × SigmaIter
+                    %   Residuals = Residuals_base - MeanResidual
+                 
+                    NumIterNorm = 1 + SigmaClip * SigmaIter;
                     CurrentObsNorm = CurrentObs;
                     CurrentXNorm = CurrentX;
                     CurrentYNorm = CurrentY;
                     CurrentCostArgsNorm = CurrentCostArgs;
                     KeepMaskNorm = true(length(CurrentObs), 1);
+                    ConvergedNorm = false;
 
                     for IterNorm = 1:NumIterNorm
-                        if Args.Verbose && SigmaClip
-                            fprintf('  Norm sigma clipping iteration %d/%d\n', IterNorm, SigmaIter);
-                        end
+                        if ~ConvergedNorm
 
-                        % Set Norm=1 temporarily to get base residuals
-                        AllFunPar.Val(NormIdx) = 1.0;
-                        Obj.setAllFunPar(AllFunPar);
-
-                        % Compute residuals with Norm=1
-                        % Get unweighted residuals (4th output) and MagErr (5th output)
-                        if ~isempty(CurrentXNorm)
-                            [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
-                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
-                        else
-                            [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
-                                CurrentCostArgsNorm{:});
-                        end
-
-                        % Analytical solution using weighted mean if errors available
-                        % Weighted mean: Delta m = Sigma (wᵢ × rᵢ) / Sigma (wᵢ) where wᵢ = 1/sigmaᵢ^2
-                        if ~isempty(MagErr_base) && all(MagErr_base > 0)
-                            Weights = 1 ./ (MagErr_base.^2);
-                            MeanResidual = sum(Residuals_base .* Weights) / sum(Weights);
-                        else
-                            % Fall back to unweighted mean if no errors
-                            MeanResidual = mean(Residuals_base);
-                        end
-                        Norm_opt = 10^(-MeanResidual / 2.5);
-
-                        % Update Norm in model
-                        AllFunPar.Val(NormIdx) = Norm_opt;
-                        Obj.setAllFunPar(AllFunPar);
-
-                        if Args.Verbose
-                            fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
-                        end
-
-                        % Compute final residuals with optimal Norm
-                        % Capture weighted, unweighted residuals and PredictedFlux
-                        if ~isempty(CurrentXNorm)
-                            [WeightedRes, ~, PredictedFluxNorm, Residuals, MagErr_norm] = Obj.costFun(InputValues, CurrentObsNorm, ...
-                                CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
-                        else
-                            [WeightedRes, ~, PredictedFluxNorm, Residuals, MagErr_norm] = Obj.costFun(InputValues, CurrentObsNorm, ...
-                                CurrentCostArgsNorm{:});
-                        end
-
-                        % Sigma clipping: use weighted residuals if enabled and errors available
-                        if SigmaClip && IterNorm < NumIterNorm
-                            if WeightedClipping && ~isempty(MagErr_norm)
-                                % Weighted: normalized residuals, threshold directly in sigma
-                                OutlierMask = abs(WeightedRes) > SigmaThresh;
-                            else
-                                % Unweighted: use std-based threshold
-                                ResidualStd = std(Residuals);
-                                OutlierMask = abs(Residuals) > SigmaThresh * ResidualStd;
+                            % SIGMA CLIPPING (skip first iteration — no residuals yet)
+                            if SigmaClip && IterNorm > 1
+                                % Skip clipping if already below MinCalibrators
+                                if MinCalibrators > 0 && length(CurrentObsNorm) <= MinCalibrators
+                                    ConvergedNorm = true;
+                                    if Args.Verbose
+                                        fprintf('  Sigma clipping skipped: %d calibrators <= %d minimum\n', ...
+                                            length(CurrentObsNorm), MinCalibrators);
+                                    end
+                                end
                             end
 
-                            if any(OutlierMask)
-                                % Update KeepMask
-                                CurrentKeep = ~OutlierMask;
-                                KeepMaskNorm(KeepMaskNorm) = CurrentKeep;
-
-                                % Subset data
-                                CurrentObsNorm = CurrentObsNorm(CurrentKeep);
-                                if ~isempty(CurrentXNorm)
-                                    CurrentXNorm = CurrentXNorm(CurrentKeep);
-                                    CurrentYNorm = CurrentYNorm(CurrentKeep);
+                            if SigmaClip && IterNorm > 1 && ~ConvergedNorm
+                                if Args.Verbose
+                                    fprintf('  Norm sigma clipping iteration %d/%d\n', IterNorm-1, SigmaIter);
                                 end
 
-                                % Subset CostArgs arrays
-                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
-                                if ~isempty(Idx)
-                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                % Sigma clipping via helper function
+                                [OutlierMask, ClipInfo] = tools.math.stat.sigmaClip(...
+                                    Residuals, SigmaThresh, ...
+                                    'Method', SigmaClipMethod, 'Errors', MagErr_base);
+
+                                if ~ClipInfo.Success
+                                    ConvergedNorm = true;
+                                    Obj.addStatus('fitMultiStage', 'warning', ...
+                                        sprintf('Norm sigma clipping failed: %s', ClipInfo.ErrorMsg), ...
+                                        'CompositeFun:SigmaClipFailed');
+                                    if Args.Verbose
+                                        fprintf('  Sigma clipping failed: %s; skipping\n', ClipInfo.ErrorMsg);
+                                    end
                                 end
-                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedMagErr'));
-                                if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
-                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
-                                end
-                                Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedSpecFluxMatrix'));
-                                if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
-                                    CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
-                                end
+                            end
+
+                            if SigmaClip && IterNorm > 1 && ~ConvergedNorm && ClipInfo.Success
+                                NumOutliers = ClipInfo.NumOutliers;
 
                                 if Args.Verbose
-                                    fprintf('  Clipped %d outliers (%.1f sigma)\n', sum(OutlierMask), SigmaThresh);
+                                    fprintf('  Sigma clipping (%s): threshold=%.1f, outliers=%d\n', ...
+                                        SigmaClipMethod, SigmaThresh, NumOutliers);
                                 end
-                            else
-                                break;  % No more outliers
+
+                                % MinCalibrators safeguard
+                                NRemaining = sum(~OutlierMask);
+                                SafeguardTriggered = NumOutliers > 0 && MinCalibrators > 0 ...
+                                    && NRemaining < MinCalibrators;
+
+                                if SafeguardTriggered
+                                    ConvergedNorm = true;
+                                    if Args.Verbose
+                                        fprintf('  Sigma clipping stopped: would leave %d < %d calibrators\n', ...
+                                            NRemaining, MinCalibrators);
+                                    end
+                                elseif NumOutliers == 0
+                                    ConvergedNorm = true;
+                                    if Args.Verbose
+                                        fprintf('  Norm sigma clipping converged (no outliers)\n');
+                                    end
+                                else
+                                    CurrentKeep = ~OutlierMask;
+                                    KeepMaskNorm(KeepMaskNorm) = CurrentKeep;
+
+                                    CurrentObsNorm = CurrentObsNorm(CurrentKeep);
+                                    if ~isempty(CurrentXNorm)
+                                        CurrentXNorm = CurrentXNorm(CurrentKeep);
+                                        CurrentYNorm = CurrentYNorm(CurrentKeep);
+                                    end
+
+                                    Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'WeightMatrix'));
+                                    if ~isempty(Idx)
+                                        CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                    end
+                                    Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedMagErr'));
+                                    if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
+                                        CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
+                                    end
+                                    Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                                    if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
+                                        CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                    end
+
+                                    if Args.Verbose
+                                        fprintf('  Clipped %d outliers (%.1f sigma)\n', NumOutliers, SigmaThresh);
+                                    end
+                                end
+                            end
+
+                            % FIT NORM AND COMPUTE RESIDUALS (skip if just converged)
+                            if ~ConvergedNorm
+                                % Set Norm=1 temporarily to get base residuals
+                                AllFunPar.Val(NormIdx) = 1.0;
+                                Obj.setAllFunPar(AllFunPar);
+
+                                if ~isempty(CurrentXNorm)
+                                    [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                        CurrentCostArgsNorm{:}, 'X', CurrentXNorm, 'Y', CurrentYNorm);
+                                else
+                                    [~, ~, ~, Residuals_base, MagErr_base] = Obj.costFun(InputValues, CurrentObsNorm, ...
+                                        CurrentCostArgsNorm{:});
+                                end
+
+                                % Analytical solution: weighted mean of base residuals
+                                if ~isempty(MagErr_base) && all(MagErr_base > 0)
+                                    Weights = 1 ./ (MagErr_base.^2);
+                                    MeanResidual = sum(Residuals_base .* Weights) / sum(Weights);
+                                else
+                                    MeanResidual = mean(Residuals_base);
+                                end
+                                Norm_opt = 10^(-MeanResidual / 2.5);
+
+                                % Set optimal Norm in model
+                                AllFunPar.Val(NormIdx) = Norm_opt;
+                                Obj.setAllFunPar(AllFunPar);
+
+                                % Residuals with optimal Norm (analytical, exact):
+                                % mag(Norm_opt) - mag(1) = -2.5*log10(Norm_opt) = MeanResidual
+                                % so Residuals_final = Residuals_base - MeanResidual
+                                Residuals = Residuals_base - MeanResidual;
+
+                                if Args.Verbose
+                                    fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
+                                end
                             end
                         end
                     end
@@ -3532,19 +3582,28 @@ classdef CompositeFun < handle
                     StageRMS = std(Residuals);
                     NumClipped = sum(~KeepMaskNorm);
 
+                    % Weighted residuals for diagnostics
+                    if ~isempty(MagErr_base) && all(MagErr_base > 0)
+                        WeightedRes = Residuals ./ MagErr_base;
+                        StageChi2 = sum(WeightedRes.^2);
+                    else
+                        WeightedRes = [];
+                        StageChi2 = sum(Residuals.^2);
+                    end
+
                     StageResult = struct();
                     StageResult.Cost = sum(Residuals.^2);
                     StageResult.RMS = StageRMS;
                     StageResult.Residuals = Residuals;
-                    StageResult.WeightedResiduals = [];  % No weighted fitting in normalization stage
+                    StageResult.WeightedResiduals = WeightedRes;
                     StageResult.NCalUsed = length(CurrentObsNorm);
                     StageResult.NumClipped = NumClipped;
                     StageResult.KeepMask = KeepMaskNorm;
-                    StageResult.ConvergedSigmaClip = true;
-                    StageResult.Chi2 = sum(Residuals.^2);
+                    StageResult.ConvergedSigmaClip = ConvergedNorm;
+                    StageResult.Chi2 = StageChi2;
                     StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
-                    StageResult.MagErr = MagErr_norm;  % Magnitude errors from error propagation
-                    StageResult.PredictedFlux = PredictedFluxNorm;  % Model-predicted flux
+                    StageResult.MagErr = MagErr_base;
+                    StageResult.PredictedFlux = [];  % Not computed (would require extra costFun call)
 
                     if Args.Verbose
                         fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
@@ -3560,7 +3619,8 @@ classdef CompositeFun < handle
                         'SigmaClip', SigmaClip, ...
                         'SigmaThresh', SigmaThresh, ...
                         'SigmaIter', SigmaIter, ...
-                        'WeightedClipping', WeightedClipping, ...
+                        'SigmaClipMethod', SigmaClipMethod, ...
+                        'MinCalibrators', MinCalibrators, ...
                         'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'Verbose', Args.Verbose);
@@ -3572,15 +3632,18 @@ classdef CompositeFun < handle
                     % Set FitPar for parameters specified in this stage
                     StageHasError = false;
                     for I = 1:length(FreeParamsStage)
-                        FunctionName = FreeParamsStage(I).Function;
-                        ParameterName = FreeParamsStage(I).Parameter;
-                        Idx = find(strcmp(AllFunPar.Name, ParameterName), 1);
-                        if isempty(Idx)
-                            Obj.addStatus('fitMultiStage', 'error', sprintf('Parameter "%s" (from function "%s") not found in Model', ParameterName, FunctionName), 'CompositeFun:ParameterNotFound');
-                            StageHasError = true;
-                            break;
+                        if ~StageHasError
+                            FunctionName = FreeParamsStage(I).Function;
+                            ParameterName = FreeParamsStage(I).Parameter;
+                            Idx = find(strcmp(AllFunPar.Name, ParameterName), 1);
+                            if isempty(Idx)
+                                Obj.addStatus('fitMultiStage', 'error', sprintf('Parameter "%s" (from function "%s") not found in Model', ParameterName, FunctionName), 'CompositeFun:ParameterNotFound');
+                                StageHasError = true;
+                            end
+                            if ~StageHasError
+                                AllFunPar.FitPar(Idx) = true;
+                            end
                         end
-                        AllFunPar.FitPar(Idx) = true;
                     end
 
                     % If parameter lookup failed, create failure result; otherwise fit
@@ -3611,7 +3674,8 @@ classdef CompositeFun < handle
                             'SigmaClip', SigmaClip, ...
                             'SigmaThresh', SigmaThresh, ...
                             'SigmaIter', SigmaIter, ...
-                            'WeightedClipping', WeightedClipping, ...
+                            'SigmaClipMethod', SigmaClipMethod, ...
+                            'MinCalibrators', MinCalibrators, ...
                             'OptimizationSequence', Stages(IStage), ...
                             'OptimOptions', OptimOpts, ...
                             'Verbose', Args.Verbose);

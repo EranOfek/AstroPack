@@ -30,7 +30,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         Gain                      = 'GAIN';  % keyword, scalar, vector [e/ADU]
         Args.CreateNewObj logical = false;
         Args.getValArgs cell      = {};
-        Args.DataProp             = {'Image','Var','Back'};
+        Args.DataProp             = {'ImageData','VarData','BackData'}; %{'Image','Var','Back'}; 
         Args.replaceValArgs cell  = {};
         Args.OrigGainKey          = 'ORIGGAIN';
         Args.DefaultGain          = 1;
@@ -54,7 +54,7 @@ function Result = gainCorrect(Obj, Gain, Args)
             Igain   = min(Iobj, Ngain);
             GainVal = Gain(Igain);
         else
-            GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:});
+            GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:}, 'UseDict',false);
         end
         if isnan(GainVal)
             GainVal = Args.DefaultGain; 
@@ -64,7 +64,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         
         % divide image by gain
         for Iprop=1:1:Nprop
-            Result(Iobj).(Args.DataProp{Iprop}) = Result(Iobj).(Args.DataProp{Iprop}).*GainVal;
+            Result(Iobj).(Args.DataProp{Iprop}).Data = Result(Iobj).(Args.DataProp{Iprop}).Data.*GainVal;
         end
         
         % update header keywords

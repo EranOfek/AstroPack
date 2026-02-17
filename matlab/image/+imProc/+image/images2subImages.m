@@ -29,7 +29,7 @@ function [Result] = images2subImages(AI, Args)
         Args.UpdateMask logical     = true;
         Args.NearEdge_BitName char  = 'NearEdge';
         Args.Overlap_BitName char   = 'Overlap';
-        Args.BitDict BitDictionary  = BitDictionary('BitMask.Image.Default');
+        Args.BitDict                = BitDictionary('BitMask.Image.Default');
 
         Args.UpdateCat logical      = true;
         Args.UpdateXY logical       = true;
@@ -109,11 +109,11 @@ function [Result] = images2subImages(AI, Args)
 
                 % near edge
                 Flag   = imUtil.ccdsec.selectNearEdges(SizeIJ, Args.EdgeDist);
-                Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.NearEdge_BitName, true, 'CreateNewObj',false);
+                Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.NearEdge_BitName, true, 'DefBitDict',Args.BitDict, 'CreateNewObj',false);
 
                 % ovelaping
                 Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, Args.NewNoOverlap(Isub,:), false);
-                Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.Overlap_BitName, true, 'CreateNewObj',false);
+                Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.Overlap_BitName, true, 'DefBitDict',Args.BitDict, 'CreateNewObj',false);
 
             end % for Isub=1:1:Nsub
 

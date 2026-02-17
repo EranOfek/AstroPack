@@ -353,7 +353,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % Mask pixels with less than X% of the images
             if ~isempty(Args.CoaddLessFrac)
                 NregIm = numel(RegisteredImages);
-                FlagCoaddLess = ResultCoadd(Ifields).CoaddN<(NregIm.*Args.CoaddLessFrac);
+                FlagCoaddLess = squeeze(ResultCoadd(Ifields).CoaddN<(NregIm.*Args.CoaddLessFrac));
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
 

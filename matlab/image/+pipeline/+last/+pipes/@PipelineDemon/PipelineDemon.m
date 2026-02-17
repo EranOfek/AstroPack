@@ -2448,7 +2448,7 @@ classdef PipelineDemon < Component
                 Tstart = clock;
 
                 % executing pipelineI
-                [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+                [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
                 ProcImageList = TableRaw.FileNames;                
                 RunTime = etime(clock, Tstart);
                 MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished executing pipeline for visit');
@@ -2532,7 +2532,8 @@ classdef PipelineDemon < Component
             [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables);  % 20 s
 
             % Coadd
-            FN_C.SubDir = FN_I.SubDir;
+            FN_C.SubDir  = FN_I.SubDir;
+            FN_C.Counter = 0;
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader);  % 3 s
             
             % Asteroids:
@@ -2736,7 +2737,7 @@ classdef PipelineDemon < Component
                 
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
-                Args.pipelineIArgs  = {'UseParfor',false};
+                Args.pipelineIArgs  = {'UseParfor',true};
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 
@@ -2819,7 +2820,7 @@ classdef PipelineDemon < Component
                 Args.SaveEpochProduct  = ["Cat"]; %{[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
                 Args.SaveVisitProduct  = ["Image","Mask","Cat","PSF"];      % 'all'
                 Args.SaveEpochHeader  = true; %[true, false, false, true];
-                Args.SaveVisitHeader  = [true, false, false, true];
+                Args.SaveVisitHeader  = [true, false, true, false];
 
                 Args.SaveMergedCat     = false;
                 Args.SaveMergedMat     = true;

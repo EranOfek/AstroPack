@@ -31,6 +31,7 @@ switch lower(Method)
     case 'impaint'
         Image = nan(SizeXY(2),SizeXY(1));
         Ind = imUtil.image.sub2ind_fast([SizeXY(2), SizeXY(1)],round(GridVal(:,2)), round(GridVal(:,1)));
+        %Ind = imUtil.image.mex.sub2ind_mex([SizeXY(2), SizeXY(1)],round(GridVal(:,2)), round(GridVal(:,1)));
         Image(Ind) = GridVal(:,3);
         Image = imUtil.trans.iminterp(Image);
     otherwise

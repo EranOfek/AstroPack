@@ -50,10 +50,12 @@ function Image=interpImageConvPix(Image, X, Y, Args)
         % find NaNs
         K = find(isnan(Image));
         [Y, X] = imUtil.image.ind2sub_fast(SizeIm, K);
+        %[Y, X] = imUtil.image.mex.ind2sub_mex(SizeIm, K);
     else
         if isempty(Y)
             % assume X is the linear index of the pixel to interpolate
             [Y, X] = imUtil.image.ind2sub_fast(SizeIm, X);
+            %[Y, X] = imUtil.image.mex.ind2sub_mex(SizeIm, X);
         end
     end
     
@@ -87,6 +89,7 @@ function Image=interpImageConvPix(Image, X, Y, Args)
         Norm2          = squeeze(sum(KernelNaN, [1 2], 'omitnan'));
     
         K        = imUtil.image.sub2ind_fast(SizeIm, RoundY, RoundX);
+        %K        = imUtil.image.mex.sub2ind_mex(SizeIm, RoundY, RoundX);
         Image(K) = Sum2./Norm2 .* NormKernel;
     end
 end

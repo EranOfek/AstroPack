@@ -1,4 +1,4 @@
-function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImageList, CI, Args)
+function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -6,11 +6,12 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     arguments
         RawImageList                       = [];
         CI                                 = [];   
-        Args.UseParfor                     = false;
+        Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {};
         Args.basicCalibArgs                = {};
+        Args.KeyMidJD                      = 'MIDJD';
 
         % Sub image partitioning
         Args.SubSizeXY                     = [1716 1716]; % tested using: RR=imUtil.filter.fft_size_timing([Size Size],false,10000);
@@ -66,29 +67,37 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     Nepoch = numel(RawImageList);
     % load images and check quality
     % AI putput is of size [Nimages x 1]
-    [AI, TableForDB, TableHeader] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+    [AI, TableForDB, TableHeader, JD_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
     TableRaw = [TableHeader, TableForDB];
     % basic calibration (bias, flat,...) 
-    AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}); %17.1s
-
+    % FixJD false, since already done in prePrep
+    AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
     
+
+    % Add MIDJD to header % 0.03s
+    Nepoch = numel(AI);
+    for Iepoch=1:1:Nepoch
+        AI(Iepoch).HeaderData.insertKey({Args.KeyMidJD, JD_AI(Iepoch)});
+    end
 
     % break images into sub images
     % 1st dim is epoch; 2nd dim is sub image
     % include sub image partitioning
     if isempty(Args.EdgesCCDSEC)
         SizeXY = fliplr(size(AI(1).ImageData.Data));
-        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
+        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
     end
-    AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap);  % 8.9s
-    
+    % No WCS/PSF/Cat so no need to update them
+    AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap,...
+                                            'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
     [Nepoch, Nsub] = size(AllSI);
     Nobj = numel(AllSI);
 
-    % get JD of all epoch - once
-    JD = AI.julday;
-    JD = repmat(JD(:), 1, Nsub); % faster than getting the JD for AllSI
     
+    % get JD of all epoch - once
+    JD = repmat(JD_AI(:), 1, Nsub); % faster than getting the JD for AllSI
+
+
     % initiate parpool if needed
     PP = [];
     if Args.UseParfor
@@ -110,28 +119,27 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     if isempty(PP)
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
                                                     'JD',JD,...
-                                                    'AddSkyCoo',false);  % 513 s
+                                                    'AddSkyCoo',false);  % 466 s
        
     else
         %tic;
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
-                                                    'AddSkyCoo',false);  % 193 s (on 16 cores)
+                                                    'AddSkyCoo',false);  % 119 s (on 16 cores)
         end
         %toc
     end
 
-
     % solve astrometry of all images
-    [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 24s
-
+    [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
     % add coordinates to catalogs
-    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');
+    AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
+    
     
     % Update Airmass header keyword to based on measured crop center
-    AllSI = imProc.header.addAirMass(AllSI, 'JD',JD);
-    
+    AllSI = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested'); % 0.3s
+
     % Individual sub images : quality           
     % astrometry
     IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);  % 1.3 s
@@ -154,19 +162,27 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
     % background, var: written as part of the background estimation
     AllSI = imProc.header.writeStat2Header(AllSI, 'WriteBack',false);  % 4.2s
 
+    % ADD - IsGoodWCS, IsGood, MaxFracGrad to image header
+
+
     % forced photometry
     % forced photometry on pre-selected targets
     if ~isempty(Args.ForcedPhotCat)
         %tic;
         MidEpoch = ceil(Nepoch.*0.5);
         CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));  % 0.2
+        
+        ColNamesFF = AllSI(1).CatData.ColNames;
 
-        AllFP = AstroCatalog([Nepoch, Nsub]);
+        %AllFP = AstroCatalog([Nepoch, Nsub]);
         for Isub=1:1:Nsub
             % for each sub image - run over all epochs
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
-            AllFP(:,Isub) = imProc.sources.forcedPhot(AllSI(:,Isub), 'OutType','AstroCatalog', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, Args.forcedPhotArgs{:});  % 10 s [for all in loop]
-
+            %if strcmpi(Args.OutputType, 'concatai')
+                AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 9.1 s [for all in loop]
+            %else
+            %    error('Currently, adding forced phot is supported only using the ConcatAI option');
+            %end
             %for Iepoch=1:1:Nepoch
             %    AllSI(Iepoch,Isub).CatData.insertCol(AllFP)
             %end
@@ -180,9 +196,14 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
         % XXX?
 
         % mege into a single catalog:
-        AllForcedPhot = AllFP(:).merge; % 0.05s
+        %AllForcedPhot = AllFP(:).merge; % 0.05s
     else
-        AllForcedPhot = [];
+        %AllForcedPhot = [];
+    end
+
+    % Sort all catalogs by Dec
+    for Iim=1:1:Nsub.*Nepoch
+        AllSI(Iim).CatData.sortrows('Dec');  % 0.16s (for all in loop)
     end
 
     % match external / too expensive
@@ -285,7 +306,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = pipelineI(RawImag
 
     % coadd: photometric calibration
     % Photometric calibration of coadd images:
-    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false);
+    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false);
 
     % proapage photometric calibration to individual images
 

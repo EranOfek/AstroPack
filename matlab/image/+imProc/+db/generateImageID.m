@@ -68,13 +68,13 @@ function [Obj, ID] = generateImageID(Obj, Args)
             BitNum(Isub) = Args.FormatSt(Isub).BitNum;
             if BitNum(Isub)>0
                 % include in keyword value in ID
-                if ~isempty(Args.JD) && strcmp(Args.FormatSt(Isub).Key,'JD');
+                if ~isempty(Args.JD) && strcmp(Args.FormatSt(Isub).Key,'JD')
                     TmpVal = Args.JD(Iobj);
                 else
                     if     isa(Obj, 'AstroImage')
-                        TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key );
+                        TmpVal       = Obj(Iobj).HeaderData.getVal( Args.FormatSt(Isub).Key, 'UseDict',false);
                     elseif isa(Obj, 'AstroHeader')
-                        TmpVal       = Obj(Iobj).getVal( Args.FormatSt(Isub).Key );
+                        TmpVal       = Obj(Iobj).getVal( Args.FormatSt(Isub).Key, 'UseDict',false );
                     else
                         error('Incorrect object type');
                     end

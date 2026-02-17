@@ -62,8 +62,8 @@ classdef PhotCalibTrans < Component
     %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Pre-computation Methods (for optimization performance):
-    %     computeMagErrCalib - Pre-compute magnitude errors for all calibrators
-    %     computeInterpolatedSpectra - Pre-compute interpolated spectra matrix for all calibrators
+    %     propagateCalibratorMagErr - Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
+    %     resampleCalibratorSpectra - Resample calibrator reference spectra onto the transmission model wavelength grid
     %   Header I/O Methods:
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
@@ -103,7 +103,7 @@ classdef PhotCalibTrans < Component
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
                                 %   .SpecFluxMatrix [N_TransWvl x N_calib] - Pre-computed interpolated spectra
-                                %        (set by calibrate, computed by computeInterpolatedSpectra)
+                                %        (set by calibrate, computed by resampleCalibratorSpectra)
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
@@ -196,7 +196,9 @@ classdef PhotCalibTrans < Component
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
             %            'WeightingMode' - 'none', 'spectral', 'flux', 'combined'. Default is 'spectral'.
             %            'FluxErrColName' - Column name for flux errors. Default is 'FluxErr'.
-            %            'WeightedClipping' - Use weighted residuals for sigma clipping. Default is true.
+            %            'SigmaClipMethod' - Sigma clipping method:
+            %                   'median' - Astropy-style iterative clipping (default)
+            %                   'weighted' - Threshold on error-normalized residuals
             %            'FluxErrorNorm' - Normalization for synthetic flux in error calc. Default is 1.0.
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
@@ -209,9 +211,8 @@ classdef PhotCalibTrans < Component
             %          PC = PC.calibrate(AI);
             %          % Without position correction:
             %          PC = PC.calibrate(AI, 'UseTran2D', false);
-            %          % With unweighted sigma clipping:
-            %          PC = PC.calibrate(AI, 'WeightedClipping', false);
-
+            %          % With weighted sigma clipping:
+            %          PC = PC.calibrate(AI, 'SigmaClipMethod', 'weighted');
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
@@ -232,7 +233,7 @@ classdef PhotCalibTrans < Component
                 % Weighting options
                 Args.WeightingMode = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
                 Args.FluxErrColName = 'FluxErr'  % Column name in SourceData for flux errors (relative errors)
-                Args.WeightedClipping logical = true  % Use weighted residuals for sigma clipping
+                Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
                 Args.FluxErrorNorm = 0.5  % Normalization for synthetic flux in error calculation
 
                 % Magnitude system
@@ -254,40 +255,12 @@ classdef PhotCalibTrans < Component
             IsAstroImage = isa(Cat, 'AstroImage');
 
             % ====================================================================
-            % STEP 1: Build TransModel structure
+            % STEP 1: Extract metadata
             % ====================================================================
 
             if Args.Verbose
-                fprintf('Step 1: Building transmission model structure...\n');
+                fprintf('Step 1: Extracting observation metadata...\n');
             end
-
-            % Load catalog
-            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun();
-
-            % Get transmission function list and optimization sequence
-            FunList = FunCat.(Args.FunListName);
-            OptSeq = StageCat.(Args.OptSeqName);
-
-            if Args.Verbose
-                if ~isempty(Args.CustomFunList)
-                    fprintf('  Using custom function list (%d functions)\n', length(FunList));
-                else
-                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
-                end
-                if ~isempty(Args.CustomOptSeq)
-                    fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
-                else
-                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
-                end
-            end
-
-            if Args.Verbose
-                fprintf('  Transmission functions and optimization sequence configured\n\n');
-            end
-
-            % ====================================================================
-            % STEP 2: Extract metadata
-            % ====================================================================
 
             % Extract metadata as cell array {key1, val1, key2, val2, ...}
             if iscell(Args.Metadata)
@@ -347,14 +320,51 @@ classdef PhotCalibTrans < Component
             end
 
             % ====================================================================
+            % STEP 2: Build TransModel structure with observation metadata
+            % ====================================================================
+
+            if Args.Verbose
+                fprintf('\nStep 2: Building transmission model structure...\n');
+            end
+
+            % Compute zenith angle from airmass: sec(z) = AirMass → z = acosd(1/AirMass)
+            ZenithAngle = acosd(1 / max(Obj.AirMass, 1.0));
+
+            % Load catalog with actual observation metadata
+            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun(...
+                'ZenithAngle_deg', ZenithAngle, ...
+                'Pressure_mbar', Obj.Pressure, ...
+                'Temperature_C', Obj.Temp);
+
+            % Get transmission function list and optimization sequence
+            FunList = FunCat.(Args.FunListName);
+            OptSeq = StageCat.(Args.OptSeqName);
+
+            if Args.Verbose
+                if ~isempty(Args.CustomFunList)
+                    fprintf('  Using custom function list (%d functions)\n', length(FunList));
+                else
+                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
+                end
+                if ~isempty(Args.CustomOptSeq)
+                    fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
+                else
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
+                end
+                fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
+            end
+
+            if Args.Verbose
+                fprintf('  Transmission functions and optimization sequence configured\n\n');
+            end
+
+            % ====================================================================
             % STEP 3: Build TransModel with real metadata
             % ====================================================================
 
-            % Build MetaValues from object properties (cell array format)
-            % Properties contain either extracted header values or class defaults
-            % Calculate Zenith angle from AirMass for atmospheric model
-            ZenithAngle_deg = acosd(1.0 / Obj.AirMass);
-            MetaValues = {'ZenithAngle_deg', ZenithAngle_deg, ...
+            % MetaValues for CompositeFun.model (already set in FunCatalog
+            % via predefSeqCompositeFun, kept here for backward compatibility)
+            MetaValues = {'ZenithAngle_deg', ZenithAngle, ...
                           'Pressure_mbar', Obj.Pressure, ...
                           'Temperature_C', Obj.Temp};
 
@@ -428,7 +438,7 @@ classdef PhotCalibTrans < Component
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
-                PrecomputedMagErr = Obj.computeMagErrCalib(Flux, FluxErrVector, ...
+                PrecomputedMagErr = Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
                     'WeightingMode', Args.WeightingMode, ...
                     'ExpTime', ExpTime_eff, ...
                     'FluxErrorNorm', Args.FluxErrorNorm);
@@ -444,7 +454,7 @@ classdef PhotCalibTrans < Component
 
                 % Pre-compute interpolated spectra matrix (expensive, do once)
                 % This avoids recalculating interpolation on every costFun call
-                Obj.SpecData.SpecFluxMatrix = Obj.computeInterpolatedSpectra();
+                Obj.SpecData.SpecFluxMatrix = Obj.resampleCalibratorSpectra();
 
                 % Setup CostArgs for TransmissionMode
                 % MagErr and SpecFluxMatrix pre-computed to avoid repeated calculations
@@ -461,7 +471,7 @@ classdef PhotCalibTrans < Component
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
-                    'WeightedClipping', Args.WeightedClipping, ...
+                    'SigmaClipMethod', Args.SigmaClipMethod, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -1346,23 +1356,31 @@ classdef PhotCalibTrans < Component
             ParamsInfo.WasFitted = WasFitted(:);
         end
 
-        function MagErr = computeMagErrCalib(Obj, Flux, FluxErrVector, Args)
-            % Pre-compute magnitude errors for all calibrators (expensive, do once)
-            % This avoids recalculating error propagation on every costFun call.
+        function MagErr = propagateCalibratorMagErr(Obj, Flux, FluxErrVector, Args)
+            % Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
+            % Description: Combines Gaia XP spectral errors (through reference
+            %              transmission) and observed flux errors into a single
+            %              MagErr vector, used as weights in the cost function
+            %              during optimization. Called once before fitting to
+            %              avoid repeated error propagation.
             % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
             %          - Flux - Observed flux values [photons] [N_calib x 1]
             %          - FluxErrVector - Relative flux errors [N_calib x 1] (can be [])
             %          * ...,key,val,...
-            %            'WeightingMode' - 'spectral', 'flux', 'combined', 'none'. Default is 'spectral'.
+            %            'WeightingMode' - Error sources to include:
+            %                   'spectral' - Gaia XP spectral errors only (default)
+            %                   'flux'     - Observed flux errors only
+            %                   'combined' - Quadrature sum of both
+            %                   'none'     - No weighting (returns [])
             %            'ExpTime' - Effective exposure time [s]. Default uses Obj.ExpTime/Obj.NCoadd.
             %            'RefTransmissionFun' - Function handle for reference transmission.
             %                   Default is @telescope.optics.refTransmissionLAST.
-            %            'FluxErrorNorm' - Normalization constant for synthetic flux in error
-            %                   calculation. Scales synthetic flux to match model normalization.
-            %                   Default is 0.5
-            % Output : - MagErr - Magnitude errors [N_calib x 1]
+            %            'FluxErrorNorm' - Effective area scaling for synthetic flux
+            %                   in error calculation [dimensionless]. Default is 0.5.
+            % Output : - MagErr - Per-calibrator magnitude uncertainties [N_calib x 1],
+            %                     or [] if WeightingMode is 'none'
             % Author : D. Kovaleva (Jan 2026)
-            % Example: MagErr = PC.computeMagErrCalib(Flux, FluxErrVector, 'WeightingMode', 'spectral');
+            % Example: MagErr = PC.propagateCalibratorMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
 
             arguments
                 Obj
@@ -1418,7 +1436,7 @@ classdef PhotCalibTrans < Component
             % Get reference transmission (for error propagation)
             T_ref_vec = Args.RefTransmissionFun(SpecWvl_Integration);  % [N_wvl x 1]
 
-            % Scaling factor (NSigma = 3 in Garrappa et al. 2025)
+            % Scaling factor 
             NSigma = 3;
 
             MagErr_spectral = [];
@@ -1461,7 +1479,7 @@ classdef PhotCalibTrans < Component
                 Dt = ExpTime_eff;
                 Ageom = Obj.Aperture;
                 PredictedFlux_err = Args.FluxErrorNorm * Dt * Ageom * sqrt(sum((NSigma * ErrIntegrand .* dLambda(:)').^2, 2)) / B;
-
+              
                 % Convert to magnitude error
                 MagErr_spectral = 2.5 * log10(1 + PredictedFlux_err ./ Flux);
                 MagErr_spectral(isinf(MagErr_spectral)) = 100;
@@ -1499,17 +1517,19 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function SpecFluxMatrix = computeInterpolatedSpectra(Obj, Args)
-            % Pre-compute interpolated spectra matrix for all calibrators (expensive, do once)
-            % This avoids recalculating interpolation on every costFun call during optimization.
+        function SpecFluxMatrix = resampleCalibratorSpectra(Obj, Args)
+            % Resample calibrator reference spectra onto the transmission model wavelength grid
+            % Description: Interpolates Gaia XP spectra within their native range
+            %              (3360-10200 Angstrom) and extrapolates with constant
+            %              boundary values outside. Called once before fitting to
+            %              avoid repeated interpolation in costFun.
             % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
             %          * ...,key,val,...
             %            'TransWvl' - Transmission wavelength grid [Angstrom]. Default uses Obj.TransWvl.
-            % Output : - SpecFluxMatrix - Interpolated spectra [N_TransWvl x N_calib]
-            %                             Calibrator spectra interpolated onto transmission wavelength grid
-            %                             with UV/IR boundary extrapolation.
+            % Output : - SpecFluxMatrix - Resampled spectra [N_TransWvl x N_calib]
+            %                             on the transmission model wavelength grid
             % Author : D. Kovaleva (Feb 2026)
-            % Example: SpecFluxMatrix = PC.computeInterpolatedSpectra();
+            % Example: SpecFluxMatrix = PC.resampleCalibratorSpectra();
             %          % Pass to costFun via CostArgs:
             %          CostArgs = {..., 'PrecomputedSpecFluxMatrix', SpecFluxMatrix, ...};
 
@@ -1527,7 +1547,7 @@ classdef PhotCalibTrans < Component
 
             % Check that SpecData is populated
             if isempty(Obj.SpecData) || isempty(Obj.SpecData.Spec)
-                Obj.msgLog(LogLevel.Error, 'computeInterpolatedSpectra: SpecData.Spec is empty - run selectCalibrators first');
+                Obj.msgLog(LogLevel.Error, 'resampleCalibratorSpectra: SpecData.Spec is empty - run selectCalibrators first');
                 SpecFluxMatrix = [];
                 return;
             end
@@ -1579,7 +1599,7 @@ classdef PhotCalibTrans < Component
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
             %              Keywords: PT_RMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
-            %                        PT_AREF, PT_SREF, PT_SPEC,
+            %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true)
 
@@ -1616,7 +1636,6 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_SUCC', Obj.Success);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
-            HeaderObj = HeaderObj.replaceVal('PT_SREF', 'MLv0.1LAST');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
 
             if Args.WriteComments
@@ -1626,7 +1645,6 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SUCC: Calibration success flag';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_SREF: Software reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
             end
 

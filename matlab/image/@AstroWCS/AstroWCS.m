@@ -2624,7 +2624,56 @@ classdef AstroWCS < Component
     methods (Static) % Unit-Test
         Result = unitTest()
             % Unit-Test
+            
+        function WCS = buildSimpleWCS(RA0, Dec0, Args) 
+        % builds a simple WCS from the ref. pixel sky position, pixel size, axes lengths, and rotation angle
+        % Input  : - RA  [deg] of the ref. pont
+        %          - Dec [deg] of the ref. point 
+        %          * ...,key,val,... 
+        %          'PA' - [rad] position angle 
+        %          'PixScale' - [arcsec] pixel size
+        %          'Naxis1'   - number of pixels in X direction
+        %          'Naxis2'   - number of pixels in Y direction
+        %          'ProjType' - projection type (def. TPV)
+        %          'CTYPE'    - coo type (def. TPV)
+        % Output : - a simple WCS of the given size, position, and pixel scale
+        % Author : A.M. Krassilchtchikov (2026 Jan) 
+        % Example: WCS = AstroWCS.buildSimpleWCS(1.,1,'Naxis1',100,'Naxis2',100,'PixScale',3e-4);
+            arguments
+                RA0      
+                Dec0
+                Args.PA       = [];   % rad
+                Args.PixScale = 1.25; % arcsec
+                Args.Naxis1   = 1726; % pix 
+                Args.Naxis2   = 1726; % pix 
+                Args.ProjType = 'TPV'; 
+                Args.CTYPE    = {'RA---TPV', 'DEC--TPV'};
+            end
+            %
+            PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
+            %
+            WCS = AstroWCS();
+            WCS.ProjType  = Args.ProjType;
+            WCS.ProjClass = 'ZENITHAL';
+            WCS.CooName   = {'RA'  'DEC'};
+            WCS.CTYPE     = Args.CTYPE;
+            WCS.CUNIT     = {'deg', 'deg'};
+            WCS.CD(1,1)   = PixScaleDeg;
+            WCS.CD(2,2)   = PixScaleDeg;
+            WCS.CRVAL(1)  = RA0;
+            WCS.CRVAL(2)  = Dec0;
+            WCS.CRPIX(1)  = Args.Naxis1/2;
+            WCS.CRPIX(2)  = Args.Naxis2/2;
+            WCS.AlphaP    = RA0;
+            WCS.DeltaP    = Dec0;
+            WCS.PhiP      = 180;        
+            % rotate the WCS if a PA is given:  
+            if ~isempty(Args.PA) 
+                RotMatrix = [cos(Args.PA), -sin(Args.PA);
+                             sin(Args.PA),  cos(Args.PA)];
+                WCS.CD = RotMatrix * WCS.CD;
+            end
+        end
                         
-    end
-    
+    end % static methods    
 end

@@ -1,13 +1,16 @@
 function Report = checkMaskConsistency(Input, Args)
-    % Check self-consistency of bitmasks in pipeline FITS files
+    % Check consistency of bitmasks in pipeline FITS files
     % Description: Validates multiple bit mask properties against image data
     %   and catalog. Checks performed:
-    %   1. NearEdge (bit 23) - edge pixels match image geometry
-    %   2. NaN (bit 6) - NaN bit matches NaN pixels in image
-    %   3. Saturated (bit 0) - saturated bit matches pixels > SatLevel
-    %   4. Negative (bit 10) - negative bit matches negative pixels
+    %   1. NearEdge (bit 23) - edge pixels match image geometry (check valid)
+    %   2. NaN (bit 6) - NaN bit matches NaN pixels in image (check not valid)
+    %   3. Saturated (bit 0) - saturated bit matches pixels > SatLevel (check not
+    %   valid)
+    %   4. Negative (bit 10) - negative bit matches negative pixels (check not
+    %   valid)
     %   5. SrcDetected (bit 30) - source bit matches catalog positions
-    % Input  : - Input: path string to directory containing FITS files.
+    %   (mask not implemented in pipeline yet)
+    % Input  : - path string to directory containing FITS files.
     %          * ...,key,val,...
     %            'FileType'    - 'sci_proc' or 'sci_coadd'. Default is 'sci_proc'.
     %            'Checks'      - Cell array of check names to run. Any subset
@@ -25,13 +28,12 @@ function Report = checkMaskConsistency(Input, Args)
     %            'ReportFile'  - Optional file path to save report (.mat).
     %                            Default is '' (no save).
     %            'Verbose'     - Print progress to console. Default is true.
-    % Output : - Report: struct with fields per check (NearEdge, NaN_Check,
-    %            Saturated, Negative, SrcDetected), each containing a
-    %            FileResults table with columns:
+    % Output :   - Report: struct with overall Summary and fields per check (NearEdge, NaN_Check,
+    %              Saturated, Negative, SrcDetected), each containing a
+    %              FileResults table with columns:
     %              MaskAndImage - condition present in both mask and image
     %              MaskOnly     - bit set in mask but condition absent in image
     %              ImageOnly    - condition present in image but bit not in mask
-    %            plus overall Summary.
     % Author : Dana Kovaleva (Feb 2026)
     % Example: DataPath = '/bigdata2/projects/last/testNewPipe/222625v1/';
     %          Report = pipeline.last.quality.checkMaskConsistency(DataPath);
@@ -51,7 +53,7 @@ function Report = checkMaskConsistency(Input, Args)
     end
 
     % Determine which checks to run
-    RunNearEdge    = any(strcmpi(Args.Checks, 'NearEdge'));
+    RunNearEdge    = any(strcmpi(Args.Checks, 'NearEdge')); % default
     RunNaN         = any(strcmpi(Args.Checks, 'NaN'));
     RunSaturated   = any(strcmpi(Args.Checks, 'Saturated'));
     RunNegative    = any(strcmpi(Args.Checks, 'Negative'));

@@ -54,14 +54,14 @@ function Result = unitTest()
     toc
 
     
-    for i=1:Nsim
-        Dx=Xcat-FlipX.*Xref.';
-        Dy=Ycat-FlipY.*Yref.';
-        H2d=hist2d_fast_mex(Dy(:),Dx(:), RangeX, RangeY ,StepX, StepY);
-    end
-    toc
+    % for i=1:Nsim
+    %     Dx=Xcat-FlipX.*Xref.';
+    %     Dy=Ycat-FlipY.*Yref.';
+    %     H2d=hist2d_fast_mex(Dy(:),Dx(:), RangeX, RangeY ,StepX, StepY);
+    % end
+    % toc
 
-    if sum(H2d~=H2a,'all')>0
+    if sum(H2c~=H2a,'all')>0
         error('Problem with tools.hist.mex.hist2d_fast_mex');
     end
     

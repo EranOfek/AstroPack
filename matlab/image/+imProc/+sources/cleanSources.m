@@ -139,7 +139,8 @@ function [Result, Flag] = cleanSources(Obj, Args)
             SizeImage = size(Obj(Iobj).Image);
             FlagImage = false(SizeImage);
             FXY  = round(XY(:,1:2));
-            Find = imUtil.image.sub2ind_fast(SizeImage, FXY(:,2), FXY(:,1));
+            Find = imUtil.image.sub2ind_fast(SizeImage, FXY(:,2),FXY(:,1));
+            %Find = imUtil.image.mex.sub2ind_mex(SizeImage, FXY(:,2), FXY(:,1));
             FlagImage(Find) = true;
             Result(Iobj).MaskData = maskSet(Obj(Iobj).MaskData, FlagImage, Args.BitNameCR, 1);
         end

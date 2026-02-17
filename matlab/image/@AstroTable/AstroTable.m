@@ -156,7 +156,21 @@ classdef AstroTable < Component
             % FFU: use ImageIO instead!!!
             
             if isempty(FileName)
-                Obj.Catalog = [];
+                FileName = [1 1];
+            end
+            if isnumeric(FileName)
+                if isscalar(FileName)
+                    FileName = [FileName 1];
+                end
+
+                %Obj(FileName(1), FileName(2)) = AstroTable();
+                for I=1:1:prod(FileName)
+                    Obj(I).Catalog = [];
+                    % for J=1:1:FileName(2)
+                    %     Obj(I,J).Catalog = [];
+                    % end
+                end
+                Obj = reshape(Obj, FileName);
             else
                 if isa(FileName, 'AstroTable')
                     Obj = FileName;
