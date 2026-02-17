@@ -638,6 +638,40 @@ classdef AstroTable < Component
     
     
     methods % get general info
+        function Result = setCatData(Obj, Input, Args)
+            % Update the object with another object. Useful because exists in AstroImage
+            % Input  : - self.
+            %          - A new AstroCatalog object which will put instead
+            %            the 1st input argument.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create new object. Default is false.
+            % Output : - The 1st input argument is replaced by the 2nd.
+            % Author : Eran Ofek (Feb 2026)
+
+            arguments
+                Obj
+                Input
+                Args.CreateNewObj  = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Result = Input;
+        end
+
+        function Result = getCatData(Obj)
+            % Return self. Useful because getCatData function also exists in AstroImage
+            % Input  : - self.
+            % Output : - self.
+            % Author : Eran Ofek (Feb 2026)
+
+            Result = Obj;
+        end
+
         function Result = getColUnits(Obj, Fields)
             % get column units
             % Input  : - A single element AstroTable object.
@@ -1185,6 +1219,10 @@ classdef AstroTable < Component
                 ColUnits                 = {};
             end
             
+            if ischar(ColUnits)
+                ColUnits = {ColUnits};
+            end
+
             Nobj   = numel(Obj);
             if isa(NewData, 'AstroTable')
                 % Data is in AstroTable format
