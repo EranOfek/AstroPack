@@ -80,6 +80,7 @@ classdef MainModule < ultrasat.api.Loggable
 
             % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
             UseSim = obj.Preferences.get('UseSim', true);
+            UseSim = true;
             if UseSim
                 obj.msglog('Creating ApiClient as ultrasat.api.MissionApiSim');
                 obj.ApiClient = ultrasat.api.MissionApiSim();

@@ -1,0 +1,52 @@
+{
+  "pk": 1,
+  "id": "",
+  "plan_type": "HCS",
+  "ast_planner": "yossi",
+  "title": "New plan",
+  "status": "",
+  "created_by": "",
+  "create_time": "2025-03-20T11:20:55.323Z",
+  "update_time": [],
+  "start_time": "2028-01-01T12:00:00.000Z",
+  "end_time": "2028-07-01T12:00:00.000Z",
+  "allow_edit": true,
+  "deleted": false,
+  "metadata": {
+    "SelfConsitencyStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "BuildStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "ValidationStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "SubmitStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "ValidationResponse": []
+  },
+  "history": {},
+  "targets": {}
+}
