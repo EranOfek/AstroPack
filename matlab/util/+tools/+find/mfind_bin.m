@@ -1,5 +1,6 @@
 function Im=mfind_bin(X, Vals, UseMex, Type)
 % Binary search on a sorted vector running simolutnously on multiple values.
+%   For faster version use: tools.find.mex.binarySearch
 % Package: tools.find
 % Description: Multiple value simolutanos binary search.
 %              A feature of this program is that it
