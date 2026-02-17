@@ -62,8 +62,8 @@ classdef PhotCalibTrans < Component
     %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Pre-computation Methods (for optimization performance):
-    %     computeMagErrCalib - Pre-compute magnitude errors for all calibrators
-    %     computeInterpolatedSpectra - Pre-compute interpolated spectra matrix for all calibrators
+    %     propagateCalibratorMagErr - Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
+    %     resampleCalibratorSpectra - Resample calibrator reference spectra onto the transmission model wavelength grid
     %   Header I/O Methods:
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
@@ -103,7 +103,7 @@ classdef PhotCalibTrans < Component
                                 %   .Spec [N_calib x N_wvl] - Calibrator spectra flux (Gaia DR3 XP)
                                 %   .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
                                 %   .SpecFluxMatrix [N_TransWvl x N_calib] - Pre-computed interpolated spectra
-                                %        (set by calibrate, computed by computeInterpolatedSpectra)
+                                %        (set by calibrate, computed by resampleCalibratorSpectra)
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
@@ -213,7 +213,6 @@ classdef PhotCalibTrans < Component
             %          PC = PC.calibrate(AI, 'UseTran2D', false);
             %          % With weighted sigma clipping:
             %          PC = PC.calibrate(AI, 'SigmaClipMethod', 'weighted');
-
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
@@ -439,7 +438,7 @@ classdef PhotCalibTrans < Component
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
-                PrecomputedMagErr = Obj.computeMagErrCalib(Flux, FluxErrVector, ...
+                PrecomputedMagErr = Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
                     'WeightingMode', Args.WeightingMode, ...
                     'ExpTime', ExpTime_eff, ...
                     'FluxErrorNorm', Args.FluxErrorNorm);
@@ -455,7 +454,7 @@ classdef PhotCalibTrans < Component
 
                 % Pre-compute interpolated spectra matrix (expensive, do once)
                 % This avoids recalculating interpolation on every costFun call
-                Obj.SpecData.SpecFluxMatrix = Obj.computeInterpolatedSpectra();
+                Obj.SpecData.SpecFluxMatrix = Obj.resampleCalibratorSpectra();
 
                 % Setup CostArgs for TransmissionMode
                 % MagErr and SpecFluxMatrix pre-computed to avoid repeated calculations
@@ -1357,23 +1356,31 @@ classdef PhotCalibTrans < Component
             ParamsInfo.WasFitted = WasFitted(:);
         end
 
-        function MagErr = computeMagErrCalib(Obj, Flux, FluxErrVector, Args)
-            % Pre-compute magnitude errors for all calibrators (expensive, do once)
-            % This avoids recalculating error propagation on every costFun call.
+        function MagErr = propagateCalibratorMagErr(Obj, Flux, FluxErrVector, Args)
+            % Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
+            % Description: Combines Gaia XP spectral errors (through reference
+            %              transmission) and observed flux errors into a single
+            %              MagErr vector, used as weights in the cost function
+            %              during optimization. Called once before fitting to
+            %              avoid repeated error propagation.
             % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
             %          - Flux - Observed flux values [photons] [N_calib x 1]
             %          - FluxErrVector - Relative flux errors [N_calib x 1] (can be [])
             %          * ...,key,val,...
-            %            'WeightingMode' - 'spectral', 'flux', 'combined', 'none'. Default is 'spectral'.
+            %            'WeightingMode' - Error sources to include:
+            %                   'spectral' - Gaia XP spectral errors only (default)
+            %                   'flux'     - Observed flux errors only
+            %                   'combined' - Quadrature sum of both
+            %                   'none'     - No weighting (returns [])
             %            'ExpTime' - Effective exposure time [s]. Default uses Obj.ExpTime/Obj.NCoadd.
             %            'RefTransmissionFun' - Function handle for reference transmission.
             %                   Default is @telescope.optics.refTransmissionLAST.
-            %            'FluxErrorNorm' - Normalization constant for synthetic flux in error
-            %                   calculation. Scales synthetic flux to match model normalization.
-            %                   Default is 0.5
-            % Output : - MagErr - Magnitude errors [N_calib x 1]
+            %            'FluxErrorNorm' - Effective area scaling for synthetic flux
+            %                   in error calculation [dimensionless]. Default is 0.5.
+            % Output : - MagErr - Per-calibrator magnitude uncertainties [N_calib x 1],
+            %                     or [] if WeightingMode is 'none'
             % Author : D. Kovaleva (Jan 2026)
-            % Example: MagErr = PC.computeMagErrCalib(Flux, FluxErrVector, 'WeightingMode', 'spectral');
+            % Example: MagErr = PC.propagateCalibratorMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
 
             arguments
                 Obj
@@ -1510,17 +1517,19 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function SpecFluxMatrix = computeInterpolatedSpectra(Obj, Args)
-            % Pre-compute interpolated spectra matrix for all calibrators (expensive, do once)
-            % This avoids recalculating interpolation on every costFun call during optimization.
+        function SpecFluxMatrix = resampleCalibratorSpectra(Obj, Args)
+            % Resample calibrator reference spectra onto the transmission model wavelength grid
+            % Description: Interpolates Gaia XP spectra within their native range
+            %              (3360-10200 Angstrom) and extrapolates with constant
+            %              boundary values outside. Called once before fitting to
+            %              avoid repeated interpolation in costFun.
             % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
             %          * ...,key,val,...
             %            'TransWvl' - Transmission wavelength grid [Angstrom]. Default uses Obj.TransWvl.
-            % Output : - SpecFluxMatrix - Interpolated spectra [N_TransWvl x N_calib]
-            %                             Calibrator spectra interpolated onto transmission wavelength grid
-            %                             with UV/IR boundary extrapolation.
+            % Output : - SpecFluxMatrix - Resampled spectra [N_TransWvl x N_calib]
+            %                             on the transmission model wavelength grid
             % Author : D. Kovaleva (Feb 2026)
-            % Example: SpecFluxMatrix = PC.computeInterpolatedSpectra();
+            % Example: SpecFluxMatrix = PC.resampleCalibratorSpectra();
             %          % Pass to costFun via CostArgs:
             %          CostArgs = {..., 'PrecomputedSpecFluxMatrix', SpecFluxMatrix, ...};
 
@@ -1538,7 +1547,7 @@ classdef PhotCalibTrans < Component
 
             % Check that SpecData is populated
             if isempty(Obj.SpecData) || isempty(Obj.SpecData.Spec)
-                Obj.msgLog(LogLevel.Error, 'computeInterpolatedSpectra: SpecData.Spec is empty - run selectCalibrators first');
+                Obj.msgLog(LogLevel.Error, 'resampleCalibratorSpectra: SpecData.Spec is empty - run selectCalibrators first');
                 SpecFluxMatrix = [];
                 return;
             end

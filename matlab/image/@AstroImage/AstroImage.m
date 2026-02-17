@@ -1411,7 +1411,45 @@ classdef AstroImage < Component
     end
     
     methods % functions on specific data properties
-        
+        function Result=setCatData(Obj, Cat, Args)
+            % Set catalog data (CatData) into AstroImage
+            % Input  : - An AstroIamge object;
+            % Output : - An AstroCatalog object containing the CatData
+            %            properties of the AstroImage object.
+            % Author : Eran Ofek (Feb 2026)
+
+            arguments
+                Obj
+                Cat
+                Args.CreateNewObj = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=Nobj:-1:1
+                Result(Iobj).CatData = Cat;
+            end
+        end
+
+        function Result=getCatData(Obj)
+            % Get catalog data (CatData) from AstroImage
+            % Input  : - An AstroIamge object;
+            % Output : - An AstroCatalog object containing the CatData
+            %            properties of the AstroImage object.
+            % Author : Eran Ofek (Feb 2026)
+
+            Nobj=numel(Obj);
+            for Iobj=Nobj:-1:1
+                Result(Iobj) = Obj(Iobj).CatData;
+            end
+        end
+
+
         function Result = cast(Obj, NewClass, CreateNewObj, DataProp)
             % Cast the image/back/var data in AstroImage (transform to a new type)
             %  Input  : - An AstroImage object.

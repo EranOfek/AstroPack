@@ -2,14 +2,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Transmission-based absolute photometric calibration wrapper
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
+    %              AstroImages or AstroCatalogs.
+    % Input  : - (Obj) AstroImage or AstroCatalog object (scalar or vector).
     %              AstroImages, AstroCatalogs, AstroDiff, or AstroZOGY objects.
     %              For AstroDiff/AstroZOGY input, calibrates the sub-images
     %              specified by DiffCalibProps (default: .New and .Ref) via
     %              recursive calls.
-    % Input  :  Obj - AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
-    %                 object (scalar or vector).
     %          * ...,key,val,...
-    %            Calibrator selection:
+    %            --- Calibrator selection ---
     %            'SearchRadius' - Gaia matching radius [arcsec]. Default is 1.5.
     %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
     %            Transmission model:
@@ -19,7 +19,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CustomOptSeq' - Custom optimization sequence (overrides OptSeqName). Default is [].
     %            'Tran2DType' - Position-dependent correction type. Default is 'cheby1_4_xt'.
     %            'UseTran2D' - Enable position-dependent correction. Default is true.
-    %            Weighting:
+    %            --- Weighting ---
     %            'WeightingMode' - Weighting mode for fitting. Options:
     %                              'none' - Unweighted least squares
     %                              'spectral' - Weight by Gaia spectral error propagation (default)
@@ -42,9 +42,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         Default is 'AB'. Vega is not yet implemented.
     %            'FluxColName' - Flux column for calibration fitting. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column (position-dependent) to catalog. Default is false.
-    %            Header update:
+    %            --- Header update ---
     %            'UpdateHeader' - Update AstroImage header with calibration results. Default is true.
-    %            General:
+    %            --- General ---
     %            'CreateNewObj' - Copy input object. Default is false.
     %            'Verbose' - Enable verbose output. Default is true.
     % Output : - Result - Input object with updated catalog and header.

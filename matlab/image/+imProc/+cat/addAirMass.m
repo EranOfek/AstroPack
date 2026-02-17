@@ -1,9 +1,9 @@
 function [Result, AirMass] = addAirMass(AI, Args)
-    % Add/update airmass keyword to AstroImage header based on time and position.
+    % Add/update airmass (and Healpix) column to AstroCatalog or AstroImage based on time and position.
     %   Optionally also add healpix information.
     % Input  : - An AstroImage object.
     %          * ...,key,val,... 
-    %            'KeyAM' - Header keyword name in which to store (or
+    %            'ColAM' - Column name in which to store (or
     %                   replace) the calculated airmass.
     %            'JD' - A vector/scalar of JD (one per image, or scalar) to
     %                   use in the airmass calculation (UTC).
@@ -18,8 +18,8 @@ function [Result, AirMass] = addAirMass(AI, Args)
     %                   images (preferably center). One line per image.
     %                   If empty, then read from header.
     %                   Default is [].
-    %            'KeyCoo' - A two element cell/string array containing the
-    %                   RA and Dec header keyword names from which to read
+    %            'ColCoo' - A two element cell/string array containing the
+    %                   RA and Dec column names from which to read
     %                   the image coordinates.
     %                   Default is {'RA','DEC'}.
     %            'CooUnits' - Coordinates (RA/Dec and Geodetic) units.
@@ -46,15 +46,15 @@ function [Result, AirMass] = addAirMass(AI, Args)
     %          - Array of airmass per image (same shape as input
     %            AstroImage).
     % Author : Eran Ofek (2026 Feb) 
-    % Example: AI=imProc.header.addAirMass(AI)
+    % Example: AI=imProc.cat.addAirMass(AI)
 
     arguments
         AI
-        Args.KeyAM             = 'AIRMASS'
+        Args.ColAM             = 'AIRMASS'
         Args.JD                = [];
         Args.KeyJD             = 'MIDJD';
         Args.Coo               = [];
-        Args.KeyCoo            = {'RA','DEC'};
+        Args.ColCoo            = {'RA','Dec'};
         Args.CooUnits          = 'deg';
         Args.GeoPos            = [35.04, 30.05 415]; % [deg deg m]
 
@@ -87,33 +87,42 @@ function [Result, AirMass] = addAirMass(AI, Args)
             Args.JD = repmat(Args.JD, Nai, 1);
         end
     end
-    if isempty(Args.Coo)
-        % read RA/Dec from header
-        TmpCoo   = AI.getStructKey(Args.KeyCoo, 'UseDict',Args.UseDict);
-        Args.Coo = [[TmpCoo.(Args.KeyCoo{1})].', [TmpCoo.(Args.KeyCoo{2})].'];
-    end
-    Args.Coo         = Args.Coo.*Conv;   % convert to radians
+
+    % 
+    % if isempty(Args.Coo)
+    %     % read RA/Dec from header
+    %     TmpCoo   = AI.getStructKey(Args.KeyCoo, 'UseDict',Args.UseDict);
+    %     Args.Coo = [[TmpCoo.(Args.KeyCoo{1})].', [TmpCoo.(Args.KeyCoo{2})].'];
+    % end
+    % Args.Coo         = Args.Coo.*Conv;   % convert to radians
     Args.GeoPos(1:2) = Args.GeoPos(1:2).*Conv; 
     
     % calculate Hardie airmass
-    AirMass = celestial.coo.airmass(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), Args.GeoPos);
+    %
 
     for Iai=1:1:Nai
-        
-        % insert airmass to header
-        Result(Iai).HeaderData.replaceVal(Args.KeyAM, AirMass(Iai));
+        % get CatData from AstroCatalog or AstroImage
+        Cat = AI(Iai).getCatData();
+
+        % Calculate AirMass
+        Coo = Cat.getCol(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
+        AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
+
+        % insert airmass to catalog
+        Cat.replaceCol(AirMass, Args.ColAM, Inf, '');
 
         if ~isempty(Args.HealpixType)
-            UpixVal = zeros(Nlevel,1, 'int64');
+            Ncoo    = size(Coo,1);
+            UpixVal = zeros(Ncoo, Nlevel, 'int64');
             for Ilevel=1:1:Nlevel
-                UpixVal(Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Args.Coo(Iai,1), Args.Coo(Iai,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
+                UpixVal(:,Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Coo(:,1), Coo(:,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
             end
-            Data = [{Args.KeyHealpix{:}}.', num2cell(UpixVal)];
-            Result(Iai).HeaderData.insertKey(Data, Inf);
+            UpixVal = cast(UpixVal, "like",Cat.Catalog);
+            Cat  = Cat.insertCol(UpixVal, Inf, {Args.KeyHealpix{:}});
         end
-    end
 
-    AirMass = reshape(AirMass, size(AI));
-    
+        % Insert Cat into Result
+        Result(Iai).setCatData(Cat);
+    end
 
 end
