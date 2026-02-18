@@ -715,7 +715,7 @@ classdef LcsHelper < Component
                 Obj
                 Args.AxesHandle       =[]; % appUIAxes
 
-                Args.SeperateCatColor      = 'k';
+                Args.SeperateCatColor      = 'r';
                 Args.SavePlot = false;
                 Args.FN2SavePlot = 'LCS_Schedule';
                 Args.FormatSavePlot = 'png';
@@ -736,15 +736,15 @@ classdef LcsHelper < Component
             for i = 1:height(Schedule)
                 switch Schedule.category{i}
                     case 'A'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i),'-');
+                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i),'-k');
                     case 'C'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+17),'--');
+                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+17),'--k');
                     case 'B_45'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)+floor((Schedule.ind(i)-1)/4)+9),'-');
+                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)+floor((Schedule.ind(i)-1)/4)+9),'-k');
                     case 'B_90'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+13),'--');
+                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+13),'--k');
                     case 'D'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i)-300+20,'-');
+                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i)-300+20,'-k');
                         
                 end
             end
@@ -756,10 +756,10 @@ classdef LcsHelper < Component
 
                         
             % Display vertical lines at the start and end times
-            yline(ax,8,[':' Args.SeperateCatColor],'Category A (48 fields, 45d window @ 1d cadance)');
-            yline(ax,16,[':' Args.SeperateCatColor],'Category B (16 fields, 45d window @ 1d cadance + 90d window @ 4d cadance)');
-            yline(ax,20,[':' Args.SeperateCatColor],'Category C  (16 fields, 90d window @ 4d cadance)');
-            yline(ax,25,[':' Args.SeperateCatColor],'Category D (4 fields, 45d window @ 1d cadance)');
+            yline(ax,8,['-' Args.SeperateCatColor],'Category A (48 fields, 45d window @ 1d cadance)');
+            yline(ax,16,['-' Args.SeperateCatColor],'Category B (16 fields, 45d window @ 1d cadance + 90d window @ 4d cadance)');
+            yline(ax,20,['-' Args.SeperateCatColor],'Category C  (16 fields, 90d window @ 4d cadance)');
+            yline(ax,25,['-' Args.SeperateCatColor],'Category D (4 fields, 45d window @ 1d cadance)');
             
             xlabel(ax,sprintf('Time since %s [days]',Obj.StartDate)); 
 
