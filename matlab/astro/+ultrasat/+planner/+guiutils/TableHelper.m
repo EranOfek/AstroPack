@@ -7,7 +7,7 @@
 % Description : Table Helper for Main Planner
 %==========================================================================
 
-classdef TableHelper < ultrasat.api.Loggable
+classdef TableHelper < ultrasat.api.core.Loggable
 
     methods
         function obj = TableHelper()

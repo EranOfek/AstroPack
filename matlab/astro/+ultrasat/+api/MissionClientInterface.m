@@ -8,7 +8,7 @@
 %               Created in MainModule.ApiInterface, used by 'uplanner'.
 %==========================================================================
 
-classdef MissionClientInterface < ultrasat.api.Loggable
+classdef MissionClientInterface < ultrasat.api.core.Loggable
     % This class serves as the interface between MissionClient/MissionClientSim
     % and the uplanner class.
     %

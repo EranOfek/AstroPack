@@ -7,7 +7,7 @@
 % Description : Build Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainBuildHelper < ultrasat.api.Loggable
+classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     % Provides build logic (HCS/LCS/DDT/TOO/AllSS) for PlannerMain.mlapp.
     %

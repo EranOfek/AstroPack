@@ -7,7 +7,7 @@
 % Description : Central class to hold common application data
 %==========================================================================
 
-classdef MainModule < ultrasat.api.Loggable
+classdef MainModule < ultrasat.api.core.Loggable
     % This class serves like a DataModule in Delphi
 
     properties
@@ -83,8 +83,8 @@ classdef MainModule < ultrasat.api.Loggable
             UseSim = true;
             if UseSim
                 obj.msglog('Creating ApiClient as ultrasat.api.MissionApiSim');
-                obj.ApiClient = ultrasat.api.MissionApiSim();
-                obj.UserClient = ultrasat.api.UserManagerSim();
+                obj.ApiClient = ultrasat.api.clients.MissionApiSim();
+                obj.UserClient = ultrasat.api.clients.UserManagerSim();
             else
                 obj.msglog('Creating ApiClient as ultrasat.api.MissionApiClient (FastAPI plans_manager)');
                 apiUrl = obj.Preferences.get('PlansManagerApiUrl', '');
@@ -102,11 +102,11 @@ classdef MainModule < ultrasat.api.Loggable
                 if isempty(namespace)
                     namespace = 'OPER';
                 end
-                obj.ApiClient = ultrasat.api.MissionApiClient(...
+                obj.ApiClient = ultrasat.api.clients.MissionApiClient(...
                     'ApiUrl', apiUrl, ...
                     'Namespace', namespace, ...
                     'ApiKey', apiKey);
-                obj.UserClient = ultrasat.api.UserManagerSim();
+                obj.UserClient = ultrasat.api.clients.UserManagerSim();
             end
 
             % Operational - When starting Planner from OPER, this is the
@@ -162,9 +162,9 @@ classdef MainModule < ultrasat.api.Loggable
                 %obj.ApiClient.NamespaceId = obj.NamespaceId;
 
                 % Set the namespace id for the PathUtils class, so any class derived from Loggable will use this namespace id
-                ultrasat.api.PathUtils.NamespaceId(obj.NamespaceId);
+                ultrasat.api.utils.PathUtils.NamespaceId(obj.NamespaceId);
                 % When using MissionApiClient (FastAPI), update HTTP client namespace for plans_manager
-                if isa(obj.ApiClient, 'ultrasat.api.MissionApiClient') && ~isempty(obj.ApiClient.Client)
+                if isa(obj.ApiClient, 'ultrasat.api.clients.MissionApiClient') && ~isempty(obj.ApiClient.Client)
                     obj.ApiClient.Client.Namespace = obj.NamespaceId;
                 end
                 Result = true;
@@ -370,7 +370,7 @@ classdef MainModule < ultrasat.api.Loggable
                 obj.CurrentStatus = NewStatus;
             end
 
-            NewText = sprintf('%s %s', ultrasat.api.ModelBase.nowUtcStr(), NewText);
+            NewText = sprintf('%s %s', ultrasat.api.utils.ModelBase.nowUtcStr(), NewText);
 
             % Append new text to StatusText
             if isempty(obj.StatusText)
@@ -386,7 +386,7 @@ classdef MainModule < ultrasat.api.Loggable
 
         function createPlanData(obj)
             % Create new instance of PlanData
-            obj.PlanData = ultrasat.api.PlanData();
+            obj.PlanData = ultrasat.api.models.PlanData();
             obj.ApiClient.PlanData = obj.PlanData;
         end
 

@@ -7,7 +7,7 @@
 % Description : Preferences for Main Planner
 %==========================================================================
 
-classdef Preferences < ultrasat.api.Loggable
+classdef Preferences < ultrasat.api.core.Loggable
     % This class manages the loading and saving of user preferences to/from a JSON file.
     % The class will be enhanced later with additional preference options.
 

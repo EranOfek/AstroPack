@@ -7,7 +7,7 @@
 % Description : Application level helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainAppHelper < ultrasat.api.Loggable
+classdef PlannerMainAppHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.

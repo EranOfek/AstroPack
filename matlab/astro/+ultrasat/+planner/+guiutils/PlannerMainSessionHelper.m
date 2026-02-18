@@ -7,7 +7,7 @@
 % Description : Session Helper for Main Planner (Login, Logout, etc.)
 %==========================================================================
 
-classdef PlannerMainSessionHelper < ultrasat.api.Loggable
+classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.

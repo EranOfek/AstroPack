@@ -7,7 +7,7 @@
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
-classdef PlannerMainStorageHelper < ultrasat.api.Loggable
+classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -152,7 +152,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
             app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
                 % Set update_time
-                app.MainModule.PlanData.update_time = ultrasat.api.ModelBase.nowUtc();
+                app.MainModule.PlanData.update_time = ultrasat.api.utils.ModelBase.nowUtc();
                 app.MainModule.ApiClient.savePlan();
                 app.clearModified();
 
@@ -331,7 +331,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                 app.DuplicatePlanApp = ultrasat.planner.gui.DuplicatePlan(app.MainModule);
             end
 
-            app.DuplicatePlanApp.PlanTitleEditField.Value = sprintf('Duplicated on %s', ultrasat.api.ModelBase.nowUtcStr());
+            app.DuplicatePlanApp.PlanTitleEditField.Value = sprintf('Duplicated on %s', ultrasat.api.utils.ModelBase.nowUtcStr());
             app.DuplicatePlanApp.UserNameEditField.Value = app.MainModule.Planner.AstPlanner;
 
             % Show app
@@ -353,10 +353,10 @@ classdef PlannerMainStorageHelper < ultrasat.api.Loggable
                     PlanData.id = [];
 
                     % Update fields and add history
-                    PlanData.create_time = ultrasat.api.ModelBase.nowUtc();
+                    PlanData.create_time = ultrasat.api.utils.ModelBase.nowUtc();
                     PlanData.update_time = PlanData.create_time;
                     PlanData.history = struct();
-                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.ModelBase.datetimeStr(PlanData.update_time)));
+                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.utils.ModelBase.datetimeStr(PlanData.update_time)));
 
                     % Reset the submit status
                     PlanData.metadata.SubmitStatus = PlanData.newStatusData();

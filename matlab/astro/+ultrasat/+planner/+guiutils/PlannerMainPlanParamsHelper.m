@@ -7,7 +7,7 @@
 % Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
+classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.

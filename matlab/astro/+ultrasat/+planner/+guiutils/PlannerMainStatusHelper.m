@@ -7,7 +7,7 @@
 % Description : Status Helper for Main Planner (Update, Clear, etc.)
 %==========================================================================
 
-classdef PlannerMainStatusHelper < ultrasat.api.Loggable
+classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
