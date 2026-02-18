@@ -27,10 +27,7 @@ function CalibArgs = predefCalibArgs(Args)
     %            'UpdateHeader'   - Update header with results. Default is true.
     %            'CreateNewObj'   - Copy input object. Default is false.
     %            'DiffCalibProps' - Properties to calibrate for AstroDiff. Default is {'New', 'Ref'}.
-    %            'LASTTelescopeTransmission' - Fixed telescope transmission struct from
-    %                              telescope.optics.LASTTransmissionFixed(). Default is struct()
-    %                              (computed automatically by fitPhotCalibTrans).
-    % Output : - CalibArgs - Struct with all calibration settings.
+    % Output : - Struct with all default calibration settings.
     % Author : D. Kovaleva (Feb 2026)
     % Example: cfg = imUtil.calib.predefCalibArgs();
     %          cfg = imUtil.calib.predefCalibArgs('SearchRadius', 3, 'Verbose', false);
@@ -68,9 +65,6 @@ function CalibArgs = predefCalibArgs(Args)
 
         % AstroDiff/AstroZOGY
         Args.DiffCalibProps cell = {'New', 'Ref'}
-
-        % Fixed telescope transmission
-        Args.LASTTelescopeTransmission struct = struct()  % From telescope.optics.LASTTransmissionFixed()
 
         % Note: Verbose and AddMagErr are direct arguments of fitPhotCalibTrans,
         % not part of CalibArgs.

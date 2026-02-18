@@ -172,11 +172,6 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % BUILD CALIBRATION ARGUMENTS (once, before loop)
     % ====================================================================
 
-    % Compute fixed telescope transmission once (if not already provided)
-    if isempty(fieldnames(Args.CalibArgs.LASTTelescopeTransmission))
-        Args.CalibArgs.LASTTelescopeTransmission = telescope.optics.LASTTransmissionFixed();
-    end
-
     % Build forwarding CalibArgs by removing local-only fields
     LocalFields = {'DiffCalibProps', 'AddMag', ...
                    'FluxColName', 'AddZP', 'UpdateHeader', 'CreateNewObj'};

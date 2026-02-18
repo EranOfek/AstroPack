@@ -26,7 +26,7 @@ classdef LcsHelper < Component
 
         StartDate datetime  = '2029-02-01 00:00:00';
         First_day = 1; % Currently must be 1
-        Last_day = 390;
+        Last_day = 405;
 
         Daily_LCS_slots = 11;       
         
