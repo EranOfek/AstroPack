@@ -39,6 +39,23 @@ classdef NamespaceManagerClient < ultrasat.api.clients.ClientBase
             obj.msglog('getNamespaceList: Getting list of namespaces');
             params = struct();
             response = obj.postRequest('/get-namespaces', params);
+
+            % Convert the list of namespaces (likely struct array) to a table and display all fields
+            if isfield(response, 'namespaces') && ~isempty(response.namespaces)
+                entries = response.namespaces;
+                if isstruct(entries)
+                    % If there's only one namespace, convert to cell array
+                    if numel(entries) == 1
+                        entries = entries(:);
+                    end
+                end
+                namespace_ids = {entries.namespace};
+                names = {entries.display_name};
+                response.display_list = strcat(namespace_ids, ':', names);
+            else
+                response.display_list = {};
+            end
+
         end
     end
 

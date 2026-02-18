@@ -21,5 +21,5 @@ function debug_NamespaceManagerClient()
     else
         disp('No namespaces found or response does not contain a "namespaces" field.');
     end
-    disp(response.namespaces);
+    disp(response.display_list);
 end
