@@ -9,6 +9,7 @@ function [Result] = overlapSources(AI, Args)
     %         'BadFlags' - a list of bad flags employed to deselect sources
     %         'FilterBad' - whether to use the 'BadFlags' for filtering
     %         'CroppingScheme' - 'old' or 'new'
+    %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
     % Output : - a struct with statistics for each crop
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
@@ -17,10 +18,11 @@ function [Result] = overlapSources(AI, Args)
         AI      
         Args.MagCut      = 17;  
         Args.MatchRadius = 3; % arcsec
-        Args.Prop        = {'RA', 'Dec', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
+        Args.Prop        = {'RA', 'Dec', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
+        Args.Plot        = false;
     end
     BD=BitDictionary;
     % read the list of overlap interfaces:
@@ -60,7 +62,22 @@ function [Result] = overlapSources(AI, Args)
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end
-    end    
+    end
+    if Args.Plot
+        [c, r] = ind2sub([4 6],Ind);
+        X = (c(:,1)+c(:,2))/2;
+        Y = (r(:,1)+r(:,2))/2;      
+        figure; subplot(1,2,1)
+        scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Median Diff MAG\_AB\_APER\_3'
+        subplot(1,2,2)
+        scatter(X,Y,80, Result.FLUX_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Median Diff FLUX\_APER\_3'
+    end
 end
 %
 function Ind = LASToverlapsNew(Args)
