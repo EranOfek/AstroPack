@@ -27,7 +27,6 @@ classdef ClientBase < ultrasat.api.core.Loggable
         ApiKey              % API Key for authentication
         Namespace           % Namespace for plans_manager API (optional)
         Timeout = 30;       % Timeout for HTTP requests (seconds)
-        LogFileName
     end
 
     methods
@@ -45,10 +44,10 @@ classdef ClientBase < ultrasat.api.core.Loggable
 
             arguments
                 Args.BaseUrl
-                Args.ApiKey
-                Args.Namespace
-                Args.Timeout
-                Args.LogFileName
+                Args.ApiKey = ''
+                Args.Namespace = ''
+                Args.Timeout = 30
+                Args.LogFileName = []
             end
 
             % Get default values from environment variables
@@ -63,15 +62,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
                     Args.Timeout = str2double(Args.Timeout);
                 end
             end
-
-            % Get default log file name
-            if isempty(LogFileName)
-                srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);
-                obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
-            else
-                obj.LogFileName = LogFileName;
-            end
-
+      
             % Remove trailing slash from BaseUrl if it exists   
             if endsWith(Args.BaseUrl, '/')
                 Args.BaseUrl = Args.BaseUrl(1:end-1);

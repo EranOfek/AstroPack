@@ -2,46 +2,44 @@
 % Project     : ULTRASAT Observation Planner
 % Filename    : ultrasat.api.NamespaceManagerClient.m
 % Author      : Chen Tishler
-% Created     : 01/12/2024
+% Created     : 18/02/2026
 % Updated     : 18/02/2026
-% Description : Client implementation of the NamespaceManagerBase interface.
+% Description : Client for the Namespace Manager FastAPI service.
 %==========================================================================
 
 
 classdef NamespaceManagerClient < ultrasat.api.clients.ClientBase
-    % Simulator implementation of the UserManagerBase interface.
-    % This class provides methods to interact with the NamespaceManagerBase interface.
-    % It is a subclass of ultrasat.api.ClientBase.
+    % Client for the Namespace Manager FastAPI service.
+    % Uses ClientBase.postRequest; returns struct from JSON via JsonUtils.json2struct.
     %
     % Typical Usage:
-    %   namespaceManager = ultrasat.api.NamespaceManagerClient();
-    %   response = namespaceManager.getNamespaceList();
-
-    properties
-        DbPath          % Path to simulator data files
-        Validator       % instance of ultrasat.api.ValidatorSim()
-        ApiSimProvider  % instance of ultrasat.api.ApiSimProvider()
-    end
+    %   factory = ultrasat.api.clients.ClientFactory();
+    %   baseUrl = factory.getServiceBaseUrl('namespace_manager');
+    %   apiKey = factory.getApiKey();
+    %   client = ultrasat.api.clients.NamespaceManagerClient(baseUrl, apiKey);
+    %   response = client.getNamespaceList();
 
 
     methods
-        function obj = NamespaceManagerClient()
-            % Call the base class constructor with the Args
-            % ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.clients.ClientBase();
-            obj.msglog('NamespaceManagerClient constructor started');
-
-            % Initialize the logger
+        function obj = NamespaceManagerClient(BaseUrl)
+            % Constructor
+            %
+            % :param BaseUrl: Base URL of the Namespace Manager API (e.g. from ClientFactory.getServiceBaseUrl('namespace_manager')).
+            obj@ultrasat.api.clients.ClientBase('BaseUrl', BaseUrl);
             obj.LogPrefix = 'NamespaceManagerClient';
-
+            obj.msglog('NamespaceManagerClient constructor started');
         end
 
         % -------------------------------------------------------------------
 
         function response = getNamespaceList(obj)
-            % Returns the list of namespace_id values from namespaces.json
+            % POST /get-namespaces. List namespaces, optionally filtered by is_active.
+            %
+            % :return: struct with status, message, namespaces (from JSON via JsonUtils.json2struct).
             obj.msglog('getNamespaceList: Getting list of namespaces');
-
-            response = struct();
+            params = struct();
+            response = obj.postRequest('/get-namespaces', params);
+        end
     end
+
 end
