@@ -218,18 +218,16 @@ classdef PhotCalibTrans < Component
             % Save non-CalibArgs argument
             Metadata = Args.Metadata;
 
-            % Resolve calibration settings into CA (separate from Args)
+            % Resolve calibration settings (populate defaults if not provided)
             if isempty(fieldnames(Args.CalibArgs))
-                CA = imUtil.calib.predefCalibArgs();
-            else
-                CA = Args.CalibArgs;
+                Args.CalibArgs = imUtil.calib.predefCalibArgs();
             end
 
             % Set wavelength grid
-            Obj.TransWvl = CA.Lambda(:);
+            Obj.TransWvl = Args.CalibArgs.Lambda(:);
 
             % Vega magnitude system placeholder — not yet implemented
-            if strcmpi(CA.MagSystem, 'Vega')
+            if strcmpi(Args.CalibArgs.MagSystem, 'Vega')
                 error('PhotCalibTrans:calibrate:VegaNotImplemented', ...
                       'Vega magnitude system is not yet implemented.');
             end
@@ -321,22 +319,22 @@ classdef PhotCalibTrans < Component
                 'ZenithAngle_deg', ZenithAngle, ...
                 'Pressure_mbar', Obj.Pressure, ...
                 'Temperature_C', Obj.Temp, ...
-                'LASTTelescopeTransmission', CA.LASTTelescopeTransmission);
+                'LASTTelescopeTransmission', Args.CalibArgs.LASTTelescopeTransmission);
 
             % Get transmission function list and optimization sequence
-            FunList = FunCat.(CA.FunListName);
-            OptSeq = StageCat.(CA.OptSeqName);
+            FunList = FunCat.(Args.CalibArgs.FunListName);
+            OptSeq = StageCat.(Args.CalibArgs.OptSeqName);
 
             if Args.Verbose
-                if ~isempty(CA.CustomFunList)
+                if ~isempty(Args.CalibArgs.CustomFunList)
                     fprintf('  Using custom function list (%d functions)\n', length(FunList));
                 else
-                    fprintf('  Using function list: %s (%d functions)\n', CA.FunListName, length(FunList));
+                    fprintf('  Using function list: %s (%d functions)\n', Args.CalibArgs.FunListName, length(FunList));
                 end
-                if ~isempty(CA.CustomOptSeq)
+                if ~isempty(Args.CalibArgs.CustomOptSeq)
                     fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
                 else
-                    fprintf('  Using optimization sequence: %s (%d stages)\n', CA.OptSeqName, numel(OptSeq));
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.CalibArgs.OptSeqName, numel(OptSeq));
                 end
                 fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
             end
@@ -359,8 +357,8 @@ classdef PhotCalibTrans < Component
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
                 'MetadataValues', MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
-                'UseTran2D', CA.UseTran2D, ...
-                'Tran2DType', CA.Tran2DType);
+                'UseTran2D', Args.CalibArgs.UseTran2D, ...
+                'Tran2DType', Args.CalibArgs.Tran2DType);
 
             % ====================================================================
             % STEP 4: Select calibrators
@@ -372,8 +370,8 @@ classdef PhotCalibTrans < Component
 
             % Select calibrators (populates Obj.SpecData, Obj.SourceData, Obj.CalFound)
             Obj.selectCalibrators(CurrentCat, ...
-                'SearchRadius', CA.SearchRadius, ...
-                'MagRange', CA.MagRange, ...
+                'SearchRadius', Args.CalibArgs.SearchRadius, ...
+                'MagRange', Args.CalibArgs.MagRange, ...
                 'Verbose', Args.Verbose);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
@@ -402,20 +400,20 @@ classdef PhotCalibTrans < Component
 
                 % Extract flux errors if using flux-based weighting
                 FluxErrVector = [];
-                if ismember(lower(CA.WeightingMode), {'flux', 'combined'})
+                if ismember(lower(Args.CalibArgs.WeightingMode), {'flux', 'combined'})
                     try
-                        FluxErrVector = Obj.SourceData.getCol(CA.FluxErrColName);
+                        FluxErrVector = Obj.SourceData.getCol(Args.CalibArgs.FluxErrColName);
                         if Args.Verbose
-                            fprintf('  Extracted flux errors from %s column\n', CA.FluxErrColName);
+                            fprintf('  Extracted flux errors from %s column\n', Args.CalibArgs.FluxErrColName);
                         end
                     catch
                         warning('PhotCalibTrans:NoFluxErr', ...
                             'Could not extract flux errors from %s. Falling back to spectral weighting.', ...
-                            CA.FluxErrColName);
-                        if strcmpi(CA.WeightingMode, 'flux')
-                            CA.WeightingMode = 'none';
+                            Args.CalibArgs.FluxErrColName);
+                        if strcmpi(Args.CalibArgs.WeightingMode, 'flux')
+                            Args.CalibArgs.WeightingMode = 'none';
                         else  % 'combined'
-                            CA.WeightingMode = 'spectral';
+                            Args.CalibArgs.WeightingMode = 'spectral';
                         end
                     end
                 end
@@ -426,9 +424,9 @@ classdef PhotCalibTrans < Component
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
                 PrecomputedMagErr = Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
-                    'WeightingMode', CA.WeightingMode, ...
+                    'WeightingMode', Args.CalibArgs.WeightingMode, ...
                     'ExpTime', ExpTime_eff, ...
-                    'FluxErrorNorm', CA.FluxErrorNorm);
+                    'FluxErrorNorm', Args.CalibArgs.FluxErrorNorm);
 
                 % Store pre-computed MagErr in SourceData
                 if istable(Obj.SourceData.Catalog)
@@ -458,7 +456,7 @@ classdef PhotCalibTrans < Component
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
-                    'SigmaClipMethod', CA.SigmaClipMethod, ...
+                    'SigmaClipMethod', Args.CalibArgs.SigmaClipMethod, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -486,10 +484,10 @@ classdef PhotCalibTrans < Component
                     % Calculate calibrated magnitudes for calibrators
                     % MAG = -2.5*log10(Flux/ExpTime_eff) + ZP(X,Y)
                     MagCalib = Obj.evaluateMag(Flux, 'X', X, 'Y', Y, ...
-                                               'MagSystem', CA.MagSystem);
+                                               'MagSystem', Args.CalibArgs.MagSystem);
 
                     % Dynamic column name: MAG_AB or MAG_VEGA
-                    MagColName = ['MAG_', CA.MagSystem];
+                    MagColName = ['MAG_', Args.CalibArgs.MagSystem];
 
                     % Get predicted flux from FitResult (calculated by costFun during optimization)
                     PredictedFlux = nan(NCalib, 1);
