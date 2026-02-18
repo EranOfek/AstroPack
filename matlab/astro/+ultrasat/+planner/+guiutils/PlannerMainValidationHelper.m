@@ -80,7 +80,7 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
             % Update the validation status field
             if ~isempty(app.MainModule.Planner)
                 app.setStatusField(app.ValidationShortStatusEditField, app.MainModule.ValidateStatus, app.MainModule.ValidateStatusText);
-                app.setStatusField(app.ValidationTimeEditField, app.MainModule.ValidateStatus, app.MainModule.datetimeStr(app.MainModule.Planner.ValidatedTime));
+                app.setStatusField(app.ValidationTimeEditField, app.MainModule.ValidateStatus, ultrasat.planner.guiutils.FormatUtils.DateTime2Str(app.MainModule.Planner.ValidatedTime));
             end
         end
 
@@ -185,7 +185,7 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
                 % Convert Response to JSON and HTML for display
                 ResponseText = jsonencode(Response, 'PrettyPrint', true);
                 app.ValidationStatusApp.TextArea.Value = ResponseText;
-                Html = app.MainModule.jsonToHtml(Response);
+                Html = ultrasat.planner.guiutils.FormatUtils.jsonToHtml(Response);
                 app.ValidationStatusApp.HTML.HTMLSource = Html;
 
                 % Ensure targets exist in Response before converting to table

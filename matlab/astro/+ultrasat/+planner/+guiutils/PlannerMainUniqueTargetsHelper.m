@@ -716,16 +716,16 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
                 % Editable fields
                 ParamsApp.NameEditField.Value = UniqTarg.Name(Index);
-                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( UniqTarg.RA(Index) );
-                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( UniqTarg.Dec(Index) );
+                ParamsApp.RAEditField.Value = ultrasat.planner.guiutils.FormatUtils.ra2Str( UniqTarg.RA(Index) );
+                ParamsApp.DecEditField.Value = ultrasat.planner.guiutils.FormatUtils.dec2Str( UniqTarg.Dec(Index) );
 
                 % Read-only fields
-                ParamsApp.A_UEditField.Value = app.MainModule.num2Str( UniqTarg.A_U(Index) );
-                ParamsApp.CalObjEditField.Value = app.MainModule.length2Str( UniqTarg.CalObj(Index) );
-                ParamsApp.RefImagesIDsEditField.Value = app.MainModule.length2Str( UniqTarg.RefImageIDs(Index) );
-                ParamsApp.ExtSurveysEditField.Value = app.MainModule.length2Str( UniqTarg.ExtSurveys(Index) );
-                ParamsApp.FieldObjEditField.Value = app.MainModule.length2Str( UniqTarg.FieldObj(Index) );
-                ParamsApp.HealpixArrayEditField.Value = app.MainModule.length2Str( UniqTarg.HealpixArray(Index) );
+                ParamsApp.A_UEditField.Value = ultrasat.planner.guiutils.FormatUtils.num2Str( UniqTarg.A_U(Index) );
+                ParamsApp.CalObjEditField.Value = ultrasat.planner.guiutils.FormatUtils.length2Str( UniqTarg.CalObj(Index) );
+                ParamsApp.RefImagesIDsEditField.Value = ultrasat.planner.guiutils.FormatUtils.length2Str( UniqTarg.RefImageIDs(Index) );
+                ParamsApp.ExtSurveysEditField.Value = ultrasat.planner.guiutils.FormatUtils.length2Str( UniqTarg.ExtSurveys(Index) );
+                ParamsApp.FieldObjEditField.Value = ultrasat.planner.guiutils.FormatUtils.length2Str( UniqTarg.FieldObj(Index) );
+                ParamsApp.HealpixArrayEditField.Value = ultrasat.planner.guiutils.FormatUtils.length2Str( UniqTarg.HealpixArray(Index) );
             catch ME
                 app.msgex('setUniqueTargetParamsFields', ME);
             end

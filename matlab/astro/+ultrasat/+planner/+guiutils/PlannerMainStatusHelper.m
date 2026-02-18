@@ -145,9 +145,9 @@ classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
 
             % Planner is not empty, set fields
             if ~isempty(Planner)
-                app.BuildTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ScheduledTime);
-                app.ValidationTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ValidatedTime);
-                app.SubmitTimeEditField.Value = app.MainModule.DateTime2Str(Planner.SubmittedTime);
+                app.BuildTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ScheduledTime);
+                app.ValidationTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ValidatedTime);
+                app.SubmitTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.SubmittedTime);
 
                 %
                 app.setStatusField(app.BuildShortStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);

@@ -230,7 +230,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             end
 
             % Set start time field from the planner
-            app.EnterStartTimeApp.GroupStartTimeEditField.Value = app.MainModule.DateTime2Str(app.MainModule.Planner.StartTime);
+            app.EnterStartTimeApp.GroupStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(app.MainModule.Planner.StartTime);
 
             % Extract the selected Unique Targets and show them in the dialog
             SelectedData = app.UITableUniqueTargets.Data(SelectedRows, :);
