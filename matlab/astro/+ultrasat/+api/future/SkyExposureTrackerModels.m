@@ -7,7 +7,7 @@
 % Description : Factory for creating SkyExposureTracker models.
 %==========================================================================
 
-classdef SkyExposureTrackerModels < ultrasat.api.utils.ModelFactoryBase
+classdef SkyExposureTrackerModels < ultrasat.api.core.Loggable
     % Factory for creating SkyExposureTracker models.
 
     properties (Constant)
@@ -50,7 +50,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.utils.ModelFactoryBase
             );
 
             % Create and return the model instance
-            model = ultrasat.api.utils.ModelBase(data);
+            model = data;
         end
 
         % -------------------------------------------------------------------
@@ -74,7 +74,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.utils.ModelFactoryBase
                 'duration', duration, ...
                 'timestamp', timestamp ...
             );
-            model = ultrasat.api.utils.ModelBase(data);
+            model = data;
         end
 
         % -------------------------------------------------------------------
@@ -111,7 +111,7 @@ classdef SkyExposureTrackerModels < ultrasat.api.utils.ModelFactoryBase
                 'select_all', select_all, ...
                 'debug_print', debug_print ...
             );
-            model = ultrasat.api.utils.ModelBase(data);
+            model = data;
         end
 
     end

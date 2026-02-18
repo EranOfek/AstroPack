@@ -32,14 +32,14 @@ classdef VirtualTimeClient < ultrasat.api.clients.ClientBase
                 base = [];  % Default to empty if not provided
             end
             params = ultrasat.api.models.VirtualTimeModels.StartParams(obj.ID, factor, base);
-            response = obj.postRequest('/start/', params.Data);
+            response = obj.postRequest('/start', params);
             success = isfield(response, 'ok') && response.ok;
         end
 
         function success = pause(obj)
             % Pause the virtual time manager simulation.
             params = ultrasat.api.models.VirtualTimeModels.PauseParams(obj.ID);
-            response = obj.postRequest('/pause/', params.Data);
+            response = obj.postRequest('/pause', params);
             success = isfield(response, 'ok') && response.ok;
         end
 

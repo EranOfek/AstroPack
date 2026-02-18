@@ -38,7 +38,7 @@ classdef SkyExposureTrackerClient < ultrasat.api.clients.ClientBase
             %   healpix_level: HEALPix level
             %   healpix_indices: Optional list of HEALPix indices
             params = ultrasat.api.future.SkyExposureTrackerModels.InitTableParams(table_name);  %, healpix_rows, healpix_level, healpix_indices);
-            response = obj.postRequest('/init_table', params.Data);
+            response = obj.postRequest('/init_table', params);
             response.ok = isfield(response, 'success') && response.success;
         end
 
@@ -51,7 +51,7 @@ classdef SkyExposureTrackerClient < ultrasat.api.clients.ClientBase
             %   duration: Duration to add
             %   timestamp: Timestamp to append
             params = ultrasat.api.future.SkyExposureTrackerModels.UpdateParams(table_name, healpix_indices, duration, timestamp);
-            response = obj.postRequest('/update', params.Data);
+            response = obj.postRequest('/update', params);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
 
@@ -68,7 +68,7 @@ classdef SkyExposureTrackerClient < ultrasat.api.clients.ClientBase
                 select_all = false;
             end
             params = ultrasat.api.future.SkyExposureTrackerModels.SelectParams(table_name, healpix_indices, start_timestamp, end_timestamp, select_all);
-            response = obj.postRequest('/select', params.Data);
+            response = obj.postRequest('/select', params);
             response.ok = isfield(response, 'status') && strcmp(response.status, 'ok');
         end
 

@@ -249,7 +249,7 @@ classdef MissionApiClient < ultrasat.api.clients.MissionApiBase
             end
 
             params = struct('start_time', start_str, 'end_time', end_str, 'status', status_filter);
-            params = ultrasat.api.utils.ModelBase.removeEmptyFields(params);
+            params = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
 
             try
                 response = obj.Client.postRequest('/get_plans_list', params);

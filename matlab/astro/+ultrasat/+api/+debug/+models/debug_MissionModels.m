@@ -18,8 +18,8 @@ end
 function debugNewImagingTarget()
     fprintf('\n--- Testing newImagingTarget() ---\n');
     target = ultrasat.api.models.MissionModels.newImagingTarget();
-    fprintf('Created ImagingTarget model:\n');
-    disp(target.Data);  % Display the Data property of ModelBase instance
+    fprintf('Created ImagingTarget model (struct):\n');
+    disp(target);
 end
 
 % ------------------------------------------------------------------------

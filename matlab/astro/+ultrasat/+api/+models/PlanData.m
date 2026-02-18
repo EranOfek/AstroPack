@@ -35,7 +35,7 @@ classdef PlanData < handle
     methods (Static)
         function obj = fromStruct(data)
             % Create new class instance from struct
-            obj = ultrasat.api.utils.ModelUtils.struct2class(data, 'ultrasat.api.models.PlanData');
+            obj = ultrasat.api.utils.JsonUtils.struct2class(data, 'ultrasat.api.models.PlanData');
         end
 
 
@@ -69,13 +69,13 @@ classdef PlanData < handle
 
         function data = toStruct(obj)
             % Converts the object back to a struct
-            data = ultrasat.api.utils.ModelUtils.class2struct(obj);
+            data = ultrasat.api.utils.JsonUtils.class2struct(obj);
         end
 
 
         function js = toJson(obj)
             % Converts the object back to a struct
-            js = ultrasat.api.utils.ModelUtils.class2json(obj);
+            js = ultrasat.api.utils.JsonUtils.class2json(obj);
         end
 
 

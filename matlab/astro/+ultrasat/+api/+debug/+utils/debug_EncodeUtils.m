@@ -34,7 +34,7 @@ function debug_base64()
     disp(decoded);
 
     % Validate original and decoded data
-    assert(api.ModelBase.cmpstruct(sampleData, decoded), 'Base64 encoding-decoding failed!');
+    assert(ultrasat.api.utils.JsonUtils.cmpstruct(sampleData, decoded), 'Base64 encoding-decoding failed!');
     disp('[PASS] Base64 encoding-decoding validation successful.');
 end
 
@@ -54,7 +54,7 @@ function debug_compression()
     disp(decompressed);
 
     % Validate original and decompressed data
-    assert(api.ModelBase.cmpstruct(sampleData, decompressed), '7z compression-decompression failed!');
+    assert(ultrasat.api.utils.JsonUtils.cmpstruct(sampleData, decompressed), '7z compression-decompression failed!');
     disp('[PASS] 7z compression-decompression validation successful.');
 end
 
@@ -86,6 +86,6 @@ function debug_large_data_compression()
     disp(whos('decompressedLarge').bytes / (1024 * 1024));
 
     % Validate original and decompressed data
-    assert(api.ModelBase.cmpstruct(largeData, decompressedLarge), 'Large data compression-decompression failed!');
+    assert(ultrasat.api.utils.JsonUtils.cmpstruct(largeData, decompressedLarge), 'Large data compression-decompression failed!');
     disp('[PASS] Large data compression-decompression validation successful.');
 end

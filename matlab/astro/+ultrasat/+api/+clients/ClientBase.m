@@ -107,8 +107,8 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
 
             % Remove empty fields and convert to JSON
-            cleanedData = ultrasat.api.utils.ModelBase.removeEmptyFields(params);
-            jsonData = ultrasat.api.utils.ModelBase.struct2json(cleanedData);
+            cleanedData = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
+            jsonData = ultrasat.api.utils.JsonUtils.struct2json(cleanedData);
             jsonData = jsondecode(jsonData);
 
             % Create HTTP headers
@@ -132,7 +132,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
 
                 if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
                     respJson = jsonencode(rawResponse.Body.Data);
-                    response = ultrasat.api.utils.ModelBase.fromJson(respJson);  % rawResponse.Body.Data);
+                    response = ultrasat.api.utils.JsonUtils.json2struct(respJson);
                 else
                     error('HTTP Error: %s', char(rawResponse.StatusCode));
                 end
@@ -192,7 +192,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
                         response = struct();
                     else
                         respJson = jsonencode(rawResponse.Body.Data);
-                        response = ultrasat.api.utils.ModelBase.fromJson(respJson);
+                        response = ultrasat.api.utils.JsonUtils.json2struct(respJson);
                     end
                 else
                     error('HTTP Error: %s', char(rawResponse.StatusCode));
@@ -235,7 +235,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
                         result = false;
                     else
                         respJson = jsonencode(rawResponse.Body.Data);
-                        result = ultrasat.api.utils.ModelBase.fromJson(respJson);
+                        result = ultrasat.api.utils.JsonUtils.json2struct(respJson);
                         result = result.ok;
                     end
                 else
@@ -271,7 +271,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
 
             % Remove empty fields and convert to JSON
-            cleanedData = ultrasat.api.utils.ModelBase.removeEmptyFields(params);
+            cleanedData = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
 
             % Create HTTP headers (match postRequest)
             headers = [HeaderField('Content-Type', 'application/json')];

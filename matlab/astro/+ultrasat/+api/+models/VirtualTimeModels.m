@@ -7,7 +7,7 @@
 % Description : Factory for creating VirtualTime models.
 %==========================================================================
 
-classdef VirtualTimeModels < ultrasat.api.utils.ModelFactoryBase
+classdef VirtualTimeModels < ultrasat.api.core.Loggable
     % VirtualTimeModels - Factory for creating VirtualTime model instances.
 
     methods (Static)
@@ -26,7 +26,7 @@ classdef VirtualTimeModels < ultrasat.api.utils.ModelFactoryBase
             data = struct('id', id, 'factor', factor, 'base', base);
 
             % Create and return the model instance
-            model = ultrasat.api.utils.ModelBase(data);
+            model = data;
         end
 
         function model = PauseParams(id)
@@ -37,7 +37,7 @@ classdef VirtualTimeModels < ultrasat.api.utils.ModelFactoryBase
             data = struct('id', id);
 
             % Create and return the model instance
-            model = ultrasat.api.utils.ModelBase(data);
+            model = data;
         end
     end
 end
