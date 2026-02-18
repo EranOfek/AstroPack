@@ -18,8 +18,10 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %            'AngstromExponent'  - Angstrom exponent. Default is 0.6.
     %            'PWV_cm'            - Precipitable water vapor [cm]. Default is 1.4.
     %            '*_Min', '*_Max'    - Bounds for each parameter (see arguments block).
-    %            'QE_*'              - QE model parameters and bounds.
-    %            'QE_Legendre_Params'- Legendre coefficients [1x9]. Default is Ofek et al. 2023.
+    %            'QE_*'              - QE SkewedGaussian model parameters and bounds.
+    %            'LASTTelescopeTransmission' - Struct from telescope.optics.LASTTransmissionFixed().
+    %                   Contains fixed components (Mirror, Corrector, QE_Legendre).
+    %                   Default is struct() (calls LASTTransmissionFixed internally).
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
     %                        Available: Normalization, Rayleigh, Ozone, Aerosol, Water, UMG,
     %                                   Mirror, Corrector, QE_Legendre, QE_SkewedGaussian
@@ -120,10 +122,8 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         Args.QE_Gamma_Min         = -1
         Args.QE_Gamma_Max         = 1
 
-        % --- QE Legendre coefficients ---
-        Args.QE_Legendre_Params   = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60]
-        Args.QE_Legendre_Min      = -10
-        Args.QE_Legendre_Max      = 10
+        % --- Fixed telescope transmission (Mirror, Corrector, QE_Legendre) ---
+        Args.LASTTelescopeTransmission struct = struct()  % From telescope.optics.LASTTransmissionFixed()
     end
 
     %% ====================================================================
@@ -224,59 +224,22 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', {Args.ZenithAngle_deg_Max, Args.Temperature_C_Max, Args.Pressure_mbar_Max});
 
     %% ====================================================================
-    %% TELESCOPE OPTICS TRANSMISSION FUNCTIONS
+    %% FIXED TELESCOPE TRANSMISSION (Mirror, Corrector, QE_Legendre)
     %% ====================================================================
 
-    % Mirror reflectivity
-    % Parameters: [DummyParam] - fixed at 1
-    FunCatalog.Mirror = struct();
-    FunCatalog.Mirror.Name = 'Mirror';
-    FunCatalog.Mirror.Handle = '@telescope.optics.mirrorReflectanceLAST';
-    FunCatalog.Mirror.HandleType = 'named';
-    FunCatalog.Mirror.Params = [1];  % Dummy parameter
-    FunCatalog.Mirror.FitPar = [false];
-    FunCatalog.Mirror.ParamInfo = struct(...
-        'Name', {'DummyParam'}, ...
-        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
-        'Min', {1}, ...
-        'Max', {1});
-
-    % Corrector transmission
-    % Parameters: [DummyParam] - fixed at 1
-    FunCatalog.Corrector = struct();
-    FunCatalog.Corrector.Name = 'Corrector';
-    FunCatalog.Corrector.Handle = '@telescope.optics.correctorTransmissionLAST';
-    FunCatalog.Corrector.HandleType = 'named';
-    FunCatalog.Corrector.Params = [1];  % Dummy parameter
-    FunCatalog.Corrector.FitPar = [false];
-    FunCatalog.Corrector.ParamInfo = struct(...
-        'Name', {'DummyParam'}, ...
-        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
-        'Min', {1}, ...
-        'Max', {1});
+    % Load from LASTTransmissionFixed (or use provided struct)
+    if isempty(fieldnames(Args.LASTTelescopeTransmission))
+        TelFuns = telescope.optics.LASTTransmissionFixed();
+    else
+        TelFuns = Args.LASTTelescopeTransmission;
+    end
+    FunCatalog.Mirror = TelFuns.Mirror;
+    FunCatalog.Corrector = TelFuns.Corrector;
+    FunCatalog.QE_Legendre = TelFuns.QE_Legendre;
 
     %% ====================================================================
-    %% DETECTOR QUANTUM EFFICIENCY FUNCTIONS
+    %% DETECTOR QE - FITTED COMPONENT
     %% ====================================================================
-
-    % QE - Legendre polynomial model (Ofek et al. 2023)
-    % Parameters: [L0, L1, L2, L3, L4, L5, L6, L7, L8] - Legendre coefficients
-    NLeg = numel(Args.QE_Legendre_Params);
-    FunCatalog.QE_Legendre = struct();
-    FunCatalog.QE_Legendre.Name = 'QE_Legendre';
-    FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
-    FunCatalog.QE_Legendre.HandleType = 'named';
-    FunCatalog.QE_Legendre.Params = Args.QE_Legendre_Params;
-    FunCatalog.QE_Legendre.FitPar = false(1, NLeg);  % All fixed by default
-    LegNames = arrayfun(@(k) sprintf('L%d', k), 0:(NLeg-1), 'UniformOutput', false);
-    LegDescs = arrayfun(@(k) sprintf('Legendre coeff %d', k), 0:(NLeg-1), 'UniformOutput', false);
-    LegMins  = num2cell(Args.QE_Legendre_Min * ones(1, NLeg));
-    LegMaxs  = num2cell(Args.QE_Legendre_Max * ones(1, NLeg));
-    FunCatalog.QE_Legendre.ParamInfo = struct(...
-        'Name', LegNames, ...
-        'Description', LegDescs, ...
-        'Min', LegMins, ...
-        'Max', LegMaxs);
 
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
     % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
@@ -382,7 +345,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     StageCatalog.NormAndCenter.SigmaIter = 3;
     StageCatalog.NormAndCenter.Description = 'Optimize normalization and QE center';
 
-    % Orphan clip: Single-pass 3σ outlier removal after QE fitting
+    % Orphan clip: Single-pass 3 sigma outlier removal after QE fitting
     % Matches Python's orphan sigma_clip between out1 and out4_bis
     StageCatalog.OrphanClip = struct();
     StageCatalog.OrphanClip.StageName = 'OrphanClip';
