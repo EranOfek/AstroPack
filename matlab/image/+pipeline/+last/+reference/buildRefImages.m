@@ -20,7 +20,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         RefGrid
         DB            
         
-        Args.NsideSearch = 2^7; % we should start the search at a somewhat larger region then the ref. image size  
+        Args.NsideSearch = 2^6; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
@@ -54,7 +54,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                     'FLUX_APER', 'FLUXERR_APER',...
                                     'MAG_APER', 'MAGERR_APER'};
         
-        Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
+        Args.CoaddFunction     = @imProc.stack.coaddW; % a handle to coadder of registered images 
+        Args.StackMethod       = 'sigmaclip';
+        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');
@@ -122,17 +124,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)         
-        StitchedImage = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
+        Q = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
             W  = strcat(W,Wc);
         end
-        for Inei=1:numel(UpixNeighbLow)
-            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
-            W = strcat(W,Wn);
-        end      
-        T = DB.query(strcat(StitchedImage,W)); % T = db.mex.query(strcat(S,W));
+%         for Inei=1:numel(UpixNeighbLow) 
+%             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
+%             W = strcat(W,Wn);
+%         end      
+        T = DB.query(strcat(Q,W)); % T = db.mex.query(strcat(S,W));
 
         if isempty(T)                       
             if Args.Verbosity > 0
@@ -286,7 +288,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             continue
         end
         
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP',...
+                    'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);       
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
