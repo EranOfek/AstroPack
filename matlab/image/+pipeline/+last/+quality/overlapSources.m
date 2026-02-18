@@ -67,16 +67,27 @@ function [Result] = overlapSources(AI, Args)
         [c, r] = ind2sub([4 6],Ind);
         X = (c(:,1)+c(:,2))/2;
         Y = (r(:,1)+r(:,2))/2;      
-        figure; subplot(1,2,1)
+        figure; 
+        subplot(2,2,1)
         scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'Median Diff MAG\_AB\_APER\_3'
-        subplot(1,2,2)
+        title 'Median Diff MAG\_AB\_APER\_3'      
+        subplot(2,2,2)
+        scatter(X,Y,80, Result.MAG_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Median Diff MAG\_APER\_3'
+        subplot(2,2,3)
         scatter(X,Y,80, Result.FLUX_APER_3.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff FLUX\_APER\_3'
+        subplot(2,2,4)
+        scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'sqrt(dRA^2 + dDec^2), arcsec'
     end
 end
 %
