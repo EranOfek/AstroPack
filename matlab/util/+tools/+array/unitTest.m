@@ -57,6 +57,17 @@ function [Result] = unitTest()
         error('Problem with tools.array.mex.bitsetFlag - new mex');
     end
 
+    %% tools.array.unique_count
+    Vec=randi(100,10000,1);
+    [UnVal1,Count1]=tools.array.unique_count(Vec,@strcmpi,'search');
+    [UnVal2,Count2]=tools.array.unique_count(Vec,@strcmpi,'sort');  
+    [UnVal3,Count3]=tools.array.unique_count(Vec,@strcmpi,'scan'); 
+    if sum(UnVal1~=UnVal2)>0 || sum(UnVal1~=UnVal3) || sum(Count1~=Count2)>0 || sum(Count1~=Count3)>0
+        error('Problem with tools.array.unique_count');
+    end
+
+
+
     %%
     
     Result = true;

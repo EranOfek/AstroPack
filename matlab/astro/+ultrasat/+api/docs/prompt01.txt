@@ -1,0 +1,5 @@
+Confirm you understand that JSON-file API simulation must be 
+fully isolated under /obsolete and never used by clients after 
+refactor. Confirm you will split clients by service boundaries 
+exactly as Python (PlansManagerClient, ScheduleManagerClient, 
+ValidatorClient, VirtualTimeClient).

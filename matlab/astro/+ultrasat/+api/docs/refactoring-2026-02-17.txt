@@ -1,0 +1,264 @@
+You are refactoring an existing MATLAB codebase for ULTRASAT SOC API clients and models.
+
+ROOT FOLDER (current):
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api
+
+TARGET NEW FOLDER STRUCTURE:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+models
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+clients
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+utils
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\obsolete
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug
+
+GOALS:
+1) Split the MATLAB API layer to match Python FastAPI microservice boundaries.
+2) Replace file-based JSON API simulation with real API clients.
+3) Simplify model handling: prefer MATLAB classes with properties over factory+struct wrappers.
+4) Improve navigability and long-term maintainability.
+5) Refactor debug scripts to match the new folder structure and a standard debug template.
+
+-----------------------------------------------------------------------
+PHASE 1 - LEARN EXISTING CODEBASE
+-----------------------------------------------------------------------
+Scan and understand ALL files under:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api
+
+Understand responsibilities of:
+- MissionApiClient.m
+- MissionApiBase.m
+- MissionApiModels.m
+- MissionModels.m
+- ModelBase.m
+- ModelFactoryBase.m
+- ClientBase.m
+- ApiSimProvider.m
+- MissionApiSim.m
+- SimpleFileClient.m
+- SimpleFileLocal.m
+- ValidatorSim.m
+- UserManagerSim.m
+- VirtualTimeClient.m
+- VirtualTimeModels.m
+- EncodeUtils.m
+- PathUtils.m
+- Config.m
+- Loggable.m
+- LogManager.m
+- parseIsoDateTime.m
+
+Also scan:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug\*
+
+Build a mental model of:
+- Which files are real API clients
+- Which files are JSON-file simulation
+- Which files are models
+- Which files are utilities
+- Which files access namespace file paths directly
+
+-----------------------------------------------------------------------
+PHASE 2 - CREATE NEW FOLDER STRUCTURE
+-----------------------------------------------------------------------
+Create folders if missing:
+
++ultrasat/+api/+models
++ultrasat/+api/+clients
++ultrasat/+api/+utils
++ultrasat/+api/obsolete
++ultrasat/+api/+debug/+models
++ultrasat/+api/+debug/+clients
++ultrasat/+api/+debug/+utils
+
+-----------------------------------------------------------------------
+PHASE 3 - SPLIT CLIENTS BY SERVICE (MATCH PYTHON)
+-----------------------------------------------------------------------
+Create separate client classes under +clients:
+
+- PlansManagerClient.m       (from MissionApiClient plan-related methods)
+- ScheduleManagerClient.m    (from MissionApiClient schedule-related methods)
+- ValidatorClient.m   (new client, based on ValidatorSim functionality)
+- VirtualTimeManagerClient.m (already exists, move under +clients)
+- NamespaceManagerClient.m
+- UserManagerClient.
+
+Rules:
+- Each client wraps exactly one backend FastAPI service.
+- Each client inherits from ClientBase.
+- No client may read/write JSON files.
+- No client may access filesystem paths by namespace.
+- All I/O must go through HTTP API calls.
+- Keep method names aligned with Python client names.
+
+-----------------------------------------------------------------------
+PHASE 4 - MOVE JSON FILE SIMULATION TO OBSOLETE
+-----------------------------------------------------------------------
+Move all JSON/file simulation related code to:
+
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\obsolete
+
+This includes:
+- ApiSimProvider.m
+- MissionApiSim.m
+- SimpleFileClient.m
+- SimpleFileLocal.m
+- ValidatorSim.m
+- UserManagerSim.m
+- Any code reading/writing JSON files as API
+
+Mark these files clearly as OBSOLETE in comments.
+Do NOT delete yet. Do NOT use them from any client.
+
+-----------------------------------------------------------------------
+PHASE 5 - MODELS REFACTOR
+-----------------------------------------------------------------------
+Under +models:
+
+- Keep domain models as MATLAB classes with properties:
+  - PlanData.m
+  - ImagingTarget.m (if exists or create from MissionModels factory)
+  - ScheduledTarget.m
+  - VirtualTimeState.m
+
+Rules:
+- Do NOT use ModelFactoryBase for domain models.
+- Do NOT use factories returning structs for domain models.
+- Each model must have:
+  - properties matching backend schema
+  - toStruct()
+  - toJson()
+  - static fromStruct()
+  - static fromJson()
+
+Keep ModelBase ONLY as small utility helper (or move its useful parts to +utils).
+
+-----------------------------------------------------------------------
+PHASE 6 - UTILS REFACTOR
+-----------------------------------------------------------------------
+Under +utils:
+
+Move and/or create:
+- JsonUtils.m        (jsonencode/jsondecode + datetime conversion)
+- DateTimeUtils.m   (UTC helpers, isoFormat)
+- PathUtils.m
+- EncodeUtils.m
+- parseIsoDateTime.m
+- Config.m
+- Loggable.m
+- LogManager.m
+
+Rules:
+- Utils must be stateless.
+- Utils must not depend on clients.
+- Utils must not depend on models.
+
+-----------------------------------------------------------------------
+PHASE 7 - REMOVE NAMESPACE FILE ACCESS FROM API CLIENTS
+-----------------------------------------------------------------------
+Refactor any code that:
+- Builds file paths from namespace
+- Reads JSON files by namespace
+- Writes JSON files by namespace
+
+Replace with:
+- Calls to PlansClient / ScheduleClient / ValidatorClient / VirtualTimeClient
+- API calls instead of filesystem access
+
+-----------------------------------------------------------------------
+PHASE 8 - DEBUG FILES REFACTOR
+-----------------------------------------------------------------------
+Refactor debug files under:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+debug
+
+Split debug files into:
++debug/+clients
++debug/+models
++debug/+utils
+
+Move each debug file to the correct subfolder based on what it tests.
+
+Rename debug files if needed to match the new class names:
+- debug_PlansClient.m
+- debug_ScheduleClient.m
+- debug_ValidatorClient.m
+- debug_VirtualTimeClient.m
+- debug_PlanData.m
+- debug_JsonUtils.m
+- etc.
+
+Each debug file MUST follow this exact structure:
+
+1) Header block
+2) Main debug function matching filename
+3) Sub-tests as local functions
+
+Template:
+
+%==========================================================================
+% ULTRASAT
+%
+% File:        debug_ApiUtils.m
+% Author:      Chen Tishler
+% Created:     DD/MM/YYYY
+% Updated:     DD/MM/YYYY
+% Description:
+%==========================================================================
+%
+% Debug function for ultrasat.api.ApiUtils class
+% Run by: ultrasat.api.debug_ApiUtils()
+%
+
+function debug_ApiUtils()
+    fprintf('=== Running ApiUtils Debug Tests ===\n');
+
+    debug_msglog();
+    debug_logException();
+
+    fprintf('=== All ApiUtils Debug Tests Completed ===\n');
+end
+
+% ------------------------------------------------------------------------
+
+function debug_msglog()
+    % test code here
+end
+
+% ------------------------------------------------------------------------
+
+function debug_logException()
+    % test code here
+end
+
+Rules:
+- The first function name MUST match the filename.
+- The file must be runnable as ultrasat.api.debug_XYZ()
+- Sub-tests must be local functions in the same file.
+- Debug files may use real API clients.
+- Debug files must NOT use JSON simulation.
+
+-----------------------------------------------------------------------
+PHASE 9 - CLEANUP & VALIDATION
+-----------------------------------------------------------------------
+- Update all imports and package paths to new folders.
+- Ensure all clients still work.
+- Ensure models serialize to JSON identically as before.
+- Ensure debug scripts run.
+- Ensure no remaining references to obsolete JSON simulation remain in clients.
+- Ensure no filesystem access remains in clients.
+
+-----------------------------------------------------------------------
+DELIVERABLES
+-----------------------------------------------------------------------
+- Refactored folder tree
+- Separate clients: PlansClient, ScheduleClient, ValidatorClient, ScheduleClient, VirtualTimeClient
+- Models in +models
+- Utilities in +utils
+- JSON simulation isolated in /obsolete
+- Debug scripts split into +debug/+clients, +debug/+models, +debug/+utils
+- No namespace-based file I/O in clients
+- Clear, minimal public API surface for MATLAB client layer
+
+IMPORTANT:
+Do not invent new business logic.
+Do not change API semantics.
+Do not delete obsolete code.
+Refactor structure only.
