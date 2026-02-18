@@ -24,8 +24,6 @@ classdef ClientBase < ultrasat.api.core.Loggable
 
     properties
         BaseUrl             % Base URL of the API
-        SubUrl              % Service-specific URL path
-        ApiUrl              % Full API endpoint URL
         ApiKey              % API Key for authentication
         Namespace           % Namespace for plans_manager API (optional)
         Timeout = 30;       % Timeout for HTTP requests (seconds)
@@ -46,14 +44,27 @@ classdef ClientBase < ultrasat.api.core.Loggable
             % :return: An instance of ClientBase.
 
             arguments
-                Args.BaseUrl        = getenv('SOC_API_BASE');
-                Args.SubUrl         = '';
-                Args.ApiKey         = getenv('SOC_API_KEY');
-                Args.Namespace      = '';
-                Args.Timeout        = getenv('SOC_API_TIMEOUT');
+                Args.BaseUrl
+                Args.ApiKey
+                Args.Namespace
+                Args.Timeout
                 Args.LogFileName
             end
 
+            % Get default values from environment variables
+            if isempty(Args.ApiKey)
+                Args.ApiKey = getenv('SOC_API_KEY');
+            end
+            if isempty(Args.Timeout)
+                Args.Timeout = getenv('SOC_API_TIMEOUT');
+                if isempty(Args.Timeout)
+                    Args.Timeout = 30;
+                else
+                    Args.Timeout = str2double(Args.Timeout);
+                end
+            end
+
+            % Get default log file name
             if isempty(LogFileName)
                 srcFile = mfilename('fullpath');  srcFolder = fileparts(srcFile);
                 obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
@@ -61,29 +72,16 @@ classdef ClientBase < ultrasat.api.core.Loggable
                 obj.LogFileName = LogFileName;
             end
 
-            % Assign default timeout if environment variable is invalid
-            if isempty(Args.Timeout)
-                Args.Timeout = 30;
-            else
-                Args.Timeout = str2double(Args.Timeout);
+            % Remove trailing slash from BaseUrl if it exists   
+            if endsWith(Args.BaseUrl, '/')
+                Args.BaseUrl = Args.BaseUrl(1:end-1);
             end
 
             % Assign properties
             obj.BaseUrl = Args.BaseUrl;
-            obj.SubUrl = Args.SubUrl;
             obj.ApiKey = Args.ApiKey;
             obj.Namespace = Args.Namespace;
             obj.Timeout = Args.Timeout;
-
-            % Ensure SubUrl starts with `/` (but avoid `//`)
-            if ~isempty(obj.SubUrl)
-                if obj.SubUrl(1) ~= '/'
-                    obj.SubUrl = ['/', obj.SubUrl];
-                end
-            end
-
-            % Construct the full API URL
-            obj.ApiUrl = [obj.BaseUrl, obj.SubUrl];
         end
 
         % -----------------------------------------------------------------
@@ -101,20 +99,17 @@ classdef ClientBase < ultrasat.api.core.Loggable
             if endpoint(1) ~= '/'
                 endpoint = ['/', endpoint];
             end
-            url = [obj.ApiUrl, endpoint];
+            url = [obj.BaseUrl, endpoint];
 
-            % Check if params is an instance of ModelBase or derived class
-            if isa(params, 'api.ModelBase')
-                params = params.Data;
-            elseif ~isstruct(params)
-                error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.utils.ModelBase.');
+            % Check if params is struct
+            if ~isstruct(params)
+                error('postRequest:InvalidParams', 'params must be a struct');
             end
 
             % Remove empty fields and convert to JSON
             cleanedData = ultrasat.api.utils.ModelBase.removeEmptyFields(params);
             jsonData = ultrasat.api.utils.ModelBase.struct2json(cleanedData);
             jsonData = jsondecode(jsonData);
-
 
             % Create HTTP headers
             headers = [
@@ -175,7 +170,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
             if endpoint(1) ~= '/'
                 endpoint = ['/', endpoint];
             end
-            url = [obj.ApiUrl, endpoint];
+            url = [obj.BaseUrl, endpoint];
 
             headers = [HeaderField('Content-Type', 'application/json')];
             if includeAuth
@@ -214,10 +209,49 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
         end
 
+
+        function result = healthCheck(obj)
+            % Checks the health/status of the API server.
+            %
+            % Sends a GET request to /health without authentication or namespace headers.
+            % Returns:
+            %   result - True if the API server is healthy, false otherwise.
+            %
+            import matlab.net.*
+            import matlab.net.http.*
+
+            endpoint = '/health';
+            url = [obj.BaseUrl, endpoint];
+
+            headers = [HeaderField('Content-Type', 'application/json')]; % No api-key, no namespace
+
+            request = RequestMessage('GET', headers);
+            options = HTTPOptions('ConnectTimeout', obj.Timeout);
+
+            try
+                rawResponse = send(request, url, options);
+                if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
+                    if isempty(rawResponse.Body.Data)
+                        result = false;
+                    else
+                        respJson = jsonencode(rawResponse.Body.Data);
+                        result = ultrasat.api.utils.ModelBase.fromJson(respJson);
+                        result = result.ok;
+                    end
+                else
+                    result = false;
+                    error('HTTP Error: %s', char(rawResponse.StatusCode));
+                end
+            catch ME
+                result = false;
+                error('Health check failed: %s', ME.message);
+            end
+        end
+
         % -----------------------------------------------------------------
 
         function postRequestAsync(obj, endpoint, params, callback)
-            % Sends an asynchronous POST request to the API
+            % CURRENTLY UNUSED - Sends an asynchronous POST request to the API
             %
             % :param endpoint: API endpoint path (appended to BaseUrl).
             % :param params: Struct containing request parameters.
@@ -226,13 +260,14 @@ classdef ClientBase < ultrasat.api.core.Loggable
             import matlab.net.*
             import matlab.net.http.*
 
-            url = [obj.ApiUrl, endpoint];
+            endpoint = char(endpoint);
+            if endpoint(1) ~= '/'
+                endpoint = ['/', endpoint];
+            end
+            url = [obj.BaseUrl, endpoint];
 
-            % Check if params is an instance of ModelBase or derived class
-            if isa(params, 'api.ModelBase')
-                params = params.Data;
-            elseif ~isstruct(params)
-                error('postRequest:InvalidParams', 'params must be a struct or an instance of ultrasat.api.utils.ModelBase.');
+            if ~isstruct(params)
+                error('postRequest:InvalidParams', 'params must be a struct');
             end
 
             % Remove empty fields and convert to JSON
@@ -261,7 +296,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
         % -----------------------------------------------------------------
 
         function sendFilesWithParams(obj, url, filePaths, params)
-            % Sends a multipart/form-data request with files and parameters.
+            % CURRENTLY UNUSED - Sends a multipart/form-data request with files and parameters.
             %
             % :param url: Target API endpoint URL.
             % :param filePaths: Cell array of file paths to upload.

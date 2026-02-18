@@ -20,11 +20,6 @@ classdef MissionClientInterface < ultrasat.api.core.Loggable
     %   getExposure()          - Retrieves exposure data for specified healpix indices and time range.
     %   msglog()               - Logs a formatted message to the console.
     %
-    % Related files:
-    %   MissionClientBase.m    - Base class for Mission client API calls.
-    %   MissionClientSim.m     - Simulation class for Mission client API calls.
-    %   MissionClient.m        - Mission client that communicates with the server.
-    %   uplanner.m             - MATLAB class for the observation planner.
 
     properties
         ApiClient                       % Instance of MissionClient/MissionClientSim
