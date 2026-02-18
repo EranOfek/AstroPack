@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/MainModule.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 18/12/2025
+% Updated     : 18/02/2026
 % Description : Central class to hold common application data
 %==========================================================================
 
@@ -12,6 +12,7 @@ classdef MainModule < ultrasat.api.core.Loggable
 
     properties
         ApiClient               % MissionApiClient/MissionApiSim instance
+        NamespaceClient         % NamespaceManagerClient instance
         UserClient              % UserManagerClient/UserManagerSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     % Preferences file name
