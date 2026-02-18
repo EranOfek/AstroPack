@@ -12,21 +12,6 @@ classdef MissionApiBase < ultrasat.api.core.Loggable
     % Provides the foundation for communication between MATLAB-based ULTRASAT
     % observation planner and the backend server. This class is used by both
     % the GUI AppDesigner app and the uplanner backend matlab class.
-    %
-    % Related files:
-    %
-    % Base API Client:
-    %   - ultrasat.api.ClientBase        - matlab/util/+api/ClientBase.m
-    %   - ultrasat.api.ModelBase         - matlab/util/+api/ModelBase.m
-    %   - ultrasat.api.ModelFactoryBase  - matlab/util/+api/ModelFactoryBase.m
-    %
-    % Mission Control API Client
-    %
-    %   - ultrasat.api.MissionClientBase  - matlab/astro/+ultrasat/+api/MissionClientBase.m
-    %   - ultrasat.api.MissionModels      - matlab/astro/+ultrasat/+api/MissionModels.m
-    %   - ultrasat.api.MissionApiModels   - matlab/astro/+ultrasat/+api/MissionApiModels.m
-    %   - ultrasat.api.MissionClientBase  - matlab/astro/+ultrasat/+api/MissionClientBase.m
-
 
     properties
         ApiUrl          % Base URL of the mission control API
