@@ -26,7 +26,7 @@ classdef LcsHelper < Component
 
         StartDate datetime  = '2029-02-01 00:00:00';
         First_day = 1; % Currently must be 1
-        Last_day = 405;
+        Last_day = 420;
 
         Daily_LCS_slots = 11;       
         
@@ -133,6 +133,11 @@ classdef LcsHelper < Component
             %        Consider replacing with upload
             [Obj.SetA_fields,Obj.SetB_fields,Obj.SetC_fields,Obj.SetD_possible_fields,...
              Obj.Good_fields_windows,Obj.Good_longest_window_per_field] = categorizeFields(Obj);
+
+            % set Nominal_windows
+            Obj.Nominal_windows.start = Obj.First_day+Obj.Min_window*(0:7)';
+            Obj.Nominal_windows.end = Obj.Nominal_windows.start+Obj.Min_window-1;
+
         end
 
         function buildSchedule (Obj,Args)
@@ -143,12 +148,8 @@ classdef LcsHelper < Component
                 Args.Daily_LCS_slots   = 11;
             end   
 
-            % set Nominal_windows and Full_windows
-            Obj.Nominal_windows.start = Obj.First_day+Obj.Min_window*(0:7)';
-            Obj.Nominal_windows.end = Obj.Nominal_windows.start+Obj.Min_window-1;
 
-
-            % Step4:  Schedule set C - 6 windows of 45d, each with different 8 SetA fields
+            % Step4:  Schedule set A - 6 windows of 45d, each with different 8 SetA fields
             %         (total of 48 fields)
             Obj.schedule_SetA;
 
@@ -157,13 +158,13 @@ classdef LcsHelper < Component
             Obj.Full_windows.start = Obj.Schedule.start(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
             Obj.Full_windows.end = Obj.Schedule.end(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
 
-            % Step5:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
-            %         (total of 16 fields)
-            Obj.schedule_SetC;
-
-            % Step6:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
+            % Step5:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
             %         (total of 16 fields)
             Obj.schedule_SetB;
+
+            % Step6:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
+            %         (total of 16 fields)
+            Obj.schedule_SetC;
 
             % Step7:  Schedule set D - Schedulde four Category D fields (45d@1d cadence)
             %         (total of 4 fields)
@@ -659,7 +660,7 @@ classdef LcsHelper < Component
             
             Correct_ind = zeros(size(Obj.inds_2move));
             First_correct_ind = 1;
-            
+
             while any(Correct_ind==0) && First_correct_ind<=numel(Correct_fields.field)
                 Correct_ind(:) = 0;
                 for i = 1:numel(Correct_ind)
@@ -675,9 +676,9 @@ classdef LcsHelper < Component
                 end
                 First_correct_ind = First_correct_ind+1;
             end
-            
+
             Correct_fields = Correct_fields(Correct_ind,:);
-            
+
             for i = 1:numel(Correct_fields.field)
                 Schedule_ind = find(Obj.Schedule.field==Correct_fields.field(i) & Obj.Schedule.ind==Correct_fields.ind_2_move(i));
                 Obj.Schedule.group(Schedule_ind) = 7;
@@ -758,7 +759,7 @@ classdef LcsHelper < Component
             % Display vertical lines at the start and end times
             yline(ax,8,['-' Args.SeperateCatColor],'Category A (48 fields, 45d window @ 1d cadance)');
             yline(ax,16,['-' Args.SeperateCatColor],'Category B (16 fields, 45d window @ 1d cadance + 90d window @ 4d cadance)');
-            yline(ax,20,['-' Args.SeperateCatColor],'Category C  (16 fields, 90d window @ 4d cadance)');
+            yline(ax,20,['-' Args.SeperateCatColor],'Category C  (16 fields, 135d window @ 4d cadance)');
             yline(ax,25,['-' Args.SeperateCatColor],'Category D (4 fields, 45d window @ 1d cadance)');
             
             xlabel(ax,sprintf('Time since %s [days]',Obj.StartDate)); 
