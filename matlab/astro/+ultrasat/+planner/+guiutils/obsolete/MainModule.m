@@ -46,10 +46,17 @@ classdef MainModule < ultrasat.api.core.Loggable
 
 
     methods
-        function obj = MainModule()
+        function obj = MainModule(NamespaceId)
             % Constructor
 
             obj.LogPrefix = 'MainModule';
+
+            % Set NamespaceId, default is 'OPER'
+            obj.NamespaceId = NamespaceId;
+            obj.NamespaceDisplay = '';
+            if isempty(obj.NamespaceId)
+                obj.NamespaceId = 'OPER';
+            end
 
             % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
@@ -73,26 +80,46 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Preferences.load();
 
             % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
-            obj.ApiClient = ultrasat.api.clients.MissionApiSim();
-
-            factory = ultrasat.api.clients.ClientFactory();
-            url = factory.getServiceBaseUrl('namespace_manager');
-            obj.NamespaceClient = ultrasat.api.clients.NamespaceManagerClient(url);
-            url = factory.getServiceBaseUrl('user_manager');
-            obj.UserClient = ultrasat.api.clients.UserManagerClient(url);
-
-            % Get the list of namespaces
-            response = obj.NamespaceClient.getNamespaceList();
-            if isfield(response, 'namespaces') && ~isempty(response.namespaces)
-                obj.NamespaceDisplayList = response.display_list;
-
-                % If there is only one namespace, set obj.NamespaceId to it
-                if numel(obj.NamespaceDisplayList) == 1
-                    obj.NamespaceId = obj.GuiHelper.extractNameFromDisplayString(obj.NamespaceDisplayList{1});
-                end
+            UseSim = obj.Preferences.get('UseSim', true);
+            UseSim = true;
+            if UseSim
+                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiSim');
+                obj.ApiClient = ultrasat.api.clients.MissionApiSim();
+                obj.UserClient = ultrasat.api.clients.UserManagerSim();
             else
-                obj.NamespaceId = 'none';
-                obj.NamespaceDisplay = 'not connected';
+                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiClient (FastAPI plans_manager)');
+                apiUrl = obj.Preferences.get('PlansManagerApiUrl', '');
+                if isempty(apiUrl)
+                    apiUrl = getenv('SOC_API_BASE');
+                end
+                if isempty(apiUrl)
+                    apiUrl = 'http://localhost:8321';
+                end
+                apiKey = obj.Preferences.get('ApiKey', '');
+                if isempty(apiKey)
+                    apiKey = getenv('SOC_API_KEY');
+                end
+                namespace = obj.NamespaceId;
+                if isempty(namespace)
+                    namespace = 'OPER';
+                end
+                obj.ApiClient = ultrasat.api.clients.MissionApiClient(...
+                    'ApiUrl', apiUrl, ...
+                    'Namespace', namespace, ...
+                    'ApiKey', apiKey);
+                obj.UserClient = ultrasat.api.clients.UserManagerSim();
+            end
+
+            % Operational - When starting Planner from OPER, this is the
+            % only Namespace available for the user, otherwise get the namespace list
+            % from the server
+            if strcmp(obj.NamespaceId, 'OPER')
+                obj.NamespaceDisplay = 'OPERATIONAL';
+            else
+                response = obj.UserClient.getNamespaceList();
+                if response.ok
+                    obj.NamespaceDisplayList = response.display_list;
+                end
             end
 
             % Create helper classes
