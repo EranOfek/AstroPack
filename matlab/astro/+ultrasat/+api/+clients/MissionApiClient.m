@@ -523,7 +523,7 @@ classdef MissionApiClient < ultrasat.api.clients.MissionApiBase
                 apiStruct.targets = t;
             end
             % Convert datetimes to ISO strings for JSON (recursive)
-            apiStruct = ultrasat.api.utils.ModelBase.convertDatetimeToString(apiStruct);
+            apiStruct = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(apiStruct);
         end
 
         function matlabStruct = apiToPlanStruct(obj, apiStruct)

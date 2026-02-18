@@ -288,8 +288,8 @@ classdef MissionApiBase < ultrasat.api.core.Loggable
             % Notes:
             %   This is used to ensure consistent time format for API communication
             for i = 1:numel(Plan)
-                Plan(i).start_time = ultrasat.api.models.MissionModels.toUtc(Plan(i).start_time);
-                Plan(i).end_time = ultrasat.api.models.MissionModels.toUtc(Plan(i).end_time);
+                Plan(i).start_time = ultrasat.api.utils.DateTimeUtils.toUtc(Plan(i).start_time);
+                Plan(i).end_time = ultrasat.api.utils.DateTimeUtils.toUtc(Plan(i).end_time);
             end
         end
 

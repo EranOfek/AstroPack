@@ -530,11 +530,11 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
                 planStruct = rmfield(planStruct, 'planner');  % Remove planner for JSON
 
                 % Convert datetime objects to iso format
-                planStruct = ultrasat.api.utils.ModelBase.convertDatetimeToString(planStruct);
+                planStruct = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(planStruct);
 
                 % Convert datetime objects to iso format
                 if ~isempty(planStruct.targets)
-                    planStruct.targets = ultrasat.api.utils.ModelBase.convertDatetimeToString(planStruct.targets);
+                    planStruct.targets = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(planStruct.targets);
                 end
 
                 % Save JSON file
@@ -647,7 +647,7 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
 
         function dt = parseIsoDatetime(obj, str)
             % Parse ISO 8601 datetime strings with 'Z' or timezone offsets.
-            dt = ultrasat.api.utils.parseIsoDateTime(str);
+            dt = ultrasat.api.utils.DateTimeUtils.parseIsoDateTime(str);
         end
 
     end

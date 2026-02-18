@@ -49,7 +49,7 @@ classdef PlanData < handle
 
     methods
         function obj = PlanData()
-            obj.create_time = ultrasat.api.utils.ModelBase.nowUtc();
+            obj.create_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
 			obj.update_time = obj.create_time;
             obj.metadata = obj.newMetadata();
         end
@@ -136,7 +136,7 @@ classdef PlanData < handle
             if ~isempty(Args.Html), obj.metadata.(fieldName).Html = Args.Html; end
 
             % Set UpdateTime to current UTC time
-            obj.metadata.(fieldName).UpdateTime = ultrasat.api.utils.ModelBase.nowUtc();
+            obj.metadata.(fieldName).UpdateTime = ultrasat.api.utils.DateTimeUtils.nowUtc();
 
             % If StartTime is empty, set it to UpdateTime
             if isempty(obj.metadata.(fieldName).StartTime)
@@ -157,7 +157,7 @@ classdef PlanData < handle
         function addHistory(obj, message)
             % Adds a new entry to the history with the current timestamp.
             newHistoryEntry = struct(...
-                'timestamp', ultrasat.api.utils.ModelBase.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
+                'timestamp', ultrasat.api.utils.DateTimeUtils.nowUtc(), ... % datestr(now, 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
                 'message', message ...
             );
 

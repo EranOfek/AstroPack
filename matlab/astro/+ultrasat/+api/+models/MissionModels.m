@@ -63,22 +63,5 @@ classdef MissionModels < ultrasat.api.utils.ModelFactoryBase
             );
         end
 
-        % -----------------------------------------------------------------
-
-        function dt = toUtc(dt)
-            % Converts input to datetime in UTC if needed.
-            if isdatetime(dt)
-                % Already a datetime, ensure timezone is UTC
-                if isempty(dt.TimeZone) || ~strcmp(dt.TimeZone, 'UTC')
-                    dt.TimeZone = 'UTC';
-                end
-            elseif ischar(dt) || isstring(dt)
-                % Convert string to datetime and ensure UTC
-                dt = datetime(dt, 'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss.SSS''Z''', 'TimeZone', 'UTC');
-            else
-                error('Input must be a datetime object or a date-time string.');
-            end
-        end
-
     end
 end

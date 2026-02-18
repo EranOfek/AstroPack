@@ -46,7 +46,7 @@ function debug_ModelBase()
     disp(cleanedData);
 
     % Test the isoFormat method with the current timestamp
-    isoTimestamp = ultrasat.api.utils.ModelBase.isoFormat(datetime('now'));
+    isoTimestamp = ultrasat.api.utils.DateTimeUtils.isoFormat(datetime('now'));
     disp('ISO Formatted Timestamp:');
     disp(isoTimestamp);
 

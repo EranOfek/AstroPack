@@ -370,7 +370,7 @@ classdef MainModule < ultrasat.api.core.Loggable
                 obj.CurrentStatus = NewStatus;
             end
 
-            NewText = sprintf('%s %s', ultrasat.api.utils.ModelBase.nowUtcStr(), NewText);
+            NewText = sprintf('%s %s', ultrasat.api.utils.DateTimeUtils.nowUtcStr(), NewText);
 
             % Append new text to StatusText
             if isempty(obj.StatusText)

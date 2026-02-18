@@ -40,10 +40,10 @@ function debugToUtc()
     dt_obj = datetime('now', 'TimeZone', 'local');
 
     fprintf('Converting string to UTC:\n');
-    dt_converted = ultrasat.api.models.MissionModels.toUtc(dt_str);
+    dt_converted = ultrasat.api.utils.DateTimeUtils.toUtc(dt_str);
     disp(dt_converted);
 
     fprintf('Converting datetime to UTC:\n');
-    dt_converted = ultrasat.api.models.MissionModels.toUtc(dt_obj);
+    dt_converted = ultrasat.api.utils.DateTimeUtils.toUtc(dt_obj);
     disp(dt_converted);
 end
