@@ -4,8 +4,10 @@ function [Result] = overlapSources(AI, Args)
     % Input  : - an AstroImage containing all the crops (proc or coadd)    
     %          * ...,key,val,... 
     %         'MagCut' - a limiting magnitude employed for the comparison
-    %         'Prop'   - a list of columns to compare
     %         'MatchRadius' - match radius in arcsec
+    %         'Prop'   - a list of columns to compare
+    %         'BadFlags' - a list of bad flags employed to deselect sources
+    %         'FilterBad' - whether to use the 'BadFlags' for filtering
     %         'CroppingScheme' - 'old' or 'new'
     % Output : - a struct with statistics for each crop
     % Author : A.M. Krassilchtchikov (2026 Feb) 
@@ -13,25 +15,42 @@ function [Result] = overlapSources(AI, Args)
     %
     arguments
         AI      
-        Args.MagCut = 17;  
-        Args.Prop   = {'RA', 'Dec', 'MAG_APER_3', 'MAG_PSF'};
+        Args.MagCut      = 17;  
         Args.MatchRadius = 3; % arcsec
+        Args.Prop        = {'RA', 'Dec', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
+        Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
+        Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
     end
+    BD=BitDictionary;
     % read the list of overlap interfaces:
-    Ind   = LASToverlapsNew(Args.CroppingScheme);
+    Ind   = LASToverlapsNew('CroppingScheme', Args.CroppingScheme);
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
         MS = imProc.match.match(AI(Ind(Ivrlp,1)).CatData, AI(Ind(Ivrlp,2)).CatData, 'Radius', Args.MatchRadius);
-        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut;
-        if sum(FlagMag) > 0
-            fprintf('%d overlap sources found between crops %d and %d\n',sum(FlagMag),Ind(Ivrlp,1), Ind(Ivrlp,2));
+        
+        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut;        
+        
+        if Args.FilterBad
+            Col = MS.colnameDict2ind('FLAGS');
+            IsNan = isnan(MS.Table.FLAGS);
+            MS.Catalog(IsNan,Col)=0;
+            [BitName,~,~]=bitdec2name(BD,MS.Table.FLAGS);
+            FlagBad = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName) > 0;
+            
+            Flag = FlagMag & ~FlagBad;
+        else
+            Flag = FlagMag;
+        end
+                       
+        if sum(Flag) > 0
+            fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
                 Diff = MS.Table.(Prop) - AI(Ind(Ivrlp,2)).CatData.Table.(Prop);
-                Result.(Prop).MedianDiff(Ivrlp) = nanmedian(Diff(FlagMag), 1);
-                Result.(Prop).StdDiff(Ivrlp)    = nanstd(Diff(FlagMag),[],1);
+                Result.(Prop).MedianDiff(Ivrlp) = nanmedian(Diff(Flag), 1);
+                Result.(Prop).StdDiff(Ivrlp)    = nanstd(Diff(Flag),[],1);
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
