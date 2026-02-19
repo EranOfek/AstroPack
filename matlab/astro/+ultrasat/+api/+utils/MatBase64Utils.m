@@ -32,10 +32,12 @@ classdef MatBase64Utils
                 if fid == -1
                     return;
                 end
-                bytes = fread(fid, inf, 'uint8');
+                bytes = fread(fid, inf, '*uint8')';
                 fclose(fid);
-                base64Str = matlab.net.base64encode(bytes');
-            catch
+                base64Str = matlab.net.base64encode(bytes);
+            catch ME
+                fprintf('matToBase64: failed to save object: %s', ME.message);
+                return;
             end
             if exist(tmpFile, 'file')
                 delete(tmpFile);
@@ -65,11 +67,13 @@ classdef MatBase64Utils
                 if fid == -1
                     return;
                 end
-                fwrite(fid, bytes);
+                fwrite(fid, bytes, 'uint8');
                 fclose(fid);
                 loaded = load(tmpFile, vn);
                 matObj = loaded.(vn);
-            catch
+            catch ME
+                fprintf('base64ToMat: failed to load object: %s', ME.message);
+                return;
             end
             if exist(tmpFile, 'file')
                 delete(tmpFile);

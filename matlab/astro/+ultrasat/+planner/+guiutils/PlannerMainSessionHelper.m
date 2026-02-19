@@ -253,7 +253,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             if ~isempty(app.MainModule.UserName)
                 app.LoginButton.Text = 'Connected';
                 app.LoginButton.BackgroundColor = [0.95,1.00,0.95];  % Green
-                app.LabelTopUser.Text = app.MainModule.UserName;
+                app.LabelTopUser.Text = ultrasat.planner.guiutils.safeText(app.MainModule.UserName);
             else
                 app.LoginButton.Text = 'Login';
                 app.LoginButton.BackgroundColor = [1.00,1.00,0.55];  % Yellow
@@ -263,7 +263,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             % Namespace & Username
             if ~isempty(app.MainModule)
                 % Set Namespace label colors
-                app.LabelTopNamespace.Text = app.MainModule.NamespaceDisplay;                
+                app.LabelTopNamespace.Text = ultrasat.planner.guiutils.safeText(app.MainModule.NamespaceDisplay);
                 if strcmp(app.MainModule.NamespaceId, 'OPER')
                     app.LabelTopNamespace.FontColor = [1.00,1.00,1.00];  % White on black
                     app.LabelTopNamespace.BackgroundColor = [0.00,0.00,0.00];

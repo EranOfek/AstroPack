@@ -17,6 +17,9 @@ function debug_PlansManagerClient()
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
     client.Namespace = 'dev';
 
+    debug_saveMatlabMat(client, 2);
+    return;
+
     pk = debug_getPlansList(client);
     debug_getPlan(client, pk);
     savedPk = debug_savePlan(client);
@@ -153,7 +156,7 @@ function debug_saveMatlabMat(client, pk)
         fprintf('Skipping (no pk available)\n');
         return;
     end
-    testObj = rand(2, 2);
+    testObj = uint8(randi(255, 1024, 1024));
     base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(testObj, 'matlab_mat');
     response = client.saveMatlabMat(pk, base64Str);
     fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
@@ -163,6 +166,19 @@ function debug_saveMatlabMat(client, pk)
             loaded = ultrasat.api.utils.MatBase64Utils.base64ToMat(verifyResp.data, 'matlab_mat');
             fprintf('Round-trip verify: getMatlabMat returned %d chars, loaded %dx%d matrix\n', ...
                 numel(verifyResp.data), size(loaded, 1), size(loaded, 2));
+
+            % Compare testObj and loaded for verification
+            if isequal(testObj, loaded)
+                fprintf('Verification passed: testObj and loaded are identical.\n');
+            else
+                diffNorm = norm(double(testObj(:)) - double(loaded(:)));
+                fprintf('Verification failed: testObj and loaded differ. Norm of difference: %.6g\n', diffNorm);
+                % Optionally: print where they differ for debugging
+                [row, col] = find(testObj ~= loaded, 1);
+                if ~isempty(row)
+                    fprintf('First mismatch at row %d, col %d: testObj=%d, loaded=%d\n', row, col, testObj(row, col), loaded(row, col));
+                end
+            end
         end
     end
 end

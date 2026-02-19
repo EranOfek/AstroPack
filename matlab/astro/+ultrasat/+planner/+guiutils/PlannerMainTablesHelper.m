@@ -370,9 +370,9 @@ classdef PlannerMainTablesHelper < ultrasat.api.core.Loggable
         
                 % Apply caption to window title / label - prefer TitleLabel if exists (visual)
                 if isprop(form, "TitleLabel")
-                    form.TitleLabel.Text = caption;
+                    form.TitleLabel.Text = ultrasat.planner.guiutils.safeText(caption);
                 elseif isprop(form, "UIFigure")
-                    form.UIFigure.Name = caption;
+                    form.UIFigure.Name = ultrasat.planner.guiutils.safeText(caption);
                 end
         
                 % Extract row, index, name

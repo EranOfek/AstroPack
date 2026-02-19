@@ -36,7 +36,7 @@ classdef About < matlab.apps.AppBase
     end
 
     properties (Access = public)
-        DataModule      % Reference to the main application module
+        MainModule      % Reference to the main application module
         Status          % Status of the operation ('Save' or 'Cancel')
     end
     
@@ -45,8 +45,8 @@ classdef About < matlab.apps.AppBase
     methods (Access = private)
 
         % Code that executes after component creation
-        function startupFcn(app, DataModule)
-            app.DataModule = DataModule;
+        function startupFcn(app, MainModule)
+            app.MainModule = MainModule;
             app.UIFigure.Name = 'About';
             app.MainModule.AppUtils.center(app);
         end
@@ -105,7 +105,7 @@ classdef About < matlab.apps.AppBase
             app.VersionEditField = uieditfield(app.Panel_3, 'text');
             app.VersionEditField.Editable = 'off';
             app.VersionEditField.Position = [90 332 249 22];
-            app.VersionEditField.Value = '0.1d';
+            app.VersionEditField.Value = '0.2a (DB)';
 
             % Create UpdatedEditFieldLabel
             app.UpdatedEditFieldLabel = uilabel(app.Panel_3);
@@ -117,7 +117,7 @@ classdef About < matlab.apps.AppBase
             app.UpdatedEditField = uieditfield(app.Panel_3, 'text');
             app.UpdatedEditField.Editable = 'off';
             app.UpdatedEditField.Position = [90 300 249 22];
-            app.UpdatedEditField.Value = '28/10/2025';
+            app.UpdatedEditField.Value = '19/02/2026';
 
             % Create DevelopersTextAreaLabel
             app.DevelopersTextAreaLabel = uilabel(app.Panel_3);
@@ -159,7 +159,7 @@ classdef About < matlab.apps.AppBase
             app.Image = uiimage(app.UIFigure);
             app.Image.BackgroundColor = [0 0 0];
             app.Image.Position = [381 9 255 322];
-            app.Image.ImageSource = fullfile(pathToMLAPP, 'images', 'PlannerLogo2.jpg');
+            app.Image.ImageSource = fullfile(pathToMLAPP, 'images', 'PlannerLogo1.png');
 
             % Create Image2
             app.Image2 = uiimage(app.UIFigure);

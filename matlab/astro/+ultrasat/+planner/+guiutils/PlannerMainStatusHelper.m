@@ -193,7 +193,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
             if isempty(Text)
                 app.LabelTopStatus.Visible = false;
             else
-                app.LabelTopStatus.Text = Text;
+                app.LabelTopStatus.Text = ultrasat.planner.guiutils.safeText(Text);
                 app.LabelTopStatus.FontColor = FontColor;
                 app.LabelTopStatus.BackgroundColor = BackgroundColor;
                 app.LabelTopStatus.Visible = true;
