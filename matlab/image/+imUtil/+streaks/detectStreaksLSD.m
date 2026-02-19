@@ -50,7 +50,7 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
     end
 
    
-    segs=imUtil.streaks.mex.lsd_single_scale_mex(Im,Args.subsample);
+    segs=imUtil.streaks.mex.lsd_single_scale_mex(Im,Args.Subsample);
     
     segs=merge_segments(segs,[],Args.AngTol);
     
