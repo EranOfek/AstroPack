@@ -52,7 +52,6 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.core.Loggable
                 end
             end
 
-            % uplanner uses ApiClient class to send request to backend
             app.showPleaseWait('Retreiving approved targets. This make take a while. Please wait...');
             try
                 app.MainModule.Planner.retrieveMissionApprovedPlan();

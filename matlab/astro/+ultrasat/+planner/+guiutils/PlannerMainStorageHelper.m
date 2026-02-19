@@ -75,14 +75,14 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             % Query backend database for saved plans
             app.showPleaseWait('Fetching plans...');
             try
-                response = app.MainModule.ApiClient.getPlansList([], [], []);
+                response = app.MainModule.PlansClient.getPlansList([], [], []);
             catch ME
                 app.msgex('openPlan', ME);
             end
             app.closePleaseWait();
 
             if ~isfield(response, 'ok') || ~response.ok
-                app.AppUtils.msgError('ApiClient.getPlansList returned empty list');
+                app.AppUtils.msgError('PlansClient.getPlansList returned empty list');
                 return;
             end
 
@@ -104,7 +104,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 Pk = app.OpenPlanApp.Pk;
                 app.showPleaseWait('Loading plan...');
                 try
-                    response = app.MainModule.ApiClient.loadPlan(Pk);
+                    response = app.MainModule.PlansClient.loadPlan(Pk);
                 catch ME
                     app.msgex('openPlan', ME);
                 end
@@ -159,7 +159,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             try
                 % Set update_time
                 app.MainModule.PlanData.update_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
-                app.MainModule.ApiClient.savePlan();
+                ultrasat.api.utils.PlanDataUtils.syncFromPlanner(app.MainModule.PlanData, app.MainModule.Planner);
+                app.MainModule.PlansClient.savePlan(app.MainModule.PlanData);
                 app.clearModified();
 
                 % Update Pk display (required if this plan saved for the first time)
