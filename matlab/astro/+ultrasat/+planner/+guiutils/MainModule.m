@@ -200,7 +200,10 @@ classdef MainModule < ultrasat.api.core.Loggable
 
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
-            Planner.Mclient = obj.ApiClient;
+
+            % Create UplannerClient instance (adapter class for uplanner)
+            uplannerClient = ultrasat.api.UplannerClient( obj.PlansClient, obj.ScheduleClient );
+            Planner.Mclient = uplannerClient;
 
             % Override BaseDataDir to allow Linux/Windows compatibility
             if ~strcmp(Planner.BaseDataDir, obj.BaseDataDir) 

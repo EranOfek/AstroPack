@@ -124,7 +124,9 @@ classdef uplanner < Component
         CheckTimes(2,1)     datetime            % times to be used for visibilty and mission approval retrival
         Vis                                     % visibility matrix         
         MissionApprovedPlan                     % Approved Mission Plan retrvied  from C&C 
-        
+        LastApprovedTargetsWindowStart          % Start time of the last approved targets window
+        LastApprovedTargetsWindowEnd            % End time of the last approved targets window
+
         DefEpochsPerVisit               = 3; 
         Exptime             duration    = seconds(300);      %[s]
         Tiles               string      = ['1','2','3','4']; %
@@ -1273,6 +1275,11 @@ classdef uplanner < Component
                     error('Obj.Mclient must be set'); 
                 end
 
+                % Set the last approved targets window start and end times
+                Obj.LastApprovedTargetsWindowStart = Args.WindowStartTime;
+                Obj.LastApprovedTargetsWindowEnd   = Args.WindowEndTime;
+
+                % Get the approved targets from the backend
                 structPlan = Obj.Mclient.getApprovedTargets(Args.WindowStartTime, Args.WindowEndTime);
             end
                        
