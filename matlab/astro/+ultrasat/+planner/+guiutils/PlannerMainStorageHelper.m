@@ -37,6 +37,12 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
         %                           CORE ACTIONS
         % =================================================================
 
+        function response = getPlansList(obj, app, start_time, end_time, title_subtext)
+            % Get the plans list from the backend
+            response = app.MainModule.PlansClient.getPlansList(start_time, end_time, title_subtext);                        
+        end
+
+
         function openPlan(obj, app)
             % Load plan from database, requires login and server connection
             app.msglog('openPlan');

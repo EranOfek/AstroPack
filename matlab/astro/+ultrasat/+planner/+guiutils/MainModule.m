@@ -11,11 +11,6 @@ classdef MainModule < ultrasat.api.core.Loggable
     % This class serves like a DataModule in Delphi
 
     properties
-        ApiClient               % MissionApiClient/MissionApiSim instance
-        NamespaceClient         % NamespaceManagerClient instance
-        UserClient              % UserManagerClient/UserManagerSim instance
-        ScheduleClient          % ScheduleManagerClient instance
-        PlansClient             % PlansManagerClient instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     % Preferences file name
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
@@ -26,7 +21,14 @@ classdef MainModule < ultrasat.api.core.Loggable
         LoggerApp               % ultrasat.planner.gui.Logger
         ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger
         Planner                 % instance of ultrasat.planner.uplanner
-        PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
+        PlanData                % instance of ultrasat.api.PlanData
+
+        % Clients
+        NamespaceClient         % NamespaceManagerClient instance
+        UserClient              % UserManagerClient/UserManagerSim instance
+        ScheduleClient          % ScheduleManagerClient instance
+        PlansClient             % PlansManagerClient instance
+        ValidatorClient         % ValidatorManagerClient instance
 
         % Status
         StatusText              % Status text for display
@@ -74,9 +76,6 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
-            obj.ApiClient = ultrasat.api.clients.MissionApiSim();
-
             % Setup clients
             factory = ultrasat.api.clients.ClientFactory();
             url = factory.getServiceBaseUrl('namespace_manager');
@@ -90,6 +89,9 @@ classdef MainModule < ultrasat.api.core.Loggable
 
             url = factory.getServiceBaseUrl('plans_manager');
             obj.PlansClient = ultrasat.api.clients.PlansManagerClient(url);
+
+            url = factory.getServiceBaseUrl('validator_manager');
+            obj.ValidatorClient = ultrasat.api.clients.ValidatorManagerClient(url);
 
             % Get the list of namespaces
             response = obj.NamespaceClient.getNamespaceList();
@@ -149,10 +151,6 @@ classdef MainModule < ultrasat.api.core.Loggable
                 ultrasat.api.utils.PathUtils.NamespaceId(obj.NamespaceId);
                 obj.setNamespace(obj.NamespaceId);
 
-                % When using MissionApiClient (FastAPI), update HTTP client namespace for plans_manager
-                if isa(obj.ApiClient, 'ultrasat.api.clients.MissionApiClient') && ~isempty(obj.ApiClient.Client)
-                    obj.ApiClient.Client.Namespace = obj.NamespaceId;
-                end
                 Result = true;
             end
         end
@@ -202,7 +200,7 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Planner = Planner;
 
             % Create UplannerClient instance (adapter class for uplanner)
-            uplannerClient = ultrasat.api.UplannerClient( obj.PlansClient, obj.ScheduleClient );
+            uplannerClient = ultrasat.api.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );
             Planner.Mclient = uplannerClient;
 
             % Override BaseDataDir to allow Linux/Windows compatibility
@@ -274,16 +272,12 @@ classdef MainModule < ultrasat.api.core.Loggable
         function createPlanData(obj)
             % Create new instance of PlanData
             obj.PlanData = ultrasat.api.models.PlanData();
-            obj.ApiClient.PlanData = obj.PlanData;
         end
 
 
         function setPlanData(obj, Data)
             % Set PlanData to the given instance
             obj.PlanData = Data;
-
-            % Link current instance to ApiClient
-            obj.ApiClient.PlanData = obj.PlanData;
             if ~isempty(obj.PlanData.planner)
                 obj.setPlanner(obj.PlanData.planner);
             end
@@ -291,12 +285,11 @@ classdef MainModule < ultrasat.api.core.Loggable
 
 
         function clearData(obj)
-            % Note: ApiClient, Preferences, MainApp, and LoggerApp are **not** cleared
+            %
 
             % Clear planner-related data
             obj.Planner = [];
             obj.PlanData = [];
-            obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
 
             % Reset status properties
             obj.StatusText = [];

@@ -11,12 +11,14 @@ classdef UplannerClient < handle
     properties
         PlansClient
         ScheduleClient
+        ValidatorClient
     end
 
     methods
-        function obj = UplannerClient(plansClient, scheduleClient)
+        function obj = UplannerClient(plansClient, scheduleClient, validatorClient)
             obj.PlansClient = plansClient;
             obj.ScheduleClient = scheduleClient;
+            obj.ValidatorClient = validatorClient;
         end
 
         function approved = getApprovedTargets(obj, startTime, endTime)
@@ -24,7 +26,7 @@ classdef UplannerClient < handle
         end
 
         function resp = validatePlan(obj, planStruct)
-            resp = obj.PlansClient.validatePlan(planStruct);
+            resp = obj.ValidatorClient.validatePlan(planStruct);
         end
 
         function resp = submitPlan(obj, planStruct)
