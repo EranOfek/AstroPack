@@ -7,7 +7,7 @@
 % Description : App utils for PlannerMain
 %==========================================================================
 
-classdef AppUtils < ultrasat.api.Loggable
+classdef AppUtils < ultrasat.api.core.Loggable
     % Low level utility functions for PlannerMain
 
     properties

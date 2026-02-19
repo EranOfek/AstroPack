@@ -133,8 +133,8 @@ function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
     if ~isempty(Args.X) && ~isempty(Args.Y)
         Npo = size(Args.PosOrder,1);
         for Ipo=1:1:Npo
-            H = [H, Args.X.^PosOrder(Ipo,1) .*Args.Y.^PosOrder(Ipo,2)];
-            ColNames = [ColNames, sprintf('X%dY%d',PosOrder(Ipo,:))];
+            H = [H, Args.X.^Args.PosOrder(Ipo,1) .*Args.Y.^Args.PosOrder(Ipo,2)];
+            ColNames = [ColNames, sprintf('X%dY%d',Args.PosOrder(Ipo,:))];
             if Args.SubMed
                 Med = Args.MedFun(H(:,end), Args.MedFunArgs{:});
                 H(:,end) = H(:,end) - Med;

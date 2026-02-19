@@ -7,7 +7,7 @@
 % Description : Status Helper for Main Planner (Update, Clear, etc.)
 %==========================================================================
 
-classdef PlannerMainStatusHelper < ultrasat.api.Loggable
+classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -145,9 +145,9 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
 
             % Planner is not empty, set fields
             if ~isempty(Planner)
-                app.BuildTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ScheduledTime);
-                app.ValidationTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ValidatedTime);
-                app.SubmitTimeEditField.Value = app.MainModule.DateTime2Str(Planner.SubmittedTime);
+                app.BuildTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ScheduledTime);
+                app.ValidationTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ValidatedTime);
+                app.SubmitTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.SubmittedTime);
 
                 %
                 app.setStatusField(app.BuildShortStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);
@@ -193,7 +193,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.Loggable
             if isempty(Text)
                 app.LabelTopStatus.Visible = false;
             else
-                app.LabelTopStatus.Text = Text;
+                app.LabelTopStatus.Text = ultrasat.planner.guiutils.safeText(Text);
                 app.LabelTopStatus.FontColor = FontColor;
                 app.LabelTopStatus.BackgroundColor = BackgroundColor;
                 app.LabelTopStatus.Visible = true;

@@ -7,7 +7,7 @@
 % Description : Approved Targets Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
+classdef PlannerMainApprovedTargetsHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -135,9 +135,9 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.Loggable
 
                 % Update title above the table with current date
                 app.ApprovedTargetsPanel.Title = sprintf('Approved Targets: (%s - %s)  - Retrieved: %s', ...
-                    ultrasat.api.ModelBase.datetimeStr(app.MainModule.ApiClient.ApprovedTargetsStartTime), ...
-                    ultrasat.api.ModelBase.datetimeStr(app.MainModule.ApiClient.ApprovedTargetsEndTime), ...
-                    ultrasat.api.ModelBase.datetimeStr(app.MainModule.Planner.RetrivedMissionTime));
+                    ultrasat.api.utils.DateTimeUtils.datetimeStr(app.MainModule.Planner.LastApprovedTargetsWindowStart), ...
+                    ultrasat.api.utils.DateTimeUtils.datetimeStr(app.MainModule.Planner.LastApprovedTargetsWindowEnd), ...
+                    ultrasat.api.utils.DateTimeUtils.datetimeStr(app.MainModule.Planner.RetrivedMissionTime));
 
                 % Update the table content from PlannerMain to ApprovedTargetsApp
                 if ~isempty(app.ApprovedTargetsApp) && isvalid(app.ApprovedTargetsApp)

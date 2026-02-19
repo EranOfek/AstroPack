@@ -7,7 +7,7 @@
 % Description : Plan Targets Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
+classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -361,13 +361,13 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 ParamsApp.GroupEditField.Value = num2str(Plan.Group(Index));
 
                 % Double fields (convert to string for display)
-                ParamsApp.RAEditField.Value = app.MainModule.ra2Str( Plan.RA(Index) );
-                ParamsApp.DecEditField.Value = app.MainModule.dec2Str( Plan.Dec(Index));
+                ParamsApp.RAEditField.Value = ultrasat.planner.guiutils.FormatUtils.ra2Str( Plan.RA(Index) );
+                ParamsApp.DecEditField.Value = ultrasat.planner.guiutils.FormatUtils.dec2Str( Plan.Dec(Index));
                 ParamsApp.ExpectedRollEditField.Value = num2str(Plan.ExpectedRoll(Index));
 
                 % Datetime fields (convert to string using date format)
-                ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tstart(Index));
-                ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Plan.Tend(Index));
+                ParamsApp.StartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Plan.Tstart(Index));
+                ParamsApp.EndTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Plan.Tend(Index));
 
                 % Double fields (convert to string)
                 ParamsApp.MJDstartEditField.Value = num2str(Plan.JDstart(Index));
@@ -389,7 +389,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.Loggable
                 ParamsApp.LimMagEditField.Value = num2str(Plan.LimMag(Index));
 
                 % Cell array field (convert to comma-separated string for display)
-                ParamsApp.OverlapTargetsEditField.Value = app.MainModule.cell2Str(Plan.OverlapTargets);
+                ParamsApp.OverlapTargetsEditField.Value = ultrasat.planner.guiutils.FormatUtils.cell2Str(Plan.OverlapTargets);
             catch ME
                 app.msgex('setPlanTargetParamsFields', ME);
             end

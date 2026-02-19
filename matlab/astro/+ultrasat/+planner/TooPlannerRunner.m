@@ -1,4 +1,13 @@
-classdef TooPlannerRunner < Component
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% Filename    : ultrasat.planner.TooPlannerRunner.m
+% Author      : Chen Tishler
+% Created     : 29/01/2026
+% Updated     : 19/02/2026
+% Description : Runs ULTRASAT TOO planner multiple times from one JSON config.
+%==========================================================================
+
+classdef TooPlannerRunner < ultrasat.api.core.Loggable
     % TooPlannerRunner
     % Runs ULTRASAT TOO planner multiple times from one JSON config.
     %

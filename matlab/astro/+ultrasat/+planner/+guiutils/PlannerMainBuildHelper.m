@@ -7,7 +7,7 @@
 % Description : Build Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainBuildHelper < ultrasat.api.Loggable
+classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     % Provides build logic (HCS/LCS/DDT/TOO/AllSS) for PlannerMain.mlapp.
     %
@@ -230,7 +230,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.Loggable
             end
 
             % Set start time field from the planner
-            app.EnterStartTimeApp.GroupStartTimeEditField.Value = app.MainModule.DateTime2Str(app.MainModule.Planner.StartTime);
+            app.EnterStartTimeApp.GroupStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(app.MainModule.Planner.StartTime);
 
             % Extract the selected Unique Targets and show them in the dialog
             SelectedData = app.UITableUniqueTargets.Data(SelectedRows, :);

@@ -224,7 +224,6 @@ classdef PlannerMain < matlab.apps.AppBase
         % =================================================================
         % Data
         Preferences                             % Refrence to app.MainModule.Preferences
-        StartupNamespaceId                      %
 
         % Helper classes in astro/+ultrasat/+planner/+guiutils/
         AppUtils                                %         
@@ -262,7 +261,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.checkSocPath();
 
             % Create MainModule that holds all common data and link objects
-            app.MainModule = ultrasat.planner.guiutils.MainModule(app.StartupNamespaceId);
+            app.MainModule = ultrasat.planner.guiutils.MainModule();
             app.MainModule.MainApp = app;
             app.GuiHelper = app.MainModule.GuiHelper;
 
@@ -286,7 +285,7 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Register both with the global LogManager so the windows can
             % be used from any class derived from Loggable
-            ultrasat.api.LogManager.registerLoggerApps(app.LoggerApp, app.ErrorLoggerApp);
+            ultrasat.api.utils.LogManager.registerLoggerApps(app.LoggerApp, app.ErrorLoggerApp);
 
             % Create helpers classes
             app.AppHelper               = ultrasat.planner.guiutils.PlannerMainAppHelper();            
@@ -627,15 +626,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % This function is automaticalled called on application startup
             fprintf('============ STARTING ULTRASAT OBSERVATION PLANNER GUI ============\n')
             
-            if ~isempty(varargin)
-                app.StartupNamespaceId = varargin{1};
-                fprintf('[startupFcn] NamespaceId specified: "%s"\n', app.StartupNamespaceId);
-            else
-                app.StartupNamespaceId = 'sim-OPER';
-                fprintf('[startupFcn] No NamespaceId specified — using default ""\n');
-            end          
-
-            % Initialize the app (uses app.StartupNamespaceId)
+            % Initialize the app
             app.init();            
         end
 
