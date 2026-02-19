@@ -712,6 +712,9 @@ classdef PhotCalibTrans < Component
             % Filter 2: Bad FLAGS (optional)
             if Args.FilterBadFlags && ismember('FLAGS', Tab.Properties.VariableNames)
                 Flags = Tab.FLAGS;
+                % Sanitize: NaN/Inf/non-integer flags treated as bad
+                BadValue = isnan(Flags) | isinf(Flags) | Flags < 0 | Flags ~= floor(Flags);
+                Flags(BadValue) = 0;
                 % Check for critical bad flags (vectorized bitget operations)
                 IsSaturated = bitget(Flags, 1);
                 IsNaN = bitget(Flags, 7);
@@ -719,8 +722,8 @@ classdef PhotCalibTrans < Component
                 IsCR = bitget(Flags, 15);
                 IsNearEdge = bitget(Flags, 24);
 
-                % Mark as bad if ANY of these flags is true
-                BadFlagsMask = IsSaturated | IsNaN | IsNegative | IsCR | IsNearEdge;
+                % Mark as bad if ANY of these flags is true, or if FLAGS value was invalid
+                BadFlagsMask = BadValue | IsSaturated | IsNaN | IsNegative | IsCR | IsNearEdge;
                 GoodMask = GoodMask & ~BadFlagsMask;
 
                 if Args.Verbose
