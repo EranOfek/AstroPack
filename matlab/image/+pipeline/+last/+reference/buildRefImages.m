@@ -15,7 +15,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99950]); % a short test
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99946]); % a short test
     arguments
         RefGrid
         DB            
@@ -27,11 +27,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
                        
-        Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
+        Args.RefNumbers  = []; % [150000 150001] or [150000:150020]; input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
         Args.Naxis1            = 1726;  % the pixel size of a reference image:  
-        Args.Naxis2            = 1726;  % note: will like be reduced ro 1716 for the new LAST pipeline   
+        Args.Naxis2            = 1726;  % NOTE: will be reduced to 1716 for the new LAST pipeline   
         
         Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
@@ -66,7 +66,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % the output DB table name   
-        Args.Verbosity         = 1; % from 0 to 2 
+        Args.Verbosity         = 2; % from 0 to 2 
     end
     % 
     RAD = 180/pi;  
