@@ -177,30 +177,38 @@ classdef PhotCalibTrans < Component
     methods % Core calibration methods
         function Obj = calibrate(Obj, Cat, Args)
             % Perform transmission-based photometric calibration
-            % Input  : - Obj - PhotCalibTrans object (scalar)
-            %          - Cat - AstroImage or AstroCatalog object with observed sources (scalar)
+            % Input  : - PhotCalibTrans object 
+            %          - AstroImage or AstroCatalog object with observed sources 
             %                  Metadata source is determined automatically:
             %                    AstroImage: metadata from Cat.HeaderData
             %                    AstroCatalog: metadata from 'Metadata' argument (if provided)
             %          * ...,key,val,...
-            %            'CalibArgs' - Calibration settings struct from
-            %                         imUtil.calib.predefCalibArgs(). When not provided,
-            %                         predefCalibArgs() is called internally with all
-            %                         LAST defaults.
-            %                         See imUtil.calib.predefCalibArgs for available fields.
             %            'Metadata' - Metadata source (for AstroCatalog only). Can be:
             %                         AstroHeader object, cell array {key1, val1, ...}, or [].
             %                         Default is [].
+            %            'Lambda'         - Transmission wavelength grid [Angstrom]. Default is (3000:20:11000)'.
+            %            'SearchRadius'   - Gaia matching radius [arcsec]. Default is 2.
+            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
+            %            'CustomFunList'  - Custom function list. Default is [].
+            %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_NormLin'.
+            %            'CustomOptSeq'   - Custom optimization sequence. Default is [].
+            %            'Tran2DType'     - Position-dependent correction type. Default is 'cheby1_4_xt'.
+            %            'UseTran2D'      - Enable position-dependent correction. Default is true.
+            %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
+            %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
+            %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
+            %            'FluxErrorNorm'  - Flux error normalization. Default is 0.5.
+            %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
             %            'Verbose' - Enable verbose output. Default is true.
-            % Output : - Obj - PhotCalibTrans object with calibration results.
+            % Output : - PhotCalibTrans object with calibration results.
             %                  SourceData catalog includes: Used, Residuals, MAG_<System>, PredictedFlux, MagErr
             % Author : D. Kovaleva (Jan 2026)
             % Reference: Garrappa et al. 2025, A&A 699, A50.
             % Example: PC = PhotCalibTrans();
             %          PC = PC.calibrate(AI);
             %          % With custom settings:
-            %          cfg = imUtil.calib.predefCalibArgs('UseTran2D', false);
-            %          PC = PC.calibrate(AI, 'CalibArgs', cfg);
+            %          PC = PC.calibrate(AI, 'UseTran2D', false, 'SearchRadius', 3);
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
@@ -208,26 +216,33 @@ classdef PhotCalibTrans < Component
                 % Metadata argument (for AstroCatalog only)
                 Args.Metadata = []     % AstroHeader object or cell array {key1, val1, key2, val2, ...}
 
-                % Calibration config — all defaults from imUtil.calib.predefCalibArgs
-                Args.CalibArgs struct = struct()
+                % Calibration settings (individual NV pairs with defaults)
+                Args.Lambda           = (3000:20:11000)'
+                Args.SearchRadius     = 2
+                Args.MagRange         = [11.5 15.5]
+                Args.FunListName      = 'DefaultLASTFunList'
+                Args.CustomFunList    = []
+                Args.OptSeqName       = 'LAST_NormLin'
+                Args.CustomOptSeq     = []
+                Args.Tran2DType       = 'cheby1_4_xt'
+                Args.UseTran2D logical = true
+                Args.WeightingMode    = 'spectral'
+                Args.FluxErrColName   = 'FluxErr'
+                Args.SigmaClipMethod  = 'median'
+                Args.FluxErrorNorm    = 0.5
 
-                % Direct arguments (not part of CalibArgs)
-                Args.Verbose logical = true
+                Args.MagSystem char   = 'AB'
+                Args.Verbose logical  = true
             end
 
-            % Save non-CalibArgs argument
+            % Save Metadata argument separately
             Metadata = Args.Metadata;
 
-            % Resolve calibration settings (populate defaults if not provided)
-            if isempty(fieldnames(Args.CalibArgs))
-                Args.CalibArgs = imUtil.calib.predefCalibArgs();
-            end
-
             % Set wavelength grid
-            Obj.TransWvl = Args.CalibArgs.Lambda(:);
+            Obj.TransWvl = Args.Lambda(:);
 
             % Vega magnitude system placeholder — not yet implemented
-            if strcmpi(Args.CalibArgs.MagSystem, 'Vega')
+            if strcmpi(Args.MagSystem, 'Vega')
                 error('PhotCalibTrans:calibrate:VegaNotImplemented', ...
                       'Vega magnitude system is not yet implemented.');
             end
@@ -321,19 +336,19 @@ classdef PhotCalibTrans < Component
                 'Temperature_C', Obj.Temp);
 
             % Get transmission function list and optimization sequence
-            FunList = FunCat.(Args.CalibArgs.FunListName);
-            OptSeq = StageCat.(Args.CalibArgs.OptSeqName);
+            FunList = FunCat.(Args.FunListName);
+            OptSeq = StageCat.(Args.OptSeqName);
 
             if Args.Verbose
-                if ~isempty(Args.CalibArgs.CustomFunList)
+                if ~isempty(Args.CustomFunList)
                     fprintf('  Using custom function list (%d functions)\n', length(FunList));
                 else
-                    fprintf('  Using function list: %s (%d functions)\n', Args.CalibArgs.FunListName, length(FunList));
+                    fprintf('  Using function list: %s (%d functions)\n', Args.FunListName, length(FunList));
                 end
-                if ~isempty(Args.CalibArgs.CustomOptSeq)
+                if ~isempty(Args.CustomOptSeq)
                     fprintf('  Using custom optimization sequence (%d stages)\n', numel(OptSeq));
                 else
-                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.CalibArgs.OptSeqName, numel(OptSeq));
+                    fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
                 end
                 fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
             end
@@ -356,8 +371,8 @@ classdef PhotCalibTrans < Component
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
                 'MetadataValues', MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
-                'UseTran2D', Args.CalibArgs.UseTran2D, ...
-                'Tran2DType', Args.CalibArgs.Tran2DType);
+                'UseTran2D', Args.UseTran2D, ...
+                'Tran2DType', Args.Tran2DType);
 
             % ====================================================================
             % STEP 4: Select calibrators
@@ -369,8 +384,8 @@ classdef PhotCalibTrans < Component
 
             % Select calibrators (populates Obj.SpecData, Obj.SourceData, Obj.CalFound)
             Obj.selectCalibrators(CurrentCat, ...
-                'SearchRadius', Args.CalibArgs.SearchRadius, ...
-                'MagRange', Args.CalibArgs.MagRange, ...
+                'SearchRadius', Args.SearchRadius, ...
+                'MagRange', Args.MagRange, ...
                 'Verbose', Args.Verbose);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
@@ -399,20 +414,20 @@ classdef PhotCalibTrans < Component
 
                 % Extract flux errors if using flux-based weighting
                 FluxErrVector = [];
-                if ismember(lower(Args.CalibArgs.WeightingMode), {'flux', 'combined'})
+                if ismember(lower(Args.WeightingMode), {'flux', 'combined'})
                     try
-                        FluxErrVector = Obj.SourceData.getCol(Args.CalibArgs.FluxErrColName);
+                        FluxErrVector = Obj.SourceData.getCol(Args.FluxErrColName);
                         if Args.Verbose
-                            fprintf('  Extracted flux errors from %s column\n', Args.CalibArgs.FluxErrColName);
+                            fprintf('  Extracted flux errors from %s column\n', Args.FluxErrColName);
                         end
                     catch
                         warning('PhotCalibTrans:NoFluxErr', ...
                             'Could not extract flux errors from %s. Falling back to spectral weighting.', ...
-                            Args.CalibArgs.FluxErrColName);
-                        if strcmpi(Args.CalibArgs.WeightingMode, 'flux')
-                            Args.CalibArgs.WeightingMode = 'none';
+                            Args.FluxErrColName);
+                        if strcmpi(Args.WeightingMode, 'flux')
+                            Args.WeightingMode = 'none';
                         else  % 'combined'
-                            Args.CalibArgs.WeightingMode = 'spectral';
+                            Args.WeightingMode = 'spectral';
                         end
                     end
                 end
@@ -423,9 +438,9 @@ classdef PhotCalibTrans < Component
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
                 PrecomputedMagErr = Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
-                    'WeightingMode', Args.CalibArgs.WeightingMode, ...
+                    'WeightingMode', Args.WeightingMode, ...
                     'ExpTime', ExpTime_eff, ...
-                    'FluxErrorNorm', Args.CalibArgs.FluxErrorNorm);
+                    'FluxErrorNorm', Args.FluxErrorNorm);
 
                 % Store pre-computed MagErr in SourceData
                 if istable(Obj.SourceData.Catalog)
@@ -455,7 +470,7 @@ classdef PhotCalibTrans < Component
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
-                    'SigmaClipMethod', Args.CalibArgs.SigmaClipMethod, ...
+                    'SigmaClipMethod', Args.SigmaClipMethod, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -483,10 +498,10 @@ classdef PhotCalibTrans < Component
                     % Calculate calibrated magnitudes for calibrators
                     % MAG = -2.5*log10(Flux/ExpTime_eff) + ZP(X,Y)
                     MagCalib = Obj.evaluateMag(Flux, 'X', X, 'Y', Y, ...
-                                               'MagSystem', Args.CalibArgs.MagSystem);
+                                               'MagSystem', Args.MagSystem);
 
                     % Dynamic column name: MAG_AB or MAG_VEGA
-                    MagColName = ['MAG_', Args.CalibArgs.MagSystem];
+                    MagColName = ['MAG_', Args.MagSystem];
 
                     % Get predicted flux from FitResult (calculated by costFun during optimization)
                     PredictedFlux = nan(NCalib, 1);
@@ -581,8 +596,8 @@ classdef PhotCalibTrans < Component
 
         function Obj = selectCalibrators(Obj, Cat, Args)
             % Select calibrators with reference spectra for photometric calibration
-            % Input  : - Obj - PhotCalibTrans object
-            %          - Cat - AstroCatalog object with observed sources (single element)
+            % Input  : - PhotCalibTrans object
+            %          - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 2.
             %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
@@ -593,7 +608,7 @@ classdef PhotCalibTrans < Component
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
             %            'Verbose' - Enable verbose output. Default is true.
-            % Output : - Obj - PhotCalibTrans object with populated properties:
+            % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
             %                    .CalData - struct with .RA, .Dec (catalog positions)
             %                    .SpecWvl [N_wvl x 1] - Wavelength grid [Angstrom]
@@ -904,13 +919,13 @@ classdef PhotCalibTrans < Component
 
         function Obj = populateSuccess(Obj, Args)
             % Evaluate and set Success flag based on calibration quality criteria
-            % Input  : - Obj - PhotCalibTrans object (scalar)
+            % Input  : - PhotCalibTrans object (scalar)
             %          * ...,key,val,...
             %            'NCalibMin' - Minimum number of calibrators required. Default is 30.
             %            'RMSMax' - Maximum allowed RMS [mag]. Default is 0.1.
             %            'MinCalibRetention' - Minimum fraction of calibrators retained after sigma clipping. Default is 0.8.
             %            'Verbose' - Enable verbose output. Default is false.
-            % Output : - Obj - PhotCalibTrans object with updated Success flag
+            % Output : - PhotCalibTrans object with updated Success flag
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.populateSuccess();
             %          PC = PC.populateSuccess('NCalibMin', 50, 'RMSMax', 0.08, 'MinCalibRetention', 0.75);
@@ -970,12 +985,12 @@ classdef PhotCalibTrans < Component
     methods % Evaluation methods
         function Trans = evaluateTransmission(Obj, Args)
             % Evaluate transmission at specific positions (with position-dependent corrections)
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'Lambda' - Wavelength grid [Angstrom] [N_lambda x 1]. Default is Obj.TransWvl (constant property).
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
-            % Output : - Trans - Transmission values [N_pos x N_lambda] or [N_lambda x 1]
+            % Output : - Transmission values [N_pos x N_lambda] or [N_lambda x 1]
             %                    If X, Y provided: matrix where Trans(i,j) = transmission for position i at wavelength j
             %                    If X, Y empty: vector of base transmission at field center
             % Author : D. Kovaleva (Dec 2025)
@@ -1031,13 +1046,13 @@ classdef PhotCalibTrans < Component
 
         function ZP = evaluateZP(Obj, Args)
             % Evaluate photometric zero point at specific positions
-            % Input  : - Obj - PhotCalibTrans object.
+            % Input  : - PhotCalibTrans object.
             %          * ...,key,val,...
             %            'X' - X coordinates [N_pos x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
-            % Output : - ZP - Zero point(s) [N_pos x 1] or scalar.
+            % Output : - Zero point(s) [N_pos x 1] or scalar.
             %                 If X, Y provided: vector with ZP for each position.
             %                 If X, Y empty: scalar ZP at field center.
             % Author : D. Kovaleva (Dec 2025)
@@ -1116,16 +1131,16 @@ classdef PhotCalibTrans < Component
 
         function [Mag, MagErr] = evaluateMag(Obj, Flux, Args)
             % Evaluate calibrated magnitudes from observed flux
-            % Input  : - Obj - PhotCalibTrans object.
-            %          - Flux - Observed flux values [photons] [N x 1].
+            % Input  : - PhotCalibTrans object.
+            %          - Observed flux values [photons] [N x 1].
             %          * ...,key,val,...
             %            'X' - X coordinates [N x 1]. Default is [] (field center).
             %            'Y' - Y coordinates [N x 1]. Default is [] (field center).
             %            'MagErr' - Magnitude errors [N x 1]. Default is [].
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
-            % Output : - Mag - Calibrated magnitudes [N x 1].
-            %          - MagErr - Calibrated magnitude errors [N x 1] (optional).
+            % Output : - Calibrated magnitudes [N x 1].
+            %          - Calibrated magnitude errors [N x 1] (optional).
             % Author : D. Kovaleva (Jan 2026)
             % Example: Mag = PC.evaluateMag(Flux);
             %          [Mag, MagErr] = PC.evaluateMag(Flux, 'X', X, 'Y', Y, 'MagErr', MagErr);
@@ -1179,10 +1194,10 @@ classdef PhotCalibTrans < Component
 
         function PredictedFlux = evaluatePredictedFlux(Obj, Args)
             % Evaluate predicted flux for calibrators using fitted transmission model
-            % Input  : - Obj - PhotCalibTrans object (must have TransModel and SpecData)
+            % Input  : - PhotCalibTrans object (must have TransModel and SpecData)
             %          * ...,key,val,...
             %            'CostArgs' - Cell array of costFun arguments. Default uses stored data.
-            % Output : - PredictedFlux - Predicted photon counts [N_calib x 1]
+            % Output : - Predicted photon counts [N_calib x 1]
             % Author : D. Kovaleva (Jan 2026)
             % Description: Calls costFun with stored or provided CostArgs to calculate predicted flux.
             % Example: PredictedFlux = PC.evaluatePredictedFlux();
@@ -1221,12 +1236,12 @@ classdef PhotCalibTrans < Component
             % Description: Extracts parameters that were fitted in ANY optimization
             %              stage (not just current FitPar flags). This ensures MCMC
             %              samples all physically relevant parameters.
-            % Input  : - Obj - PhotCalibTrans object (must be calibrated)
+            % Input  : - PhotCalibTrans object (must be calibrated)
             %          * ...,key,val,...
             %            'IncludeTran2D' - Include position coefficients. Default is false.
             %            'PosBounds' - Bounds for position coefficients [min, max].
             %                   Default is [-10, 10].
-            % Output : - ParamsInfo - Structure with fields:
+            % Output : - Structure with fields:
             %                   .Names - Cell array of parameter names
             %                   .Values - Current parameter values [N x 1]
             %                   .Min - Lower bounds [N x 1]
@@ -1347,9 +1362,9 @@ classdef PhotCalibTrans < Component
             %              MagErr vector, used as weights in the cost function
             %              during optimization. Called once before fitting to
             %              avoid repeated error propagation.
-            % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
-            %          - Flux - Observed flux values [photons] [N_calib x 1]
-            %          - FluxErrVector - Relative flux errors [N_calib x 1] (can be [])
+            % Input  : - PhotCalibTrans object (must have SpecData populated)
+            %          - Observed flux values [photons] [N_calib x 1]
+            %          - Relative flux errors [N_calib x 1] (can be [])
             %          * ...,key,val,...
             %            'WeightingMode' - Error sources to include:
             %                   'spectral' - Gaia XP spectral errors only (default)
@@ -1361,7 +1376,7 @@ classdef PhotCalibTrans < Component
             %                   Default is @telescope.optics.refTransmissionLAST.
             %            'FluxErrorNorm' - Effective area scaling for synthetic flux
             %                   in error calculation [dimensionless]. Default is 0.5.
-            % Output : - MagErr - Per-calibrator magnitude uncertainties [N_calib x 1],
+            % Output : - Per-calibrator magnitude uncertainties [N_calib x 1],
             %                     or [] if WeightingMode is 'none'
             % Author : D. Kovaleva (Jan 2026)
             % Example: MagErr = PC.propagateCalibratorMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
@@ -1507,10 +1522,10 @@ classdef PhotCalibTrans < Component
             %              (3360-10200 Angstrom) and extrapolates with constant
             %              boundary values outside. Called once before fitting to
             %              avoid repeated interpolation in costFun.
-            % Input  : - Obj - PhotCalibTrans object (must have SpecData populated)
+            % Input  : - PhotCalibTrans object (must have SpecData populated)
             %          * ...,key,val,...
             %            'TransWvl' - Transmission wavelength grid [Angstrom]. Default uses Obj.TransWvl.
-            % Output : - SpecFluxMatrix - Resampled spectra [N_TransWvl x N_calib]
+            % Output : - Resampled spectra [N_TransWvl x N_calib]
             %                             on the transmission model wavelength grid
             % Author : D. Kovaleva (Feb 2026)
             % Example: SpecFluxMatrix = PC.resampleCalibratorSpectra();
@@ -1573,11 +1588,11 @@ classdef PhotCalibTrans < Component
     methods % Header I/O methods
         function HeaderObj = photCalibTransToHeader(Obj, HeaderObj, Args)
             % Write calibration data to AstroHeader
-            % Input  : - Obj - PhotCalibTrans object
-            %          - HeaderObj - AstroHeader object
+            % Input  : - PhotCalibTrans object
+            %          - AstroHeader object
             %          * ...,key,val,...
             %            'WriteComments' - Add explanatory comments to keywords. Default is false.
-            % Output : - HeaderObj - Updated AstroHeader object with PT_* keywords
+            % Output : - Updated AstroHeader object with PT_* keywords
             % Author : D. Kovaleva (Jan 2026)
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
@@ -1752,10 +1767,10 @@ classdef PhotCalibTrans < Component
 
         function Obj = photCalibTransFromHeader(Obj, HeaderObj, Args)
             % Populate PhotCalibTrans object from AstroHeader
-            % Input  : - Obj - PhotCalibTrans object (existing)
+            % Input  : - PhotCalibTrans object (existing)
             %          - HeaderObj - AstroHeader object with PT_* keywords
             %          * ...,key,val,...
-            % Output : - Obj - PhotCalibTrans object populated from header
+            % Output : - PhotCalibTrans object populated from header
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.photCalibTransFromHeader(Header);
             % Description: Reads calibration results and fitted parameters from header.
@@ -1950,8 +1965,8 @@ classdef PhotCalibTrans < Component
     methods % Catalog operations
         function CatObj = addMag(Obj, CatObj, Args)
             % Add calibrated magnitude columns to catalog
-            % Input  : - Obj - PhotCalibTrans object.
-            %          - CatObj - AstroCatalog object with flux measurements.
+            % Input  : - PhotCalibTrans object.
+            %          - AstroCatalog object with flux measurements.
             %          * ...,key,val,...
             %            'FluxColNames' - Flux column names to calibrate.
             %                             Default is all FLUX_* columns.
@@ -1965,7 +1980,7 @@ classdef PhotCalibTrans < Component
             %                         Column naming: MAG_<System>_<suffix>_ERR.
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
             %                         errors. Default is false. Not yet implemented.
-            % Output : - CatObj - AstroCatalog with added calibrated magnitude columns.
+            % Output : - AstroCatalog with added calibrated magnitude columns.
             %                     Column naming: FLUX_<suffix> -> MAG_<System>_<suffix>
             %                     (e.g., FLUX_APER_3 -> MAG_AB_APER_3)
             %                     If AddMagErr=true, also: MAG_<System>_<suffix>_ERR
@@ -2119,12 +2134,12 @@ classdef PhotCalibTrans < Component
 
         function CatObj = addZP(Obj, CatObj, Args)
             % Add position-dependent ZP column to catalog
-            % Input  : - Obj - PhotCalibTrans object.
-            %          - CatObj - AstroCatalog object.
+            % Input  : - PhotCalibTrans object.
+            %          - AstroCatalog object.
             %          * ...,key,val,...
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
-            % Output : - CatObj - AstroCatalog with added ZP column
+            % Output : - AstroCatalog with added ZP column
             %                     (AB_ZP or VEGA_ZP depending on MagSystem).
             % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addZP(Cat);
@@ -2185,7 +2200,7 @@ classdef PhotCalibTrans < Component
     methods % Display/Output methods
         function summary(Obj, Args)
             % Display photometric calibration summary
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : None
@@ -2246,10 +2261,10 @@ classdef PhotCalibTrans < Component
     methods % Plotting methods
         function Fig = plotTransmission(Obj, Args)
             % Plot transmission curve vs wavelength
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Fig - Figure handle
+            % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotTransmission();
             % Description: Uses Obj.TransWvl (300:2:1100 nm, 401 points) for transmission evaluation.
@@ -2285,12 +2300,12 @@ classdef PhotCalibTrans < Component
 
         function Fig = plotResiduals(Obj, Args)
             % Plot calibration residuals
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'Type' - Plot type: 'magnitude' (residuals vs mag),
             %                     'spatial' (2D spatial distribution), 'both'. Default is 'both'.
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Fig - Figure handle or array of handles
+            % Output : - Figure handle or array of handles
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotResiduals();
             %          PC.plotResiduals('Type', 'spatial');
@@ -2391,11 +2406,11 @@ classdef PhotCalibTrans < Component
 
         function Fig = plotZPMap(Obj, Args)
             % Plot 2D map of position-dependent zero point corrections
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'GridSize' - Grid resolution [Nx, Ny]. Default is [50, 50].
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Fig - Figure handle
+            % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotZPMap();
             % Description: Shows position-dependent ZP corrections across the field.
@@ -2460,10 +2475,10 @@ classdef PhotCalibTrans < Component
 
         function Fig = plotCalibrators(Obj, Args)
             % Plot observed vs predicted magnitudes for calibrators
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Fig - Figure handle
+            % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotCalibrators();
             % Description: Shows 1:1 plot of observed vs model-predicted magnitudes.
@@ -2531,10 +2546,10 @@ classdef PhotCalibTrans < Component
 
         function Fig = plotFitQuality(Obj, Args)
             % Plot RMS/Chi2 evolution across optimization stages
-            % Input  : - Obj - PhotCalibTrans object
+            % Input  : - PhotCalibTrans object
             %          * ...,key,val,...
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Fig - Figure handle
+            % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025)
             % Example: PC.plotFitQuality();
             % Description: Shows convergence of fit across optimization stages.

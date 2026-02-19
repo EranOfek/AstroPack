@@ -20,7 +20,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         RefGrid
         DB            
         
-        Args.NsideSearch = 2^6; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
+        Args.NsideSearch = 2^5; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
@@ -189,9 +189,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end
                         
                         %%% DEBUG: Nim = 6 causes errors in imProc.stack.stitchCrops  
-                        if Nim > 4
-                            continue % to the next epoch
-                        end
+%                         if Nim > 4
+%                             continue % to the next epoch
+%                         end
                         
                         % 4.1 retrieve the crop images 
                         if Args.Verbosity > 1

@@ -135,6 +135,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % Normalization - constant scaling factor
     % Parameters: [Norm]
     FunCatalog.Normalization = struct();
+
     FunCatalog.Normalization.Name = 'Normalization';
     FunCatalog.Normalization.Handle = '@(Lambda, Norm) Norm * ones(size(Lambda))';
     FunCatalog.Normalization.HandleType = 'anonymous';
@@ -154,6 +155,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % Parameters: [ZenithAngle_deg, Pressure_mbar]
     % Note: Both are metadata (not fitted)
     FunCatalog.Rayleigh = struct();
+
     FunCatalog.Rayleigh.Name = 'Rayleigh';
     FunCatalog.Rayleigh.Handle = '@astro.transmission.rayleighTransmission';
     FunCatalog.Rayleigh.HandleType = 'named';
@@ -174,6 +176,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     FunCatalog.Ozone.HandleType = 'named';
     FunCatalog.Ozone.Params = [Args.ZenithAngle_deg, Args.DobsonUnits];
     FunCatalog.Ozone.FitPar = [false, false];  % Don't fit zenith angle, fit ozone column
+
     FunCatalog.Ozone.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'DobsonUnits'}, ...
         'Description', {'Zenith angle [deg]', 'Total ozone column [DU]'}, ...
@@ -184,6 +187,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % Parameters: [ZenithAngle_deg, TauAod500, AngstromExponent]
     % Note: ZenithAngle_deg is metadata (not fitted), others are variable
     FunCatalog.Aerosol = struct();
+
     FunCatalog.Aerosol.Name = 'Aerosol';
     FunCatalog.Aerosol.Handle = '@astro.transmission.aerosolTransmission';
     FunCatalog.Aerosol.HandleType = 'named';
@@ -204,6 +208,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     FunCatalog.Water.HandleType = 'named';
     FunCatalog.Water.Params = [Args.ZenithAngle_deg, Args.PWV_cm, Args.Pressure_mbar];
     FunCatalog.Water.FitPar = [false, true, false];
+
     FunCatalog.Water.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'PWV_cm', 'Pressure_mbar'}, ...
         'Description', {'Zenith angle [deg]', 'Precipitable water vapor [cm]', 'Atmospheric pressure [mbar]'}, ...
@@ -219,6 +224,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     FunCatalog.UMG.HandleType = 'named';
     FunCatalog.UMG.Params = [Args.ZenithAngle_deg, Args.Temperature_C, Args.Pressure_mbar];
     FunCatalog.UMG.FitPar = [false, false, false];  % Don't fit any parameters
+
     FunCatalog.UMG.ParamInfo = struct(...
         'Name', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar'}, ...
         'Description', {'Zenith angle [deg]', 'Temperature [C]', 'Atmospheric pressure [mbar]'}, ...
@@ -233,6 +239,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % Returns product of Mirror, Corrector, QE_Legendre; all parameters fixed
     NLeg = numel(Args.QE_Legendre_Params);
     FunCatalog.LASTTransmissionFixed = struct();
+
     FunCatalog.LASTTransmissionFixed.Name = 'LASTTransmissionFixed';
     FunCatalog.LASTTransmissionFixed.Handle = '@telescope.optics.LASTTransmissionFixed';
     FunCatalog.LASTTransmissionFixed.HandleType = 'named';
@@ -255,6 +262,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
     % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
     FunCatalog.QE_SkewedGaussian = struct();
+
     FunCatalog.QE_SkewedGaussian.Name = 'QE_SkewedGaussian';
     FunCatalog.QE_SkewedGaussian.Handle = '@telescope.detector.qeSkewedGaussianLAST';
     FunCatalog.QE_SkewedGaussian.HandleType = 'named';
@@ -272,6 +280,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
 
     % Mirror reflectivity — data-driven, no fittable params
     FunCatalog.Mirror = struct();
+
     FunCatalog.Mirror.Name = 'Mirror';
     FunCatalog.Mirror.Handle = '@telescope.optics.mirrorReflectanceLAST';
     FunCatalog.Mirror.HandleType = 'named';
@@ -285,6 +294,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
 
     % Corrector transmission — data-driven, no fittable params
     FunCatalog.Corrector = struct();
+
     FunCatalog.Corrector.Name = 'Corrector';
     FunCatalog.Corrector.Handle = '@telescope.optics.correctorTransmissionLAST';
     FunCatalog.Corrector.HandleType = 'named';
@@ -298,6 +308,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
 
     % QE Legendre polynomial model — all coefficients fixed
     FunCatalog.QE_Legendre = struct();
+
     FunCatalog.QE_Legendre.Name = 'QE_Legendre';
     FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
     FunCatalog.QE_Legendre.HandleType = 'named';
