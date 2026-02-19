@@ -130,7 +130,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
             W  = strcat(W,Wc);
         end
-%         for Inei=1:numel(UpixNeighbLow) 
+%         for Inei=1:numel(UpixNeighbLow) % TEMPORARY switch off the neighbors
 %             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
 %             W = strcat(W,Wn);
 %         end      

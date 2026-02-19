@@ -3,7 +3,7 @@ function [Result] = overlapSources(AI, Args)
     %     Optional detailed description
     % Input  : - an AstroImage containing all the crops (proc or coadd)    
     %          * ...,key,val,... 
-    %         'MagCut' - a limiting magnitude employed for the comparison
+    %         'MagCut' - a range of MAG_APER_3 magnituds employed for the comparison
     %         'MatchRadius' - match radius in arcsec
     %         'Prop'   - a list of columns to compare
     %         'BadFlags' - a list of bad flags employed to deselect sources
@@ -16,7 +16,7 @@ function [Result] = overlapSources(AI, Args)
     %
     arguments
         AI      
-        Args.MagCut      = 17;  
+        Args.MagCut      = [13 17];  
         Args.MatchRadius = 3; % arcsec
         Args.Prop        = {'RA', 'Dec', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
@@ -32,7 +32,7 @@ function [Result] = overlapSources(AI, Args)
     for Ivrlp = 1:Nvrlp
         MS = imProc.match.match(AI(Ind(Ivrlp,1)).CatData, AI(Ind(Ivrlp,2)).CatData, 'Radius', Args.MatchRadius);
         
-        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut;        
+        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
         if Args.FilterBad
             Col = MS.colnameDict2ind('FLAGS');
