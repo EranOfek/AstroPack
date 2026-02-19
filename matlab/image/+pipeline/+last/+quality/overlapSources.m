@@ -82,12 +82,14 @@ function [Result] = overlapSources(AI, Args)
         scatter(X,Y,80, Result.FLUX_APER_3.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagCut(1),Args.MagCut(2));
+        xlabel(Msg);
         title 'Median Diff FLUX\_APER\_3'
         subplot(2,2,4)
         scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'sqrt(dRA^2 + dDec^2), arcsec'
+        title 'sqrt(dRA^2 + dDec^2), arcsec'        
     end
 end
 %
