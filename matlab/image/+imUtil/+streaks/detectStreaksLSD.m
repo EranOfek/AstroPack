@@ -2,9 +2,9 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
 % detect streaks using a modified version of the LSD algorithm, detecting
 %  ridges in the Hessian of the filtered image
 %
-% Inputs:
-%    Im     - a single precision image array
-%    filtIm - the same image, cross-correlated with its PSF
+% Input  : - (Im) A single precision (2D) background subtracted image.
+%          - (filtIm) The same image, cross-correlated (filtered) with its PSF
+%            and normalized by the std (i.e., units of S/N).
 %
 % Optional named arguments:
 %     Subsample - empirical best subsample factor. Default 1/3. Probably a

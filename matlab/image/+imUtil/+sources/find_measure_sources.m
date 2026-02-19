@@ -1,4 +1,4 @@
-function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
+function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, Args)
     % find sources in an image
     % Package: imUtil.sources
     % Description: Find sources in an image using a matched filter of template
@@ -87,11 +87,27 @@ function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
     %            'VarField' - Variance field. Default is 'Var'.
+    %
+    %            --- Streak detection ---
+    %            'SearchStreaks' - A logical indicating if to search for
+    %                   streaks. Default is false.
+    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
+    %                   to imUtil.streaks.detectStreaksLSD
+    %                   Default is {}.
+    %
     % Output : - A catalog of sources and their properties.
     %            Forced photometry requestes will have TEMP_ID=NaN.
     %          - A cell array of column names in the output catalog.
     %          - A structure with additional calculated output.
     %          - The filtered image.
+    %          - Structure containing information about streaks found in
+    %            the image. If non empty, then the following fields are available:
+    %            'Segs' - 4 x Nstreaks array of segments (x1,y1,x2,y2)
+    %            'Phot' - 1 x Nstreaks array of streaks flux.
+    %            'Parfit' - 3 x Nstreaks array of curvature model fit to the
+    %                   streak: h(t) = at^2 + bt + c
+    %                   describing the transverse offset from the base detected
+    %                   segment, as fitted from the pixel intensity data.
     % License: GNU general public license version 3
     % Tested : Matlab R2015b
     %     By : Eran O. Ofek                    Apr 2016
@@ -133,6 +149,9 @@ function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
         Args.ImageField char               = 'Im';
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
+
+        Args.SearchStreaks                 = false;
+        Args.detectStreaksLSDArgs          = {};
     end
     
     ZP_Flux = 10.^(0.4.*Args.ZP);
@@ -159,7 +178,7 @@ function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
     end
 
     
-
+    %[Src,Template,FiltImage, ~, Streaks]
     [Src,Template,FiltImage] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
                                             'Psf',Args.Psf,...
                                             'PsfFun',Args.PsfFun,...
@@ -171,7 +190,9 @@ function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
                                             'OutType','struct',...
                                             'Conn',Args.Conn,...
                                             'BackField',Args.BackField,...
-                                            'VarField',Args.VarField);
+                                            'VarField',Args.VarField,...
+                                            'SearchStreaks',Args.SearchStreaks,...
+                                            'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
     
     % Number of templates
     Ntemplate = size(Template,3);
@@ -370,7 +391,8 @@ function [Cat, ColCellOut, Res, FiltImage]=find_measure_sources(Image, Args)
         Res.M2   = M2;
         Res.Aper = Aper;
         Res.FiltImage = FiltImage;
-        Res.FiltImageVar = FiltImageVar;
+        % commented this line because in most cases this is not needed.
+        %Res.FiltImageVar = FiltImageVar;
     end
 
     % Convert to output table

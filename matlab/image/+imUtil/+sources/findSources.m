@@ -1,5 +1,7 @@
-function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
+function [Result,Template,FiltImage,FiltImageVar, Streaks] = findSources(Image, Args)
     % Find sources, using matched filter template bank, in a 2D image
+    %   Optionally (5th output argumnent) the function also look fo streaks
+    %   in the image using the imUtil.streaks.detectStreaksLSD function.
     % Input  : - A 2D image.
     %          * ...,key,val,...
     %            'Threshold' - Detection threshold above background in units of
@@ -67,6 +69,11 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %            'VarField' - Variance field. Default is 'Var'.
     %            'AddValAtPos' - Add Value of image at source position.
     %                   Default is true.
+    %            'SearchStreaks' - A logical indicating if to search for
+    %                   streaks. Default is false.
+    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
+    %                   to imUtil.streaks.detectStreaksLSD
+    %                   Default is {}.
     % Output : - Either a table, AstroCatalog, or struct with the following
     %            fields:
     %            .XPEAK - Source X position (whole pixel)
@@ -83,6 +90,14 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %          - Cube of templates.
     %          - Filtered image.
     %          - Filtered image variance.
+    %          - Structure containing information about streaks found in
+    %            the image. If non empty, then the following fields are available:
+    %            'Segs' - 4 x Nstreaks array of segments (x1,y1,x2,y2)
+    %            'Phot' - 1 x Nstreaks array of streaks flux.
+    %            'Parfit' - 3 x Nstreaks array of curvature model fit to the
+    %                   streak: h(t) = at^2 + bt + c
+    %                   describing the transverse offset from the base detected
+    %                   segment, as fitted from the pixel intensity data.
     % Author : Eran Ofek (Dec 2021)
     % Example: Image = randn(1700, 1700);
     %          Result = imUtil.sources.findSources(Image);
@@ -107,6 +122,10 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
         Args.AddValAtPos logical           = true;
+
+        Args.SearchStreaks                 = false;
+        Args.StreaksFilterInd              = 2;
+        Args.detectStreaksLSDArgs          = {};
     end
     
     if isstruct(Image)
@@ -132,7 +151,15 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     end
 
     % filter the images with all the templates
+    
     [SN,Flux,FiltImage,FiltImageVar] = imUtil.filter.filter2_snBank(Image,Back,Var,Template);
+
+    if Args.SearchStreaks
+        [Streaks.Segs, Streaks.Phot, Streaks.Parfit] = imUtil.streaks.detectStreaksLSD(Image-Back, squeeze(SN(:,:,Args.StreaksFilterInd)), Args.detectStreaksLSDArgs{:});
+    else
+        Streaks = [];
+    end
+
     if Args.OnlyForced
         Pos = zeros(0,4);
         ValPos = [];
