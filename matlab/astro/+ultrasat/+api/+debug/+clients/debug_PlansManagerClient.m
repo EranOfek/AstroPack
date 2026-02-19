@@ -28,8 +28,52 @@ function debug_PlansManagerClient()
     end
     debug_getMatlabMat(client, testPk);
     debug_saveMatlabMat(client, testPk);
+    debug_plannerWorkflow(client);
 
     fprintf('========== DEBUG PLANS MANAGER CLIENT DONE ==========\n');
+end
+
+
+function debug_plannerWorkflow(client)
+    % Simulate real planner HCS workflow: uplanner, single target (RA=215, Dec=60),
+    % build HCS, PlanData, save via PlansClient. No external files.
+    fprintf('\n--- debug_plannerWorkflow ---\n');
+    try
+        % BaseDataDir from MainModule
+        MainModule = ultrasat.planner.guiutils.MainModule();
+        BaseDataDir = MainModule.BaseDataDir;
+
+        % Create PlanData
+        PlanData = ultrasat.api.models.PlanData();
+
+        % Create uplanner HCS (1 Jan 2028 - 31 Jul 2028)
+        StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
+        EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
+        upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
+            'StartTime', StartTime, 'EndTime', EndTime, ...
+            'BaseDataDir', BaseDataDir);
+
+        % Add single unique target (RA=215, Dec=60)
+        upHCS.addUniqTargets(215, 60, 'Name', 'debug_target');
+
+        % Build HCS
+        upHCS.buildHCS('HCS_UniqTarg', 1);
+
+        % Link planner to PlanData and sync from planner
+        PlanData.planner = upHCS;
+        ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
+
+        % Save via PlansClient
+        planStruct = PlanData.toStruct();
+        planStruct = rmfield(planStruct, 'planner');
+        response = client.savePlan(planStruct);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if response.ok && isfield(response, 'data') && ~isempty(response.data)
+            fprintf('Planner workflow: saved pk=%d, %d targets\n', response.data, numel(PlanData.targets));
+        end
+    catch ME
+        fprintf('debug_plannerWorkflow failed: %s\n', ME.message);
+    end
 end
 
 

@@ -221,63 +221,6 @@ classdef MissionApiBase < ultrasat.api.core.Loggable
 
         % =================================================================
 
-        % =================================================================
-
-        function submitData = convertPlanTableToSubmitData(obj, Plan)
-            % Converts the uplanner.Plan table to a list of structs for submission.
-            %
-            % Parameters:
-            %   Plan - MATLAB table containing observation plan data.
-            %
-            % Returns:
-            %   submitData - Array of structs with only the required fields for submission.
-            %
-            % Notes:
-            %   This method extracts specific fields needed for the submission API and
-            %   performs necessary data type conversions.
-
-            % Initialize the output
-            submitData = [];
-
-            % Loop through each row of the table
-            for i = 1:height(Plan)
-                % Extract required fields and store in a struct
-                rowStruct = struct(...
-                    'coord_ra', Plan.RA(i), ...
-                    'coord_dec', Plan.Dec(i), ...
-                    'tiles', Plan.Tiles(i), ...
-                    'exposure', seconds(Plan.ExpTime(i)), ... % Convert duration to seconds
-                    'image_count', Plan.Nexposures(i), ...
-                    'start_time', datestr(Plan.Tstart(i), 'yyyy-mm-ddTHH:MM:SS.FFFZ'), ...
-                    'jd_start', Plan.JDstart(i), ...
-                    'jd_end', Plan.JDend(i), ...
-                    'total_duration', seconds(Plan.TotalDuration(i)), ...
-                    'slew_time_before', seconds(Plan.SlewTimeBefore(i)) ...
-                    );
-                
-                % Append to the list
-                submitData = [submitData; rowStruct];
-            end
-        end
-
-
-        function Plan = convertPlanTimesToUtc(obj, Plan)
-            % Converts start_time and end_time fields of each plan entry to UTC.
-            %
-            % Parameters:
-            %   Plan - Array of structs containing plan data with time fields
-            %
-            % Returns:
-            %   Plan - Same array with time fields converted to UTC format
-            %
-            % Notes:
-            %   This is used to ensure consistent time format for API communication
-            for i = 1:numel(Plan)
-                Plan(i).start_time = ultrasat.api.utils.DateTimeUtils.toUtc(Plan(i).start_time);
-                Plan(i).end_time = ultrasat.api.utils.DateTimeUtils.toUtc(Plan(i).end_time);
-            end
-        end
-
     end
 end
 

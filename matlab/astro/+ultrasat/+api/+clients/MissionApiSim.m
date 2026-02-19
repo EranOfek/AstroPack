@@ -216,7 +216,7 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
             % Validates the observation plan using the ValidatorSim class.
             obj.msglog('validatePlan: Validating plan with pk=%d', obj.PlanData.pk);
             try
-                Plan = obj.convertPlanTimesToUtc(Plan);
+                Plan = ultrasat.api.utils.PlanDataUtils.convertPlanTimesToUtc(Plan);
 
                 % Call validateTargets with the provided Plan (array of structs)
                 try
@@ -510,7 +510,7 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
                 plansFolder = fullfile(obj.getPlannerBasePath(), 'plans');
                 response = struct();
 
-                obj.updateFromPlanner();
+                ultrasat.api.utils.PlanDataUtils.syncFromPlanner(obj.PlanData, obj.PlanData.planner);
 
                 % Generate pk if not provided, as next file number (i.e '00003')
                 if isempty(obj.PlanData.pk)
@@ -556,32 +556,6 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
                 response.status = 'error';
                 response.message = 'Error saving plan.';
                 response.ok = false;
-            end
-        end
-
-
-        function updateFromPlanner(obj)
-            % Update obj.PlanData with data from uplanner, including targets list (converted from table to array of struct)
-            try
-                if ~isempty(obj.PlanData.planner)
-                    obj.PlanData.plan_type = obj.PlanData.planner.Type;
-                    obj.PlanData.ast_planner = obj.PlanData.planner.AstPlanner;
-                    obj.PlanData.title = obj.PlanData.planner.Title;
-                    obj.PlanData.start_time = obj.PlanData.planner.StartTime;
-                    obj.PlanData.end_time = obj.PlanData.planner.EndTime;
-                    obj.PlanData.targets = obj.PlanData.planner.planTable2struct();
-
-                    % Update status (08/10/2025)
-                    obj.PlanData.status = obj.PlanData.planner.Status;
-
-                    % MATLAB cannot have array with single struct item, the
-                    % only solution is to convert the array to cellarray
-                    if numel(obj.PlanData.targets) == 1
-                        obj.PlanData.targets = {obj.PlanData.targets};
-                    end
-                end
-            catch ME
-                obj.msglog('Error updating from planner: %s', ME.message);
             end
         end
 
