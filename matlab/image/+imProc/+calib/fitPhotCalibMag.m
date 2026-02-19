@@ -1,12 +1,12 @@
-function [Result] = fitPhotCalibMag(Obj, Args)
-    % One line description
+function [Result, ResFit] = fitPhotCalibMag(Obj, Args)
+    % To replace imProc.calib.photometricZP - but not ready!
     %     Optional detailed description
     % Input  : - 
     %          - 
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2026 Feb) 
-    % Example: 
+    % Example: R=imProc.calib.fitPhotCalibMag(AI);
 
     arguments
         Obj
@@ -14,8 +14,15 @@ function [Result] = fitPhotCalibMag(Obj, Args)
         Args.IsGoodImage            = []; % use all
 
         % --- Reference Catalog ---
+        Args.CatOrigin              = 'catsHTM';
         Args.CatName                = 'GAIADR3';
         Args.CatZP                  = 'GAIADR3'; % used for: imProc.calib.getGaiaMagColor
+        Args.CatRadius              = [];   % if empty, use bounding_circle
+        Args.CatRadiusUnits         = 'arcsec';
+        Args.Con cell               = {};
+        Args.UseIndex               = false;
+        
+
         Args.RefColMag              = 'phot_bp_mean_mag'; %'Mag_BP';
         Args.RefColMagErr           = 'phot_bp_mean_flux_over_error'; %'ErrMag_BP';  
         Args.RefColColor            = {'phot_bp_mean_mag','phot_rp_mean_mag'};  %{'Mag_RP','Mag_G'};   % red to blue...
@@ -27,12 +34,32 @@ function [Result] = fitPhotCalibMag(Obj, Args)
         Args.MagSys                 = 'AB';
         Args.UseOnlyMainSeq         = false;
 
+        %--- Matching ---
+        Args.Radius                 = 3;
+        Args.RadiusUnits            = 'arcsec';
+        Args.matchReturnIndicesArgs = {};
+
         %--- Input catalog ---
-        Args.CatColMag            = 'MAG_APER_3'; %{'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
-        Args.CatColMagErr         = 'MAGERR_APER_3'; %, 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
-        Args.CatIsErrSN           = false;
-        Args.CatMom2              = {};  % {'X2','Y2','XY'};
-        Args.CatPos               = {};  %{'X','Y'};
+        Args.CatColMag              = 'MAG_APER_3'; %{'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
+        Args.CatColMagErr           = 'MAGERR_APER_3'; %, 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
+        Args.CatIsErrSN             = false;
+        Args.CatMom2                = {};  % {'X2','Y2','XY'};
+        Args.CatPos                 = {'X','Y'};
+        Args.CatAM                  = 'AIRMASS';
+
+        %--- fit ---
+        Args.MagZP                  = 25;
+        Args.ColorOrder             = 1;
+        Args.LimMagSN               = 5;   % estimate lim mag at this S/N
+        Args.MinSN                  = 5;
+        Args.MaxSN                  = 50;  % for estimating lim mag.
+        Args.LimMagColor            = 1;
+        Args.PosOrder               = [1 0; 0 1; 1 1];
+        %--- General ---
+        Args.UpdateHeader           = true;
+        Args.Plot                   = true;
+        Args.PixScale               = [];
+        Args.CreateNewObj           = false;
     end
 
     if Args.CreateNewObj
@@ -137,10 +164,8 @@ function [Result] = fitPhotCalibMag(Obj, Args)
                                                                       'OutUnits','rad',...
                                                                       'Con',Args.Con,...
                                                                       'UseIndex',Args.UseIndex,...
-                                                                      'ColNameMag',Args.RefColNameMag,...
-                                                                      'RangeMag',Args.RangeMag,...
-                                                                      'ColNamePlx',Args.ColNamePlx,...
-                                                                      'RangePlx',Args.RangePlx);
+                                                                      'ColNameMag',Args.RefColMag,...
+                                                                      'RangeMag',Args.MagRange);
             end % if isa(Args.CatName, 'AstroCatalog')
 
             if Iobj==Ipc
@@ -182,13 +207,13 @@ function [Result] = fitPhotCalibMag(Obj, Args)
 
         
             %--- Input catalog ---
-            [CatMag,~,~,UsedColMag]       = Cat.getCol(Args.CatColMag);
-            [CatMagErr,~,~,UsedColMagErr] = Cat.getCol(Args.CatColMagErr);
-            ResFit(Iobj).UsedColMag       = UsedColMag{1};
-            ResFit(Iobj).UsedColMagErr    = UsedColMagErr{1};
+            [CatMag]       = Cat.getCol(Args.CatColMag);
+            [CatMagErr]    = Cat.getCol(Args.CatColMagErr);
+            ResFit(Iobj).UsedColMag       = Args.CatColMag; %UsedColMag{1};
+            ResFit(Iobj).UsedColMagErr    = Args.CatColMagErr; %UsedColMagErr{1};
 
-            CatMag    = CatMag(SelectedInd);
-            CatMagErr = CatMagErr(SelectedInd);
+            CatMag    = CatMag(RefSelectedInd);
+            CatMagErr = CatMagErr(RefSelectedInd);
 
             if Args.CatIsErrSN
                 CatMagErr = 1.086./CatMagErr;
@@ -202,67 +227,172 @@ function [Result] = fitPhotCalibMag(Obj, Args)
                 PSF_A = PSF_AB.A;
                 PSF_B = PSF_AB.B;
                 PSF_T = PSF_AB.Theta;
+                Width = sqrt(PSF_A.^2 + PSF_B.^2);
             else
                 PSF_A = [];
                 PSF_B = [];
                 PSF_T = [];
+                Width = [];
             end
         
             if ~isempty(Args.CatPos)
                 XY = Cat.getCol(Args.CatPos);
-                X  = XY(SelectedInd,1);
-                Y  = XY(SelectedInd,2);
+                X  = XY(RefSelectedInd,1);
+                Y  = XY(RefSelectedInd,2);
             else
                 X = [];
                 Y = [];
             end
 
+            % airmass
+            if isempty(Args.CatAM)
+                AM = [];
+            else
+                AM = Cat.getCol(Args.CatAM);
+                AM = AM(RefSelectedInd);
+            end
+
             %--- Use the collected data to solve the ZP ---
 
 
-            [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr);
-                    if Rzp.Ndof<2
-                        [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr.*2);
-                    end
-                    ResFit(Iobj).Par = Rzp.Par;
+            [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',RefColor,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr, 'X',X, 'Y',Y, 'AM',AM);
+            if Rzp.Ndof<2
+                [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',RefColor,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr.*2);
+            end
+            ResFit(Iobj).Par = Rzp.Par;
 
-                    %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
-                    ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
-                    ResFit(Iobj).MagSys = Args.MagSys;
-                    ResFit(Iobj).Resid  = Rzp.AllResid; %Y - H*ResFit(Iobj).Par;
-                    ResFit(Iobj).RefMag = RefMag;
-                    ResFit(Iobj).InstMag = CatMag;
-                    ResFit(Iobj).RefColor = Color;
-                    ResFit(Iobj).Width  = Width;
-                    ResFit(Iobj).MedC   = Rzp.MeanVec(2);
-                    if Args.UseWidth
-                        ResFit(Iobj).MedW   = Rzp.MeanVec(4);
+            %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+            ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
+            ResFit(Iobj).MagSys = Args.MagSys;
+            ResFit(Iobj).Resid  = Rzp.AllResid; %Y - H*ResFit(Iobj).Par;
+            ResFit(Iobj).RefMag = RefMag;
+            ResFit(Iobj).InstMag = CatMag;
+            ResFit(Iobj).RefColor = RefColor;
+            ResFit(Iobj).Width  = Width;
+            ResFit(Iobj).MedC   = Rzp.MeanVec(2);
+            if ~isempty(Args.CatMom2)
+                ResFit(Iobj).MedW   = Rzp.MeanVec(4);
+            else
+                ResFit(Iobj).MedW   = NaN;
+            end
+            ResFit(Iobj).Flag   = Rzp.FlagGood;
+            ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(ResFit(Iobj).Flag));
+            ResFit(Iobj).Chi2   = sum(ResFit(Iobj).Resid(ResFit(Iobj).Flag).^2 ./VarY(ResFit(Iobj).Flag));
+            ResFit(Iobj).Nsrc   = sum(ResFit(Iobj).Flag);
+
+            if isempty(Args.CatMom2) && Args.ColorOrder==1
+                ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag - Par(1) - Par(2).*(Color-MedC);
+            else
+                error('Unsupported option for ColorOrder');
+            end
+
+            % estimate limiting magnitude
+            if isempty(Args.LimMagSN)
+                ResFit(Iobj).LimMag = NaN;
+            else
+                %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
+                % select only positive S/N:
+                SN = 1./(1.086.*CatMagErr);
+                Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
+                ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
+                ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+            end
+
+            if Args.UpdateHeader && isa(Result, 'AstroImage')
+                % write to header the following information:
+                % PH_ZP
+                % PH_COL1
+                % PH_COL2
+                % PH_W
+                % PH_MEDC
+                % PH_MEDW
+                % PH_RMS
+                % PH_NSRC
+                % PH_MAGSY
+                % LIMMAG
+                % BACKMAG
+
+                MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
+                if isempty(Args.PixScale)
+                    % try to read pixel scale from WCS
+                    if isa(Obj, 'AstroImage')
+                        PixScale = Obj(Iobj).WCS.getScale('arcsec');
                     else
-                        ResFit(Iobj).MedW   = NaN;
+                        error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
                     end
-                    ResFit(Iobj).Flag   = Rzp.FlagGood;
-                    ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(ResFit(Iobj).Flag));
-                    ResFit(Iobj).Chi2   = sum(ResFit(Iobj).Resid(ResFit(Iobj).Flag).^2 ./VarY(ResFit(Iobj).Flag));
-                    ResFit(Iobj).Nsrc   = sum(ResFit(Iobj).Flag);
+                else
+                    PixScale = Args.PixScale;
+                end
+                ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
+                
+                
+                if Args.ColorOrder==1 && isempty(Args.CatMom2)
+                    Keys = {'PH_ZP','PH_COL1','PH_MEDC','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
+                    Vals = {ResFit(Iobj).ZP,...
+                            ResFit(Iobj).Par(2),...
+                            ResFit(Iobj).MedC,...
+                            ResFit(Iobj).RMS,...
+                            ResFit(Iobj).Nsrc,...
+                            ResFit(Iobj).MagSys,...
+                            ResFit(Iobj).LimMag,...
+                            ResFit(Iobj).BackMag,...
+                            ResFit(Iobj).UsedColMag,...
+                            ResFit(Iobj).UsedColMagErr};
+                else %if Args.UpdateHeader && isa(Result, 'AstroImage')
 
-                    if ~Args.UseWidth && Args.ColorOrder==1
-                        ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag - Par(1) - Par(2).*(Color-MedC);
-                    else
-                        error('Unsupported option');
-                    end
+                    Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
+                    Vals = {ResFit(Iobj).ZP,...
+                            ResFit(Iobj).Par(2),...
+                            ResFit(Iobj).Par(3),...
+                            ResFit(Iobj).Par(4),...
+                            ResFit(Iobj).MedC,...
+                            ResFit(Iobj).MedW,...
+                            ResFit(Iobj).RMS,...
+                            ResFit(Iobj).Nsrc,...
+                            ResFit(Iobj).MagSys,...
+                            ResFit(Iobj).LimMag,...
+                            ResFit(Iobj).BackMag,...
+                            ResFit(Iobj).UsedColMag,...
+                            ResFit(Iobj).UsedColMagErr};
+                end
+                    
+                %Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
+                Result(Iobj).HeaderData.replaceVal(Keys, Vals);
+                
 
-                    % estimate limiting magnitude
-                    if isempty(Args.LimMagSN)
-                        ResFit(Iobj).LimMag = NaN;
-                    else
-                        %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
-                        % select only positive S/N:
-                        Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
-                        ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
-                        ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
-                    end
+            end
+
+            if Args.Plot
+                figure(1)
+                semilogy(ResFit(Iobj).RefMag, abs(ResFit(Iobj).Resid),'.')
+                hold on;
+                semilogy(ResFit(Iobj).RefMag(ResFit(Iobj).Flag), abs(ResFit(Iobj).Resid(ResFit(Iobj).Flag)),'.')
+                H = xlabel('B$_{\rm p}$ [mag]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('$\vert$Resid$\vert$ [mag]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
 
 
+                % limiting magnitude plot
+                figure(2)
+                ColorVec = [0.6:0.2:1.4];
+                NcV      = numel(ColorVec);
+                Colors   = plot.generate_colors(NcV-1);
+                for IcV=1:1:NcV-1
+                    Icolor = RefColor>ColorVec(IcV) & RefColor<ColorVec(IcV+1);
+                    %semilogy(RefMag(Icolor), SN(Icolor), 'k.','Color',Colors(IcV,:));
+                    semilogy(RefMag(Icolor), SN(Icolor), 'k.'); %,'Color',Colors(IcV,:));
+                    hold on;
+                end
+                H = xlabel('B$_{\rm p}$ [mag]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('$S/N$');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+            end % if Args.Plot
 
 
         end % if IsGoodImage(Iobj)
