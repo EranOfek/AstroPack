@@ -114,14 +114,7 @@ function savedPk = debug_savePlan(client)
             savedPk = response.data;
             fprintf('Saved pk=%d\n', savedPk);
             % Save uplanner .mat (like planner/guiutils MissionApiSim.savePlan)
-            planner = PlanData.planner;
-            tmpFile = [tempname, '.mat'];
-            save(tmpFile, 'planner', '-v7');
-            fid = fopen(tmpFile, 'rb');
-            bytes = fread(fid, inf, 'uint8');
-            fclose(fid);
-            delete(tmpFile);
-            base64Str = matlab.net.base64encode(bytes');
+            base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(PlanData.planner, 'planner');
             matResp = client.saveMatlabMat(savedPk, base64Str);
             if matResp.ok
                 fprintf('Saved uplanner mat for pk=%d\n', savedPk);
@@ -160,20 +153,16 @@ function debug_saveMatlabMat(client, pk)
         fprintf('Skipping (no pk available)\n');
         return;
     end
-    matlab_mat = rand(2, 2);
-    tmpFile = [tempname, '.mat'];
-    save(tmpFile, 'matlab_mat', '-v7');
-    fid = fopen(tmpFile, 'r');
-    bytes = fread(fid, inf, 'uint8');
-    fclose(fid);
-    delete(tmpFile);
-    base64Str = matlab.net.base64encode(bytes');
+    testObj = rand(2, 2);
+    base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(testObj, 'matlab_mat');
     response = client.saveMatlabMat(pk, base64Str);
     fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
     if response.ok
         verifyResp = client.getMatlabMat(pk);
         if verifyResp.ok && isfield(verifyResp, 'data') && ~isempty(verifyResp.data)
-            fprintf('Round-trip verify: getMatlabMat returned %d chars\n', numel(verifyResp.data));
+            loaded = ultrasat.api.utils.MatBase64Utils.base64ToMat(verifyResp.data, 'matlab_mat');
+            fprintf('Round-trip verify: getMatlabMat returned %d chars, loaded %dx%d matrix\n', ...
+                numel(verifyResp.data), size(loaded, 1), size(loaded, 2));
         end
     end
 end
