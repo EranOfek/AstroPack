@@ -7,7 +7,7 @@
 % Description : Tables (CalibObj, RefImages, ExtSurveys, FieldObj) Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainTablesHelper < ultrasat.api.Loggable
+classdef PlannerMainTablesHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -370,9 +370,9 @@ classdef PlannerMainTablesHelper < ultrasat.api.Loggable
         
                 % Apply caption to window title / label - prefer TitleLabel if exists (visual)
                 if isprop(form, "TitleLabel")
-                    form.TitleLabel.Text = caption;
+                    form.TitleLabel.Text = ultrasat.planner.guiutils.safeText(caption);
                 elseif isprop(form, "UIFigure")
-                    form.UIFigure.Name = caption;
+                    form.UIFigure.Name = ultrasat.planner.guiutils.safeText(caption);
                 end
         
                 % Extract row, index, name

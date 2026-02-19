@@ -7,7 +7,7 @@
 % Description : Plan Parameters Helper for Main Planner
 %==========================================================================
 
-classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
+classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
@@ -236,8 +236,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 app.UserNameEditField.Value = Planner.AstPlanner;
                 app.PlanPkEditField.Value = num2str(Planner.Pk);
                 app.PlanTitleEditField.Value = Planner.Title;
-                app.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
-                app.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+                app.StartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.StartTime);
+                app.EndTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.EndTime);
 
                 % Set editability of fields based on read-only status
                 if app.isEditable()
@@ -282,8 +282,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.PkEditField.Value = num2str(Planner.Pk);
                 ParamsApp.TitleEditField.Value = Planner.Title;
                 ParamsApp.PlanTypeDropDown.Value = Planner.Type;
-                ParamsApp.StartTimeEditField.Value = app.MainModule.DateTime2Str(Planner.StartTime);
-                ParamsApp.EndTimeEditField.Value = app.MainModule.DateTime2Str(Planner.EndTime);
+                ParamsApp.StartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.StartTime);
+                ParamsApp.EndTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.EndTime);
                 ParamsApp.ExposureEditField.Value = num2str(seconds(Planner.Exptime));
                 ParamsApp.EpochsPerVisitEditField.Value = num2str(Planner.DefEpochsPerVisit);
 
@@ -305,8 +305,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 ParamsApp.UniqueTargetsEditField.Value = num2str(Planner.N_uniqueTargets);
 
                 % Assign Check Times
-                ParamsApp.CheckStartTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(1) );
-                ParamsApp.CheckEndTimeEditField.Value = app.MainModule.DateTime2Str( Planner.CheckTimes(2) );
+                ParamsApp.CheckStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str( Planner.CheckTimes(1) );
+                ParamsApp.CheckEndTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str( Planner.CheckTimes(2) );
 
                 % Assign System Parameters
                 ParamsApp.SlewBufferEditField.Value = num2str(seconds(Planner.DefSlewBuffer));                
@@ -315,13 +315,13 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
                 % ----------------------------------------------- LCS
                 % Assign LCSTab Parameters, note that DailyWindowStartTime is duration
-                ParamsApp.LcsDailyWindowStartTimeEditField.Value = app.MainModule.Duration2Str(Planner.DailyWindowStartTime, true);
-                ParamsApp.LcsDailyWindowMaxDurationEditField.Value = app.MainModule.Duration2Str(Planner.DailyWindowMaxDuration);
+                ParamsApp.LcsDailyWindowStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.DailyWindowStartTime, true);
+                ParamsApp.LcsDailyWindowMaxDurationEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.DailyWindowMaxDuration);
 
                 % ----------------------------------------------- AllSS                
                 % Assign AllSkyTab Parameters, note that DailyWindowStartTime is duration
-                ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = app.MainModule.Duration2Str(Planner.DailyWindowStartTime, true);
-                ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = app.MainModule.Duration2Str(Planner.DailyWindowMaxDuration);
+                ParamsApp.AllSkyDailyWindowStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.DailyWindowStartTime, true);
+                ParamsApp.AllSkyDailyWindowMaxDurationEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.DailyWindowMaxDuration);
                 ParamsApp.AllSkyGalacticLatThresholdEditField.Value = Planner.AllSSHighLatThresh;  % Numeric field component
                 ParamsApp.AllSkyLowLatVisitsEditField.Value = Planner.LowLatVisits;  % Numeric field component
                 ParamsApp.AllSkyHighLatVisitsEditField.Value = Planner.HighLatVisits;  % Numeric field component
@@ -329,8 +329,8 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
 
                 % ----------------------------------------------- TOO
                 % Assign TOOTab Parameters
-                ParamsApp.TooStartTimeEditField.Value = app.MainModule.Duration2Str(Planner.TOOStartTime);
-                ParamsApp.TooWindowDurationEditField.Value = app.MainModule.Duration2Str(Planner.TOOWindowDuration);
+                ParamsApp.TooStartTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.TOOStartTime);
+                ParamsApp.TooWindowDurationEditField.Value = ultrasat.planner.guiutils.FormatUtils.Duration2Str(Planner.TOOWindowDuration);
 
                 % Assign Mission Status Fields
                 ParamsApp.PlanStatusEditField.Value = Planner.Status;
@@ -342,9 +342,9 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.Loggable
                 app.setStatusField(ParamsApp.SubmitStatusEditField, PlanData.metadata.SubmitStatus.Status, PlanData.metadata.SubmitStatus.Status);
 
                 % Status times
-                ParamsApp.BuildTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ScheduledTime);
-                ParamsApp.ValidationTimeEditField.Value = app.MainModule.DateTime2Str(Planner.ValidatedTime);
-                ParamsApp.SubmitTimeEditField.Value = app.MainModule.DateTime2Str(Planner.SubmittedTime);
+                ParamsApp.BuildTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ScheduledTime);
+                ParamsApp.ValidationTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ValidatedTime);
+                ParamsApp.SubmitTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.SubmittedTime);
 
                 % Distance Constraints
                 ParamsApp.SunMinDistObsEditField.Value = num2str(Planner.ObsSunDist);

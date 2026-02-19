@@ -7,7 +7,7 @@
 % Description : Gui Helper for Main Planner
 %==========================================================================
 
-classdef GuiHelper < ultrasat.api.Loggable
+classdef GuiHelper < ultrasat.api.core.Loggable
     % Low level utilities for PlannerMain
 
     methods (Access = public)

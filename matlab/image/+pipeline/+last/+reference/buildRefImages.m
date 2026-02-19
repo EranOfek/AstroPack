@@ -15,23 +15,23 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99950]); % a short test
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D,'RefNumbers',[99945 99946]); % a short test
     arguments
         RefGrid
         DB            
         
-        Args.NsideSearch = 2^7; % we should start the search at a somewhat larger region then the ref. image size  
+        Args.NsideSearch = 2^6; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
                        
-        Args.RefNumbers  = []; % [150000 150001]; % []  % input ref. image numbers 
+        Args.RefNumbers  = []; % [150000 150001] or [150000:150020]; input ref. image numbers 
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
         Args.Naxis1            = 1726;  % the pixel size of a reference image:  
-        Args.Naxis2            = 1726;  % note: will like be reduced ro 1716 for the new LAST pipeline   
+        Args.Naxis2            = 1726;  % NOTE: will be reduced to 1716 for the new LAST pipeline   
         
         Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
@@ -54,7 +54,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                     'FLUX_APER', 'FLUXERR_APER',...
                                     'MAG_APER', 'MAGERR_APER'};
         
-        Args.CoaddFunction  = @imProc.stack.coaddW; % a handle to coadder of registered images 
+        Args.CoaddFunction     = @imProc.stack.coaddW; % a handle to coadder of registered images 
+        Args.StackMethod       = 'sigmaclip';
+        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');
@@ -64,7 +66,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % the output DB table name   
-        Args.Verbosity         = 1; % from 0 to 2 
+        Args.Verbosity         = 2; % from 0 to 2 
     end
     % 
     RAD = 180/pi;  
@@ -122,17 +124,17 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)         
-        StitchedImage = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
+        Q = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
             W  = strcat(W,Wc);
         end
-        for Inei=1:numel(UpixNeighbLow)
-            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
-            W = strcat(W,Wn);
-        end      
-        T = DB.query(strcat(StitchedImage,W)); % T = db.mex.query(strcat(S,W));
+%         for Inei=1:numel(UpixNeighbLow) % TEMPORARY switch off the neighbors
+%             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
+%             W = strcat(W,Wn);
+%         end      
+        T = DB.query(strcat(Q,W)); % T = db.mex.query(strcat(S,W));
 
         if isempty(T)                       
             if Args.Verbosity > 0
@@ -286,7 +288,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             continue
         end
         
-        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP'); 
+        RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP',...
+                    'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);       
         
         % measure the background, find and measure sources, measure the PSF
         RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);

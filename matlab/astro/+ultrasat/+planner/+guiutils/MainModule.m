@@ -3,16 +3,14 @@
 % File        : +planner/+guiutils/MainModule.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 18/12/2025
+% Updated     : 18/02/2026
 % Description : Central class to hold common application data
 %==========================================================================
 
-classdef MainModule < ultrasat.api.Loggable
+classdef MainModule < ultrasat.api.core.Loggable
     % This class serves like a DataModule in Delphi
 
     properties
-        ApiClient               % MissionApiClient/MissionApiSim instance
-        UserClient              % UserManagerClient/UserManagerSim instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     % Preferences file name
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
@@ -23,7 +21,14 @@ classdef MainModule < ultrasat.api.Loggable
         LoggerApp               % ultrasat.planner.gui.Logger
         ErrorLoggerApp          % ultrasat.planner.gui.ErrorLogger
         Planner                 % instance of ultrasat.planner.uplanner
-        PlanData                % instance of ultrasat.api.PlanData, same as ApiClient.PlanData
+        PlanData                % instance of ultrasat.api.PlanData
+
+        % Clients
+        NamespaceClient         % NamespaceManagerClient instance
+        UserClient              % UserManagerClient instance
+        ScheduleClient          % ScheduleManagerClient instance
+        PlansClient             % PlansManagerClient instance
+        ValidatorClient         % ValidatorManagerClient instance
 
         % Status
         StatusText              % Status text for display
@@ -45,17 +50,10 @@ classdef MainModule < ultrasat.api.Loggable
 
 
     methods
-        function obj = MainModule(NamespaceId)
+        function obj = MainModule()
             % Constructor
 
             obj.LogPrefix = 'MainModule';
-
-            % Set NamespaceId, default is 'OPER'
-            obj.NamespaceId = NamespaceId;
-            obj.NamespaceDisplay = '';
-            if isempty(obj.NamespaceId)
-                obj.NamespaceId = 'OPER';
-            end
 
             % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
@@ -78,47 +76,36 @@ classdef MainModule < ultrasat.api.Loggable
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
-            UseSim = obj.Preferences.get('UseSim', true);
-            UseSim = true;
-            if UseSim
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiSim');
-                obj.ApiClient = ultrasat.api.MissionApiSim();
-                obj.UserClient = ultrasat.api.UserManagerSim();
-            else
-                obj.msglog('Creating ApiClient as ultrasat.api.MissionApiClient (FastAPI plans_manager)');
-                apiUrl = obj.Preferences.get('PlansManagerApiUrl', '');
-                if isempty(apiUrl)
-                    apiUrl = getenv('SOC_API_BASE');
-                end
-                if isempty(apiUrl)
-                    apiUrl = 'http://localhost:8321';
-                end
-                apiKey = obj.Preferences.get('ApiKey', '');
-                if isempty(apiKey)
-                    apiKey = getenv('SOC_API_KEY');
-                end
-                namespace = obj.NamespaceId;
-                if isempty(namespace)
-                    namespace = 'OPER';
-                end
-                obj.ApiClient = ultrasat.api.MissionApiClient(...
-                    'ApiUrl', apiUrl, ...
-                    'Namespace', namespace, ...
-                    'ApiKey', apiKey);
-                obj.UserClient = ultrasat.api.UserManagerSim();
-            end
+            % Setup clients
+            factory = ultrasat.api.clients.ClientFactory();
+            url = factory.getServiceBaseUrl('namespace_manager');
+            obj.NamespaceClient = ultrasat.api.clients.NamespaceManagerClient(url);
 
-            % Operational - When starting Planner from OPER, this is the
-            % only Namespace available for the user, otherwise get the namespace list
-            % from the server
-            if strcmp(obj.NamespaceId, 'OPER')
-                obj.NamespaceDisplay = 'OPERATIONAL';
-            else
-                response = obj.UserClient.getNamespaceList();
-                if response.ok
-                    obj.NamespaceDisplayList = response.display_list;
+            url = factory.getServiceBaseUrl('user_manager');
+            obj.UserClient = ultrasat.api.clients.UserManagerClient(url);
+
+            url = factory.getServiceBaseUrl('schedule_manager');
+            obj.ScheduleClient = ultrasat.api.clients.ScheduleManagerClient(url);
+
+            url = factory.getServiceBaseUrl('plans_manager');
+            obj.PlansClient = ultrasat.api.clients.PlansManagerClient(url);
+
+            url = factory.getServiceBaseUrl('validator_manager');
+            obj.ValidatorClient = ultrasat.api.clients.ValidatorManagerClient(url);
+
+            % Get the list of namespaces
+            response = obj.NamespaceClient.getNamespaceList();
+            if isfield(response, 'namespaces') && ~isempty(response.namespaces)
+                obj.NamespaceDisplayList = response.display_list;
+
+                % If there is only one namespace, set obj.NamespaceId to it
+                if numel(obj.NamespaceDisplayList) == 1
+                    obj.NamespaceId = obj.GuiHelper.extractNameFromDisplayString(obj.NamespaceDisplayList{1});
+                    obj.setNamespace(obj.NamespaceId);
                 end
+            else
+                obj.NamespaceId = 'none';
+                obj.NamespaceDisplay = 'not connected';
             end
 
             % Create helper classes
@@ -159,14 +146,11 @@ classdef MainModule < ultrasat.api.Loggable
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
                 obj.NamespaceDisplay = obj.GuiHelper.extractTitleFromDisplayString(Namespace);
-                %obj.ApiClient.NamespaceId = obj.NamespaceId;
 
                 % Set the namespace id for the PathUtils class, so any class derived from Loggable will use this namespace id
-                ultrasat.api.PathUtils.NamespaceId(obj.NamespaceId);
-                % When using MissionApiClient (FastAPI), update HTTP client namespace for plans_manager
-                if isa(obj.ApiClient, 'ultrasat.api.MissionApiClient') && ~isempty(obj.ApiClient.Client)
-                    obj.ApiClient.Client.Namespace = obj.NamespaceId;
-                end
+                ultrasat.api.utils.PathUtils.NamespaceId(obj.NamespaceId);
+                obj.setNamespace(obj.NamespaceId);
+
                 Result = true;
             end
         end
@@ -196,132 +180,33 @@ classdef MainModule < ultrasat.api.Loggable
         end
 
 
+        function setNamespace(obj, NamespaceId)
+            % Update the NamespaceId of clients that require it (PlansClient, ScheduleClient, etc.).
+            if ~isempty(obj.ScheduleClient)
+                obj.msglog(sprintf('setNamespace: setting ScheduleClient namespace to %s', NamespaceId));
+                obj.ScheduleClient.Namespace = NamespaceId;
+            end
+            if ~isempty(obj.PlansClient)
+                obj.msglog(sprintf('setNamespace: setting PlansClient namespace to %s', NamespaceId));
+                obj.PlansClient.Namespace = NamespaceId;
+            end            
+        end
+
+
         function setPlanner(obj, Planner)
             % Set the current Planner object & type
 
             obj.msglog(sprintf('setPlanner: %s', Planner.Type));
             obj.Planner = Planner;
-            Planner.Mclient = obj.ApiClient;
+
+            % Create UplannerClient instance (adapter class for uplanner)
+            uplannerClient = ultrasat.api.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );
+            Planner.Mclient = uplannerClient;
 
             % Override BaseDataDir to allow Linux/Windows compatibility
             if ~strcmp(Planner.BaseDataDir, obj.BaseDataDir) 
                 obj.msglog(sprintf('setPlanner: updating BaseDataDir to match current O/S: %s', obj.BaseDataDir));
                 Planner.BaseDataDir = obj.BaseDataDir;
-            end
-        end
-
-        % =================================================================
-
-        function Result = DateTime2Str(obj, dt)
-            % Convert datetime object to string 'yyyy-MM-dd HH:mm:ss'
-            if isempty(dt)
-                Result = '';
-            else
-                Result = datestr(dt, 'yyyy-mm-dd HH:MM:SS');
-            end
-        end
-
-        
-        function str = Duration2Str(obj, dur, showSeconds)
-            % Convert a duration value to string HH:MM or HH:MM:SS
-            % :param dur: duration value
-            % :param showSeconds: true for HH:MM:SS, false for HH:MM
-        
-            if nargin < 3
-                showSeconds = false;
-            end
-        
-            % Handle empty or invalid input
-            if isempty(dur) || ~isduration(dur)
-                str = '';
-                return;
-            end
-        
-            % Convert to total seconds
-            totalSeconds = seconds(dur);
-            if totalSeconds < 0
-                totalSeconds = 0;
-            end
-        
-            % Compute hours, minutes, seconds
-            hh = floor(totalSeconds / 3600);
-            mm = floor(mod(totalSeconds, 3600) / 60);
-            ss = floor(mod(totalSeconds, 60));
-        
-            if showSeconds
-                str = sprintf('%02d:%02d:%02d', hh, mm, ss);
-            else
-                str = sprintf('%02d:%02d', hh, mm);
-            end
-        end
-
-
-
-        function Result = num2Str(obj, Value)
-            % Convert number to string
-            if ~isempty(Value)
-                Result = num2str(Value);
-            else
-                Result = '';
-            end
-        end
-
-
-        function Result = ra2Str(obj, Value)
-            % Convert RA to string
-            % @Todo - need to support sexa, etc.
-            if ~isempty(Value)
-                Result = sprintf('%f', Value);
-            else
-                Result = '';
-            end
-        end
-
-
-        function Result = dec2Str(obj, Value)
-            % Convert Dec to string
-            % @Todo - need to support sexa, etc.
-            if ~isempty(Value)
-                Result = sprintf('%f', Value);
-            else
-                Result = '';
-            end
-        end
-
-
-        function Result = length2Str(obj, array)
-            % Convert array length to string as 'len: n'
-            if isempty(array)
-                Result = 'len: 0';
-                return;
-            end
-        
-            % Unwrap single-cell container
-            if iscell(array) && numel(array) == 1
-                inner = array{1};
-                Result = sprintf('len: %d', numel(inner));
-            else
-                Result = sprintf('len: %d', numel(array));
-            end
-        end
-
-
-        function charArray = cell2Str(obj, cellArray)
-            % Convert a cell array to a comma-separated character array
-
-            % Convert elements to strings
-            strArray = cellfun(@num2str, cellArray, 'UniformOutput', false);
-
-            % Join elements with commas and convert to char array
-            charArray = char(strjoin(strArray, ','));
-        end
-
-
-        function Value = safeStr(obj, s)
-            if isempty(s)
-                Value = '';
-            else
-                Value = string(s);
             end
         end
 
@@ -370,7 +255,7 @@ classdef MainModule < ultrasat.api.Loggable
                 obj.CurrentStatus = NewStatus;
             end
 
-            NewText = sprintf('%s %s', ultrasat.api.ModelBase.nowUtcStr(), NewText);
+            NewText = sprintf('%s %s', ultrasat.api.utils.DateTimeUtils.nowUtcStr(), NewText);
 
             % Append new text to StatusText
             if isempty(obj.StatusText)
@@ -386,17 +271,13 @@ classdef MainModule < ultrasat.api.Loggable
 
         function createPlanData(obj)
             % Create new instance of PlanData
-            obj.PlanData = ultrasat.api.PlanData();
-            obj.ApiClient.PlanData = obj.PlanData;
+            obj.PlanData = ultrasat.api.models.PlanData();
         end
 
 
         function setPlanData(obj, Data)
             % Set PlanData to the given instance
             obj.PlanData = Data;
-
-            % Link current instance to ApiClient
-            obj.ApiClient.PlanData = obj.PlanData;
             if ~isempty(obj.PlanData.planner)
                 obj.setPlanner(obj.PlanData.planner);
             end
@@ -404,12 +285,11 @@ classdef MainModule < ultrasat.api.Loggable
 
 
         function clearData(obj)
-            % Note: ApiClient, Preferences, MainApp, and LoggerApp are **not** cleared
+            %
 
             % Clear planner-related data
             obj.Planner = [];
             obj.PlanData = [];
-            obj.ApiClient.PlanData = []; % Keep ApiClient but clear its PlanData
 
             % Reset status properties
             obj.StatusText = [];
@@ -418,33 +298,6 @@ classdef MainModule < ultrasat.api.Loggable
             % Reset modification tracking and debug paths
             obj.Modified = false;
             obj.AfterBuild = false;
-        end
-
-        % =================================================================
-        %
-        % =================================================================
-
-        function htmlStr = jsonToHtml(obj, jsonData)
-            % Converts a JSON string or struct to HTML with syntax highlighting
-
-            % Convert struct to JSON if needed
-            if isstruct(jsonData) || iscell(jsonData)
-                jsonData = jsonencode(jsonData, 'PrettyPrint', true);
-            end
-
-            % Escape HTML special characters
-            jsonData = strrep(jsonData, '&', '&amp;');
-            jsonData = strrep(jsonData, '<', '&lt;');
-            jsonData = strrep(jsonData, '>', '&gt;');
-
-            % Apply syntax highlighting
-            jsonData = regexprep(jsonData, '"(.*?)"(\s*:\s*)', '<span style="color:blue;">"$1"</span>$2'); % Keys
-            jsonData = regexprep(jsonData, '(:\s*)(\d+)', '$1<span style="color:green;">$2</span>'); % Numbers
-            jsonData = regexprep(jsonData, '(:\s*)"(.*?)"', '$1<span style="color:maroon;">"$2"</span>'); % Strings
-            jsonData = regexprep(jsonData, '(:\s*)(true|false|null)', '$1<span style="color:purple;">$2</span>'); % Boolean/Null
-
-            % Wrap in preformatted HTML block
-            htmlStr = sprintf('<pre style="background:#f5f5f5; padding:10px; border:1px solid #ddd;">%s</pre>', jsonData);
         end
 
         % -------------------------------------------------------------------

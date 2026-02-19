@@ -88,7 +88,7 @@ classdef OpenPlan < matlab.apps.AppBase
         
             % Fetch the plans list from API
             try
-                response = app.MainModule.ApiClient.getPlansList(start_time, end_time, title_subtext);            
+                response = app.PlannerMainStorageHelper.getPlansList(start_time, end_time, title_subtext);            
             catch ME
                 uialert(app.UIFigure, sprintf('Failed to retrieve plans list: %s', ME.message), 'Error');
                 return;

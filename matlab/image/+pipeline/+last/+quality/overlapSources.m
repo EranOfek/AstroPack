@@ -3,24 +3,26 @@ function [Result] = overlapSources(AI, Args)
     %     Optional detailed description
     % Input  : - an AstroImage containing all the crops (proc or coadd)    
     %          * ...,key,val,... 
-    %         'MagCut' - a limiting magnitude employed for the comparison
+    %         'MagCut' - a range of MAG_APER_3 magnituds employed for the comparison
     %         'MatchRadius' - match radius in arcsec
     %         'Prop'   - a list of columns to compare
     %         'BadFlags' - a list of bad flags employed to deselect sources
     %         'FilterBad' - whether to use the 'BadFlags' for filtering
     %         'CroppingScheme' - 'old' or 'new'
+    %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
     % Output : - a struct with statistics for each crop
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
     %
     arguments
         AI      
-        Args.MagCut      = 17;  
+        Args.MagCut      = [13 17];  
         Args.MatchRadius = 3; % arcsec
-        Args.Prop        = {'RA', 'Dec', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
+        Args.Prop        = {'RA', 'Dec', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
+        Args.Plot        = false;
     end
     BD=BitDictionary;
     % read the list of overlap interfaces:
@@ -30,7 +32,7 @@ function [Result] = overlapSources(AI, Args)
     for Ivrlp = 1:Nvrlp
         MS = imProc.match.match(AI(Ind(Ivrlp,1)).CatData, AI(Ind(Ivrlp,2)).CatData, 'Radius', Args.MatchRadius);
         
-        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut;        
+        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
         if Args.FilterBad
             Col = MS.colnameDict2ind('FLAGS');
@@ -60,7 +62,35 @@ function [Result] = overlapSources(AI, Args)
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end
-    end    
+    end
+    if Args.Plot
+        [c, r] = ind2sub([4 6],Ind);
+        X = (c(:,1)+c(:,2))/2;
+        Y = (r(:,1)+r(:,2))/2;      
+        figure; 
+        subplot(2,2,1)
+        scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Median Diff MAG\_AB\_APER\_3'      
+        subplot(2,2,2)
+        scatter(X,Y,80, Result.MAG_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Median Diff MAG\_APER\_3'
+        subplot(2,2,3)
+        scatter(X,Y,80, Result.FLUX_APER_3.MedianDiff, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagCut(1),Args.MagCut(2));
+        xlabel(Msg);
+        title 'Median Diff FLUX\_APER\_3'
+        subplot(2,2,4)
+        scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'sqrt(dRA^2 + dDec^2), arcsec'        
+    end
 end
 %
 function Ind = LASToverlapsNew(Args)
