@@ -1,45 +1,147 @@
 %==========================================================================
-% ULTRASAT Planner - Debug MissionApiClient (FastAPI plans_manager)
-% Run from MATLAB: cd to planner; run('astro/+ultrasat/+planner/debug/debug_PlansManagerClient.m')
-% Or: ultrasat.planner.debug.debug_PlansManagerClient
-%
-% Requires: FastAPI plans_manager running (e.g. uvicorn soc.mission.plans_manager.api:app --port 8321)
-% Set SOC_API_BASE (e.g. http://localhost:8321), SOC_API_KEY, namespace as needed.
+% Project     : ULTRASAT Observation Planner
+% File        : ultrasat.api.debug.clients.debug_PlansManagerClient.m
+% Author      : Chen Tishler
+% Created     : 18/02/2026
+% Updated     : 18/02/2026
+% Description : Debug function for PlansManagerClient.
+%               Uses ClientFactory for baseUrl. Namespace 'dev'.
+%               Tests all client functions via debug_* helpers.
 %==========================================================================
 
 function debug_PlansManagerClient()
     fprintf('========== DEBUG PLANS MANAGER CLIENT ==========\n');
-    fprintf('Uses MissionApiClient with FastAPI plans_manager.\n');
-    fprintf('Set SOC_API_BASE, SOC_API_KEY if required.\n\n');
 
-    apiUrl = getenv('SOC_API_BASE');
-    if isempty(apiUrl)
-        apiUrl = 'http://localhost:8321';
+    factory = ultrasat.api.clients.ClientFactory();
+    baseUrl = factory.getServiceBaseUrl('plans_manager');
+    client = ultrasat.api.clients.PlansManagerClient(baseUrl);
+    client.Namespace = 'dev';
+
+    pk = debug_getPlansList(client);
+    debug_getPlan(client, pk);
+    savedPk = debug_savePlan(client);
+    testPk = [];
+    if ~isempty(savedPk)
+        testPk = savedPk;
+    elseif ~isempty(pk)
+        testPk = pk;
     end
-    apiKey = getenv('SOC_API_KEY');
-    namespace = 'OPER';
+    debug_getMatlabMat(client, testPk);
+    debug_saveMatlabMat(client, testPk);
 
-    client = ultrasat.api.MissionApiClient('ApiUrl', apiUrl, 'Namespace', namespace, 'ApiKey', apiKey);
-    fprintf('Client: ApiUrl=%s, Namespace=%s\n\n', client.ApiUrl, client.Client.Namespace);
+    fprintf('========== DEBUG PLANS MANAGER CLIENT DONE ==========\n');
+end
 
-    % getPlansList
-    fprintf('---- getPlansList([], [], []) ----\n');
-    try
-        response = client.getPlansList([], [], []);
-        fprintf('ok=%d, status=%s\n', response.ok, getfield(response, 'status', ''));
-        if response.ok && isfield(response, 'plans') && ~isempty(response.plans)
-            fprintf('Plans count: %d\n', numel(response.plans));
-            if numel(response.plans) >= 1
-                p1 = response.plans(1);
-                if iscell(response.plans), p1 = response.plans{1}; end
-                fprintf('First plan pk=%s title=%s\n', num2str(p1.pk), getfield(p1, 'title', ''));
-            end
-        else
-            fprintf('Plans count: 0\n');
+
+function pk = debug_getPlansList(client)
+    fprintf('\n--- debug_getPlansList ---\n');
+    response = client.getPlansList([], [], [], []);
+    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+    pk = [];
+    if response.ok && isfield(response, 'plans') && ~isempty(response.plans)
+        fprintf('Plans count: %d\n', numel(response.plans));
+        p1 = response.plans(1);
+        if iscell(response.plans), p1 = response.plans{1}; end
+        pk = p1.pk;
+    else
+        fprintf('Plans count: 0 or failed\n');
+    end
+end
+
+
+function debug_getPlan(client, pk)
+    fprintf('\n--- debug_getPlan ---\n');
+    if isempty(pk)
+        fprintf('Skipping (no pk available)\n');
+        return;
+    end
+    response = client.getPlan(pk);
+    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+    if response.ok && isfield(response, 'data') && ~isempty(response.data)
+        d = response.data;
+        fprintf('data: pk=%s title=%s\n', num2str(debug_getField(d, 'pk', [])), debug_getField(d, 'title', ''));
+    end
+end
+
+
+function savedPk = debug_savePlan(client)
+    fprintf('\n--- debug_savePlan ---\n');
+    planStruct = struct(...
+        'title', 'debug_test_plan', ...
+        'plan_type', 'LCS', ...
+        'ast_planner', 'debug_user', ...
+        'start_time', datetime('now', 'TimeZone', 'UTC'), ...
+        'end_time', datetime('now', 'TimeZone', 'UTC') + hours(1), ...
+        'targets', [], ...
+        'metadata', struct(), ...
+        'create_time', datetime('now', 'TimeZone', 'UTC'), ...
+        'update_time', datetime('now', 'TimeZone', 'UTC'));
+    response = client.savePlan(planStruct);
+    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+    savedPk = [];
+    if response.ok && isfield(response, 'data') && ~isempty(response.data)
+        savedPk = response.data;
+        fprintf('Saved pk=%d\n', savedPk);
+    else
+        fprintf('Save failed or no pk returned\n');
+    end
+end
+
+
+function debug_getMatlabMat(client, pk)
+    fprintf('\n--- debug_getMatlabMat ---\n');
+    if isempty(pk)
+        fprintf('Skipping (no pk available)\n');
+        return;
+    end
+    response = client.getMatlabMat(pk);
+    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+    if response.ok && isfield(response, 'data') && ~isempty(response.data)
+        fprintf('data length: %d (base64)\n', numel(response.data));
+    else
+        fprintf('data: empty\n');
+    end
+end
+
+
+function debug_saveMatlabMat(client, pk)
+    fprintf('\n--- debug_saveMatlabMat ---\n');
+    if isempty(pk)
+        fprintf('Skipping (no pk available)\n');
+        return;
+    end
+    matlab_mat = rand(2, 2);
+    tmpFile = [tempname, '.mat'];
+    save(tmpFile, 'matlab_mat', '-v7');
+    fid = fopen(tmpFile, 'r');
+    bytes = fread(fid, inf, 'uint8');
+    fclose(fid);
+    delete(tmpFile);
+    base64Str = matlab.net.base64encode(bytes');
+    response = client.saveMatlabMat(pk, base64Str);
+    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+    if response.ok
+        verifyResp = client.getMatlabMat(pk);
+        if verifyResp.ok && isfield(verifyResp, 'data') && ~isempty(verifyResp.data)
+            fprintf('Round-trip verify: getMatlabMat returned %d chars\n', numel(verifyResp.data));
         end
-    catch ME
-        fprintf('Error: %s\n', ME.message);
     end
+end
 
-    fprintf('\n========== DEBUG PLANS MANAGER CLIENT DONE ==========\n');
+
+function s = debug_getStatus(response)
+    if isfield(response, 'status')
+        s = response.status;
+    else
+        s = '';
+    end
+end
+
+
+function v = debug_getField(s, fld, default)
+    if isfield(s, fld)
+        v = s.(fld);
+    else
+        v = default;
+    end
 end

@@ -14,6 +14,8 @@ classdef MainModule < ultrasat.api.core.Loggable
         ApiClient               % MissionApiClient/MissionApiSim instance
         NamespaceClient         % NamespaceManagerClient instance
         UserClient              % UserManagerClient/UserManagerSim instance
+        ScheduleClient          % ScheduleManagerClient instance
+        PlansClient             % PlansManagerClient instance
         Preferences             % ultrasat.planner.gui.Preferences()
         PreferencesFileName     % Preferences file name
         NamespaceId             % 'OPER' for operationl, lowercase id for simulators ('sim01' etc.)
@@ -75,11 +77,19 @@ classdef MainModule < ultrasat.api.core.Loggable
             % Setup ApiClient: Sim (JSON files) or real FastAPI plans_manager
             obj.ApiClient = ultrasat.api.clients.MissionApiSim();
 
+            % Setup clients
             factory = ultrasat.api.clients.ClientFactory();
             url = factory.getServiceBaseUrl('namespace_manager');
             obj.NamespaceClient = ultrasat.api.clients.NamespaceManagerClient(url);
+
             url = factory.getServiceBaseUrl('user_manager');
             obj.UserClient = ultrasat.api.clients.UserManagerClient(url);
+
+            url = factory.getServiceBaseUrl('schedule_manager');
+            obj.ScheduleClient = ultrasat.api.clients.ScheduleManagerClient(url);
+
+            url = factory.getServiceBaseUrl('plans_manager');
+            obj.PlansClient = ultrasat.api.clients.PlansManagerClient(url);
 
             % Get the list of namespaces
             response = obj.NamespaceClient.getNamespaceList();
@@ -89,6 +99,7 @@ classdef MainModule < ultrasat.api.core.Loggable
                 % If there is only one namespace, set obj.NamespaceId to it
                 if numel(obj.NamespaceDisplayList) == 1
                     obj.NamespaceId = obj.GuiHelper.extractNameFromDisplayString(obj.NamespaceDisplayList{1});
+                    obj.setNamespace(obj.NamespaceId);
                 end
             else
                 obj.NamespaceId = 'none';
@@ -133,10 +144,11 @@ classdef MainModule < ultrasat.api.core.Loggable
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
                 obj.NamespaceDisplay = obj.GuiHelper.extractTitleFromDisplayString(Namespace);
-                %obj.ApiClient.NamespaceId = obj.NamespaceId;
 
                 % Set the namespace id for the PathUtils class, so any class derived from Loggable will use this namespace id
                 ultrasat.api.utils.PathUtils.NamespaceId(obj.NamespaceId);
+                obj.setNamespace(obj.NamespaceId);
+
                 % When using MissionApiClient (FastAPI), update HTTP client namespace for plans_manager
                 if isa(obj.ApiClient, 'ultrasat.api.clients.MissionApiClient') && ~isempty(obj.ApiClient.Client)
                     obj.ApiClient.Client.Namespace = obj.NamespaceId;
@@ -167,6 +179,19 @@ classdef MainModule < ultrasat.api.core.Loggable
             % failed (why?) we clear UserName, leave NamespaceId without change
             obj.UserName = [];
             Result = true;
+        end
+
+
+        function setNamespace(obj, NamespaceId)
+            % Update the NamespaceId of clients that require it (PlansClient, ScheduleClient, etc.).
+            if ~isempty(obj.ScheduleClient)
+                obj.msglog(sprintf('setNamespace: setting ScheduleClient namespace to %s', NamespaceId));
+                obj.ScheduleClient.Namespace = NamespaceId;
+            end
+            if ~isempty(obj.PlansClient)
+                obj.msglog(sprintf('setNamespace: setting PlansClient namespace to %s', NamespaceId));
+                obj.PlansClient.Namespace = NamespaceId;
+            end            
         end
 
 

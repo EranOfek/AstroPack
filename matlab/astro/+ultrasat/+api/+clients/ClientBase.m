@@ -227,7 +227,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
                     else
                         respJson = jsonencode(rawResponse.Body.Data);
                         result = ultrasat.api.utils.JsonUtils.json2struct(respJson);
-                        result = result.ok;
+                        result = strcmp(result.status, 'ok');
                     end
                 else
                     result = false;

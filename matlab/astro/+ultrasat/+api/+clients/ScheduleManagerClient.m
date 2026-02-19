@@ -23,20 +23,12 @@ classdef ScheduleManagerClient < ultrasat.api.clients.ClientBase
 
 
     methods
-        function obj = ScheduleManagerClient(BaseUrl, Namespace, ApiKey)
+        function obj = ScheduleManagerClient(BaseUrl)
             % Constructor
             %
             % :param BaseUrl: Base URL of the Schedule Manager API (e.g. from ClientFactory.getServiceBaseUrl('schedule_manager')).
-            % :param Namespace: Namespace header value (e.g. 'OPER').
-            % :param ApiKey: API key (optional; defaults to SOC_API_KEY env var).
-            if nargin < 3 || isempty(ApiKey)
-                ApiKey = getenv('SOC_API_KEY');
-            end
-            obj@ultrasat.api.clients.ClientBase(...
-                'BaseUrl', BaseUrl, ...
-                'ApiKey', ApiKey, ...
-                'Namespace', Namespace, ...
-                'Timeout', 30);
+            obj@ultrasat.api.clients.ClientBase('BaseUrl', BaseUrl);
+
             obj.LogPrefix = 'ScheduleManagerClient';
             obj.msglog('ScheduleManagerClient constructor started');
         end
