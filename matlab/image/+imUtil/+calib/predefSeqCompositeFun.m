@@ -18,11 +18,13 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %            'AngstromExponent'  - Angstrom exponent. Default is 0.6.
     %            'PWV_cm'            - Precipitable water vapor [cm]. Default is 1.4.
     %            '*_Min', '*_Max'    - Bounds for each parameter (see arguments block).
-    %            'QE_*'              - QE model parameters and bounds.
-    %            'QE_Legendre_Params'- Legendre coefficients [1x9]. Default is Ofek et al. 2023.
+    %            'QE_*'              - QE SkewedGaussian model parameters and bounds.
+    %            'QE_Legendre_Params' - QE Legendre coefficients [1x9]. Default from Ofek et al. (2023).
+    %            'QE_Legendre_Min'    - Min bound for Legendre coefficients. Default is -10.
+    %            'QE_Legendre_Max'    - Max bound for Legendre coefficients. Default is 10.
     % Output : - FunCatalog: Structure with pre-configured transmission functions.
     %                        Available: Normalization, Rayleigh, Ozone, Aerosol, Water, UMG,
-    %                                   Mirror, Corrector, QE_Legendre, QE_SkewedGaussian
+    %                                   LASTTransmissionFixed, QE_SkewedGaussian
     %          - StageCatalog: Structure with pre-configured optimization stages.
     %                          Available: NormOnly_Initial, NormAndCenter, FieldCorrection_Adapted,
     %                                     Normalization_Refined, Atmospheric, DefaultLAST
@@ -120,7 +122,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         Args.QE_Gamma_Min         = -1
         Args.QE_Gamma_Max         = 1
 
-        % --- QE Legendre coefficients ---
+        % --- QE Legendre (fixed coefficients for LASTTransmissionFixed) ---
         Args.QE_Legendre_Params   = [-0.30, 0.34, -1.89, -0.82, -3.73, -0.669, -2.06, -0.24, -0.60]
         Args.QE_Legendre_Min      = -10
         Args.QE_Legendre_Max      = 10
@@ -224,59 +226,31 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', {Args.ZenithAngle_deg_Max, Args.Temperature_C_Max, Args.Pressure_mbar_Max});
 
     %% ====================================================================
-    %% TELESCOPE OPTICS TRANSMISSION FUNCTIONS
+    %% FIXED TELESCOPE TRANSMISSION (combined: Mirror * Corrector * QE_Legendre)
     %% ====================================================================
 
-    % Mirror reflectivity
-    % Parameters: [DummyParam] - fixed at 1
-    FunCatalog.Mirror = struct();
-    FunCatalog.Mirror.Name = 'Mirror';
-    FunCatalog.Mirror.Handle = '@telescope.optics.mirrorReflectanceLAST';
-    FunCatalog.Mirror.HandleType = 'named';
-    FunCatalog.Mirror.Params = [1];  % Dummy parameter
-    FunCatalog.Mirror.FitPar = [false];
-    FunCatalog.Mirror.ParamInfo = struct(...
-        'Name', {'DummyParam'}, ...
-        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
-        'Min', {1}, ...
-        'Max', {1});
-
-    % Corrector transmission
-    % Parameters: [DummyParam] - fixed at 1
-    FunCatalog.Corrector = struct();
-    FunCatalog.Corrector.Name = 'Corrector';
-    FunCatalog.Corrector.Handle = '@telescope.optics.correctorTransmissionLAST';
-    FunCatalog.Corrector.HandleType = 'named';
-    FunCatalog.Corrector.Params = [1];  % Dummy parameter
-    FunCatalog.Corrector.FitPar = [false];
-    FunCatalog.Corrector.ParamInfo = struct(...
-        'Name', {'DummyParam'}, ...
-        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
-        'Min', {1}, ...
-        'Max', {1});
-
-    %% ====================================================================
-    %% DETECTOR QUANTUM EFFICIENCY FUNCTIONS
-    %% ====================================================================
-
-    % QE - Legendre polynomial model (Ofek et al. 2023)
-    % Parameters: [L0, L1, L2, L3, L4, L5, L6, L7, L8] - Legendre coefficients
+    % LASTTransmissionFixed — single CompositeFun-compatible function
+    % Returns product of Mirror, Corrector, QE_Legendre; all parameters fixed
     NLeg = numel(Args.QE_Legendre_Params);
-    FunCatalog.QE_Legendre = struct();
-    FunCatalog.QE_Legendre.Name = 'QE_Legendre';
-    FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
-    FunCatalog.QE_Legendre.HandleType = 'named';
-    FunCatalog.QE_Legendre.Params = Args.QE_Legendre_Params;
-    FunCatalog.QE_Legendre.FitPar = false(1, NLeg);  % All fixed by default
+    FunCatalog.LASTTransmissionFixed = struct();
+    FunCatalog.LASTTransmissionFixed.Name = 'LASTTransmissionFixed';
+    FunCatalog.LASTTransmissionFixed.Handle = '@telescope.optics.LASTTransmissionFixed';
+    FunCatalog.LASTTransmissionFixed.HandleType = 'named';
+    FunCatalog.LASTTransmissionFixed.Params = Args.QE_Legendre_Params;
+    FunCatalog.LASTTransmissionFixed.FitPar = false(1, NLeg);  % All fixed
     LegNames = arrayfun(@(k) sprintf('L%d', k), 0:(NLeg-1), 'UniformOutput', false);
-    LegDescs = arrayfun(@(k) sprintf('Legendre coeff %d', k), 0:(NLeg-1), 'UniformOutput', false);
+    LegDescs = arrayfun(@(k) sprintf('QE Legendre coeff %d', k), 0:(NLeg-1), 'UniformOutput', false);
     LegMins  = num2cell(Args.QE_Legendre_Min * ones(1, NLeg));
     LegMaxs  = num2cell(Args.QE_Legendre_Max * ones(1, NLeg));
-    FunCatalog.QE_Legendre.ParamInfo = struct(...
+    FunCatalog.LASTTransmissionFixed.ParamInfo = struct(...
         'Name', LegNames, ...
         'Description', LegDescs, ...
         'Min', LegMins, ...
         'Max', LegMaxs);
+
+    %% ====================================================================
+    %% DETECTOR QE - FITTED COMPONENT
+    %% ====================================================================
 
     % QE - Skewed Gaussian model (Garrappa et al. 2025)
     % Parameters: [Amplitude, Center_Ang, Sigma_Ang, Gamma]
@@ -293,20 +267,73 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', {Args.QE_Amplitude_Max, Args.QE_Center_Ang_Max, Args.QE_Sigma_Ang_Max, Args.QE_Gamma_Max});
 
     %% ====================================================================
+    %% INDIVIDUAL TELESCOPE COMPONENTS (for granular LASTFunList)
+    %% ====================================================================
+
+    % Mirror reflectivity — data-driven, no fittable params
+    FunCatalog.Mirror = struct();
+    FunCatalog.Mirror.Name = 'Mirror';
+    FunCatalog.Mirror.Handle = '@telescope.optics.mirrorReflectanceLAST';
+    FunCatalog.Mirror.HandleType = 'named';
+    FunCatalog.Mirror.Params = [1];  % Dummy parameter
+    FunCatalog.Mirror.FitPar = [false];
+    FunCatalog.Mirror.ParamInfo = struct(...
+        'Name', {'DummyParam'}, ...
+        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
+        'Min', {1}, ...
+        'Max', {1});
+
+    % Corrector transmission — data-driven, no fittable params
+    FunCatalog.Corrector = struct();
+    FunCatalog.Corrector.Name = 'Corrector';
+    FunCatalog.Corrector.Handle = '@telescope.optics.correctorTransmissionLAST';
+    FunCatalog.Corrector.HandleType = 'named';
+    FunCatalog.Corrector.Params = [1];  % Dummy parameter
+    FunCatalog.Corrector.FitPar = [false];
+    FunCatalog.Corrector.ParamInfo = struct(...
+        'Name', {'DummyParam'}, ...
+        'Description', {'Dummy parameter for CompositeFun compatibility'}, ...
+        'Min', {1}, ...
+        'Max', {1});
+
+    % QE Legendre polynomial model — all coefficients fixed
+    FunCatalog.QE_Legendre = struct();
+    FunCatalog.QE_Legendre.Name = 'QE_Legendre';
+    FunCatalog.QE_Legendre.Handle = '@telescope.detector.qeLegendreLAST';
+    FunCatalog.QE_Legendre.HandleType = 'named';
+    FunCatalog.QE_Legendre.Params = Args.QE_Legendre_Params;
+    FunCatalog.QE_Legendre.FitPar = false(1, NLeg);
+    FunCatalog.QE_Legendre.ParamInfo = struct(...
+        'Name', LegNames, ...
+        'Description', LegDescs, ...
+        'Min', LegMins, ...
+        'Max', LegMaxs);
+
+    %% ====================================================================
     %% FUNCTION LIST CATALOG
     %% ====================================================================
 
-    % Default LAST function list (Garrappa et al. 2025)
+    % Default LAST function list — uses combined LASTTransmissionFixed (8 entries)
     FunCatalog.DefaultLASTFunList = [FunCatalog.Normalization, ...
                                      FunCatalog.Rayleigh, ...
                                      FunCatalog.Aerosol, ...
                                      FunCatalog.Ozone, ...
                                      FunCatalog.Water, ...
                                      FunCatalog.UMG, ...
-                                     FunCatalog.Mirror, ...
-                                     FunCatalog.Corrector, ...
-                                     FunCatalog.QE_SkewedGaussian, ...
-                                     FunCatalog.QE_Legendre];
+                                     FunCatalog.LASTTransmissionFixed, ...
+                                     FunCatalog.QE_SkewedGaussian];
+
+    % Granular LAST function list — separate Mirror, Corrector, QE_Legendre (10 entries)
+    FunCatalog.LASTFunList = [FunCatalog.Normalization, ...
+                              FunCatalog.Rayleigh, ...
+                              FunCatalog.Aerosol, ...
+                              FunCatalog.Ozone, ...
+                              FunCatalog.Water, ...
+                              FunCatalog.UMG, ...
+                              FunCatalog.Mirror, ...
+                              FunCatalog.Corrector, ...
+                              FunCatalog.QE_SkewedGaussian, ...
+                              FunCatalog.QE_Legendre];
 
     %% ====================================================================
     %% OPTIMIZATION STAGE CATALOG
@@ -382,7 +409,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     StageCatalog.NormAndCenter.SigmaIter = 3;
     StageCatalog.NormAndCenter.Description = 'Optimize normalization and QE center';
 
-    % Orphan clip: Single-pass 3σ outlier removal after QE fitting
+    % Orphan clip: Single-pass 3 sigma outlier removal after QE fitting
     % Matches Python's orphan sigma_clip between out1 and out4_bis
     StageCatalog.OrphanClip = struct();
     StageCatalog.OrphanClip.StageName = 'OrphanClip';

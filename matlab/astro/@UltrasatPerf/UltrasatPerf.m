@@ -130,7 +130,7 @@ classdef UltrasatPerf < Component
 
             arguments
                 Nobj           = 1;   % array size
-                Args.DesignFunPar    = {'FF1_fname','FF1_asBuilt'};%{};{'FF1_fname','FF1_asBuilt','SC1_fname','SC1_0'};
+                Args.DesignFunPar    = {};
                 Args.calcPerf  = false;
                 Args.calcPerfFunPar    = {};%{'SpecsFunPar',{'MStype',[],'T_BB',2e4}};%{};%
                 Args.TR_degradation  = [];%
@@ -454,11 +454,11 @@ classdef UltrasatPerf < Component
                 Args.PSF_name    = 'chromPSF_60'; % This is the 90% PSF profile
                 Args.EE50_subDir = 'EE50';                
                 Args.AOI_fname   = 'aoi.txt';
-                Args.FF1_fname   = '';
-                Args.FF2_fname   = '';
-                Args.SC1test_subDir = 'SC1_test';                 
-                Args.SC1_fname   = '';
-                Args.SC2_fname   = '';
+                Args.FF1_fname   = 'FF1_asBuilt';
+                Args.FF2_fname   = 'FF2asBuilt';
+                %Args.SC1test_subDir = 'SC1_test';                 
+                Args.SC1_fname   = 'SC1_asBuilt';
+                Args.SC2_fname   = 'SC2asBuilt';
                 Args.interp_mthd = 'linear';%'cubic'; % cubic generate negative tranimission....
             end
 
@@ -544,7 +544,8 @@ classdef UltrasatPerf < Component
 
             % SC1 
             if ~isempty(Args.SC1_fname)
-                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1test_subDir,Args.SC1_fname));
+                %io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1test_subDir,Args.SC1_fname));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_fname));
                 SC1_2surf = eval(Args.SC1_fname);
                 Obj.T_SC1_2surf = interp1(SC1_2surf.wavelength,SC1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
             end
