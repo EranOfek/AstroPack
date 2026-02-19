@@ -25,7 +25,7 @@ classdef MainModule < ultrasat.api.core.Loggable
 
         % Clients
         NamespaceClient         % NamespaceManagerClient instance
-        UserClient              % UserManagerClient/UserManagerSim instance
+        UserClient              % UserManagerClient instance
         ScheduleClient          % ScheduleManagerClient instance
         PlansClient             % PlansManagerClient instance
         ValidatorClient         % ValidatorManagerClient instance
