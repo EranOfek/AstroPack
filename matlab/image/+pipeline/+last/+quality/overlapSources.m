@@ -16,9 +16,9 @@ function [Result] = overlapSources(AI, Args)
     %
     arguments
         AI      
-        Args.MagCut      = [13 17];  
+        Args.MagCut      = [13 15];  
         Args.MatchRadius = 3; % arcsec
-        Args.Prop        = {'RA', 'Dec', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
+        Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
@@ -30,7 +30,19 @@ function [Result] = overlapSources(AI, Args)
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
-        MS = imProc.match.match(AI(Ind(Ivrlp,1)).CatData, AI(Ind(Ivrlp,2)).CatData, 'Radius', Args.MatchRadius);
+        Cat1 = AI(Ind(Ivrlp,1)).CatData;
+        Cat2 = AI(Ind(Ivrlp,2)).CatData;
+        % shift XPEAK, YPEAK, X1, Y1
+        ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
+        ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
+        IndX = Cat1.colname2ind({'XPEAK','X1','X'});
+        IndY = Cat1.colname2ind({'YPEAK','Y1','Y'});        
+        Cat1.Catalog(:,IndX) = Cat1.Catalog(:,IndX) + ORIGSEC1(1) - 1;
+        Cat1.Catalog(:,IndY) = Cat1.Catalog(:,IndY) + ORIGSEC1(3) - 1;
+        Cat2.Catalog(:,IndX) = Cat2.Catalog(:,IndX) + ORIGSEC2(1) - 1;
+        Cat2.Catalog(:,IndY) = Cat2.Catalog(:,IndY) + ORIGSEC2(3) - 1;        
+        
+        MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);
         
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
@@ -51,8 +63,8 @@ function [Result] = overlapSources(AI, Args)
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
                 Diff = MS.Table.(Prop) - AI(Ind(Ivrlp,2)).CatData.Table.(Prop);
-                Result.(Prop).MedianDiff(Ivrlp) = nanmedian(Diff(Flag), 1);
-                Result.(Prop).StdDiff(Ivrlp)    = nanstd(Diff(Flag),[],1);
+                Result.(Prop).MedianDiff(Ivrlp) = median(Diff(Flag), 1,'omitnan');
+                Result.(Prop).StdDiff(Ivrlp)    = std(Diff(Flag),[],1,'omitnan');
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
