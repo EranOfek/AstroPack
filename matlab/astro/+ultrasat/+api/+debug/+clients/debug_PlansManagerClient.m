@@ -34,36 +34,29 @@ function debug_PlansManagerClient()
 end
 
 
+function [PlanData, upHCS] = debug_createPlannerPlanData()
+    % Create real uplanner HCS + PlanData (RA=215, Dec=60, 1 Jan 2028 - 31 Jul 2028). No external files.
+    MainModule = ultrasat.planner.guiutils.MainModule();
+    BaseDataDir = MainModule.BaseDataDir;
+    PlanData = ultrasat.api.models.PlanData();
+    StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
+    EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
+    upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
+        'StartTime', StartTime, 'EndTime', EndTime, ...
+        'BaseDataDir', BaseDataDir);
+    upHCS.addUniqTargets(215, 60, 'Name', 'debug_target');
+    upHCS.buildHCS('HCS_UniqTarg', 1);
+    PlanData.planner = upHCS;
+    ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
+end
+
+
 function debug_plannerWorkflow(client)
     % Simulate real planner HCS workflow: uplanner, single target (RA=215, Dec=60),
     % build HCS, PlanData, save via PlansClient. No external files.
     fprintf('\n--- debug_plannerWorkflow ---\n');
     try
-        % BaseDataDir from MainModule
-        MainModule = ultrasat.planner.guiutils.MainModule();
-        BaseDataDir = MainModule.BaseDataDir;
-
-        % Create PlanData
-        PlanData = ultrasat.api.models.PlanData();
-
-        % Create uplanner HCS (1 Jan 2028 - 31 Jul 2028)
-        StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
-        EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
-        upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
-            'StartTime', StartTime, 'EndTime', EndTime, ...
-            'BaseDataDir', BaseDataDir);
-
-        % Add single unique target (RA=215, Dec=60)
-        upHCS.addUniqTargets(215, 60, 'Name', 'debug_target');
-
-        % Build HCS
-        upHCS.buildHCS('HCS_UniqTarg', 1);
-
-        % Link planner to PlanData and sync from planner
-        PlanData.planner = upHCS;
-        ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
-
-        % Save via PlansClient
+        [PlanData, ~] = debug_createPlannerPlanData();
         planStruct = PlanData.toStruct();
         planStruct = rmfield(planStruct, 'planner');
         response = client.savePlan(planStruct);
@@ -110,24 +103,37 @@ end
 
 function savedPk = debug_savePlan(client)
     fprintf('\n--- debug_savePlan ---\n');
-    planStruct = struct(...
-        'title', 'debug_test_plan', ...
-        'plan_type', 'LCS', ...
-        'ast_planner', 'debug_user', ...
-        'start_time', datetime('now', 'TimeZone', 'UTC'), ...
-        'end_time', datetime('now', 'TimeZone', 'UTC') + hours(1), ...
-        'targets', [], ...
-        'metadata', struct(), ...
-        'create_time', datetime('now', 'TimeZone', 'UTC'), ...
-        'update_time', datetime('now', 'TimeZone', 'UTC'));
-    response = client.savePlan(planStruct);
-    fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
-    savedPk = [];
-    if response.ok && isfield(response, 'data') && ~isempty(response.data)
-        savedPk = response.data;
-        fprintf('Saved pk=%d\n', savedPk);
-    else
-        fprintf('Save failed or no pk returned\n');
+    try
+        [PlanData, ~] = debug_createPlannerPlanData();
+        planStruct = PlanData.toStruct();
+        planStruct = rmfield(planStruct, 'planner');
+        response = client.savePlan(planStruct);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        savedPk = [];
+        if response.ok && isfield(response, 'data') && ~isempty(response.data)
+            savedPk = response.data;
+            fprintf('Saved pk=%d\n', savedPk);
+            % Save uplanner .mat (like planner/guiutils MissionApiSim.savePlan)
+            planner = PlanData.planner;
+            tmpFile = [tempname, '.mat'];
+            save(tmpFile, 'planner', '-v7');
+            fid = fopen(tmpFile, 'rb');
+            bytes = fread(fid, inf, 'uint8');
+            fclose(fid);
+            delete(tmpFile);
+            base64Str = matlab.net.base64encode(bytes');
+            matResp = client.saveMatlabMat(savedPk, base64Str);
+            if matResp.ok
+                fprintf('Saved uplanner mat for pk=%d\n', savedPk);
+            else
+                fprintf('saveMatlabMat failed: %s\n', debug_getStatus(matResp));
+            end
+        else
+            fprintf('Save failed or no pk returned\n');
+        end
+    catch ME
+        fprintf('debug_savePlan failed: %s\n', ME.message);
+        savedPk = [];
     end
 end
 

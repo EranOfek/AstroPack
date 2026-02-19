@@ -8,10 +8,16 @@
 %==========================================================================
 % https://chatgpt.com/c/67b1bc9e-869c-8012-b527-debac46e0d95
 
-classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
+classdef MissionApiSim < ultrasat.api.core.Loggable
     %
 
     properties
+        ApiUrl          % Base URL of the mission control API
+        PlanData        % Instance of ultrasat.api.PlanData containing current plan information
+        LogFileName     % Path to the log file for storing client operations
+        ApprovedTargetsStartTime        % Updated by getApprovedTargets()
+        ApprovedTargetsEndTime           % Updated by getApprovedTargets()
+
         LocalDbPath     % Path to simulator data files
         Validator       % instance of ultrasat.api.ValidatorSim()
         ApiSimProvider  % instance of ultrasat.api.ApiSimProvider()
@@ -22,16 +28,18 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
         function obj = MissionApiSim(Args)
             arguments
                 Args.SubUrl         = '/mission';  % planner_backend
-                Args.LogFileName
+                Args.LogFileName    = []
             end
 
-            % Call the base class constructor with the Args
-            ArgsCell = namedargs2cell(Args);
-            obj@ultrasat.api.clients.MissionApiBase(ArgsCell{:});  % Args);  % , 'SubUrl', '/mission');
-            obj.msglog('MissionClientSim constructor started');
-
-            % Initialize the logger
             obj.LogPrefix = 'MissionApiSim';
+            if isempty(Args.LogFileName)
+                srcFile = mfilename('fullpath');
+                srcFolder = fileparts(srcFile);
+                obj.LogFileName = fullfile(srcFolder, [mfilename, '.log']);
+            else
+                obj.LogFileName = Args.LogFileName;
+            end
+            obj.msglog('MissionClientSim constructor started');
 
             % Initialize the ApiSimProvider
             obj.ApiSimProvider = ultrasat.api.clients.ApiSimProvider(Args.SubUrl);
@@ -70,6 +78,10 @@ classdef MissionApiSim < ultrasat.api.clients.MissionApiBase
         end
 
         % -------------------------------------------------------------------
+
+        function response = newResponse(obj)
+            response = struct('status', '', 'message', '');
+        end
 
         function Result = getPlannerBasePath(obj)
             % Returns the base path for a given namespace's planner directory
