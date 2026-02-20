@@ -10,7 +10,11 @@ function [Result] = overlapSources(AI, Args)
     %         'FilterBad' - whether to use the 'BadFlags' for filtering
     %         'CroppingScheme' - 'old' or 'new'
     %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
-    % Output : - a struct with statistics for each crop
+    % Output : - a struct with statistics for each property 'Prop' and each Crop:
+    %          .Diff (a cell array)
+    %          .MeanDiff
+    %          .StdDiff
+    %          .MedianDiff (not very usefull?)
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
     %
