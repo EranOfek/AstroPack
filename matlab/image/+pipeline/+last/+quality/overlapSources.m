@@ -17,7 +17,7 @@ function [Result] = overlapSources(AI, Args)
     arguments
         AI      
         Args.MagCut      = [13 15];  
-        Args.MatchRadius = 3; % arcsec
+        Args.MatchRadius = 1; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
@@ -64,6 +64,7 @@ function [Result] = overlapSources(AI, Args)
                 Prop = Args.Prop{Iprop};
                 Diff = MS.Table.(Prop) - Cat2.Table.(Prop);
                 Result.(Prop).MedianDiff(Ivrlp) = median(Diff(Flag), 1,'omitnan');
+                Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff(Flag), 1,'omitnan');
                 Result.(Prop).StdDiff(Ivrlp)    = std(Diff(Flag),[],1,'omitnan');
             end
         else
