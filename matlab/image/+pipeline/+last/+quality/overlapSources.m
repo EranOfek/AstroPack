@@ -32,8 +32,8 @@ function [Result] = overlapSources(AI, Args)
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
-        Cat1 = AI(Ind(Ivrlp,1)).CatData;
-        Cat2 = AI(Ind(Ivrlp,2)).CatData;
+        Cat1 = AI(Ind(Ivrlp,1)).CatData.copy;
+        Cat2 = AI(Ind(Ivrlp,2)).CatData.copy;
         % shift XPEAK, YPEAK, X1, Y1
         ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
         ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);          
@@ -42,7 +42,7 @@ function [Result] = overlapSources(AI, Args)
         Cat2.Catalog(:,IndX) = Cat2.Catalog(:,IndX) + ORIGSEC2(1) - 1;
         Cat2.Catalog(:,IndY) = Cat2.Catalog(:,IndY) + ORIGSEC2(3) - 1;        
         
-        MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);
+        MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);             
         
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
@@ -62,7 +62,7 @@ function [Result] = overlapSources(AI, Args)
             fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
-                Diff = MS.Table.(Prop) - AI(Ind(Ivrlp,2)).CatData.Table.(Prop);
+                Diff = MS.Table.(Prop) - Cat2.Table.(Prop);
                 Result.(Prop).MedianDiff(Ivrlp) = median(Diff(Flag), 1,'omitnan');
                 Result.(Prop).StdDiff(Ivrlp)    = std(Diff(Flag),[],1,'omitnan');
             end
@@ -74,6 +74,7 @@ function [Result] = overlapSources(AI, Args)
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end
+        clear Cat1 Cat2
     end
     if Args.Plot
         [c, r] = ind2sub([4 6],Ind);
