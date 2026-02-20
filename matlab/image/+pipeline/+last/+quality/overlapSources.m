@@ -24,7 +24,9 @@ function [Result] = overlapSources(AI, Args)
         Args.CroppingScheme = 'new'; 
         Args.Plot        = false;
     end
-    BD=BitDictionary;
+    BD = BitDictionary;
+    IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
+    IndY = AI(1).CatData.colname2ind({'YPEAK','Y1','Y'});
     % read the list of overlap interfaces:
     Ind   = LASToverlapsNew('CroppingScheme', Args.CroppingScheme);
     Nvrlp = size(Ind,1);
@@ -34,9 +36,7 @@ function [Result] = overlapSources(AI, Args)
         Cat2 = AI(Ind(Ivrlp,2)).CatData;
         % shift XPEAK, YPEAK, X1, Y1
         ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
-        ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
-        IndX = Cat1.colname2ind({'XPEAK','X1','X'});
-        IndY = Cat1.colname2ind({'YPEAK','Y1','Y'});        
+        ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);          
         Cat1.Catalog(:,IndX) = Cat1.Catalog(:,IndX) + ORIGSEC1(1) - 1;
         Cat1.Catalog(:,IndY) = Cat1.Catalog(:,IndY) + ORIGSEC1(3) - 1;
         Cat2.Catalog(:,IndX) = Cat2.Catalog(:,IndX) + ORIGSEC2(1) - 1;
