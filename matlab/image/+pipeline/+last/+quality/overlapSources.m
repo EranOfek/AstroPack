@@ -62,10 +62,12 @@ function [Result] = overlapSources(AI, Args)
             fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
-                Diff = MS.Table.(Prop) - Cat2.Table.(Prop);
-                Result.(Prop).MedianDiff(Ivrlp) = median(Diff(Flag), 1,'omitnan');
-                Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff(Flag), 1,'omitnan');
-                Result.(Prop).StdDiff(Ivrlp)    = std(Diff(Flag),[],1,'omitnan');
+                D = MS.Table.(Prop) - Cat2.Table.(Prop);
+                Diff = D(Flag);
+                Result.(Prop).Diff{Ivrlp} = Diff(~isnan(Diff));
+                Result.(Prop).MedianDiff(Ivrlp) = median(Diff, 1,'omitnan');
+                Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff, 1,'omitnan');
+                Result.(Prop).StdDiff(Ivrlp)    = std(Diff,[],1,'omitnan');
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
