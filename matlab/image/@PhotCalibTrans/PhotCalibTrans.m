@@ -849,6 +849,12 @@ classdef PhotCalibTrans < Component
                 % Extract flux from specified column (for fitting)
                 Obs_Flux = ObsTab.(Args.FluxColName);
 
+                % Extract per-source airmass if available
+                HasAirmassCol = ismember('AIRMASS', ObsTab.Properties.VariableNames);
+                if HasAirmassCol
+                    Obs_Airmass = ObsTab.AIRMASS;
+                end
+
                 % Get flux error column name (replace FLUX with FLUXERR)
                 FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
                 if ismember(FluxErrColName, ObsTab.Properties.VariableNames)
@@ -906,6 +912,9 @@ classdef PhotCalibTrans < Component
                     Cal_Dec = Cal_Dec(ValidCalibMask);
                     SpecFlux = SpecFlux(ValidCalibMask, :);
                     SpecErr = SpecErr(ValidCalibMask, :);
+                    if HasAirmassCol
+                        Obs_Airmass = Obs_Airmass(ValidCalibMask);
+                    end
 
                     if Args.Verbose
                         fprintf('  Data validation: %d/%d calibrators have valid data\n', Nvalid, Nsources_before);
@@ -939,6 +948,9 @@ classdef PhotCalibTrans < Component
                 % Populate SourceData as AstroCatalog with observed calibrator sources
                 SourceTable = table(Obs_Flux, Obs_FluxErr, Obs_X, Obs_Y, Obs_RA, Obs_Dec, DistArcsec, Nmatch, ...
                                     'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
+                if HasAirmassCol
+                    SourceTable.AIRMASS = Obs_Airmass;
+                end
                 Obj.SourceData = AstroCatalog(SourceTable);
 
                 % Set CalFound flag
@@ -1139,10 +1151,10 @@ classdef PhotCalibTrans < Component
                 N_pos = length(Args.PerSourceZenithAngles);
 
                 % Build per-source AllFunPar matrix
-                AllNames = Obj.TransModel.namesAllFunPar();
+                AllFunPar = Obj.TransModel.getAllFunPar();
+                AllNames = AllFunPar.Name;
                 ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
-                BaseParams = Obj.TransModel.getAllFunPar();
-                PerSourceParams = repmat(BaseParams(:)', N_pos, 1);  % [N_pos x N_params]
+                PerSourceParams = repmat(AllFunPar.Val(:)', N_pos, 1);  % [N_pos x N_params]
                 PerSourceParams(:, ZenithIdx) = Args.PerSourceZenithAngles(:);
 
                 % Evaluate per-source transmission: [N_wvl x N_pos]
