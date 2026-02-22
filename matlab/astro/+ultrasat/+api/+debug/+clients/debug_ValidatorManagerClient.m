@@ -29,6 +29,9 @@ function debug_ValidatorManagerClient()
 
     debug_healthCheck(client);
     debug_validateTargets(client);
+    debug_validateTargetsInvalidCoords(client);
+    debug_validateTargetsEmpty(client);
+    debug_validateTargetsNegativeExposure(client);
 
     fprintf('========== DEBUG VALIDATOR MANAGER CLIENT DONE ==========\n');
 end
@@ -65,6 +68,63 @@ function debug_validateTargets(client)
 end
 
 
+function debug_validateTargetsInvalidCoords(client)
+    fprintf('\n--- debug_validateTargetsInvalidCoords ---\n');
+    targets = createInvalidCoordTargets();
+    try
+        response = client.validateTargets(targets);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if isfield(response, 'message') && ~isempty(response.message)
+            fprintf('message: %s\n', response.message);
+        end
+        if ~response.ok
+            fprintf('Validation failed as expected (invalid RA/Dec).\n');
+        end
+    catch ME
+        fprintf('validateTargets failed: %s\n', ME.message);
+        fprintf('Exception expected for invalid coordinates.\n');
+    end
+end
+
+
+function debug_validateTargetsEmpty(client)
+    fprintf('\n--- debug_validateTargetsEmpty ---\n');
+    targets = struct('coord_ra', {}, 'coord_dec', {}, 'tiles', {}, 'exposure', {}, 'image_count', {}, 'start_time', {});
+    try
+        response = client.validateTargets(targets);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if isfield(response, 'message') && ~isempty(response.message)
+            fprintf('message: %s\n', response.message);
+        end
+        if ~response.ok
+            fprintf('Validation failed as expected (empty targets).\n');
+        end
+    catch ME
+        fprintf('validateTargets failed: %s\n', ME.message);
+        fprintf('Exception expected for empty targets.\n');
+    end
+end
+
+
+function debug_validateTargetsNegativeExposure(client)
+    fprintf('\n--- debug_validateTargetsNegativeExposure ---\n');
+    targets = createNegativeExposureTargets();
+    try
+        response = client.validateTargets(targets);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if isfield(response, 'message') && ~isempty(response.message)
+            fprintf('message: %s\n', response.message);
+        end
+        if ~response.ok
+            fprintf('Validation failed as expected (negative exposure).\n');
+        end
+    catch ME
+        fprintf('validateTargets failed: %s\n', ME.message);
+        fprintf('Exception expected for negative exposure.\n');
+    end
+end
+
+
 function debug_validateTargetsWithSim()
     % Fallback: test with ValidatorSim when validator_manager service unavailable
     fprintf('\n--- debug_validateTargets (ValidatorSim fallback) ---\n');
@@ -94,6 +154,34 @@ function targets = createSampleTargets()
             'start_time', datetime('2028-01-01 00:00:00', 'TimeZone', 'UTC') + hours(i-1) ...
         );
     end
+end
+
+
+function targets = createInvalidCoordTargets()
+    % Targets with out-of-bounds RA (0-360) and Dec (-90 to 90).
+    targets = struct('coord_ra', {}, 'coord_dec', {}, 'tiles', {}, 'exposure', {}, 'image_count', {}, 'start_time', {});
+    targets(1) = struct(...
+        'coord_ra', 400, ...
+        'coord_dec', 95, ...
+        'tiles', '1,2,3,4', ...
+        'exposure', seconds(300), ...
+        'image_count', 2, ...
+        'start_time', datetime('2028-01-01 00:00:00', 'TimeZone', 'UTC') ...
+    );
+end
+
+
+function targets = createNegativeExposureTargets()
+    % Targets with negative exposure (invalid).
+    targets = struct('coord_ra', {}, 'coord_dec', {}, 'tiles', {}, 'exposure', {}, 'image_count', {}, 'start_time', {});
+    targets(1) = struct(...
+        'coord_ra', 100, ...
+        'coord_dec', 50, ...
+        'tiles', '1,2,3,4', ...
+        'exposure', seconds(-100), ...
+        'image_count', 2, ...
+        'start_time', datetime('2028-01-01 00:00:00', 'TimeZone', 'UTC') ...
+    );
 end
 
 
