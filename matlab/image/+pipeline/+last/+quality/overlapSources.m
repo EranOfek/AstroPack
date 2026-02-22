@@ -51,10 +51,10 @@ function [Result] = overlapSources(AI, Args)
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
         if Args.FilterBad
-            Col = MS.colnameDict2ind('FLAGS');
-            IsNan = isnan(MS.Table.FLAGS);
-            MS.Catalog(IsNan,Col)=0;
-            [BitName,~,~]=bitdec2name(BD,MS.Table.FLAGS);
+%             Col   = MS.colnameDict2ind('FLAGS');
+%             IsNan = isnan(MS.Table.FLAGS);
+%             MS.Catalog(IsNan,Col)=0;
+            [BitName,~,~]=bitdec2name(BD,Cat2.Table.FLAGS);
             FlagBad = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName) > 0;
             
             Flag = FlagMag & ~FlagBad;
@@ -66,12 +66,20 @@ function [Result] = overlapSources(AI, Args)
             fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
-                D = MS.Table.(Prop) - Cat2.Table.(Prop);
+                Val2 = Cat2.Table.(Prop);
+                D = MS.Table.(Prop) - Val2;
                 Diff = D(Flag);
                 Result.(Prop).Diff{Ivrlp} = Diff(~isnan(Diff));
                 Result.(Prop).MedianDiff(Ivrlp) = median(Diff, 1,'omitnan');
                 Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff, 1,'omitnan');
                 Result.(Prop).StdDiff(Ivrlp)    = std(Diff,[],1,'omitnan');
+                if strcmpi(Prop,'FLUX_APER_3') % add relative diff for the FLUX  
+                    Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(Flag));  
+                    % identify largest flux variations:
+                    if any(Result.(Prop).RelDiff{Ivrlp} > 0.1)
+                        fprintf('Crops: %d %d\n',Ind(Ivrlp,1),Ind(Ivrlp,2));
+                    end
+                end
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
