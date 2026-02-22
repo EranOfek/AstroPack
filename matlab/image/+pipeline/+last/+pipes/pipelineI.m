@@ -327,9 +327,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Coadd images
     % Photometric calibration of coadd images:
-    tic;
-    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
-    toc
+    %tic;
+    %[Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
+    %toc
 
 
     % proapage photometric calibration to individual images
