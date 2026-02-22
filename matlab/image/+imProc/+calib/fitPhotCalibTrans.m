@@ -380,6 +380,10 @@ function CalibArgs = predefCalibArgs(Args)
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' or 'weighted'
         Args.FluxErrorNorm    = 0.5
+
+        % Per-source airmass
+        Args.AirmassColName   = 'AIRMASS'   % Column name for per-source airmass
+        Args.PerSourceAirmass logical = false  % Enable per-source airmass mode
     end
 
     CalibArgs = namedargs2cell(Args);

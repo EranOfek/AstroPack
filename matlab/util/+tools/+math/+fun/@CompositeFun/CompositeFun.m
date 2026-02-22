@@ -2268,6 +2268,7 @@ classdef CompositeFun < handle
                 Args.CalibWavelength = CompositeFun.SpecWvl  % Calibrator wavelength grid [Angstrom]
                 Args.ExpTime = 20                     % Exposure time [s]
                 Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
+                Args.PerSourceZenithAngles = []        % Per-source zenith angles [N_obs x 1]
                 Args.CostType = 'sse'                 % Cost function type
                 Args.ValInp logical = true
                 Args.Verbose logical = false
@@ -2415,19 +2416,29 @@ classdef CompositeFun < handle
                 end
 
                 % Evaluate model
-                if UsePositionCorrections
-                    % Evaluate with position corrections: [N_obs x N_input]
+                if ~isempty(Args.PerSourceZenithAngles)
+                    % Per-source airmass mode: build per-source parameter matrix
+                    AllNames = Obj.namesAllFunPar();
+                    ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
+                    PerSourceParams = repmat(TransParams(:)', NCalUsed, 1);
+                    PerSourceParams(:, ZenithIdx) = Args.PerSourceZenithAngles(:);
+
+                    % evaluateAllFunParInput returns [N_input x NCalUsed]
+                    ModelOutput = Obj.evaluateAllFunParInput(InputValues, PerSourceParams);
+
+                    % Apply Tran2D separately (evaluateWithPosition assumes single base)
+                    if UsePositionCorrections
+                        [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(Args.X, Args.Y, false);
+                        FieldCorrectionTrans = 10.^(-0.4 * FieldCorrectionMag(:));
+                        ModelOutput = ModelOutput .* FieldCorrectionTrans';
+                    end
+                elseif UsePositionCorrections
+                    % Single airmass with position corrections: [N_obs x N_input]
                     ModelOutput = Obj.evaluateWithPosition(InputValues, Args.X, Args.Y, ...
                         'TransParams', TransParams(:)');
-                    if Args.Verbose
-                        fprintf('Evaluated model with Tran2D position corrections\n');
-                    end
                 else
-                    % Evaluate without position corrections: [N_input x 1]
+                    % Single airmass without position corrections: [N_input x 1]
                     ModelOutput = Obj.evaluateAllFunParInput(InputValues, TransParams(:)');
-                    if Args.Verbose
-                        fprintf('Evaluated model without position corrections\n');
-                    end
                 end
 
                 % Calibrator spectra [N_SpecWvl x N_obs] and wavelength grid [Angstrom]
@@ -2469,8 +2480,13 @@ classdef CompositeFun < handle
                 end
 
                 % Apply transmission to spectra
-                % ModelOutput: [NCalUsed x Ninput] with position corrections, [Ninput x 1] without
-                if UsePositionCorrections
+                % ModelOutput shapes:
+                %   Per-source airmass:    [Ninput x NCalUsed]
+                %   Position corrections:  [NCalUsed x Ninput]
+                %   Single airmass:        [Ninput x 1]
+                if ~isempty(Args.PerSourceZenithAngles)
+                    TransmittedSpectra = SpecFluxMatrix .* ModelOutput;   % [Ninput x NCalUsed]
+                elseif UsePositionCorrections
                     TransmittedSpectra = SpecFluxMatrix .* ModelOutput';  % [Ninput x NCalUsed]
                 else
                     TransmittedSpectra = SpecFluxMatrix .* ModelOutput;   % [Ninput x NCalUsed] via broadcast
@@ -2493,9 +2509,13 @@ classdef CompositeFun < handle
                 if UseWeighting
                     MagErr = Args.PrecomputedMagErr(:);
                     if length(MagErr) ~= NCalUsed
-                        warning('CompositeFun:MagErrMismatch', ...
-                            'PrecomputedMagErr length (%d) != NCalUsed (%d). Using unweighted.', ...
-                            length(MagErr), NCalUsed);
+                        Obj.addStatus('costFun', 'warning', ...
+                            sprintf('PrecomputedMagErr length (%d) != NCalUsed (%d). Using unweighted.', ...
+                            length(MagErr), NCalUsed), 'CompositeFun:MagErrMismatch');
+                        if Args.Verbose
+                            fprintf('Warning: PrecomputedMagErr length (%d) != NCalUsed (%d). Using unweighted.\n', ...
+                                length(MagErr), NCalUsed);
+                        end
                         UseWeighting = false;
                         MagErr = [];
                     end
@@ -2747,7 +2767,7 @@ classdef CompositeFun < handle
                 Args.SigmaThresh = 3.0
                 Args.SigmaIter = 5
                 Args.SigmaClipMethod = 'median'  % 'median' (astropy-style) or 'weighted' (|r/σ| > N)
-                Args.MinCalibrators = 0  % Minimum calibrators to keep (0 = no limit)
+                Args.MinCalibrators = 30  % Minimum calibrators to keep (0 = no limit)
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
                 Args.ValInp logical = true
@@ -2820,10 +2840,11 @@ classdef CompositeFun < handle
                 if Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
                     MaxParX = max(abs(Obj.Tran2DObj.ParX));
                     if MaxParX > 100
-                        warning('CompositeFun:fitPar:LargeTran2DParams', ...
-                                'Tran2D ParX contains large values (max abs: %.2e). This may cause Inf during evaluation.\n  Consider calling Model.resetTran2DParams() before fitting.', ...
-                                MaxParX);
+                        Obj.addStatus('fitPar', 'warning', ...
+                            sprintf('Tran2D ParX contains large values (max abs: %.2e). Consider calling Model.resetTran2DParams() before fitting.', MaxParX), ...
+                            'CompositeFun:fitPar:LargeTran2DParams');
                         if Args.Verbose
+                            fprintf('Warning: Tran2D ParX contains large values (max abs: %.2e).\n', MaxParX);
                             fprintf('  Current ParX: '); disp(Obj.Tran2DObj.ParX);
                         end
                     end
@@ -2862,7 +2883,12 @@ classdef CompositeFun < handle
                     AllFunPar = Obj.getAllFunPar();
                     FreeParamIndices = find(AllFunPar.FitPar);
                     if isempty(FreeParamIndices)
-                        warning('No parameters marked with FitPar=true, fitting all parameters');
+                        Obj.addStatus('fitPar', 'warning', ...
+                            'No parameters marked with FitPar=true, fitting all parameters', ...
+                            'CompositeFun:fitPar:NoFitPar');
+                        if Args.Verbose
+                            fprintf('Warning: No parameters marked with FitPar=true, fitting all parameters\n');
+                        end
                         FreeParamIndices = 1:length(AllFunPar.Val);
                     end
                 else
@@ -2984,6 +3010,10 @@ classdef CompositeFun < handle
                             if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
                                 Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
                             end
+                            Idx = find(strcmp(Args.CostArgs(1:2:end), 'PerSourceZenithAngles'));
+                            if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
+                                Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
+                            end
 
                             if Args.Verbose
                                 fprintf('Removed %d outliers, %d observations remaining\n', ...
@@ -3055,8 +3085,12 @@ classdef CompositeFun < handle
                                 [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
                                     'Method', 'lscov', 'ErrMag', BaseMagErr, 'Verbose', false);
                             else
-                                warning('CompositeFun:UnweightedPositionFit', ...
-                                    'MagErr unavailable or invalid, using unweighted position polynomial fit.');
+                                Obj.addStatus('fitPar', 'warning', ...
+                                    'MagErr unavailable or invalid, using unweighted position polynomial fit.', ...
+                                    'CompositeFun:UnweightedPositionFit');
+                                if Args.Verbose
+                                    fprintf('Warning: MagErr unavailable or invalid, using unweighted position polynomial fit.\n');
+                                end
                                 [~, Obj] = Obj.fitPositionPolynomial(CurrentX, CurrentY, BaseResiduals, ...
                                     'Verbose', false);
                             end
@@ -3716,6 +3750,10 @@ classdef CompositeFun < handle
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
                     if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PerSourceZenithAngles'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(StageKeepMask);
                     end
                 end
 
