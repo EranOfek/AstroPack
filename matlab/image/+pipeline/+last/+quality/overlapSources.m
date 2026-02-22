@@ -10,14 +10,18 @@ function [Result] = overlapSources(AI, Args)
     %         'FilterBad' - whether to use the 'BadFlags' for filtering
     %         'CroppingScheme' - 'old' or 'new'
     %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
-    % Output : - a struct with statistics for each crop
+    % Output : - a struct with statistics for each property 'Prop' and each Crop:
+    %          .Diff (a cell array)
+    %          .MeanDiff
+    %          .StdDiff
+    %          .MedianDiff (not very usefull?)
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
     %
     arguments
         AI      
         Args.MagCut      = [13 15];  
-        Args.MatchRadius = 3; % arcsec
+        Args.MatchRadius = 1; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
@@ -32,8 +36,8 @@ function [Result] = overlapSources(AI, Args)
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
-        Cat1 = AI(Ind(Ivrlp,1)).CatData;
-        Cat2 = AI(Ind(Ivrlp,2)).CatData;
+        Cat1 = AI(Ind(Ivrlp,1)).CatData.copy;
+        Cat2 = AI(Ind(Ivrlp,2)).CatData.copy;
         % shift XPEAK, YPEAK, X1, Y1
         ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
         ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);          
@@ -42,7 +46,7 @@ function [Result] = overlapSources(AI, Args)
         Cat2.Catalog(:,IndX) = Cat2.Catalog(:,IndX) + ORIGSEC2(1) - 1;
         Cat2.Catalog(:,IndY) = Cat2.Catalog(:,IndY) + ORIGSEC2(3) - 1;        
         
-        MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);
+        MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);             
         
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
         
@@ -62,9 +66,12 @@ function [Result] = overlapSources(AI, Args)
             fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
-                Diff = MS.Table.(Prop) - AI(Ind(Ivrlp,2)).CatData.Table.(Prop);
-                Result.(Prop).MedianDiff(Ivrlp) = median(Diff(Flag), 1,'omitnan');
-                Result.(Prop).StdDiff(Ivrlp)    = std(Diff(Flag),[],1,'omitnan');
+                D = MS.Table.(Prop) - Cat2.Table.(Prop);
+                Diff = D(Flag);
+                Result.(Prop).Diff{Ivrlp} = Diff(~isnan(Diff));
+                Result.(Prop).MedianDiff(Ivrlp) = median(Diff, 1,'omitnan');
+                Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff, 1,'omitnan');
+                Result.(Prop).StdDiff(Ivrlp)    = std(Diff,[],1,'omitnan');
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
@@ -74,6 +81,7 @@ function [Result] = overlapSources(AI, Args)
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end
+        clear Cat1 Cat2
     end
     if Args.Plot
         [c, r] = ind2sub([4 6],Ind);

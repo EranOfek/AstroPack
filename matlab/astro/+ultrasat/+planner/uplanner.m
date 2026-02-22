@@ -134,8 +134,10 @@ classdef uplanner < Component
         FullTileReadTime    duration    = seconds(15); % Time from start read of first row to last. This time will be added to each row in plan (before slew to next target..
         
         % ------------ LCS / AllSS Properties ------------
-        DailyWindowStartTime    duration =  duration(23,00,00); % [hrs]   
+        DailyWindowStartTime    duration =  duration(00,00,00); % [hrs]   
         DailyWindowMaxDuration  duration =  hours(3);           % [hrs]
+
+        LCS_obj         ultrasat.planner.LcsHelper       % Object of class LCSHelper
         
         % ------------ AllSS Properties ------------
         AllSSgridFile                   = 'AllSS_grid_361.txt'; % the default AllSS grid
@@ -476,6 +478,95 @@ classdef uplanner < Component
         end
 
         %
+        function buildLCS1(Obj,Args)
+            % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
+            % Fill in a daily window of observations and move to the next day. 
+            % All relevant parameters should be set before calling this function
+            % (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit/DailyWindowStartTime/DailyWindowMaxDuration/ height(Obj.UniqTarg)>0)
+            arguments
+                Obj
+                Args.TargetList = [];
+            end
+
+            % Verify that all the relevant parameters are set and valid
+            
+            if ~strcmp(Obj.Type,'LCS')
+                error('Plan Type is not LCS');
+            end
+            if isempty(Obj.StartTime) || isempty(Obj.EndTime) || isempty(Obj.Exptime) || isempty(Obj.Tiles) || isempty(Obj.DefEpochsPerVisit)
+                error('Missing params (StartTime/EndTime/Exptime/Tiles/DefEpochsPerVisit)');
+            end
+            if isempty(Obj.DailyWindowStartTime) || isempty(Obj.DailyWindowMaxDuration)
+                error('Missing LCS window params (DailyWindowStartTime/DailyWindowMaxDuration)');
+            end
+            if Obj.StartTime > Obj.EndTime
+                error('StartTime is after EndTime');
+            end
+            if Obj.DailyWindowMaxDuration > hours(24)
+               error('Daily window is LONGER than a DAY'); 
+            end
+            if height(Obj.UniqTarg) == 0
+                error('LCS reuire at least one target');
+            end         
+            
+            if isempty(Args.TargetList)
+                Args.TargetList = 1:height(Obj.UniqTarg);
+            end
+
+             % Calculate the current start time
+            CurrStartTime = dateshift(Obj.StartTime,'start','day');
+            if CurrStartTime < Obj.StartTime
+                CurrStartTime = CurrStartTime+1;
+            end
+            Obj.StartTime = CurrStartTime;
+                
+            Obj.LCS_obj = ultrasat.planner.LcsHelper('AllSkyTable',Obj.UniqTarg(Args.TargetList,:),...
+                                                                              'StartDate',Obj.StartTime,'EndDate',Obj.EndTime,...
+                                                                              'DailyWindowStartTime',Obj.DailyWindowStartTime,...
+                                                                             'prep_before_schedule',true,'build_the_schedule',true);
+
+            
+            DailySchedule = LCS.Daily_schedule;
+
+
+
+
+            % OLD
+            return;
+            % Calculate the expected number of targets fit in a single window
+            NUtarg = numel(Args.TargetList);
+
+            % Calculate the maximum number of targets per window
+            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
+            
+            % Use the end time of the plan
+            MaxEndTime = Obj.EndTime;
+            
+            % Initialize the current group and first target index
+            CurrGroup = 1;
+            CurrFirstTargetInd = 1;
+            
+            % Loop over the targets within the window
+            while (CurrStartTime+Obj.DailyWindowMaxDuration) < MaxEndTime
+                LastTarget = min(NUtarg,CurrFirstTargetInd+MaxTargPerWindow-1);
+                
+                % Schedule daily LCS fields
+                Obj.scheduleTargets(Args.TargetList(CurrFirstTargetInd:LastTarget),CurrStartTime,'Group',CurrGroup);
+                
+                % Set next day params
+                CurrGroup = CurrGroup +1;
+                
+                CurrFirstTargetInd = LastTarget +1;
+                if CurrFirstTargetInd > NUtarg
+                    CurrFirstTargetInd = 1;
+                end
+                
+                CurrStartTime = CurrStartTime +1; % add 1 day           
+            end               
+            
+        end
+        
+        %
         function buildLCS(Obj,Args)
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
@@ -489,8 +580,8 @@ classdef uplanner < Component
             %------------------------------------------------------
             % @Chen for Yossi: EXAMPLE for using the helper for LCS modifications
             % This code just print one line - 
-            Helper = ultrasat.planner.LcsHelper(Obj);
-            Helper.buildLcs();
+            %Helper = ultrasat.planner.LcsHelper(Obj);
+            %Helper.buildLcs();
             %------------------------------------------------------
 
             % Verify that all the relevant parameters are set and valid
