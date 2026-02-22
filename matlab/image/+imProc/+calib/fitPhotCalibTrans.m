@@ -190,21 +190,21 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % ----------------------------------------------------------------
 
         if PC.Success
-            % Add calibrated magnitude columns if requested
+            % Add calibrated magnitude (and optionally ZP) columns
             if Args.AddMag
                 if IsAstroImage
                     Result(Iobj).CatData = PC.addMag(Result(Iobj).CatData, ...
                         'MagSystem', Args.MagSystem, ...
-                        'AddMagErr', Args.AddMagErr);
+                        'AddMagErr', Args.AddMagErr, ...
+                        'AddZP', Args.AddZP);
                 else
                     Result(Iobj) = PC.addMag(Result(Iobj), ...
                         'MagSystem', Args.MagSystem, ...
-                        'AddMagErr', Args.AddMagErr);
+                        'AddMagErr', Args.AddMagErr, ...
+                        'AddZP', Args.AddZP);
                 end
-            end
-
-            % Add ZP column if requested
-            if Args.AddZP
+            elseif Args.AddZP
+                % AddMag=false but AddZP=true: call addZP separately
                 if IsAstroImage
                     Result(Iobj).CatData = PC.addZP(Result(Iobj).CatData, ...
                         'MagSystem', Args.MagSystem);

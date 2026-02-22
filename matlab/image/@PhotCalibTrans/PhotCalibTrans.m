@@ -823,21 +823,21 @@ classdef PhotCalibTrans < Component
                 % Validate Flux
                 InvalidFlux = isnan(Obs_Flux) | isinf(Obs_Flux) | (Obs_Flux <= 0);
                 if any(InvalidFlux)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
                         sum(InvalidFlux), Nsources_before);
                 end
 
                 % Validate X, Y coordinates
                 InvalidXY = isnan(Obs_X) | isinf(Obs_X) | isnan(Obs_Y) | isinf(Obs_Y);
                 if any(InvalidXY)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
                         sum(InvalidXY), Nsources_before);
                 end
 
                 % Validate RA, Dec
                 InvalidRADec = isnan(Obs_RA) | isinf(Obs_RA) | isnan(Obs_Dec) | isinf(Obs_Dec);
                 if any(InvalidRADec)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
                         sum(InvalidRADec), Nsources_before);
                 end
 
@@ -2008,6 +2008,7 @@ classdef PhotCalibTrans < Component
                 Args.ApplyPosCorrection logical = true
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.AddMagErr logical = true  % Add magnitude error columns
+                Args.AddZP logical = false  % Also insert ZP column (avoids recomputing)
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
 
@@ -2060,16 +2061,33 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Validate X, Y coordinates if position corrections enabled
+            % Compute ZP once for all flux columns
             Nrows = height(Tab);
+            ZP = nan(Nrows, 1);
+            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
             ValidPosMask = true(Nrows, 1);
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
                 if any(InvalidPos)
-                    Obj.msgLog(LogLevel.Info, 'addMag: Position validation: %d/%d sources have invalid X/Y - magnitude will be NaN at these positions', ...
+                    Obj.msgLog(LogLevel.Debug, 'addMag: Position validation: %d/%d sources have invalid X/Y - magnitude and ZP will be NaN', ...
                         sum(InvalidPos), Nrows);
                     ValidPosMask = ~InvalidPos;
                 end
+            end
+            if any(ValidPosMask)
+                if ~isempty(X)
+                    ZP_valid = Obj.evaluateZP('X', X(ValidPosMask), 'Y', Y(ValidPosMask), ...
+                        'MagSystem', Args.MagSystem);
+                else
+                    ZP_valid = Obj.evaluateZP('MagSystem', Args.MagSystem);
+                end
+                ZP(ValidPosMask) = ZP_valid(:);
+            end
+
+            % Insert ZP column if requested
+            if Args.AddZP
+                ZPColName = [Args.MagSystem, '_ZP'];
+                CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
             end
 
             % Process each flux column
@@ -2079,21 +2097,9 @@ classdef PhotCalibTrans < Component
                 % Get flux values [photons]
                 Flux = Tab.(FluxColName);
 
-                % Initialize output as NaN
-                Mag = nan(Nrows, 1);
-
-                % Calculate magnitude for sources with valid positions
-                % Note: evaluateMag handles negative/zero flux properly
-                if any(ValidPosMask)
-                    if ~isempty(X)
-                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
-                            'X', X(ValidPosMask), 'Y', Y(ValidPosMask), ...
-                            'MagSystem', Args.MagSystem);
-                    else
-                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
-                            'MagSystem', Args.MagSystem);
-                    end
-                end
+                % Calibrated magnitude using pre-computed ZP
+                % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP  (via luptitude)
+                Mag = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
 
                 % Create new calibrated magnitude column name
                 % e.g., FLUX_APER_3 -> MAG_AB_APER_3
@@ -2118,7 +2124,7 @@ classdef PhotCalibTrans < Component
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
                         % No flux error column found — insert NaN column
-                        Obj.msgLog(LogLevel.Info, ...
+                        Obj.msgLog(LogLevel.Debug, ...
                             'addMag: Flux error column %s not found - %s set to NaN', ...
                             FluxErrColName, MagErrColName);
                         CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrColName});
@@ -2180,7 +2186,7 @@ classdef PhotCalibTrans < Component
             % Validate X, Y coordinates
             InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
             if any(InvalidPos)
-                Obj.msgLog(LogLevel.Info, 'addZP: Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
+                Obj.msgLog(LogLevel.Debug, 'addZP: Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
                     sum(InvalidPos), Nrows);
             end
 
