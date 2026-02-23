@@ -219,7 +219,7 @@ classdef LcsHelper < Component
 
             l = zeros(1,N_vis_slots*NumDays);
             for i=1:NumDays
-                for j=1:Obj.Daily_LCS_slots
+                for j=1:N_vis_slots
                     k = (i-1)*N_vis_slots+j;
                     l(k) = (i-1)+(j-1).*Obj.SlotTime;
                 end

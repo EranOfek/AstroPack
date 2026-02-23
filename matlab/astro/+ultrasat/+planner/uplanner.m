@@ -528,15 +528,15 @@ classdef uplanner < Component
             
             DailySchedule = Obj.LCS_obj.Daily_schedule;
 
-            Days = find(~all(isnan(DailySchedule),2))-1;
+            Days = find(~all(isnan(DailySchedule),2));
 
             for CurrGroup = 1:numel(Days)
-                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + Days(CurrGroup);
-                DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(CurrGroup,:)));
+                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
+                DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
                 % TODO - currently naive ordering, should refine
                 Dec = Obj.UniqTarg.Dec(DailyTargets);
-                [~,I] = sort(Dec,'ascend');
+                [~,I] = sort(Dec,'descend');
                 DailyTargets = DailyTargets(I);
                 
                 Obj.scheduleTargets(Args.TargetList(DailyTargets),CurrStartTime,'Group',CurrGroup);
