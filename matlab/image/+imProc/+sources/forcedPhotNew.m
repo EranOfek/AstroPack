@@ -31,7 +31,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                                               'FLUX_APER', 'APER_AREA', 'BACK_ANNULUS', 'STD_ANNULUS', ...
                                               'FLUXERR_APER',...
                                               'MAG_APER', 'MAGERR_APER', 'BACKMAG_ANNULUS',...
-                                              'FLUX_PSF', 'MAG_PSF', 'MAGERR_PSF', 'SN', 'CHI2DOF'};
+                                              'FLUX_PSF', 'MAG_PSF', 'MAGERR_PSF', 'SN', 'CHI2DOF',...
+                                              'FLUX_XYPEAK'};
         Args.ColUnits                = {};  % copy as is!
         Args.OutputType              = 'concatai'; % 'AstroCatalog';  % 'ContcatAI'|'AstroCatalog'|'AstroImage'|'table'|'MatchedSources'
         Args.CreateNewObj            = true;  % relevant only for 'AstroImage' output
@@ -389,6 +390,10 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'MITER'
                     % do nothing
                     % for forced photometry MITER is NaN
+
+                case 'flux_xypeak'
+                    % flux at XPEAK, YPEAK
+                    Data(:,K) = imUtil.image.getValPos(Obj(Iobj).(Args.ImageProp).Data - Obj(Iobj).BackData.Data, XI, YI);
 
                 otherwise
                     % attempt to read value from header

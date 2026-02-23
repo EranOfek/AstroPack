@@ -369,6 +369,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 Cat(:,K) = Aper.AnnulusStd;
             case 'flux_waper'
                 Cat(:,K) = Aper.WeightedAper;
+            case 'flux_xypeak'
+                % flux at XPEAK, YPEAK
+                Cat(:,K) = imUtil.image.getValPos(Image-Back, Src.XPEAK, Src.YPEAK);
+
             otherwise
                 error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
 
