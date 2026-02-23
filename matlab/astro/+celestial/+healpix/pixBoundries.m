@@ -23,7 +23,7 @@ function [CornerLons, CornerLats] = pixBoundries(NSide, Pix, Type)
     N = numel(Pix);
 
     % Find the pixel's center coordinates
-    [CenterLon, CenterLat] = celestial.healpix.pix2ang(Nside, Pix, 'Type',Type,'CooUnits','rad');
+    [CenterLon, CenterLat] = celestial.healpix.pix2ang(NSide, Pix, 'Type',Type,'CooUnits','rad');
     
 
     % Calculate half the side length of a pixel in radians
