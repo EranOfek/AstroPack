@@ -74,8 +74,10 @@ function [Result] = overlapSources(AI, Args)
                 if strcmpi(Prop,'FLUX_APER_3') % add relative diff for the FLUX  
                     Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(FlagMag));  
                     % identify largest flux variations:
-                    if any(Result.(Prop).RelDiff{Ivrlp} > 0.1)
-                        fprintf('Flux variation > 10% found between crops: %d %d\n',Ind(Ivrlp,1),Ind(Ivrlp,2));
+                    Noff = sum(Result.(Prop).RelDiff{Ivrlp} > 1e-2);
+                    if Noff > 0
+                        cprintf('blue','NB: %d case(s) of flux variation > 1%% found between crops: %d %d\n',...
+                            Noff,Ind(Ivrlp,1),Ind(Ivrlp,2));
                     end
                 end
             end
