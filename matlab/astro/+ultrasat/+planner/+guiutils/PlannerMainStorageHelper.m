@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 23/02/2026
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
@@ -155,12 +155,39 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             end
 
             % Call backend to save the plan in database
-            app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
+            %app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
-                % Set update_time
-                app.MainModule.PlanData.update_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+                % Set updated_time
+                app.MainModule.PlanData.updated_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+
+                % Sync fdata from uplanner object to PlanData
                 ultrasat.api.utils.PlanDataUtils.syncFromPlanner(app.MainModule.PlanData, app.MainModule.Planner);
-                app.MainModule.PlansClient.savePlan(app.MainModule.PlanData);
+
+                % Convert PlanData to struct
+                planStruct = app.MainModule.PlanData.toStruct();
+
+                % Temporary fix (23/02/2026) !!!!!!!!!! - NEED to fix model
+                planStruct = rmfield(planStruct, 'history');
+                planStruct = rmfield(planStruct, 'metadata');        
+
+                % Save the plan struct to the backend
+                resp = app.MainModule.PlansClient.savePlan(planStruct);
+                if ~resp.ok
+                    app.msglog(sprintf('Warning: savePlan failed: %s', resp.status));
+                end
+
+                % Save the planner object as a .mat (base64) using saveMatlabMat API
+                base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(app.MainModule.Planner, 'planner');
+                try
+                    resp = app.MainModule.PlansClient.saveMatlabMat(planStruct.pk, base64Str);
+                    if ~resp.ok
+                        app.msglog(sprintf('Warning: saveMatlabMat failed: %s', resp.status));
+                    end
+                catch matME
+                    app.msglog(sprintf('Warning: saveMatlabMat exception: %s', matME.message));
+                end
+
+                % Clear modified flag
                 app.clearModified();
 
                 % Update Pk display (required if this plan saved for the first time)
@@ -169,7 +196,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 app.msgex('savePlan', ME);
             end
 
-            app.closePleaseWait();
+            %app.closePleaseWait();
             app.MainModule.setStatus('OK', 'Plan saved successfully.');
         end
 
@@ -225,6 +252,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             % Create app and set initial values from preferences
             if isempty(app.SavePlanToFileApp) || ~isvalid(app.SavePlanToFileApp)
                 app.SavePlanToFileApp = ultrasat.planner.gui.SavePlanToFile(app.MainModule);
+
+                % Update initial values from preferences
                 if ~isempty(app.Preferences.LocalPlanFolder)
                     app.SavePlanToFileApp.FileNameEditField.Value = app.Preferences.LocalPlanFileName;
                     app.SavePlanToFileApp.Folder = app.Preferences.LocalPlanFolder;
@@ -243,7 +272,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     save(FileName, 'PlanData');
                     app.setStatus('OK', sprintf('Plan saved to file: %s', FileName));
 
-                    % Update preferences
+                    % Update preferences with the new file name and folder
                     app.Preferences.LocalPlanFileName = FileName;
                     app.Preferences.LocalPlanFolder = fileparts(FileName);
                     app.savePreferences();
@@ -291,7 +320,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     app.showPlanAll();
                     app.setStatus('OK', sprintf('Plan loaded from file: %s', FileName));
 
-                    % Update preferences
+                    % Update preferences with the new file name and folder
                     app.Preferences.LocalPlanFileName = FileName;
                     app.Preferences.LocalPlanFolder = fileparts(FileName);
                     app.savePreferences();
@@ -360,10 +389,10 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     PlanData.id = [];
 
                     % Update fields and add history
-                    PlanData.create_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
-                    PlanData.update_time = PlanData.create_time;
+                    PlanData.created_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+                    PlanData.updated_time = PlanData.created_time;
                     PlanData.history = struct();
-                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.utils.DateTimeUtils.datetimeStr(PlanData.update_time)));
+                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.utils.DateTimeUtils.datetimeStr(PlanData.updated_time)));
 
                     % Reset the submit status
                     PlanData.metadata.SubmitStatus = PlanData.newStatusData();

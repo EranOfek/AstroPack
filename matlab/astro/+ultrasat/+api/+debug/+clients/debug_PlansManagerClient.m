@@ -17,7 +17,14 @@ function debug_PlansManagerClient()
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
     client.Namespace = 'dev';
 
-    debug_saveMatlabMat(client, 2);
+    % Save-plan debug: HCS with 0 targets, then HCS with 1 target
+    debug_saveMatlabMat(client, 5);
+    return;
+
+    debug_saveHcsPlanNoTargets(client);
+    debug_saveHcsPlanOneTarget(client);
+
+    %debug_saveMatlabMat(client, 2);
     return;
 
     pk = debug_getPlansList(client);
@@ -51,6 +58,62 @@ function [PlanData, upHCS] = debug_createPlannerPlanData()
     upHCS.buildHCS('HCS_UniqTarg', 1);
     PlanData.planner = upHCS;
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
+end
+
+
+function debug_saveHcsPlanNoTargets(client)
+    % Create HCS plan with zero targets and call client.savePlan.
+    % Does not call addUniqTargets or buildHCS (buildHCS requires at least one target).
+    fprintf('\n--- debug_saveHcsPlanNoTargets ---\n');
+    try
+        MainModule = ultrasat.planner.guiutils.MainModule();
+        BaseDataDir = MainModule.BaseDataDir;
+        PlanData = ultrasat.api.models.PlanData();
+        StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
+        EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
+        upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
+            'StartTime', StartTime, 'EndTime', EndTime, ...
+            'BaseDataDir', BaseDataDir);
+        % No addUniqTargets, no buildHCS - Plan stays empty
+        PlanData.planner = upHCS;
+        ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
+        planStruct = PlanData.toStruct();
+        planStruct = rmfield(planStruct, 'planner');
+
+        %planStruct = rmfield(planStruct, 'history');
+        %planStruct = rmfield(planStruct, 'metadata');        
+
+
+        response = client.savePlan(planStruct);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if response.ok && isfield(response, 'data') && ~isempty(response.data)
+            fprintf('Saved pk=%d, 0 targets\n', response.data);
+        else
+            fprintf('Save failed or no pk returned\n');
+        end
+    catch ME
+        fprintf('debug_saveHcsPlanNoTargets failed: %s\n', ME.message);
+    end
+end
+
+
+function debug_saveHcsPlanOneTarget(client)
+    % Create HCS plan with one target and call client.savePlan.
+    fprintf('\n--- debug_saveHcsPlanOneTarget ---\n');
+    try
+        [PlanData, ~] = debug_createPlannerPlanData();
+        planStruct = PlanData.toStruct();
+        planStruct = rmfield(planStruct, 'planner');
+        response = client.savePlan(planStruct);
+        fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
+        if response.ok && isfield(response, 'data') && ~isempty(response.data)
+            fprintf('Saved pk=%d, %d targets\n', response.data, numel(PlanData.targets));
+        else
+            fprintf('Save failed or no pk returned\n');
+        end
+    catch ME
+        fprintf('debug_saveHcsPlanOneTarget failed: %s\n', ME.message);
+    end
 end
 
 

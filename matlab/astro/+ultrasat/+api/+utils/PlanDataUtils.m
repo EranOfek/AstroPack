@@ -3,7 +3,7 @@
 % Filename    : PlanDataUtils.m
 % Author      : Chen Tishler
 % Created     : 19/02/2026
-% Updated     : 19/02/2026
+% Updated     : 23/02/2026
 % Description : Utility functions for PlanData and plan conversion operations
 % ***************************************************************************
 
@@ -78,6 +78,7 @@ classdef PlanDataUtils
                 PlanData.targets = planner.planTable2struct();
                 PlanData.status = planner.Status;
 
+                % Convert targets to cell array if it is a single struct, required for proper JSON serialization
                 if numel(PlanData.targets) == 1
                     PlanData.targets = {PlanData.targets};
                 end
