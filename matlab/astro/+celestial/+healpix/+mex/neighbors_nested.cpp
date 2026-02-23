@@ -11,12 +11,15 @@ void mexFunction(int nlhs, mxArray *plhs[],
         mexErrMsgTxt("Usage: neigh = healpix_neighbors_nest(nside [as power of 2], ipix)");
 
     long nside = (long) mxGetScalar(prhs[0]);  
+    
+    if (!mxIsInt64(prhs[1]))
+        mexErrMsgTxt("ipix must be int64");
 
-    double *ipix_in = mxGetPr(prhs[1]);
+    int64_t *ipix_in = (int64_t*) mxGetData(prhs[1]);
     mwSize N = mxGetNumberOfElements(prhs[1]);
-
-    plhs[0] = mxCreateDoubleMatrix(8, N, mxREAL);
-    double *out = mxGetPr(plhs[0]);
+  
+    plhs[0] = mxCreateNumericMatrix(8, N, mxINT64_CLASS, mxREAL);
+    int64_t *out = (int64_t*) mxGetData(plhs[0]);
 
     T_Healpix_Base<long> hp(nside, NEST);  
 
