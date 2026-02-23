@@ -20,7 +20,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         RefGrid
         DB            
         
-        Args.NsideSearch = 2^5; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
+        Args.NsideSearch = 2^7; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
@@ -111,11 +111,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
-        UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch);  
-%         % TEMPORARY (celestial.healpix.neighbors does not work well near the poles!):
-%         if abs(RefGrid.Dec(Iref)) > 99. % 70. % ???
-%             UpixNeighb = UpixCenter;
-%         end
+%         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch); 
+        UpixNeighb = celestial.healpix.mex.neighbors_nested(log2(Args.NsideSearch),UpixCenter);
+
         % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)                 
         UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
         UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
@@ -130,10 +128,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
             W  = strcat(W,Wc);
         end
-%         for Inei=1:numel(UpixNeighbLow) % TEMPORARY switch off the neighbors
-%             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
-%             W = strcat(W,Wn);
-%         end      
+        for Inei=1:numel(UpixNeighbLow) 
+            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
+            W = strcat(W,Wn);
+        end      
         T = DB.query(strcat(Q,W)); % T = db.mex.query(strcat(S,W));
 
         if isempty(T)                       
