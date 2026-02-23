@@ -112,6 +112,10 @@ classdef PhotCalibTrans < Component
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
         NoRADec = false         % Flag indicating RA/Dec columns missing (set by selectCalibrators)
 
+        % Per-source airmass
+        AirmassColName = 'AIRMASS'          % Column name for per-source airmass in catalog
+        PerSourceAirmass logical = false    % Whether per-source airmass was actually used
+
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
 
@@ -230,6 +234,8 @@ classdef PhotCalibTrans < Component
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
                 Args.FluxErrorNorm    = 0.5
+                Args.AirmassColName   = 'AIRMASS'
+                Args.PerSourceAirmass logical = false
 
                 Args.MagSystem char   = 'AB'
                 Args.Verbose logical  = true
@@ -390,6 +396,42 @@ classdef PhotCalibTrans < Component
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
 
+            % Store AirmassColName on object for post-fit use by addMag/addZP
+            Obj.AirmassColName = Args.AirmassColName;
+
+            % ====================================================================
+            % STEP 4b: Extract per-source airmass if requested
+            % ====================================================================
+
+            PerSourceZenithAngles = [];
+            if Args.PerSourceAirmass && Obj.CalFound
+                CalibColNames = Obj.SourceData.Table.Properties.VariableNames;
+                if ismember(Args.AirmassColName, CalibColNames)
+                    PerSourceAirmassVec = Obj.SourceData.getCol(Args.AirmassColName);
+                    ValidAM = ~isnan(PerSourceAirmassVec) & PerSourceAirmassVec >= 1.0;
+                    if all(ValidAM)
+                        PerSourceZenithAngles = acosd(1 ./ PerSourceAirmassVec);
+                        Obj.PerSourceAirmass = true;
+                        if Args.Verbose
+                            fprintf('  Per-source airmass: range %.3f - %.3f (from %s)\n', ...
+                                min(PerSourceAirmassVec), max(PerSourceAirmassVec), Args.AirmassColName);
+                        end
+                    else
+                        Obj.msgLog(LogLevel.Debug, ...
+                            'calibrate: %d/%d calibrators have invalid airmass in %s - falling back to header airmass', ...
+                            sum(~ValidAM), length(PerSourceAirmassVec), Args.AirmassColName);
+                        Obj.PerSourceAirmass = false;
+                    end
+                else
+                    Obj.msgLog(LogLevel.Debug, ...
+                        'calibrate: Column %s not found in calibrator catalog - falling back to header airmass', ...
+                        Args.AirmassColName);
+                    Obj.PerSourceAirmass = false;
+                end
+            else
+                Obj.PerSourceAirmass = false;
+            end
+
             % ====================================================================
             % STEP 5: Fit transmission if calibrators found
             % ====================================================================
@@ -464,7 +506,8 @@ classdef PhotCalibTrans < Component
                     'TransmissionMode', true, ...
                     'CalibWavelength', Obj.SpecData.SpecWvl, ...
                     'ExpTime', ExpTime_eff, ...
-                    'Aperture_area_m2', Obj.Aperture};
+                    'Aperture_area_m2', Obj.Aperture, ...
+                    'PerSourceZenithAngles', PerSourceZenithAngles};
 
                 % Fit transmission parameters
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
@@ -508,11 +551,13 @@ classdef PhotCalibTrans < Component
                     PredictedFlux(Used) = FinalResult.PredictedFlux(:);
 
                     % Add columns directly to the catalog (MagErr already present from pre-computation)
+                    AMPerSourceUsed = double(Obj.PerSourceAirmass) * ones(NCalib, 1);
                     if istable(Obj.SourceData.Catalog)
                         Obj.SourceData.Catalog.Used = Used;
                         Obj.SourceData.Catalog.Residuals = Residuals;
                         Obj.SourceData.Catalog.(MagColName) = MagCalib;
                         Obj.SourceData.Catalog.PredictedFlux = PredictedFlux;
+                        Obj.SourceData.Catalog.AMPerSourceUsed = AMPerSourceUsed;
                     else
                         % Convert to table, add columns, convert back
                         Tab = Obj.SourceData.Table;
@@ -520,6 +565,7 @@ classdef PhotCalibTrans < Component
                         Tab.Residuals = Residuals;
                         Tab.(MagColName) = MagCalib;
                         Tab.PredictedFlux = PredictedFlux;
+                        Tab.AMPerSourceUsed = AMPerSourceUsed;
                         Obj.SourceData.Catalog = Tab;
                     end
 
@@ -655,7 +701,7 @@ classdef PhotCalibTrans < Component
 
             if ~HasRADec
                 Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
-                Obj.msgLog(LogLevel.Warning, 'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators');
+                Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators');
                 if Args.Verbose
                     fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
                     fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
@@ -803,6 +849,12 @@ classdef PhotCalibTrans < Component
                 % Extract flux from specified column (for fitting)
                 Obs_Flux = ObsTab.(Args.FluxColName);
 
+                % Extract per-source airmass if available
+                HasAirmassCol = ismember('AIRMASS', ObsTab.Properties.VariableNames);
+                if HasAirmassCol
+                    Obs_Airmass = ObsTab.AIRMASS;
+                end
+
                 % Get flux error column name (replace FLUX with FLUXERR)
                 FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
                 if ismember(FluxErrColName, ObsTab.Properties.VariableNames)
@@ -823,21 +875,21 @@ classdef PhotCalibTrans < Component
                 % Validate Flux
                 InvalidFlux = isnan(Obs_Flux) | isinf(Obs_Flux) | (Obs_Flux <= 0);
                 if any(InvalidFlux)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Flux validation: %d/%d sources have invalid Flux (NaN/Inf/<=0) - excluded from calibrators', ...
                         sum(InvalidFlux), Nsources_before);
                 end
 
                 % Validate X, Y coordinates
                 InvalidXY = isnan(Obs_X) | isinf(Obs_X) | isnan(Obs_Y) | isinf(Obs_Y);
                 if any(InvalidXY)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Position validation: %d/%d sources have invalid X/Y (NaN/Inf) - excluded from calibrators', ...
                         sum(InvalidXY), Nsources_before);
                 end
 
                 % Validate RA, Dec
                 InvalidRADec = isnan(Obs_RA) | isinf(Obs_RA) | isnan(Obs_Dec) | isinf(Obs_Dec);
                 if any(InvalidRADec)
-                    Obj.msgLog(LogLevel.Info, 'selectCalibrators: Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
+                    Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Coordinate validation: %d/%d sources have invalid RA/Dec (NaN/Inf) - excluded from calibrators', ...
                         sum(InvalidRADec), Nsources_before);
                 end
 
@@ -860,6 +912,9 @@ classdef PhotCalibTrans < Component
                     Cal_Dec = Cal_Dec(ValidCalibMask);
                     SpecFlux = SpecFlux(ValidCalibMask, :);
                     SpecErr = SpecErr(ValidCalibMask, :);
+                    if HasAirmassCol
+                        Obs_Airmass = Obs_Airmass(ValidCalibMask);
+                    end
 
                     if Args.Verbose
                         fprintf('  Data validation: %d/%d calibrators have valid data\n', Nvalid, Nsources_before);
@@ -893,6 +948,9 @@ classdef PhotCalibTrans < Component
                 % Populate SourceData as AstroCatalog with observed calibrator sources
                 SourceTable = table(Obs_Flux, Obs_FluxErr, Obs_X, Obs_Y, Obs_RA, Obs_Dec, DistArcsec, Nmatch, ...
                                     'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
+                if HasAirmassCol
+                    SourceTable.AIRMASS = Obs_Airmass;
+                end
                 Obj.SourceData = AstroCatalog(SourceTable);
 
                 % Set CalFound flag
@@ -1055,6 +1113,10 @@ classdef PhotCalibTrans < Component
             %            'Y' - Y coordinates [N_pos x 1]. Default is [] (field center).
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
+            %            'PerSourceZenithAngles' - Per-source zenith angles [deg]
+            %                         [N_pos x 1]. When non-empty, evaluates per-source
+            %                         atmospheric transmission for each source.
+            %                         Default is [] (use single fitted airmass).
             % Output : - Zero point(s) [N_pos x 1] or scalar.
             %                 If X, Y provided: vector with ZP for each position.
             %                 If X, Y empty: scalar ZP at field center.
@@ -1068,6 +1130,7 @@ classdef PhotCalibTrans < Component
                 Args.X = []
                 Args.Y = []
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+                Args.PerSourceZenithAngles = []  % [N_pos x 1] per-source zenith angles [deg]
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -1082,48 +1145,85 @@ classdef PhotCalibTrans < Component
             % Use constant wavelength grid
             Lambda = Obj.TransWvl;
 
-            % Evaluate BASE transmission (without position-dependent correction)
-            % Tran2D correction is a magnitude offset, not a transmission modification
-            TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
-            TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
+            if ~isempty(Args.PerSourceZenithAngles)
+                % === Per-source airmass mode ===
+                % Each source gets its own atmospheric transmission based on its zenith angle
+                N_pos = length(Args.PerSourceZenithAngles);
 
-            % Create flat Fnu spectrum for AB zero-point
-            FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
+                % Build per-source AllFunPar matrix
+                AllFunPar = Obj.TransModel.getAllFunPar();
+                AllNames = AllFunPar.Name;
+                ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
+                PerSourceParams = repmat(AllFunPar.Val(:)', N_pos, 1);  % [N_pos x N_params]
+                PerSourceParams(:, ZenithIdx) = Args.PerSourceZenithAngles(:);
 
-            % Physical constants
-            B = H;  % For zero-point: B = H 
-            
-            % Apply transmission: multiply by FlatSpectrum
-            SpecTrans = TransBase .* FlatSpectrum';  % [1 x N_lambda]
+                % Evaluate per-source transmission: [N_wvl x N_pos]
+                TransPerSource = Obj.TransModel.evaluateAllFunParInput(Lambda, PerSourceParams);
 
-            % Multiply by Lambda for integration
-            Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
+                % Create flat Fnu spectrum for AB zero-point
+                FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
 
-            % Integrate along wavelength dimension
-            A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
- 
-            % Calculate base zero-point flux
-            TotalFlux_ZP = Obj.Aperture * A / B;  % scalar
+                % Apply transmission per source: [N_wvl x N_pos] .* [N_wvl x 1]
+                SpecTrans = TransPerSource .* FlatSpectrum;  % [N_wvl x N_pos]
 
-            % Convert to base magnitude ZP
-            ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
+                % Divide by Lambda for integration
+                Integrand = SpecTrans ./ Lambda;  % [N_wvl x N_pos]
 
-            % Add position-dependent correction if positions provided and Tran2D exists
-            if ~isempty(Args.X) && ~isempty(Args.Y) && ...
-               ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
-                X = Args.X(:);
-                Y = Args.Y(:);
-                N_pos = length(X);
+                % Integrate along wavelength dimension (dim 1 = along rows/wavelengths)
+                A = tools.math.integral.trapzmat(Lambda(:), Integrand, 1);  % [1 x N_pos]
 
-                % Get field correction in magnitude space from Tran2D
-                [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
-                FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
+                % Calculate per-source zero-point flux
+                TotalFlux_ZP = Obj.Aperture * A / H;  % [1 x N_pos]
 
-                % ZP at each position = base ZP + field correction
-                % (field correction is magnitude offset fitted to residuals)
-                ZP = ZP_base - FieldCorrectionMag;
+                % Convert to per-source magnitude ZP
+                ZP = 2.5 * log10(TotalFlux_ZP);  % [1 x N_pos]
+                ZP = ZP(:);  % [N_pos x 1]
+
+                % Add position-dependent Tran2D correction if available
+                if ~isempty(Args.X) && ~isempty(Args.Y) && ...
+                   ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
+                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(Args.X(:), Args.Y(:), false);
+                    ZP = ZP - FieldCorrectionMag(:);
+                end
             else
-                ZP = ZP_base;
+                % === Single airmass mode (original path) ===
+                % Evaluate BASE transmission (without position-dependent correction)
+                TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
+                TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
+
+                % Create flat Fnu spectrum for AB zero-point
+                FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
+
+                % Apply transmission: multiply by FlatSpectrum
+                SpecTrans = TransBase .* FlatSpectrum';  % [1 x N_lambda]
+
+                % Multiply by Lambda for integration
+                Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
+
+                % Integrate along wavelength dimension
+                A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
+
+                % Calculate base zero-point flux
+                TotalFlux_ZP = Obj.Aperture * A / H;  % scalar
+
+                % Convert to base magnitude ZP
+                ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
+
+                % Add position-dependent correction if positions provided and Tran2D exists
+                if ~isempty(Args.X) && ~isempty(Args.Y) && ...
+                   ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
+                    X = Args.X(:);
+                    Y = Args.Y(:);
+
+                    % Get field correction in magnitude space from Tran2D
+                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
+                    FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
+
+                    % ZP at each position = base ZP + field correction
+                    ZP = ZP_base - FieldCorrectionMag;
+                else
+                    ZP = ZP_base;
+                end
             end
 
             % If single position, return scalar
@@ -2008,6 +2108,7 @@ classdef PhotCalibTrans < Component
                 Args.ApplyPosCorrection logical = true
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.AddMagErr logical = true  % Add magnitude error columns
+                Args.AddZP logical = false  % Also insert ZP column (avoids recomputing)
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
 
@@ -2060,16 +2161,47 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Validate X, Y coordinates if position corrections enabled
+            % Compute ZP once for all flux columns
             Nrows = height(Tab);
+            ZP = nan(Nrows, 1);
+            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
             ValidPosMask = true(Nrows, 1);
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
                 if any(InvalidPos)
-                    Obj.msgLog(LogLevel.Info, 'addMag: Position validation: %d/%d sources have invalid X/Y - magnitude will be NaN at these positions', ...
+                    Obj.msgLog(LogLevel.Debug, 'addMag: Position validation: %d/%d sources have invalid X/Y - magnitude and ZP will be NaN', ...
                         sum(InvalidPos), Nrows);
                     ValidPosMask = ~InvalidPos;
                 end
+            end
+
+            % Extract per-source zenith angles if per-source airmass was used
+            PerSourceZenithAngles = [];
+            if Obj.PerSourceAirmass && ~isempty(Obj.AirmassColName) && ...
+               ismember(Obj.AirmassColName, AllColNames)
+                Airmass = Tab.(Obj.AirmassColName);
+                ValidAM = Airmass >= 1 & isfinite(Airmass);
+                ValidPosMask = ValidPosMask & ValidAM;
+                PerSourceZenithAngles = nan(Nrows, 1);
+                PerSourceZenithAngles(ValidAM) = acosd(1 ./ Airmass(ValidAM));
+            end
+
+            if any(ValidPosMask)
+                ZPArgs = {'MagSystem', Args.MagSystem};
+                if ~isempty(X)
+                    ZPArgs = [ZPArgs, 'X', X(ValidPosMask), 'Y', Y(ValidPosMask)];
+                end
+                if ~isempty(PerSourceZenithAngles)
+                    ZPArgs = [ZPArgs, 'PerSourceZenithAngles', PerSourceZenithAngles(ValidPosMask)];
+                end
+                ZP_valid = Obj.evaluateZP(ZPArgs{:});
+                ZP(ValidPosMask) = ZP_valid(:);
+            end
+
+            % Insert ZP column if requested
+            if Args.AddZP
+                ZPColName = [Args.MagSystem, '_ZP'];
+                CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
             end
 
             % Process each flux column
@@ -2079,21 +2211,9 @@ classdef PhotCalibTrans < Component
                 % Get flux values [photons]
                 Flux = Tab.(FluxColName);
 
-                % Initialize output as NaN
-                Mag = nan(Nrows, 1);
-
-                % Calculate magnitude for sources with valid positions
-                % Note: evaluateMag handles negative/zero flux properly
-                if any(ValidPosMask)
-                    if ~isempty(X)
-                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
-                            'X', X(ValidPosMask), 'Y', Y(ValidPosMask), ...
-                            'MagSystem', Args.MagSystem);
-                    else
-                        Mag(ValidPosMask) = Obj.evaluateMag(Flux(ValidPosMask), ...
-                            'MagSystem', Args.MagSystem);
-                    end
-                end
+                % Calibrated magnitude using pre-computed ZP
+                % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP  (via luptitude)
+                Mag = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
 
                 % Create new calibrated magnitude column name
                 % e.g., FLUX_APER_3 -> MAG_AB_APER_3
@@ -2118,7 +2238,7 @@ classdef PhotCalibTrans < Component
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
                         % No flux error column found — insert NaN column
-                        Obj.msgLog(LogLevel.Info, ...
+                        Obj.msgLog(LogLevel.Debug, ...
                             'addMag: Flux error column %s not found - %s set to NaN', ...
                             FluxErrColName, MagErrColName);
                         CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrColName});
@@ -2156,7 +2276,7 @@ classdef PhotCalibTrans < Component
 
             Tab = CatObj.Table;
             if isempty(Tab) || height(Tab) == 0
-                Obj.msgLog(LogLevel.Warning, 'addZP: Catalog is empty. No columns added.');
+                Obj.msgLog(LogLevel.Debug, 'addZP: Catalog is empty. No columns added.');
                 return;
             end
 
@@ -2180,18 +2300,34 @@ classdef PhotCalibTrans < Component
             % Validate X, Y coordinates
             InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
             if any(InvalidPos)
-                Obj.msgLog(LogLevel.Info, 'addZP: Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
+                Obj.msgLog(LogLevel.Debug, 'addZP: Position validation: %d/%d sources have invalid X/Y - ZP set to NaN', ...
                     sum(InvalidPos), Nrows);
             end
 
             % Initialize ZP as NaN
             ZP = nan(Nrows, 1);
 
-            % Evaluate ZP only for valid positions
+            % Extract per-source zenith angles if per-source airmass was used
             ValidMask = ~InvalidPos;
+            PerSourceZenithAngles = [];
+            AllColNames = Tab.Properties.VariableNames;
+            if Obj.PerSourceAirmass && ~isempty(Obj.AirmassColName) && ...
+               ismember(Obj.AirmassColName, AllColNames)
+                Airmass = Tab.(Obj.AirmassColName);
+                ValidAM = Airmass >= 1 & isfinite(Airmass);
+                ValidMask = ValidMask & ValidAM;
+                PerSourceZenithAngles = nan(Nrows, 1);
+                PerSourceZenithAngles(ValidAM) = acosd(1 ./ Airmass(ValidAM));
+            end
+
+            % Evaluate ZP only for valid positions
             if any(ValidMask)
-                ZP_valid = Obj.evaluateZP('X', X(ValidMask), 'Y', Y(ValidMask), ...
-                                          'MagSystem', Args.MagSystem);
+                ZPArgs = {'X', X(ValidMask), 'Y', Y(ValidMask), ...
+                          'MagSystem', Args.MagSystem};
+                if ~isempty(PerSourceZenithAngles)
+                    ZPArgs = [ZPArgs, 'PerSourceZenithAngles', PerSourceZenithAngles(ValidMask)];
+                end
+                ZP_valid = Obj.evaluateZP(ZPArgs{:});
                 ZP(ValidMask) = ZP_valid(:);
             end
 

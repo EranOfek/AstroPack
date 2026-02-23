@@ -20,7 +20,14 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
 
-
+        Args.ColCell                       = {'XPEAK','YPEAK',...
+                                              'X1', 'Y1',...
+                                              'X2','Y2','XY',...
+                                              'SN','BACK_IM','VAR_IM',...
+                                              'BACK_ANNULUS', 'STD_ANNULUS', ...
+                                              'FLUX_APER', 'FLUXERR_APER',...
+                                              'MAG_APER', 'MAGERR_APER',...
+                                              'FLUX_XYPEAK'};
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {};
         Args.astrometryVisitSubImageArgs   = {};
@@ -124,6 +131,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     if isempty(PP)
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
                                                     'JD',JD,...
+                                                    'ColCell',Args.ColCell,...
                                                     'AddSkyCoo',false);  % 466 s
        
     else
@@ -131,6 +139,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
+                                                    'ColCell',Args.ColCell,...
                                                     'AddSkyCoo',false);  % 119 s (on 16 cores)
         end
         %toc
@@ -312,7 +321,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     tic;
     if Args.AddSrcAM
         AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
-        Coadd = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+        Coadd = imProc.cat.addAirMass(Coadd, 'JD',JD, Args.Cat_addAirMassArgs{:});
     end
     toc
 
@@ -327,9 +336,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Coadd images
     % Photometric calibration of coadd images:
-    tic;
-    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
-    toc
+    %tic;
+    %[Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
+    %toc
 
 
     % proapage photometric calibration to individual images

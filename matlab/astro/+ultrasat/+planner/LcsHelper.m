@@ -25,10 +25,14 @@ classdef LcsHelper < Component
         AllSky      table     %
 
         StartDate datetime  = '2029-02-01 00:00:00';
+        EndDate datetime  ;
         First_day = 1; % Currently must be 1
         Last_day = 420;
+        
+        DailyWindowStartTime duration =  duration(00,00,00); % [HH,MM,SS]
 
-        Daily_LCS_slots = 11;       
+        Daily_LCS_slots =   11;    
+        SlotTime            =   3*300/60/60/24;% [days] = 3 x 300 s / 86400;
         
         Min_window = 45;
         Max_window_cut = 135;
@@ -79,24 +83,47 @@ classdef LcsHelper < Component
             %          LCS = ultrasat.planner.LcsHelper('prep_before_schedule',true,'build_the_schedule',true);
             arguments                
                 %UPlanner               		%
-                Args.StartDate = [];             % Whatever you need in constructor
-                Args.AllSkyTableFN = '/home/yossishv/Weizmann Institute Dropbox/Yossi Shvartzvald/WIS/ULTRASAT/ULTRASAT_Reviews/Science/Observation_planning/Field_selection/LC_fields/LCS_nonoverlapping_grid_surveys.csv';
+                Args.StartDate = [];             % 
+                Args.EndDate = [];             % 
+                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';
+
+                Args.DailyWindowStartTime duration = duration.empty;
 
                 Args.prep_before_schedule = false;
                 Args.build_the_schedule = false;
             
             end
 
-            %          
-            %Obj.Planner = UPlanner;
-
             % Set StartDate
             if ~isempty(Args.StartDate)
-                Obj.StartDate = Args.StartDate;
+                Obj.StartDate = dateshift(Args.StartDate,'start','day');
+            end
+
+            if isempty(Args.EndDate)
+                Obj.EndDate = Obj.StartDate+Obj.Last_day;
+            else
+                Obj.EndDate = Args.EndDate;
+                Obj.Last_day = days(Obj.EndDate-Obj.StartDate);
+            end
+
+            if ~isempty(Args.DailyWindowStartTime)
+                Obj.DailyWindowStartTime = Args.DailyWindowStartTime;
             end
             
             % read fields 
-            Obj.AllSky = readtable(Args.AllSkyTableFN);
+            if ischar(Args.AllSkyTable)
+                Obj.AllSky = readtable(Args.AllSkyTable);
+                AU_ind = find(Obj.AllSky.Properties.VariableNames=="AU");
+                if ~isempty(AU_ind)
+                    Obj.AllSky.Properties.VariableNames(AU_ind) = "A_U";
+                end
+            elseif istable(Args.AllSkyTable)
+                Obj.AllSky = table('Size',[height(Args.AllSkyTable),4],'VariableNames',{'Field','RA','Dec','AU'},'VariableTypes',{'double','double','double','double'});
+                Obj.AllSky.Field = (1:height(Args.AllSkyTable))';
+                Obj.AllSky.RA = Args.AllSkyTable.RA;
+                Obj.AllSky.Dec = Args.AllSkyTable.Dec;
+                Obj.AllSky.A_U = Args.AllSkyTable.A_U; % as given by UniqTargetTable
+            end
 
 
             % Run prep if requested
@@ -145,7 +172,6 @@ classdef LcsHelper < Component
             arguments
                 Obj
                 Args.Startind_Full_windows = 1; % or 9
-                Args.Daily_LCS_slots   = 11;
             end   
 
 
@@ -158,13 +184,13 @@ classdef LcsHelper < Component
             Obj.Full_windows.start = Obj.Schedule.start(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
             Obj.Full_windows.end = Obj.Schedule.end(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
 
-            % Step5:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
-            %         (total of 16 fields)
-            Obj.schedule_SetB;
-
-            % Step6:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
+            % Step5:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
             %         (total of 16 fields)
             Obj.schedule_SetC;
+
+            % Step6:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
+            %         (total of 16 fields)
+            Obj.schedule_SetB;
 
             % Step7:  Schedule set D - Schedulde four Category D fields (45d@1d cadence)
             %         (total of 4 fields)
@@ -178,35 +204,35 @@ classdef LcsHelper < Component
         end
 
         % === Step functions ===
-        function vis_day_field = calc_vis_matrix(Obj,Args)
+        function vis_day_field = calc_vis_matrix(Obj)
             % Description: step 1 function
             %              Build_daily_visibility_for_all_LCS_fields
             arguments
                 Obj
-                Args.TimeBin    = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s 
-                Args.NumDays    =  540; % [days] %
-                Args.NightBins  = 12;
-                Args.ConstShift = -4/360-1.44/24; % accounting for the 4W slot and centering the 2.88 hours' period
             end
 
             RAD  = 180/pi;
 
-            l = zeros(1,Args.NightBins*Args.NumDays);
-            for i=1:Args.NumDays
-                for j=1:Args.NightBins
-                    k = (i-1)*Args.NightBins+j;
-                    l(k) = (i-1)+(j-1).*Args.TimeBin;
+            NumDays = Obj.Last_day - Obj.First_day+1;
+
+            N_vis_slots = Obj.Daily_LCS_slots+1; % To account for slew time
+
+            l = zeros(1,N_vis_slots*NumDays);
+            for i=1:NumDays
+                for j=1:N_vis_slots
+                    k = (i-1)*N_vis_slots+j;
+                    l(k) = (i-1)+(j-1).*Obj.SlotTime;
                 end
             end
             
             Grid = [Obj.AllSky.RA,Obj.AllSky.Dec];
             
-            JD = juliandate(Obj.StartDate) + l - Args.ConstShift;
+            JD = juliandate(Obj.StartDate+Obj.DailyWindowStartTime) + l;
             
             Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',70,'MinMoonDist',34,'MinEarthDist',56);
             Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits;
             
-            L2 = reshape(Lim,[Args.NightBins,Args.NumDays,length(Grid)]); 
+            L2 = reshape(Lim,[N_vis_slots,NumDays,length(Grid)]); 
             if Obj.Whole_daily_window
                 L3 = squeeze(all(L2,1));                                % Visible in whole 3 hour window
             else
@@ -236,8 +262,8 @@ classdef LcsHelper < Component
             All_fields_windows_1dgap = [];
             
             Longest_window_per_field = [];
-            Longest_window_per_field(:,1) = 1:Nfields;
-            Longest_window_per_field(:,2) = Obj.AllSky.AU;
+            Longest_window_per_field(:,1) = Obj.AllSky.Field;%1:Nfields;
+            Longest_window_per_field(:,2) = Obj.AllSky.A_U;
             
             for i = 1:Nfields
                 vis_start = find(d(:,i)==1)+Obj.First_day-1;
@@ -257,8 +283,8 @@ classdef LcsHelper < Component
             
                 curr_field_windows(:,5) = curr_field_windows(:,4)-curr_field_windows(:,3)+1;    
             
-                curr_field_windows(:,1) = i;
-                curr_field_windows(:,2) = Obj.AllSky.AU(i);
+                curr_field_windows(:,1) = Obj.AllSky.Field(i);
+                curr_field_windows(:,2) = Obj.AllSky.A_U(i);
             
                 curr_field_windows_1dgap = curr_field_windows;
             
@@ -279,9 +305,9 @@ classdef LcsHelper < Component
             
             end
             
-            All_fields_windows = array2table(All_fields_windows,'VariableNames',{'field','Av_ext','vis_start','vis_end','window'});
-            All_fields_windows_1dgap = array2table(All_fields_windows_1dgap,'VariableNames',{'field','Av_ext','vis_start','vis_end','window'});
-            Longest_window_per_field = array2table(Longest_window_per_field,'VariableNames',{'field','Av_ext','max_window','max_window_1dgap'});
+            All_fields_windows = array2table(All_fields_windows,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
+            All_fields_windows_1dgap = array2table(All_fields_windows_1dgap,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
+            Longest_window_per_field = array2table(Longest_window_per_field,'VariableNames',{'Field','Av_ext','max_window','max_window_1dgap'});
         end
 
         function [SetA_fields,SetB_fields,SetC_fields,SetD_possible_fields,...
@@ -313,7 +339,7 @@ classdef LcsHelper < Component
             Good_fields_windows.scheudled(:) = false;
             Good_longest_window_per_field.scheudled(:) = false;
             for i =1:height(Good_longest_window_per_field)
-                Good_longest_window_per_field.possible_windows(i) = sum(Good_fields_windows.field==Good_longest_window_per_field.field(i));
+                Good_longest_window_per_field.possible_windows(i) = sum(Good_fields_windows.Field==Good_longest_window_per_field.Field(i));
             end
             
             Long_fields = Good_longest_window_per_field(Good_longest_window_per_field.max_window>=Obj.Max_window_cut,:);
@@ -357,11 +383,11 @@ classdef LcsHelper < Component
                 curr_Schedule.group(1:8) = Group;
                 curr_Schedule.ind(:) = 1:8;
                 
-                Field1 = Obj.SetA_fields.field(~Obj.SetA_fields.scheudled);% & Good_longest_window_per_field.possible_windows==1);
+                Field1 = Obj.SetA_fields.Field(~Obj.SetA_fields.scheudled);% & Good_longest_window_per_field.possible_windows==1);
                 Field1 = Field1(1);
-                start1 = Obj.Good_fields_windows.vis_start(Obj.Good_fields_windows.field==Field1);
+                start1 = Obj.Good_fields_windows.vis_start(Obj.Good_fields_windows.Field==Field1);
                 start1 = start1(1);
-                end1  = Obj.Good_fields_windows.vis_end(Obj.Good_fields_windows.field==Field1);
+                end1  = Obj.Good_fields_windows.vis_end(Obj.Good_fields_windows.Field==Field1);
                 end1 = end1(1);
                 
                 ind1 = 0;
@@ -402,10 +428,10 @@ classdef LcsHelper < Component
                     end
                 end
                 
-                curr_Schedule.field(ind1)=Field1;
+                curr_Schedule.Field(ind1)=Field1;
                 
-                Obj.SetA_fields.scheudled(Obj.SetA_fields.field==Field1) = true;
-                Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.field==Field1) = true;
+                Obj.SetA_fields.scheudled(Obj.SetA_fields.Field==Field1) = true;
+                Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.Field==Field1) = true;
                 
                 for ind=1:8
                     if ind~=ind1
@@ -414,11 +440,11 @@ classdef LcsHelper < Component
                         curr_end = curr_Schedule.end(ind);
                     
                         found_field=false;
-                        available_fields = Obj.SetA_fields.field(~Obj.SetA_fields.scheudled);
+                        available_fields = Obj.SetA_fields.Field(~Obj.SetA_fields.scheudled);
                         av_ind=1;
                         while ~found_field
                            curr_field = available_fields(av_ind);
-                           F = Obj.Good_fields_windows.field==curr_field & ...
+                           F = Obj.Good_fields_windows.Field==curr_field & ...
                                Obj.Good_fields_windows.vis_start<= curr_start & ...
                                Obj.Good_fields_windows.vis_end>= curr_end;
                            window = Obj.Good_fields_windows(F,:);
@@ -426,9 +452,9 @@ classdef LcsHelper < Component
                            if isempty(window)
                                av_ind = av_ind+1;
                            else
-                               curr_Schedule.field(ind)=curr_field;
-                               Obj.SetA_fields.scheudled(Obj.SetA_fields.field==curr_field) = true;
-                               Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.field==curr_field) = true;
+                               curr_Schedule.Field(ind)=curr_field;
+                               Obj.SetA_fields.scheudled(Obj.SetA_fields.Field==curr_field) = true;
+                               Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.Field==curr_field) = true;
                                found_field = true;
                            end
                         end
@@ -455,11 +481,11 @@ classdef LcsHelper < Component
             Base_windows.start = Start1+Args.SetC_nWindows*Obj.Min_window*(0:1)';
             Base_windows.end = Base_windows.start+Args.SetC_nWindows*Obj.Min_window-1;
                
-            Obj.SetC_fields.vis_windows = false(numel(Obj.SetC_fields.field),numel(Base_windows.start));
+            Obj.SetC_fields.vis_windows = false(numel(Obj.SetC_fields.Field),numel(Base_windows.start));
             
-            for i = 1:numel(Obj.SetC_fields.field)
+            for i = 1:numel(Obj.SetC_fields.Field)
                 for j = 1:numel(Base_windows.start)
-                   F = Obj.Good_fields_windows.field==Obj.SetC_fields.field(i) & ...
+                   F = Obj.Good_fields_windows.Field==Obj.SetC_fields.Field(i) & ...
                        Obj.Good_fields_windows.vis_start<= Base_windows.start(j) & ...
                        Obj.Good_fields_windows.vis_end>= Base_windows.end(j);
                    Obj.SetC_fields.vis_windows(i,j) = ~isempty(find(F,1));
@@ -485,21 +511,21 @@ classdef LcsHelper < Component
             Indwindow1 = 1;
             Indwindow2 = 9;
             
-            for i = 1:numel(Obj.SetC_fields.field)
+            for i = 1:numel(Obj.SetC_fields.Field)
                 if Obj.SetC_fields.vis_windows(i,1) && Indwindow1<9
-                    curr_Schedule.field(Indwindow1) = Obj.SetC_fields.field(i);
-                    Obj.SetC_fields.scheudled(Obj.SetC_fields.field==Obj.SetC_fields.field(i)) = true;
-                    Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.field==Obj.SetC_fields.field(i)) = true;
+                    curr_Schedule.Field(Indwindow1) = Obj.SetC_fields.Field(i);
+                    Obj.SetC_fields.scheudled(Obj.SetC_fields.Field==Obj.SetC_fields.Field(i)) = true;
+                    Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.Field==Obj.SetC_fields.Field(i)) = true;
                     Indwindow1 = Indwindow1+1;
                 elseif Obj.SetC_fields.vis_windows(i,2) && Indwindow2<17
-                    curr_Schedule.field(Indwindow2) = Obj.SetC_fields.field(i);
-                    Obj.SetC_fields.scheudled(Obj.SetC_fields.field==Obj.SetC_fields.field(i)) = true;
-                    Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.field==Obj.SetC_fields.field(i)) = true;
+                    curr_Schedule.Field(Indwindow2) = Obj.SetC_fields.Field(i);
+                    Obj.SetC_fields.scheudled(Obj.SetC_fields.Field==Obj.SetC_fields.Field(i)) = true;
+                    Obj.Good_fields_windows.scheudled(Obj.Good_fields_windows.Field==Obj.SetC_fields.Field(i)) = true;
                     Indwindow2 = Indwindow2+1;        
                 end
             end
             
-            f = curr_Schedule.field>0;
+            f = curr_Schedule.Field>0;
             
             Obj.Schedule = [Obj.Schedule;curr_Schedule(f,:)];            
 
@@ -516,17 +542,43 @@ classdef LcsHelper < Component
                 Args.W90_2 = [7     7     8     8     8     8     2     4     4     2     4     4     3     3     3     3];
             end
             
+            SetB_division = table();
+            SetB_division.W45     = [ 1     1     1     1     3     3     4     4     5     5     6     6     7     7     8     8]';
+            SetB_division.W90_1 = [ 2     2     2     2     2     2     3     3     3     3     7     7     6     6     6     6]';
+            SetB_division.W90_2 = [3     3     3     3     4     4     2     2     4     4     8     8     8     8     7     7]';
+
+
+     % 1     2     3     1
+     % 1     2     3     1
+     % 1     2     3     1
+     % 1     2     3     1
+     % 3     2     4     2
+     % 3     2     4     2
+     % 4     3     2     2
+     % 4     3     2     2
+     % 5     3     4     3
+     % 5     3     4     3
+     % 6     7     8     6
+     % 6     7     8     6
+     % 7     6     8     6
+     % 7     6     8     6
+     % 8     6     7     6
+     % 8     6     7     6
+
+
             % Calc Vis Windows
-            Obj.SetB_fields.vis_windows = false(numel(Obj.SetB_fields.field),numel(Obj.Full_windows.start));
+            Obj.SetB_fields.vis_windows = false(numel(Obj.SetB_fields.Field),numel(Obj.Full_windows.start));
             
-            for i = 1:numel(Obj.SetB_fields.field)
+            for i = 1:numel(Obj.SetB_fields.Field)
                 for j = 1:numel(Obj.Full_windows.start)
-                   F = Obj.Good_fields_windows.field==Obj.SetB_fields.field(i) & ...  
+                   F = Obj.Good_fields_windows.Field==Obj.SetB_fields.Field(i) & ...  
                        Obj.Good_fields_windows.vis_start<= Obj.Full_windows.start(j) & ...
                        Obj.Good_fields_windows.vis_end>= Obj.Full_windows.end(j);
                    Obj.SetB_fields.vis_windows(i,j) = ~isempty(find(F,1));
                 end
             end
+
+            Obj.SetB_fields.cont3_vis_windows = Obj.SetB_fields.vis_windows(:,1:6) & Obj.SetB_fields.vis_windows(:,2:7) & Obj.SetB_fields.vis_windows(:,3:8);
 
             % Schedule set B - for each window (ind) set both 1d and 4d cadence fields
 
@@ -542,7 +594,7 @@ classdef LcsHelper < Component
                 curr_Schedule.ind(:) = 1:Nw45;
                 curr_Schedule.start(1:Nw45) = Obj.Full_windows.start(i);
                 curr_Schedule.end(1:Nw45) = Obj.Full_windows.end(i);
-                curr_Schedule.field(1:Nw45) = Obj.SetB_fields.field(IndsW45);  % Verify?
+                curr_Schedule.Field(1:Nw45) = Obj.SetB_fields.Field(IndsW45);  % Verify?
                 Obj.SetB_fields.scheudled(IndsW45) = Obj.SetB_fields.scheudled(IndsW45)+1;
             
                 SetB_Schedule = [SetB_Schedule;curr_Schedule];
@@ -556,7 +608,7 @@ classdef LcsHelper < Component
                 curr_Schedule.ind(:) = 1:Nw90;
                 curr_Schedule.start(1:Nw90) = Obj.Full_windows.start(i);
                 curr_Schedule.end(1:Nw90) = Obj.Full_windows.end(i);
-                curr_Schedule.field(1:Nw90) = Obj.SetB_fields.field(IndsW90);  % Verify?
+                curr_Schedule.Field(1:Nw90) = Obj.SetB_fields.Field(IndsW90);  % Verify?
                 Obj.SetB_fields.scheudled(IndsW90) = Obj.SetB_fields.scheudled(IndsW90)+1;
             
                 SetB_Schedule = [SetB_Schedule;curr_Schedule];
@@ -578,12 +630,12 @@ classdef LcsHelper < Component
             end
 
             Obj.SetD_ranked_fields = table();
-            Obj.SetD_ranked_fields.field(1:10) = Args.Rank;
-            Obj.SetD_ranked_fields.vis_windows = false(numel(Obj.SetD_ranked_fields.field),numel(Obj.Full_windows.start));
+            Obj.SetD_ranked_fields.Field(1:10) = Args.Rank;
+            Obj.SetD_ranked_fields.vis_windows = false(numel(Obj.SetD_ranked_fields.Field),numel(Obj.Full_windows.start));
             
-            for i = 1:numel(Obj.SetD_ranked_fields.field)
+            for i = 1:numel(Obj.SetD_ranked_fields.Field)
                 for j = 1:numel(Obj.Full_windows.start)
-                   F = Obj.SetD_possible_fields.field==Obj.SetD_ranked_fields.field(i) & ...
+                   F = Obj.SetD_possible_fields.Field==Obj.SetD_ranked_fields.Field(i) & ...
                        Obj.SetD_possible_fields.vis_start<= Obj.Full_windows.start(j) & ...
                        Obj.SetD_possible_fields.vis_end>= Obj.Full_windows.end(j);
                    Obj.SetD_ranked_fields.vis_windows(i,j) = ~isempty(find(F,1));
@@ -620,7 +672,7 @@ classdef LcsHelper < Component
                 curr_Schedule.ind = Ind;
                 curr_Schedule.start = Obj.Full_windows.start(Ind);
                 curr_Schedule.end = Obj.Full_windows.end(Ind);
-                curr_Schedule.field = Obj.SetD_ranked_fields.field(Rank_ind-1);
+                curr_Schedule.Field = Obj.SetD_ranked_fields.Field(Rank_ind-1);
                 Obj.SetD_ranked_fields.scheudled(Rank_ind-1) = 1;
             
                 SetD_Schedule = [SetD_Schedule;curr_Schedule];
@@ -636,21 +688,21 @@ classdef LcsHelper < Component
                 Obj    
             end
 
-            Correct_fields = table('Size',[0,3],'VariableNames',{'field','ind_2_move','ind_open'},'VariableTypes',{'double','double','double'});
+            Correct_fields = table('Size',[0,3],'VariableNames',{'Field','ind_2_move','ind_open'},'VariableTypes',{'double','double','double'});
             
             % Find possible fields to move from 'inds2move' to 'open_inds'
             % Only SetA fields are considered
             for i = 1:numel(Obj.inds_2move)
                 curr_ind_2_move = Obj.inds_2move(i);
-                Possible_fields_2_move = Obj.Schedule.field(Obj.Schedule.start==Obj.Full_windows.start(curr_ind_2_move) & strcmp(Obj.Schedule.category,{'A'}));
+                Possible_fields_2_move = Obj.Schedule.Field(Obj.Schedule.start==Obj.Full_windows.start(curr_ind_2_move) & strcmp(Obj.Schedule.category,{'A'}));
                 
                 for j = 1:numel(Possible_fields_2_move)
                     for k = 1:numel(Obj.inds_open)
-                       F = Obj.All_fields_windows.field==Possible_fields_2_move(j) & ...
+                       F = Obj.All_fields_windows.Field==Possible_fields_2_move(j) & ...
                            Obj.All_fields_windows.vis_start<= Obj.Full_windows.start(Obj.inds_open(k)) & ...
                            Obj.All_fields_windows.vis_end>= Obj.Full_windows.end(Obj.inds_open(k));  
                        if ~isempty(find(F,1))
-                           Correct_fields.field(end+1) =  Possible_fields_2_move(j);
+                           Correct_fields.Field(end+1) =  Possible_fields_2_move(j);
                            Correct_fields.ind_2_move(end) =  Obj.inds_2move(i);
                            Correct_fields.ind_open(end) =  Obj.inds_open(k);
                        end
@@ -661,14 +713,14 @@ classdef LcsHelper < Component
             Correct_ind = zeros(size(Obj.inds_2move));
             First_correct_ind = 1;
 
-            while any(Correct_ind==0) && First_correct_ind<=numel(Correct_fields.field)
+            while any(Correct_ind==0) && First_correct_ind<=numel(Correct_fields.Field)
                 Correct_ind(:) = 0;
                 for i = 1:numel(Correct_ind)
                     if i ==1
                         Correct_ind(i) = First_correct_ind;
                     else
                         taken_inds = Correct_ind(Correct_ind~=0);
-                        tmp = find(all(Correct_fields.field~=Correct_fields.field(taken_inds)',2) & all(Correct_fields.ind_2_move~=Correct_fields.ind_2_move(taken_inds)',2) & all(Correct_fields.ind_open~=Correct_fields.ind_open(taken_inds)',2));
+                        tmp = find(all(Correct_fields.Field~=Correct_fields.Field(taken_inds)',2) & all(Correct_fields.ind_2_move~=Correct_fields.ind_2_move(taken_inds)',2) & all(Correct_fields.ind_open~=Correct_fields.ind_open(taken_inds)',2));
                         if ~isempty(tmp)
                            Correct_ind(i) =  tmp(1);
                         end
@@ -679,8 +731,8 @@ classdef LcsHelper < Component
 
             Correct_fields = Correct_fields(Correct_ind,:);
 
-            for i = 1:numel(Correct_fields.field)
-                Schedule_ind = find(Obj.Schedule.field==Correct_fields.field(i) & Obj.Schedule.ind==Correct_fields.ind_2_move(i));
+            for i = 1:numel(Correct_fields.Field)
+                Schedule_ind = find(Obj.Schedule.Field==Correct_fields.Field(i) & Obj.Schedule.ind==Correct_fields.ind_2_move(i));
                 Obj.Schedule.group(Schedule_ind) = 7;
                 Obj.Schedule.ind(Schedule_ind) = Correct_fields.ind_open(i);
                 Obj.Schedule.start(Schedule_ind) = Obj.Full_windows.start(Obj.Schedule.ind(Schedule_ind));
@@ -703,7 +755,7 @@ classdef LcsHelper < Component
                 for curr_d = Obj.Schedule.start(i):Obj.Schedule.end(i)
                     if ~(any(strcmp(Obj.Schedule.category{i},{'C','B_90'})) && mod((curr_d-Obj.Schedule.start(i)+1),4)~=mod(Obj.Schedule.ind(i),4))
                         open_slot = find(isnan(Obj.Daily_schedule(curr_d,:)),1);
-                        Obj.Daily_schedule(curr_d,open_slot) = Obj.Schedule.field(i);
+                        Obj.Daily_schedule(curr_d,open_slot) = Obj.Schedule.Field(i);
                     end
                 end
             end
@@ -800,7 +852,7 @@ classdef LcsHelper < Component
             l = {};
 
             for i = 1:Obj.SetBnumel
-                Ind = find(Obj.Schedule.field==Obj.SetB_fields.field(i));
+                Ind = find(Obj.Schedule.Field==Obj.SetB_fields.Field(i));
                 for j = 1:numel(Ind)
                     if strcmp(Obj.Schedule.category(Ind(j)),'B_45')
                        plot(ax,[Obj.Schedule.start(Ind(j)),Obj.Schedule.end(Ind(j))],ones(2,1)*i,'-k'); 

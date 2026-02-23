@@ -1,4 +1,4 @@
-function [F] = findFiles(Template, Args)
+function [F,Files] = findFiles(Template, Args)
     % Find files using various criteria (UNIX only).
     %   Criterai including:
     %   File were not modified in the past Args.NotModified minutes
@@ -24,6 +24,8 @@ function [F] = findFiles(Template, Args)
     %                   output structure by time. Default is true.
     % Output : - A dir structure with all the found files.
     %            This will also be stored in the NewFiles property.
+    %          - A string array with the file names, including relative
+    %            path.
     % Author : Eran Ofek (Jul 2024)
     % Example: F=io.files.findFiles;
     
@@ -32,9 +34,9 @@ function [F] = findFiles(Template, Args)
         Args.BasePath                = '.';
         Args.Newer                   = [];
         Args.IgnoreHidden logical    = true;
-        Args.NotModified             = 0.1;
-        Args.MinSize                 = 1e5;
-        Args.MaxSize                 = 1e7;
+        Args.NotModified             = []; %0.1;
+        Args.MinSize                 = []; %1e5;
+        Args.MaxSize                 = []; %1e7;
         Args.SortByTime logical      = true;
     end
 
@@ -100,8 +102,11 @@ function [F] = findFiles(Template, Args)
           
     cd(PWD);
 
-
-
-
+    if nargout>1
+        % convert to string array
+        Files = string(splitlines(Ans));
+        % remove blank lines
+        Files = Files(strlength(Files) > 0);
+    end
 
 end
