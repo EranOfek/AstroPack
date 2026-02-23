@@ -542,6 +542,30 @@ classdef LcsHelper < Component
                 Args.W90_2 = [7     7     8     8     8     8     2     4     4     2     4     4     3     3     3     3];
             end
             
+            SetB_division = table();
+            SetB_division.W45     = [ 1     1     1     1     3     3     4     4     5     5     6     6     7     7     8     8]';
+            SetB_division.W90_1 = [ 2     2     2     2     2     2     3     3     3     3     7     7     6     6     6     6]';
+            SetB_division.W90_2 = [3     3     3     3     4     4     2     2     4     4     8     8     8     8     7     7]';
+
+
+     % 1     2     3     1
+     % 1     2     3     1
+     % 1     2     3     1
+     % 1     2     3     1
+     % 3     2     4     2
+     % 3     2     4     2
+     % 4     3     2     2
+     % 4     3     2     2
+     % 5     3     4     3
+     % 5     3     4     3
+     % 6     7     8     6
+     % 6     7     8     6
+     % 7     6     8     6
+     % 7     6     8     6
+     % 8     6     7     6
+     % 8     6     7     6
+
+
             % Calc Vis Windows
             Obj.SetB_fields.vis_windows = false(numel(Obj.SetB_fields.Field),numel(Obj.Full_windows.start));
             
@@ -553,6 +577,8 @@ classdef LcsHelper < Component
                    Obj.SetB_fields.vis_windows(i,j) = ~isempty(find(F,1));
                 end
             end
+
+            Obj.SetB_fields.cont3_vis_windows = Obj.SetB_fields.vis_windows(:,1:6) & Obj.SetB_fields.vis_windows(:,2:7) & Obj.SetB_fields.vis_windows(:,3:8);
 
             % Schedule set B - for each window (ind) set both 1d and 4d cadence fields
 
