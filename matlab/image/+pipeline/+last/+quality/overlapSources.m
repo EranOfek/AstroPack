@@ -117,10 +117,10 @@ function [Result] = overlapSources(AI, Args)
         title 'sqrt(dRA^2 + dDec^2), arcsec'  
         
         figure;
-        dFlux    = vertcat(R.FLUX_APER_3.Diff{:});
-        dMagAB   = vertcat(R.MAG_AB_APER_3.Diff{:});
-        dRelFlux = vertcat(R.FLUX_APER_3.RelDiff{:});
-        dX1 = vertcat(R.X1.Diff{:}); dY1 = vertcat(R.Y1.Diff{:});
+        dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});
+        dMagAB   = vertcat(Result.MAG_AB_APER_3.Diff{:});
+        dRelFlux = vertcat(Result.FLUX_APER_3.RelDiff{:});
+        dX1 = vertcat(Result.X1.Diff{:}); dY1 = vertcat(Result.Y1.Diff{:});
         dR1 = sqrt(dX1.^2+dY1.^2); 
         subplot(2,2,1)
         loglog(dR1,dRelFlux,"*");
