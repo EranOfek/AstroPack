@@ -96,28 +96,45 @@ function [Result] = overlapSources(AI, Args)
         X = (c(:,1)+c(:,2))/2;
         Y = (r(:,1)+r(:,2))/2;      
         figure; 
-        subplot(2,2,1)
+        subplot(2,3,1)
         scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff MAG\_AB\_APER\_3'      
-        subplot(2,2,2)
+        subplot(2,3,2)
         scatter(X,Y,80, Result.MAG_APER_3.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff MAG\_APER\_3'
-        subplot(2,2,3)
+        subplot(2,3,3)
         scatter(X,Y,80, Result.MAG_AB_PSF.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagCut(1),Args.MagCut(2));
         xlabel(Msg);
         title 'Median Diff MAG\_AB\_PSF'
-        subplot(2,2,4)
+        subplot(2,3,4)
         scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'sqrt(dRA^2 + dDec^2), arcsec'  
+        title 'sqrt(dRA^2 + dDec^2), arcsec' 
+        
+        for i=1:24
+            F(i) = imUtil.psf.fwhmFromContour(AI(i).PSF); 
+            Foffset(i) = sqrt( (F(i).Center(1)-13).^2 + (F(i).Center(2)-13).^2);
+        end             
+        [Y1, X1] = meshgrid(1:6, 1:4);
+        subplot(2,3,5)
+        scatter(X1(:),Y1(:),80, [F.Average_fwhm], ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Average FWHM PSF, arcsec'
+        
+        subplot(2,3,6)
+        scatter(X1(:),Y1(:),80, Foffset, ...
+           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
+        title 'Center offset, pix'
         
         figure;
         dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});       
