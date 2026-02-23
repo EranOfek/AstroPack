@@ -526,44 +526,21 @@ classdef uplanner < Component
                                                                              'prep_before_schedule',true,'build_the_schedule',true);
 
             
-            DailySchedule = LCS.Daily_schedule;
+            DailySchedule = Obj.LCS_obj.Daily_schedule;
 
+            Days = find(~all(isnan(DailySchedule),2));
 
+            for CurrGroup = 1:numel(Days)
+                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
+                DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
-
-            % OLD
-            return;
-            % Calculate the expected number of targets fit in a single window
-            NUtarg = numel(Args.TargetList);
-
-            % Calculate the maximum number of targets per window
-            MaxTargPerWindow = floor(Obj.DailyWindowMaxDuration / (double(Obj.DefEpochsPerVisit) * Obj.Exptime + Obj.DefSlewBuffer + Obj.FullTileReadTime + seconds(100))); % last argument is conservative slew time
-            
-            % Use the end time of the plan
-            MaxEndTime = Obj.EndTime;
-            
-            % Initialize the current group and first target index
-            CurrGroup = 1;
-            CurrFirstTargetInd = 1;
-            
-            % Loop over the targets within the window
-            while (CurrStartTime+Obj.DailyWindowMaxDuration) < MaxEndTime
-                LastTarget = min(NUtarg,CurrFirstTargetInd+MaxTargPerWindow-1);
+                % TODO - currently naive ordering, should refine
+                Dec = Obj.UniqTarg.Dec(DailyTargets);
+                [~,I] = sort(Dec,'descend');
+                DailyTargets = DailyTargets(I);
                 
-                % Schedule daily LCS fields
-                Obj.scheduleTargets(Args.TargetList(CurrFirstTargetInd:LastTarget),CurrStartTime,'Group',CurrGroup);
-                
-                % Set next day params
-                CurrGroup = CurrGroup +1;
-                
-                CurrFirstTargetInd = LastTarget +1;
-                if CurrFirstTargetInd > NUtarg
-                    CurrFirstTargetInd = 1;
-                end
-                
-                CurrStartTime = CurrStartTime +1; % add 1 day           
-            end               
-            
+                Obj.scheduleTargets(Args.TargetList(DailyTargets),CurrStartTime,'Group',CurrGroup);
+            end
         end
         
         %

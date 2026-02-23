@@ -22,7 +22,8 @@ function [Result] = overlapSources(AI, Args)
         AI      
         Args.MagCut      = [13 15];  
         Args.MatchRadius = 1; % arcsec
-        Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF', 'MAG_AB_APER_3'};        
+        Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
+                            'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
         Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
@@ -38,6 +39,15 @@ function [Result] = overlapSources(AI, Args)
     for Ivrlp = 1:Nvrlp
         Cat1 = AI(Ind(Ivrlp,1)).CatData.copy;
         Cat2 = AI(Ind(Ivrlp,2)).CatData.copy;
+        % filter bad flags
+        if Args.FilterBad
+            [BitName1,~,~]=bitdec2name(BD,Cat1.Table.FLAGS);
+            [BitName2,~,~]=bitdec2name(BD,Cat2.Table.FLAGS);
+            FlagBad1 = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName1) > 0;
+            FlagBad2 = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName2) > 0;
+            Cat1.Catalog = Cat1.Catalog(~FlagBad1,:);
+            Cat2.Catalog = Cat2.Catalog(~FlagBad2,:);
+        end
         % shift XPEAK, YPEAK, X1, Y1
         ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
         ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);          
@@ -49,29 +59,27 @@ function [Result] = overlapSources(AI, Args)
         MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);             
         
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
-        
-        if Args.FilterBad
-            Col = MS.colnameDict2ind('FLAGS');
-            IsNan = isnan(MS.Table.FLAGS);
-            MS.Catalog(IsNan,Col)=0;
-            [BitName,~,~]=bitdec2name(BD,MS.Table.FLAGS);
-            FlagBad = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName) > 0;
-            
-            Flag = FlagMag & ~FlagBad;
-        else
-            Flag = FlagMag;
-        end
-                       
-        if sum(Flag) > 0
-            fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
+                               
+        if sum(FlagMag) > 0
+            fprintf('%d overlap sources found between crops %d and %d\n',sum(FlagMag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
-                D = MS.Table.(Prop) - Cat2.Table.(Prop);
-                Diff = D(Flag);
+                Val2 = Cat2.Table.(Prop);
+                D = MS.Table.(Prop) - Val2;
+                Diff = D(FlagMag);
                 Result.(Prop).Diff{Ivrlp} = Diff(~isnan(Diff));
                 Result.(Prop).MedianDiff(Ivrlp) = median(Diff, 1,'omitnan');
                 Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff, 1,'omitnan');
                 Result.(Prop).StdDiff(Ivrlp)    = std(Diff,[],1,'omitnan');
+                if strcmpi(Prop,'FLUX_APER_3') % add relative diff for the FLUX  
+                    Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(FlagMag));  
+                    % identify largest flux variations:
+                    Noff = sum(Result.(Prop).RelDiff{Ivrlp} > 1e-2);
+                    if Noff > 0
+                        cprintf('blue','NB: %d case(s) of flux variation > 1%% found between crops: %d %d\n',...
+                            Noff,Ind(Ivrlp,1),Ind(Ivrlp,2));
+                    end
+                end
             end
         else
             fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
@@ -99,17 +107,47 @@ function [Result] = overlapSources(AI, Args)
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff MAG\_APER\_3'
         subplot(2,2,3)
-        scatter(X,Y,80, Result.FLUX_APER_3.MedianDiff, ...
+        scatter(X,Y,80, Result.MAG_AB_PSF.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagCut(1),Args.MagCut(2));
         xlabel(Msg);
-        title 'Median Diff FLUX\_APER\_3'
+        title 'Median Diff MAG\_AB\_PSF'
         subplot(2,2,4)
         scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'sqrt(dRA^2 + dDec^2), arcsec'        
+        title 'sqrt(dRA^2 + dDec^2), arcsec'  
+        
+        figure;
+        dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});       
+        dRelFlux = vertcat(Result.FLUX_APER_3.RelDiff{:});
+        dMagAB   = vertcat(Result.MAG_AB_APER_3.Diff{:});
+        dMagPSF  = vertcat(Result.MAG_AB_PSF.Diff{:});
+        dX1 = vertcat(Result.X1.Diff{:}); dY1 = vertcat(Result.Y1.Diff{:});
+        dR1 = sqrt(dX1.^2+dY1.^2); 
+        dX  = vertcat(Result.X.Diff{:}); dY = vertcat(Result.Y.Diff{:});
+        dR  = sqrt(dX.^2+dY.^2); 
+        dRA = vertcat(Result.RA.Diff{:}); dDec = vertcat(Result.Dec.Diff{:});
+        dSky = sqrt(dRA.^2+dDec.^2); 
+        subplot(2,3,1)
+        loglog(dR1,dRelFlux,"*"); 
+        xlabel 'dR1, pix'; ylabel 'dRelFlux'
+        subplot(2,3,2)
+        loglog(dR1,abs(dFlux),"*"); 
+        xlabel 'dR1, pix'; ylabel 'dFlux, e^-'
+        subplot(2,3,3)
+        semilogy(dMagAB,dRelFlux,"*"); 
+        xlabel 'dMagAB\_APER3'; ylabel 'dRelFlux'
+        subplot(2,3,4)
+        semilogx(dR1,dMagAB,"*"); 
+        xlabel 'dR1, pix'; ylabel 'dMagAB\_APER3'
+        subplot(2,3,5)
+        semilogx(dR,dMagPSF,"*"); 
+        xlabel 'dR, pix'; ylabel 'dMagAB\_PSF'
+        subplot(2,3,6)  
+        loglog(dR1,dSky,"*");
+        xlabel 'dR1, pix'; ylabel 'dSky, arcsec'
     end
 end
 %

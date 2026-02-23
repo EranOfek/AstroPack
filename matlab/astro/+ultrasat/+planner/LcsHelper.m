@@ -172,7 +172,6 @@ classdef LcsHelper < Component
             arguments
                 Obj
                 Args.Startind_Full_windows = 1; % or 9
-                Args.Daily_LCS_slots   = 11;
             end   
 
 
@@ -185,13 +184,13 @@ classdef LcsHelper < Component
             Obj.Full_windows.start = Obj.Schedule.start(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
             Obj.Full_windows.end = Obj.Schedule.end(Args.Startind_Full_windows:(Args.Startind_Full_windows+7));
 
-            % Step5:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
-            %         (total of 16 fields)
-            Obj.schedule_SetB;
-
-            % Step6:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
+            % Step5:  Schedule set C - Schedule 2 windows of 135d, each with 8 different setC fields  
             %         (total of 16 fields)
             Obj.schedule_SetC;
+
+            % Step6:  Schedule set B - each of the 16 fields is scheduled for 135d window (45d at 1d cadence and 90d at 4d cadence)
+            %         (total of 16 fields)
+            Obj.schedule_SetB;
 
             % Step7:  Schedule set D - Schedulde four Category D fields (45d@1d cadence)
             %         (total of 4 fields)
@@ -216,10 +215,12 @@ classdef LcsHelper < Component
 
             NumDays = Obj.Last_day - Obj.First_day+1;
 
-            l = zeros(1,Obj.Daily_LCS_slots*NumDays);
+            N_vis_slots = Obj.Daily_LCS_slots+1; % To account for slew time
+
+            l = zeros(1,N_vis_slots*NumDays);
             for i=1:NumDays
-                for j=1:Obj.Daily_LCS_slots
-                    k = (i-1)*Obj.Daily_LCS_slots+j;
+                for j=1:N_vis_slots
+                    k = (i-1)*N_vis_slots+j;
                     l(k) = (i-1)+(j-1).*Obj.SlotTime;
                 end
             end
@@ -231,7 +232,7 @@ classdef LcsHelper < Component
             Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',70,'MinMoonDist',34,'MinEarthDist',56);
             Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits;
             
-            L2 = reshape(Lim,[Obj.Daily_LCS_slots,NumDays,length(Grid)]); 
+            L2 = reshape(Lim,[N_vis_slots,NumDays,length(Grid)]); 
             if Obj.Whole_daily_window
                 L3 = squeeze(all(L2,1));                                % Visible in whole 3 hour window
             else
