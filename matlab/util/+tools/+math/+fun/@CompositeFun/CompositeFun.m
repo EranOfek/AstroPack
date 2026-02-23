@@ -1718,7 +1718,15 @@ classdef CompositeFun < handle
                                 return;
                             end
 
-                            FunResult = Obj.Funs(Ifun).Handle(X, ParMatrix, Obj.Funs(Ifun).OptionalArgs{:});
+                            % If all rows of ParMatrix are identical, evaluate once and replicate
+                            % (avoids passing multi-row input to functions that don't support it)
+                            if NumParamSets > 1 && size(ParMatrix, 1) > 1 && ...
+                               all(all(ParMatrix == ParMatrix(1,:), 2))
+                                FunResult = Obj.Funs(Ifun).Handle(X, ParMatrix(1,:), Obj.Funs(Ifun).OptionalArgs{:});
+                                FunResult = repmat(FunResult(:), 1, NumParamSets);
+                            else
+                                FunResult = Obj.Funs(Ifun).Handle(X, ParMatrix, Obj.Funs(Ifun).OptionalArgs{:});
+                            end
                             Y = Y .* FunResult;
                         end
                     end
@@ -3565,6 +3573,10 @@ classdef CompositeFun < handle
                                     Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PrecomputedSpecFluxMatrix'));
                                     if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
                                         CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
+                                    end
+                                    Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PerSourceZenithAngles'));
+                                    if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
+                                        CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
                                     end
 
                                     if Args.Verbose
