@@ -38,6 +38,15 @@ function [Result] = overlapSources(AI, Args)
     for Ivrlp = 1:Nvrlp
         Cat1 = AI(Ind(Ivrlp,1)).CatData.copy;
         Cat2 = AI(Ind(Ivrlp,2)).CatData.copy;
+        % filter bad flags
+        if Args.FilterBad
+            [BitName1,~,~]=bitdec2name(BD,Cat1.Table.FLAGS);
+            [BitName2,~,~]=bitdec2name(BD,Cat2.Table.FLAGS);
+            FlagBad1 = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName1) > 0;
+            FlagBad2 = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName2) > 0;
+            Cat1.Catalog = Cat1.Catalog(~FlagBad1,:);
+            Cat2.Catalog = Cat2.Catalog(~FlagBad2,:);
+        end
         % shift XPEAK, YPEAK, X1, Y1
         ORIGSEC1 = AI(Ind(Ivrlp,1)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);
         ORIGSEC2 = AI(Ind(Ivrlp,2)).HeaderData.getVal('ORIGSEC','ReadCCDSEC',true);          
@@ -49,35 +58,23 @@ function [Result] = overlapSources(AI, Args)
         MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);             
         
         FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
-        
-        if Args.FilterBad
-%             Col   = MS.colnameDict2ind('FLAGS');
-%             IsNan = isnan(MS.Table.FLAGS);
-%             MS.Catalog(IsNan,Col)=0;
-            [BitName,~,~]=bitdec2name(BD,Cat2.Table.FLAGS);
-            FlagBad = cellfun(@(c) any(ismember(c, Args.BadFlags)), BitName) > 0;
-            
-            Flag = FlagMag & ~FlagBad;
-        else
-            Flag = FlagMag;
-        end
-                       
-        if sum(Flag) > 0
-            fprintf('%d overlap sources found between crops %d and %d\n',sum(Flag),Ind(Ivrlp,1), Ind(Ivrlp,2));
+                               
+        if sum(FlagMag) > 0
+            fprintf('%d overlap sources found between crops %d and %d\n',sum(FlagMag),Ind(Ivrlp,1), Ind(Ivrlp,2));
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
                 Val2 = Cat2.Table.(Prop);
                 D = MS.Table.(Prop) - Val2;
-                Diff = D(Flag);
+                Diff = D(FlagMag);
                 Result.(Prop).Diff{Ivrlp} = Diff(~isnan(Diff));
                 Result.(Prop).MedianDiff(Ivrlp) = median(Diff, 1,'omitnan');
                 Result.(Prop).MeanDiff(Ivrlp)   = mean(Diff, 1,'omitnan');
                 Result.(Prop).StdDiff(Ivrlp)    = std(Diff,[],1,'omitnan');
                 if strcmpi(Prop,'FLUX_APER_3') % add relative diff for the FLUX  
-                    Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(Flag));  
+                    Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(FlagMag));  
                     % identify largest flux variations:
                     if any(Result.(Prop).RelDiff{Ivrlp} > 0.1)
-                        fprintf('Crops: %d %d\n',Ind(Ivrlp,1),Ind(Ivrlp,2));
+                        fprintf('Flux variation > 10% found between crops: %d %d\n',Ind(Ivrlp,1),Ind(Ivrlp,2));
                     end
                 end
             end
@@ -117,7 +114,26 @@ function [Result] = overlapSources(AI, Args)
         scatter(X,Y,80, sqrt(Result.RA.MedianDiff.^2+Result.Dec.MedianDiff.^2)*3600, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'sqrt(dRA^2 + dDec^2), arcsec'        
+        title 'sqrt(dRA^2 + dDec^2), arcsec'  
+        
+        figure;
+        dFlux    = vertcat(R.FLUX_APER_3.Diff{:});
+        dMagAB   = vertcat(R.MAG_AB_APER_3.Diff{:});
+        dRelFlux = vertcat(R.FLUX_APER_3.RelDiff{:});
+        dX1 = vertcat(R.X1.Diff{:}); dY1 = vertcat(R.Y1.Diff{:});
+        dR1 = sqrt(dX1.^2+dY1.^2); 
+        subplot(2,2,1)
+        loglog(dR1,dRelFlux,"*");
+        xlabel 'dR, pix'; ylabel 'dRelFlux'
+        subplot(2,2,2)
+        loglog(dR1,abs(dFlux),"*");
+        xlabel 'dR, pix'; ylabel 'dFlux, e^-'
+        subplot(2,2,3)
+        semilogy(dMagAB,dRelFlux,"*");
+        xlabel 'dMagAB'; ylabel 'dRelFlux'
+        subplot(2,2,4)
+        semilogx(dR1,dMagAB,"*");
+        xlabel 'dR, pix'; ylabel 'dMagAB'
     end
 end
 %
