@@ -123,13 +123,22 @@ function [Result] = overlapSources(AI, Args)
         dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});       
         dRelFlux = vertcat(Result.FLUX_APER_3.RelDiff{:});
         dMagAB   = vertcat(Result.MAG_AB_APER_3.Diff{:});
-        dMagPSF  = vertcat(Result.MAG_AB_PSF.Diff{:});
+        dMagPSF  = vertcat(Result.MAG_PSF.Diff{:});
+                
         dX1 = vertcat(Result.X1.Diff{:}); dY1 = vertcat(Result.Y1.Diff{:});
         dR1 = sqrt(dX1.^2+dY1.^2); 
         dX  = vertcat(Result.X.Diff{:}); dY = vertcat(Result.Y.Diff{:});
         dR  = sqrt(dX.^2+dY.^2); 
         dRA = vertcat(Result.RA.Diff{:}); dDec = vertcat(Result.Dec.Diff{:});
         dSky = sqrt(dRA.^2+dDec.^2); 
+        
+        Ind = [8 11 26 31]; % interfaces between central pixels 10, 11, 14, 15  
+        dMAG_PSFCentral = Result.MAG_PSF.Diff(Ind);
+        dX_Central      = Result.X.Diff(Ind);
+        dY_Central      = Result.Y.Diff(Ind);
+        dMagPSFCentral  = vertcat(dMAG_PSFCentral{:}); 
+        dRCentral       = sqrt(vertcat(dX_Central{:}).^2+vertcat(dY_Central{:}).^2); 
+                        
         subplot(2,3,1)
         loglog(dR1,dRelFlux,"*"); 
         xlabel 'dR1, pix'; ylabel 'dRelFlux'
@@ -144,7 +153,9 @@ function [Result] = overlapSources(AI, Args)
         xlabel 'dR1, pix'; ylabel 'dMagAB\_APER3'
         subplot(2,3,5)
         semilogx(dR,dMagPSF,"*"); 
-        xlabel 'dR, pix'; ylabel 'dMagAB\_PSF'
+        hold on
+        semilogx(dRCentral,dMagPSFCentral,"o"); 
+        xlabel 'dR, pix'; ylabel 'dMag\_PSF'        
         subplot(2,3,6)  
         loglog(dR1,dSky,"*");
         xlabel 'dR1, pix'; ylabel 'dSky, arcsec'
