@@ -515,7 +515,7 @@ classdef uplanner < Component
 
              % Calculate the current start time
             CurrStartTime = dateshift(Obj.StartTime,'start','day');
-            if CurrStartTime < Obj.StartTime
+            if CurrStartTime <= Obj.StartTime
                 CurrStartTime = CurrStartTime+1;
             end
             Obj.StartTime = CurrStartTime;
@@ -534,10 +534,7 @@ classdef uplanner < Component
                 CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
                 DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
-                % TODO - currently naive ordering, should refine
-                Dec = Obj.UniqTarg.Dec(DailyTargets);
-                [~,I] = sort(Dec,'descend');
-                DailyTargets = DailyTargets(I);
+                % TODO - ordering?
                 
                 Obj.scheduleTargets(Args.TargetList(DailyTargets),CurrStartTime,'Group',CurrGroup);
             end

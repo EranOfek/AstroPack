@@ -48,6 +48,10 @@ classdef LcsHelper < Component
         Full_windows    table
 
         vis_day_field   logical
+        
+        vis3d_slot_day_field logical
+        vis2d_day_field_ALL logical
+        vis2d_day_field_ANY logical        
 
         All_fields_windows          table
         All_fields_windows_1dgap    table
@@ -102,7 +106,7 @@ classdef LcsHelper < Component
             if isempty(Args.EndDate)
                 Obj.EndDate = Obj.StartDate+Obj.Last_day;
             else
-                Obj.EndDate = Args.EndDate;
+                Obj.EndDate = dateshift(Args.EndDate,'start','day');
                 Obj.Last_day = days(Obj.EndDate-Obj.StartDate);
             end
 
@@ -150,7 +154,7 @@ classdef LcsHelper < Component
             end         
 
             % Step1: Build_daily_visibility_for_all_LCS_fields
-            Obj.vis_day_field = Obj.calc_vis_matrix();
+            Obj.calc_vis_matrix();
 
             % Step2: Calculate continous visibilty windows (with option to skip 1d)
             [Obj.All_fields_windows,Obj.All_fields_windows_1dgap,Obj.Longest_window_per_field] ...
@@ -204,7 +208,7 @@ classdef LcsHelper < Component
         end
 
         % === Step functions ===
-        function vis_day_field = calc_vis_matrix(Obj)
+        function calc_vis_matrix(Obj)
             % Description: step 1 function
             %              Build_daily_visibility_for_all_LCS_fields
             arguments
@@ -232,15 +236,14 @@ classdef LcsHelper < Component
             Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',70,'MinMoonDist',34,'MinEarthDist',56);
             Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits;
             
-            L2 = reshape(Lim,[N_vis_slots,NumDays,length(Grid)]); 
+            Obj.vis3d_slot_day_field = reshape(Lim,[N_vis_slots,NumDays,length(Grid)]); 
+            Obj.vis2d_day_field_ALL = squeeze(all(Obj.vis3d_slot_day_field,1));
+            Obj.vis2d_day_field_ANY = squeeze(any(Obj.vis3d_slot_day_field,1));
             if Obj.Whole_daily_window
-                L3 = squeeze(all(L2,1));                                % Visible in whole 3 hour window
+                Obj.vis_day_field = Obj.vis2d_day_field_ALL;                                % Visible in whole 3 hour window
             else
-                L3 = squeeze(any(L2,1));                                % Visible in at least 15min(1bin) in the 3 hour window
+                Obj.vis_day_field = Obj.vis2d_day_field_ANY;                                % Visible in at least 15min(1bin) in the 3 hour window
             end
-            vis_day_field = L3;      % USED tO  BE LCS     
-
-
         end
 
         function [All_fields_windows,All_fields_windows_1dgap,Longest_window_per_field] = calc_cont_vis_windows(Obj)
@@ -266,7 +269,7 @@ classdef LcsHelper < Component
             Longest_window_per_field(:,2) = Obj.AllSky.A_U;
             
             for i = 1:Nfields
-                vis_start = find(d(:,i)==1)+Obj.First_day-1;
+                vis_start = find(d(:,i)==1)+Obj.First_day;
                 vis_end = find(d(:,i)==-1)+Obj.First_day-1;
             
                 curr_field_windows = [];
@@ -542,34 +545,29 @@ classdef LcsHelper < Component
                 Args.W90_2 = [7     7     8     8     8     8     2     4     4     2     4     4     3     3     3     3];
             end
             
+            % SetB division plan
             SetB_division = table();
-            SetB_division.W45     = [ 1     1     1     1     3     3     4     4     5     5     6     6     7     7     8     8]';
+            SetB_division.W45   = [ 1     1     1     1     3     3     4     4     5     5     6     6     7     7     8     8]';
             SetB_division.W90_1 = [ 2     2     2     2     2     2     3     3     3     3     7     7     6     6     6     6]';
-            SetB_division.W90_2 = [3     3     3     3     4     4     2     2     4     4     8     8     8     8     7     7]';
+            SetB_division.W90_2 = [ 3     3     3     3     4     4     2     2     4     4     8     8     8     8     7     7]';
+            SetB_division.firstInd = min(table2array(SetB_division(:,1:3)),[],2);
+            SetB_division = sortrows(SetB_division,'firstInd');
 
+            % Updtae Inds open/2move base on the above plan and SetC assumption
+            Obj.inds_2move=3;
+            Obj.inds_open = [5 2 2 1 2];            
 
-     % 1     2     3     1
-     % 1     2     3     1
-     % 1     2     3     1
-     % 1     2     3     1
-     % 3     2     4     2
-     % 3     2     4     2
-     % 4     3     2     2
-     % 4     3     2     2
-     % 5     3     4     3
-     % 5     3     4     3
-     % 6     7     8     6
-     % 6     7     8     6
-     % 7     6     8     6
-     % 7     6     8     6
-     % 8     6     7     6
-     % 8     6     7     6
-
+            % Calc how many fields start in each First Ind based on the above division plan
+            N_firstInd = (1:6)';
+            for i = 1:numel(N_firstInd)
+                N_firstInd(i,2) = sum(SetB_division.firstInd==i);
+            end
+            N_firstInd = sortrows(N_firstInd,2,'descend');
 
             % Calc Vis Windows
-            Obj.SetB_fields.vis_windows = false(numel(Obj.SetB_fields.Field),numel(Obj.Full_windows.start));
+            Obj.SetB_fields.vis_windows = false(Obj.SetBnumel,numel(Obj.Full_windows.start));
             
-            for i = 1:numel(Obj.SetB_fields.Field)
+            for i = 1:Obj.SetBnumel
                 for j = 1:numel(Obj.Full_windows.start)
                    F = Obj.Good_fields_windows.Field==Obj.SetB_fields.Field(i) & ...  
                        Obj.Good_fields_windows.vis_start<= Obj.Full_windows.start(j) & ...
@@ -578,14 +576,63 @@ classdef LcsHelper < Component
                 end
             end
 
-            Obj.SetB_fields.cont3_vis_windows = Obj.SetB_fields.vis_windows(:,1:6) & Obj.SetB_fields.vis_windows(:,2:7) & Obj.SetB_fields.vis_windows(:,3:8);
+            % Initiate the cont3_window and update the N_firstInd table with only relevant Inds
+            cont3_vis_windows = Obj.SetB_fields.vis_windows(:,1:6) & Obj.SetB_fields.vis_windows(:,2:7) & Obj.SetB_fields.vis_windows(:,3:8);            
 
+            cont3_vis_windows(:,N_firstInd(N_firstInd(:,2)==0,1))=false;
+            N_firstInd = N_firstInd(N_firstInd(:,2)>0,:);
+
+            % Set each field in Obj.SetB_fields to the relevant row in SetB_division
+            for i = 1:height(N_firstInd)
+                CurrFirstInd = N_firstInd(i,:);
+                CurrVisFields = find(cont3_vis_windows(:,CurrFirstInd(1)));
+                if numel(CurrVisFields)<CurrFirstInd(2) % not enough fields found
+                    error('Not enough fields in SetB for ind %d',CurrInd(1));
+                elseif numel(CurrVisFields)>CurrFirstInd(2) % don't need all fields
+                    N2remove = numel(CurrVisFields)-CurrFirstInd(2);
+                    
+                    F_all = find(all(cont3_vis_windows(CurrVisFields,N_firstInd(i+1:end,1)),2));
+                    if numel(F_all)>N2remove
+                        F_all = F_all(1:N2remove);
+                    end
+                    if numel(F_all)>0
+                        CurrVisFields(F_all) =[];
+                        N2remove = N2remove-numel(F_all);
+                    end
+
+                    if N2remove>0
+                        F_any = find(any(cont3_vis_windows(CurrVisFields,N_firstInd(i+1:end,1)),2));
+                        if numel(F_any)>N2remove
+                            F_any = F_any(1:N2remove);
+                        end
+                        if numel(F_any)>0
+                            CurrVisFields(F_any) =[];
+                            N2remove = N2remove-numel(F_any);
+                        end
+                    end
+
+                    if N2remove>0
+                        error('Problem with SetB scheudle');
+                    end
+                end
+                Obj.SetB_fields.firstInd(CurrVisFields) = CurrFirstInd(1);
+                Obj.SetB_fields.SetB_division_Ind(CurrVisFields) = find(SetB_division.firstInd==CurrFirstInd(1));
+                cont3_vis_windows(CurrVisFields,:) = false;
+                cont3_vis_windows(:,CurrFirstInd(1)) = false;
+            end
+
+            Obj.SetB_fields.W45 = SetB_division.W45(Obj.SetB_fields.SetB_division_Ind);
+            Obj.SetB_fields.W90_1 = SetB_division.W90_1(Obj.SetB_fields.SetB_division_Ind);
+            Obj.SetB_fields.W90_2 = SetB_division.W90_2(Obj.SetB_fields.SetB_division_Ind);
+
+            
             % Schedule set B - for each window (ind) set both 1d and 4d cadence fields
 
             SetB_Schedule = table();
             for i = 1:8
                 % W45
-                IndsW45 = find(Args.W45==i);
+                %IndsW45 = find(Args.W45==i);
+                IndsW45 = find(Obj.SetB_fields.W45==i);
                 Nw45 = numel(IndsW45);
             
                 curr_Schedule = table();
@@ -594,12 +641,13 @@ classdef LcsHelper < Component
                 curr_Schedule.ind(:) = 1:Nw45;
                 curr_Schedule.start(1:Nw45) = Obj.Full_windows.start(i);
                 curr_Schedule.end(1:Nw45) = Obj.Full_windows.end(i);
-                curr_Schedule.Field(1:Nw45) = Obj.SetB_fields.Field(IndsW45);  % Verify?
+                curr_Schedule.Field(1:Nw45) = Obj.SetB_fields.Field(IndsW45); 
                 Obj.SetB_fields.scheudled(IndsW45) = Obj.SetB_fields.scheudled(IndsW45)+1;
             
                 SetB_Schedule = [SetB_Schedule;curr_Schedule];
             
-                IndsW90 = find(Args.W90_1==i | Args.W90_2==i);
+                %IndsW90 = find(Args.W90_1==i | Args.W90_2==i);
+                IndsW90 = find(Obj.SetB_fields.W90_1==i | Obj.SetB_fields.W90_2==i);
                 Nw90 = numel(IndsW90);
             
                 curr_Schedule = table();
@@ -608,7 +656,7 @@ classdef LcsHelper < Component
                 curr_Schedule.ind(:) = 1:Nw90;
                 curr_Schedule.start(1:Nw90) = Obj.Full_windows.start(i);
                 curr_Schedule.end(1:Nw90) = Obj.Full_windows.end(i);
-                curr_Schedule.Field(1:Nw90) = Obj.SetB_fields.Field(IndsW90);  % Verify?
+                curr_Schedule.Field(1:Nw90) = Obj.SetB_fields.Field(IndsW90);  
                 Obj.SetB_fields.scheudled(IndsW90) = Obj.SetB_fields.scheudled(IndsW90)+1;
             
                 SetB_Schedule = [SetB_Schedule;curr_Schedule];
@@ -616,8 +664,6 @@ classdef LcsHelper < Component
             end            
             Obj.Schedule = [Obj.Schedule;SetB_Schedule];
 
-            Obj.inds_2move=3;
-            Obj.inds_open = [5 2 2 1 2];
         end
 
         function schedule_SetD(Obj,Args)
@@ -749,6 +795,7 @@ classdef LcsHelper < Component
                 Obj    
             end
 
+            % Base daily schedule
             Obj.Daily_schedule = nan(Obj.Last_day-Obj.First_day+1,Obj.Daily_LCS_slots);
 
             for i = 1:height(Obj.Schedule)
@@ -756,6 +803,31 @@ classdef LcsHelper < Component
                     if ~(any(strcmp(Obj.Schedule.category{i},{'C','B_90'})) && mod((curr_d-Obj.Schedule.start(i)+1),4)~=mod(Obj.Schedule.ind(i),4))
                         open_slot = find(isnan(Obj.Daily_schedule(curr_d,:)),1);
                         Obj.Daily_schedule(curr_d,open_slot) = Obj.Schedule.Field(i);
+                    end
+                end
+            end
+
+            % adjust daily order according visibilty
+            for d = 1:height(Obj.Daily_schedule)
+                if any(~isnan(Obj.Daily_schedule(d,:)))
+                    currFields = Obj.Daily_schedule(d,~isnan(Obj.Daily_schedule(d,:)));
+                    fieldInds2move = find(~Obj.vis2d_day_field_ALL(d,currFields));
+                    if ~isempty(fieldInds2move)
+                        fields2move = currFields(fieldInds2move);
+                        possible_newInds = squeeze(Obj.vis3d_slot_day_field(:,d,currFields(fieldInds2move)));
+                        possible_newInds((numel(currFields)+1):end,:) = false; % currently do not exceed numel(currFields)
+                        for ii = 1:numel(fields2move)
+                            if find(possible_newInds(:,ii),1)<(Obj.Daily_LCS_slots/2)
+                                newInd = find(possible_newInds(:,ii),1);
+                            else
+                                newInd = find(possible_newInds(:,ii),1,'last');
+                            end
+                            field2move = fields2move(ii);
+                            currFields(currFields==field2move) = [];
+                            currFields = [currFields(1:(newInd-1)) field2move currFields((newInd):end)];
+                            possible_newInds(newInd,(ii+1):end) = false;
+                        end
+                        Obj.Daily_schedule(d,~isnan(Obj.Daily_schedule(d,:))) = currFields;
                     end
                 end
             end
