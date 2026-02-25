@@ -189,7 +189,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
                         if Coverage < Args.MinAllowedCoverage   
                             if Args.Verbosity > 1
-                                fprintf('Incomplete coverage of %.2f, epoch %d is skipped\n', Coverage, Iepoch);
+                                fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', Coverage, Iepoch);
                             end
                             continue % to the next epoch
                         end
