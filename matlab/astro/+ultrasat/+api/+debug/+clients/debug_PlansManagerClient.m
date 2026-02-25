@@ -17,8 +17,11 @@ function debug_PlansManagerClient()
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
     client.Namespace = 'dev';
 
+    % Replicate PlannerMainStorageHelper save flow (savePlan + saveMatlabMat with planStruct.pk)
+    debug_savePlanStorageHelper(client);
+
     % Save-plan debug: HCS with 0 targets, then HCS with 1 target
-    debug_saveMatlabMat(client, 5);
+    %debug_saveMatlabMat(client, 5);
     return;
 
     debug_saveHcsPlanNoTargets(client);
@@ -113,6 +116,53 @@ function debug_saveHcsPlanOneTarget(client)
         end
     catch ME
         fprintf('debug_saveHcsPlanOneTarget failed: %s\n', ME.message);
+    end
+end
+
+
+function debug_savePlanStorageHelper(client)
+    % Replicate PlannerMainStorageHelper.savePlan flow exactly (including pk bug).
+    % Uses planStruct.pk for saveMatlabMat instead of resp.data - fails for new plans.
+    fprintf('\n--- debug_savePlanStorageHelper (Storage Helper flow) ---\n');
+    try
+        [PlanData, ~] = debug_createPlannerPlanData();
+        planStruct = PlanData.toStruct();
+        planStruct = rmfield(planStruct, 'planner');
+        planStruct = rmfield(planStruct, 'history');
+        planStruct = rmfield(planStruct, 'metadata');
+
+        pkBefore = planStruct.pk;
+        if isempty(pkBefore)
+            fprintf('planStruct.pk before savePlan: (empty)\n');
+        else
+            fprintf('planStruct.pk before savePlan: %s\n', num2str(pkBefore));
+        end
+        resp = client.savePlan(planStruct);
+        fprintf('savePlan ok=%d, status=%s\n', resp.ok, debug_getStatus(resp));
+        returnedPk = [];
+        if resp.ok && isfield(resp, 'data') && ~isempty(resp.data)
+            returnedPk = resp.data;
+            fprintf('savePlan returned pk (resp.data): %d\n', returnedPk);
+        end
+        if ~isequal(planStruct.pk, returnedPk) && ~(isempty(planStruct.pk) && ~isempty(returnedPk))
+            fprintf('NOTE: planStruct.pk ~= returnedPk (bug: StorageHelper uses planStruct.pk)\n');
+        elseif isempty(planStruct.pk) && ~isempty(returnedPk)
+            fprintf('BUG: planStruct.pk is empty, but savePlan returned pk=%d. saveMatlabMat will use []\n', returnedPk);
+        end
+
+        base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(PlanData.planner, 'planner');
+        try
+            matResp = client.saveMatlabMat(planStruct.pk, base64Str);
+            if matResp.ok
+                fprintf('saveMatlabMat(planStruct.pk) ok\n');
+            else
+                fprintf('saveMatlabMat(planStruct.pk) failed: %s\n', debug_getStatus(matResp));
+            end
+        catch matME
+            fprintf('saveMatlabMat(planStruct.pk) exception: %s\n', matME.message);
+        end
+    catch ME
+        fprintf('debug_savePlanStorageHelper failed: %s\n', ME.message);
     end
 end
 

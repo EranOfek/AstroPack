@@ -174,17 +174,36 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 resp = app.MainModule.PlansClient.savePlan(planStruct);
                 if ~resp.ok
                     app.msglog(sprintf('Warning: savePlan failed: %s', resp.status));
-                end
+                else
+                    % Use returned pk (new for insert, same for update)
+                    if isfield(resp, 'data') && ~isempty(resp.data)
+                        oldPk = app.MainModule.PlanData.pk;
+                        savedPk = resp.data;
+                        % Only allow pk to be updated from 0 (unsaved) to positive, or persist the current positive pk.
+                        if (isempty(oldPk) ||  (oldPk == 0)) && savedPk > 0
+                            app.MainModule.PlanData.pk = savedPk;
+                            app.MainModule.Planner.Pk = savedPk;
+                            app.msglog(sprintf('New plan saved successfully, Pk=%d', savedPk));
+                        elseif app.MainModule.PlanData.pk > 0
+                            % Do not overwrite existing positive pk
+                            % For robustness, ensure Planner pk also matches PlanData pk
+                            if savedPk ~= app.MainModule.PlanData.pk
+                                app.msglog(sprintf('Warning: Planner pk does not match saved pk, updating Planner pk to %d', savedPk));
+                                app.MainModule.PlanData.pk = savedPk;
+                                app.MainModule.Planner.Pk = savedPk;
+                            end
+                        end
 
-                % Save the planner object as a .mat (base64) using saveMatlabMat API
-                base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(app.MainModule.Planner, 'planner');
-                try
-                    resp = app.MainModule.PlansClient.saveMatlabMat(planStruct.pk, base64Str);
-                    if ~resp.ok
-                        app.msglog(sprintf('Warning: saveMatlabMat failed: %s', resp.status));
+                        base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(app.MainModule.Planner, 'planner');
+                        try
+                            resp = app.MainModule.PlansClient.saveMatlabMat(savedPk, base64Str);
+                            if ~resp.ok
+                                app.msglog(sprintf('Warning: saveMatlabMat failed: %s', resp.status));
+                            end
+                        catch matME
+                            app.msglog(sprintf('Warning: saveMatlabMat exception: %s', matME.message));
+                        end
                     end
-                catch matME
-                    app.msglog(sprintf('Warning: saveMatlabMat exception: %s', matME.message));
                 end
 
                 % Clear modified flag
