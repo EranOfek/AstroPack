@@ -37,9 +37,77 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
         %                           CORE ACTIONS
         % =================================================================
 
-        function response = getPlansList(obj, app, start_time, end_time, title_subtext)
-            % Get the plans list from the backend
-            response = app.MainModule.PlansClient.getPlansList(start_time, end_time, title_subtext);                        
+        function getPlansListToUITable(obj, app, start_time, end_time, title_subtext, UITable)
+            % Retrieves a filtered list of observation plans from the API.
+            %
+            % - Reads filter parameters from the UI fields.
+            % - Sends a request to the API client to fetch plans.
+            % - Updates the table with the retrieved plans or clears it if no results are found.
+            % - Displays an alert if the request fails.
+           
+            % Convert empty fields to [] so API gets empty values if not provided
+            if isempty(start_time)
+                start_time = [];
+            end
+            if isempty(end_time)
+                end_time = [];
+            end
+            if isempty(title_subtext)
+                title_subtext = [];
+            end
+        
+            % Fetch the plans list from API
+            try
+                response = app.MainModule.PlansClient.getPlansList(start_time, end_time, title_subtext);                        
+            catch ME
+                uialert(app.UIFigure, sprintf('Failed to retrieve plans list: %s', ME.message), 'Error');
+                return;
+            end
+
+            if ~response.ok
+                % @Todo Show alert (use msgbox or uialert)
+                uialert(app.UIFigure, 'Failed to retrieve plans list', 'Error');
+                return;
+            end
+            
+            % Convert struct array to table if not empty
+            if ~isempty(response.plans)
+                %Data = struct2table(response.plans);
+                Data = app.MainModule.TableHelper.plansToTopLevelTable(response.plans);
+                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+                Data = app.MainModule.TableHelper.selectTableColumns(Data, ...
+                    {'pk', 'plan_type', 'ast_planner', 'title','status', 'created_time', 'updated_time', 'start_time', 'end_time'});
+
+                % Sort table by updated_time or created_time
+                % Safely detect if all updated_time cells are empty
+                
+                % Convert updated_time cells into strings (empty cells become "")
+                update_str = cell(size(Data.updated_time));
+                for i = 1:numel(Data.updated_time)
+                    if isempty(Data.updated_time{i})
+                        update_str{i} = "";
+                    else
+                        update_str{i} = string(Data.updated_time{i});
+                    end
+                end
+                update_str = string(update_str);
+                
+                % If all update times are empty, sort by created_time
+                if all(update_str == "")
+                    Data = sortrows(Data, 'created_time', 'descend');
+                else
+                    % Replace column temporarily for sorting
+                    Data.updated_time = update_str;
+                    Data = sortrows(Data, 'updated_time', 'descend');
+                end
+
+                UITable.Data = Data;
+                UITable.ColumnName = Data.Properties.VariableNames;  
+                UITable.ColumnSortable = true;
+            else
+                % Clear the table if no plans are found
+                UITable.Data = [];
+            end
         end
 
 
@@ -67,52 +135,36 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 app.OpenPlanApp = ultrasat.planner.gui.OpenPlan(app.MainModule);
             end
 
-            % Configure the table in the OpenPlanApp window
-            app.OpenPlanApp.UITable.SelectionType = "row";
-            app.OpenPlanApp.UITable.Multiselect = "off";
-            app.OpenPlanApp.UITable.RowName = "numbered";
-
-            % Query backend database for saved plans
-            app.showPleaseWait('Fetching plans...');
-            try
-                response = app.MainModule.PlansClient.getPlansList([], [], []);
-            catch ME
-                app.msgex('openPlan', ME);
-            end
-            app.closePleaseWait();
-
-            if ~isfield(response, 'ok') || ~response.ok
-                app.AppUtils.msgError('PlansClient.getPlansList returned empty list');
-                return;
-            end
-
-            % Update the GUI table
-            % WHY this is required if OpenPlan has getList() func that does
-            % the same ??? (25/09/2025)
-            %Data = app.MainModule.plansToTopLevelTable(response.plans);
-            %%Data = struct2table(plans, 'AsArray', true);
-            %Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-            %app.OpenPlanApp.UITable.Data = Data;
-            %if ~isempty(Data)
-            %    app.OpenPlanApp.UITable.ColumnName = Data.Properties.VariableNames;
-            %end
-
             % Show app
             if strcmp(app.showModal(app.OpenPlanApp), 'Open')
 
                 % Call the backend to load plan from database
                 Pk = app.OpenPlanApp.Pk;
-                app.showPleaseWait('Loading plan...');
+                %app.showPleaseWait('Loading plan...');
                 try
-                    response = app.MainModule.PlansClient.loadPlan(Pk);
+                    % Get plan from database
+                    response = app.MainModule.PlansClient.getPlan(Pk);
+                    if response.ok && isfield(response, 'data') && ~isempty(response.data)
+                        planStruct = response.data;
+                        PlanData = ultrasat.api.models.PlanData.fromStruct(planStruct);
+
+                        % Get planner data from database
+                        matResp = app.MainModule.PlansClient.getMatlabMat(Pk);
+                        if matResp.ok && isfield(matResp, 'data') && ~isempty(matResp.data)
+                            PlanData.planner = ultrasat.api.utils.MatBase64Utils.base64ToMat(matResp.data, 'planner');
+                        end
+
+                        % Open plan
+                        if ~isempty(PlanData.planner)
+                            obj.doOpenPlan(app, PlanData);
+                        else
+                            app.msglog('openPlan: No planner data (matlab_mat) for pk=%d', Pk);
+                        end
+                    end
                 catch ME
                     app.msgex('openPlan', ME);
                 end
-                app.closePleaseWait();
-                if response.ok
-                    obj.doOpenPlan(app, app.MainModule.ApiClient.PlanData);
-                end
-
+                %app.closePleaseWait();
             end
             app.SessionHelper.setButtons(app);
         end

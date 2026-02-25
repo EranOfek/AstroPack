@@ -36,6 +36,8 @@ classdef PlanData < handle
         function obj = fromStruct(data)
             % Create new class instance from struct
             obj = ultrasat.api.utils.JsonUtils.struct2class(data, 'ultrasat.api.models.PlanData');
+            obj.ensureMetadataFields();
+            obj.ensureHistory();
         end
 
 
@@ -64,6 +66,32 @@ classdef PlanData < handle
                 'SubmitStatus', obj.newStatusData(), ...
                 'ValidationResponse', [] ...
             );
+        end
+
+
+        function ensureMetadataFields(obj)
+            % Ensure metadata has all required fields. Fills missing ones with empty defaults.
+            % Call after loading from struct (e.g. API) when metadata may have been stripped.
+            if isempty(obj.metadata) || ~isstruct(obj.metadata) || isempty(fieldnames(obj.metadata))
+                obj.metadata = obj.newMetadata();
+                return;
+            end
+            defaultMeta = obj.newMetadata();
+            for f = fieldnames(defaultMeta)'
+                fn = f{1};
+                if ~isfield(obj.metadata, fn)
+                    obj.metadata.(fn) = defaultMeta.(fn);
+                end
+            end
+        end
+
+
+        function ensureHistory(obj)
+            % Ensure history is a valid struct for addHistory. Initializes to empty struct if missing/invalid.
+            % Call after loading from struct (e.g. API) when history may have been stripped.
+            if isempty(obj.history) || ~isstruct(obj.history) || isempty(fieldnames(obj.history))
+                obj.history = struct();
+            end
         end
 
 
