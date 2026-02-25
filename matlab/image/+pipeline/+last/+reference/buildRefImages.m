@@ -171,13 +171,21 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
                         end
                         % if the total coverage is incomplete, skip to the next epoch                                                 
-                        RasterC = [];
-                        for Icrop = 1:Nim % merge the rasters of all the crops involved 
+                        RasterC = []; Icrop = 1;
+                        while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved 
                             CropPoly = [TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
                                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
-                            RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
+                            % if this crop does not overlap with the reference region, deselect it
+                            if sum(ismember(Raster,Raster0)) < 1
+                                TabEpoch(Icrop,:) = [];
+                            else
+                                RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
+                                Icrop = Icrop + 1;
+                            end                           
                         end
+                        Nim = height(TabEpoch);   
+                        
                         Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
                         if Coverage < Args.MinAllowedCoverage   
                             if Args.Verbosity > 1
