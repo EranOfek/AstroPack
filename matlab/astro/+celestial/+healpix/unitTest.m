@@ -15,6 +15,28 @@ function Result = unitTest()
         error('Problem with celestial.healpix.nest2xyf or celestial.healpix.xyf2nest');
     end
 
+    %% celestial.healpix.findNeighbors
+    RAD = 180./pi;
+    Pix=(1:1e5);
+    In=celestial.healpix.findNeighbors(2.^16,Pix);
+    %In = celestial.healpix.mex.neighbors_nested(int64(2.^16), int64(Pix));
+
+    [Lon0,Lat0]=celestial.healpix.pix2ang(2.^16, Pix);
+    Lon0 = Lon0(:).';
+    Lat0 = Lat0(:).';
+    [Lon,Lat]=celestial.healpix.pix2ang(2.^16,In(:)); 
+
+    Lon=reshape(Lon,size(In));
+    Lat=reshape(Lat,size(In));
+    D=celestial.coo.sphere_dist_fast(Lon,Lat,Lon0,Lat0);
+    MinD = min(D.*180./pi.*3600, [], 'all');
+    MaxD = max(D.*180./pi.*3600, [],'all');
+
+    if MinD<3 || MaxD>5
+        error('Problem with celestial.healpix.findNeighbors');
+    end
+
+
     %% nestedNeighbors(NSide, Pix)
     NSide = 8;
     Pix   = (0:1:767);
