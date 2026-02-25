@@ -29,10 +29,12 @@ classdef MainModule < ultrasat.api.core.Loggable
         ScheduleClient          % ScheduleManagerClient instance
         PlansClient             % PlansManagerClient instance
         ValidatorClient         % ValidatorManagerClient instance
+        VirtualTimeClient       %
 
         % Status
         StatusText              % Status text for display
         CurrentStatus           % 'OK', 'Error', 'Warning'
+        IsVirtualTime           %
 
         %
         Modified = false;       % True after data is being modified
@@ -92,6 +94,9 @@ classdef MainModule < ultrasat.api.core.Loggable
 
             url = factory.getServiceBaseUrl('validator_manager');
             obj.ValidatorClient = ultrasat.api.clients.ValidatorManagerClient(url);
+
+            % VirtualTime
+            obj.IsVirtualTime = false;
 
             % Get the list of namespaces
             response = obj.NamespaceClient.getNamespaceList();
@@ -200,7 +205,7 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Planner = Planner;
 
             % Create UplannerClient instance (adapter class for uplanner)
-            uplannerClient = ultrasat.api.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );
+            uplannerClient = ultrasat.api.clients.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );
             Planner.Mclient = uplannerClient;
 
             % Override BaseDataDir to allow Linux/Windows compatibility

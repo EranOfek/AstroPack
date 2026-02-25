@@ -18,8 +18,8 @@ classdef PlanData < handle
         title = ''             % Title of the plan
         status = ''            % Plan status
         created_by = ''        % User who created the plan
-        create_time = []       % Timestamp for creation
-        update_time = []       % Timestamp for last update
+        created_time = []      % Timestamp for creation
+        updated_time = []      % Timestamp for last update
         start_time = []        % Start time of the plan
         end_time = []          % End time of the plan
         allow_edit = true      % Allow edit or false for read-only
@@ -49,8 +49,8 @@ classdef PlanData < handle
 
     methods
         function obj = PlanData()
-            obj.create_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
-			obj.update_time = obj.create_time;
+            obj.created_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+			obj.updated_time = obj.created_time;
             obj.metadata = obj.newMetadata();
         end
 

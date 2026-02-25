@@ -40,6 +40,7 @@ classdef AppUtils < ultrasat.api.core.Loggable
             end
             obj.MainModule.MainApp.MsgBoxApp.Msg = Msg;
             obj.MainModule.MainApp.MsgBoxApp.Title = Title;
+            obj.MainModule.MainApp.MsgBoxApp.setMode('ok');
             obj.App.showModal(obj.MainModule.MainApp.MsgBoxApp);
         end
 
@@ -51,7 +52,15 @@ classdef AppUtils < ultrasat.api.core.Loggable
             if nargin < 3
                 Title = 'Error';
             end
-            obj.msgOk(Msg, Title);
+
+            % Create and show MsgBoxApp
+            if isempty(obj.MainModule.MainApp.MsgBoxApp) || ~isvalid(obj.MainModule.MainApp.MsgBoxApp)
+                obj.MainModule.MainApp.MsgBoxApp = ultrasat.planner.gui.MsgBox(obj.MainModule);
+            end
+            obj.MainModule.MainApp.MsgBoxApp.Msg = Msg;
+            obj.MainModule.MainApp.MsgBoxApp.Title = Title;
+            obj.MainModule.MainApp.MsgBoxApp.setMode('error');
+            obj.App.showModal(obj.MainModule.MainApp.MsgBoxApp);
         end
 
 

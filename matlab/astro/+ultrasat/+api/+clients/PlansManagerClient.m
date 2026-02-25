@@ -3,7 +3,7 @@
 % Filename    : ultrasat.api.PlansManagerClient.m
 % Author      : Chen Tishler
 % Created     : 18/02/2026
-% Updated     : 18/02/2026
+% Updated     : 23/02/2026
 % Description : Client for the Plans Manager FastAPI service.
 %               POST /get-plans, /get-plan, /save-plan, /get-matlab-mat, /save-matlab-mat.
 %==========================================================================
@@ -116,31 +116,46 @@ classdef PlansManagerClient < ultrasat.api.clients.ClientBase
         function apiStruct = planStructToApi(obj, s)
             % Convert MATLAB plan struct to API (Python) field names.
             apiStruct = s;
+            
+            % Remove planner field - we do not send the planner object to the backend
+            % with save-plan endpoint, there is separate save-matlab-mat call
             if isfield(apiStruct, 'planner')
                 apiStruct = rmfield(apiStruct, 'planner');
             end
-            if isfield(s, 'create_time')
-                apiStruct.created_time = s.create_time;
-                apiStruct = rmfield(apiStruct, 'create_time');
-            end
-            if isfield(apiStruct, 'update_time')
-                apiStruct.updated_time = apiStruct.update_time;
-                apiStruct = rmfield(apiStruct, 'update_time');
-            end
+
+            % Update targets fields (duration conversion only; planTable2struct already outputs decl)
             if isfield(apiStruct, 'targets') && ~isempty(apiStruct.targets)
                 t = apiStruct.targets;
                 if iscell(t)
                     for i = 1:numel(t)
-                        if isfield(t{i}, 'Dec')
-                            t{i}.decl = t{i}.Dec;
-                            t{i} = rmfield(t{i}, 'Dec');
+                        % Convert duration fields to numeric seconds (jsonencode cannot serialize duration)
+                        if isfield(t{i}, 'exposure') && isduration(t{i}.exposure)
+                            t{i}.exposure = seconds(t{i}.exposure);
+                        end
+                        if isfield(t{i}, 'total_seconds') && isduration(t{i}.total_seconds)
+                            t{i}.total_seconds = seconds(t{i}.total_seconds);
+                        end
+                        if isfield(t{i}, 'total_duration') && isduration(t{i}.total_duration)
+                            t{i}.total_duration = seconds(t{i}.total_duration);
+                        end
+                        if isfield(t{i}, 'slew_time_before') && isduration(t{i}.slew_time_before)
+                            t{i}.slew_time_before = seconds(t{i}.slew_time_before);
                         end
                     end
                 else
                     for i = 1:numel(t)
-                        if isfield(t(i), 'Dec')
-                            t(i).decl = t(i).Dec;
-                            t(i) = rmfield(t(i), 'Dec');
+                        % Convert duration fields to numeric seconds (jsonencode cannot serialize duration)
+                        if isfield(t(i), 'exposure') && isduration(t(i).exposure)
+                            t(i).exposure = seconds(t(i).exposure);
+                        end
+                        if isfield(t(i), 'total_seconds') && isduration(t(i).total_seconds)
+                            t(i).total_seconds = seconds(t(i).total_seconds);
+                        end
+                        if isfield(t(i), 'total_duration') && isduration(t(i).total_duration)
+                            t(i).total_duration = seconds(t(i).total_duration);
+                        end
+                        if isfield(t(i), 'slew_time_before') && isduration(t(i).slew_time_before)
+                            t(i).slew_time_before = seconds(t(i).slew_time_before);
                         end
                     end
                 end

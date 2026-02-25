@@ -5,7 +5,7 @@ classdef MsgBox < matlab.apps.AppBase
         UIFigure       matlab.ui.Figure
         TextArea       matlab.ui.control.TextArea
         TextAreaLabel  matlab.ui.control.Label
-        Panel_2        matlab.ui.container.Panel
+        TitlePanel     matlab.ui.container.Panel
         TitleLabel     matlab.ui.control.Label
         Panel          matlab.ui.container.Panel
         CloseButton    matlab.ui.control.Button
@@ -39,6 +39,20 @@ classdef MsgBox < matlab.apps.AppBase
             % Called from PlannerMain.showModal()
             app.TitleLabel.Text = app.Title;
             app.TextArea.Value = app.Msg;
+        end
+
+
+        function setMode(app, Mode)
+            if strcmp(Mode, 'ok')
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [0.39,0.83,0.07];  % green                
+            elseif strcmp(Mode, 'error')
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [1.00,0.00,0.00];  % red                
+            else
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [0.72,0.27,1.00];  % purple
+            end
         end
     end
 
@@ -92,13 +106,13 @@ classdef MsgBox < matlab.apps.AppBase
             app.CloseButton.Position = [358 9 85 39];
             app.CloseButton.Text = 'Close';
 
-            % Create Panel_2
-            app.Panel_2 = uipanel(app.UIFigure);
-            app.Panel_2.BackgroundColor = [0.7176 0.2745 1];
-            app.Panel_2.Position = [9 303 811 37];
+            % Create TitlePanel
+            app.TitlePanel = uipanel(app.UIFigure);
+            app.TitlePanel.BackgroundColor = [0.7216 0.2706 1];
+            app.TitlePanel.Position = [9 303 811 37];
 
             % Create TitleLabel
-            app.TitleLabel = uilabel(app.Panel_2);
+            app.TitleLabel = uilabel(app.TitlePanel);
             app.TitleLabel.HorizontalAlignment = 'center';
             app.TitleLabel.FontSize = 18;
             app.TitleLabel.FontWeight = 'bold';
