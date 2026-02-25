@@ -1,5 +1,5 @@
 % uplanner helper class for LCS - create it from uplanner buildLCS etc.
-
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % List of functions:
 % - ultrasat.LcsHelper.LcsHelper(Args): Constructor
@@ -13,7 +13,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef LcsHelper < Component 
-    % 
+
+    % ========================== PUBLIC PROPERTIES ==========================
     properties(Access = public)
         %Planner                                 % uplanner
 
@@ -74,12 +75,12 @@ classdef LcsHelper < Component
         Daily_schedule          
     end
 
-    % 
+    % ========================== HIDDEN PROPERTIES ==========================
     properties (Hidden, Constant)
 
     end 
 
-    % 
+    % ========================== CONSTRUCTOR ==========================
     methods  % Constructor
         function Obj = LcsHelper(Args)
             % object constructor
@@ -145,10 +146,11 @@ classdef LcsHelper < Component
     end 
 
 
-    %
+    % ========================== METHODS ==========================
     methods
 
-        % === Main functions ===
+        % ========================== MAIN FUNCTIONS ==========================
+
         function prepTablesBeforeSchedule (Obj)
             % Description: prepTablesBeforeSchedule           
             arguments
@@ -209,7 +211,7 @@ classdef LcsHelper < Component
             Obj.calcDailySchedule;
         end
 
-        % === Step functions ===
+        % ========================== STEP FUNCTIONS ==========================
         function calc_vis_matrix(Obj)
             % Description: step 1 function
             %              Build_daily_visibility_for_all_LCS_fields
@@ -323,6 +325,7 @@ classdef LcsHelper < Component
             
             end
             
+            % Convert the windows to tables
             All_fields_windows = array2table(All_fields_windows,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
             All_fields_windows_1dgap = array2table(All_fields_windows_1dgap,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
             Longest_window_per_field = array2table(Longest_window_per_field,'VariableNames',{'Field','Av_ext','max_window','max_window_1dgap'});
@@ -341,6 +344,7 @@ classdef LcsHelper < Component
                 Obj
             end
 
+            % If 1d gap is allowed, use the 1d gap windows, otherwise use the normal windows
             if Obj.Allow1dgap
                 Good_fields_windows = Obj.All_fields_windows_1dgap(Obj.All_fields_windows_1dgap.window>=Obj.Min_window & Obj.All_fields_windows_1dgap.Av_ext<=Obj.max_ext,:);
                 SetD_possible_fields = Obj.All_fields_windows(Obj.All_fields_windows_1dgap.window>=Obj.Min_window & Obj.All_fields_windows_1dgap.Av_ext>Obj.max_ext,:);
@@ -367,6 +371,7 @@ classdef LcsHelper < Component
             SetC_fields = Long_fields((Obj.SetBnumel+1):(Obj.SetBnumel+Obj.SetCnumel),:);
             SetA_fields = [Good_longest_window_per_field(Good_longest_window_per_field.max_window<Obj.Max_window_cut,:); Long_fields((Obj.SetBnumel+Obj.SetCnumel+1):end,:)];
             
+            % Sort the fields by the maximum window
             if Obj.Allow1dgap
                 SetA_fields = sortrows(SetA_fields,'max_window_1dgap');
                 SetB_fields = sortrows(SetB_fields,'max_window_1dgap');
@@ -582,6 +587,7 @@ classdef LcsHelper < Component
             % Calc Vis Windows
             Obj.SetB_fields.vis_windows = false(Obj.SetBnumel,numel(Obj.Full_windows.start));
             
+            % Calculate the visibility windows for the SetB fields
             for i = 1:Obj.SetBnumel
                 for j = 1:numel(Obj.Full_windows.start)
                    F = Obj.Good_fields_windows.Field==Obj.SetB_fields.Field(i) & ...  
@@ -636,6 +642,7 @@ classdef LcsHelper < Component
                 cont3_vis_windows(:,CurrFirstInd(1)) = false;
             end
 
+            % Update the SetB fields with the W45, W90_1, and W90_2 values
             Obj.SetB_fields.W45 = SetB_division.W45(Obj.SetB_fields.SetB_division_Ind);
             Obj.SetB_fields.W90_1 = SetB_division.W90_1(Obj.SetB_fields.SetB_division_Ind);
             Obj.SetB_fields.W90_2 = SetB_division.W90_2(Obj.SetB_fields.SetB_division_Ind);
@@ -650,6 +657,7 @@ classdef LcsHelper < Component
                 IndsW45 = find(Obj.SetB_fields.W45==i);
                 Nw45 = numel(IndsW45);
             
+                % Initialize the current schedule table
                 curr_Schedule = table();
                 curr_Schedule.category(1:Nw45) = {'B_45'};
                 curr_Schedule.group(1:Nw45) = 100+i;
@@ -665,6 +673,7 @@ classdef LcsHelper < Component
                 IndsW90 = find(Obj.SetB_fields.W90_1==i | Obj.SetB_fields.W90_2==i);
                 Nw90 = numel(IndsW90);
             
+                % Initialize the current schedule table
                 curr_Schedule = table();
                 curr_Schedule.category(1:Nw90) = {'B_90'};
                 curr_Schedule.group(1:Nw90) = 200+i;
@@ -775,9 +784,11 @@ classdef LcsHelper < Component
                 end
             end
             
+            % 
             Correct_ind = zeros(size(Obj.inds_2move));
             First_correct_ind = 1;
 
+            % 
             while any(Correct_ind==0) && First_correct_ind<=numel(Correct_fields.Field)
                 Correct_ind(:) = 0;
                 for i = 1:numel(Correct_ind)
