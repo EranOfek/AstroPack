@@ -37,9 +37,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
         
         Args.RasterResolution   = 10;     % arcsec
-        Args.MinAllowedCoverage = 0.999;  % 0.95; % 0.995; % allowed inaccuracy in the required reference field coverage  
-        
-        Args.StitchPars         = {'Crop',[10 10 10 10],'SizeMargin',[100 100],'Verbosity',1}; % parameters passed to the stitch function
+        Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
         
         Args.BackSubSizeXY      = [128 128];
         Args.Threshold          = 5;
@@ -177,27 +175,31 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             % if this crop does not overlap with the reference region, deselect it
-                            if sum(ismember(Raster,Raster0)) < 1
+                            Coverage(Icrop) = sum(ismember(Raster,Raster0));
+                            if Coverage(Icrop) < 1
                                 TabEpoch(Icrop,:) = [];
                             else
                                 RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
                                 Icrop = Icrop + 1;
                             end                           
                         end
-                        Nim = height(TabEpoch);   
                         
-                        Coverage = sum(ismember(Raster0, RasterC))/numel(Raster0);
-                        if Coverage < Args.MinAllowedCoverage   
+                        Nim = height(TabEpoch);                   
+                        
+                        CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
+                        if CoverageAll < Args.MinAllowedCoverage   
                             if Args.Verbosity > 1
-                                fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', Coverage, Iepoch);
+                                fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Iepoch);
                             end
                             continue % to the next epoch
                         end
                         
-                        %%% DEBUG: Nim = 6 causes errors in imProc.stack.stitchCrops  
-%                         if Nim > 4
-%                             continue % to the next epoch
-%                         end
+                        if Nim > 5 % DEBUG: select just 5 crops with largest coverage 
+                            [~, Idx] = maxk(Coverage, 5);
+                            Idx = sort(Idx);
+                            TabEpoch = TabEpoch(Idx,:);
+                            Nim = height(TabEpoch);
+                        end
                         
                         % 4.1 retrieve the crop images 
                         if Args.Verbosity > 1
@@ -213,8 +215,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                  '_clear_',string(TabEpoch.fieldid(Icrop)),'_000_001_',compose('%03d',TabEpoch.cropid(Icrop)),...
                                  '_sci_coadd_Image_1.fits');                              
                              AI(Icrop)= AstroImage.readProducts(FN); 
-                             AI(Icrop).CatData.JD = AI(Icrop).julday;
-                             % NB: no data on background or variance is kept in the archive (Euclid), need to re-measure    
+                             AI(Icrop).CatData.JD = AI(Icrop).julday;                                
                         end
                         
                         % check WCS
