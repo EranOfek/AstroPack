@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
+% Updated     : 23/02/2026
 % Description : Storage Helper for Main Planner (Open, Save, Close, Delete, etc.)
 %==========================================================================
 
@@ -37,9 +37,77 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
         %                           CORE ACTIONS
         % =================================================================
 
-        function response = getPlansList(obj, app, start_time, end_time, title_subtext)
-            % Get the plans list from the backend
-            response = app.MainModule.PlansClient.getPlansList(start_time, end_time, title_subtext);                        
+        function getPlansListToUITable(obj, app, start_time, end_time, title_subtext, UITable)
+            % Retrieves a filtered list of observation plans from the API.
+            %
+            % - Reads filter parameters from the UI fields.
+            % - Sends a request to the API client to fetch plans.
+            % - Updates the table with the retrieved plans or clears it if no results are found.
+            % - Displays an alert if the request fails.
+           
+            % Convert empty fields to [] so API gets empty values if not provided
+            if isempty(start_time)
+                start_time = [];
+            end
+            if isempty(end_time)
+                end_time = [];
+            end
+            if isempty(title_subtext)
+                title_subtext = [];
+            end
+        
+            % Fetch the plans list from API
+            try
+                response = app.MainModule.PlansClient.getPlansList(start_time, end_time, title_subtext);                        
+            catch ME
+                uialert(app.UIFigure, sprintf('Failed to retrieve plans list: %s', ME.message), 'Error');
+                return;
+            end
+
+            if ~response.ok
+                % @Todo Show alert (use msgbox or uialert)
+                uialert(app.UIFigure, 'Failed to retrieve plans list', 'Error');
+                return;
+            end
+            
+            % Convert struct array to table if not empty
+            if ~isempty(response.plans)
+                %Data = struct2table(response.plans);
+                Data = app.MainModule.TableHelper.plansToTopLevelTable(response.plans);
+                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
+                Data = app.MainModule.TableHelper.selectTableColumns(Data, ...
+                    {'pk', 'plan_type', 'ast_planner', 'title','status', 'created_time', 'updated_time', 'start_time', 'end_time'});
+
+                % Sort table by updated_time or created_time
+                % Safely detect if all updated_time cells are empty
+                
+                % Convert updated_time cells into strings (empty cells become "")
+                update_str = cell(size(Data.updated_time));
+                for i = 1:numel(Data.updated_time)
+                    if isempty(Data.updated_time{i})
+                        update_str{i} = "";
+                    else
+                        update_str{i} = string(Data.updated_time{i});
+                    end
+                end
+                update_str = string(update_str);
+                
+                % If all update times are empty, sort by created_time
+                if all(update_str == "")
+                    Data = sortrows(Data, 'created_time', 'descend');
+                else
+                    % Replace column temporarily for sorting
+                    Data.updated_time = update_str;
+                    Data = sortrows(Data, 'updated_time', 'descend');
+                end
+
+                UITable.Data = Data;
+                UITable.ColumnName = Data.Properties.VariableNames;  
+                UITable.ColumnSortable = true;
+            else
+                % Clear the table if no plans are found
+                UITable.Data = [];
+            end
         end
 
 
@@ -67,52 +135,36 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 app.OpenPlanApp = ultrasat.planner.gui.OpenPlan(app.MainModule);
             end
 
-            % Configure the table in the OpenPlanApp window
-            app.OpenPlanApp.UITable.SelectionType = "row";
-            app.OpenPlanApp.UITable.Multiselect = "off";
-            app.OpenPlanApp.UITable.RowName = "numbered";
-
-            % Query backend database for saved plans
-            app.showPleaseWait('Fetching plans...');
-            try
-                response = app.MainModule.ApiClient.getPlansList([], [], []);
-            catch ME
-                app.msgex('openPlan', ME);
-            end
-            app.closePleaseWait();
-
-            if ~isfield(response, 'ok') || ~response.ok
-                app.AppUtils.msgError('ApiClient.getPlansList returned empty list');
-                return;
-            end
-
-            % Update the GUI table
-            % WHY this is required if OpenPlan has getList() func that does
-            % the same ??? (25/09/2025)
-            %Data = app.MainModule.plansToTopLevelTable(response.plans);
-            %%Data = struct2table(plans, 'AsArray', true);
-            %Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-            %app.OpenPlanApp.UITable.Data = Data;
-            %if ~isempty(Data)
-            %    app.OpenPlanApp.UITable.ColumnName = Data.Properties.VariableNames;
-            %end
-
             % Show app
             if strcmp(app.showModal(app.OpenPlanApp), 'Open')
 
                 % Call the backend to load plan from database
                 Pk = app.OpenPlanApp.Pk;
-                app.showPleaseWait('Loading plan...');
+                %app.showPleaseWait('Loading plan...');
                 try
-                    response = app.MainModule.ApiClient.loadPlan(Pk);
+                    % Get plan from database
+                    response = app.MainModule.PlansClient.getPlan(Pk);
+                    if response.ok && isfield(response, 'data') && ~isempty(response.data)
+                        planStruct = response.data;
+                        PlanData = ultrasat.api.models.PlanData.fromStruct(planStruct);
+
+                        % Get planner data from database
+                        matResp = app.MainModule.PlansClient.getMatlabMat(Pk);
+                        if matResp.ok && isfield(matResp, 'data') && ~isempty(matResp.data)
+                            PlanData.planner = ultrasat.api.utils.MatBase64Utils.base64ToMat(matResp.data, 'planner');
+                        end
+
+                        % Open plan
+                        if ~isempty(PlanData.planner)
+                            obj.doOpenPlan(app, PlanData);
+                        else
+                            app.msglog('openPlan: No planner data (matlab_mat) for pk=%d', Pk);
+                        end
+                    end
                 catch ME
                     app.msgex('openPlan', ME);
                 end
-                app.closePleaseWait();
-                if response.ok
-                    obj.doOpenPlan(app, app.MainModule.ApiClient.PlanData);
-                end
-
+                %app.closePleaseWait();
             end
             app.SessionHelper.setButtons(app);
         end
@@ -155,11 +207,58 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             end
 
             % Call backend to save the plan in database
-            app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
+            %app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
-                % Set update_time
-                app.MainModule.PlanData.update_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
-                app.MainModule.ApiClient.savePlan();
+                % Set updated_time
+                app.MainModule.PlanData.updated_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+
+                % Sync fdata from uplanner object to PlanData
+                ultrasat.api.utils.PlanDataUtils.syncFromPlanner(app.MainModule.PlanData, app.MainModule.Planner);
+
+                % Convert PlanData to struct
+                planStruct = app.MainModule.PlanData.toStruct();
+
+                % Temporary fix (23/02/2026) !!!!!!!!!! - NEED to fix model
+                planStruct = rmfield(planStruct, 'history');
+                planStruct = rmfield(planStruct, 'metadata');        
+
+                % Save the plan struct to the backend
+                resp = app.MainModule.PlansClient.savePlan(planStruct);
+                if ~resp.ok
+                    app.msglog(sprintf('Warning: savePlan failed: %s', resp.status));
+                else
+                    % Use returned pk (new for insert, same for update)
+                    if isfield(resp, 'data') && ~isempty(resp.data)
+                        oldPk = app.MainModule.PlanData.pk;
+                        savedPk = resp.data;
+                        % Only allow pk to be updated from 0 (unsaved) to positive, or persist the current positive pk.
+                        if (isempty(oldPk) ||  (oldPk == 0)) && savedPk > 0
+                            app.MainModule.PlanData.pk = savedPk;
+                            app.MainModule.Planner.Pk = savedPk;
+                            app.msglog(sprintf('New plan saved successfully, Pk=%d', savedPk));
+                        elseif app.MainModule.PlanData.pk > 0
+                            % Do not overwrite existing positive pk
+                            % For robustness, ensure Planner pk also matches PlanData pk
+                            if savedPk ~= app.MainModule.PlanData.pk
+                                app.msglog(sprintf('Warning: Planner pk does not match saved pk, updating Planner pk to %d', savedPk));
+                                app.MainModule.PlanData.pk = savedPk;
+                                app.MainModule.Planner.Pk = savedPk;
+                            end
+                        end
+
+                        base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(app.MainModule.Planner, 'planner');
+                        try
+                            resp = app.MainModule.PlansClient.saveMatlabMat(savedPk, base64Str);
+                            if ~resp.ok
+                                app.msglog(sprintf('Warning: saveMatlabMat failed: %s', resp.status));
+                            end
+                        catch matME
+                            app.msglog(sprintf('Warning: saveMatlabMat exception: %s', matME.message));
+                        end
+                    end
+                end
+
+                % Clear modified flag
                 app.clearModified();
 
                 % Update Pk display (required if this plan saved for the first time)
@@ -168,7 +267,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 app.msgex('savePlan', ME);
             end
 
-            app.closePleaseWait();
+            %app.closePleaseWait();
             app.MainModule.setStatus('OK', 'Plan saved successfully.');
         end
 
@@ -224,6 +323,8 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             % Create app and set initial values from preferences
             if isempty(app.SavePlanToFileApp) || ~isvalid(app.SavePlanToFileApp)
                 app.SavePlanToFileApp = ultrasat.planner.gui.SavePlanToFile(app.MainModule);
+
+                % Update initial values from preferences
                 if ~isempty(app.Preferences.LocalPlanFolder)
                     app.SavePlanToFileApp.FileNameEditField.Value = app.Preferences.LocalPlanFileName;
                     app.SavePlanToFileApp.Folder = app.Preferences.LocalPlanFolder;
@@ -242,7 +343,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     save(FileName, 'PlanData');
                     app.setStatus('OK', sprintf('Plan saved to file: %s', FileName));
 
-                    % Update preferences
+                    % Update preferences with the new file name and folder
                     app.Preferences.LocalPlanFileName = FileName;
                     app.Preferences.LocalPlanFolder = fileparts(FileName);
                     app.savePreferences();
@@ -290,7 +391,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     app.showPlanAll();
                     app.setStatus('OK', sprintf('Plan loaded from file: %s', FileName));
 
-                    % Update preferences
+                    % Update preferences with the new file name and folder
                     app.Preferences.LocalPlanFileName = FileName;
                     app.Preferences.LocalPlanFolder = fileparts(FileName);
                     app.savePreferences();
@@ -359,10 +460,10 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     PlanData.id = [];
 
                     % Update fields and add history
-                    PlanData.create_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
-                    PlanData.update_time = PlanData.create_time;
+                    PlanData.created_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
+                    PlanData.updated_time = PlanData.created_time;
                     PlanData.history = struct();
-                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.utils.DateTimeUtils.datetimeStr(PlanData.update_time)));
+                    PlanData.addHistory(sprintf('Duplicated from pk=%d, %s', OldPk, ultrasat.api.utils.DateTimeUtils.datetimeStr(PlanData.updated_time)));
 
                     % Reset the submit status
                     PlanData.metadata.SubmitStatus = PlanData.newStatusData();

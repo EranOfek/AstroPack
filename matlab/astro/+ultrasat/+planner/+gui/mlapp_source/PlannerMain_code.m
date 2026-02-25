@@ -51,7 +51,6 @@ classdef PlannerMain < matlab.apps.AppBase
         LogsHelpMenu                    matlab.ui.container.Menu
         AboutMenu                       matlab.ui.container.Menu
         PanelTopHeader                  matlab.ui.container.Panel
-        ConnectionStatusEditField       matlab.ui.control.EditField
         LabelTopTime                    matlab.ui.control.Label
         LabelTopUser                    matlab.ui.control.Label
         LabelTopNamespace               matlab.ui.control.Label
@@ -254,7 +253,7 @@ classdef PlannerMain < matlab.apps.AppBase
             % Called from startupFcn() on application startup
 
             % Create MainModule that holds all common data
-            app.UIFigure.Name = 'ULTRASAT Observation Planner';
+            app.UIFigure.Name = 'ULTRASAT Observation Planner, v0.2 (updated 19/02/2026)';
 
             % 
             app.checkMatlabVersion();
@@ -352,6 +351,12 @@ classdef PlannerMain < matlab.apps.AppBase
             currentTime = datetime('now', 'TimeZone', 'UTC');
             formattedTime = strcat('UTC: ', datestr(currentTime, 'yyyy-mm-dd HH:MM:SS'));
             app.LabelTopTime.Text = formattedTime;
+
+            if app.MainModule.IsVirtualTime
+                app.LabelTopTime.FontColor = [1.00,0.07,0.65];  % Pink
+            else
+                app.LabelTopTime.FontColor = [0.65,0.65,0.65];  % Gray
+            end
         end
 
         % =================================================================
@@ -2295,22 +2300,13 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create LabelTopTime
             app.LabelTopTime = uilabel(app.PanelTopHeader);
-            app.LabelTopTime.BackgroundColor = [1 1 1];
+            app.LabelTopTime.BackgroundColor = [0.9412 0.9412 0.9412];
             app.LabelTopTime.HorizontalAlignment = 'center';
             app.LabelTopTime.FontSize = 24;
             app.LabelTopTime.FontWeight = 'bold';
+            app.LabelTopTime.FontColor = [0.651 0.651 0.651];
             app.LabelTopTime.Position = [12 2 299 32];
             app.LabelTopTime.Text = 'UTC: 2025-01-01 00:00:00';
-
-            % Create ConnectionStatusEditField
-            app.ConnectionStatusEditField = uieditfield(app.PanelTopHeader, 'text');
-            app.ConnectionStatusEditField.Editable = 'off';
-            app.ConnectionStatusEditField.HorizontalAlignment = 'center';
-            app.ConnectionStatusEditField.FontWeight = 'bold';
-            app.ConnectionStatusEditField.BackgroundColor = [0.8 0.8 0.8];
-            app.ConnectionStatusEditField.Tooltip = {'Server connection & login status'};
-            app.ConnectionStatusEditField.Position = [899 3 131 29];
-            app.ConnectionStatusEditField.Value = 'Note: JSON Backend';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

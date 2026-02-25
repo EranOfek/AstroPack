@@ -1,5 +1,5 @@
 % uplanner helper class for LCS - create it from uplanner buildLCS etc.
-
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % List of functions:
 % - ultrasat.LcsHelper.LcsHelper(Args): Constructor
@@ -13,7 +13,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 classdef LcsHelper < Component 
-    % 
+
+    % ========================== PUBLIC PROPERTIES ==========================
     properties(Access = public)
         %Planner                                 % uplanner
 
@@ -74,12 +75,12 @@ classdef LcsHelper < Component
         Daily_schedule          
     end
 
-    % 
+    % ========================== HIDDEN PROPERTIES ==========================
     properties (Hidden, Constant)
 
     end 
 
-    % 
+    % ========================== CONSTRUCTOR ==========================
     methods  % Constructor
         function Obj = LcsHelper(Args)
             % object constructor
@@ -103,6 +104,7 @@ classdef LcsHelper < Component
                 Obj.StartDate = dateshift(Args.StartDate,'start','day');
             end
 
+            % Set EndDate if provided, otherwise set it to the start date plus the last day
             if isempty(Args.EndDate)
                 Obj.EndDate = Obj.StartDate+Obj.Last_day;
             else
@@ -110,11 +112,12 @@ classdef LcsHelper < Component
                 Obj.Last_day = days(Obj.EndDate-Obj.StartDate);
             end
 
+            % Set DailyWindowStartTime if provided
             if ~isempty(Args.DailyWindowStartTime)
                 Obj.DailyWindowStartTime = Args.DailyWindowStartTime;
             end
             
-            % read fields 
+            % Read fields from the AllSkyTable if provided (as filename or table)
             if ischar(Args.AllSkyTable)
                 Obj.AllSky = readtable(Args.AllSkyTable);
                 AU_ind = find(Obj.AllSky.Properties.VariableNames=="AU");
@@ -130,7 +133,7 @@ classdef LcsHelper < Component
             end
 
 
-            % Run prep if requested
+            % Run prepTablesBeforeSchedule if requested
             if Args.prep_before_schedule
                 Obj.prepTablesBeforeSchedule;
                 if Args.build_the_schedule
@@ -143,10 +146,11 @@ classdef LcsHelper < Component
     end 
 
 
-    %
+    % ========================== METHODS ==========================
     methods
 
-        % === Main functions ===
+        % ========================== MAIN FUNCTIONS ==========================
+
         function prepTablesBeforeSchedule (Obj)
             % Description: prepTablesBeforeSchedule           
             arguments
@@ -207,7 +211,7 @@ classdef LcsHelper < Component
             Obj.calcDailySchedule;
         end
 
-        % === Step functions ===
+        % ========================== STEP FUNCTIONS ==========================
         function calc_vis_matrix(Obj)
             % Description: step 1 function
             %              Build_daily_visibility_for_all_LCS_fields
@@ -217,10 +221,13 @@ classdef LcsHelper < Component
 
             RAD  = 180/pi;
 
+            % Calculate the number of days
             NumDays = Obj.Last_day - Obj.First_day+1;
 
+            % Calculate the number of visibility slots
             N_vis_slots = Obj.Daily_LCS_slots+1; % To account for slew time
 
+            % Calculate the Julian dates
             l = zeros(1,N_vis_slots*NumDays);
             for i=1:NumDays
                 for j=1:N_vis_slots
@@ -229,15 +236,25 @@ classdef LcsHelper < Component
                 end
             end
             
+            % Calculate the grid of RA and Dec
             Grid = [Obj.AllSky.RA,Obj.AllSky.Dec];
             
+            % Calculate the Julian dates
             JD = juliandate(Obj.StartDate+Obj.DailyWindowStartTime) + l;
             
+            % Calculate the visibility matrix
             Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',70,'MinMoonDist',34,'MinEarthDist',56);
+
+            % Calculate the visibility limits
             Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits;
             
+            % Reshape the visibility matrix
             Obj.vis3d_slot_day_field = reshape(Lim,[N_vis_slots,NumDays,length(Grid)]); 
+
+            % Calculate the visibility matrix for all fields
             Obj.vis2d_day_field_ALL = squeeze(all(Obj.vis3d_slot_day_field,1));
+
+            % Calculate the visibility matrix for any field
             Obj.vis2d_day_field_ANY = squeeze(any(Obj.vis3d_slot_day_field,1));
             if Obj.Whole_daily_window
                 Obj.vis_day_field = Obj.vis2d_day_field_ALL;                                % Visible in whole 3 hour window
@@ -308,6 +325,7 @@ classdef LcsHelper < Component
             
             end
             
+            % Convert the windows to tables
             All_fields_windows = array2table(All_fields_windows,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
             All_fields_windows_1dgap = array2table(All_fields_windows_1dgap,'VariableNames',{'Field','Av_ext','vis_start','vis_end','window'});
             Longest_window_per_field = array2table(Longest_window_per_field,'VariableNames',{'Field','Av_ext','max_window','max_window_1dgap'});
@@ -326,6 +344,7 @@ classdef LcsHelper < Component
                 Obj
             end
 
+            % If 1d gap is allowed, use the 1d gap windows, otherwise use the normal windows
             if Obj.Allow1dgap
                 Good_fields_windows = Obj.All_fields_windows_1dgap(Obj.All_fields_windows_1dgap.window>=Obj.Min_window & Obj.All_fields_windows_1dgap.Av_ext<=Obj.max_ext,:);
                 SetD_possible_fields = Obj.All_fields_windows(Obj.All_fields_windows_1dgap.window>=Obj.Min_window & Obj.All_fields_windows_1dgap.Av_ext>Obj.max_ext,:);
@@ -352,6 +371,7 @@ classdef LcsHelper < Component
             SetC_fields = Long_fields((Obj.SetBnumel+1):(Obj.SetBnumel+Obj.SetCnumel),:);
             SetA_fields = [Good_longest_window_per_field(Good_longest_window_per_field.max_window<Obj.Max_window_cut,:); Long_fields((Obj.SetBnumel+Obj.SetCnumel+1):end,:)];
             
+            % Sort the fields by the maximum window
             if Obj.Allow1dgap
                 SetA_fields = sortrows(SetA_fields,'max_window_1dgap');
                 SetB_fields = sortrows(SetB_fields,'max_window_1dgap');
@@ -567,6 +587,7 @@ classdef LcsHelper < Component
             % Calc Vis Windows
             Obj.SetB_fields.vis_windows = false(Obj.SetBnumel,numel(Obj.Full_windows.start));
             
+            % Calculate the visibility windows for the SetB fields
             for i = 1:Obj.SetBnumel
                 for j = 1:numel(Obj.Full_windows.start)
                    F = Obj.Good_fields_windows.Field==Obj.SetB_fields.Field(i) & ...  
@@ -621,6 +642,7 @@ classdef LcsHelper < Component
                 cont3_vis_windows(:,CurrFirstInd(1)) = false;
             end
 
+            % Update the SetB fields with the W45, W90_1, and W90_2 values
             Obj.SetB_fields.W45 = SetB_division.W45(Obj.SetB_fields.SetB_division_Ind);
             Obj.SetB_fields.W90_1 = SetB_division.W90_1(Obj.SetB_fields.SetB_division_Ind);
             Obj.SetB_fields.W90_2 = SetB_division.W90_2(Obj.SetB_fields.SetB_division_Ind);
@@ -635,6 +657,7 @@ classdef LcsHelper < Component
                 IndsW45 = find(Obj.SetB_fields.W45==i);
                 Nw45 = numel(IndsW45);
             
+                % Initialize the current schedule table
                 curr_Schedule = table();
                 curr_Schedule.category(1:Nw45) = {'B_45'};
                 curr_Schedule.group(1:Nw45) = 100+i;
@@ -650,6 +673,7 @@ classdef LcsHelper < Component
                 IndsW90 = find(Obj.SetB_fields.W90_1==i | Obj.SetB_fields.W90_2==i);
                 Nw90 = numel(IndsW90);
             
+                % Initialize the current schedule table
                 curr_Schedule = table();
                 curr_Schedule.category(1:Nw90) = {'B_90'};
                 curr_Schedule.group(1:Nw90) = 200+i;
@@ -675,10 +699,12 @@ classdef LcsHelper < Component
                 Args.Rank = [79 12 48 28 16 88 55 32 213 26];
             end
 
+            % Initialize the SetD_ranked_fields table
             Obj.SetD_ranked_fields = table();
             Obj.SetD_ranked_fields.Field(1:10) = Args.Rank;
             Obj.SetD_ranked_fields.vis_windows = false(numel(Obj.SetD_ranked_fields.Field),numel(Obj.Full_windows.start));
-            
+
+            % Calculate the visibility windows for the SetD_ranked_fields
             for i = 1:numel(Obj.SetD_ranked_fields.Field)
                 for j = 1:numel(Obj.Full_windows.start)
                    F = Obj.SetD_possible_fields.Field==Obj.SetD_ranked_fields.Field(i) & ...
@@ -688,6 +714,7 @@ classdef LcsHelper < Component
                 end
             end
 
+            % Initialize the SetD_Schedule table
             SetD_Schedule = table();            
             Rank_ind=1;
             for i = 1:4
@@ -712,6 +739,7 @@ classdef LcsHelper < Component
                     Obj.inds_2move = [Obj.inds_2move,Ind];
                 end
             
+                % Initialize the current schedule table
                 curr_Schedule = table();
                 curr_Schedule.category = {'D'};
                 curr_Schedule.group = 300+i;
@@ -756,9 +784,11 @@ classdef LcsHelper < Component
                 end
             end
             
+            % 
             Correct_ind = zeros(size(Obj.inds_2move));
             First_correct_ind = 1;
 
+            % 
             while any(Correct_ind==0) && First_correct_ind<=numel(Correct_fields.Field)
                 Correct_ind(:) = 0;
                 for i = 1:numel(Correct_ind)
@@ -853,12 +883,16 @@ classdef LcsHelper < Component
             else 
                 ax = Args.AxesHandle;
             end
+
+            % Hold the axes and set the box to on
             hold(ax, 'on');  
             box(ax, 'on');
             l = {};
 
+            % Sort the schedule by category
             Schedule = sortrows(Obj.Schedule,'category');
             for i = 1:height(Schedule)
+                % Plot the schedule for each category
                 switch Schedule.category{i}
                     case 'A'
                         plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i),'-k');
@@ -913,6 +947,7 @@ classdef LcsHelper < Component
                 Args.PlotTitle = 'Category B Schedule per Field';
             end
 
+            % Create the figure and axes if not provided
             if isempty(Args.AxesHandle)
                 h = figure('WindowStyle','docked','Color',[1 1 1]); clf;  
                 ax = axes(h);
@@ -923,6 +958,7 @@ classdef LcsHelper < Component
             box(ax, 'on');
             l = {};
 
+            % Plot the Schedule for the SetB fields
             for i = 1:Obj.SetBnumel
                 Ind = find(Obj.Schedule.Field==Obj.SetB_fields.Field(i));
                 for j = 1:numel(Ind)
@@ -933,9 +969,11 @@ classdef LcsHelper < Component
                     end
                 end
             end
+
+            % Set the y-axis limits
             ylim([0.5,16.5]);            
 
-            
+            % Set the x-axis label
             xlabel(ax,sprintf('Time since %s [days]',Obj.StartDate)); 
 
             % Display a title 
@@ -945,6 +983,7 @@ classdef LcsHelper < Component
 %            legend(ax, l,'Location','best');
             hold(ax, 'off');
 
+            % Save the plot if requested
             if Args.SavePlot
                saveas(ax,Args.FN2SavePlot,Args.FormatSavePlot);
             end
