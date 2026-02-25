@@ -5,7 +5,7 @@ function [Result] = stitchCrops(AI, Args)
     %         * ...,key,val,... 
     %         'UpdateWCS' - whether to build a WCS for the stitched image from the merged catalog
     %         'UpdateZP'  - whether to calculate a new photometric ZP for the stitched image  
-    % Output : - a stiched AstroImage 
+    % Output : - a stiched AstroImage with a merged catalog and updated WCS
     % Author : A.M. Krassilchtchikov (2026 Jan) 
     % Example: AIs = imProc.stack.stitchCrops(AI)
     % 
@@ -16,6 +16,8 @@ function [Result] = stitchCrops(AI, Args)
         Args.ORIGSEC                 = 'ORIGSEC';
         Args.UpdateWCS               = false;
         Args.UpdateZP                = false;
+        Args.HalfOverlapX            = 64; % pix;
+        Args.HalfOverlapY            = 97; % pix;
     end
     %
     Ncrop = numel(AI);
@@ -51,26 +53,26 @@ function [Result] = stitchCrops(AI, Args)
     % fill the new image with chopped crops, shift the catalog pixels    
     for Icrop = 1:Ncrop                
         if O.hasLeft(Icrop)
-            XUmin = round((CCDSEC(Icrop,2)-Uniq(Icrop,2))/2);
+            XUmin = Args.HalfOverlapX; % round((CCDSEC(Icrop,2)-Uniq(Icrop,2))/2);
             ImaShiftX = CCDSEC(Icrop,2)-XUmin;
         else
             XUmin = CCDSEC(Icrop,1);
             ImaShiftX = XUmin-1;
         end
         if O.hasRight(Icrop)
-            XUmax = round((CCDSEC(Icrop,2)+Uniq(Icrop,2))/2);
+            XUmax = CCDSEC(Icrop,2)-Args.HalfOverlapX; % round((CCDSEC(Icrop,2)+Uniq(Icrop,2))/2);
         else
             XUmax = CCDSEC(Icrop,2);
         end
         if O.hasBottom(Icrop)
-            YUmin = round((CCDSEC(Icrop,4)-Uniq(Icrop,4))/2);
+            YUmin = Args.HalfOverlapY; % round((CCDSEC(Icrop,4)-Uniq(Icrop,4))/2);
             ImaShiftY = CCDSEC(Icrop,4)-YUmin;
         else
             YUmin = CCDSEC(Icrop,3);
             ImaShiftY = YUmin-1;
         end
         if O.hasTop(Icrop)
-            YUmax = round((CCDSEC(Icrop,4)+Uniq(Icrop,4))/2);
+            YUmax = CCDSEC(Icrop,4)-Args.HalfOverlapY; %round((CCDSEC(Icrop,4)+Uniq(Icrop,4))/2);
         else
             YUmax = CCDSEC(Icrop,4);
         end

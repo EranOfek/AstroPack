@@ -109,7 +109,6 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
-%         UpixNeighb = celestial.healpix.neighbors(UpixCenter, Args.NsideSearch); 
         UpixNeighb = celestial.healpix.mex.neighbors_nested(log2(Args.NsideSearch),UpixCenter);
 
         % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)                 
