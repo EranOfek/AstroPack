@@ -1,4 +1,4 @@
-function Result = findMeasureSources(Obj, Args)
+function [Result,Streaks] = findMeasureSources(Obj, Args)
     % Basic sources finder and measurements on AstroImage object.
     %   This function uses the +imUtil.sources.find_measure_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
@@ -127,8 +127,23 @@ function Result = findMeasureSources(Obj, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false). Default is false.
+    %            --- Streak detection ---
+    %            'SearchStreaks' - A logical indicating if to search for
+    %                   streaks. Default is false.
+    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
+    %                   to imUtil.streaks.detectStreaksLSD
+    %                   Default is {}.
+    %
     % Output : - An AstroImage object in which the CatData is populated
     %            with sources found in the image.
+    %          - Structure containing information about streaks found in
+    %            the image. If non empty, then the following fields are available:
+    %            'Segs' - 4 x Nstreaks array of segments (x1,y1,x2,y2)
+    %            'Phot' - 1 x Nstreaks array of streaks flux.
+    %            'Parfit' - 3 x Nstreaks array of curvature model fit to the
+    %                   streak: h(t) = at^2 + bt + c
+    %                   describing the transverse offset from the base detected
+    %                   segment, as fitted from the pixel intensity data.
     % Example: Im=imUtil.kernel2.gauss(2,[128 128]);
     %          Im=Im.*1000 +randn(size(Im));        
     %          AI = AstroImage({Im});
@@ -178,7 +193,8 @@ function Result = findMeasureSources(Obj, Args)
                                                  'SN','BACK_IM','VAR_IM',...  
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
                                                  'FLUX_APER', 'FLUXERR_APER',...
-                                                 'MAG_APER', 'MAGERR_APER'};
+                                                 'MAG_APER', 'MAGERR_APER',...
+                                                 'FLUX_XYPEAK'};
                                                  %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         % Flags
         Args.AddFlags logical              = true;
@@ -203,6 +219,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.VarProp char              = 'VarData';
         Args.VarPropIn char            = 'Image';
         Args.CatProp char              = 'CatData';
+
+        Args.SearchStreaks                 = false;
+        Args.detectStreaksLSDArgs          = {};
     end
     
     if Args.CreateNewObj
@@ -231,7 +250,7 @@ function Result = findMeasureSources(Obj, Args)
         %Iobj
         % call the source finder and measurments
         if Args.ReFind || ~isempty(Result(Iobj).(Args.CatProp).Catalog)
-            Result(Iobj).(Args.CatProp) = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
+            [Result(Iobj).(Args.CatProp),~,~,~,Streaks] = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
                                                         'OutType','AstroCatalog',...
                                                         'BackIm',Result(Iobj).(Args.BackProp).(Args.BackPropIn),...
                                                         'VarIm',Result(Iobj).(Args.VarProp).(Args.VarPropIn),...
@@ -247,7 +266,9 @@ function Result = findMeasureSources(Obj, Args)
                                                         'Gain',Args.Gain,...
                                                         'LupSoftPar',Args.LupSoftPar,...
                                                         'ZP',Args.ZP,...
-                                                        'ColCell',Args.ColCell);
+                                                        'ColCell',Args.ColCell,...
+                                                        'SearchStreaks',Args.SearchStreaks,...
+                                                        'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                                                     
                                                     
 %             [Result(Iobj).(Args.CatProp).Catalog, Result(Iobj).(Args.CatProp).ColNames] = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...

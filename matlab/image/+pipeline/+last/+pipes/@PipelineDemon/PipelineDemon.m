@@ -2462,6 +2462,7 @@ classdef PipelineDemon < Component
 
                 % saving data products of pipelineI
                 Tstart = clock;
+                AllForcedPhot = []; % TEMPORARY
                 [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
                 RunTime = etime(clock, Tstart);
                 MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');

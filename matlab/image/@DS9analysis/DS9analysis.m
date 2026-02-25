@@ -19,6 +19,7 @@ classdef DS9analysis < handle
 
     properties
         Images               % AstroImage | FileNames | cell
+        MatchedSources = [];
         Names cell   = {};
 
         % Frame2Ind    = [1];   % [ImageIndInFrame1, ImageIndInFram2,...]
@@ -995,11 +996,6 @@ classdef DS9analysis < handle
                 case {'t','table'}
                     Result = MS.convert2AstroCatalog;
                     Result = Result.toTable;
-
-                    Result.ExpTime = AI.HeaderData.Key.EXPTIME;
-                    ErrCoo = AI.PSFData.fwhm./2.35./Result.SN;
-                    Result.ErrRA  = ErrCoo;
-                    Result.ErrDec = ErrCoo;
                 otherwise
                     error('Unknown OutType option');
             end
@@ -1097,6 +1093,44 @@ classdef DS9analysis < handle
             
         end
             
+        function [JD, Mag]=plotLC(Obj, Coo, Mode, Args)
+            %
+
+             arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Mode             = 1;
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                
+                Args.forcedPhotArgs cell = {};
+                Args.OutType             = 't';
+
+                Args.ColX          = 'X1';
+                Args.ColY          = 'Y1';
+                Args.MinDist       = 15; % [pix]
+                Args.FieldMag      = {'MAG_PSF','MAG_APER_3'}
+                Args.FieldMagErr   = {'MAGERR_PSF'};
+            end
+            
+            [X, Y] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Ind = ds9.frame;
+
+            Obj.MatchedSources(Ind).addSrcData;
+            Dist2 = (Obj.MatchedSources(Ind).SrcData.(Args.ColX) - X).^2 + (Obj.MatchedSources(Ind).SrcData.(Args.ColY) - Y).^2;
+            [MinDist2, MinInd] = min(Dist2);
+            if MinDist2<(Args.MinDist.^2)
+                 [JD, Mag] = getLC_ind(Obj.MatchedSources(Ind), MinInd, Args.FieldMag, Args.FieldMagErr);
+                 plot(JD, Mag, 'o'); plot.invy
+            else
+                JD  = [];
+                Mag = [];
+                fprintf('No source found at position X=%f, Y=%f, in MatchedSources object\n',X,Y);
+            end
+
+        end
+
         % plot
         % plotAll  % in all frames
         

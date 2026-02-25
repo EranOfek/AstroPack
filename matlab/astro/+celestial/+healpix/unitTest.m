@@ -5,7 +5,29 @@ function Result = unitTest()
     RAD = 180./pi;
         
     % test celestial.healpix.ang2pix and celestial.healpix.pix2ang
-        
+      
+    %% celestial.healpix  nest2xyf & xyf2nest
+    NSide = 8;         
+    Pix=(0:767); 
+    [X,Y,F] = celestial.healpix.nest2xyf(NSide, Pix);
+    [p] = celestial.healpix.xyf2nest(NSide,X,Y,F);
+    if max(abs(Pix-double(p)))>0
+        error('Problem with celestial.healpix.nest2xyf or celestial.healpix.xyf2nest');
+    end
+
+    %% nestedNeighbors(NSide, Pix)
+    NSide = 8;
+    Pix   = (0:1:767);
+    PN    = celestial.healpix.nestedNeighbors(NSide, Pix);
+
+    [Lon0, Lat0] = celestial.healpix.pix2ang(NSide, Pix);
+    [Lon, Lat] = celestial.healpix.pix2ang(NSide, PN);
+    Lon = reshape(Lon, size(PN));
+    Lat = reshape(Lat, size(PN));
+
+    D = celestial.coo.sphere_dist_fast(Lon0.', Lat0.', Lon, Lat);
+
+    %%
     
     % cone search
     RA  = 200.67; % 50.; 

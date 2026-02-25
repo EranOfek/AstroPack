@@ -143,7 +143,7 @@ classdef MatchedSources < Component
     end
     
     methods (Static) % static read
-        function Obj = read(FileName, Args)
+        function Obj = read(FileNameList, Args)
             % read mat file or HDF5 file containing MatchedSources
             %   Each dataset in the hdf5 file will be read into a matrix
             %   with the same name in the Data property.
@@ -170,60 +170,69 @@ classdef MatchedSources < Component
             %          delete('try.hdf5');
             
             arguments
-                FileName char
+                FileNameList
                 Args.Fields                  = [];  % read all fields
                 Args.FileType char           = 'auto';  % 'hdf5' | 'mat' | 'auto'
             end
            
-            switch lower(Args.FileType)
-                case 'auto'
-                    [~,~, Ext] = fileparts(FileName);
-                    Args.FileType = Ext(2:end);
+            if ischar(FileNameList)
+                FileNameList = string(FileNameList);
             end
-            
-            switch lower(Args.FileType)
-                case {'hdf5','h5','hd5'}
-                    if isempty(Args.Fields)
-                        % read all fields
-                        Info  = h5info(FileName);
-                        Ndata = numel(Info.Datasets);
-                        for Idata=1:1:Ndata
-                            DS   = sprintf('/%s',Info.Datasets(Idata).Name);
-                            Data = h5read(FileName, DS);
-                            Struct.(Info.Datasets(Idata).Name) = Data;
+
+            Nf = numel(FileNameList);
+            for If=1:1:Nf
+                FileName = FileNameList{If};
+
+
+                switch lower(Args.FileType)
+                    case 'auto'
+                        [~,~, Ext] = fileparts(FileName);
+                        Args.FileType = Ext(2:end);
+                end
+                
+                switch lower(Args.FileType)
+                    case {'hdf5','h5','hd5'}
+                        if isempty(Args.Fields)
+                            % read all fields
+                            Info  = h5info(FileName);
+                            Ndata = numel(Info.Datasets);
+                            for Idata=1:1:Ndata
+                                DS   = sprintf('/%s',Info.Datasets(Idata).Name);
+                                Data = h5read(FileName, DS);
+                                Struct.(Info.Datasets(Idata).Name) = Data;
+                            end
+                            Struct.JD = h5read(FileName, '/JD');
+                        else
+                            if ischar(Args.Fields)
+                                Args.Fields = {Args.Fields};
+                            end
+                            Ndata = numel(Args.Fields);
+                            for Idata=1:1:Ndata
+                                Data = h5read(FileName, sprintf('/%s',Args.Fields{Idata}));
+                                Struct.(Args.Fields{Idata}) = Data;
+                            end
                         end
-                        Struct.JD = h5read(FileName, '/JD');
-                    else
-                        if ischar(Args.Fields)
-                            Args.Fields = {Args.Fields};
+                            
+                    case {'mat'}
+                        % read mat file
+                        % assume contains a structure
+                        Struct = io.files.load2(FileName);
+                        if isa(Struct, 'MatchedSources')
+                            Struct = Struct.Data;
                         end
-                        Ndata = numel(Args.Fields);
-                        for Idata=1:1:Ndata
-                            Data = h5read(FileName, sprintf('/%s',Args.Fields{Idata}));
-                            Struct.(Args.Fields{Idata}) = Data;
-                        end
-                    end
-                        
-                case {'mat'}
-                    % read mat file
-                    % assume contains a structure
-                    Struct = io.files.load2(FileName);
-                    if isa(Struct, 'MatchedSources')
-                        Struct = Struct.Data;
-                    end
-                otherwise
-                    error('Unknown FileType');
+                    otherwise
+                        error('Unknown FileType');
+                end
+                Obj(If) = MatchedSources;
+                % treat special fields
+                if isfield(Struct, 'JD')
+                    Obj(If).JD = Struct.JD;
+                    Struct = rmfield(Struct, 'JD');
+                end
+                Obj(If).addMatrix(Struct);
+                
+                Obj(If).FileName = FileName;
             end
-            Obj = MatchedSources;
-            % treat special fields
-            if isfield(Struct, 'JD')
-                Obj.JD = Struct.JD;
-                Struct = rmfield(Struct, 'JD');
-            end
-            Obj.addMatrix(Struct);
-            
-            Obj.FileName = FileName;
-            
         end
         
         function Result = read_rdir(FileTemplate, Args)
