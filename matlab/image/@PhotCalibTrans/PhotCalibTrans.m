@@ -58,6 +58,7 @@ classdef PhotCalibTrans < Component
     %     populateSuccess - Evaluate and set Success flag based on calibration quality
     %   Evaluation Methods:
     %     evaluateTransmission - Evaluate transmission at specific positions
+    %     integralTransmission - Mean transmission as fraction of 100% throughput
     %     evaluateZP - Evaluate photometric zero point at specific positions
     %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
@@ -73,7 +74,7 @@ classdef PhotCalibTrans < Component
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
-    %     plotTransmission - Plot transmission curve vs wavelength
+    %     plotTransmission - Plot transmission curves (overlay or subplots, with integral T)
     %     plotResiduals - Plot calibration residuals (magnitude and spatial)
     %     plotZPMap - Plot 2D map of position-dependent zero point corrections
     %     plotCalibrators - Plot observed vs predicted magnitudes for calibrators
@@ -1103,6 +1104,37 @@ classdef PhotCalibTrans < Component
                 TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
                 Trans = repmat(TransBase(:)', length(X), 1);  % [N_pos x N_lambda]
             end
+        end
+
+        function IntTrans = integralTransmission(Obj, Args)
+            % Integral (mean) transmission as fraction of perfect 100% throughput
+            % Input  : - PhotCalibTrans object.
+            %          * ...,key,val,...
+            %            'WvlRange' - [min, max] wavelength range [Angstrom].
+            %                         Default is [] (use full TransWvl range).
+            % Output : - Scalar in [0,1]: trapz(T) / (wvl_max - wvl_min).
+            % Author : D. Kovaleva (Feb 2026)
+            % Example: T = PC.integralTransmission();
+            %          T = PC.integralTransmission('WvlRange', [4000, 9000]);
+
+            arguments
+                Obj
+                Args.WvlRange = []
+            end
+
+            Lambda = Obj.TransWvl;
+            Trans = Obj.evaluateTransmission('Lambda', Lambda);
+            Trans = Trans(:);
+            Lambda = Lambda(:);
+
+            % Apply wavelength range if specified
+            if ~isempty(Args.WvlRange)
+                Mask = Lambda >= Args.WvlRange(1) & Lambda <= Args.WvlRange(2);
+                Lambda = Lambda(Mask);
+                Trans = Trans(Mask);
+            end
+
+            IntTrans = trapz(Lambda, Trans) / (Lambda(end) - Lambda(1));
         end
 
         function ZP = evaluateZP(Obj, Args)
@@ -2399,22 +2431,69 @@ classdef PhotCalibTrans < Component
     
     methods % Plotting methods
         function Fig = plotTransmission(Obj, Args)
-            % Plot transmission curve vs wavelength
-            % Input  : - PhotCalibTrans object
+            % Plot total system transmission curves for scalar or array of objects
+            % Input  : - PhotCalibTrans object (scalar or array).
             %          * ...,key,val,...
+            %            'Layout'    - 'overlay' (all on one axes, default) or
+            %                          'subplots' (grid of individual plots).
+            %            'Labels'    - Cell array of legend labels {N x 1}. Default
+            %                          auto-generates '1', '2', etc.
             %            'NewFigure' - Create new figure. Default is true.
-            % Output : - Figure handle
-            % Author : D. Kovaleva (Dec 2025)
+            %            'RefCrop'   - Reference crop index for relative integral
+            %                          transmission. When set, integral T is normalized
+            %                          so that T(RefCrop)=1. Default is [] (absolute).
+            % Output : - Figure handle.
+            % Author : D. Kovaleva (Feb 2026)
             % Example: PC.plotTransmission();
-            % Description: Uses Obj.TransWvl (300:2:1100 nm, 401 points) for transmission evaluation.
+            %          PC.plotTransmission('Layout', 'subplots');
+            %          PC.plotTransmission('RefCrop', 10);
 
             arguments
                 Obj
+                Args.Layout    = 'overlay'
+                Args.Labels cell = {}
                 Args.NewFigure logical = true
+                Args.RefCrop = []
             end
 
-            % Evaluate transmission using constant wavelength grid
-            Trans = Obj.evaluateTransmission('Lambda', Obj.TransWvl);
+            N = numel(Obj);
+
+            % Generate default labels
+            if isempty(Args.Labels)
+                Labels = cell(N, 1);
+                for Ipc = 1:N
+                    Labels{Ipc} = sprintf('%d', Ipc);
+                end
+            else
+                Labels = Args.Labels(:);
+            end
+
+            % Evaluate transmission and integral transmission for each object
+            Lambda = Obj(1).TransWvl;
+            Nlambda = numel(Lambda);
+            TransAll = zeros(Nlambda, N);
+            IntTrans = zeros(N, 1);
+            for Ipc = 1:N
+                TransAll(:, Ipc) = Obj(Ipc).evaluateTransmission('Lambda', Lambda);
+                IntTrans(Ipc) = Obj(Ipc).integralTransmission();
+            end
+
+            % Normalize to reference crop if requested
+            if ~isempty(Args.RefCrop)
+                RefIdx = Args.RefCrop;
+                if RefIdx < 1 || RefIdx > N
+                    error('PhotCalibTrans:plotTransmission:BadRefCrop', ...
+                          'RefCrop=%d is out of range [1, %d].', RefIdx, N);
+                end
+                RelTrans = IntTrans ./ IntTrans(RefIdx);
+                for Ipc = 1:N
+                    Labels{Ipc} = sprintf('%s (T=%.3f)', Labels{Ipc}, RelTrans(Ipc));
+                end
+            else
+                for Ipc = 1:N
+                    Labels{Ipc} = sprintf('%s (T=%.3f)', Labels{Ipc}, IntTrans(Ipc));
+                end
+            end
 
             % Create figure
             if Args.NewFigure
@@ -2423,17 +2502,33 @@ classdef PhotCalibTrans < Component
                 Fig = gcf;
             end
 
-            % Plot transmission curve
-            plot(Obj.TransWvl, Trans, 'LineWidth', 2);
-            grid on;
-            xlabel('Wavelength [Angstrom]');
-            ylabel('Transmission');
-            title('Total System Transmission');
-            ylim([0, max(Trans(:)) * 1.1]);
+            switch lower(Args.Layout)
+                case 'overlay'
+                    plot(Lambda, TransAll, 'LineWidth', 1.5);
+                    grid on;
+                    xlabel('Wavelength [Angstrom]');
+                    ylabel('Transmission');
+                    title('Total System Transmission');
+                    ylim([0, max(TransAll(:)) * 1.1]);
+                    legend(Labels, 'Location', 'best');
 
-            % Add metadata to title if available
-            if ~isnan(Obj.AirMass)
-                title(sprintf('Total System Transmission (Airmass=%.2f)', Obj.AirMass));
+                case 'subplots'
+                    Ncols = ceil(sqrt(N));
+                    Nrows = ceil(N / Ncols);
+                    for Ipc = 1:N
+                        subplot(Nrows, Ncols, Ipc);
+                        plot(Lambda, TransAll(:, Ipc), 'LineWidth', 1.5);
+                        grid on;
+                        title(Labels{Ipc});
+                        xlabel('Wavelength [Angstrom]');
+                        ylabel('Transmission');
+                        ylim([0, max(TransAll(:, Ipc)) * 1.1]);
+                    end
+                    sgtitle('Total System Transmission');
+
+                otherwise
+                    error('PhotCalibTrans:plotTransmission:UnknownLayout', ...
+                          'Unknown Layout ''%s''. Use ''overlay'' or ''subplots''.', Args.Layout);
             end
         end
 
