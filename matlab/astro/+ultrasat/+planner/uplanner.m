@@ -479,6 +479,7 @@ classdef uplanner < Component
 
         %
         function buildLCS1(Obj,Args)
+            % BuildLCS1 (v1)
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
             % All relevant parameters should be set before calling this function
@@ -488,8 +489,7 @@ classdef uplanner < Component
                 Args.TargetList = [];
             end
 
-            % Verify that all the relevant parameters are set and valid
-            
+            % Verify that all the relevant parameters are set and valid            
             if ~strcmp(Obj.Type,'LCS')
                 error('Plan Type is not LCS');
             end
@@ -509,39 +509,45 @@ classdef uplanner < Component
                 error('LCS reuire at least one target');
             end         
             
+            % If a target list is not provided, use all targets
             if isempty(Args.TargetList)
                 Args.TargetList = 1:height(Obj.UniqTarg);
             end
 
-             % Calculate the current start time
+            % Calculate the current start time and set the start time of the plan
             CurrStartTime = dateshift(Obj.StartTime,'start','day');
             if CurrStartTime <= Obj.StartTime
                 CurrStartTime = CurrStartTime+1;
             end
             Obj.StartTime = CurrStartTime;
                 
-            Obj.LCS_obj = ultrasat.planner.LcsHelper('AllSkyTable',Obj.UniqTarg(Args.TargetList,:),...
-                                                                              'StartDate',Obj.StartTime,'EndDate',Obj.EndTime,...
-                                                                              'DailyWindowStartTime',Obj.DailyWindowStartTime,...
-                                                                             'prep_before_schedule',true,'build_the_schedule',true);
+            % Create the LCS helper object (see LcsHelper.m)
+            Obj.LCS_obj = ultrasat.planner.LcsHelper('AllSkyTable', ...
+                Obj.UniqTarg(Args.TargetList,:),...
+                'StartDate',Obj.StartTime,'EndDate',Obj.EndTime,...
+                'DailyWindowStartTime',Obj.DailyWindowStartTime,...
+                'prep_before_schedule',true,'build_the_schedule',true);
 
-            
+            % Get the daily schedule from the LCS helper object
             DailySchedule = Obj.LCS_obj.Daily_schedule;
 
+            % Find the days with targets
             Days = find(~all(isnan(DailySchedule),2));
 
+            % Loop over the days with targets and schedule the targets
             for CurrGroup = 1:numel(Days)
+                % Calculate the start time of the current group
                 CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
                 DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
-                % TODO - ordering?
-                
+                % TODO - ordering?                
                 Obj.scheduleTargets(Args.TargetList(DailyTargets),CurrStartTime,'Group',CurrGroup);
             end
         end
         
         %
         function buildLCS(Obj,Args)
+            % BuildLCS (v0)
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
             % All relevant parameters should be set before calling this function
