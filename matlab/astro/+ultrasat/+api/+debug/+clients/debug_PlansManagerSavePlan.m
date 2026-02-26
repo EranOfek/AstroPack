@@ -54,10 +54,12 @@ function debug_saveHcsPlanNoTargets(client)
         PlanData.planner = upHCS;
         ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 
+        PlanData.setStatus('BuildStatus', 'MyTestBuildStatus');
+
         planStruct = PlanData.toStruct();
         planStruct = rmfield(planStruct, 'planner');
         planStruct = rmfield(planStruct, 'history');
-        planStruct = rmfield(planStruct, 'metadata');
+        %planStruct = rmfield(planStruct, 'metadata');
 
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
@@ -80,7 +82,7 @@ function debug_saveHcsPlanOneTarget(client)
         planStruct = PlanData.toStruct();
         planStruct = rmfield(planStruct, 'planner');
         planStruct = rmfield(planStruct, 'history');
-        planStruct = rmfield(planStruct, 'metadata');
+        %planStruct = rmfield(planStruct, 'metadata');
 
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
@@ -107,7 +109,7 @@ function debug_saveHcsPlanTwoTargets(client)
         planStruct = PlanData.toStruct();
         planStruct = rmfield(planStruct, 'planner');
         planStruct = rmfield(planStruct, 'history');
-        planStruct = rmfield(planStruct, 'metadata');
+        %planStruct = rmfield(planStruct, 'metadata');
 
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));

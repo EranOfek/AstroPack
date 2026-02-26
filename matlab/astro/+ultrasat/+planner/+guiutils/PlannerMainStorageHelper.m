@@ -140,7 +140,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
                 % Call the backend to load plan from database
                 Pk = app.OpenPlanApp.Pk;
-                %app.showPleaseWait('Loading plan...');
+                app.showPleaseWait('Loading plan...');
                 try
                     % Get plan from database
                     response = app.MainModule.PlansClient.getPlan(Pk);
@@ -164,7 +164,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 catch ME
                     app.msgex('openPlan', ME);
                 end
-                %app.closePleaseWait();
+                app.closePleaseWait();
             end
             app.SessionHelper.setButtons(app);
         end
@@ -207,7 +207,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
             end
 
             % Call backend to save the plan in database
-            %app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
+            app.showPleaseWait('Saving your plan. This may take a while. Please wait...');
             try
                 % Set updated_time
                 app.MainModule.PlanData.updated_time = ultrasat.api.utils.DateTimeUtils.nowUtc();
@@ -267,7 +267,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 app.msgex('savePlan', ME);
             end
 
-            %app.closePleaseWait();
+            app.closePleaseWait();
             app.MainModule.setStatus('OK', 'Plan saved successfully.');
         end
 
