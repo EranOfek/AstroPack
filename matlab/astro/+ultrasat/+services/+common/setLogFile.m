@@ -1,6 +1,6 @@
 %==========================================================================
 % Project     : ULTRASAT SOC
-% Filename    : ultrasat.services.common.parseIsoDatetime.m
+% Filename    : ultrasat.services.common.sparseLogFile.m
 % Author      : Chen Tishler
 % Created     : 02/11/2021
 % Modified    : 10/02/2026
@@ -15,7 +15,7 @@ function setLogFile(FileName, SubFolder)
     % Link to MsgLogger
     ML = MsgLogger.getSingleton();
     ML.LogF = LF;
-    io.msgLog(LogLevel.Info, 'soc_slew_matlab started');    
+    io.msgLog(LogLevel.Info, sprintf('%s started', FileName));    
 
     % Set the log level
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
