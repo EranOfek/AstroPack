@@ -40,9 +40,6 @@ end
 
 function savedPk = debug_savePlanAndMat(client, PlanData)
     planStruct = PlanData.toStruct();
-    planStruct = rmfield(planStruct, 'planner');
-    planStruct = rmfield(planStruct, 'history');
-    planStruct = rmfield(planStruct, 'metadata');
     resp = client.savePlan(planStruct);
     if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
         fprintf('savePlan failed\n');

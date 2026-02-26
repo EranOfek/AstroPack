@@ -218,10 +218,6 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 % Convert PlanData to struct
                 planStruct = app.MainModule.PlanData.toStruct();
 
-                % Temporary fix (23/02/2026) !!!!!!!!!! - NEED to fix model
-                planStruct = rmfield(planStruct, 'history');
-                planStruct = rmfield(planStruct, 'metadata');        
-
                 % Save the plan struct to the backend
                 resp = app.MainModule.PlansClient.savePlan(planStruct);
                 if ~resp.ok

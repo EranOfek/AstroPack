@@ -89,9 +89,7 @@ function savedPk = debug_savePlan(client)
     try
         [PlanData, ~] = debug_createMinimalPlan();
         planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
-        planStruct = rmfield(planStruct, 'history');
-        planStruct = rmfield(planStruct, 'metadata');
+
 
         resp = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', resp.ok, sget(resp, 'status'));

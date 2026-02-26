@@ -57,10 +57,6 @@ function debug_saveHcsPlanNoTargets(client)
         PlanData.setStatus('BuildStatus', 'MyTestBuildStatus');
 
         planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
-        planStruct = rmfield(planStruct, 'history');
-        %planStruct = rmfield(planStruct, 'metadata');
-
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
         if response.ok && isfield(response, 'data') && ~isempty(response.data)
@@ -79,11 +75,10 @@ function debug_saveHcsPlanOneTarget(client)
     fprintf('\n--- debug_saveHcsPlanOneTarget ---\n');
     try
         [PlanData, ~] = debug_createPlannerPlanData();
-        planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
-        planStruct = rmfield(planStruct, 'history');
-        %planStruct = rmfield(planStruct, 'metadata');
 
+        PlanData.addHistory('Just testing today');
+
+        planStruct = PlanData.toStruct();
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
         if response.ok && isfield(response, 'data') && ~isempty(response.data)
@@ -106,11 +101,10 @@ function debug_saveHcsPlanTwoTargets(client)
         % For testing just duplicate the first target
         PlanData.targets(2) = PlanData.targets(1);
 
-        planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
-        planStruct = rmfield(planStruct, 'history');
-        %planStruct = rmfield(planStruct, 'metadata');
+        PlanData.addHistory('Just testing today');
+        PlanData.addHistory('Second target added');        
 
+        planStruct = PlanData.toStruct();
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
         if response.ok && isfield(response, 'data') && ~isempty(response.data)

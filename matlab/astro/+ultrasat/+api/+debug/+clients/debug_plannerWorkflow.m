@@ -75,9 +75,6 @@ function [savedPk, planStruct, upHCS] = runWorkflow(client)
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 
     planStruct = PlanData.toStruct();
-    planStruct = rmfield(planStruct, 'planner');
-    planStruct = rmfield(planStruct, 'history');
-    planStruct = rmfield(planStruct, 'metadata');
 
     resp = client.savePlan(planStruct);
     if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
@@ -98,9 +95,6 @@ function [savedPk, planStruct, upHCS] = runWorkflow(client)
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 
     planStruct = PlanData.toStruct();
-    planStruct = rmfield(planStruct, 'planner');
-    planStruct = rmfield(planStruct, 'history');
-    planStruct = rmfield(planStruct, 'metadata');
     planStruct.pk = savedPk;
 
     resp = client.savePlan(planStruct);

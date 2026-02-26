@@ -46,7 +46,6 @@ function debug_saveThenUpdatePlan_empty(client)
     try
         [PlanData, ~] = debug_createPlannerPlanData();
         planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
         % Keep metadata and history - PlanData defaults: newMetadata(), history=struct()
         debug_runSaveThenUpdate(client, planStruct, 'empty');
     catch ME
@@ -63,7 +62,6 @@ function debug_saveThenUpdatePlan_withData(client)
         PlanData.setStatus('ValidationStatus', 'OK', struct('ShortStatus', 'Valid'));
         PlanData.addHistory('Debug test entry');
         planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
         % Keep metadata and history populated
         debug_runSaveThenUpdate(client, planStruct, 'withData');
     catch ME

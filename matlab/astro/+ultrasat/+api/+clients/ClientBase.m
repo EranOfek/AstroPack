@@ -98,10 +98,10 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
 
             % Remove empty fields so python basemodel will not get [] when expecting 'none'
-            paramsNonEmpty = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
+            %paramsNonEmpty = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
 
             % Convert datetime objects recursively to ISO string ("2026-02-26T09:41:34.840Z")
-            paramsIsoDT = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(paramsNonEmpty);
+            paramsIsoDT = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(params); %NonEmpty);
 
             % Create HTTP headers
             headers = [
@@ -113,6 +113,10 @@ classdef ClientBase < ultrasat.api.core.Loggable
             if ~isempty(obj.Namespace)
                 headers = [headers, HeaderField('namespace', char(obj.Namespace))];
             end
+
+            % Debug only
+            %jsonDebugText = jsonencode(paramsIsoDT);
+            %disp(jsonDebugText);
 
             % Prepare message body from struct
             body = MessageBody(paramsIsoDT);

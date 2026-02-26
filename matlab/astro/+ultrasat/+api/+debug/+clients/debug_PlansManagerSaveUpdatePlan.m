@@ -46,9 +46,6 @@ function debug_saveThenUpdatePlan(client)
 
         % Step 1: Save (insert)
         planStruct = PlanData.toStruct();
-        planStruct = rmfield(planStruct, 'planner');
-        planStruct = rmfield(planStruct, 'history');
-        planStruct = rmfield(planStruct, 'metadata');
 
         resp = client.savePlan(planStruct);
         fprintf('Step 1 savePlan: ok=%d, status=%s\n', resp.ok, debug_getStatus(resp));

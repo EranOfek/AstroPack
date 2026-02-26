@@ -148,6 +148,20 @@ classdef PlansManagerClient < ultrasat.api.clients.ClientBase
                 apiStruct.targets = t;
             end
 
+            % Convert history to JSON list
+            if isfield(apiStruct, 'history')
+            
+                if isempty(apiStruct.history)
+                    apiStruct.history = {};
+                elseif isstruct(apiStruct.history)
+                    apiStruct.history = num2cell(apiStruct.history);
+                elseif iscell(apiStruct.history)
+                    % ok
+                else
+                    error('history must be struct array or cell array');
+                end            
+            end
+
             apiStruct = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(apiStruct);
         end
 
