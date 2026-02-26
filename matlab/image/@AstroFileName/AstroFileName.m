@@ -1787,15 +1787,19 @@ classdef AstroFileName < Component
                     % convert to string if needed
                     TmpCol = string(Args.(Obj.FIELDS(I)));
                 end
-                switch numel(TmpCol)
-                    case 1
-                        Tmp = repmat(TmpCol, Nind, 1);
-                    case 0
-                        Tmp = strings(Nind,1);
-                    otherwise
-                        Tmp = TmpCol(Ind);
+                if ischar(TmpCol)
+                    Literals(:,I) = TmpCol;
+                else
+                    switch numel(TmpCol)
+                        case 1
+                            Tmp = repmat(TmpCol, Nind, 1);
+                        case 0
+                            Tmp = strings(Nind,1);
+                        otherwise
+                            Tmp = TmpCol(Ind);
+                    end
+                    Literals(:,I) = Tmp;
                 end
-                Literals(:,I) = Tmp;
             end
 
             Delim = [repmat(Obj.SEPERATOR,1,Nfields-2), "."];

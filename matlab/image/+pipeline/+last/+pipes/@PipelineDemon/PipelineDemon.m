@@ -2538,11 +2538,14 @@ classdef PipelineDemon < Component
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader);  % 3 s
             
             % Asteroids:
-            if OnlyMP.sizeCatalog>0 && Args.Args.SaveVisitAsteroids
+            if OnlyMP.sizeCatalog>0 && Args.SaveVisitAsteroids
                 FN_A = FN_C.reorderEntries(1, 'CreateNewObj',true);
                 FN_A.CropID = 0;
                 FN_A.Product = "Asteroids.Known";
-                imProc.io.saveProductImage(OnlyMP, FN_A, 'BasePath',Obj.BasePath, 'OutProduct',["Cat"], 'WriteHeader',false);
+                FN_A.FileType = 'mat';
+                AI_tmp = AstroImage;
+                AI_tmp.CatData = OnlyMP;
+                imProc.io.saveProductMat(AI_tmp, FN_A, 'BasePath',Obj.BasePath);
             else
                 FN_A = [];
             end

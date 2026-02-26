@@ -1348,7 +1348,11 @@ classdef AstroTable < Component
                     if Nrow>0
                         ColInd   = colname2ind(Obj(Iobj), Columns);
                         if isempty(Args.AddEntryPerElement)
-                            NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
+                            %if Args.IsTable
+                            %    NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
+                            %else
+                                NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
+                            %end
                         else
                             ExtraCols = repmat(Args.AddEntryPerElement(Iobj,:),Nrow,1);
                             if Args.IsTable

@@ -70,7 +70,7 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
         Args.Path                     = [];
         Args.SubDirKey                = 'SUBDIR';
         
-        Args.FileType                 = 'hdf5';
+        Args.FileType                 = 'mat';
         Args.RealIfComplex logical    = true;
         Args.Type                     = 'single';
         Args.SkipFields               = [];
@@ -79,7 +79,7 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
         %Args.WriteTime logical        = false;
         Args.SanifyPath               = false; 
 
-        Args.Product                  = 'MergedMat';
+        Args.Product                  = [];
 
         %Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
@@ -102,7 +102,11 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
         Nim = numel(FileListImage);
         FileList = strings(Nim, 1);
         FileList = FileName.genFile('Product',Args.Product);
-        FileType = AFN.FileType{1};
+        if ischar(AFN.FileType)
+            FileType = AFN.FileType;
+        else
+            FileType = AFN.FileType{1};
+        end
     else
         AFN = [];
         if ischar(FileName)

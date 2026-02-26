@@ -347,32 +347,54 @@ function [Result] = forcedPhotNew(Obj, Args)
                     Data(:,K) = 1.086./ResultPSF.SNm;
                 case 'CHI2DOF'
                     Data(:,K) = ResultPSF.Chi2./ResultPSF.Dof;
-                case 'FLUX_APER'
-                    Data(:,K:K+Naper-1) = Aper.AperPhot;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
-                    K = K + Naper - 1;
 
-                case 'FLUXERR_APER'
-                    Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
+                case 'FLUX_APER_1'
+                    Data(:,K) = Aper.AperPhot(:,1);
+                    %Data(:,K:K+Naper-1) = Aper.AperPhot;
+                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
+                    %K = K + Naper - 1;
+                case 'FLUX_APER_2'
+                    Data(:,K) = Aper.AperPhot(:,2);
+                case 'FLUX_APER_3'
+                    Data(:,K) = Aper.AperPhot(:,3);
 
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
-                    K = K + Naper - 1;
-
-                case 'MAG_APER'
-                    Data(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
-                    K = K + Naper - 1;
-
-                case 'MAGERR_APER'
-                    Data(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
-                    K = K + Naper - 1;
-
-                case 'APER_AREA'
-                    Data(:,K:K+Naper-1) = Aper.AperArea;
-                    [ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
-                    K = K + Naper - 1;
-
+                case 'FLUXERR_APER_1'
+                    Data(:,K) = Aper.AperPhotErr(:,1);
+                    %Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
+                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
+                    %K = K + Naper - 1;
+                case 'FLUXERR_APER_2'
+                    Data(:,K) = Aper.AperPhotErr(:,2);
+                case 'FLUXERR_APER_3'
+                    Data(:,K) = Aper.AperPhotErr(:,3);
+                case 'MAG_APER_1'
+                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,1), 10.^(0.4.*Args.ZP));
+                    %Data(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
+                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
+                    %K = K + Naper - 1;
+                case 'MAG_APER_2'
+                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,2), 10.^(0.4.*Args.ZP));
+                case 'MAG_APER_3'
+                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,3), 10.^(0.4.*Args.ZP));    
+                case 'MAGERR_APER_1'
+                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,1).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,1);
+                    %Data(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
+                    %K = K + Naper - 1;
+                case 'MAGERR_APER_2'
+                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,2).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,2);
+                case 'MAGERR_APER_3'
+                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,3).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,3);    
+                case 'APER_AREA_1'
+                    Data(:,K) = Aper.AperArea(:,1);
+                    %Data(:,K:K+Naper-1) = Aper.AperArea;
+                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
+                    %K = K + Naper - 1;
+                case 'APER_AREA_2'
+                    Data(:,K) = Aper.AperArea(:,2);
+                case 'APER_AREA_3'
+                    Data(:,K) = Aper.AperArea(:,3);
+                    
                 case 'BACK_IM'
                     Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Back'});
                 case 'VAR_IM'  
@@ -391,7 +413,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                     % do nothing
                     % for forced photometry MITER is NaN
 
-                case 'flux_xypeak'
+                case 'FLUX_XYPEAK'
                     % flux at XPEAK, YPEAK
                     Data(:,K) = imUtil.image.getValPos(Obj(Iobj).(Args.ImageProp).Data - Obj(Iobj).BackData.Data, XI, YI);
 
@@ -410,52 +432,52 @@ function [Result] = forcedPhotNew(Obj, Args)
                     end
 
             end % switch Args.ColCell{Icol}
-
-
-            switch lower(Args.OutputType)
-                case 'concatai'
-                    % concat catalog to AstroCatalog in input AstroImage
-                    Result(Iobj).CatData.Catalog = [Result(Iobj).CatData.Catalog; Data];
-
-                case {'astrocatalog','astroimage'}
-                    %Out = AstroCatalog({Data}, 'ColNames',ColCellOut, 'ColUnits',ColUnitsOut);
-
-                    if strcmpi(Args.OutputType, 'astroimage')
-                        Result(Iobj).CatData.Catalog  = Data;
-                        Result(Iobj).CatData.ColNames = ColCellOut;
-                        Result(Iobj).CatData.ColUnits = ColUnitsOut;
-                    else
-                        if Iobj==1
-                            Result = AstroCatalog([Nobj, 1]);
-                        end
-                        %Result(Iobj) = Out;
-                        Result(Iobj).Catalog = Data;
-                        Result(Iobj).ColNames = ColCellOut;
-                        Resuly(Iobj).ColUnits = ColUnitsOut;
-                    end
-                case 'table'
-                    if Iobj==1
-                        Result = array2table(Data, 'VariableNames',Args.ColCell, 'VariableUnits',Args.ColUnits);
-                    else
-                        Result = [Result; array2table(Data)];
-                    end
-                case 'matchedsources'
-                    if Iobj==1
-                        Result = MatchedSources;
-                        for Icol=1:1:Ncol
-                            Result.Data.(Args.ColCell{Icol}) = nan(Nobj, NsrcAll);
-                        end
-                    end
-                    % table2struct / scalar do not do the work
-                    for Icol=1:1:Ncol
-                        Result.Data.(Args.ColCell{Icol})(Iobj,:) = Data(:,Icol).';
-                    end
-                    
-                    Result.JD(Iobj) = Obj(Iobj).HeaderData.julday();
-                otherwise
-                    error('Unknown OutputType option: %s', Args.OutputType);
-            end % switch lower(Args.OutputType)
         end %for Icol=1:1:Ncol
+
+        switch lower(Args.OutputType)
+            case 'concatai'
+                % concat catalog to AstroCatalog in input AstroImage
+                Result(Iobj).CatData.Catalog = [Result(Iobj).CatData.Catalog; Data];
+
+            case {'astrocatalog','astroimage'}
+                %Out = AstroCatalog({Data}, 'ColNames',ColCellOut, 'ColUnits',ColUnitsOut);
+
+                if strcmpi(Args.OutputType, 'astroimage')
+                    Result(Iobj).CatData.Catalog  = Data;
+                    Result(Iobj).CatData.ColNames = ColCellOut;
+                    Result(Iobj).CatData.ColUnits = ColUnitsOut;
+                else
+                    if Iobj==1
+                        Result = AstroCatalog([Nobj, 1]);
+                    end
+                    %Result(Iobj) = Out;
+                    Result(Iobj).Catalog = Data;
+                    Result(Iobj).ColNames = ColCellOut;
+                    Resuly(Iobj).ColUnits = ColUnitsOut;
+                end
+            case 'table'
+                if Iobj==1
+                    Result = array2table(Data, 'VariableNames',Args.ColCell, 'VariableUnits',Args.ColUnits);
+                else
+                    Result = [Result; array2table(Data)];
+                end
+            case 'matchedsources'
+                if Iobj==1
+                    Result = MatchedSources;
+                    for Icol=1:1:Ncol
+                        Result.Data.(Args.ColCell{Icol}) = nan(Nobj, NsrcAll);
+                    end
+                end
+                % table2struct / scalar do not do the work
+                for Icol=1:1:Ncol
+                    Result.Data.(Args.ColCell{Icol})(Iobj,:) = Data(:,Icol).';
+                end
+                
+                Result.JD(Iobj) = Obj(Iobj).HeaderData.julday();
+            otherwise
+                error('Unknown OutputType option: %s', Args.OutputType);
+        end % switch lower(Args.OutputType)
+    
     end %for Iobj=1:1:Nobj
 end
                         

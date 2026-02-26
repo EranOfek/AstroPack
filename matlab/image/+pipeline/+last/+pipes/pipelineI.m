@@ -162,8 +162,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % background variations
     MeanBack     = imProc.stat.mean(AllSI);
     %MeanVar      = imProc.stat.mean(AllSI);
-    MeanMeanBack = mean(MeanBack, 1); % mean background over all sub images in each epoch
-    MaxFracGrad  = (max(MeanBack,[],1) - min(MeanBack,[],1))./MeanMeanBack; % max fractional background gradient per epoch
+    MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
+    MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
 
     IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
 
@@ -193,7 +193,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
             % for each sub image - run over all epochs
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
             %if strcmpi(Args.OutputType, 'concatai')
-                AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 9.1 s [for all in loop]
+                AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
             %else
             %    error('Currently, adding forced phot is supported only using the ConcatAI option');
             %end
@@ -292,25 +292,31 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         end
     end
 
+    %tic;
     if Args.AddKnownAst
         % slower with parfor
         [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
-        if sum(OnlyMP.sizeCatalog)>0
+        Nast = OnlyMP.sizeCatalog;
+        if sum(Nast)>0
             % add CropID, Node, Mount, Cam, ID_COADD:
             Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
             StKey = Coadd(1).getStructKey(Cols);
             Vals  = struct2array(StKey);
-            AllCols = {'CROPID', Cols};
+            AllCols = {'CROPID', Cols{:}};
             for Isub=1:1:Nsub
-                OnlyMP(Isub).CatData.insertCol([Isub, Vals], Inf, AllCols);
+                if Nast(Isub)>0
+                    OnlyMP(Isub).insertCol([Isub, Vals], Inf, AllCols);
+                end
             end
-            OnlyMP = OnlyMP.merge;
+            OnlyMP = OnlyMP.merge('IsTable',true);
         else
             OnlyMP = AstroCatalog;
         end
     else
         OnlyMP = AstroCatalog;
     end
+    %toc
+    
 
     % write drifts to header
     for Isub=1:1:Nsub      
@@ -318,27 +324,27 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Coadd(Isub).HeaderData.insertKey(DataGM,'end');
     end
     
-    tic;
+    %tic;
     if Args.AddSrcAM
         AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
         Coadd = imProc.cat.addAirMass(Coadd, 'JD',JD, Args.Cat_addAirMassArgs{:});
     end
-    toc
+    %toc
 
 
     % photometric calibration
-    tic;
+    %tic;
     for Isub=1:1:Nsub
         [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
         [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
     end
-    toc
+    %toc
 
     % Coadd images
     % Photometric calibration of coadd images:
-    %tic;
-    %[Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 7.3s for all in loop
-    %toc
+    tic;
+    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+    toc
 
 
     % proapage photometric calibration to individual images
