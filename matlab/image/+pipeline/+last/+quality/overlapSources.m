@@ -134,7 +134,7 @@ function [Result] = overlapSources(AI, Args)
         scatter(X1(:),Y1(:),80, Foffset, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        title 'Center offset, pix'
+        title 'PSF center offset, pix'
         
         figure;
         dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});       
@@ -183,7 +183,7 @@ function Ind = LASToverlapsNew(Args)
     arguments
         Args.CroppingScheme = 'new';
     end
-% NB: this is LAST-specific!
+% NB: this is a LAST-specific indexing!
     if strcmpi(Args.CroppingScheme,'new')
         Ind = [1 2;   2  3;  3  4; ...
                5 6;   6  7;  7  8; ...
