@@ -10,7 +10,7 @@
 classdef PlanData < handle
     properties
         % The properties here are mapped to Postgres table columns
-        pk = []                % Primary key
+        pk = missing           % Primary key
         id = ''                % Unique plan ID
         plan_kind = 'imaging'  % Always 'imaging' for Observation Planner
         plan_type = ''         % Plan type (LCS, etc.)
@@ -18,10 +18,10 @@ classdef PlanData < handle
         title = ''             % Title of the plan
         status = ''            % Plan status
         created_by = ''        % User who created the plan
-        created_time = []      % Timestamp for creation
-        updated_time = []      % Timestamp for last update
-        start_time = []        % Start time of the plan
-        end_time = []          % End time of the plan
+        created_time = missing % Timestamp for creation
+        updated_time = missing % Timestamp for last update
+        start_time = missing   % Start time of the plan
+        end_time = missing     % End time of the plan
         allow_edit = true      % Allow edit or false for read-only
         deleted = false        % Soft delete flag
 
@@ -36,6 +36,8 @@ classdef PlanData < handle
         function obj = fromStruct(data)
             % Create new class instance from struct
             obj = ultrasat.api.utils.JsonUtils.struct2class(data, 'ultrasat.api.models.PlanData');
+            obj.ensureMetadataFields();
+            obj.ensureHistory();
         end
 
 
@@ -64,6 +66,32 @@ classdef PlanData < handle
                 'SubmitStatus', obj.newStatusData(), ...
                 'ValidationResponse', [] ...
             );
+        end
+
+
+        function ensureMetadataFields(obj)
+            % Ensure metadata has all required fields. Fills missing ones with empty defaults.
+            % Call after loading from struct (e.g. API) when metadata may have been stripped.
+            if isempty(obj.metadata) || ~isstruct(obj.metadata) || isempty(fieldnames(obj.metadata))
+                obj.metadata = obj.newMetadata();
+                return;
+            end
+            defaultMeta = obj.newMetadata();
+            for f = fieldnames(defaultMeta)'
+                fn = f{1};
+                if ~isfield(obj.metadata, fn)
+                    obj.metadata.(fn) = defaultMeta.(fn);
+                end
+            end
+        end
+
+
+        function ensureHistory(obj)
+            % Ensure history is a valid struct for addHistory. Initializes to empty struct if missing/invalid.
+            % Call after loading from struct (e.g. API) when history may have been stripped.
+            if isempty(obj.history) || ~isstruct(obj.history) || isempty(fieldnames(obj.history))
+                obj.history = struct();
+            end
         end
 
 

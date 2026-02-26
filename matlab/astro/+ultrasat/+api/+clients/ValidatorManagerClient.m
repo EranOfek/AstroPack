@@ -55,7 +55,6 @@ classdef ValidatorManagerClient < ultrasat.api.clients.ClientBase
                 % Convert targets to API format (datetime -> ISO string, duration -> seconds)
                 apiTargets = obj.targetsToApi(targets);
                 params = struct('targets', apiTargets);
-                params = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
 
                 response = obj.postRequest('/validate-targets', params);
 

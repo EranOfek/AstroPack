@@ -2332,7 +2332,7 @@ classdef uplanner < Component
         % ---------------------- Helper Functions ----------------------
         function dt = parseIsoDatetime(Obj, str)
             % Parse ISO 8601 datetime strings with 'Z' or timezone offsets
-            dt = ultrasat.api.parseIsoDateTime(str);
+            dt = ultrasat.api.utils.DateTimeUtils.parseIsoDateTime(str);
         end
         
         %
