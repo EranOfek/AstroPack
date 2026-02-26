@@ -12,12 +12,10 @@ function [Result] = stitchCrops(AI, Args)
     arguments
         AI
         Args.CCDSEC                  = 'CCDSEC';
-        Args.UNIQSEC                 = 'UNIQSEC';
+        Args.ORIGUSEC                = 'ORIGUSEC';
         Args.ORIGSEC                 = 'ORIGSEC';
         Args.UpdateWCS               = false;
         Args.UpdateZP                = false;
-        Args.HalfOverlapX            = 64; % pix;
-        Args.HalfOverlapY            = 97; % pix;
     end
     %
     Ncrop = numel(AI);
@@ -25,12 +23,16 @@ function [Result] = stitchCrops(AI, Args)
     Xmin  = zeros(Ncrop,1); Xmax  = zeros(Ncrop,1);
     Ymin  = zeros(Ncrop,1); Ymax  = zeros(Ncrop,1);
     CCDSEC= zeros(Ncrop,4); 
-    Uniq  = zeros(Ncrop,4);
+    OrigU = zeros(Ncrop,4);
     
+    % get the table indices of the pixel columns
+    IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
+    IndY = AI(1).CatData.colname2ind({'YPEAK','Y1','Y'});        
+            
     % read the sizes and locations, determine the overlaps   
     for Icrop = 1:Ncrop                        
         CCDSEC(Icrop,:) = AI(Icrop).HeaderData.getVal(Args.CCDSEC,'ReadCCDSEC',true);
-        Uniq(Icrop,:)   = AI(Icrop).HeaderData.getVal(Args.UNIQSEC,'ReadCCDSEC',true);
+        OrigU(Icrop,:)  = AI(Icrop).HeaderData.getVal(Args.ORIGUSEC,'ReadCCDSEC',true);
         Orig            = AI(Icrop).HeaderData.getVal(Args.ORIGSEC,'ReadCCDSEC',true);
         [Xmin(Icrop), Xmax(Icrop), Ymin(Icrop), Ymax(Icrop)] = deal(Orig(1),Orig(2),Orig(3),Orig(4));
     end
@@ -48,31 +50,31 @@ function [Result] = stitchCrops(AI, Args)
     % make an empty AstroImage    
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({nan(Nx,Ny)}); 
+    Result = AstroImage({nan(Ny,Nx)}); 
     
     % fill the new image with chopped crops, shift the catalog pixels    
     for Icrop = 1:Ncrop                
         if O.hasLeft(Icrop)
-            XUmin = Args.HalfOverlapX; % round((CCDSEC(Icrop,2)-Uniq(Icrop,2))/2);
-            ImaShiftX = CCDSEC(Icrop,2)-XUmin;
+            XUmin = OrigU(Icrop,1)-Xmin(Icrop); 
+            ImaShiftX = OrigU(Icrop,1)-X0; 
         else
             XUmin = CCDSEC(Icrop,1);
             ImaShiftX = XUmin-1;
         end
         if O.hasRight(Icrop)
-            XUmax = CCDSEC(Icrop,2)-Args.HalfOverlapX; % round((CCDSEC(Icrop,2)+Uniq(Icrop,2))/2);
+            XUmax = CCDSEC(Icrop,2)-(Xmax(Icrop)-OrigU(Icrop,2)); 
         else
             XUmax = CCDSEC(Icrop,2);
         end
         if O.hasBottom(Icrop)
-            YUmin = Args.HalfOverlapY; % round((CCDSEC(Icrop,4)-Uniq(Icrop,4))/2);
-            ImaShiftY = CCDSEC(Icrop,4)-YUmin;
+            YUmin = OrigU(Icrop,3)-Ymin(Icrop); 
+            ImaShiftY = OrigU(Icrop,3)-Y0; 
         else
             YUmin = CCDSEC(Icrop,3);
             ImaShiftY = YUmin-1;
         end
         if O.hasTop(Icrop)
-            YUmax = CCDSEC(Icrop,4)-Args.HalfOverlapY; %round((CCDSEC(Icrop,4)+Uniq(Icrop,4))/2);
+            YUmax = CCDSEC(Icrop,4)-(Ymax(Icrop)-OrigU(Icrop,4)); 
         else
             YUmax = CCDSEC(Icrop,4);
         end
@@ -80,10 +82,16 @@ function [Result] = stitchCrops(AI, Args)
         AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);             
         MCat(Icrop) = AIc.CatData;
         
-        IndX = MCat(Icrop).colname2ind({'XPEAK','X1','X'});
-        IndY = MCat(Icrop).colname2ind({'YPEAK','Y1','Y'});        
-        MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
-        MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
+        if O.hasLeft(Icrop)
+            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin;
+        else
+            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
+        end
+        if O.hasBottom(Icrop)
+            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin;
+        else
+            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
+        end
         
         Result.Image(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.Image;
     end
