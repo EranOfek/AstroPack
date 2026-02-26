@@ -2,7 +2,7 @@
 #include "healpix_base.h"
 
 // mex neighbors_nested.cpp -I/home/sasha/Downloads/Healpix_3.83/src/cxx/Healpix_cxx -I/home/sasha/Downloads/Healpix_3.83/src/cxx/cxxsupport -L/home/sasha/Downloads/Healpix_3.83/lib /home/sasha/Downloads/Healpix_3.83/lib/libhealpix_cxx.a -lstdc++ CXXFLAGS="\$CXXFLAGS -std=c++11"
-// example: ne = celestial.healpix.mex.neighbors_nested(8,20567) // NB! here 8 means nside = 2^8
+// example: ne = celestial.healpix.mex.neighbors_nested(8,int64(20567)) // NB! here 8 means nside = 2^8
 
 void mexFunction(int nlhs, mxArray *plhs[],
                  int nrhs, const mxArray *prhs[])
