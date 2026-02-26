@@ -1386,7 +1386,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         end
 
         % Save HTM index analytically (avoids building full HTM struct)
-        VO.prep.saveHTMIndexFast(Args.HTM_Level, IndFileName, sprintf('%s_HTM', Args.CatName), {}, Nsrc);
+        celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, sprintf('%s_HTM', Args.CatName), {}, Nsrc);
 
         if Args.Verbose
             fprintf('Saved HTM index: %s\n', IndFileName);
