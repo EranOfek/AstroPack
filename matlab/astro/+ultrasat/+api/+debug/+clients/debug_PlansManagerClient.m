@@ -3,10 +3,8 @@
 % File        : ultrasat.api.debug.clients.debug_PlansManagerClient.m
 % Author      : Chen Tishler
 % Created     : 18/02/2026
-% Updated     : 18/02/2026
+% Updated     : 26/02/2026
 % Description : Debug function for PlansManagerClient.
-%               Uses ClientFactory for baseUrl. Namespace 'dev'.
-%               Tests all client functions via debug_* helpers.
 %==========================================================================
 
 function debug_PlansManagerClient()
@@ -16,6 +14,9 @@ function debug_PlansManagerClient()
     baseUrl = factory.getServiceBaseUrl('plans_manager');
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
     client.Namespace = 'dev';
+
+    debug_saveHcsPlanOneTarget(client);
+    return;
 
     % Replicate PlannerMainStorageHelper save flow (savePlan + saveMatlabMat with planStruct.pk)
     debug_savePlanStorageHelper(client);
@@ -107,6 +108,18 @@ function debug_saveHcsPlanOneTarget(client)
         [PlanData, ~] = debug_createPlannerPlanData();
         planStruct = PlanData.toStruct();
         planStruct = rmfield(planStruct, 'planner');
+
+        % Temporary fix (23/02/2026) !!!!!!!!!! - NEED to fix model
+        planStruct = rmfield(planStruct, 'history');
+        planStruct = rmfield(planStruct, 'metadata');        
+
+        disp(class(planStruct.targets))
+        disp(class(planStruct.targets{1}))
+        
+        if iscell(planStruct.targets{1})
+            error("BUG: targets is cell of cell, must be cell of struct");
+        end
+
         response = client.savePlan(planStruct);
         fprintf('ok=%d, status=%s\n', response.ok, debug_getStatus(response));
         if response.ok && isfield(response, 'data') && ~isempty(response.data)
@@ -119,6 +132,7 @@ function debug_saveHcsPlanOneTarget(client)
     end
 end
 
+% ===========================================================================
 
 function debug_savePlanStorageHelper(client)
     % Replicate PlannerMainStorageHelper.savePlan flow exactly (including pk bug).
@@ -313,3 +327,4 @@ function v = debug_getField(s, fld, default)
         v = default;
     end
 end
+

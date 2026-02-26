@@ -85,6 +85,20 @@ classdef JsonUtils
         end
 
 
+        function s = replaceEmptyWithNull(s)
+            % Replace empty fields with <missing> (converted to json none)
+            fields = fieldnames(s);
+            for i = 1:numel(fields)
+                v = s.(fields{i});
+                if isnumeric(v) && isempty(v)
+                    s.(fields{i}) = missing;
+                elseif isstruct(v) && isscalar(v)
+                    s.(fields{i}) = ultrasat.api.utils.JsonUtils.replaceEmptyWithNull(v);
+                end
+            end
+        end
+
+
         function isEqual = cmpstruct(A, B)
             % Compare two structs by converting them to JSON string, to
             % avoid MATLAB's non-equality when using isequal()

@@ -97,10 +97,11 @@ classdef ClientBase < ultrasat.api.core.Loggable
                 error('postRequest:InvalidParams', 'params must be a struct');
             end
 
-            % Remove empty fields and convert to JSON
-            cleanedData = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
-            jsonData = ultrasat.api.utils.JsonUtils.struct2json(cleanedData);
-            jsonData = jsondecode(jsonData);
+            % Remove empty fields so python basemodel will not get [] when expecting 'none'
+            paramsNonEmpty = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
+
+            % Convert datetime objects recursively to ISO string ("2026-02-26T09:41:34.840Z")
+            paramsIsoDT = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(paramsNonEmpty);
 
             % Create HTTP headers
             headers = [
@@ -113,14 +114,20 @@ classdef ClientBase < ultrasat.api.core.Loggable
                 headers = [headers, HeaderField('namespace', char(obj.Namespace))];
             end
 
-            % Create and send the HTTP request
-            body = MessageBody(jsonData);
+            % Prepare message body from struct
+            body = MessageBody(paramsIsoDT);
+
+            % Prepare POST request from headers and body
             request = RequestMessage('POST', headers, body);
+
+            % Prepare options with timeout value
             options = HTTPOptions('ConnectTimeout', obj.Timeout);
 
             try
+                % Send the HTTP request
                 rawResponse = send(request, url, options);
 
+                % Check returned response
                 if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
                     respJson = jsonencode(rawResponse.Body.Data);
                     response = ultrasat.api.utils.JsonUtils.json2struct(respJson);
@@ -239,9 +246,11 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
         end
 
-        % -----------------------------------------------------------------
+        % ===============================================================
+        %                         CURRENTLY UNUSED
+        % ===============================================================
 
-        function postRequestAsync(obj, endpoint, params, callback)
+        function postRequestAsync_UNUSED(obj, endpoint, params, callback)
             % CURRENTLY UNUSED - Sends an asynchronous POST request to the API
             %
             % :param endpoint: API endpoint path (appended to BaseUrl).
@@ -262,7 +271,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
             end
 
             % Remove empty fields and convert to JSON
-            cleanedData = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
+            %cleanedData = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
 
             % Create HTTP headers (match postRequest)
             headers = [HeaderField('Content-Type', 'application/json')];
@@ -273,7 +282,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
                 headers = [headers, HeaderField('namespace', char(obj.Namespace))];
             end
 
-            body = MessageBody(cleanedData);
+            body = MessageBody(params);   %cleanedData);
             request = RequestMessage('POST', headers, body);
 
             % Start an asynchronous request using a timer
@@ -286,7 +295,7 @@ classdef ClientBase < ultrasat.api.core.Loggable
 
         % -----------------------------------------------------------------
 
-        function sendFilesWithParams(obj, url, filePaths, params)
+        function sendFilesWithParams_UNUSED(obj, url, filePaths, params)
             % CURRENTLY UNUSED - Sends a multipart/form-data request with files and parameters.
             %
             % :param url: Target API endpoint URL.

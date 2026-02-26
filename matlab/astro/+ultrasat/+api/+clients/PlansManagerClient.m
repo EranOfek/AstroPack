@@ -52,7 +52,6 @@ classdef PlansManagerClient < ultrasat.api.clients.ClientBase
             if ~isempty(EndTime), params.end_time = EndTime; end
             if ~isempty(Status), params.status = Status; end
             if ~isempty(Mode), params.mode = Mode; end
-            params = ultrasat.api.utils.JsonUtils.removeEmptyFields(params);
             response = obj.postRequest('/get-plans', params);
             response.ok = strcmp(response.status, 'ok');
         end
@@ -114,54 +113,84 @@ classdef PlansManagerClient < ultrasat.api.clients.ClientBase
 
     methods (Access = private)
         function apiStruct = planStructToApi(obj, s)
-            % Convert MATLAB plan struct to API (Python) field names.
+            % Convert MATLAB plan struct to API (Python PlanData/PlanTarget) format.
             apiStruct = s;
-            
+
             % Remove planner field - we do not send the planner object to the backend
             % with save-plan endpoint, there is separate save-matlab-mat call
             if isfield(apiStruct, 'planner')
                 apiStruct = rmfield(apiStruct, 'planner');
             end
 
-            % Update targets fields (duration conversion only; planTable2struct already outputs decl)
+            % PlanData-level type coercion for API compatibility
+            if isfield(apiStruct, 'allow_edit') && ~islogical(apiStruct.allow_edit)
+                apiStruct.allow_edit = logical(apiStruct.allow_edit);
+            end
+            if isfield(apiStruct, 'deleted') && ~islogical(apiStruct.deleted)
+                apiStruct.deleted = logical(apiStruct.deleted);
+            end
+
+            % Convert targets to API PlanTarget format
             if isfield(apiStruct, 'targets') && ~isempty(apiStruct.targets)
-                t = apiStruct.targets;
-                if iscell(t)
-                    for i = 1:numel(t)
-                        % Convert duration fields to numeric seconds (jsonencode cannot serialize duration)
-                        if isfield(t{i}, 'exposure') && isduration(t{i}.exposure)
-                            t{i}.exposure = seconds(t{i}.exposure);
-                        end
-                        if isfield(t{i}, 'total_seconds') && isduration(t{i}.total_seconds)
-                            t{i}.total_seconds = seconds(t{i}.total_seconds);
-                        end
-                        if isfield(t{i}, 'total_duration') && isduration(t{i}.total_duration)
-                            t{i}.total_duration = seconds(t{i}.total_duration);
-                        end
-                        if isfield(t{i}, 'slew_time_before') && isduration(t{i}.slew_time_before)
-                            t{i}.slew_time_before = seconds(t{i}.slew_time_before);
-                        end
-                    end
-                else
-                    for i = 1:numel(t)
-                        % Convert duration fields to numeric seconds (jsonencode cannot serialize duration)
-                        if isfield(t(i), 'exposure') && isduration(t(i).exposure)
-                            t(i).exposure = seconds(t(i).exposure);
-                        end
-                        if isfield(t(i), 'total_seconds') && isduration(t(i).total_seconds)
-                            t(i).total_seconds = seconds(t(i).total_seconds);
-                        end
-                        if isfield(t(i), 'total_duration') && isduration(t(i).total_duration)
-                            t(i).total_duration = seconds(t(i).total_duration);
-                        end
-                        if isfield(t(i), 'slew_time_before') && isduration(t(i).slew_time_before)
-                            t(i).slew_time_before = seconds(t(i).slew_time_before);
-                        end
+
+                % Struct arrays only encode as JSON arrays when they have more than one element. 
+                % Cell arrays always encode as JSON arrays regardless of size.
+                t = num2cell(apiStruct.targets);
+
+                useCell = iscell(t);
+                for i = 1:numel(t)
+                    if useCell
+                        t{i} = obj.convertTargetToApi(t{i});
+                    else
+                        t(i) = obj.convertTargetToApi(t(i));
                     end
                 end
                 apiStruct.targets = t;
             end
+
             apiStruct = ultrasat.api.utils.DateTimeUtils.convertDatetimeToString(apiStruct);
+        end
+
+
+        function t = convertTargetToApi(obj, t)
+            % Convert single target struct to API PlanTarget format.
+            % Handles duration->int seconds, slew_time_before->slew_before, type coercion.
+            %
+            % :param t: Single target struct (from planTable2struct or similar).
+            % :return: Target struct with API-compatible field types and names.
+            if isfield(t, 'exposure')
+                if isduration(t.exposure)
+                    t.exposure = round(seconds(t.exposure));
+                else
+                    t.exposure = round(double(t.exposure));
+                end
+            end
+            if isfield(t, 'total_seconds')
+                if isduration(t.total_seconds)
+                    t.total_seconds = int32(round(seconds(t.total_seconds)));
+                else
+                    t.total_seconds = int32(round(double(t.total_seconds)));
+                end
+            end
+            if isfield(t, 'total_duration') && isduration(t.total_duration)
+                t.total_duration = round(seconds(t.total_duration));
+            end
+            if isfield(t, 'slew_time_before')
+                if isduration(t.slew_time_before)
+                    t.slew_before = round(seconds(t.slew_time_before));
+                else
+                    t.slew_before = round(double(t.slew_time_before));
+                end
+                t = rmfield(t, 'slew_time_before');
+            end
+
+            % Coerce float fields (ra, decl, roll) to double
+            if isfield(t, 'ra'), t.ra = double(t.ra); end
+            if isfield(t, 'decl'), t.decl = double(t.decl); end
+            if isfield(t, 'roll'), t.roll = double(t.roll); end
+            % Coerce int fields (API expects int)
+            if isfield(t, 'image_count'), t.image_count = int32(round(double(t.image_count))); end
+            if isfield(t, 'exposure'), t.exposure = int32(round(double(t.exposure))); end
         end
     end
 
