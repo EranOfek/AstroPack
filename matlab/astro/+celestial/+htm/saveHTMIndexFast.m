@@ -1,13 +1,12 @@
 function saveHTMIndexFast(Level, FileName, VarName, Attrib, Nsrc)
 % Save HTM index HDF5 file computed analytically (fast, no struct build)
-% Package: VO.prep
+% Package: celestial.htm
 % Description: Fast alternative to HDF5.save_htm_ind that computes the
 %              13-column HTM index Data matrix directly from the level
 %              number using vectorized level-by-level subdivision.
-%              Avoids building the massive HTM struct array (htm_build)
+%              Avoids building the HTM struct array (htm_build)
 %              and the O(N^2) Nsrc lookup of save_htm_ind.
-%              For HTM level 11 (~11M nodes), runs in tens of seconds
-%              instead of hours. Output is identical to save_htm_ind.
+%              1Output is identical to save_htm_ind.
 % Input  :   - Level: HTM level (integer). Tree has levels 0..Level-1.
 %                     Level L has 8*4^L cells. Total nodes = 8*(4^Level - 1)/3.
 %            - FileName: HDF5 file name for output.
@@ -19,7 +18,7 @@ function saveHTMIndexFast(Level, FileName, VarName, Attrib, Nsrc)
 %                    Default is [].
 % Output :   null
 % Author : Dana Kovaleva (Feb 2026)
-% Example: VO.prep.saveHTMIndexFast(7, 'PS1DR2_htm.hdf5', 'PS1DR2_HTM', {}, Nsrc)
+% Example: celestial.htm.saveHTMIndexFast(7, 'PS1DR2_htm.hdf5', 'PS1DR2_HTM', {}, Nsrc)
 
     %------------------------------------------------------------------
     % Handle default arguments

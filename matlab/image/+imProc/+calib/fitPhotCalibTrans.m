@@ -48,6 +48,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD);
     %          % Calibrate only New:
     %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AD, 'DiffCalibProps', {'New'});
+    %          % Per-source airmass mode:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', {'PerSourceAirmass', true});
 
     arguments
         Obj  % AstroImage, AstroCatalog, AstroDiff, or AstroZOGY

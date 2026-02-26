@@ -78,10 +78,12 @@ classdef PlanDataUtils
                 PlanData.targets = planner.planTable2struct();
                 PlanData.status = planner.Status;
 
+                % Moved to PlansManagerClient.planStructToApi()
+                
                 % Convert targets to cell array if it is a single struct, required for proper JSON serialization
-                if numel(PlanData.targets) == 1
-                    PlanData.targets = {PlanData.targets};
-                end
+                %if numel(PlanData.targets) == 1
+                %    PlanData.targets = {PlanData.targets};
+                %end
             end
         end
 

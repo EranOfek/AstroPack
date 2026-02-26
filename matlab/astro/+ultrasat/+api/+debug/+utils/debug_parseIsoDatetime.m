@@ -46,7 +46,7 @@ function debug_parseIsoDatetime()
         tc = testCases{i};
 
         try
-            result = ultrasat.services.common.parseIsoDatetime(tc.in);
+            result = ultrasat.api.utils.DateTimeUtils.parseIsoDateTime(tc.in);
 
             pass = false;
             if (isnat(result) && isnat(tc.exp))

@@ -201,7 +201,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            upLCS.buildLCS('TargetList', SelectedRows);
+            upLCS.buildLCS1('TargetList', SelectedRows);
 
             app.addHistory('BuildLCS Ok');
             obj.setBuildStatus(app, 'OK');

@@ -58,7 +58,7 @@ classdef OpenPlan < matlab.apps.AppBase
             app.UITable.RowName = "numbered";
 
             % Load the initial list
-            app.getList();
+            % app.getList();
         end
         
 
@@ -74,70 +74,14 @@ classdef OpenPlan < matlab.apps.AppBase
             start_time = app.StartTimeEditField.Value;
             end_time = app.EndTimeEditField.Value;
             title_subtext = app.PlanTitleEditField.Value;
-            
-            % Convert empty fields to [] so API gets empty values if not provided
-            if isempty(start_time)
-                start_time = [];
-            end
-            if isempty(end_time)
-                end_time = [];
-            end
-            if isempty(title_subtext)
-                title_subtext = [];
-            end
-        
+                   
             % Fetch the plans list from API
             try
-                response = app.PlannerMainStorageHelper.getPlansList(start_time, end_time, title_subtext);            
+                MainApp = app.MainModule.MainApp;
+                MainApp.StorageHelper.getPlansListToUITable(MainApp, start_time, end_time, title_subtext, app.UITable);
             catch ME
                 uialert(app.UIFigure, sprintf('Failed to retrieve plans list: %s', ME.message), 'Error');
                 return;
-            end
-
-            if ~response.ok
-                % @Todo Show alert (use msgbox or uialert)
-                uialert(app.UIFigure, 'Failed to retrieve plans list', 'Error');
-                return;
-            end
-            
-            % Convert struct array to table if not empty
-            if ~isempty(response.plans)
-                %Data = struct2table(response.plans);
-                Data = app.MainModule.TableHelper.plansToTopLevelTable(response.plans);
-                Data = app.MainModule.TableHelper.convertTableDatetimeToString(Data);
-                Data = app.MainModule.TableHelper.selectTableColumns(Data, {'pk','plan_type', 'ast_planner', 'title','status', 'create_time', 'update_time', 'start_time', 'end_time'});
-
-                % Sort table by update_time or create_time
-                % Safely detect if all update_time cells are empty
-                
-                % Convert update_time cells into strings (empty cells become "")
-                update_str = cell(size(Data.update_time));
-                for i = 1:numel(Data.update_time)
-                    if isempty(Data.update_time{i})
-                        update_str{i} = "";
-                    else
-                        update_str{i} = string(Data.update_time{i});
-                    end
-                end
-                update_str = string(update_str);
-                
-                % If all update times are empty, sort by create_time
-                if all(update_str == "")
-                    Data = sortrows(Data, 'create_time', 'descend');
-                else
-                    % Replace column temporarily for sorting
-                    Data.update_time = update_str;
-                    Data = sortrows(Data, 'update_time', 'descend');
-                end
-
-
-
-                app.UITable.Data = Data;
-                app.UITable.ColumnName = Data.Properties.VariableNames;  
-                app.UITable.ColumnSortable = true;
-            else
-                % Clear the table if no plans are found
-                app.UITable.Data = [];
             end
         end
     end
