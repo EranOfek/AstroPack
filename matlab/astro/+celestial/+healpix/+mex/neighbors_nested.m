@@ -4,4 +4,4 @@
 %          - a healpix nested index
 % Output : - A vector of indexes of the neighboring pixels 
 % Author : A.M. Krassilchtchikov (2026 Feb) 
-% Example: ne = celestial.healpix.mex.neighbors_nested(8,20567) // NB: here 8 means Nside = 2^8
+% Example: ne = celestial.healpix.mex.neighbors_nested(8,int64(20567)) // NB: here 8 means Nside = 2^8
