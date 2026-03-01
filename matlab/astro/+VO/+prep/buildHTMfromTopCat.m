@@ -233,6 +233,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.ColUnits         = {}          % Column units for output
         Args.QueryMethod      = 'java'      % 'java'|'http' (TopCat handles fallback)
         Args.SyncMode         = 'sync'      % 'sync'|'async' (async for slow TAP services)
+        Args.JavaOpts         = ''         % Extra JVM flags (e.g. proxy: '-Dhttps.proxyHost=... -Dhttps.proxyPort=...')
         Args.HTM              = []          % Pre-built HTM structure
         Args.LevelHTM         = []          % Pre-built LevelHTM structure
         Args.SaveInd          = true        % Save index HDF file at the end
@@ -385,7 +386,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 
         % Run sample query to get data and MATLAB-sanitized column names
         T = Tap.query(SampleQuery, 'TapUrl', Args.TapUrl, 'TimeoutSec', Args.TimeoutSec, ...
-                      'Method', Args.QueryMethod, 'SyncMode', Args.SyncMode, 'WorkDir', Args.LocalDir);
+                      'Method', Args.QueryMethod, 'SyncMode', Args.SyncMode, 'JavaOpts', Args.JavaOpts, 'WorkDir', Args.LocalDir);
         if isempty(T) || ~istable(T)
             error('VO:buildHTMfromTopCat:NoColumns', ...
                 'Could not query column names from TAP service');
@@ -497,7 +498,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     if ischar(Args.HTM_Level) && strcmpi(Args.HTM_Level, 'auto')
         Args.HTM_Level = autoSelectLevel(Tap, TableName, Args.TapUrl, ...
                                           Args.AutoLevelMaxSrc, Args.AutoLevelRange, ...
-                                          Args.WhereClause, Args.TimeoutSec, Args.SyncMode, Args.Verbose);
+                                          Args.WhereClause, Args.TimeoutSec, Args.SyncMode, Args.JavaOpts, Args.Verbose);
     end
 
     % Determine if partial HTM build is beneficial
@@ -1613,7 +1614,7 @@ function [Data, QueryFailed] = downloadQueryCone(TableName, ColumnsStr, IndHTM, 
     % Execute query with retry logic
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, WorkDir);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.JavaOpts, WorkDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'Query cell %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
@@ -1657,7 +1658,7 @@ function [Data, QueryFailed] = downloadQueryConeSeq(Tap, TableName, ColumnsStr, 
     % Execute query with retry logic
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.LocalDir);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.JavaOpts, Args.LocalDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'Query cell %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
@@ -1772,7 +1773,7 @@ function [Data, QueryFailed] = downloadAggregateCell(TableName, ColumnsStr, Outp
 
         try
             T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, WorkDir);
+                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.JavaOpts, WorkDir);
         catch
             AnyFailed = true;
             continue;
@@ -2090,7 +2091,7 @@ function [NsrcCell, QueryFailed] = downloadAggregateCellWithWrite(TableName, Col
                                        SearchRadiusDeg, Args.QueryType, Args.WhereClause);
         try
             T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, WorkDir);
+                               Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.JavaOpts, WorkDir);
         catch
             AnyFailed = true;
             continue;
@@ -2151,7 +2152,7 @@ function [NsrcResults, QueryFailed] = downloadQueryConeWithWrite(TableName, Colu
                                    SearchRadiusDeg, Args.QueryType, Args.WhereClause);
     try
         T = queryWithRetry(Tap, Query, Args.MaxRetries, Args.RetryPauseSec, ...
-                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, WorkDir);
+                           Args.TapUrl, Args.TimeoutSec, Args.QueryMethod, Args.SyncMode, Args.JavaOpts, WorkDir);
     catch ME
         warning('VO:buildHTMfromTopCat:QueryFailed', ...
             'Query cell %d: Query failed after %d retries: %s', IndHTM, Args.MaxRetries, char(ME.message));
@@ -2309,11 +2310,11 @@ function [Data, ColNames, NumericMask, ReorderIdx] = tableToMatrixWithInfo(T, Co
 end
 
 
-function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, TimeoutSec, QueryMethod, SyncMode, WorkDir)
+function T = queryWithRetry(Tap, Query, MaxRetries, RetryPauseSec, TapUrl, TimeoutSec, QueryMethod, SyncMode, JavaOpts, WorkDir)
     % Execute TAP query with retry logic
     for Attempt = 1:MaxRetries
         try
-            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'SyncMode', SyncMode, 'WorkDir', WorkDir);
+            T = Tap.query(Query, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'Method', QueryMethod, 'SyncMode', SyncMode, 'JavaOpts', JavaOpts, 'WorkDir', WorkDir);
             return;
         catch ME
             if Attempt < MaxRetries
@@ -2381,7 +2382,7 @@ function ColNames = parseCSVHeader(HeaderLine)
 end
 
 
-function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRange, WhereClause, TimeoutSec, SyncMode, Verbose)
+function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRange, WhereClause, TimeoutSec, SyncMode, JavaOpts, Verbose)
     % Automatically select HTM level based on estimated catalog size
 
     if Verbose
@@ -2396,7 +2397,7 @@ function Level = autoSelectLevel(Tap, TableName, TapUrl, MaxSrcPerCell, LevelRan
     end
 
     try
-        T = Tap.query(Q, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'SyncMode', SyncMode);
+        T = Tap.query(Q, 'TapUrl', TapUrl, 'TimeoutSec', TimeoutSec, 'SyncMode', SyncMode, 'JavaOpts', JavaOpts);
 
         % Handle different result formats
         if istable(T)
