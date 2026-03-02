@@ -151,6 +151,8 @@ classdef TopCat < Base
             %            'Ofmt' - Format. Default is 'csv'.
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             %            'TimeoutSec' - Timeout in sec. Default is 600.
+            %            'SyncMode' - 'sync' (default) | 'async'.
+            %            'JavaOpts' - (string) extra JVM flags. Default: ''
             %            'JarFile' - Jar file full path.
             %                   Default is VO.TopCat.getStiltsJarPath()
             % Output : - A table with results.
@@ -172,6 +174,8 @@ classdef TopCat < Base
                 Args.Ofmt       = 'csv';
                 Args.WorkDir string = string(tempdir);
                 Args.TimeoutSec = 600;
+                Args.SyncMode   = 'sync';
+                Args.JavaOpts   = '';
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
             end
 
@@ -215,7 +219,7 @@ classdef TopCat < Base
 
             switch lower(Args.Method)
                 case 'java'
-                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec, 'WorkDir',Args.WorkDir);
+                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec, 'SyncMode',Args.SyncMode, 'JavaOpts',Args.JavaOpts, 'WorkDir',Args.WorkDir);
                 case 'http'
                     T = VO.TopCat.queryHttp(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec); % , 'WorkDir',Args.WorkDir);
                 otherwise
@@ -675,6 +679,10 @@ classdef TopCat < Base
             %                   To download file use installer.
             %                   In = installer; In.install('TopCatJar');
             %            'TimeoutSec' - best-effort timeout (sec). Default: 600
+            %            'SyncMode' - (string) 'sync' (default) | 'async'.
+            %            'JavaOpts' - (string) extra JVM flags, e.g.
+            %                   '-Dhttps.proxyHost=proxy -Dhttps.proxyPort=8080'
+            %                   or '-Djava.net.preferIPv4Stack=true'. Default: ''
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
             % Author : ChatGPT + Eran Ofek (Aug 2025)
@@ -689,6 +697,8 @@ classdef TopCat < Base
                 Args.StiltsCmd  string = ""
                 Args.StiltsJar  string = VO.TopCat.getStiltsJarPath();
                 Args.TimeoutSec double = 600
+                Args.SyncMode   string = "sync"
+                Args.JavaOpts   string = ""
                 Args.WorkDir    string = string(tempdir)
             end
         
@@ -719,7 +729,12 @@ classdef TopCat < Base
                         jar = fullfile(home, jar(3:end));
                     end
                 end
-                base = sprintf('java -Xmx1g -jar "%s"', jar);
+                javaOpts = strtrim(char(Args.JavaOpts));
+                if isempty(javaOpts)
+                    base = sprintf('java -Xmx1g -jar "%s"', jar);
+                else
+                    base = sprintf('java -Xmx1g %s -jar "%s"', javaOpts, jar);
+                end
             elseif strlength(Args.StiltsCmd) > 0
                 base = char(Args.StiltsCmd);
             else
@@ -729,7 +744,12 @@ classdef TopCat < Base
             % Escape ADQL for safe double-quoted shell argument
             AdqlEsc = VO.TopCat.escapeForShellDoubleQuotes(Query);
         
-            % Assemble tapquery command (inline ADQL; force sync; capture stderr)
+            % Assemble tapquery command (inline ADQL; capture stderr)
+            if strcmpi(Args.SyncMode, 'sync')
+                SyncStr = 'true';
+            else
+                SyncStr = 'false';
+            end
             cmdParts = {
                 base, 'tapquery', ...
                 ['tapurl="' TapUrl '"'], ...
@@ -738,7 +758,7 @@ classdef TopCat < Base
                 'omode=out', ...
                 ['ofmt=' Ofmt], ...
                 ['out="' outfile '"'], ...
-                'sync=true'
+                ['sync=' SyncStr]
             };
             cmd = strjoin(cmdParts, ' ');
 
