@@ -1,15 +1,52 @@
-% Package Unit-Test: tools.interp
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % Package Unit-Test   
-	%io.msgStyle(LogLevel.Test, '@start', 'test started');
-    
+    % Unit-Test for tools.interp2
+
+    %% mex.interp2_*
+
+    [Xin, Yin] = meshgrid((1:1716),(1:1716));
+    [XoutM, YoutM] = meshgrid((1:1716)+5.9, (1:1716)+11.3);
+    Xout = (1:1716)+5.9;
+    Yout = (1:1716).'+11.3;
+    Z    = Xin.^1.1 + Yin.^1.3;
+
+    % interp2
+    A=interp2(Xin,Yin, Z, XoutM, YoutM, 'linear');
+    A1=tools.interp.mex.interp2_bilinear_mex(Xin, Yin, Z, XoutM, YoutM);
+    %max(abs(A-A1)./Z,[],'all')
+    if max(abs(A0-A1)./Z,[],'all')>1e-12
+        error('Problem with tools.interp.mex.interp2_bilinear_mex');
+    end
+
+    A=interp2(Xin,Yin, Z, XoutM, YoutM, 'cubic');
+    A1=tools.interp.mex.interp2_cubic_mex(Xin, Yin, Z, XoutM, YoutM);
+    if max(abs(A-A1)./Z,[],'all')>1e-4
+        error('Problem with tools.interp.mex.interp2_cubic_mex');
+    end
+
+    A=interp2(Xin,Yin, Z, XoutM, YoutM, 'nearest');
+    A1=tools.interp.mex.interp2_nearest_mex(Xin, Yin, Z, XoutM, YoutM);
+    %max(abs(A-A1),[],'all')
+    if max(abs(A-A1),[],'all')>1e-14
+        error('Problem with tools.interp.mex.interp2_nearest_mex');
+    end
+
+    A=interp2(Xin,Yin, Z, XoutM, YoutM, 'cubic');
+    A1=tools.interp.mex.interp2_lanczos2_mex(Xin, Yin, Z, XoutM, YoutM);
+    %max(abs(A-A1)./Z,[],'all')
+    if max(abs(A-A1)./Z,[],'all')>0.03
+        error('Problem with tools.interp.mex.interp2_lanczos2_mex');
+    end
+
+    A=interp2(Xin,Yin, Z, XoutM, YoutM, 'cubic');
+    A1=tools.interp.mex.interp2_lanczos3_mex(Xin, Yin, Z, XoutM, YoutM);
+    %max(abs(A-A1)./Z,[],'all')
+    if max(abs(A-A1)./Z,[],'all')>0.03
+        error('Problem with tools.interp.mex.interp2_lanczos3_mex');
+    end
+
+
+
+    %%
     Size = 1726;
     V=single(rand(Size,Size));                                                             
     [MatX,MatY]=meshgrid((1:Size),(1:Size));
