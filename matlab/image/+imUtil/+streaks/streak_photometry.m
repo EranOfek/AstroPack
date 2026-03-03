@@ -1,4 +1,5 @@
-function [phot,extsegs,curve]=streak_photometry(im,segs,offlength,offside,sigmaclip)
+function [phot,extsegs,curve,stripeindices]=...
+            streak_photometry(im,segs,offlength,offside,sigmaclip,clipping)
 % given an image and a set of candidate streak segments, select for each one
 % all image pixels lying on a stripe offside broad and extended offlength beyond seg
 % extremes. With the values of those pixels, compute:
@@ -16,16 +17,31 @@ function [phot,extsegs,curve]=streak_photometry(im,segs,offlength,offside,sigmac
 %    offlength: number of pixels to extend the search, along the direction
 %               of seg. Default 1.
 %    offside: number of the lateral pixels of the search region. Default 3.
-%    sigmaclip: upper thresold of pixel intensity to consider for
-%               aperture photometry and curve fit, in units of std of the
-%               intensity over the search strip. Used to ignore bright 
-%               sources within the strip. Default 5.
+%    sigmaclip:  control parameter to discard outlier intensities, whose meaning
+%               depends on the method used:
+%               -for clipping='sigma'
+%                   upper threshold of pixel intensity to consider for
+%                   aperture photometry and curve fit, in units of std of the
+%                   intensity over the search strip. Used to ignore bright 
+%                   sources within the strip. Default 5.
+%               -for clipping='quantile'
+%                   pixels whose intensity is above the given quantile are
+%                   discarded. Default 0.98, must be between 0 and 1.
+%               -for clipping='gaussianfit'
+%                   the intensity values of individual slices of the search
+%                   strip are fitted to a gaussian function. The whole
+%                   slice is discarded if R^2 of the fit is < sigmaclip
+%                   (default 0.7, must be <1)
+%    clipping: the source clipping method used: 'sigma','quantile' or
+%              'gaussianfit' (default, slower)
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
 %    - curve: coefficients {a,b,c} of the parabolic fits
 %             to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
 %             where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
+%    - stripeindices: if requested, a cell with the list of pixels used to
+%                     analize each stripe (discarding intensity outliers)
 %
 % Author: Enrico Segre, Jan 2026
 % Taking from what I have previously done in imUtil.art.createSegments,
@@ -37,13 +53,28 @@ function [phot,extsegs,curve]=streak_photometry(im,segs,offlength,offside,sigmac
         segs
         offlength=3;
         offside=3;
-        sigmaclip=5; % might be increased if offside is large or image is very clean
+        sigmaclip=[]; % defaults set below according to method
+        clipping {mustBeMember(clipping, {'sigma','quantile','gaussianfit'})} ...
+             = 'gaussianfit';
     end
     
+    if isempty(sigmaclip)
+        switch clipping
+            case 'gaussianfit'
+                sigmaclip=0.7;
+            case 'sigma'
+                sigmaclip=5;
+            case 'quantile'
+                sigmaclip=0.98;
+        end
+    end
     nsegs=size(segs,2);
     phot=nan(1,nsegs);
     extsegs=nan(size(segs));
     curve=nan(3,nsegs);
+    if nargout==4
+        stripeindices=cell(1,nsegs);
+    end
     
     for i=1:nsegs
         x1=segs(1,i);
@@ -73,20 +104,41 @@ function [phot,extsegs,curve]=streak_photometry(im,segs,offlength,offside,sigmac
         mask = (d2<offside^2);
         
         pp=im(mask);
-        mpp=nanmean(pp);
-        spp=nanstd(pp);
-        % sigma clipped sum (clip only brighter, not darker)
-        smask=mask & im<mpp+sigmaclip*spp;
-        scpp=im(smask);
-        phot(i)=sum(scpp)/Lext *numel(pp)/numel(scpp);
-        % why not this (which as of now gives results farther from
-        %  implanted)?
-        %phot(i)=median(scpp)*numel(pp)/Lext;
+        mpp=mean(pp,'omitnan');
+        spp=std(pp,'omitnan');
+
+        switch clipping
+            case 'gaussianfit'
+                % exploring slice fits
+                [~,goodindices] = sliceGaussianProfile([x1,y1],[x2,y2],...
+                    px(mask),py(mask),pp,10,sigmaclip);
+                scpp=pp(goodindices);
+                smask= false(size(mask));
+                mindexes=find(mask);
+                smask(mindexes(goodindices)) = true;
+            case 'sigma'
+                % sigma clipped sum (clip only brighter, not darker)
+                smask=mask & im<mpp+sigmaclip*spp;
+                scpp=im(smask);
+            case 'quantile'
+                % quantile clip
+                smask=mask & im<quantile(pp,sigmaclip);
+                scpp=im(smask);
+        end
+
+        if nargout==4
+            stripeindices{i}=find(smask);
+        end
 
         % fit a parabola
         curve(:,i) = weightedParabolicOffset([x1,y1],[x2,y2],px(smask),py(smask),scpp);
         % offset at extremes: [curve(3,i), sum(curve(:,i))]
         % max offset: -curve(2,i)^2/(4*curve(1,i)) + curve(3,i)
+
+        phot(i)=sum(scpp)/Lext *numel(pp)/numel(scpp);
+        % why not this (which as of now gives results farther from
+        %  implanted)?
+        %phot(i)=median(scpp)*numel(pp)/Lext;
 
         % second pass photometry: only consider the pixels traversed by
         %  the fitting parabola. Rationale, we are working with images
@@ -163,5 +215,90 @@ function [X,Y]=segmentParabolicOffset(X1,X2,C,t)
     Y = X1(2) + (X2(2)-X1(2))*t + (X2(1)-X1(1))*h/L;
 end
 
+%%
+function [C,goodindices] = sliceGaussianProfile(X1,X2,x,y,W,slice_width,...
+    rthreshold,testplot)
+% divide the rasterized strip in slices, and fit gaussians to the intensity
+%  values W in each slice
+% Input:
+%  X1: [x1,y1]; X2: [x2,y2] of the base segment
+%  x,y,W: Nx1 vectors
+%  x,y: coordinates in pixels of the pixels belonging to the streak strip
+%  W:   intensity of the pixels
+%  slice_width: length in pixel of each sectionof the strip to be analysed
+%               separately (default 10px)
+%  rthreshold: minimal value of R^2 for accepting a fit. Usually sections
+%              of streaks contaminated by a neighboring source lead to
+%              poorer transverse fits than the rest. Default 0.7
+%
+% C:           4xM for each slice, (A,sigma,mu_h,r). M is L/slice_width.
+% goodindices: logical vector 1xN, true for indices of elements of W which
+%              lead to an acceptable fit (R-square>rthreshold)
+%
 
-    
+    arguments
+        X1
+        X2
+        x
+        y
+        W double
+        slice_width=10; % pixel units
+        rthreshold=0.7;
+        testplot=false;
+    end
+
+    % transform to intrinsic coordinates (t(X1)=0, t(X2)=1)
+    L=sqrt((X2-X1)*(X2-X1)');
+    T=((X2(1)-X1(1))*(x-X1(1)) + (X2(2)-X1(2))*(y-X1(2)))/L^2;
+    D=((X2(1)-X1(1))*(y-X1(2)) - (X2(2)-X1(2))*(x-X1(1)))/L;
+
+    M=ceil(L/slice_width);
+    C=NaN(4,M);
+    goodindices=false(size(W));
+
+    % for fit
+    %opt=fitoptions('gauss1','Lower',[0 -slice_width, 0],...
+    %    'Upper',[Inf slice_width slice_width]);
+ 
+    % for lsqcurvefit
+    % with constant background
+    %gaussianModel = @(params, D) params(1) * exp(-((D - params(2)).^2) / (2 * params(3)^2)) + params(4);
+    % with no background level
+    gaussianModel = @(params, D) params(1) * exp(-((D - params(2)).^2) / (2 * params(3)^2));
+    opt = optimoptions('lsqcurvefit', 'Display', 'off');
+
+    for i=1:M
+        q = T>(i-1)/M & T<=i/M;
+        try
+            % fit() has a simpler call but is slower
+            %         [result,gof]=fit(D(q),W(q),'gauss1',opt);
+            %         C(1:3,i)=[result.a1; result.b1; result.c1];
+            %         C(4,i)=gof.rsquare;
+            initialParams = [max(W(q)), mean(D(q)), std(D(q)), min(W(q))];
+            fitParams = lsqcurvefit(gaussianModel, initialParams, D(q), W(q),...
+                [0 -slice_width, 0 -Inf], [Inf slice_width slice_width Inf], opt);
+            %            [0 -slice_width, 0 -Inf], [Inf slice_width slice_width Inf], opt);
+            C(1:3,i)=fitParams(1:3)';
+            % Compute R-squared
+            W_fit = gaussianModel(fitParams, D(q));
+            SS_res = sum((W(q) - W_fit).^2);       % Residual sum of squares
+            SS_tot = sum((W(q) - mean(W(q))).^2);  % Total sum of squares
+            C(4,i) = 1 - (SS_res / SS_tot);        % R-squared value
+            if C(4,i)>rthreshold
+                goodindices(q)=true;
+            end
+        catch
+            fprintf('no fit for slice %d\n',i)
+        end
+    end
+
+    if testplot
+        clf
+        scatter(T,D,[],W,'filled')
+        hold on
+        H=C(2,:)';
+        H(C(4,:)<rthreshold)=NaN;
+        plot((0.5:1:M)/M, H, '-k','LineWidth',2)
+        hold off
+    end
+end
