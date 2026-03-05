@@ -69,6 +69,7 @@ classdef PhotCalibTrans < Component
     %     photCalibTransToHeader - Write calibration results to AstroHeader
     %     photCalibTransFromHeader - Read calibration data from AstroHeader
     %   Catalog Operations:
+    %     calcAperCorr - Calculate aperture corrections from FLUX_APER_N / FLUX_PSF ratios
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
     %     addZP - Add position-dependent ZP column to catalog
     %   Display/Output Methods:
@@ -95,7 +96,7 @@ classdef PhotCalibTrans < Component
         Humidity = NaN          % Relative humidity [%]
         Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
         ExpTime = 1             % Exposure time [s]
-        NCoadd = 1              % Number of coadded images (default: single image)
+        NCoadd = 1              % Number of coadded images (defaAperCorult: single image)
 
         % Calibrator information (empty until calibration)
         SpecData = []           % Structure with reference spectral data from selectCalibrators:
@@ -116,6 +117,10 @@ classdef PhotCalibTrans < Component
         % Per-source airmass
         AirmassColName = 'AIRMASS'          % Column name for per-source airmass in catalog
         PerSourceAirmass logical = false    % Whether per-source airmass was actually used
+
+        % Aperture corrections
+        AperCorr = []           % [1 x N_aper] aperture corrections in mag (APER_1, APER_2, APER_3)
+        AperCorrNStars = 0      % Number of stars used for aperture correction calculation
 
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
@@ -237,6 +242,12 @@ classdef PhotCalibTrans < Component
                 Args.FluxErrorNorm    = 0.5
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
+
+                % Aperture correction
+                Args.CalcAperCorr logical = true
+                Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'
+                Args.AperCorrSNColName = 'SN'       % S/N column for filtering
+                Args.AperCorrMinSN    = 30           % Minimum S/N for aperture correction stars
 
                 Args.MagSystem char   = 'AB'
                 Args.Verbose logical  = true
@@ -634,6 +645,15 @@ classdef PhotCalibTrans < Component
 
             % Evaluate success criteria
             Obj = Obj.populateSuccess('Verbose', Args.Verbose);
+
+            % Calculate aperture corrections if requested
+            if Args.CalcAperCorr
+                Obj = Obj.calcAperCorr(CurrentCat, ...
+                    'Method', Args.AperCorrMethod, ...
+                    'SNColName', Args.AperCorrSNColName, ...
+                    'MinSN', Args.AperCorrMinSN, ...
+                    'Verbose', Args.Verbose);
+            end
 
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
@@ -1890,6 +1910,18 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Aperture corrections
+            if ~isempty(Obj.AperCorr)
+                for Iaper = 1:length(Obj.AperCorr)
+                    KeyName = sprintf('APERCOR%d', Iaper);
+                    HeaderObj = HeaderObj.replaceVal(KeyName, Obj.AperCorr(Iaper));
+                    if Args.WriteComments
+                        IComment = IComment + 1;
+                        HistoryComments{IComment} = sprintf('%s: Aperture correction for APER_%d [mag]', KeyName, Iaper);
+                    end
+                end
+            end
+
             % Write HISTORY comments at the end if requested
             if Args.WriteComments
                 % Trim to actual size
@@ -2098,6 +2130,132 @@ classdef PhotCalibTrans < Component
     end
 
     methods % Catalog operations
+        function Obj = calcAperCorr(Obj, CatObj, Args)
+            % Calculate aperture corrections from flux ratios FLUX_APER_N / FLUX_PSF
+            % Input  : - PhotCalibTrans object.
+            %          - AstroCatalog object with FLUX_APER_N and FLUX_PSF columns.
+            %          * ...,key,val,...
+            %            'SNColName'      - S/N column name for filtering. Default is 'SN_PSF'.
+            %            'MinSN'          - Minimum S/N for star selection. Default is 30.
+            %            'MaxSN'          - Maximum S/N. Default is Inf.
+            %            'Method'         - 'median' or 'weighted'. Default is 'median'.
+            %            'AperFluxPrefix' - Prefix for aperture flux columns. Default is 'FLUX_APER_'.
+            %            'PSFFluxColName' - PSF flux column name. Default is 'FLUX_PSF'.
+            %            'Verbose'        - Enable verbose output. Default is false.
+            % Output : - PhotCalibTrans object with AperCorr and AperCorrNStars populated.
+            % Author : D. Kovaleva (Mar 2026)
+            % Example: PC = PC.calcAperCorr(Cat);
+            %          PC = PC.calcAperCorr(Cat, 'Method', 'weighted', 'MinSN', 50);
+
+            arguments
+                Obj
+                CatObj
+                Args.SNColName = 'SN'
+                Args.MinSN = 30
+                Args.MaxSN = Inf
+                Args.Method = 'median'
+                Args.AperFluxPrefix = 'FLUX_APER_'
+                Args.PSFFluxColName = 'FLUX_PSF'
+                Args.Verbose logical = false
+            end
+
+            % Get column names
+            AllColNames = CatObj.Table.Properties.VariableNames;
+
+            % Check that PSF flux column exists
+            if ~ismember(Args.PSFFluxColName, AllColNames)
+                if Args.Verbose
+                    fprintf('  calcAperCorr: %s column not found - skipping\n', Args.PSFFluxColName);
+                end
+                return;
+            end
+
+            % Find aperture flux columns
+            AperCols = AllColNames(startsWith(AllColNames, Args.AperFluxPrefix));
+            AperCols = sort(AperCols);
+            Naper = numel(AperCols);
+            if Naper == 0
+                if Args.Verbose
+                    fprintf('  calcAperCorr: No %s* columns found - skipping\n', Args.AperFluxPrefix);
+                end
+                return;
+            end
+
+            % Filter by S/N
+            if ismember(Args.SNColName, AllColNames)
+                SN = CatObj.getCol(Args.SNColName);
+                Mask = SN > Args.MinSN & SN < Args.MaxSN;
+            else
+                if Args.Verbose
+                    fprintf('  calcAperCorr: S/N column %s not found - using all sources\n', Args.SNColName);
+                end
+                Mask = true(CatObj.sizeCatalog, 1);
+            end
+
+            NStars = sum(Mask);
+            if NStars < 5
+                if Args.Verbose
+                    fprintf('  calcAperCorr: Only %d high-S/N stars - skipping\n', NStars);
+                end
+                return;
+            end
+
+            % Get PSF flux for selected stars
+            FluxPSF = CatObj.getCol(Args.PSFFluxColName);
+            FluxPSF = FluxPSF(Mask);
+
+            % Calculate aperture correction for each aperture
+            AperCorrVec = zeros(1, Naper);
+            for Iaper = 1:Naper
+                FluxAper = CatObj.getCol(AperCols{Iaper});
+                FluxAper = FluxAper(Mask);
+
+                % Compute flux ratio and filter invalid values
+                Ratio = FluxAper ./ FluxPSF;
+                ValidRatio = Ratio > 0 & isfinite(Ratio);
+                Ratio = Ratio(ValidRatio);
+
+                if numel(Ratio) < 5
+                    AperCorrVec(Iaper) = NaN;
+                    continue;
+                end
+
+                switch lower(Args.Method)
+                    case 'median'
+                        AperCorrVec(Iaper) = -2.5 * log10(median(Ratio, 'omitnan'));
+                    case 'weighted'
+                        MagDiff = -2.5 * log10(Ratio);
+                        FluxErrColName = strrep(AperCols{Iaper}, 'FLUX_', 'FLUXERR_');
+                        PSFErrColName = strrep(Args.PSFFluxColName, 'FLUX_', 'FLUXERR_');
+                        if ismember(FluxErrColName, AllColNames) && ismember(PSFErrColName, AllColNames)
+                            FluxAperErr = CatObj.getCol(FluxErrColName);
+                            FluxPSFErr = CatObj.getCol(PSFErrColName);
+                            FluxAperErr = FluxAperErr(Mask);
+                            FluxPSFErr = FluxPSFErr(Mask);
+                            FluxAperErr = FluxAperErr(ValidRatio);
+                            FluxPSFErr = FluxPSFErr(ValidRatio);
+                            RelErr = sqrt((FluxAperErr ./ FluxAper(ValidRatio)).^2 + ...
+                                          (FluxPSFErr ./ FluxPSF(ValidRatio)).^2);
+                            MagErr = 1.086 .* RelErr;
+                            AperCorrVec(Iaper) = tools.math.stat.wmedian(MagDiff, MagErr, 1);
+                        else
+                            AperCorrVec(Iaper) = -2.5 * log10(median(Ratio, 'omitnan'));
+                        end
+                end
+            end
+
+            % Store results
+            Obj.AperCorr = AperCorrVec;
+            Obj.AperCorrNStars = NStars;
+
+            if Args.Verbose
+                fprintf('  Aperture corrections (N=%d stars):\n', NStars);
+                for Iaper = 1:Naper
+                    fprintf('    %s: %.4f mag\n', AperCols{Iaper}, AperCorrVec(Iaper));
+                end
+            end
+        end
+
         function CatObj = addMag(Obj, CatObj, Args)
             % Add calibrated magnitude columns to catalog
             % Input  : - PhotCalibTrans object.
@@ -2141,6 +2299,7 @@ classdef PhotCalibTrans < Component
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.AddMagErr logical = true  % Add magnitude error columns
                 Args.AddZP logical = false  % Also insert ZP column (avoids recomputing)
+                Args.ApplyAperCorr logical = false  % Apply aperture correction to MAG_APER_N columns
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
 
@@ -2250,6 +2409,15 @@ classdef PhotCalibTrans < Component
                 % Create new calibrated magnitude column name
                 % e.g., FLUX_APER_3 -> MAG_AB_APER_3
                 NewMagColName = strrep(FluxColName, 'FLUX_', MagPrefix);
+
+                % Apply aperture correction if requested (only for FLUX_APER_N columns)
+                if Args.ApplyAperCorr && ~isempty(Obj.AperCorr) && startsWith(FluxColName, 'FLUX_APER_')
+                    AperIdxStr = extractAfter(FluxColName, 'FLUX_APER_');
+                    AperIdx = str2double(AperIdxStr);
+                    if ~isnan(AperIdx) && AperIdx >= 1 && AperIdx <= length(Obj.AperCorr)
+                        Mag = Mag + Obj.AperCorr(AperIdx);
+                    end
+                end
 
                 % Insert magnitude column into catalog
                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
