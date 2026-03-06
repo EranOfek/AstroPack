@@ -65,7 +65,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
         GalRadius  = 3.*10.^CatPGC(:,4);
         GalZ       = CatPGC(:,Args.ColPGCZ);
         DistPGC    = celestial.coo.sphere_dist_fast(RA(Itarget), Dec(Itarget), CatPGC(:,1), CatPGC(:,2));
-        Igal       = find(DistPGC<CatRadius);
+        Igal       = find(DistPGC<GalRadius);
         if isempty(Igal)
             Npgc  = 1;
             Z_PGC = NaN;
