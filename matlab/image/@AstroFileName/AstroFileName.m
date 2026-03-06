@@ -2371,11 +2371,13 @@ classdef AstroFileName < Component
                     if Args.AddVersion
                         % search existing StrHMS
                         if PathExist
-                            StrFolder = string({DirList.folder});
+                            StrFolder = string({DirList.name});
                             FlagContain = contains(StrFolder, Result);
-                            Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
-                            AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
-                            MaxVersion  = max(AllVersions);
+                            MaxVersion = sum(FlagContain);
+
+                            %Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
+                            %AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
+                            %MaxVersion  = max(AllVersions);
                             
                             if isempty(MaxVersion)
                                 MaxVersion = 0;
@@ -2425,6 +2427,8 @@ classdef AstroFileName < Component
             %                   there is more than one dir with this time
             %                   stampe. First dir alwas have v0.
             %                   Default is false.
+            %            'StartWithNumber' - Version start with number.
+            %                   Default is 0.
             % Output : - A char array containing the suggested SubDir name
             %            that does not exist in path. 
             %          - Only if the second argument is requested, then the
@@ -2436,6 +2440,7 @@ classdef AstroFileName < Component
                 Obj
                 Args.OneIfEmpty logical   = true;
                 Args.UseTime logical      = true;
+                Args.StartWithNumber      = 1;
             end
 
             Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
@@ -2449,7 +2454,7 @@ classdef AstroFileName < Component
                 SpTime  = split(Obj.Time{1},'.');
                 Result  = SpTime{2};
                 Flag    = contains({Dir.name}, Result);
-                Version = sum(Flag);
+                Version = sum(Flag) + Args.StartWithNumber;
                 Result  = sprintf('%sv%d',Result, Version);
             else
                 % SUbDir is a number

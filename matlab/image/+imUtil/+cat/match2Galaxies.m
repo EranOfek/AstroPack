@@ -20,7 +20,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     %            'SearchRadGlade' - Search radius for GLADE.
     %                   Default is 10 arcsec.
     %            'ColGladeZ' - Column index of redshift in the GLADE catalog.
-    %                   Default is XX
+    %                   Default is 21 (z_cmb)
     % Output : - A structure with the following fields:
     %            .IsInLMC - A logical array indicating if target is
     %                   associated with the LMC.
@@ -29,6 +29,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     %            .IsInM33 - Same for M33.
     %            .Npgc - Number of PGC matches.
     %            .Z_PGC - Min redshift of PGC galaxy in matched radius.
+    %                  This redshift is obtained from NED.
     %            .Nglade - Number of GLADE matches.
     %            .Z_GLADE - Min redshift of GLADE galaxy in matched radius.
     % Author : Eran Ofek (2026 Mar) 
@@ -40,12 +41,16 @@ function [Result] = match2Galaxies(RA, Dec, Args)
         Args.InUnits           = 'deg';  % 'deg'|'rad'|'sex'|'ned'|'simbad'|
         Args.Server            = @VO.name.server_ned;
 
+        Args.CatNamePGC        = 'PGC';
+        Args.CatNameGLADE      = 'GLADEp';
         Args.SearchRadPGC      = 1000;  % arcsec
         Args.ColPGCZ           = 19;
         Args.SearchRadGlade    = 10;    % arcsec
-        Args.ColGladeZ         = [];
+        Args.ColGladeZ         = 21;  % z_cmb
 
     end
+    RAD = 180./pi;
+    ARCSEC_DEG = 3600;
 
     % read coordinates / convert to radinas
     [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad', 'Server',Args.Server);
@@ -61,16 +66,17 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     Npgc  = zeros(Ntarget,1);
     Z_PGC = zeros(Ntarget,1);
     for Itarget=1:1:Ntarget
-        CatPGC     = catsHTM.cone_search('PGC', RA(Itarget), Dec(Itarget), Args.SearchRadPGC);
-        GalRadius  = 3.*10.^CatPGC(:,4);
+        CatPGC     = catsHTM.cone_search(Args.CatNamePGC, RA(Itarget), Dec(Itarget), Args.SearchRadPGC);
+        GalRadius  = 3.*10.^CatPGC(:,4);  % arcsec
+        GalRadius  = GalRadius./(RAD.*ARCSEC_DEG); % rad
         GalZ       = CatPGC(:,Args.ColPGCZ);
-        DistPGC    = celestial.coo.sphere_dist_fast(RA(Itarget), Dec(Itarget), CatPGC(:,1), CatPGC(:,2));
+        DistPGC    = celestial.coo.sphere_dist_fast(RA(Itarget), Dec(Itarget), CatPGC(:,1), CatPGC(:,2)); % rad
         Igal       = find(DistPGC<GalRadius);
         if isempty(Igal)
             Npgc  = 1;
             Z_PGC = NaN;
         else
-            [~,Imin] = DistPGC(Igal);
+            [~,Imin] = min(DistPGC(Igal));
             Npgc     = numel(Igal);
             Z_PGC    = GalZ(Igal(Imin));
         end
@@ -80,9 +86,11 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     Nglade  = zeros(Ntarget,1);
     Z_GLADE = nan(Ntarget,1);
     for Itarget=1:1:Ntarget
-        CatGlade = catsHTM.cone_search('GLADEp', RA(Itarget), Dec(Itarget), Args.SearchRadGlade);
-        Nglade(Itarget)   = size(CatGlade);
-        Z_GLADE(Itarget)  = min(CatGlade(:,Args.ColGladeZ));
+        CatGlade = catsHTM.cone_search(Args.CatNameGLADE, RA(Itarget), Dec(Itarget), Args.SearchRadGlade);
+        Nglade(Itarget)   = size(CatGlade,1);
+        if Nglade(Itarget)>0
+            Z_GLADE(Itarget)  = min(CatGlade(:,Args.ColGladeZ));
+        end
     end
 
     % search SDSS
