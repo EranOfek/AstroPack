@@ -808,7 +808,7 @@ classdef TopCat < Base
             end
         
             % Cleanup
-            try, delete(outfile); end %#ok<TRYNC>
+            try delete(outfile); end %#ok<TRYNC>
         end
 
 

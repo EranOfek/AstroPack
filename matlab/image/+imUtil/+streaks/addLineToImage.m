@@ -33,7 +33,7 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
         Intensity         = 1;
         PSF               = [];
         Curvature         = 0;
-        Args.Norm         = 'none';
+        Args.Norm {mustBeMember(Args.Norm, {'none','total','LxI'})}  = 'LxI';
     end
 
     % Copy image to output
@@ -79,7 +79,9 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
                 % normalize by Length X Intensity
                 % conserve flux
                 Length = sqrt((MinX-MaxX).^2 + (MinY-MaxY).^2);
-                Brightness(I) = Intensity(I)/(Length*numel(Indices));
+                Brightness(I) = Intensity(I)*Length/numel(Indices);
+            case 'total'
+                Brightness(I) = Intensity(I)/numel(Indices);
             otherwise
                 error('Unknown Norm option');
         end
@@ -100,11 +102,13 @@ function [OutImage,fluxes] = addLineToImage(Image, Coords, Intensity, PSF, Curva
 
         switch lower(Args.Norm)
             case 'none'
-                fluxes(I) = fluxes(I)/numel(Indices);
+                %fluxes(I) = fluxes(I)/numel(Indices);
             case 'lxi'
                 % normalize by Length X Intensity
                 % conserve flux
-                fluxes(I) = fluxes(I)/(Length*numel(Indices));
+                fluxes(I) = fluxes(I)/Length;
+            case 'total'
+                fluxes(I) = fluxes(I)*numel(Indices);
         end
 
         OutImage = OutImage+StreakImage;

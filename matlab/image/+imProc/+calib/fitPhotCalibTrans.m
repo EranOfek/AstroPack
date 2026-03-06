@@ -66,6 +66,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
         Args.AddMagErr logical = false
+        Args.CalcAperCorr logical = true
+        Args.ApplyAperCorr logical = false
         Args.Verbose logical = false
     end
 
@@ -121,6 +123,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 'Verbose', Args.Verbose, 'AddMagErr', Args.AddMagErr, ...
                 'AddMag', Args.AddMag, 'MagSystem', Args.MagSystem, ...
                 'FluxColName', Args.FluxColName, 'AddZP', Args.AddZP, ...
+                'CalcAperCorr', Args.CalcAperCorr, 'ApplyAperCorr', Args.ApplyAperCorr, ...
                 'UpdateHeader', Args.UpdateHeader, 'CreateNewObj', false);
 
             % Store calibrated images back into Result
@@ -186,6 +189,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % ----------------------------------------------------------------
 
         PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ...
+            'CalcAperCorr', Args.CalcAperCorr, ...
             'MagSystem', Args.MagSystem, 'Verbose', Args.Verbose);
 
         % ----------------------------------------------------------------
@@ -199,12 +203,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                     Result(Iobj).CatData = PC.addMag(Result(Iobj).CatData, ...
                         'MagSystem', Args.MagSystem, ...
                         'AddMagErr', Args.AddMagErr, ...
-                        'AddZP', Args.AddZP);
+                        'AddZP', Args.AddZP, ...
+                        'ApplyAperCorr', Args.ApplyAperCorr);
                 else
                     Result(Iobj) = PC.addMag(Result(Iobj), ...
                         'MagSystem', Args.MagSystem, ...
                         'AddMagErr', Args.AddMagErr, ...
-                        'AddZP', Args.AddZP);
+                        'AddZP', Args.AddZP, ...
+                        'ApplyAperCorr', Args.ApplyAperCorr);
                 end
             elseif Args.AddZP
                 % AddMag=false but AddZP=true: call addZP separately
@@ -387,6 +393,11 @@ function CalibArgs = predefCalibArgs(Args)
         % Per-source airmass
         Args.AirmassColName   = 'AIRMASS'   % Column name for per-source airmass
         Args.PerSourceAirmass logical = false  % Enable per-source airmass mode
+
+        % Aperture correction
+        Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'
+        Args.AperCorrSNColName = 'SN'       % S/N column for filtering
+        Args.AperCorrMinSN    = 30          % Minimum S/N for aperture correction stars
     end
 
     CalibArgs = namedargs2cell(Args);

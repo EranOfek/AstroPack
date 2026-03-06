@@ -269,20 +269,23 @@ function [C,goodindices] = sliceGaussianProfile(X1,X2,x,y,W,slice_width,...
 
     for i=1:M
         q = T>(i-1)/M & T<=i/M;
+        Dq=D(q);
+        Wq=W(q);
         try
             % fit() has a simpler call but is slower
             %         [result,gof]=fit(D(q),W(q),'gauss1',opt);
             %         C(1:3,i)=[result.a1; result.b1; result.c1];
             %         C(4,i)=gof.rsquare;
-            initialParams = [max(W(q)), mean(D(q)), std(D(q)), min(W(q))];
-            fitParams = lsqcurvefit(gaussianModel, initialParams, D(q), W(q),...
-                [0 -slice_width, 0 -Inf], [Inf slice_width slice_width Inf], opt);
+            % initialParams = [max(W(q)), mean(D(q)), std(D(q)), min(W(q))];
+            initialParams = [max(Wq), mean(Dq), std(Dq)];
+            fitParams = lsqcurvefit(gaussianModel, initialParams, Dq, Wq,...
+            [0 -slice_width, 0], [Inf slice_width Inf], opt);
             %            [0 -slice_width, 0 -Inf], [Inf slice_width slice_width Inf], opt);
             C(1:3,i)=fitParams(1:3)';
             % Compute R-squared
             W_fit = gaussianModel(fitParams, D(q));
-            SS_res = sum((W(q) - W_fit).^2);       % Residual sum of squares
-            SS_tot = sum((W(q) - mean(W(q))).^2);  % Total sum of squares
+            SS_res = sum((Wq - W_fit).^2);       % Residual sum of squares
+            SS_tot = sum((Wq - mean(Wq)).^2);  % Total sum of squares
             C(4,i) = 1 - (SS_res / SS_tot);        % R-squared value
             if C(4,i)>rthreshold
                 goodindices(q)=true;
