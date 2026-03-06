@@ -64,21 +64,24 @@ function [Result] = match2Galaxies(RA, Dec, Args)
 
     % Search PGC with galaxy radius
     Npgc  = zeros(Ntarget,1);
-    Z_PGC = zeros(Ntarget,1);
+    Z_PGC = nan(Ntarget,1);
     for Itarget=1:1:Ntarget
+        Itarget
         CatPGC     = catsHTM.cone_search(Args.CatNamePGC, RA(Itarget), Dec(Itarget), Args.SearchRadPGC);
-        GalRadius  = 3.*10.^CatPGC(:,4);  % arcsec
-        GalRadius  = GalRadius./(RAD.*ARCSEC_DEG); % rad
-        GalZ       = CatPGC(:,Args.ColPGCZ);
-        DistPGC    = celestial.coo.sphere_dist_fast(RA(Itarget), Dec(Itarget), CatPGC(:,1), CatPGC(:,2)); % rad
-        Igal       = find(DistPGC<GalRadius);
-        if isempty(Igal)
-            Npgc  = 1;
-            Z_PGC = NaN;
-        else
-            [~,Imin] = min(DistPGC(Igal));
-            Npgc     = numel(Igal);
-            Z_PGC    = GalZ(Igal(Imin));
+        if ~isempty(CatPGC)
+            GalRadius  = 3.*10.^CatPGC(:,4);  % arcsec
+            GalRadius  = GalRadius./(RAD.*ARCSEC_DEG); % rad
+            GalZ       = CatPGC(:,Args.ColPGCZ);
+            DistPGC    = celestial.coo.sphere_dist_fast(RA(Itarget), Dec(Itarget), CatPGC(:,1), CatPGC(:,2)); % rad
+            Igal       = find(DistPGC<GalRadius);
+            if isempty(Igal)
+                Npgc(Itarget)  = 1;
+                Z_PGC(Itarget) = NaN;
+            else
+                [~,Imin] = min(DistPGC(Igal));
+                Npgc(Itarget)     = numel(Igal);
+                Z_PGC(Itarget)    = GalZ(Igal(Imin));
+            end
         end
     end
 
@@ -86,6 +89,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     Nglade  = zeros(Ntarget,1);
     Z_GLADE = nan(Ntarget,1);
     for Itarget=1:1:Ntarget
+        Itarget
         CatGlade = catsHTM.cone_search(Args.CatNameGLADE, RA(Itarget), Dec(Itarget), Args.SearchRadGlade);
         Nglade(Itarget)   = size(CatGlade,1);
         if Nglade(Itarget)>0
