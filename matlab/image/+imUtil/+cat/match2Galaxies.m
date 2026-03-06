@@ -1,5 +1,5 @@
 function [Result] = match2Galaxies(RA, Dec, Args)
-    % Match positions to known galaxies and redsift
+    % Match positions to known galaxies and redshift
     %   The matching is done effectively one by one.
     %   I.e., this function is good when the tested coordinates are spread
     %   over the sky.
