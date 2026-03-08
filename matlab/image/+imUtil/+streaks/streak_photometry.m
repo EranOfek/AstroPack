@@ -36,6 +36,9 @@ function [phot,extsegs,curve,stripeindices]=...
 %    'clipping': the source clipping method used: 'sigma','quantile' or
 %              'gaussianfit' (default, slower)
 %    'slice_width': width of the anlalysis slice in pixels. default 10.
+%    'linephot': whether to return also the photometry of each streak
+%                slice. Setting it to true slows down also
+%                clipping={sigma,quantile}. Default false.
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
@@ -59,6 +62,7 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
         Args.slice_width=10; % pixel units
+        Args.linephot=false;
     end
     
     if isempty(Args.sigmaclip)
@@ -155,17 +159,19 @@ function [phot,extsegs,curve,stripeindices]=...
             otherwise
                 num_slices=ceil(Lext/Args.slice_width);
                 tm=(1/2:1:num_slices)/num_slices; % note that t may be extended
-                for k=1:num_slices
-                    q = t>(k-1)/num_slices & t<=k/num_slices;
-                    pp=im(mask & q);
-                    scpp=im(smask & q);
-                    if ~isempty(scpp)
-                        curve(i).linephot(k)=...
-                            numel(pp)* mean(scpp,'omitnan')/Args.slice_width;
-                    else
-                        curve(i).linephot(k)=NaN;
-                    end
+                if Args.linephot
+                    for k=1:num_slices
+                        q = t>(k-1)/num_slices & t<=k/num_slices;
+                        pp=im(mask & q);
+                        scpp=im(smask & q);
+                        if ~isempty(scpp)
+                            curve(i).linephot(k)=...
+                                numel(pp)* mean(scpp,'omitnan')/Args.slice_width;
+                        else
+                            curve(i).linephot(k)=NaN;
+                        end
                 end
+            end
         end
                 
         [X,Y]=segmentParabolicOffset([x1,y1],[x2,y2],curve(i).parfit,tm);
