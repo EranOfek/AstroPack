@@ -1183,6 +1183,11 @@ classdef PhotCalibTrans < Component
                 Args.Y = []
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.PerSourceZenithAngles = []  % [N_pos x 1] per-source zenith angles [deg]
+                Args.RefTransParams = []  % Reference transmission parameter vector.
+                                          % When non-empty, uses these spectral params
+                                          % but keeps this crop's own Norm for ZP evaluation.
+                Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode).
+                                                 % If false (default), swap Norm back to crop's own (refshape mode).
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -1205,8 +1210,21 @@ classdef PhotCalibTrans < Component
                 % Build per-source AllFunPar matrix
                 AllFunPar = Obj.TransModel.getAllFunPar();
                 AllNames = AllFunPar.Name;
+
+                % If RefTransParams provided, use reference spectral params
+                if ~isempty(Args.RefTransParams)
+                    BaseParams = Args.RefTransParams(:)';
+                    if ~Args.UseRefNorm
+                        % refshape: keep crop's own Norm
+                        NormIdx = find(strcmp(AllNames, 'Norm'));
+                        BaseParams(NormIdx) = AllFunPar.Val(NormIdx);
+                    end
+                else
+                    BaseParams = AllFunPar.Val(:)';
+                end
+
                 ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
-                PerSourceParams = repmat(AllFunPar.Val(:)', N_pos, 1);  % [N_pos x N_params]
+                PerSourceParams = repmat(BaseParams, N_pos, 1);  % [N_pos x N_params]
                 PerSourceParams(:, ZenithIdx) = Args.PerSourceZenithAngles(:);
 
                 % Evaluate per-source transmission: [N_wvl x N_pos]
@@ -1240,7 +1258,19 @@ classdef PhotCalibTrans < Component
             else
                 % === Single airmass mode (original path) ===
                 % Evaluate BASE transmission (without position-dependent correction)
-                TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
+                if ~isempty(Args.RefTransParams)
+                    % Uniform photometry: use reference spectral params
+                    MixedParams = Args.RefTransParams(:)';
+                    if ~Args.UseRefNorm
+                        % refshape: keep crop's own Norm
+                        AllFunPar = Obj.TransModel.getAllFunPar();
+                        NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
+                        MixedParams(NormIdx) = AllFunPar.Val(NormIdx);
+                    end
+                    TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda, MixedParams);
+                else
+                    TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
+                end
                 TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
 
                 % Create flat Fnu spectrum for AB zero-point
@@ -2300,6 +2330,8 @@ classdef PhotCalibTrans < Component
                 Args.AddMagErr logical = true  % Add magnitude error columns
                 Args.AddZP logical = false  % Also insert ZP column (avoids recomputing)
                 Args.ApplyAperCorr logical = false  % Apply aperture correction to MAG_APER_N columns
+                Args.RefTransParams = []  % Reference transmission params for uniform photometry
+                Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode)
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
 
@@ -2384,6 +2416,10 @@ classdef PhotCalibTrans < Component
                 end
                 if ~isempty(PerSourceZenithAngles)
                     ZPArgs = [ZPArgs, 'PerSourceZenithAngles', PerSourceZenithAngles(ValidPosMask)];
+                end
+                if ~isempty(Args.RefTransParams)
+                    ZPArgs = [ZPArgs, 'RefTransParams', Args.RefTransParams, ...
+                                      'UseRefNorm', Args.UseRefNorm];
                 end
                 ZP_valid = Obj.evaluateZP(ZPArgs{:});
                 ZP(ValidPosMask) = ZP_valid(:);
@@ -3017,6 +3053,202 @@ classdef PhotCalibTrans < Component
             xlabel('Optimization Stage');
             title('Goodness of Fit Evolution');
             xticks(1:Nstages);
+        end
+    end
+
+    methods (Static)
+        function Fig = plotZPMosaic(PCarray, Args)
+            % Plot seamless mosaic of zero point maps from array of PhotCalibTrans
+            % Input  : - PCarray - [1 x Nobj] array of PhotCalibTrans objects
+            %          * ...,key,val,...
+            %            'CropIDs' - [1 x Nobj] crop IDs. If empty, reads from
+            %                        header via CropIDKey. Default is [].
+            %            'CropIDKey' - Header key for crop ID. Default is 'CROPID'.
+            %            'Ncols' - Number of columns in grid. Default is 4.
+            %            'Nrows' - Number of rows in grid. Default is 6.
+            %            'SubImgSize' - Subimage size [Nx, Ny] pixels. Default is [1550, 1550].
+            %            'GridRes' - Interpolation grid resolution [pixels]. Default is 20.
+            %            'SmoothSigma' - Gaussian smoothing sigma [grid units]. Default is 3.
+            %            'CLim' - Color limits [min max]. Default is [] (auto).
+            %            'NewFigure' - Create new figure. Default is true.
+            %            'PhotSys' - Photometry system mode for ZP evaluation:
+            %                        'percrop' (default), 'refshape', 'refzp'.
+            %            'RefCrop' - Reference crop index. Default is 10.
+            % Output : - Fig - Figure handle
+            % Author : D. Kovaleva (Mar 2026)
+            % Example: [~, PC] = imProc.calib.fitPhotCalibTrans(AI);
+            %          PhotCalibTrans.plotZPMosaic(PC);
+            %          % With refshape mode:
+            %          PhotCalibTrans.plotZPMosaic(PC, 'PhotSys', 'refshape');
+            %          % With refzp mode:
+            %          PhotCalibTrans.plotZPMosaic(PC, 'PhotSys', 'refzp', 'RefCrop', 10);
+
+            arguments
+                PCarray
+                Args.CropIDs = []
+                Args.CropIDKey = 'CROPID'
+                Args.Ncols = 4
+                Args.Nrows = 6
+                Args.SubImgSize = [1550, 1550]
+                Args.GridRes = 20
+                Args.SmoothSigma = 3
+                Args.CLim = []
+                Args.NewFigure logical = true
+                Args.PhotSys = 'percrop'   % 'percrop' | 'refshape' | 'refzp'
+                Args.RefCrop = 10
+            end
+
+            Nobj = numel(PCarray);
+
+            % Determine crop IDs
+            if ~isempty(Args.CropIDs)
+                CropIDs = Args.CropIDs(:)';
+            else
+                % Default: sequential 1:Nobj
+                CropIDs = 1:Nobj;
+            end
+
+            % Build reference parameters for non-percrop modes
+            RefParamVec = [];
+            UseRefNorm = false;
+            if ~strcmp(Args.PhotSys, 'percrop')
+                RefIdx = Args.RefCrop;
+                if RefIdx < 1 || RefIdx > Nobj || ~PCarray(RefIdx).Success
+                    warning('PhotCalibTrans:plotZPMosaic:BadRefCrop', ...
+                            'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
+                else
+                    RefTransParams = PCarray(RefIdx).TransModel.getAllFunPar();
+                    RefParamVec = RefTransParams.Val;
+                    UseRefNorm = strcmp(Args.PhotSys, 'refzp');
+                end
+            end
+
+            % Collect all ZP data with global coordinates
+            allX = [];
+            allY = [];
+            allZP = [];
+
+            for Iobj = 1:Nobj
+                if ~PCarray(Iobj).Success
+                    continue;
+                end
+
+                CropID = CropIDs(Iobj);
+
+                % Grid position: column-major from bottom-left
+                Col = ceil(CropID / Args.Nrows);
+                Row = mod(CropID - 1, Args.Nrows) + 1;
+
+                % Evaluate ZP on grid within this crop
+                Nx = Args.SubImgSize(1);
+                Ny = Args.SubImgSize(2);
+                Xvec = linspace(1, Nx, ceil(Nx / Args.GridRes));
+                Yvec = linspace(1, Ny, ceil(Ny / Args.GridRes));
+                [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+
+                ZPArgs = {'X', Xgrid(:), 'Y', Ygrid(:)};
+                if ~isempty(RefParamVec)
+                    ZPArgs = [ZPArgs, 'RefTransParams', RefParamVec, ...
+                                      'UseRefNorm', UseRefNorm];
+                end
+                ZP = PCarray(Iobj).evaluateZP(ZPArgs{:});
+
+                % Convert to global coordinates
+                X_global = Xgrid(:) + (Col - 1) * Nx;
+                Y_global = Ygrid(:) + (Row - 1) * Ny;
+
+                allX = [allX; X_global];
+                allY = [allY; Y_global];
+                allZP = [allZP; ZP(:)];
+            end
+
+            if isempty(allZP)
+                error('PhotCalibTrans:plotZPMosaic:NoData', ...
+                      'No successful calibrations found.');
+            end
+
+            % Remove non-finite values
+            Valid = isfinite(allZP);
+            allX = allX(Valid);
+            allY = allY(Valid);
+            allZP = allZP(Valid);
+
+            % Color limits
+            if isempty(Args.CLim)
+                Args.CLim = [prctile(allZP, 1), prctile(allZP, 99)];
+            end
+
+            % Create global grid
+            Xmax = Args.Ncols * Args.SubImgSize(1);
+            Ymax = Args.Nrows * Args.SubImgSize(2);
+            XvecG = 0:Args.GridRes:Xmax;
+            YvecG = 0:Args.GridRes:Ymax;
+            [XgridG, YgridG] = meshgrid(XvecG, YvecG);
+
+            % Interpolate onto global grid
+            F = scatteredInterpolant(allX, allY, allZP, 'natural', 'none');
+            ZPgrid = F(XgridG, YgridG);
+
+            % Gaussian smoothing (NaN-aware)
+            if Args.SmoothSigma > 0
+                KernelSize = ceil(Args.SmoothSigma * 6);
+                if mod(KernelSize, 2) == 0
+                    KernelSize = KernelSize + 1;
+                end
+                Kernel = fspecial('gaussian', KernelSize, Args.SmoothSigma);
+
+                NanMask = isnan(ZPgrid);
+                ZPtemp = ZPgrid;
+                ZPtemp(NanMask) = 0;
+
+                ZPsmooth = conv2(ZPtemp, Kernel, 'same');
+                Weights = conv2(double(~NanMask), Kernel, 'same');
+                ZPgrid = ZPsmooth ./ Weights;
+                ZPgrid(NanMask) = NaN;
+            end
+
+            % Plot
+            if Args.NewFigure
+                Fig = figure('Position', [100, 100, 800, 1000]);
+            else
+                Fig = gcf;
+            end
+
+            imagesc(XvecG, YvecG, ZPgrid);
+            caxis(Args.CLim);
+            axis xy equal tight;
+            colormap(jet);
+            cb = colorbar;
+            ylabel(cb, 'ZP [mag]');
+            xlabel('X [pixels]');
+            ylabel('Y [pixels]');
+
+            % Draw crop boundaries
+            hold on;
+            for Icol = 1:Args.Ncols-1
+                Xline = Icol * Args.SubImgSize(1);
+                plot([Xline, Xline], [0, Ymax], 'w-', 'LineWidth', 0.5);
+            end
+            for Irow = 1:Args.Nrows-1
+                Yline = Irow * Args.SubImgSize(2);
+                plot([0, Xmax], [Yline, Yline], 'w-', 'LineWidth', 0.5);
+            end
+
+            % Label crop IDs
+            for Iobj = 1:Nobj
+                CropID = CropIDs(Iobj);
+                Col = ceil(CropID / Args.Nrows);
+                Row = mod(CropID - 1, Args.Nrows) + 1;
+                Xc = (Col - 0.5) * Args.SubImgSize(1);
+                Yc = (Row - 0.5) * Args.SubImgSize(2);
+                text(Xc, Yc, sprintf('%d', CropID), ...
+                    'HorizontalAlignment', 'center', 'Color', 'w', ...
+                    'FontSize', 8, 'FontWeight', 'bold');
+            end
+            hold off;
+
+            title(sprintf('ZP Mosaic — %s (%d crops, range %.3f mag)', ...
+                Args.PhotSys, Nobj, Args.CLim(2) - Args.CLim(1)));
         end
     end
 
