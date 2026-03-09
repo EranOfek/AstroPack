@@ -157,16 +157,19 @@ function [phot,extsegs,curve,stripeindices]=...
         switch Args.clipping
             case 'gaussianfit'
             otherwise
+                tmask=t(mask);
+                tsmask=t(smask);
                 num_slices=ceil(Lext/Args.slice_width);
                 tm=(1/2:1:num_slices)/num_slices; % note that t may be extended
                 if Args.linephot
                     for k=1:num_slices
-                        q = t>(k-1)/num_slices & t<=k/num_slices;
-                        pp=im(mask & q);
-                        scpp=im(smask & q);
-                        if ~isempty(scpp)
+                        q = tmask>(k-1)/num_slices & tmask<=k/num_slices;
+                        qs = tsmask>(k-1)/num_slices & tsmask<=k/num_slices;
+                        ppk=pp(q);
+                        scppk=scpp(qs);
+                        if ~isempty(scppk)
                             curve(i).linephot(k)=...
-                                numel(pp)* mean(scpp,'omitnan')/Args.slice_width;
+                                numel(ppk)* mean(scppk,'omitnan')/Args.slice_width;
                         else
                             curve(i).linephot(k)=NaN;
                         end
