@@ -28,6 +28,8 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
     %                   Allowed [Min Max],
     %                   NaN_Allowd (logical).
     %                   Default is {}.
+    %            'Overlap' -- pass arguments to pipeline.last.quality.overlapSources
+    %                   as a cell array of {'Arg1','Val1','Arg2','Val2',..}
     % Output : - A structure with the following fields:
     %            .AllSI_HV - A structue with header keyword values of all
     %                   selected header keywords in 'HeadKeys' for the
@@ -47,6 +49,8 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
         MS         = [];
         Args.HeadKeys          = {'LIMMAG'};
         Args.TestCol           = {'XPEAK',[1 1716], false; 'YPEAK',[1 1716], false; 'X1',[1 1716], true; 'Y1',[1 1716],true; 'X',[1 1716],'true','Y',[1 1716],'true'}
+        
+        Args.Overlap           = {};
     end
 
     if ischar(AllSI) || isstring(AllSI)
@@ -68,8 +72,10 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
     Summary.Coadd_HV = tools.struct.structarray2struct(StAr);
     % check that catalog columns are in range
     Summary.Coadd_CR = imProc.cat.checkColumnsInRange(Coadd, Args.TestCol);
-
-
+    
+    % check the quality of overlap sources (mainly, astrometry + photometry)
+    Summary.Coadd_Overlap = pipeline.last.quality.overlapSources(Coadd, Args.Overlap{:});
+    
     %--- MS --- 
 
 end
