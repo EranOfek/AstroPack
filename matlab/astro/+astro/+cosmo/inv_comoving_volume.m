@@ -47,7 +47,7 @@ end
 Ndm     = numel(Volume);
 Z       = zeros(Ndm,1);
 for Idm=1:1:Ndm
-   Z(Idm) = Util.find.fun_binsearch(@comoving_volume_handle,Volume(Idm),[1e-15 100],1e-3,CosmoPars);
+   Z(Idm) = tools.find.fun_binsearch(@comoving_volume_handle,Volume(Idm),[1e-15 100],1e-3,CosmoPars);
 end
 
 function Vol=comoving_volume_handle(z,CosmoPars)
