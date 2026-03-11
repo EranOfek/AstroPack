@@ -5,6 +5,8 @@ function Mat = decalsPostRead(T)
 %              Selects columns from DECaLS sweep catalog and
 %              encodes the TYPE string column as integer:
 %              PSF=1, REX=2, EXP=3, DEV=4, SER=5, DUP=6.
+%              Uses column indices because FITS.readTable1 with
+%              OutClass=[] loses column names for mixed-type tables.
 %
 % Input  : - T: MATLAB table from FITS.readTable1 with OutClass=[].
 % Output : - Mat: numeric matrix [Nsrc x 23] with columns:
@@ -32,8 +34,19 @@ function Mat = decalsPostRead(T)
 %              22 MASKBITS    (bitmask)
 %              23 SHAPE_R     (arcsec)
 % Author : Dana + Claude (Mar 2026)
+%
+% Column index map (from DECaLS DR10 sweep FITS):
+%   5  TYPE           12 FLUX_G         20 FLUX_IVAR_G    93  SHAPE_R
+%   6  RA             13 FLUX_R         21 FLUX_IVAR_R   127  MASKBITS
+%   7  DEC            14 FLUX_I         22 FLUX_IVAR_I
+%   8  RA_IVAR        15 FLUX_Z         23 FLUX_IVAR_Z
+%   9  DEC_IVAR       16 FLUX_W1        24 FLUX_IVAR_W1
+%                     17 FLUX_W2        25 FLUX_IVAR_W2
+%                     18 FLUX_W3        26 FLUX_IVAR_W3
+%                     19 FLUX_W4        27 FLUX_IVAR_W4
 
-    TypeStr = string(T.TYPE);
+    % Encode TYPE (column 5, char) as integer
+    TypeStr = string(T{:, 5});
     TypeNum = zeros(height(T), 1);
     TypeNum(TypeStr == "PSF") = 1;
     TypeNum(TypeStr == "REX") = 2;
@@ -42,10 +55,28 @@ function Mat = decalsPostRead(T)
     TypeNum(TypeStr == "SER") = 5;
     TypeNum(TypeStr == "DUP") = 6;
 
-    Mat = [T.RA, T.DEC, T.RA_IVAR, T.DEC_IVAR, TypeNum, ...
-           T.FLUX_G, T.FLUX_R, T.FLUX_I, T.FLUX_Z, ...
-           T.FLUX_W1, T.FLUX_W2, T.FLUX_W3, T.FLUX_W4, ...
-           T.FLUX_IVAR_G, T.FLUX_IVAR_R, T.FLUX_IVAR_I, T.FLUX_IVAR_Z, ...
-           T.FLUX_IVAR_W1, T.FLUX_IVAR_W2, T.FLUX_IVAR_W3, T.FLUX_IVAR_W4, ...
-           double(T.MASKBITS), T.SHAPE_R];
+    % Extract numeric columns by index
+    Mat = [double(T{:, 6}),  ...  % RA
+           double(T{:, 7}),  ...  % DEC
+           double(T{:, 8}),  ...  % RA_IVAR
+           double(T{:, 9}),  ...  % DEC_IVAR
+           TypeNum,           ...  % Type (encoded)
+           double(T{:, 12}), ...  % FLUX_G
+           double(T{:, 13}), ...  % FLUX_R
+           double(T{:, 14}), ...  % FLUX_I
+           double(T{:, 15}), ...  % FLUX_Z
+           double(T{:, 16}), ...  % FLUX_W1
+           double(T{:, 17}), ...  % FLUX_W2
+           double(T{:, 18}), ...  % FLUX_W3
+           double(T{:, 19}), ...  % FLUX_W4
+           double(T{:, 20}), ...  % FLUX_IVAR_G
+           double(T{:, 21}), ...  % FLUX_IVAR_R
+           double(T{:, 22}), ...  % FLUX_IVAR_I
+           double(T{:, 23}), ...  % FLUX_IVAR_Z
+           double(T{:, 24}), ...  % FLUX_IVAR_W1
+           double(T{:, 25}), ...  % FLUX_IVAR_W2
+           double(T{:, 26}), ...  % FLUX_IVAR_W3
+           double(T{:, 27}), ...  % FLUX_IVAR_W4
+           double(T{:, 127}), ... % MASKBITS
+           double(T{:, 93})];     % SHAPE_R
 end
