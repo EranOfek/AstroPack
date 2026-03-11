@@ -95,21 +95,33 @@ function Result = unitTest()
     end
 
 
-    
-    % Test minmax
-    R=randn(1700,1700);                                                 
-    tic;
-    for I=1:1:1000, [Min,MinInd]=min(R,[],'all','linear'); [Max, MaxInd]=max(R,[],'all','linear'); end
-    T=toc;
-    fprintf('min and max on 1e6 single vector: %f\n',T);
-    
-    tic;
-    for I=1:1:1000, [Min1,Max1,MinInd1,MaxInd1]=tools.math.stat.mex.minmax(R);  end
-    T=toc;
-    fprintf('mex.minmax on 1e6 single vector: %f\n',T);
-    if max(abs([Min-Min1, Max-Max1, MinInd-MinInd1, MaxInd-MaxInd1]))>0
-        error('minmax not consistent');
+    %% tools.math.stat.mex.minGlobal_mex
+    R = single(rand(1716,1716));
+    [a,b]=min(R,[],'all');
+    [a1,b1]=tools.math.stat.mex.minGlobal_mex(R);
+    if abs(a-a1)>eps || (b-b1)~=0
+        error('Problem with tools.math.stat.mex.minGlobal_mex');
     end
+
+    %% tools.math.stat.mex.maxGlobal_mex
+    R = single(rand(1716,1716));
+    [a,b]=max(R,[],'all');
+    [a1,b1]=tools.math.stat.mex.maxGlobal_mex(R);
+    if abs(a-a1)>eps || (b-b1)~=0
+        error('Problem with tools.math.stat.mex.maxGlobal_mex');
+    end
+
+    %% tools.math.stat.mex.minmaxGlobal_mex
+    R = single(rand(1716,1716));
+    [Min,MinInd]=min(R,[],'all');
+    [Max,MaxInd]=max(R,[],'all');
+    [Min1,Max1]=tools.math.stat.mex.minmaxGlobal_mex(R);
+    if abs(Min-Min1)>eps || (Max-Max1)>eps
+        error('Problem with tools.math.stat.mex.minmaxGlobal_mex');
+    end
+    
+
+    %%
 
 
     % mex.std_madmean_mex
