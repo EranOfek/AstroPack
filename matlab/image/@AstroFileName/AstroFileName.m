@@ -1916,7 +1916,7 @@ classdef AstroFileName < Component
                 Obj.julday2time;
             end
 
-            if isempty(Obj.Path)
+            if isempty(Obj.Path) || (isstring(Obj.Path) && numel(Obj.Path{1})==0)
                 % Construct Path based on available properties:
                 
                 if isempty(Ind)
