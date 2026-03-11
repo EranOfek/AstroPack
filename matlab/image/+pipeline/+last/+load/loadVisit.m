@@ -34,9 +34,12 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
     if isempty(Args.TempName_IndivIm)
         AllSI = [];
     else
-        AllSI = pipeline.last.load.directLoadCrop(Args.TempName_IndivIm);
+        AllSI = pipeline.last.load.directLoad(Args.TempName_IndivIm);
+        if isempty(AllSI)
+            error('Images %s not not found',Args.TempName_IndivIm);
+        end
         % order
-        St = AllSI.getStructKey('MIDJD','CROPID','COUNTER');
+        St = AllSI.getStructKey({'MIDJD','CROPID','COUNTER'});
         [~,SI] = sortrows([[St.MIDJD].', [St.CROPID].'],[1 2]);
         Nepoch = max([St.COUNTER]);
         Nsub   = max([St.CROPID]);
@@ -47,14 +50,14 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
     if isempty(Args.TempName_Coadd)
         Coadd = [];
     else
-        Coadd = pipeline.last.load.directLoadCrop(Args.TempName_Coadd);
+        Coadd = pipeline.last.load.directLoad(Args.TempName_Coadd);
     end
 
     % load MS
     if isempty(Args.TempName_MS)
         MS = [];
     else
-        MS = pipeline.last.load.directLoadCrop(Args.TempName_MS);
+        MS = pipeline.last.load.directLoad(Args.TempName_MS);
     end
 
     cd(PWD);
