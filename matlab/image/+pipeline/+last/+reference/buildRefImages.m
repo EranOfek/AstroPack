@@ -34,7 +34,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Naxis2            = 1726;  % NOTE: will be reduced to 1716 for the new LAST pipeline   
         
         Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs    = {'Sampling',5,'CreateNewObj',true};  
+        Args.interp2wcsArgs    = {'Sampling',1,'CreateNewObj',true};  % probably 'Sampling',5 is enough? (def. 20)
         
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -54,7 +54,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         Args.CoaddFunction     = @imProc.stack.coaddW; % a handle to coadder of registered images 
         Args.StackMethod       = 'sigmaclip';
-        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
+        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[3 3]};
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');
@@ -136,6 +136,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 fprintf('No images ar found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
+            
+        StackImages = [];
+        
         for Imount = 1:10      % loop on LAST mounts
             for Icam = 1:4     % loop on LAST cameras
                 TabMountCam = T(T.mountnum==Imount & T.camnum==Icam,:);
@@ -168,7 +171,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
                         end
                         % if the total coverage is incomplete, skip to the next epoch                                                 
-                        RasterC = []; Icrop = 1;
+                        Coverage = []; RasterC = []; Icrop = 1;
                         while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved 
                             CropPoly = [TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
                                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];
@@ -193,12 +196,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             continue % to the next epoch
                         end
                         
-                        if Nim > 5 % DEBUG: select just 5 crops with largest coverage 
-                            [~, Idx] = maxk(Coverage, 5);
-                            Idx = sort(Idx);
-                            TabEpoch = TabEpoch(Idx,:);
-                            Nim = height(TabEpoch);
-                        end
+                        % obviously, no more than 5 crops can overlap a reference region of the same size
+%                         if Nim > 5 % DEBUG: select just 5 crops with largest coverage
+%                             [~, Idx] = maxk(Coverage, 5);
+%                             Idx = sort(Idx);
+%                             TabEpoch = TabEpoch(Idx,:);
+%                             Nim = height(TabEpoch);
+%                         end
                         
                         % 4.1 retrieve the crop images 
                         if Args.Verbosity > 1
@@ -256,8 +260,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         end  
                         
                         % 4.4 measure background, find sources, populate PSF
-                        RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
-                        
+                        RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);                        
                         RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
                                                        'Threshold', Args.Threshold,...
                                                        'ReCalcBack',false,...
@@ -298,8 +301,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);       
         
         % measure the background, find and measure sources, measure the PSF
-        RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);
-                        
+        RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);                        
         RefImage = imProc.sources.findMeasureSources(RefImage, ...
                                        'Threshold', Args.Threshold,...
                                        'ReCalcBack',false,...
