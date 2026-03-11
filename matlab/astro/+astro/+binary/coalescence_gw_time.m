@@ -1,6 +1,6 @@
 function [t_coal,da_dt,de_dt]=coalescence_gw_time(M1,M2,a,e)
 % Calculate the coalescence time for a binary stars due to GW emission
-% Package: +AstroUtil.binary
+% Package: astro.binary
 % Input  : - M1 [Solar mass]
 %          - M2 [Solar mass]
 %          - a [cm]
