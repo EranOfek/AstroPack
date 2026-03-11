@@ -11,4 +11,5 @@ function  lsd_single_scale
 %          description)
 %
 % Build the mex with:
-% mex('lsd_scale_mex.c', lsd.c', '-output', 'lsd_single_scale_mex', '-R2018a');
+%
+%  mex('OPTIMFLAGS=-O3', 'lsd_scale_mex.c', 'lsd.c', '-output', 'lsd_single_scale_mex', '-R2018a');

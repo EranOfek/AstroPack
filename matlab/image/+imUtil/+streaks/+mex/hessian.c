@@ -19,6 +19,8 @@
     - a pointer 'mem_p' to the memory used by 'list_p' to be able to
       free the memory when it is not used anymore.
  */
+# include "empiric_hessian_parameters.h"
+
 static image_float ll_angle( image_float in, float threshold,
                               struct coorlist ** list_p, void ** mem_p,
                               image_float * modgrad, unsigned int n_bins )
@@ -136,9 +138,8 @@ static image_float ll_angle( image_float in, float threshold,
         gx = Hxy; /* gradient x component */
         gy = lambda2-Hxx; /* gradient y component */
 
-        //if (E>1) Et=E; else Et=1;
-        Et=7.5;
-        if( lambda2 < 0. && Et*lambda1<-lambda2) // FIXME empiric threshold
+        //if (E>1) LAMBDARATIO=E; else Et=1;
+        if( lambda2 < 0. && LAMBDARATIO*lambda1<-lambda2) // FIXME empiric threshold
 //            norm = sqrt(-lambda2); /* "gradient norm", compresses dynamics but takes time */
             norm = -lambda2; /* "gradient norm" */
         else
@@ -147,7 +148,7 @@ static image_float ll_angle( image_float in, float threshold,
         (*modgrad)->data[adr] = norm; /* store gradient norm */
 
 //        if( norm <= threshold ) /* norm too small, gradient no defined */
-        if( norm <= threshold/100 ) /* FIXME, empirical */
+        if( norm <= threshold/NORMTHRESH ) /* FIXME, empiric */
           g->data[adr] = NOTDEF; /* gradient angle not defined */
         else
           {
