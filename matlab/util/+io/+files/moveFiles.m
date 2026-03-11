@@ -50,6 +50,9 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         end
         Files = dir(SourcePath);
         SourceFiles = regexp({Files.name}, SourceFiles, 'match');
+        Flag = ~tools.cell.isempty_cell(SourceFiles);
+        SourceFiles = {Files(Flag).name};
+
     end
     
     if isempty(DestFiles)

@@ -42,8 +42,12 @@ function buildHTMfromFiles(Args)
 %            'NcatInFile'   - HTM cells per HDF5 file. Default: 100.
 %            'IndStep'      - Index step for HDF5.save_cat. Default: 30.
 %            --- Directories ---
-%            'OutputDir'    - Directory for HDF5 output files.
-%                             Default: pwd. Can be a remote mount (e.g. /euclid/...).
+%            'LocalDir'     - Local directory for writing HDF5 files.
+%                             Default: pwd.
+%            'TargetDir'    - Remote directory for final HDF5 files.
+%                             Files are copied via tools.os.copyFileOverNFS
+%                             after processing and deleted from LocalDir.
+%                             Default: '' (no copy, keep in LocalDir).
 %            'DownloadDir'  - Temp directory for downloaded files.
 %                             Default: tempdir.
 %            --- Processing ---
@@ -65,7 +69,8 @@ function buildHTMfromFiles(Args)
 %           'FluxIvar_W1','FluxIvar_W2','FluxIvar_W3','FluxIvar_W4', ...
 %           'MaskBits','ShapeR'}, ...
 %       'CatName', 'DECaLS10', 'HTM_Level', 9, ...
-%       'OutputDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
+%       'LocalDir', '/home/dana/tmp/DECaLS10/htm/', ...
+%       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
 %       'DownloadDir', '/home/dana/tmp/DECaLS10/');
 
     arguments
@@ -83,20 +88,31 @@ function buildHTMfromFiles(Args)
         Args.HTM_Level    double = 9
         Args.NcatInFile   double = 100
         Args.IndStep      double = 30
-        Args.OutputDir    string = string(pwd)
+        Args.LocalDir     string = string(pwd)
+        Args.TargetDir    string = ""
         Args.DownloadDir  string = string(tempdir)
         Args.DecBandWidth double = 5
         Args.Resume       logical = true
+        Args.CleanCache   logical = true
         Args.Verbose      logical = true
     end
 
-    OutputDir   = char(Args.OutputDir);
+    LocalDir    = char(Args.LocalDir);
+    TargetDir   = char(Args.TargetDir);
     DownloadDir = char(Args.DownloadDir);
     CatName     = char(Args.CatName);
     RAD         = 180 / pi;
 
-    if ~exist(OutputDir, 'dir'),    mkdir(OutputDir); end
+    % Disable cache cleanup when resuming — cached files avoid re-downloads
+    if Args.Resume
+        Args.CleanCache = false;
+    end
+
+    if ~exist(LocalDir, 'dir'),    mkdir(LocalDir); end
     if ~exist(DownloadDir, 'dir'), mkdir(DownloadDir); end
+    if ~isempty(TargetDir) && ~exist(TargetDir, 'dir')
+        mkdir(TargetDir);
+    end
 
     %------------------------------------------------------------------
     % Step 1: Get file list
@@ -145,7 +161,7 @@ function buildHTMfromFiles(Args)
     Nbands = numel(DecEdges) - 1;
 
     OrigDir = pwd;
-    cd(OutputDir);
+    cd(LocalDir);
 
     TotalTic = tic;
 
@@ -276,7 +292,7 @@ function buildHTMfromFiles(Args)
             end
 
             % Clean download cache: delete files not needed for next band
-            if IsRemote
+            if IsRemote && Args.CleanCache
                 cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
                     DownloadDir, Iband, Nbands, DecEdges, MarginDeg);
             end
@@ -297,6 +313,36 @@ function buildHTMfromFiles(Args)
         celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
         HDF5.save_cat_colcell(CatName, Args.ColNames, Args.ColUnits);
+
+        %------------------------------------------------------------------
+        % Step 5: Copy to TargetDir via NFS
+        %------------------------------------------------------------------
+        if ~isempty(TargetDir)
+            if Args.Verbose
+                fprintf('\nCopying HDF5 files to %s ...\n', TargetDir);
+            end
+
+            % Copy all HDF5 data files
+            HdfFiles = dir(fullfile(LocalDir, [CatName '*.hdf5']));
+            for iFile = 1:numel(HdfFiles)
+                FullPath = fullfile(LocalDir, HdfFiles(iFile).name);
+                tools.os.copyFileOverNFS({FullPath}, TargetDir, ...
+                    'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                if Args.Verbose
+                    fprintf('  Copied: %s\n', HdfFiles(iFile).name);
+                end
+            end
+
+            % Copy ColCell .mat file
+            ColCellFile = fullfile(LocalDir, sprintf('%s_htmColCell.mat', CatName));
+            if isfile(ColCellFile)
+                tools.os.copyFileOverNFS({ColCellFile}, TargetDir, ...
+                    'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                if Args.Verbose
+                    fprintf('  Copied: %s_htmColCell.mat\n', CatName);
+                end
+            end
+        end
 
         if Args.Verbose
             fprintf('Done (%.1f min total).\n', toc(TotalTic) / 60);

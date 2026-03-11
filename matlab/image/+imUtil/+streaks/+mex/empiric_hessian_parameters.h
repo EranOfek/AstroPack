@@ -1,0 +1,1 @@
+float LAMBDARATIO = 7.5, NORMTHRESH=4;
