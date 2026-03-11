@@ -153,6 +153,7 @@ classdef TopCat < Base
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             %            'SyncMode' - 'sync' (default) | 'async'.
             %            'JavaOpts' - (string) extra JVM flags. Default: ''
+            %            'StiltsOpts' - (string) extra STILTS parameters. Default: ''
             %            'JarFile' - Jar file full path.
             %                   Default is VO.TopCat.getStiltsJarPath()
             % Output : - A table with results.
@@ -176,6 +177,7 @@ classdef TopCat < Base
                 Args.TimeoutSec = 600;
                 Args.SyncMode   = 'sync';
                 Args.JavaOpts   = '';
+                Args.StiltsOpts = '';
                 Args.JarFile    = VO.TopCat.getStiltsJarPath();
             end
 
@@ -219,7 +221,7 @@ classdef TopCat < Base
 
             switch lower(Args.Method)
                 case 'java'
-                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec, 'SyncMode',Args.SyncMode, 'JavaOpts',Args.JavaOpts, 'WorkDir',Args.WorkDir);
+                    T = VO.TopCat.queryStilts(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec, 'SyncMode',Args.SyncMode, 'JavaOpts',Args.JavaOpts, 'StiltsOpts',Args.StiltsOpts, 'WorkDir',Args.WorkDir);
                 case 'http'
                     T = VO.TopCat.queryHttp(Query, 'TapUrl',Args.TapUrl, 'Ofmt',Args.Ofmt, 'TimeoutSec',Args.TimeoutSec); % , 'WorkDir',Args.WorkDir);
                 otherwise
@@ -683,6 +685,8 @@ classdef TopCat < Base
             %            'JavaOpts' - (string) extra JVM flags, e.g.
             %                   '-Dhttps.proxyHost=proxy -Dhttps.proxyPort=8080'
             %                   or '-Djava.net.preferIPv4Stack=true'. Default: ''
+            %            'StiltsOpts' - (string) extra STILTS tapquery parameters,
+            %                   e.g. 'delete=true'. Default: ''
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
             % Author : ChatGPT + Eran Ofek (Aug 2025)
@@ -699,6 +703,7 @@ classdef TopCat < Base
                 Args.TimeoutSec double = 600
                 Args.SyncMode   string = "sync"
                 Args.JavaOpts   string = ""
+                Args.StiltsOpts string = ""
                 Args.WorkDir    string = string(tempdir)
             end
         
@@ -760,6 +765,10 @@ classdef TopCat < Base
                 ['out="' outfile '"'], ...
                 ['sync=' SyncStr]
             };
+            stiltsOpts = strtrim(char(Args.StiltsOpts));
+            if ~isempty(stiltsOpts)
+                cmdParts{end+1} = stiltsOpts;
+            end
             cmd = strjoin(cmdParts, ' ');
 
 

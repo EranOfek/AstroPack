@@ -1253,6 +1253,14 @@ classdef PhotCalibTrans < Component
                 if ~isempty(Args.X) && ~isempty(Args.Y) && ...
                    ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(Args.X(:), Args.Y(:), false);
+                    if Args.UseRefNorm
+                        % Center-normalize: subtract Tran2D value at crop center
+                        % so that Tran2D captures only relative shape, not absolute offset
+                        Xc = Obj.TransModel.Tran2DObj.ParNX(1);
+                        Yc = Obj.TransModel.Tran2DObj.ParNY(1);
+                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                        FieldCorrectionMag = FieldCorrectionMag(:) - CenterCorr;
+                    end
                     ZP = ZP - FieldCorrectionMag(:);
                 end
             else
@@ -1300,6 +1308,15 @@ classdef PhotCalibTrans < Component
                     % Get field correction in magnitude space from Tran2D
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
                     FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
+
+                    if Args.UseRefNorm
+                        % Center-normalize: subtract Tran2D value at crop center
+                        % so that Tran2D captures only relative shape, not absolute offset
+                        Xc = Obj.TransModel.Tran2DObj.ParNX(1);
+                        Yc = Obj.TransModel.Tran2DObj.ParNY(1);
+                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                        FieldCorrectionMag = FieldCorrectionMag - CenterCorr;
+                    end
 
                     % ZP at each position = base ZP + field correction
                     ZP = ZP_base - FieldCorrectionMag;
@@ -2844,70 +2861,234 @@ classdef PhotCalibTrans < Component
 
         function Fig = plotZPMap(Obj, Args)
             % Plot 2D map of position-dependent zero point corrections
-            % Input  : - PhotCalibTrans object
+            % For scalar input: plots single crop ZP map.
+            % For array input: plots seamless mosaic across all crops
+            %   with scattered interpolation and optional Gaussian smoothing.
+            % Input  : - PhotCalibTrans object (scalar or array)
             %          * ...,key,val,...
             %            'GridSize' - Grid resolution [Nx, Ny]. Default is [50, 50].
             %            'NewFigure' - Create new figure. Default is true.
+            %            'CLim' - Color limits [min max]. Default is [] (auto).
+            %            --- Mosaic-only arguments (array input) ---
+            %            'CropIDs' - [1 x Nobj] crop IDs. Default is 1:Nobj.
+            %            'Ncols' - Number of columns in grid. Default is 4.
+            %            'Nrows' - Number of rows in grid. Default is 6.
+            %            'SubImgSize' - Subimage size [Nx, Ny] pixels. Default is [1550, 1550].
+            %            'SmoothSigma' - Gaussian smoothing sigma [grid units].
+            %                        Applied via NaN-aware conv2 with Gaussian kernel.
+            %                        Set to 0 to disable. Default is 3.
+            %            'PhotSys' - Photometry system mode for ZP evaluation:
+            %                        'percrop' (default) - each crop uses own model.
+            %                        'refshape' - reference spectral shape, per-crop Norm.
+            %                        'refzp' - full reference params including Norm.
+            %            'RefCrop' - Reference crop index for refshape/refzp. Default is 10.
             % Output : - Figure handle
-            % Author : D. Kovaleva (Dec 2025)
-            % Example: PC.plotZPMap();
-            % Description: Shows position-dependent ZP corrections across the field.
-            %              Requires TransModel with Tran2D position corrections.
-            %              Uses Obj.TransWvl (300:2:1100 nm, 401 points) for ZP calculation.
+            % Author : D. Kovaleva (Dec 2025, Mar 2026)
+            % Example: PC(5).plotZPMap();                          % single crop
+            %          PC.plotZPMap();                              % mosaic, percrop
+            %          PC.plotZPMap('PhotSys', 'refzp', 'RefCrop', 10);  % mosaic, refzp
+            %          PC.plotZPMap('SmoothSigma', 0);             % mosaic, no smoothing
 
             arguments
                 Obj
                 Args.GridSize = [50, 50]
                 Args.NewFigure logical = true
+                Args.CLim = []
+                Args.CropIDs = []
+                Args.Ncols = 4
+                Args.Nrows = 6
+                Args.SubImgSize = [1550, 1550]
+                Args.SmoothSigma = 3
+                Args.PhotSys = 'percrop'
+                Args.RefCrop = 10
             end
 
-            % Get field boundaries from Tran2D
-            Xc = Obj.TransModel.Tran2DObj.ParNX(1);
-            Yc = Obj.TransModel.Tran2DObj.ParNY(1);
-            Xrange = Obj.TransModel.Tran2DObj.ParNX(2);
-            Yrange = Obj.TransModel.Tran2DObj.ParNY(2);
+            Nobj = numel(Obj);
 
-            % Create grid
-            Xmin = Xc - Xrange/2;
-            Xmax = Xc + Xrange/2;
-            Ymin = Yc - Yrange/2;
-            Ymax = Yc + Yrange/2;
+            if Nobj == 1
+                % === Single crop mode ===
+                % Get field boundaries from Tran2D
+                Xc = Obj.TransModel.Tran2DObj.ParNX(1);
+                Yc = Obj.TransModel.Tran2DObj.ParNY(1);
+                Xrange = Obj.TransModel.Tran2DObj.ParNX(2);
+                Yrange = Obj.TransModel.Tran2DObj.ParNY(2);
 
-            Xvec = linspace(Xmin, Xmax, Args.GridSize(1));
-            Yvec = linspace(Ymin, Ymax, Args.GridSize(2));
-            [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+                Xmin = Xc - Xrange/2;
+                Xmax = Xc + Xrange/2;
+                Ymin = Yc - Yrange/2;
+                Ymax = Yc + Yrange/2;
 
-            % Flatten grid for evaluation
-            Xflat = Xgrid(:);
-            Yflat = Ygrid(:);
+                Xvec = linspace(Xmin, Xmax, Args.GridSize(1));
+                Yvec = linspace(Ymin, Ymax, Args.GridSize(2));
+                [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
 
-            % Evaluate ZP at all grid positions 
-            ZP = Obj.evaluateZP('X', Xflat, 'Y', Yflat);
+                ZP = Obj.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
+                ZPgrid = reshape(ZP, Args.GridSize(2), Args.GridSize(1));
 
-            % Reshape to grid
-            ZPgrid = reshape(ZP, Args.GridSize(2), Args.GridSize(1));
+                if Args.NewFigure
+                    Fig = figure;
+                else
+                    Fig = gcf;
+                end
 
-            % Create figure
-            if Args.NewFigure
-                Fig = figure;
+                imagesc(Xvec, Yvec, ZPgrid);
+                if ~isempty(Args.CLim)
+                    caxis(Args.CLim);
+                end
+                colorbar;
+                colormap(jet);
+                xlabel('X [pixels]');
+                ylabel('Y [pixels]');
+                title('Zero Point Map Across Field');
+                axis xy equal tight;
+
+                if ~isempty(Obj.SourceData)
+                    hold on;
+                    plot(Obj.SourceData.getCol('X'), Obj.SourceData.getCol('Y'), 'w.', 'MarkerSize', 8);
+                end
             else
-                Fig = gcf;
-            end
+                % === Mosaic mode ===
+                GridRes = max(Args.SubImgSize(1) / Args.GridSize(1), 1);
 
-            % Plot ZP map
-            imagesc(Xvec, Yvec, ZPgrid);
-            colorbar;
-            colormap(jet);
-            xlabel('X [pixels]');
-            ylabel('Y [pixels]');
-            title('Zero Point Map Across Field');
-            axis xy;  % Correct orientation
-            axis equal tight;
+                % Determine crop IDs
+                if ~isempty(Args.CropIDs)
+                    CropIDs = Args.CropIDs(:)';
+                else
+                    CropIDs = 1:Nobj;
+                end
 
-            % Add calibrator positions if available
-            if ~isempty(Obj.SourceData)
+                % Build reference parameters for non-percrop modes
+                RefParamVec = [];
+                UseRefNorm = false;
+                if ~strcmp(Args.PhotSys, 'percrop')
+                    RefIdx = Args.RefCrop;
+                    if RefIdx < 1 || RefIdx > Nobj || ~Obj(RefIdx).Success
+                        warning('PhotCalibTrans:plotZPMap:BadRefCrop', ...
+                                'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
+                    else
+                        RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
+                        RefParamVec = RefTransParams.Val;
+                        UseRefNorm = strcmp(Args.PhotSys, 'refzp');
+                    end
+                end
+
+                % Collect all ZP data with global coordinates
+                allX = [];
+                allY = [];
+                allZP = [];
+
+                for Iobj = 1:Nobj
+                    if ~Obj(Iobj).Success
+                        continue;
+                    end
+
+                    CropID = CropIDs(Iobj);
+                    Col = ceil(CropID / Args.Nrows);
+                    Row = mod(CropID - 1, Args.Nrows) + 1;
+
+                    Nx = Args.SubImgSize(1);
+                    Ny = Args.SubImgSize(2);
+                    Xvec = linspace(1, Nx, Args.GridSize(1));
+                    Yvec = linspace(1, Ny, Args.GridSize(2));
+                    [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+
+                    ZPArgs = {'X', Xgrid(:), 'Y', Ygrid(:)};
+                    if ~isempty(RefParamVec)
+                        ZPArgs = [ZPArgs, 'RefTransParams', RefParamVec, ...
+                                          'UseRefNorm', UseRefNorm];
+                    end
+                    ZP = Obj(Iobj).evaluateZP(ZPArgs{:});
+
+                    X_global = Xgrid(:) + (Col - 1) * Nx;
+                    Y_global = Ygrid(:) + (Row - 1) * Ny;
+
+                    allX = [allX; X_global];
+                    allY = [allY; Y_global];
+                    allZP = [allZP; ZP(:)];
+                end
+
+                if isempty(allZP)
+                    error('PhotCalibTrans:plotZPMap:NoData', ...
+                          'No successful calibrations found.');
+                end
+
+                Valid = isfinite(allZP);
+                allX = allX(Valid);
+                allY = allY(Valid);
+                allZP = allZP(Valid);
+
+                if isempty(Args.CLim)
+                    Args.CLim = [prctile(allZP, 1), prctile(allZP, 99)];
+                end
+
+                % Global grid
+                XmaxG = Args.Ncols * Args.SubImgSize(1);
+                YmaxG = Args.Nrows * Args.SubImgSize(2);
+                XvecG = 0:GridRes:XmaxG;
+                YvecG = 0:GridRes:YmaxG;
+                [XgridG, YgridG] = meshgrid(XvecG, YvecG);
+
+                F = scatteredInterpolant(allX, allY, allZP, 'natural', 'none');
+                ZPgrid = F(XgridG, YgridG);
+
+                % Gaussian smoothing (NaN-aware)
+                if Args.SmoothSigma > 0
+                    KernelSize = ceil(Args.SmoothSigma * 6);
+                    if mod(KernelSize, 2) == 0
+                        KernelSize = KernelSize + 1;
+                    end
+                    Kernel = fspecial('gaussian', KernelSize, Args.SmoothSigma);
+
+                    NanMask = isnan(ZPgrid);
+                    ZPtemp = ZPgrid;
+                    ZPtemp(NanMask) = 0;
+                    ZPsmooth = conv2(ZPtemp, Kernel, 'same');
+                    Weights = conv2(double(~NanMask), Kernel, 'same');
+                    ZPgrid = ZPsmooth ./ Weights;
+                    ZPgrid(NanMask) = NaN;
+                end
+
+                if Args.NewFigure
+                    Fig = figure('Position', [100, 100, 800, 1000]);
+                else
+                    Fig = gcf;
+                end
+
+                imagesc(XvecG, YvecG, ZPgrid);
+                caxis(Args.CLim);
+                axis xy equal tight;
+                colormap(jet);
+                cb = colorbar;
+                ylabel(cb, 'ZP [mag]');
+                xlabel('X [pixels]');
+                ylabel('Y [pixels]');
+
+                % Draw crop boundaries
                 hold on;
-                plot(Obj.SourceData.getCol('X'), Obj.SourceData.getCol('Y'), 'w.', 'MarkerSize', 8);
+                for Icol = 1:Args.Ncols-1
+                    Xline = Icol * Args.SubImgSize(1);
+                    plot([Xline, Xline], [0, YmaxG], 'w-', 'LineWidth', 0.5);
+                end
+                for Irow = 1:Args.Nrows-1
+                    Yline = Irow * Args.SubImgSize(2);
+                    plot([0, XmaxG], [Yline, Yline], 'w-', 'LineWidth', 0.5);
+                end
+
+                % Label crop IDs
+                for Iobj = 1:Nobj
+                    CropID = CropIDs(Iobj);
+                    Col = ceil(CropID / Args.Nrows);
+                    Row = mod(CropID - 1, Args.Nrows) + 1;
+                    Xc = (Col - 0.5) * Args.SubImgSize(1);
+                    Yc = (Row - 0.5) * Args.SubImgSize(2);
+                    text(Xc, Yc, sprintf('%d', CropID), ...
+                        'HorizontalAlignment', 'center', 'Color', 'w', ...
+                        'FontSize', 8, 'FontWeight', 'bold');
+                end
+                hold off;
+
+                title(sprintf('ZP Mosaic — %s (%d crops, range %.3f mag)', ...
+                    Args.PhotSys, Nobj, Args.CLim(2) - Args.CLim(1)));
             end
         end
 
@@ -3053,202 +3234,6 @@ classdef PhotCalibTrans < Component
             xlabel('Optimization Stage');
             title('Goodness of Fit Evolution');
             xticks(1:Nstages);
-        end
-    end
-
-    methods (Static)
-        function Fig = plotZPMosaic(PCarray, Args)
-            % Plot seamless mosaic of zero point maps from array of PhotCalibTrans
-            % Input  : - PCarray - [1 x Nobj] array of PhotCalibTrans objects
-            %          * ...,key,val,...
-            %            'CropIDs' - [1 x Nobj] crop IDs. If empty, reads from
-            %                        header via CropIDKey. Default is [].
-            %            'CropIDKey' - Header key for crop ID. Default is 'CROPID'.
-            %            'Ncols' - Number of columns in grid. Default is 4.
-            %            'Nrows' - Number of rows in grid. Default is 6.
-            %            'SubImgSize' - Subimage size [Nx, Ny] pixels. Default is [1550, 1550].
-            %            'GridRes' - Interpolation grid resolution [pixels]. Default is 20.
-            %            'SmoothSigma' - Gaussian smoothing sigma [grid units]. Default is 3.
-            %            'CLim' - Color limits [min max]. Default is [] (auto).
-            %            'NewFigure' - Create new figure. Default is true.
-            %            'PhotSys' - Photometry system mode for ZP evaluation:
-            %                        'percrop' (default), 'refshape', 'refzp'.
-            %            'RefCrop' - Reference crop index. Default is 10.
-            % Output : - Fig - Figure handle
-            % Author : D. Kovaleva (Mar 2026)
-            % Example: [~, PC] = imProc.calib.fitPhotCalibTrans(AI);
-            %          PhotCalibTrans.plotZPMosaic(PC);
-            %          % With refshape mode:
-            %          PhotCalibTrans.plotZPMosaic(PC, 'PhotSys', 'refshape');
-            %          % With refzp mode:
-            %          PhotCalibTrans.plotZPMosaic(PC, 'PhotSys', 'refzp', 'RefCrop', 10);
-
-            arguments
-                PCarray
-                Args.CropIDs = []
-                Args.CropIDKey = 'CROPID'
-                Args.Ncols = 4
-                Args.Nrows = 6
-                Args.SubImgSize = [1550, 1550]
-                Args.GridRes = 20
-                Args.SmoothSigma = 3
-                Args.CLim = []
-                Args.NewFigure logical = true
-                Args.PhotSys = 'percrop'   % 'percrop' | 'refshape' | 'refzp'
-                Args.RefCrop = 10
-            end
-
-            Nobj = numel(PCarray);
-
-            % Determine crop IDs
-            if ~isempty(Args.CropIDs)
-                CropIDs = Args.CropIDs(:)';
-            else
-                % Default: sequential 1:Nobj
-                CropIDs = 1:Nobj;
-            end
-
-            % Build reference parameters for non-percrop modes
-            RefParamVec = [];
-            UseRefNorm = false;
-            if ~strcmp(Args.PhotSys, 'percrop')
-                RefIdx = Args.RefCrop;
-                if RefIdx < 1 || RefIdx > Nobj || ~PCarray(RefIdx).Success
-                    warning('PhotCalibTrans:plotZPMosaic:BadRefCrop', ...
-                            'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
-                else
-                    RefTransParams = PCarray(RefIdx).TransModel.getAllFunPar();
-                    RefParamVec = RefTransParams.Val;
-                    UseRefNorm = strcmp(Args.PhotSys, 'refzp');
-                end
-            end
-
-            % Collect all ZP data with global coordinates
-            allX = [];
-            allY = [];
-            allZP = [];
-
-            for Iobj = 1:Nobj
-                if ~PCarray(Iobj).Success
-                    continue;
-                end
-
-                CropID = CropIDs(Iobj);
-
-                % Grid position: column-major from bottom-left
-                Col = ceil(CropID / Args.Nrows);
-                Row = mod(CropID - 1, Args.Nrows) + 1;
-
-                % Evaluate ZP on grid within this crop
-                Nx = Args.SubImgSize(1);
-                Ny = Args.SubImgSize(2);
-                Xvec = linspace(1, Nx, ceil(Nx / Args.GridRes));
-                Yvec = linspace(1, Ny, ceil(Ny / Args.GridRes));
-                [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
-
-                ZPArgs = {'X', Xgrid(:), 'Y', Ygrid(:)};
-                if ~isempty(RefParamVec)
-                    ZPArgs = [ZPArgs, 'RefTransParams', RefParamVec, ...
-                                      'UseRefNorm', UseRefNorm];
-                end
-                ZP = PCarray(Iobj).evaluateZP(ZPArgs{:});
-
-                % Convert to global coordinates
-                X_global = Xgrid(:) + (Col - 1) * Nx;
-                Y_global = Ygrid(:) + (Row - 1) * Ny;
-
-                allX = [allX; X_global];
-                allY = [allY; Y_global];
-                allZP = [allZP; ZP(:)];
-            end
-
-            if isempty(allZP)
-                error('PhotCalibTrans:plotZPMosaic:NoData', ...
-                      'No successful calibrations found.');
-            end
-
-            % Remove non-finite values
-            Valid = isfinite(allZP);
-            allX = allX(Valid);
-            allY = allY(Valid);
-            allZP = allZP(Valid);
-
-            % Color limits
-            if isempty(Args.CLim)
-                Args.CLim = [prctile(allZP, 1), prctile(allZP, 99)];
-            end
-
-            % Create global grid
-            Xmax = Args.Ncols * Args.SubImgSize(1);
-            Ymax = Args.Nrows * Args.SubImgSize(2);
-            XvecG = 0:Args.GridRes:Xmax;
-            YvecG = 0:Args.GridRes:Ymax;
-            [XgridG, YgridG] = meshgrid(XvecG, YvecG);
-
-            % Interpolate onto global grid
-            F = scatteredInterpolant(allX, allY, allZP, 'natural', 'none');
-            ZPgrid = F(XgridG, YgridG);
-
-            % Gaussian smoothing (NaN-aware)
-            if Args.SmoothSigma > 0
-                KernelSize = ceil(Args.SmoothSigma * 6);
-                if mod(KernelSize, 2) == 0
-                    KernelSize = KernelSize + 1;
-                end
-                Kernel = fspecial('gaussian', KernelSize, Args.SmoothSigma);
-
-                NanMask = isnan(ZPgrid);
-                ZPtemp = ZPgrid;
-                ZPtemp(NanMask) = 0;
-
-                ZPsmooth = conv2(ZPtemp, Kernel, 'same');
-                Weights = conv2(double(~NanMask), Kernel, 'same');
-                ZPgrid = ZPsmooth ./ Weights;
-                ZPgrid(NanMask) = NaN;
-            end
-
-            % Plot
-            if Args.NewFigure
-                Fig = figure('Position', [100, 100, 800, 1000]);
-            else
-                Fig = gcf;
-            end
-
-            imagesc(XvecG, YvecG, ZPgrid);
-            caxis(Args.CLim);
-            axis xy equal tight;
-            colormap(jet);
-            cb = colorbar;
-            ylabel(cb, 'ZP [mag]');
-            xlabel('X [pixels]');
-            ylabel('Y [pixels]');
-
-            % Draw crop boundaries
-            hold on;
-            for Icol = 1:Args.Ncols-1
-                Xline = Icol * Args.SubImgSize(1);
-                plot([Xline, Xline], [0, Ymax], 'w-', 'LineWidth', 0.5);
-            end
-            for Irow = 1:Args.Nrows-1
-                Yline = Irow * Args.SubImgSize(2);
-                plot([0, Xmax], [Yline, Yline], 'w-', 'LineWidth', 0.5);
-            end
-
-            % Label crop IDs
-            for Iobj = 1:Nobj
-                CropID = CropIDs(Iobj);
-                Col = ceil(CropID / Args.Nrows);
-                Row = mod(CropID - 1, Args.Nrows) + 1;
-                Xc = (Col - 0.5) * Args.SubImgSize(1);
-                Yc = (Row - 0.5) * Args.SubImgSize(2);
-                text(Xc, Yc, sprintf('%d', CropID), ...
-                    'HorizontalAlignment', 'center', 'Color', 'w', ...
-                    'FontSize', 8, 'FontWeight', 'bold');
-            end
-            hold off;
-
-            title(sprintf('ZP Mosaic — %s (%d crops, range %.3f mag)', ...
-                Args.PhotSys, Nobj, Args.CLim(2) - Args.CLim(1)));
         end
     end
 
