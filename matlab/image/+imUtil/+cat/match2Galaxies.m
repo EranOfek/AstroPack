@@ -66,7 +66,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     Npgc  = zeros(Ntarget,1);
     Z_PGC = nan(Ntarget,1);
     for Itarget=1:1:Ntarget
-        %Itarget
+        Itarget
         CatPGC     = catsHTM.cone_search(Args.CatNamePGC, RA(Itarget), Dec(Itarget), Args.SearchRadPGC);
         if ~isempty(CatPGC)
             GalRadius  = 3.*10.^CatPGC(:,4);  % arcsec
@@ -89,7 +89,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
     Nglade  = zeros(Ntarget,1);
     Z_GLADE = nan(Ntarget,1);
     for Itarget=1:1:Ntarget
-        %Itarget
+        Itarget
         CatGlade = catsHTM.cone_search(Args.CatNameGLADE, RA(Itarget), Dec(Itarget), Args.SearchRadGlade);
         Nglade(Itarget)   = size(CatGlade,1);
         if Nglade(Itarget)>0
