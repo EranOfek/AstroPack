@@ -121,32 +121,29 @@ function Result = unitTest()
     end
     
 
-    %%
+    %% tools.math.stat.mex.meanStd
+    R = rand(1716,1716).*1e3;
+    [a,b]=tools.math.stat.mex.meanStd(R,true);
+    [a1]=mean(R,'all','omitnan'); b1=std(R,1,'all','omitnan');
+    if abs(a-a1)>1e-11 || abs(b-b1)>1e-4
+        error('Problem with tools.math.stat.mex.meanStd');
+    end
 
 
-    % mex.std_madmean_mex
+
+    %% tools.math.stat.mex.std_madmean_mex
     A = rand(1726,1726,20,'single');
-    tic;
-    for i=1:10
-        [a,b]=tools.math.stat.mex.std_madmean_mex(A,3,1);
-    end
-    T=toc;
-    fprintf('mex.std_madmean_mex : %f\n',T);
-
-    tic;
-    for i=1:10
-        a1=tools.math.stat.std_mad(A,0,3);
-        b1=mean(A,3);
-    end
-    T=toc;
-    fprintf('std_mad & mean : %f\n',T);
-
+    [a,b]=tools.math.stat.mex.std_madmean_mex(A,3,1);
+    a1=tools.math.stat.std_mad(A,0,3);
+    b1=mean(A,3);
     if max(abs(a1-a),[],'all')>1e-7
         error('tools.math.stat.mex.std_madmean_mex mad error');
     end
     if max(abs(b1-b),[],'all')>1e-7
         error('tools.math.stat.mex.std_madmean_mex mean error');
     end
+
+
 
 
     % test tools.math.stat.mex.medianMeanStd

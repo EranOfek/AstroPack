@@ -21,6 +21,17 @@ function Result=perfTest()
     tic; for i=1:1000, [a1,b1]=tools.math.stat.mex.minmaxGlobal_mex(R); end, T2=toc;
     fprintf('tools.math.stat.mex.minmaxGlobal_mex is x %f faster than matlab\n',T1./T2);
     
+    %% tools.math.stat.mex.std_madmean_mex
+    Data = single(randn(1700,1700,20));
+    tic;for i=1:10, [a,b]=tools.math.stat.mex.std_madmean_mex(Data,3,1);end, T1=toc;
+    tic;for i=1:10, a1=tools.math.stat.std_mad(Data,0,3);b1=mean(Data,3);end,T2=toc;
+    fprintf('tools.math.stat.mex.std_madmean_mex is x %f faster than matlab\n',T1./T2);
+
+    %% tools.math.stat.mex.meanStd
+    tic;for i=1:1000, [a,b]=tools.math.stat.mex.meanStd(R,true);end,T2=toc;
+    tic;for i=1:1000, [a1]=mean(R,'all','omitnan'); b1=std(R,1,'all','omitnan');end,T1=toc;
+    fprintf('tools.math.stat.mex.meanStd is x %f faster than matlab\n',T1./T2);
+
 
 
 
