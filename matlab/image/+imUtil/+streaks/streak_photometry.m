@@ -39,6 +39,8 @@ function [phot,extsegs,curve,stripeindices]=...
 %    'linephot': whether to return also the photometry of each streak
 %                slice. Setting it to true slows down also
 %                clipping={sigma,quantile}. Default false.
+%    'UseMex': use the mex version of sliceGaussianProfile, which is
+%              considerably faster
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
@@ -63,6 +65,7 @@ function [phot,extsegs,curve,stripeindices]=...
              = 'gaussianfit';
         Args.slice_width=10; % pixel units
         Args.linephot=false;
+        Args.UseMex=true;
     end
     
     if isempty(Args.sigmaclip)
@@ -89,39 +92,47 @@ function [phot,extsegs,curve,stripeindices]=...
         y1=segs(2,i);
         y2=segs(4,i);
         L=sqrt((x2-x1)^2 + (y2-y1)^2);
-
+        
         [py,px]=meshgrid(1:size(im,2),1:size(im,1));
-
+        
         t=((px-x1)*(x2-x1)+(py-y1)*(y2-y1))/((x2-x1)^2+(y2-y1)^2);
         dt=offlength/L;
         t=min(max(t,-dt),1+dt);
-
+        
         % for the time being, just grow them offlength
         extsegs(1,i)=x1-dt*(x2-x1);
         extsegs(2,i)=y1-dt*(y2-y1);
         extsegs(3,i)=x1+(1+dt)*(x2-x1);
         extsegs(4,i)=y1+(1+dt)*(y2-y1);
         Lext=sqrt((extsegs(3,i)-extsegs(1,i))^2 + (extsegs(4,i)-extsegs(2,i))^2);
-
+        
         sx=x1+t*(x2-x1);
         sy=y1+t*(y2-y1);
-
+        
         d2=(sx-px).^2+(sy-py).^2;
-
+        
         mask = (d2<offside^2);
         
         pp=im(mask);
         mpp=mean(pp,'omitnan');
         spp=std(pp,'omitnan');
-
+        
         % contaminators clipping methods
         switch Args.clipping
             case 'gaussianfit'
                 % exploring slice fits
-                [C,goodindices,tm] = sliceGaussianProfile([x1,y1],[x2,y2],...
-                                        px(mask),py(mask),pp,...
-                                        'slice_width',Args.slice_width,...
-                                        'rthreshold',Args.sigmaclip);
+                if Args.UseMex
+                    [C,goodindices,tm] = ...
+                        imUtil.streaks.mex.sliceGaussianProfile([x1,y1],...
+                        [x2,y2],px(mask),py(mask),pp,...
+                        'slice_width',Args.slice_width,...
+                        'rthreshold',Args.sigmaclip);
+                else
+                    [C,goodindices,tm] = sliceGaussianProfile([x1,y1],[x2,y2],...
+                        px(mask),py(mask),pp,...
+                        'slice_width',Args.slice_width,...
+                        'rthreshold',Args.sigmaclip);
+                end
                 curve(i).linephot=C(1,:).*C(3,:)*sqrt(2*pi);
                 scpp=pp(goodindices);
                 smask= false(size(mask));
@@ -136,23 +147,23 @@ function [phot,extsegs,curve,stripeindices]=...
                 smask=mask & im<quantile(pp,Args.sigmaclip);
                 scpp=im(smask);
         end
-
+        
         if nargout==4
             stripeindices{i}=find(smask);
         end
-
+        
         phot(i)= numel(pp)* mean(scpp,'omitnan')/Lext;
         % why not this (which as of now gives results farther from
         %  implanted)?
         %phot(i)=median(scpp)*numel(pp)/Lext;
-
+        
         % fit a parabola
         curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],...
-                                              px(smask),py(smask),scpp);
+            px(smask),py(smask),scpp);
         % offsets at extremes: [curve(i).parfit(3), sum(curve(i).parfit)]
         % max offset:
         %  -curve(i).parfit(2)^2/(4*curve(i).parfit(1)) + curve(i).parfit(3)
-
+        
         % sliced photometry for simpler masking methods
         switch Args.clipping
             case 'gaussianfit'
@@ -173,19 +184,20 @@ function [phot,extsegs,curve,stripeindices]=...
                         else
                             curve(i).linephot(k)=NaN;
                         end
+                    end
                 end
-            end
         end
-                
+        
         [X,Y]=segmentParabolicOffset([x1,y1],[x2,y2],curve(i).parfit,tm);
         curve(i).coord=[X',Y'];
-
+        
         % second pass photometry: only consider the pixels traversed by
         %  the fitting parabola. Rationale, we are working with images
         %  which are already PSF-filtered, including sidewings will bias
         %  the estimate toward 0.
     end
-        
+end
+
 %%
 function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
 % X1: [x1,y1]; X2: [x2,y2]
@@ -364,7 +376,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
         hold on
         H=C(2,:)';
         H(C(4,:)<Args.rthreshold)=NaN;
-        plot((0.5:1:num_slices)/num_slices, H, '-k','LineWidth',2)
+        plot(tm, H, '-k','LineWidth',2)
         hold off
     end
 end
