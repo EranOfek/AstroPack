@@ -1,6 +1,7 @@
 function [Result] = findDirBySubString(Substring, Path, AbsPath)
     % Find all directories that contain a substring (linux only).
-    % Input  : - Substring.
+    % Input  : - Substring defined as a string in between two "/"...
+    %            If you like a substring of this, use e.g., 'string*'.
     %          - Path under which to search.
     %            If empty, use current dir. Default is [].
     %          - A logical indicating if to return absolute path (true),

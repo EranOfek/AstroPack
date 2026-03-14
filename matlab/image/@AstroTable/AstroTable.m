@@ -771,7 +771,7 @@ classdef AstroTable < Component
             
         end
         
-        function ColInd = colname2ind(Obj, ColName, FillValue)
+        function ColInd = colname2ind(Obj, ColName, FillValue, Args)
             % Convert column names to column indices
             % Input  : - A single element AstroTable object.
             %          - A column name, a cell array of column names or an
@@ -781,6 +781,8 @@ classdef AstroTable < Component
             %          - If the column name is char or cell, and it doesn't
             %            exist, this is the fill value for the column
             %            index. If empty, will fail. Default is NaN.
+            %          * ...,key,val,...
+            %            'CaseSens' - Case sensetive. Default is true.
             % Output : - A vector of column indices corresponding to the column names.
             % Author : Eran Ofek (Mar 2021)
             % Example: colname2ind(AC, {'Var1','aa'})
@@ -788,8 +790,9 @@ classdef AstroTable < Component
             
             arguments
                 Obj(1,1)
-                ColName        = [];
-                FillValue      = NaN;
+                ColName         = [];
+                FillValue       = NaN;
+                Args.CaseSens   = true;
             end
            
             if isempty(ColName)
@@ -799,8 +802,12 @@ classdef AstroTable < Component
                     % assumes columns are already column index
                     ColInd = ColName;
                 elseif ischar(ColName)
-                    ColInd = find(strcmp(Obj.ColNames, ColName));
-                    Tmp = find(strcmp(Obj.ColNames, ColName));
+                    %ColInd = find(strcmp(Obj.ColNames, ColName));
+                    if Args.CaseSens
+                        Tmp = find(strcmp(Obj.ColNames, ColName));
+                    else
+                        Tmp = find(strcmpi(Obj.ColNames, ColName));
+                    end
                     if isempty(Tmp)
                         if isempty(FillValue)
                             error('Column %s not found',ColName);
@@ -815,7 +822,11 @@ classdef AstroTable < Component
                     Ncol   = numel(ColName);
                     ColInd = nan(1,Ncol);
                     for Icol=1:1:Ncol
-                        Tmp = find(strcmp(Obj.ColNames, ColName{Icol}));
+                        if Args.CaseSens
+                            Tmp = find(strcmp(Obj.ColNames, ColName{Icol}));
+                        else
+                            Tmp = find(strcmpi(Obj.ColNames, ColName{Icol}));
+                        end
                         if isempty(Tmp)
                             if isempty(FillValue)
                                 error('Column %s not found',ColName{Icol});
@@ -939,6 +950,7 @@ classdef AstroTable < Component
             %                   rows to select. If NaN, select all rows.
             %                   Default is NaN.
             %                   This is not using the selectRows function.
+            %            'CaseSens' - Case sensetive. Default is true.
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -956,13 +968,14 @@ classdef AstroTable < Component
                 UpdateAstroTable(1,1) logical      = false;
                 Args.UseDict(1,1) logical          = true;
                 Args.SelectRows                    = NaN;
+                Args.CaseSens                      = true;
             end
                 
             
 %             if Args.UseDict
 %                 error('FFU: Dictinary is not implemented yet');
 %             end
-            ColInd = colname2ind(Obj, Columns, []);
+            ColInd = colname2ind(Obj, Columns, [], 'CaseSens',Args.CaseSens);
             if istable(Obj.Catalog)
                 if OutputIsTable
                     Result = Obj.Catalog(:,ColInd);
