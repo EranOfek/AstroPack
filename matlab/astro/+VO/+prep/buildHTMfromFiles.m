@@ -106,6 +106,7 @@ function buildHTMfromFiles(Args)
         Args.DownloadDir  string = string(tempdir)
         Args.DecBandWidth double = 5
         Args.Resume       logical = true
+        Args.StartBand    double = 1
         Args.CleanCache   logical = true
         Args.Verbose      logical = true
     end
@@ -170,6 +171,8 @@ function buildHTMfromFiles(Args)
     RadiusHTM = (sqrt(2) * 90 / (2^(Args.HTM_Level - 1))) / RAD;
     MarginDeg = RadiusHTM * RAD * 1.5;
 
+    ListIndexHTM = LevelHTM(Args.HTM_Level).ptr;
+
     DecEdges = -90 : Args.DecBandWidth : 90;
     Nbands = numel(DecEdges) - 1;
 
@@ -206,6 +209,19 @@ function buildHTMfromFiles(Args)
             if Args.Verbose
                 fprintf('\n[Band %d/%d] Dec [%+.0f, %+.0f] deg: %d files\n', ...
                     Iband, Nbands, DecLoDeg, DecHiDeg, numel(OverlapIdx));
+            end
+
+            % When resuming, check if all HTM cells for this band already
+            % exist in HDF5 — if so, skip reading source files entirely
+            if Args.Resume
+                BandComplete = checkBandComplete(CatName, HTM, ...
+                    ListIndexHTM, DecLoRad, DecHiRad, Args.NcatInFile);
+                if BandComplete
+                    if Args.Verbose
+                        fprintf('  All HTM cells exist, skipping band\n');
+                    end
+                    continue;
+                end
             end
 
             BandTic = tic;
@@ -533,6 +549,41 @@ function cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
             if exist(cachedFile, 'file')
                 delete(cachedFile);
             end
+        end
+    end
+end
+
+
+function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
+        DecLoRad, DecHiRad, NcatInFile)
+    % Check if all HTM cells for a Dec band already exist in HDF5.
+    % Returns true only if every cell whose mean Dec falls in [DecLo,DecHi)
+    % either has Nsrc==0 (empty) or already exists as an HDF5 dataset.
+    Complete = true;
+    FileCache = containers.Map();  % cache h5info per HDF5 file
+    for i = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(i);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
+        if MeanDec < DecLoRad || MeanDec >= DecHiRad
+            continue;
+        end
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
+        if ~isfile(FileName)
+            Complete = false;
+            return;
+        end
+        if ~FileCache.isKey(FileName)
+            try
+                FileCache(FileName) = h5info(FileName);
+            catch
+                Complete = false;
+                return;
+            end
+        end
+        Info = FileCache(FileName);
+        if ~any(strcmp({Info.Datasets.Name}, DataName))
+            Complete = false;
+            return;
         end
     end
 end
