@@ -500,7 +500,7 @@ classdef PhotonsList < Component
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                PI = Obj(Iobj).Events.getCol('pi',false,false,'');
+                PI = Obj(Iobj).Events.getCol('pi',false,false,'CaseSens',false);
                 E  = 10.*PI;
                 Obj(Iobj).Events.insertCol(E, Inf, Args.ColEnergy, 'eV');
                 Obj(Iobj).ColEnergy = Args.ColEnergy;
@@ -805,17 +805,17 @@ classdef PhotonsList < Component
             for Iobj=1:1:Nobj
                 if isempty(Args.CCDID)
                     % use all CCDID
-                    XY = getCol(Obj(Iobj), Col);
+                    XY = getCol(Obj(Iobj).Events, Col, false, false, 'CaseSens',false);
                     Flag = true(size(XY,1),1);
                 else
                     % use specific CCDID
-                    XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID]);
+                    XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID], false, false, 'CaseSens',false);
                     Flag = XY(:,3)==Args.CCDID;
                     XY   = XY(Flag,1:2);
                 end
                 if ~isempty(Args.EnergyRange)
                     % select events by Energy
-                    Energy = getCol(Obj(Iobj), Args.ColEnergy);
+                    Energy = getCol(Obj(Iobj).Events, Args.ColEnergy, false, false, 'CaseSens',false);
                     Energy = Energy(Flag);
                     FlagE  = Energy>Args.EnergyRange(1) & Energy<Args.EnergyRange(2);
                     XY     = XY(FlagE,:);
@@ -973,7 +973,7 @@ classdef PhotonsList < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                XY = getCol(Obj(Iobj), Obj(Iobj).ColSky);
+                XY = getCol(Obj(Iobj).Events, Obj(Iobj).ColSky, false, false, 'CaseSens',false);
                 [RA, Dec] = xy2sky(Obj(Iobj), XY(:,1), XY(:,2), 'OutUnits',Args.CooUnits);
                
                 % insert/replace columns
