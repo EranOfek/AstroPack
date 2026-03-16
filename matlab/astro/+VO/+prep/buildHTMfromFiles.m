@@ -7,15 +7,18 @@ function buildHTMfromFiles(Args)
 %              downloading from remote URLs with caching and resume.
 %              Uses celestial.htm.saveHTMIndexFast for index building.
 %
-%              The function works in three steps:
+%              The function works in four steps:
 %              1. Scrape file list from URL or local directory
 %              2. Process files by Dec band: download, select columns,
 %                 build HTM cells using VO.prep.build_htm_catalog
 %              3. Build index with celestial.htm.saveHTMIndexFast
+%              4. Copy HDF5 files to TargetDir (if specified)
 %
 %              Files are downloaded one at a time and cached in
-%              DownloadDir. After each Dec band, files not needed
-%              for the next band are deleted to limit disk usage.
+%              DownloadDir. By default, files not needed for the
+%              next band are deleted (CleanCache). When Resume is
+%              true, CleanCache is automatically disabled to keep
+%              cached files for re-runs.
 %
 % Input  : * ...,key,val,...
 %            --- Source files ---
@@ -23,6 +26,10 @@ function buildHTMfromFiles(Args)
 %            'SourceDir'    - Local directory with FITS files.
 %                             One of SourceURL or SourceDir is required.
 %            'FilePattern'  - Glob pattern for files. Default: '*.fits'
+%                             Supports FITS and text files (.txt,.csv,.tsv,.dat).
+%                             Text files are read with readtable; "null" treated
+%                             as missing (NaN). For large text files spanning
+%                             the full sky, the data is cached in memory.
 %            --- Column selection ---
 %            'Columns'      - Cell array of source column names to keep.
 %                             Default: {} (all columns).
@@ -32,8 +39,11 @@ function buildHTMfromFiles(Args)
 %            'ColRA'        - RA column index in output matrix. Default: 1.
 %            'ColDec'       - Dec column index in output matrix. Default: 2.
 %            'CoorUnits'    - Input coordinate units 'deg'|'rad'. Default: 'deg'
-%            'PostReadFun'  - Function handle: Mat = fun(Table).
+%            'PostReadFun'  - Function handle: Mat = fun(Input).
 %                             If provided, overrides Columns selection.
+%                             For FITS files, Input is a table from readTable1.
+%                             For text files, Input is the filename (string),
+%                             allowing fast I/O via textscan.
 %                             Must return a numeric matrix with RA in ColRA
 %                             and Dec in ColDec (in original CoorUnits).
 %            --- HTM ---
@@ -53,6 +63,9 @@ function buildHTMfromFiles(Args)
 %            --- Processing ---
 %            'DecBandWidth' - Dec band width [deg] for processing. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
+%                             Also disables CleanCache automatically.
+%            'CleanCache'   - Delete cached downloads after each Dec
+%                             band. Default: true (but false when Resume).
 %            'Verbose'      - Print progress. Default: true.
 %
 % Output : null
@@ -61,7 +74,7 @@ function buildHTMfromFiles(Args)
 %   % DECaLS DR10 example:
 %   VO.prep.buildHTMfromFiles(...
 %       'SourceURL', 'https://portal.nersc.gov/cfs/cosmo/data/legacysurvey/dr10/south/sweep/10.1/', ...
-%       'PostReadFun', @decalsPostRead, ...
+%       'PostReadFun', @VO.prep.decalsPostRead, ...
 %       'ColNames', {'RA','Dec','RA_IVAR','DEC_IVAR','Type', ...
 %           'Flux_g','Flux_r','Flux_i','Flux_z', ...
 %           'Flux_W1','Flux_W2','Flux_W3','Flux_W4', ...
@@ -93,6 +106,7 @@ function buildHTMfromFiles(Args)
         Args.DownloadDir  string = string(tempdir)
         Args.DecBandWidth double = 5
         Args.Resume       logical = true
+        Args.StartBand    double = 1
         Args.CleanCache   logical = true
         Args.Verbose      logical = true
     end
@@ -157,6 +171,8 @@ function buildHTMfromFiles(Args)
     RadiusHTM = (sqrt(2) * 90 / (2^(Args.HTM_Level - 1))) / RAD;
     MarginDeg = RadiusHTM * RAD * 1.5;
 
+    ListIndexHTM = LevelHTM(Args.HTM_Level).ptr;
+
     DecEdges = -90 : Args.DecBandWidth : 90;
     Nbands = numel(DecEdges) - 1;
 
@@ -164,6 +180,11 @@ function buildHTMfromFiles(Args)
     cd(LocalDir);
 
     TotalTic = tic;
+
+    % File data cache: avoid re-reading files that span multiple bands.
+    % FileCache{idx} holds the full numeric matrix (with RA/Dec in radians)
+    % for file idx. Cleared when the file is no longer needed.
+    FileCache = cell(Nfiles, 1);
 
     try
         for Iband = 1:Nbands
@@ -190,6 +211,19 @@ function buildHTMfromFiles(Args)
                     Iband, Nbands, DecLoDeg, DecHiDeg, numel(OverlapIdx));
             end
 
+            % When resuming, check if all HTM cells for this band already
+            % exist in HDF5 — if so, skip reading source files entirely
+            if Args.Resume
+                BandComplete = checkBandComplete(CatName, HTM, ...
+                    ListIndexHTM, DecLoRad, DecHiRad, Args.NcatInFile);
+                if BandComplete
+                    if Args.Verbose
+                        fprintf('  All HTM cells exist, skipping band\n');
+                    end
+                    continue;
+                end
+            end
+
             BandTic = tic;
 
             % Load and accumulate data for this band
@@ -200,51 +234,109 @@ function buildHTMfromFiles(Args)
                 idx = OverlapIdx(k);
                 [~, bn, ext] = fileparts(AllFiles{idx});
 
-                % Download if remote (with caching)
-                if IsRemote
-                    localFile = fullfile(DownloadDir, [bn ext]);
-                    if ~exist(localFile, 'file')
-                        if Args.Verbose
-                            fprintf('  [%d/%d] Downloading %s ...\n', ...
-                                k, numel(OverlapIdx), bn);
-                        end
-                        [status, ~] = system(sprintf( ...
-                            'wget -q -c -O "%s" "%s"', localFile, AllFiles{idx}));
-                        if status ~= 0
-                            fprintf('  WARNING: download failed for %s\n', bn);
-                            continue;
+                % Use cached data if available
+                if ~isempty(FileCache{idx})
+                    Mat = FileCache{idx};
+                    if Args.Verbose
+                        fprintf('  [%d/%d] Using cached %s\n', ...
+                            k, numel(OverlapIdx), bn);
+                    end
+                else
+                    % Download if remote
+                    if IsRemote
+                        localFile = fullfile(DownloadDir, [bn ext]);
+                        if ~exist(localFile, 'file')
+                            if Args.Verbose
+                                fprintf('  [%d/%d] Downloading %s ...\n', ...
+                                    k, numel(OverlapIdx), bn);
+                            end
+                            [status, ~] = system(sprintf( ...
+                                'wget -q -c -O "%s" "%s"', localFile, AllFiles{idx}));
+                            if status ~= 0
+                                fprintf('  WARNING: download failed for %s\n', bn);
+                                continue;
+                            end
+                        else
+                            if Args.Verbose
+                                fprintf('  [%d/%d] Using downloaded %s\n', ...
+                                    k, numel(OverlapIdx), bn);
+                            end
                         end
                     else
-                        if Args.Verbose
-                            fprintf('  [%d/%d] Using cached %s\n', ...
-                                k, numel(OverlapIdx), bn);
+                        localFile = AllFiles{idx};
+                    end
+
+                    % Read table (FITS or text)
+                    if Args.Verbose
+                        fprintf('  Reading %s ...\n', bn);
+                    end
+                    [~, ~, fext] = fileparts(localFile);
+                    IsText = ismember(lower(fext), {'.txt', '.csv', '.tsv', '.dat'});
+
+                    % Select columns / transform (with retry on corrupt files)
+                    ReadOK = false;
+                    for Iattempt = 1:2
+                        try
+                            if ~isempty(Args.PostReadFun)
+                                % For text files, pass filename to PostReadFun
+                                % (avoids slow readtable on large files).
+                                % For FITS, pass table as before.
+                                if IsText
+                                    Mat = Args.PostReadFun(localFile);
+                                else
+                                    T = FITS.readTable1(localFile, 'OutClass', []);
+                                    Mat = Args.PostReadFun(T);
+                                    clear T;
+                                end
+                            else
+                                if IsText
+                                    T = readtable(localFile, 'FileType', 'text', ...
+                                        'TreatAsMissing', {'null', 'NA', 'N/A', ''});
+                                else
+                                    T = FITS.readTable1(localFile, 'OutClass', []);
+                                end
+                                if ~isempty(Args.Columns)
+                                    T = T(:, Args.Columns);
+                                end
+                                Mat = table2array(T);
+                                clear T;
+                            end
+                            ReadOK = true;
+                            break;
+                        catch ME
+                            if Iattempt == 1 && IsRemote
+                                fprintf('  WARNING: read failed (%s), deleting and re-downloading %s\n', ...
+                                    ME.message, bn);
+                                delete(localFile);
+                                [status, ~] = system(sprintf( ...
+                                    'wget -q -O "%s" "%s"', localFile, AllFiles{idx}));
+                                if status ~= 0
+                                    fprintf('  WARNING: re-download failed for %s, skipping\n', bn);
+                                    break;
+                                end
+                            else
+                                fprintf('  WARNING: read failed for %s (%s), skipping\n', ...
+                                    bn, ME.message);
+                            end
                         end
                     end
-                else
-                    localFile = AllFiles{idx};
-                end
-
-                % Read FITS table
-                if Args.Verbose
-                    fprintf('  Reading %s ...\n', bn);
-                end
-                T = FITS.readTable1(localFile, 'OutClass', []);
-
-                % Select columns / transform
-                if ~isempty(Args.PostReadFun)
-                    Mat = Args.PostReadFun(T);
-                else
-                    if ~isempty(Args.Columns)
-                        T = T(:, Args.Columns);
+                    if ~ReadOK
+                        continue;
                     end
-                    Mat = table2array(T);
-                end
-                clear T;
 
-                % Convert coordinates to radians
-                if strcmpi(Args.CoorUnits, 'deg')
-                    Mat(:, Args.ColRA)  = Mat(:, Args.ColRA)  .* (pi / 180);
-                    Mat(:, Args.ColDec) = Mat(:, Args.ColDec) .* (pi / 180);
+                    % Convert coordinates to radians
+                    if strcmpi(Args.CoorUnits, 'deg')
+                        Mat(:, Args.ColRA)  = Mat(:, Args.ColRA)  .* (pi / 180);
+                        Mat(:, Args.ColDec) = Mat(:, Args.ColDec) .* (pi / 180);
+                    end
+
+                    % Cache if file spans multiple bands
+                    NbandsForFile = sum( ...
+                        FileDecRanges(idx,2) > (DecEdges(1:end-1)' - MarginDeg) & ...
+                        FileDecRanges(idx,1) < (DecEdges(2:end)' + MarginDeg));
+                    if NbandsForFile > 1
+                        FileCache{idx} = Mat;
+                    end
                 end
 
                 % Filter to band with margin
@@ -258,6 +350,21 @@ function buildHTMfromFiles(Args)
                     fprintf('    %d sources (filtered to band)\n', size(Mat, 1));
                 end
                 clear Mat;
+            end
+
+            % Evict cache entries no longer needed after this band
+            if Iband < Nbands
+                NextBandLoDeg = DecEdges(Iband + 1);
+                NextBandHiDeg = DecEdges(end);
+                for idx = 1:Nfiles
+                    if ~isempty(FileCache{idx}) && ...
+                       (FileDecRanges(idx,2) <= (NextBandLoDeg - MarginDeg) || ...
+                        FileDecRanges(idx,1) >= (NextBandHiDeg + MarginDeg))
+                        FileCache{idx} = [];
+                    end
+                end
+            else
+                FileCache = cell(Nfiles, 1);
             end
 
             if isempty(AllData)
@@ -442,6 +549,41 @@ function cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
             if exist(cachedFile, 'file')
                 delete(cachedFile);
             end
+        end
+    end
+end
+
+
+function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
+        DecLoRad, DecHiRad, NcatInFile)
+    % Check if all HTM cells for a Dec band already exist in HDF5.
+    % Returns true only if every cell whose mean Dec falls in [DecLo,DecHi)
+    % either has Nsrc==0 (empty) or already exists as an HDF5 dataset.
+    Complete = true;
+    FileCache = containers.Map();  % cache h5info per HDF5 file
+    for i = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(i);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
+        if MeanDec < DecLoRad || MeanDec >= DecHiRad
+            continue;
+        end
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
+        if ~isfile(FileName)
+            Complete = false;
+            return;
+        end
+        if ~FileCache.isKey(FileName)
+            try
+                FileCache(FileName) = h5info(FileName);
+            catch
+                Complete = false;
+                return;
+            end
+        end
+        Info = FileCache(FileName);
+        if ~any(strcmp({Info.Datasets.Name}, DataName))
+            Complete = false;
+            return;
         end
     end
 end
