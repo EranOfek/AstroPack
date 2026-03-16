@@ -500,7 +500,7 @@ classdef PhotonsList < Component
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                PI = Obj(Iobj).Events.getCol('PI');
+                PI = Obj(Iobj).Events.getCol('pi',false,false,'');
                 E  = 10.*PI;
                 Obj(Iobj).Events.insertCol(E, Inf, Args.ColEnergy, 'eV');
                 Obj(Iobj).ColEnergy = Args.ColEnergy;
