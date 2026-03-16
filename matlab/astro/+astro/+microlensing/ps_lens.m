@@ -109,6 +109,7 @@ MuP    = FunMuP(Beta,TE);
 MuM    = FunMuM(Beta,TE);
 
 ShiftReLens   = (abs(MuP).*ThetaP + abs(MuM).*ThetaM)./(abs(MuP) + abs(MuM));
+ShiftPosLens = ThetaP - Beta;
 ShiftReSource = ShiftReLens - Beta;
 
 % convert angular values to output units
@@ -122,6 +123,7 @@ Res.MuM     = MuM;
 Res.MuTot   = abs(MuP) + abs(MuM);
 Res.ShiftReLens   = ShiftReLens.*ConvAng;
 Res.ShiftReSource = ShiftReSource.*ConvAng;
+Res.ShiftPosLens  = ShiftPosLens.*ConvAng;
 Res.Beta          = Beta.*ConvAng;
 
 % potential
