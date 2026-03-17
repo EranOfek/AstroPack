@@ -967,6 +967,7 @@ classdef DS9analysis < handle
             %                   'ac' - An AstroCatalog object.
             %                   't'  - A table object.
             %                   Default is 't'.
+            %            'AddInfo2Table'
             % Output : - A MatchedSources object with the output measured
             %            forced photometry parameters.
             % Author : Eran Ofek (May 2023)
@@ -981,6 +982,7 @@ classdef DS9analysis < handle
                 
                 Args.forcedPhotArgs cell = {};
                 Args.OutType             = 't';
+                Args.AddInfo2Table       = true;
             end
             
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
@@ -996,6 +998,16 @@ classdef DS9analysis < handle
                 case {'t','table'}
                     Result = MS.convert2AstroCatalog;
                     Result = Result.toTable;
+
+                    % add info
+                    if Args.AddInfo2Table
+                        Keys = AI.getStructKey({'FWHM','EXPTIME'});
+                        Result.ExpTime = [Keys.EXPTIME]';
+                        Result.FWHM    = [Keys.FWHM]';
+                        Result.ErrRA   = Result.FWHM./(2.35.*Result.SN);
+                        Result.ErrDec  = Result.ErrRA;
+                    end
+                    
                 otherwise
                     error('Unknown OutType option');
             end

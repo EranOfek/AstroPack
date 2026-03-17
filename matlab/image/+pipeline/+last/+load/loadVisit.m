@@ -12,6 +12,8 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
     %            'TempName_MS' - File template name for MatchedSources
     %                   objects. If empty, do not read matched sources objects.
     %                   Default is 'LAST*_sci_merged_MatchedMat_*.hdf5'.
+    %            'GenError' - A logical indicating if to issue an error of
+    %                   files not found. Default is false.
     % Output : - An AstroImage object with all individual images.
     %          - An AstroImage object with all coadd images.
     %          - An MatchedSources object with all matched sources files.
@@ -23,6 +25,7 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         Args.TempName_IndivIm  = 'LAST*_sci_proc_Image_*.fits';
         Args.TempName_Coadd    = 'LAST*_sci_coadd_Image_*.fits';
         Args.TempName_MS       = 'LAST*_sci_merged_MatchedMat_*.hdf5';
+        Args.GenError          = false;
     end
 
     PWD = pwd;
@@ -35,15 +38,17 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         AllSI = [];
     else
         AllSI = pipeline.last.load.directLoad(Args.TempName_IndivIm);
-        if isempty(AllSI)
+        if isempty(AllSI) && Args.GenError
             error('Images %s not not found',Args.TempName_IndivIm);
         end
         % order
-        St = AllSI.getStructKey({'MIDJD','CROPID','COUNTER'});
-        [~,SI] = sortrows([[St.MIDJD].', [St.CROPID].'],[1 2]);
-        Nepoch = max([St.COUNTER]);
-        Nsub   = max([St.CROPID]);
-        AllSI = reshape(AllSI(SI),[Nepoch Nsub]);        
+        if ~isempty(AllSI)
+            St = AllSI.getStructKey({'MIDJD','CROPID','COUNTER'});
+            [~,SI] = sortrows([[St.MIDJD].', [St.CROPID].'],[1 2]);
+            Nepoch = max([St.COUNTER]);
+            Nsub   = max([St.CROPID]);
+            AllSI = reshape(AllSI(SI),[Nepoch Nsub]);        
+        end
     end
 
     % loadd coadd images
