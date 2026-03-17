@@ -48,7 +48,7 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
         Coadd      = [];
         MS         = [];
         Args.HeadKeys          = {'LIMMAG'};
-        Args.TestCol           = {'XPEAK',[1 1716], false; 'YPEAK',[1 1716], false; 'X1',[1 1716], true; 'Y1',[1 1716],true; 'X',[1 1716],true; 'Y',[1 1716],true}
+        Args.ColTest           = {'XPEAK',[1 1716], false; 'YPEAK',[1 1716], false; 'X1',[1 1716], true; 'Y1',[1 1716],true; 'X',[1 1716],true; 'Y',[1 1716],true}
         
         Args.Overlap           = {};
     end
@@ -59,19 +59,20 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
     end
 
     %--- AllSI ---
-    StAr = AlllSI.getStructKey(Args.HeadKeys);
-    % quality info from header
-    Summary.AllSI_HV = tools.struct.structarray2struct(StAr);
-    % check that catalog columns are in range
-    Summary.AllSI_CR = imProc.cat.checkColumnsInRange(AllSI, Args.TestCol);
-
+    if ~isempty(AllSI)
+        StAr = AlllSI.getStructKey(Args.HeadKeys);
+        % quality info from header
+        Summary.AllSI_HV = tools.struct.structarray2struct(StAr);
+        % check that catalog columns are in range
+        Summary.AllSI_CR = imProc.cat.checkColumnsInRange(AllSI, 'ColTest',Args.ColTest);
+    end
 
     %--- Coadd ---
-    StAr = Cadd.getStructKey(Args.HeadKeys);
+    StAr = Coadd.getStructKey(Args.HeadKeys);
     % quality info from header
     Summary.Coadd_HV = tools.struct.structarray2struct(StAr);
     % check that catalog columns are in range
-    Summary.Coadd_CR = imProc.cat.checkColumnsInRange(Coadd, Args.TestCol);
+    Summary.Coadd_CR = imProc.cat.checkColumnsInRange(Coadd, 'ColTest',Args.ColTest);
     
     % check the quality of overlap sources (mainly, astrometry + photometry)
     Summary.Coadd_Overlap = pipeline.last.quality.overlapSources(Coadd, Args.Overlap{:});

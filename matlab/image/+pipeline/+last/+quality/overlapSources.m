@@ -14,11 +14,13 @@ function [Result] = overlapSources(AI, Args)
     %         'CroppingScheme' - 'old' or 'new' (def. 'new', matches the
     %         new version of the pipeline)
     %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
+    %         'Verbose' - a logical indicating if to print messages, def. false
     % Output : - a struct with statistics for each property 'Prop' 
-    %            and each of the 38 interfaces between the crops
-    %          .Diff: a cell array or difference values)
-    %          .MeanDiff: mean over the sources over the sources 
-    %          .StdDiff: std. deviation over the sources over the sources
+    %            and each of the 38 interfaces between the 24 crops (for the case of LAST)
+    %          .Diff: a cell array of difference values of the property;
+    %          the number of values in each cell is the number of sources selected and compared
+    %          .MeanDiff: mean over the sources for each of the interfaces 
+    %          .StdDiff: std. deviation over the sources for each of the interfaces 
     %          .MedianDiff: median over the sources for each of the interfaces  
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
@@ -33,6 +35,7 @@ function [Result] = overlapSources(AI, Args)
         Args.FilterBad   = true;
         Args.CroppingScheme = 'new'; 
         Args.Plot        = false;
+        Args.Verbose     = false;
     end
     BD = BitDictionary;
     IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
@@ -66,7 +69,9 @@ function [Result] = overlapSources(AI, Args)
         FlagMag = MS.Table.MAG_APER_3 < Args.MagRange(2) & MS.Table.MAG_APER_3 > Args.MagRange(1);        
                                
         if sum(FlagMag) > 0
-            fprintf('%d overlap sources found between crops %d and %d\n',sum(FlagMag),Ind(Ivrlp,1), Ind(Ivrlp,2));
+            if Args.Verbose
+                fprintf('%d overlap sources found between crops %d and %d\n',sum(FlagMag),Ind(Ivrlp,1), Ind(Ivrlp,2));
+            end
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
                 Val2 = Cat2.Table.(Prop);
@@ -80,21 +85,23 @@ function [Result] = overlapSources(AI, Args)
                     Result.(Prop).RelDiff{Ivrlp} = abs(Diff./Val2(FlagMag));  
                     % identify largest flux variations:
                     Noff = sum(Result.(Prop).RelDiff{Ivrlp} > 1e-2);
-                    if Noff > 0
+                    if Noff > 0 && Args.Verbose
                         cprintf('blue','NB: %d case(s) of flux variation > 1%% found between crops: %d %d\n',...
                             Noff,Ind(Ivrlp,1),Ind(Ivrlp,2));
                     end
                 end
             end
         else
-            fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
+            if Args.Verbose
+                fprintf('No overlap sources found between crops %d and %d\n',Ind(Ivrlp,1), Ind(Ivrlp,2));
+            end
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
                 Result.(Prop).MedianDiff(Ivrlp) = NaN;
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end
-        clear Cat1 Cat2
+        %clear Cat1 Cat2
     end
     if Args.Plot
         [c, r] = ind2sub([4 6],Ind);
