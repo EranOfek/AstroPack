@@ -221,8 +221,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimitsLocal = [0.1 2.0];
-        Args.Chi2dofLimitsGlobal = [0.1 1.2];
+        Args.Chi2dofLimitsLocal = [0.1 2.2];
+        Args.Chi2dofLimitsGlobal = [0.1 2.5];
         
         Args.flagSaturated logical = true;
 
@@ -948,6 +948,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Get local Chi2
             N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
+            D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
 
             % Test global Chi2
             N_Passes_CHI2DOF_Global = ...
@@ -957,8 +958,13 @@ function TranCat = flagNonTransients(Obj, Args)
                 ((R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
                 (R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))) |...
                 isnan(R_CHI2DOF_Global);
+
+            Passes_CHI2DOF_D = ...
+                (D_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
+                (D_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
+            
             Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global ...
-                & R_Passes_CHI2DOF_Global;
+                & R_Passes_CHI2DOF_Global & Passes_CHI2DOF_D;
 
             % Test local Chi2
             Passes_CHI2DOF_Local = ...
