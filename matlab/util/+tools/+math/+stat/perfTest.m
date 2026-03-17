@@ -28,11 +28,15 @@ function Result=perfTest()
     fprintf('tools.math.stat.mex.std_madmean_mex is x %f faster than matlab\n',T1./T2);
 
     %% tools.math.stat.mex.meanStd
+    R = single(rand(1716,1716));
     tic;for i=1:1000, [a,b]=tools.math.stat.mex.meanStd(R,true);end,T2=toc;
     tic;for i=1:1000, [a1]=mean(R,'all','omitnan'); b1=std(R,1,'all','omitnan');end,T1=toc;
     fprintf('tools.math.stat.mex.meanStd is x %f faster than matlab\n',T1./T2);
 
-
+    R = rand(1e4,1);
+    tic;for i=1:1000, [a,b]=tools.math.stat.mex.meanStd(R,true);end,T2=toc;
+    tic;for i=1:1000, b1=std(R,1,'all','omitnan');end,T1=toc;
+    fprintf('tools.math.stat.mex.meanStd is x %f faster than matlab (std only on 1e4 vector)\n',T1./T2);
 
 
 

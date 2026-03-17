@@ -136,9 +136,16 @@ function TranCat=findTransients(AD, Args)
         end
 
         if Args.include2ndMoments || Args.includePsfFit
+
+            N_PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
+            R_PSFSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
+            PSFSize_Min = min(N_PSFSize,R_PSFSize);
+            PSFSize_Max = 2.0*PSFSize_Min;
+
             [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Dbs, ...
                 LocalMax(:,1), LocalMax(:,2),...
-                'MomRadius',1.7*AD(Iobj).PSFData.fwhm);
+                'MomRadius',1.7*AD(Iobj).PSFData.fwhm, ...
+                'Annulus',[PSFSize_Min PSFSize_Max]);
             [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
@@ -344,7 +351,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
                 'PSF', AD(Iobj).New.PSFData.getPSF, 'Back', 0, 'Std', AD(Iobj).SigmaN, ...
-                'ZP', AD(Iobj).ZpN);
+                'ZP', AD(Iobj).ZpN, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1);
             
             % PSF fit all candidates in the Ref image
             CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
@@ -353,7 +360,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).Ref.PSFData.getPSF, 'Back', 0, 'Std', AD(Iobj).SigmaR,...
-                'ZP', AD(Iobj).ZpR);
+                'ZP', AD(Iobj).ZpR, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1);
 
             % Get chi2 per degrees of freedom of the PSF fit on the difference
             % image.
@@ -369,9 +376,16 @@ function TranCat=findTransients(AD, Args)
             R_FLUXERR_PSF = sqrt(abs(ResultR.Flux));
             R_MAGERR_PSF = 1.086./R_FLUXERR_PSF;
 
+            BD_IM = BitDictionary('BitMask.Image.Default');
 
             MAGPSF_New = AD(Iobj).New.CatData.getCol('MAG_PSF');
             CHI2DOF_New = AD(Iobj).New.CatData.getCol('PSF_CHI2DOF');
+    
+            NearEdge_New = BD_IM.findBit( ...
+                AD(Iobj).New.CatData.getCol('FLAGS'), 'NearEdge');
+
+            MAGPSF_New = MAGPSF_New(~NearEdge_New);
+            CHI2DOF_New = CHI2DOF_New(~NearEdge_New);
 
             MinMag_New = floor(min(MAGPSF_New));
             if AD(Iobj).New.HeaderData.isKeyExist('LIMMAG')
@@ -404,6 +418,12 @@ function TranCat=findTransients(AD, Args)
             MAGPSF_Ref = AD(Iobj).Ref.CatData.getCol('MAG_PSF');
             CHI2DOF_Ref = AD(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
           
+            NearEdge_Ref = BD_IM.findBit(...
+                AD(Iobj).Ref.CatData.getCol('FLAGS'),'NearEdge');
+
+            MAGPSF_Ref = MAGPSF_Ref(~NearEdge_Ref);
+            CHI2DOF_Ref = CHI2DOF_Ref(~NearEdge_Ref);
+
             MinMag_Ref = floor(min(MAGPSF_Ref));
 
             if AD(Iobj).Ref.HeaderData.isKeyExist('LIMMAG')

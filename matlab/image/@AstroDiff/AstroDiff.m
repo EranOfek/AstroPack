@@ -1121,8 +1121,8 @@ classdef AstroDiff < AstroImage
                 Obj
                 
                 % AstroZOGY
-                Args.RadiusTS = 5;
-                Args.useFWHM logical = true;
+                Args.RadiusTS = 1;
+                Args.useFWHM logical = false;
                 Args.applyDSDFcorrection = true;
             end
             
@@ -1153,6 +1153,7 @@ classdef AstroDiff < AstroImage
 
                 Args.FilterFunc = @imProc.sub.flagNonTransients;
                 Args.ConfigFile = '';
+                Args.injectedSrcs = [];
         
             end
 
@@ -1160,7 +1161,8 @@ classdef AstroDiff < AstroImage
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj), ...
-                    'ConfigFile', Args.ConfigFile);
+                    'ConfigFile', Args.ConfigFile, ...
+                    'injectedSrcs', Args.injectedSrcs);
             end
         end
         

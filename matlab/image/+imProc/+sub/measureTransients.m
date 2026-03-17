@@ -36,8 +36,8 @@ function TranCat = measureTransients(AD, Args)
         AD AstroDiff
 
         % AstroZOGY
-        Args.RadiusTS = 5;
-        Args.useFWHM = true;
+        Args.RadiusTS = 1;
+        Args.useFWHM = false;
         Args.applyDSDFcorrection = true;
     end
     
@@ -84,8 +84,8 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
     arguments
         AD AstroZOGY
 
-        Args.RadiusTS = 5;
-        Args.useFWHM logical = true;
+        Args.RadiusTS = 1;
+        Args.useFWHM logical = false;
         Args.MultipleFWHM = 2;
         Args.applyDSDFcorrection = true;
         Args.photColorTermCol = 'PH_COL1';
@@ -98,12 +98,11 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
     if Args.useFWHM
         Args.RadiusTS = AD.PSFData.fwhm * Args.MultipleFWHM;
         Args.RadiusTS = floor(Args.RadiusTS);
-        Args.RadiusTs = Args.RadiusTS + mod(Args.RadiusTS+1,2);
+        Args.RadiusTS = Args.RadiusTS + mod(Args.RadiusTS+1,2);
     end
 
     % Get number of objects
     Nobj = numel(AD);
-
 
     % reverse order to initiate Result array with proper size on first 
     % iteration
@@ -120,8 +119,6 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             continue
         end
         
-
-
         if ~isempty(AD(Iobj).DSDF)
             Indices = sub2ind(size(AD(Iobj).DSDF), XY(:,2),XY(:,1));
             DSDF = AD(Iobj).DSDF(Indices);

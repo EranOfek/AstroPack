@@ -59,8 +59,8 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                 to Args.LogFile.
     Author  : Ruslan Konno (Jan 2026)
     Example : % Run wide pipeline with reference creation + subtraction + merged catalog:
-              FFIDataPath = '/marvin/TESS/GRBs/GRB251013C/FFIs';
-              SavePath    = '/marvin/TESS/GRBs/GRB251013C/proc';
+              FFIDataPath = '/path/to/target/FFIs';
+              SavePath    = '/path/to/target/proc';
     
               pipeline.tess.TESSwidepipe(FFIDataPath, SavePath, ...
                   'LogFile', '/path/to/target/status/tess_widepipe.log', ...

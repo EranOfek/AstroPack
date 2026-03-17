@@ -14,6 +14,7 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %                   PSF.
 %                   'center' - PSF is centered in stamp.
 %                   'corner' - PSF is in corner.
+%                   Default is 'center'.
 %            'Norm' - A logical flag indicating if to normalize the PSF to
 %                   unity prior to coaddition. 
 %                   Default is true.
@@ -28,7 +29,7 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Psf = imUtil.kernel2.gauss([1 2 3 4 5]');
 %          Data = Psf + randn(size(Psf)).*0.001;
-%          [R,PR,R_f,PR_f]=imUtil.image.combine_proper(Data,Psf)
+%          [R,PR,R_f,PR_f]=imUtil.properCoadd.combine_proper(Data,Psf)
 % Reliable: 
 %--------------------------------------------------------------------------
 

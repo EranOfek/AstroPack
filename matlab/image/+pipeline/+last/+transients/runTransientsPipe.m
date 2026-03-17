@@ -89,6 +89,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
+
+        Args.InjectedSrcs = [];
     end
 
     % 1: ----- Set default arguments -----
@@ -666,7 +668,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.measureTransients;
 
     % Flag non transients
-    AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
+    AD.flagNonTransients('ConfigFile', Args.FilterConfigFile,...
+        'injectedSrcs', Args.InjectedSrcs);
 
     % If AddMeta true, add meta information to catalog
     if Args.AddMeta

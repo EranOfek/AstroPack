@@ -841,7 +841,7 @@ classdef AstroZOGY < AstroDiff
                 
                 Args.PopS_delta logical      = true;
                 Args.DeltaWidth              = 0.1;
-                Args.DeltaStampSize          = [3 3];
+                Args.DeltaStampSize          = [1 1];
                 Args.PopS_ext logical        = true;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
