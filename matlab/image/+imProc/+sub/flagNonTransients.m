@@ -254,6 +254,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationBackRatio = 0.1;
         Args.ContaminationMag = 0.48;
         Args.ContaminationRadius = 1.5;
+        Args.OverWritePSFLimit = true;
+        Args.OverwritePSFLimitVal = 5;
 
         Args.flagDPSFShape logical = false;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
@@ -696,6 +698,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 PSFSize_Min = min(N_PSFSize,R_PSFSize);
                 PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
+                if Args.OverWritePSFLimit
+                    PSFSize_Min = Args.OverwritePSFLimitVal;
+                end
+
                 % Recalculating the moments due to issue #701, this should change once the
                 % issue is properly fixed. TODO
                 NewPSF = Obj(Iobj).New.PSF;
@@ -715,7 +721,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Get the flux fraction that is expected in the tails
                 % beyond the PSF stamp.
                 FractionTailFlux = 1 - ...
-                    erf((PSFSize_Min-0.5)./sqrt(2*Med_NX2))*erf((PSFSize_Min-0.5)./sqrt(2*Med_NY2));
+                    erf((PSFSize_Min)./sqrt(2*Med_NX2))*erf((PSFSize_Min)./sqrt(2*Med_NY2));
                 N_TailFlux = N_IntFlux*FractionTailFlux;
 
                 % Count all sources with a tail flux of more than 10% of 
