@@ -1188,6 +1188,9 @@ classdef PhotCalibTrans < Component
                                           % but keeps this crop's own Norm for ZP evaluation.
                 Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode).
                                                  % If false (default), swap Norm back to crop's own (refshape mode).
+                Args.NormTran2D logical = true    % If true (default), center-normalize Tran2D when UseRefNorm=true
+                                                  % (subtract Tran2D value at crop center to remove Norm/kx0 degeneracy).
+                                                  % Set false for raw refzp without normalization.
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -1253,7 +1256,7 @@ classdef PhotCalibTrans < Component
                 if ~isempty(Args.X) && ~isempty(Args.Y) && ...
                    ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(Args.X(:), Args.Y(:), false);
-                    if Args.UseRefNorm
+                    if Args.UseRefNorm && Args.NormTran2D
                         % Center-normalize: subtract Tran2D value at crop center
                         % so that Tran2D captures only relative shape, not absolute offset
                         Xc = Obj.TransModel.Tran2DObj.ParNX(1);
@@ -1309,7 +1312,7 @@ classdef PhotCalibTrans < Component
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
                     FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
 
-                    if Args.UseRefNorm
+                    if Args.UseRefNorm && Args.NormTran2D
                         % Center-normalize: subtract Tran2D value at crop center
                         % so that Tran2D captures only relative shape, not absolute offset
                         Xc = Obj.TransModel.Tran2DObj.ParNX(1);
@@ -2349,6 +2352,7 @@ classdef PhotCalibTrans < Component
                 Args.ApplyAperCorr logical = false  % Apply aperture correction to MAG_APER_N columns
                 Args.RefTransParams = []  % Reference transmission params for uniform photometry
                 Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode)
+                Args.NormTran2D logical = true    % If true, center-normalize Tran2D in refzp mode
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
             end
 
@@ -2436,7 +2440,8 @@ classdef PhotCalibTrans < Component
                 end
                 if ~isempty(Args.RefTransParams)
                     ZPArgs = [ZPArgs, 'RefTransParams', Args.RefTransParams, ...
-                                      'UseRefNorm', Args.UseRefNorm];
+                                      'UseRefNorm', Args.UseRefNorm, ...
+                                      'NormTran2D', Args.NormTran2D];
                 end
                 ZP_valid = Obj.evaluateZP(ZPArgs{:});
                 ZP(ValidPosMask) = ZP_valid(:);
@@ -2881,7 +2886,8 @@ classdef PhotCalibTrans < Component
             %                        'percrop' (default) - each crop uses own model.
             %                        'refshape' - reference spectral shape, per-crop Norm.
             %                        'refzp' - full reference params including Norm.
-            %            'RefCrop' - Reference crop index for refshape/refzp. Default is 10.
+            %            'RefCrop' - Reference crop index for refshape/refzp.
+            %                        0 = weighted mean over all crops. Default is 10.
             % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025, Mar 2026)
             % Example: PC(5).plotZPMap();                          % single crop
@@ -2960,15 +2966,34 @@ classdef PhotCalibTrans < Component
                 % Build reference parameters for non-percrop modes
                 RefParamVec = [];
                 UseRefNorm = false;
+                NormTran2D = true;
                 if ~strcmp(Args.PhotSys, 'percrop')
                     RefIdx = Args.RefCrop;
-                    if RefIdx < 1 || RefIdx > Nobj || ~Obj(RefIdx).Success
-                        warning('PhotCalibTrans:plotZPMap:BadRefCrop', ...
-                                'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
-                    else
+                    if RefIdx == 0
+                        % Weighted mean of all successful crops
+                        AllParams = [];
+                        AllWeights = [];
+                        for Itmp = 1:Nobj
+                            if Obj(Itmp).Success && Obj(Itmp).TransModel.RMS > 0
+                                P = Obj(Itmp).TransModel.getAllFunPar();
+                                AllParams = [AllParams; P.Val(:)'];
+                                AllWeights = [AllWeights; 1 ./ Obj(Itmp).TransModel.RMS.^2];
+                            end
+                        end
+                        if ~isempty(AllParams)
+                            W = AllWeights / sum(AllWeights);
+                            RefParamVec = (W' * AllParams)';
+                        end
+                    elseif RefIdx >= 1 && RefIdx <= Nobj && Obj(RefIdx).Success
                         RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
                         RefParamVec = RefTransParams.Val;
-                        UseRefNorm = strcmp(Args.PhotSys, 'refzp');
+                    else
+                        warning('PhotCalibTrans:plotZPMap:BadRefCrop', ...
+                                'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
+                    end
+                    if ~isempty(RefParamVec)
+                        UseRefNorm = ismember(Args.PhotSys, {'refzp', 'refzp_raw'});
+                        NormTran2D = strcmp(Args.PhotSys, 'refzp');
                     end
                 end
 
@@ -2995,7 +3020,8 @@ classdef PhotCalibTrans < Component
                     ZPArgs = {'X', Xgrid(:), 'Y', Ygrid(:)};
                     if ~isempty(RefParamVec)
                         ZPArgs = [ZPArgs, 'RefTransParams', RefParamVec, ...
-                                          'UseRefNorm', UseRefNorm];
+                                          'UseRefNorm', UseRefNorm, ...
+                                          'NormTran2D', NormTran2D];
                     end
                     ZP = Obj(Iobj).evaluateZP(ZPArgs{:});
 

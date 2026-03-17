@@ -68,7 +68,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.AddMagErr logical = false
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = false
-        Args.PhotSys = 'percrop'       % 'percrop' | 'refshape' | 'refzp' | 'global' | 'mean'
+        Args.PhotSys = 'percrop'       % 'percrop' | 'refshape' | 'refzp' | 'refzp_raw' | 'global' | 'mean'
         Args.RefCrop = 10              % Reference crop index for non-percrop modes
         Args.Verbose logical = false
     end
@@ -361,21 +361,49 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
     if ~strcmp(Args.PhotSys, 'percrop') && Args.AddMag
         RefIdx = Args.RefCrop;
-        if RefIdx < 1 || RefIdx > Nobj
+
+        if RefIdx == 0
+            % Weighted mean of all successful crops' parameters
+            % Weight by 1/RMS^2 (inverse variance)
+            AllParams = [];
+            AllWeights = [];
+            for Iobj = 1:Nobj
+                if PhotCalib(Iobj).Success && PhotCalib(Iobj).TransModel.RMS > 0
+                    P = PhotCalib(Iobj).TransModel.getAllFunPar();
+                    AllParams = [AllParams; P.Val(:)'];
+                    AllWeights = [AllWeights; 1 ./ PhotCalib(Iobj).TransModel.RMS.^2];
+                end
+            end
+            if isempty(AllParams)
+                warning('imProc:calib:fitPhotCalibTrans:NoSuccessCrops', ...
+                        'No successful crops for weighted mean. Falling back to percrop.');
+            else
+                W = AllWeights / sum(AllWeights);  % normalize
+                RefParamVec = W' * AllParams;      % [1 x Npar] weighted mean
+                RefParamVec = RefParamVec(:);
+
+                if Args.Verbose
+                    fprintf('\nUniform photometry mode: %s (weighted mean, %d crops)\n', ...
+                        Args.PhotSys, size(AllParams, 1));
+                end
+            end
+        elseif RefIdx < 1 || RefIdx > Nobj
             error('imProc:calib:fitPhotCalibTrans:BadRefCrop', ...
-                  'RefCrop=%d is out of range [1, %d].', RefIdx, Nobj);
-        end
-        if ~PhotCalib(RefIdx).Success
+                  'RefCrop=%d is out of range [0, %d] (0=weighted mean).', RefIdx, Nobj);
+        elseif ~PhotCalib(RefIdx).Success
             warning('imProc:calib:fitPhotCalibTrans:RefCropFailed', ...
                     'Reference crop %d calibration failed. Falling back to percrop.', RefIdx);
         else
-            % Get reference transmission parameters
+            % Get reference transmission parameters from single crop
             RefTransParams = PhotCalib(RefIdx).TransModel.getAllFunPar();
             RefParamVec = RefTransParams.Val;
 
             if Args.Verbose
                 fprintf('\nUniform photometry mode: %s (RefCrop=%d)\n', Args.PhotSys, RefIdx);
             end
+        end
+
+        if exist('RefParamVec', 'var')
 
             switch Args.PhotSys
                 case 'refshape'
@@ -400,9 +428,11 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                         end
                     end
 
-                case 'refzp'
+                case {'refzp', 'refzp_raw'}
                     % Use full reference parameters (including Norm) for all crops.
-                    % Only Tran2D provides per-crop/per-position variation.
+                    % 'refzp': center-normalize Tran2D (remove Norm/kx0 degeneracy)
+                    % 'refzp_raw': no Tran2D normalization
+                    DoNormTran2D = strcmp(Args.PhotSys, 'refzp');
                     for Iobj = 1:Nobj
                         if PhotCalib(Iobj).Success
                             if IsAstroImage
@@ -412,7 +442,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                                     'AddZP', Args.AddZP, ...
                                     'ApplyAperCorr', Args.ApplyAperCorr, ...
                                     'RefTransParams', RefParamVec, ...
-                                    'UseRefNorm', true);
+                                    'UseRefNorm', true, ...
+                                    'NormTran2D', DoNormTran2D);
                             else
                                 Result(Iobj) = PhotCalib(Iobj).addMag(Result(Iobj), ...
                                     'MagSystem', Args.MagSystem, ...
@@ -420,7 +451,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                                     'AddZP', Args.AddZP, ...
                                     'ApplyAperCorr', Args.ApplyAperCorr, ...
                                     'RefTransParams', RefParamVec, ...
-                                    'UseRefNorm', true);
+                                    'UseRefNorm', true, ...
+                                    'NormTran2D', DoNormTran2D);
                             end
                         end
                     end
