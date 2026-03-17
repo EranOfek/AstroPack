@@ -221,7 +221,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNegatives logical = true;
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimitsLocal = [0.1 2.0 100.0];
+        Args.Chi2dofLimitsLocal = [0.1 2.0];
         Args.Chi2dofLimitsGlobal = [0.1 1.2];
         
         Args.flagSaturated logical = true;
@@ -255,14 +255,15 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationMag = 0.48;
         Args.ContaminationRadius = 1.5;
 
-        Args.flagDPSFShape logical = true;
+        Args.flagDPSFShape logical = false;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
         Args.PSFShapeCovD = [0.06467546, 0.02720397;...
             0.02720397, 0.06933742];
         Args.PSFShapeConfThreshD = 0.95;
 
         Args.flagExtended logical = true;
-        Args.ExtendedSatDelta = 1.0;
+        Args.ExtendedThreshold = -0.59;
+        Args.ExtendedSatDelta = 0.5;
         
         Args.flagLimitingMag logical = true;
 
@@ -289,7 +290,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagVariable logical = true;
 
         Args.flagNuclearNoise logical = true;
-        Args.BrightGalMagThresh = 20.0;
+        Args.BrightGalMagThresh = 17.0;
         Args.BrightGalPrcThresh = 80;
 
         % --- AstroZOGY ---
@@ -299,6 +300,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagTranslients logical = true;
         Args.TranslientThresh = 0.48;
+
+        % --- Injections ---
+        Args.injectedSrcs = [];
 
     end
 
@@ -383,7 +387,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % Get isolated and blended candidates
         if CandCat.isColumn('R_SN')
             R_SN = CandCat.getCol('R_SN');
-            IsolatedCand = ((abs(R_SN) < 3) | (R_MAG_PSF > R_LIMMAG));
+            IsolatedCand = (R_SN < 3);
             BlendedCand = ~IsolatedCand;
         end
 
@@ -464,6 +468,20 @@ function TranCat = flagNonTransients(Obj, Args)
             NuclearCand = GalDist < PointLimit*4/3; 
         else
             NuclearCand = false(NumCand,1);
+        end
+
+        % Find injected sources if given
+
+        Injections = [];
+
+        if ~isempty(Args.injectedSrcs)
+            NumInj = size(Args.injectedSrcs,1);
+            Injections = false(NumCand,1);
+            for IInj = NumInj:-1:1
+                InjMatch = CandCat.coneSearch(...
+                    Args.injectedSrcs(IInj,1), Args.injectedSrcs(IInj,2), 3.0);
+                Injections(InjMatch.Ind) = (InjMatch.Nsrc > 0);
+            end
         end
 
         % ====== Apply flags =====
@@ -615,7 +633,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             SN_ext = CandCat.getCol('SN_ext');
 
-            ExtendedThreshold = zeros(NumCand,1);
+            ExtendedThreshold = ones(NumCand,1)*Args.ExtendedThreshold;
 
             if exist('NearSaturated', 'var')
                 ExtendedThreshold = ExtendedThreshold + Args.ExtendedSatDelta*NearSaturated;
@@ -678,17 +696,26 @@ function TranCat = flagNonTransients(Obj, Args)
                 PSFSize_Min = min(N_PSFSize,R_PSFSize);
                 PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
-                % To be on the conservative side, take the x1.1 of the
-                % second moments. 
+                % Recalculating the moments due to issue #701, this should change once the
+                % issue is properly fixed. TODO
+                NewPSF = Obj(Iobj).New.PSF;
+                PSFbw = imbinarize(NewPSF);
+                stats = regionprops(PSFbw, 'Orientation');
+                if numel(stats) > 1
+                    stats = stats([stats.Orientation] ~= 0);
+                end
+                PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
+                [~, M2, ~] = imUtil.image.moment2(PSFnew, ...
+                    N_PSFSize, N_PSFSize, 'MaxIter',-1,...
+                    'MomRadius', 1.7*Obj(Iobj).New.PSFData.fwhm);
 
-                % The ^4 is due to Issue #701, this should change once the
-                % issue is figured out. TODO
-                Med_NX2 = max(median(N_X2)^4, median(N_X2));
-                Med_NY2 = max(median(N_Y2)^4, median(N_X2));
+                Med_NX2 = M2.X2;
+                Med_NY2 = M2.Y2;
 
                 % Get the flux fraction that is expected in the tails
                 % beyond the PSF stamp.
-                FractionTailFlux = 1 - erf(PSFSize_Min./sqrt(2*Med_NX2))*erf(PSFSize_Min./sqrt(2*Med_NY2));
+                FractionTailFlux = 1 - ...
+                    erf((PSFSize_Min-0.5)./sqrt(2*Med_NX2))*erf((PSFSize_Min-0.5)./sqrt(2*Med_NY2));
                 N_TailFlux = N_IntFlux*FractionTailFlux;
 
                 % Count all sources with a tail flux of more than 10% of 
@@ -698,18 +725,78 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Match candidates to contaminating sources within
                 % contamination radius.
                 [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
-                WideRadius = Args.ContaminationRadius*PSFSize_Max*Args.PixelScale;
+                WideRadius = ceil(Args.ContaminationRadius*PSFSize_Max*Args.PixelScale);
 
                 % Select positions and tail fluxes of contaminating sources.
                 R_NativeContRa = R_NativeRA(Contaminators);
                 R_NativeContDec = R_NativeDec(Contaminators);
                 N_ContTailFlux = N_TailFlux(Contaminators);
 
+                % Blended sources in the R image will be counted as one
+                % source in the R-image catalog. A contamination can occur
+                % at the edge of an unregistered source, so we'll identify
+                % poorly fitted R-image sources and use a bigger radius for
+                % them. 
+
+                R_NativeCHI2 = Obj(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
+                R_NativeContCHI2 = R_NativeCHI2(Contaminators);
+                BlendedContaminators = (R_NativeContCHI2 > 10.0);
+
+                % Same for blended contaminators
+                R_NativeBlendedContRa = R_NativeContRa(BlendedContaminators);
+                R_NativeBlendedContDec = R_NativeContDec(BlendedContaminators);
+
                 % Match candidates to contaminating sources in wide range.
                 if sum(Contaminators) > 0
                     N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
                         [R_NativeContRa, R_NativeContDec], RA, Dec, ...
                         -WideRadius*Arcsec2Rad);
+
+                    if sum(BlendedContaminators) > 0
+                        N_BlendedContCatMatchWide = VO.search.search_sortedlat_multi( ...
+                            [R_NativeBlendedContRa, R_NativeBlendedContDec], RA, Dec, ...
+                            -2.*WideRadius*Arcsec2Rad);
+
+                        % Merge N_BlendedContCatMatchWide into N_ContCatMatchWide row by row
+                        % map blended-subset indices back to full contaminator indices
+                        BlendedToContIdx = find(BlendedContaminators);
+                        
+                        for i = 1:numel(N_ContCatMatchWide)
+                        
+                            % --- general matches ---
+                            indA  = N_ContCatMatchWide(i).Ind(:);
+                            distA = N_ContCatMatchWide(i).Dist(:);
+                        
+                            % --- blended matches, remapped to full contaminator indexing ---
+                            indB_local = N_BlendedContCatMatchWide(i).Ind(:);
+                            distB      = N_BlendedContCatMatchWide(i).Dist(:);
+                        
+                            if ~isempty(indB_local)
+                                indB = BlendedToContIdx(indB_local);
+                            else
+                                indB = [];
+                            end
+                        
+                            % append only indices not already present
+                            isNew = ~ismember(indB, indA);
+                        
+                            indMerged  = [indA;  indB(isNew)];
+                            distMerged = [distA; distB(isNew)];
+                        
+                            % update struct
+                            N_ContCatMatchWide(i).Ind    = indMerged;
+                            N_ContCatMatchWide(i).Dist   = distMerged;
+                            N_ContCatMatchWide(i).Nmatch = numel(indMerged);
+                        
+                            if ~isempty(indMerged)
+                                [~, kmin] = min(distMerged);
+                                N_ContCatMatchWide(i).Ind1 = indMerged(kmin);
+                            else
+                                N_ContCatMatchWide(i).Ind1 = [];
+                            end
+                        end
+    
+                    end
 
                     NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
                 else
@@ -718,6 +805,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 N_Passes_Local = (NumMatchesWideCont < 1);
                 CandFluxes = CandCat.getCol('FLUX_PSF');
+
+                SelfSrcRad = 1.5*Args.PixelScale*Arcsec2Rad;
                
                 for ICand = 1:NumCand
                     if N_Passes_Local(ICand)
@@ -728,7 +817,7 @@ function TranCat = flagNonTransients(Obj, Args)
                     DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
                     % Ignore self-contamination.
-                    IdxRef = IdxRef(DistRad > PointLimit*Arcsec2Rad);
+                    IdxRef = IdxRef(DistRad > SelfSrcRad);
 
                     if isempty(IdxRef)
                         N_Passes_Local(ICand) = true;
@@ -742,6 +831,13 @@ function TranCat = flagNonTransients(Obj, Args)
                 
                     N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag);
                 end
+
+                STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
+                BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
+
+                N_Passes_Local_Aper = (STD_ANNULUS < 7.0) & (abs(BACK_ANNULUS) < 3.0);
+
+                N_Passes_Local = N_Passes_Local & N_Passes_Local_Aper;
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
@@ -856,12 +952,11 @@ function TranCat = flagNonTransients(Obj, Args)
             % Test global Chi2
             N_Passes_CHI2DOF_Global = ...
                 (N_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
-                (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2)) & ...
-                (N_CHI2DOF_Local < Args.Chi2dofLimitsLocal(3));
+                (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2));
             R_Passes_CHI2DOF_Global = ... 
-                (R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
-                ((R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))...
-                | isnan(R_CHI2DOF_Global));
+                ((R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
+                (R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))) |...
+                isnan(R_CHI2DOF_Global);
             Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global ...
                 & R_Passes_CHI2DOF_Global;
 
@@ -1056,6 +1151,14 @@ function TranCat = flagNonTransients(Obj, Args)
             TopPercentile = 50*ones(NumNuclear,1);
             TopPercentile(BrightNuclear) = Args.BrightGalPrcThresh;
 
+            R_MAG_PSF_4Nuc = R_MAG_PSF;
+            Score_4Nuc = Score;
+
+            if ~isempty(Injections)
+                R_MAG_PSF_4Nuc = R_MAG_PSF_4Nuc(~Injections);
+                Score_4Nuc = Score_4Nuc(~Injections);
+            end
+
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
                 if ~RDetNuclear(INuclear)
@@ -1070,14 +1173,22 @@ function TranCat = flagNonTransients(Obj, Args)
                 TargetRMag = NuclearRMag(INuclear);
                 DynamicBinMin = TargetRMag - 0.5;
                 DynamicBinMax = TargetRMag;
-                BinnedMags = (R_MAG_PSF > DynamicBinMin) & (R_MAG_PSF < DynamicBinMax);
+                BinnedMags = (R_MAG_PSF_4Nuc > DynamicBinMin) ...
+                    & (R_MAG_PSF_4Nuc < DynamicBinMax);
 
                 % Some comparison sources are at the edge of the nan-border
                 % and have a low R_MAG_PSF but high SCORE value, which
                 % leads to filtering of real nuclear transients.
                 % TODO: this maybe should be done cleaner
                 if exist('BadPixHard','var')
-                    BinnedMags = BinnedMags & ~BadPixHard;
+                    BadPixHard_4Nuc = BadPixHard;
+
+                    if ~isempty(Injections)
+                        BadPixHard_4Nuc = BadPixHard_4Nuc(~Injections);
+                    end
+
+                    BinnedMags = BinnedMags & ~BadPixHard_4Nuc;
+
                 end
                 
                 % If bin is empty, assume that this magnitude range is well
@@ -1091,7 +1202,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % Test if candidate score is above median score for its
                 % R mag bin. This should be true if the candidate is the
                 % only transient source in its bin.
-                BinThresholdS = prctile(Score(BinnedMags), TopPercentile(INuclear));
+                BinThresholdS = prctile(Score_4Nuc(BinnedMags), TopPercentile(INuclear));
                 NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
