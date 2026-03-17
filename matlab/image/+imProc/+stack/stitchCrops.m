@@ -7,7 +7,7 @@ function [Result] = stitchCrops(AI, Args)
     %         'UpdateZP'  - whether to calculate a new photometric ZP for the stitched image  
     % Output : - a stiched AstroImage with a merged catalog and updated WCS
     % Author : A.M. Krassilchtchikov (2026 Jan) 
-    % Example: AIs = imProc.stack.stitchCrops(AI)
+    % Example: AIs = imProc.stack.stitchCrops(AI,'UpdateWCS',true)
     % 
     arguments
         AI
