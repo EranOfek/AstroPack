@@ -22,7 +22,7 @@ function [Result] = stitchCrops(AI, Args)
     MCat  = repmat(AstroCatalog,1,Ncrop);
     Xmin  = zeros(Ncrop,1); Xmax  = zeros(Ncrop,1);
     Ymin  = zeros(Ncrop,1); Ymax  = zeros(Ncrop,1);
-    CCDSEC= zeros(Ncrop,4); 
+    CCDSEC= zeros(Ncrop,4);     
     OrigU = zeros(Ncrop,4);
     
     % get the table indices of the pixel columns
@@ -59,7 +59,7 @@ function [Result] = stitchCrops(AI, Args)
             ImaShiftX = OrigU(Icrop,1)-X0; 
         else
             XUmin = CCDSEC(Icrop,1);
-            ImaShiftX = XUmin-1;
+            ImaShiftX = Xmin(Icrop)-X0 + XUmin-1; 
         end
         if O.hasRight(Icrop)
             XUmax = CCDSEC(Icrop,2)-(Xmax(Icrop)-OrigU(Icrop,2)); 
@@ -71,7 +71,7 @@ function [Result] = stitchCrops(AI, Args)
             ImaShiftY = OrigU(Icrop,3)-Y0; 
         else
             YUmin = CCDSEC(Icrop,3);
-            ImaShiftY = YUmin-1;
+            ImaShiftY = Ymin(Icrop)-Y0 + YUmin-1; 
         end
         if O.hasTop(Icrop)
             YUmax = CCDSEC(Icrop,4)-(Ymax(Icrop)-OrigU(Icrop,4)); 
