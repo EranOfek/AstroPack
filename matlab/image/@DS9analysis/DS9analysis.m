@@ -189,7 +189,11 @@ classdef DS9analysis < handle
             if Args.Disp
                 for Iim=1:1:Nim
                     FrameInd = Frames(Iim);
-                    ds9.disp(Obj.Images(FrameInd), FrameInd);
+                    try
+                        ds9.disp(Obj.Images(FrameInd), FrameInd);
+                    catch ME
+                        fprintf('Failed displaying imag : %d\n',Iim);
+                    end
                     if ~isempty(Args.Zoom)
                         ds9.zoom(Args.Zoom);
                     end
