@@ -2885,15 +2885,22 @@ classdef PhotCalibTrans < Component
             %            'PhotSys' - Photometry system mode for ZP evaluation:
             %                        'percrop' (default) - each crop uses own model.
             %                        'refshape' - reference spectral shape, per-crop Norm.
-            %                        'refzp' - full reference params including Norm.
+            %                        'refzp' - full reference params incl. Norm, center-normalized Tran2D.
+            %                        'refzp_raw' - full reference params, no Tran2D normalization.
             %            'RefCrop' - Reference crop index for refshape/refzp.
             %                        0 = weighted mean over all crops. Default is 10.
+            %            'TileOrder' - Crop tiling order in mosaic:
+            %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
+            %                        'rowmajor' (new pipeline) - left-to-right, row by row.
+            %                        Default is 'colmajor'.
             % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025, Mar 2026)
             % Example: PC(5).plotZPMap();                          % single crop
             %          PC.plotZPMap();                              % mosaic, percrop
             %          PC.plotZPMap('PhotSys', 'refzp', 'RefCrop', 10);  % mosaic, refzp
+            %          PC.plotZPMap('PhotSys', 'refzp_raw', 'RefCrop', 0); % mosaic, weighted mean, raw
             %          PC.plotZPMap('SmoothSigma', 0);             % mosaic, no smoothing
+            %          PC.plotZPMap('TileOrder', 'rowmajor');       % mosaic, new pipeline tiling
 
             arguments
                 Obj
@@ -2907,6 +2914,7 @@ classdef PhotCalibTrans < Component
                 Args.SmoothSigma = 3
                 Args.PhotSys = 'percrop'
                 Args.RefCrop = 10
+                Args.TileOrder = 'colmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
             end
 
             Nobj = numel(Obj);
@@ -3008,8 +3016,7 @@ classdef PhotCalibTrans < Component
                     end
 
                     CropID = CropIDs(Iobj);
-                    Col = ceil(CropID / Args.Nrows);
-                    Row = mod(CropID - 1, Args.Nrows) + 1;
+                    [Row, Col] = PhotCalibTrans.cropID2RowCol(CropID, Args.Nrows, Args.Ncols, Args.TileOrder);
 
                     Nx = Args.SubImgSize(1);
                     Ny = Args.SubImgSize(2);
@@ -3103,8 +3110,7 @@ classdef PhotCalibTrans < Component
                 % Label crop IDs
                 for Iobj = 1:Nobj
                     CropID = CropIDs(Iobj);
-                    Col = ceil(CropID / Args.Nrows);
-                    Row = mod(CropID - 1, Args.Nrows) + 1;
+                    [Row, Col] = PhotCalibTrans.cropID2RowCol(CropID, Args.Nrows, Args.Ncols, Args.TileOrder);
                     Xc = (Col - 0.5) * Args.SubImgSize(1);
                     Yc = (Row - 0.5) * Args.SubImgSize(2);
                     text(Xc, Yc, sprintf('%d', CropID), ...
@@ -3260,6 +3266,34 @@ classdef PhotCalibTrans < Component
             xlabel('Optimization Stage');
             title('Goodness of Fit Evolution');
             xticks(1:Nstages);
+        end
+    end
+
+    methods (Static)
+        function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
+            % Convert CropID to grid (Row, Col) position
+            % Input  : - CropID (scalar integer, 1-based)
+            %          - Nrows - number of rows in grid
+            %          - Ncols - number of columns in grid
+            %          - TileOrder - 'colmajor' or 'rowmajor'
+            %            'colmajor' (old pipeline): CropIDs fill bottom-to-top,
+            %              then left-to-right. CropID 1..Nrows = column 1, etc.
+            %            'rowmajor' (new pipeline): CropIDs fill left-to-right,
+            %              then bottom-to-top. CropID 1..Ncols = row 1, etc.
+            % Output : - Row (1-based, 1 = bottom)
+            %          - Col (1-based, 1 = left)
+
+            switch lower(TileOrder)
+                case 'colmajor'
+                    Col = ceil(CropID / Nrows);
+                    Row = mod(CropID - 1, Nrows) + 1;
+                case 'rowmajor'
+                    Row = ceil(CropID / Ncols);
+                    Col = mod(CropID - 1, Ncols) + 1;
+                otherwise
+                    error('PhotCalibTrans:cropID2RowCol:BadTileOrder', ...
+                          'TileOrder must be ''colmajor'' or ''rowmajor'', got ''%s''.', TileOrder);
+            end
         end
     end
 
