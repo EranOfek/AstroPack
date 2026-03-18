@@ -1,28 +1,33 @@
 function [Result] = overlapSources(AI, Args)
     % compare source characteristics from overlapping image crops
-    %     Optional detailed description
+    %     optionally plot the results 
     % Input  : - an AstroImage containing all the crops (proc or coadd)    
     %          * ...,key,val,... 
-    %         'MagCut' - a range of MAG_APER_3 magnituds employed for the comparison
-    %         'MatchRadius' - match radius in arcsec
-    %         'Prop'   - a list of columns to compare
+    %         'MagRange' - a range of MAG_APER_3 magnituds employed for the
+    %         comparison, def. 13-15
+    %         'MatchRadius' - match radius in arcsec, def. 1
+    %         'Prop'   - a list of columns to compare, def. sources positions 
+    %         (both pixel and sky) and magnitudes (both APER and PSF)
     %         'BadFlags' - a list of bad flags employed to deselect sources
-    %         'FilterBad' - whether to use the 'BadFlags' for filtering
-    %         'CroppingScheme' - 'old' or 'new'
+    %         'FilterBad' - whether to use the 'BadFlags' for filtering,
+    %         def. is true
+    %         'CroppingScheme' - 'old' or 'new' (def. 'new', matches the
+    %         new version of the pipeline)
     %         'Plot' - make a 2-panel plot of MAG_AB_APER_3 and FLUX_APER_3 differences distribution
-    %         'Verbose' - A logical indicating if to print messages.
-    %               Default is false.
-    % Output : - a struct with statistics for each property 'Prop' and each Crop:
-    %          .Diff (a cell array)
-    %          .MeanDiff
-    %          .StdDiff
-    %          .MedianDiff (not very usefull?)
+    %         'Verbose' - a logical indicating if to print messages, def. false
+    % Output : - a struct with statistics for each property 'Prop' 
+    %            and each of the 38 interfaces between the 24 crops (for the case of LAST)
+    %          .Diff: a cell array of difference values of the property;
+    %          the number of values in each cell is the number of sources selected and compared
+    %          .MeanDiff: mean over the sources for each of the interfaces 
+    %          .StdDiff: std. deviation over the sources for each of the interfaces 
+    %          .MedianDiff: median over the sources for each of the interfaces  
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
     %
     arguments
         AI      
-        Args.MagCut      = [13 15];  
+        Args.MagRange    = [13 15];  
         Args.MatchRadius = 1; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
                             'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};        
@@ -61,7 +66,7 @@ function [Result] = overlapSources(AI, Args)
         
         MS = imProc.match.match(Cat1, Cat2, 'Radius', Args.MatchRadius);             
         
-        FlagMag = MS.Table.MAG_APER_3 < Args.MagCut(2) & MS.Table.MAG_APER_3 > Args.MagCut(1);        
+        FlagMag = MS.Table.MAG_APER_3 < Args.MagRange(2) & MS.Table.MAG_APER_3 > Args.MagRange(1);        
                                
         if sum(FlagMag) > 0
             if Args.Verbose
@@ -117,7 +122,7 @@ function [Result] = overlapSources(AI, Args)
         scatter(X,Y,80, Result.MAG_AB_PSF.MedianDiff, ...
            'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
-        Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagCut(1),Args.MagCut(2));
+        Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagRange(1),Args.MagRange(2));
         xlabel(Msg);
         title 'Median Diff MAG\_AB\_PSF'
         subplot(2,3,4)
