@@ -1,34 +1,91 @@
 function Result = testPhotSys(Args)
     % Compare PhotSys modes by epoch-to-epoch photometric repeatability
-    % Description: For each PhotSys mode, calibrates all visits independently,
-    %              then matches sources across epochs per crop and computes
-    %              mag vs std (scatter diagram). Lower std = better mode.
+    % Description: For each PhotSys mode, calibrates all visits of the same
+    %              field independently using fitPhotCalibTrans, then matches
+    %              sources across epochs per crop and computes the epoch-to-epoch
+    %              magnitude scatter (std). Lower std = better calibration mode.
+    %              Calibration results are cached in OutDir as PC_<mode>.mat;
+    %              delete or use ForceRecalc=true to recompute.
+    %
+    %              PhotSys modes:
+    %                'percrop'   - Each crop uses its own fitted transmission (default pipeline).
+    %                'refshape'  - Reference crop's spectral shape, per-crop Norm + Tran2D.
+    %                'refzp'     - Full reference params (incl. Norm), center-normalized Tran2D.
+    %                'refzp_raw' - Same as refzp but without Tran2D center-normalization.
+    %              RefCrop=0 uses weighted mean (1/RMS^2) of all crops instead of a single reference.
+    %
+    %              Plots generated (when Plot=true):
+    %                1. Mag vs Std scatter — one panel per mode. Shows epoch-to-epoch
+    %                   std vs median magnitude. When ShowOrigMag=true, original
+    %                   (instrumental) mag scatter is shown in gray underneath the
+    %                   AB-calibrated scatter in color.
+    %                2. Std difference — Std(percrop) - Std(other) vs magnitude.
+    %                   Points >0 mean the non-percrop mode is better.
+    %                3. ZP mosaic — side-by-side ZP maps for the first visit.
+    %                Binned trend lines (median or mean) are overlaid on scatter plots.
+    %
     % Input  : * ...,key,val,...
-    %            'DataDir' - Directory with proc FITS files. Default is '/home/dana/222625v1'.
-    %            'OutDir' - Directory for saving results. Default is DataDir/results.
-    %            'Visits' - Vector of visit indices. Default is 1:20.
-    %            'Modes' - Cell array of PhotSys modes. Default is {'percrop','refshape','refzp'}.
-    %            'RefCrop' - Reference crop index. Default is 10.
+    %            'DataDir' - Directory with proc FITS files (Image + Cat).
+    %                        Default is '/home/dana/222625v1'.
+    %            'OutDir' - Directory for saving cached results (.mat files).
+    %                        Default is DataDir/results.
+    %            'Visits' - Vector of visit indices to process. Default is 1:20.
+    %            'Modes' - Cell array of PhotSys modes to compare.
+    %                        Default is {'percrop','refshape','refzp'}.
+    %            'RefCrop' - Reference crop index for non-percrop modes.
+    %                        0 = weighted mean over all crops. Default is 10.
     %            'Ncrop' - Number of crops per visit. Default is 24.
-    %            'CropsToAnalyze' - Crops for epoch matching. Default is [] (all).
-    %            'MatchRadius' - Cross-epoch matching radius [arcsec]. Default is 3.
-    %            'MagFields' - Mag columns to compare. Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
-    %            'MatchedColumns' - Columns to propagate into MatchedSources.
+    %            'CropsToAnalyze' - Subset of crops for epoch matching and plots.
+    %                        Default is [] (all crops).
+    %            'MatchRadius' - Cross-epoch source matching radius [arcsec]. Default is 3.
+    %            'MagFields' - Cell array of AB magnitude columns to compare.
+    %                        Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
+    %            'MatchedColumns' - Columns propagated into MatchedSources.
+    %                        Must include MagFields and their original counterparts.
     %            'BadFlags' - Flags for setBadPhotToNan. Default is {'Saturated','NearEdge','Overlap'}.
-    %            'MaxMagErr' - Max mag error for ZP-free comparison. Default is 0.02.
-    %            'ForceRecalc' - Recalculate even if .mat exists. Default is false.
-    %            'CalibArgs' - Additional args for fitPhotCalibTrans. Default is {}.
-    %            'Plot' - Generate plots. Default is true.
-    %            'Verbose' - Print progress. Default is true.
+    %            'MaxMagErr' - Max magnitude error for filtering. Default is 0.02.
+    %            'ForceRecalc' - Recalculate even if cached .mat exists. Default is false.
+    %            'CalibArgs' - Additional key-value args forwarded to fitPhotCalibTrans.
+    %                        Default is {}.
+    %            'Plot' - Generate diagnostic plots. Default is true.
+    %            'ShowOrigMag' - On AB scatter panels, overlay original (instrumental)
+    %                        mag scatter in gray for comparison. Default is true.
+    %            'OverlayTrend' - Binned trend line on scatter plots:
+    %                        'median' (default), 'mean', or 'none'.
+    %            'TrendBinWidth' - Magnitude bin width for trend line. Default is 0.5.
+    %            'Verbose' - Print progress messages. Default is true.
     % Output : - Result struct with fields:
-    %            .PC     - struct with PC_all{Nvisits}(1xNcrop) per mode
-    %            .Cats   - struct with Cats{Nvisits}(1xNcrop) AstroCatalog per mode
-    %            .MS     - struct with MatchedSources per mode per crop
-    %            .FitRMS - struct with fit RMS(Nvisits x Ncrop) per mode
+    %            .PC     - struct with PC_all{Nvisits}(1xNcrop) PhotCalibTrans per mode
+    %            .Cats   - struct with Cats_all{Nvisits}(1xNcrop) AstroCatalog per mode
+    %            .MS     - struct with MS{Ncrop} MatchedSources per mode
+    %            .FitRMS - struct with RMS(Nvisits x Ncrop) matrix per mode
+    %            .CLim   - color limits used for ZP mosaic plots
     % Author : D. Kovaleva (Mar 2026)
-    % Example: R = pipeline.last.quality.testPhotSys();
-    %          R = pipeline.last.quality.testPhotSys('CropsToAnalyze', [10 19]);
-    %          R = pipeline.last.quality.testPhotSys('Modes', {'percrop','refzp'}, 'ForceRecalc', true);
+    % Example: % Run all defaults (3 modes, 20 visits, all crops):
+    %          R = pipeline.last.quality.testPhotSys();
+    %
+    %          % Compare only percrop vs refzp on specific crops:
+    %          R = pipeline.last.quality.testPhotSys('Modes', {'percrop','refzp'}, ...
+    %              'CropsToAnalyze', [10 19]);
+    %
+    %          % Use weighted mean transmission instead of single reference crop:
+    %          R = pipeline.last.quality.testPhotSys('RefCrop', 0);
+    %
+    %          % Include refzp_raw (without Tran2D normalization):
+    %          R = pipeline.last.quality.testPhotSys('Modes', ...
+    %              {'percrop','refzp','refzp_raw'});
+    %
+    %          % Force recalculation with custom CalibArgs:
+    %          R = pipeline.last.quality.testPhotSys('ForceRecalc', true, ...
+    %              'CalibArgs', {'UseTran2D', false});
+    %
+    %          % Custom data directory, fewer visits, mean trend line:
+    %          R = pipeline.last.quality.testPhotSys('DataDir', '/path/to/data', ...
+    %              'Visits', 1:5, 'OverlayTrend', 'mean');
+    %
+    %          % Disable original mag overlay and trend lines:
+    %          R = pipeline.last.quality.testPhotSys('ShowOrigMag', false, ...
+    %              'OverlayTrend', 'none');
 
     arguments
         Args.DataDir        = '/home/dana/222625v1'
@@ -40,13 +97,18 @@ function Result = testPhotSys(Args)
         Args.CropsToAnalyze = []
         Args.MatchRadius    = 3
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
-        Args.MatchedColumns = {'RA','Dec','X1','Y1','SN','MAG_AB_PSF','MAG_AB_APER_3', ...
+        Args.MatchedColumns = {'RA','Dec','X1','Y1','SN', ...
+                               'MAG_AB_PSF','MAG_AB_APER_3', ...
+                               'MAG_PSF','MAG_APER_3', ...
                                'MAGERR_PSF','MAGERR_APER_3','FLAGS'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
         Args.Plot logical   = true
+        Args.ShowOrigMag logical = true  % Overlay original (non-AB) mag scatter on AB panels
+        Args.OverlayTrend   = 'median'  % 'median' | 'mean' | 'none' — binned trend line on scatter plots
+        Args.TrendBinWidth  = 0.5       % mag bin width for trend line
         Args.Verbose logical = true
     end
 
@@ -242,8 +304,57 @@ function Result = testPhotSys(Args)
         figure('Name', sprintf('Mag vs Std — %s', MagField), ...
                'Position', [50, 50, 400*Nmodes, 500]);
 
+        % Derive original (non-AB) mag field name
+        OrigMagField = '';
+        if Args.ShowOrigMag && contains(MagField, '_AB_')
+            OrigMagField = strrep(MagField, '_AB_', '_');
+        end
+
         for Im = 1:Nmodes
             Mode = Args.Modes{Im};
+            subplot(1, Nmodes, Im);
+            hold on;
+
+            % --- Original mag scatter (background, gray) ---
+            if ~isempty(OrigMagField)
+                allMedOrig = [];
+                allStdOrig = [];
+                for Ic = Args.CropsToAnalyze
+                    if Ic > numel(Result.MS.(Mode)) || isempty(Result.MS.(Mode){Ic})
+                        continue;
+                    end
+                    MS = Result.MS.(Mode){Ic};
+                    if ~isfield(MS.Data, OrigMagField); continue; end
+                    OrigData = MS.Data.(OrigMagField);
+                    allMedOrig = [allMedOrig, nanmedian(OrigData, 1)];
+                    allStdOrig = [allStdOrig, nanstd(OrigData, 0, 1)];
+                end
+                if ~isempty(allMedOrig)
+                    plot(allMedOrig, allStdOrig, '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 3);
+                    % Trend line for original
+                    if ~strcmp(Args.OverlayTrend, 'none')
+                        BinEdges = 9:Args.TrendBinWidth:22;
+                        BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
+                        [~, ~, BinIdx] = histcounts(allMedOrig, BinEdges);
+                        TrendOrig = nan(size(BinCenters));
+                        for Ib = 1:numel(BinCenters)
+                            Mask = BinIdx == Ib;
+                            if sum(Mask) > 5
+                                if strcmp(Args.OverlayTrend, 'median')
+                                    TrendOrig(Ib) = nanmedian(allStdOrig(Mask));
+                                else
+                                    TrendOrig(Ib) = nanmean(allStdOrig(Mask));
+                                end
+                            end
+                        end
+                        ValidBins = isfinite(TrendOrig);
+                        plot(BinCenters(ValidBins), TrendOrig(ValidBins), '--', ...
+                            'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+                    end
+                end
+            end
+
+            % --- AB mag scatter (foreground, color) ---
             allMedMag = [];
             allStdMag = [];
 
@@ -265,12 +376,30 @@ function Result = testPhotSys(Args)
                 allStdMag = [allStdMag, StdMag];
             end
 
-            subplot(1, Nmodes, Im);
             if ~isempty(allMedMag)
                 plot(allMedMag, allStdMag, '.', 'Color', Colors(Im,:), 'MarkerSize', 4);
+                % Trend line for AB
+                if ~strcmp(Args.OverlayTrend, 'none')
+                    BinEdges = 9:Args.TrendBinWidth:22;
+                    BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
+                    [~, ~, BinIdx] = histcounts(allMedMag, BinEdges);
+                    TrendVal = nan(size(BinCenters));
+                    for Ib = 1:numel(BinCenters)
+                        Mask = BinIdx == Ib;
+                        if sum(Mask) > 5
+                            if strcmp(Args.OverlayTrend, 'median')
+                                TrendVal(Ib) = nanmedian(allStdMag(Mask));
+                            else
+                                TrendVal(Ib) = nanmean(allStdMag(Mask));
+                            end
+                        end
+                    end
+                    ValidBins = isfinite(TrendVal);
+                    plot(BinCenters(ValidBins), TrendVal(ValidBins), '-k', 'LineWidth', 2);
+                end
             end
             set(gca, 'YScale', 'log');
-            hold on; box on; grid on;
+            box on; grid on;
             xlabel('Median Magnitude');
             ylabel('Std [mag]');
             xlim([9 22]);
@@ -330,6 +459,25 @@ function Result = testPhotSys(Args)
                     plot(allMedMag, allDeltaStd, '.', 'MarkerSize', 4);
                     hold on;
                     plot(xlim, [0 0], 'k--');
+                    % Overlay binned trend line
+                    if ~strcmp(Args.OverlayTrend, 'none')
+                        BinEdges = 9:Args.TrendBinWidth:22;
+                        BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
+                        [~, ~, BinIdx] = histcounts(allMedMag, BinEdges);
+                        TrendVal = nan(size(BinCenters));
+                        for Ib = 1:numel(BinCenters)
+                            Mask = BinIdx == Ib;
+                            if sum(Mask) > 5
+                                if strcmp(Args.OverlayTrend, 'median')
+                                    TrendVal(Ib) = nanmedian(allDeltaStd(Mask));
+                                else
+                                    TrendVal(Ib) = nanmean(allDeltaStd(Mask));
+                                end
+                            end
+                        end
+                        ValidBins = isfinite(TrendVal);
+                        plot(BinCenters(ValidBins), TrendVal(ValidBins), '-r', 'LineWidth', 2);
+                    end
                 end
                 box on; grid on;
                 xlabel('Median Magnitude');
