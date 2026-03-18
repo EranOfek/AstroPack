@@ -4,7 +4,7 @@ function [Result] = overlapSources(AI, Args)
     % Input  : - an AstroImage containing all the crops (proc or coadd)    
     %          * ...,key,val,... 
     %         'MagRange' - a range of MAG_APER_3 magnituds employed for the
-    %         comparison, def. 13-15
+    %         comparison, def. [13 15].
     %         'MatchRadius' - match radius in arcsec, def. 1
     %         'Prop'   - a list of columns to compare, def. sources positions 
     %         (both pixel and sky) and magnitudes (both APER and PSF)

@@ -820,7 +820,7 @@ classdef PhotonsList < Component
                     FlagE  = Energy>Args.EnergyRange(1) & Energy<Args.EnergyRange(2);
                     XY     = XY(FlagE,:);
                 end
-                if ~isempty(XY)
+                if ~isempty(XY) && ~all(isnan(XY),'all') && ~isempty(Args.CCDSEC)
                     [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
                 else
                     Obj(Iobj).Image = [];
