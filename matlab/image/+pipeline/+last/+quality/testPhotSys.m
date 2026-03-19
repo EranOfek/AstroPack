@@ -98,7 +98,7 @@ function Result = testPhotSys(Args)
         Args.DataDir        = '/home/dana/222625v1'
         Args.OutDir         = ''
         Args.Visits         = 1:20
-        Args.Modes          = {'percrop', 'refshape', 'refzp'}
+        Args.Modes          = {'percrop', 'refshape', 'refzp', 'refzp_raw'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
@@ -285,71 +285,87 @@ function Result = testPhotSys(Args)
     % ================================================================
     % EPOCH MATCHING — per crop, per mode
     % ================================================================
-    if Args.Verbose
-        fprintf('\n=== Epoch Matching ===\n');
-    end
+    MSFile = fullfile(Args.OutDir, 'MS_all.mat');
 
-    Result.MS = struct();
+    if exist(MSFile, 'file') && ~Args.ForceRecalc
+        if Args.Verbose
+            fprintf('Loading cached %s\n', MSFile);
+        end
+        S = load(MSFile, 'MS_all');
+        Result.MS = S.MS_all;
+    else
+        if Args.Verbose
+            fprintf('\n=== Epoch Matching ===\n');
+        end
 
-    for Im = 1:Nmodes
-        Mode = Args.Modes{Im};
+        Result.MS = struct();
 
-        for Ic = Args.CropsToAnalyze
-            % Collect catalogs for this crop across epochs
-            CatList = AstroCatalog.empty(0, Nvisits);
-            ValidEpochs = false(Nvisits, 1);
+        for Im = 1:Nmodes
+            Mode = Args.Modes{Im};
 
-            for Iv = 1:Nvisits
-                if isempty(Result.Cats.(Mode){Iv})
+            for Ic = Args.CropsToAnalyze
+                % Collect catalogs for this crop across epochs
+                CatList = AstroCatalog.empty(0, Nvisits);
+                ValidEpochs = false(Nvisits, 1);
+
+                for Iv = 1:Nvisits
+                    if isempty(Result.Cats.(Mode){Iv})
+                        continue;
+                    end
+                    if Ic <= numel(Result.Cats.(Mode){Iv})
+                        CatList(Iv) = Result.Cats.(Mode){Iv}(Ic);
+                        ValidEpochs(Iv) = true;
+                    end
+                end
+
+                if sum(ValidEpochs) < 3
+                    if Args.Verbose
+                        fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
+                    end
                     continue;
                 end
-                if Ic <= numel(Result.Cats.(Mode){Iv})
-                    CatList(Iv) = Result.Cats.(Mode){Iv}(Ic);
-                    ValidEpochs(Iv) = true;
-                end
-            end
 
-            if sum(ValidEpochs) < 3
+                % Match across epochs — we only need the MatchedSources object
+                % Use unifiedCatalogsIntoMatched directly to avoid mergeCatalogs'
+                % sortrows-by-Dec which fails when FitPM=false
+                MS = MatchedSources;
+                MS = MS.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
+                    'MatchedColums', Args.MatchedColumns, ...
+                    'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
+
+                % Flag bad photometry
+                MS = MS.setBadPhotToNan('BadFlags', Args.BadFlags, ...
+                    'MagField', 'MAG_PSF', 'CreateNewObj', false);
+
+                % Apply relative ZP correction to original (non-AB) mag fields
+                % only — AB magnitudes already carry the calibrated ZP
+                for Imf = 1:numel(Args.MagFields)
+                    OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
+                    if strcmp(OrigField, Args.MagFields{Imf}); continue; end
+                    if ~isfield(MS.Data, OrigField); continue; end
+                    ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
+                    if isfield(MS.Data, ErrField)
+                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField}, ...
+                            'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
+                    else
+                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField});
+                    end
+                    MS = MS.applyZP(Rzp, 'ApplyToMagField', {OrigField});
+                end
+
+                Result.MS.(Mode){Ic} = MS;
+
                 if Args.Verbose
-                    fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
+                    fprintf('  %s crop %02d: %d matched sources\n', ...
+                        Mode, Ic, MS.Nsrc);
                 end
-                continue;
             end
+        end
 
-            % Match across epochs — we only need the MatchedSources object
-            % Use unifiedCatalogsIntoMatched directly to avoid mergeCatalogs'
-            % sortrows-by-Dec which fails when FitPM=false
-            MS = MatchedSources;
-            MS = MS.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
-                'MatchedColums', Args.MatchedColumns, ...
-                'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
-
-            % Flag bad photometry
-            MS = MS.setBadPhotToNan('BadFlags', Args.BadFlags, ...
-                'MagField', 'MAG_PSF', 'CreateNewObj', false);
-
-            % Apply relative ZP correction to original (non-AB) mag fields
-            % only — AB magnitudes already carry the calibrated ZP
-            for Imf = 1:numel(Args.MagFields)
-                OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
-                if strcmp(OrigField, Args.MagFields{Imf}); continue; end
-                if ~isfield(MS.Data, OrigField); continue; end
-                ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
-                if isfield(MS.Data, ErrField)
-                    Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField}, ...
-                        'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
-                else
-                    Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField});
-                end
-                MS = MS.applyZP(Rzp, 'ApplyToMagField', {OrigField});
-            end
-
-            Result.MS.(Mode){Ic} = MS;
-
-            if Args.Verbose
-                fprintf('  %s crop %02d: %d matched sources\n', ...
-                    Mode, Ic, MS.Nsrc);
-            end
+        MS_all = Result.MS;
+        save(MSFile, 'MS_all');
+        if Args.Verbose
+            fprintf('Saved %s\n', MSFile);
         end
     end
 
@@ -414,7 +430,7 @@ function Result = testPhotSys(Args)
                         end
                         ValidBins = isfinite(TrendOrig);
                         plot(BinCenters(ValidBins), TrendOrig(ValidBins), '--', ...
-                            'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+                            'Color', [0.5 0.5 0.5], 'LineWidth', 2.5);
                     end
                 end
             end
