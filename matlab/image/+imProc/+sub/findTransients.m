@@ -89,6 +89,7 @@ function TranCat=findTransients(AD, Args)
         Args.includeAperturePhot logical = true;
         Args.include2ndMoments logical = true;
         Args.AsymThresh             = 0.2;
+        Args.Aper_Annulus_min = 5;
 
         Args.includeGradientDir logical = true;
 
@@ -139,13 +140,13 @@ function TranCat=findTransients(AD, Args)
 
             N_PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
             R_PSFSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
-            PSFSize_Min = min(N_PSFSize,R_PSFSize);
-            PSFSize_Max = 2.0*PSFSize_Min;
+            Aper_Annulus_Max = Args.Aper_Annulus_min + ceil(min(N_PSFSize,R_PSFSize)/2);
+            Aper_Annulus_Max = max(Aper_Annulus_Max, ceil(1.7*AD(Iobj).PSFData.fwhm));
 
             [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Dbs, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).PSFData.fwhm, ...
-                'Annulus',[PSFSize_Min PSFSize_Max]);
+                'Annulus',[Args.Aper_Annulus_min Aper_Annulus_Max]);
             [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
