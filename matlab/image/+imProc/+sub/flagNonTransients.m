@@ -987,16 +987,43 @@ function TranCat = flagNonTransients(Obj, Args)
         % Flag stars as non-transients
         if Args.flagStarMatches
 
-            % Relax flagging for galaxy-star confusion if candidate is
-            % nuclear and the number of matched galaxies is equal or higher
-            % than the number of matched stars.
             Star_Prob = CandCat.getCol('STAR_PROB');
-            Gal_Prob = CandCat.getCol('GAL_PROB');
-            ExcludeGalaxy = (Star_Prob < Gal_Prob);
+            Gal_Prob  = CandCat.getCol('GAL_PROB');
 
-            IsStar = StarCand & ~ExcludeGalaxy;
+            EpsProb = 1e-6;
+            MinStarProb = 0.15;
+            LogRatioThresh = 1.0;
+            MinStarProbNoGal = 0.3;
 
-            FilterFlags = FilterFlags + IsStar.*2.^BD_TF.name2bit('StarMatch');
+            % Replace NaNs safely for ratio computation only
+            Star_Prob_safe = Star_Prob;
+            Gal_Prob_safe  = Gal_Prob;
+
+            Star_Prob_safe(isnan(Star_Prob_safe)) = 0;
+            Gal_Prob_safe(isnan(Gal_Prob_safe))   = 0;
+
+            ScoreSG = log((Star_Prob_safe + EpsProb) ./ (Gal_Prob_safe + EpsProb));
+
+            % Masks
+            HasStar = ~isnan(Star_Prob);
+            HasGal  = ~isnan(Gal_Prob);
+
+            % Case 1: both exist → use proper comparison
+            IsStarBoth = StarCand & HasStar & HasGal & ...
+                         (Star_Prob > MinStarProb) & ...
+                         (ScoreSG > LogRatioThresh);
+
+            % Case 2: no galaxy info → rely on strong star evidence
+            IsStarNoGal = StarCand & HasStar & ~HasGal & ...
+                          (Star_Prob > MinStarProbNoGal);
+
+            % Case 3: no star info → never classify as star
+            % (implicitly handled)
+
+            % Final binary decision
+            IsStar = IsStarBoth | IsStarNoGal;
+
+            FilterFlags = FilterFlags + IsStar .* 2.^BD_TF.name2bit('StarMatch');
         end
 
         % Flag minor planets as non-transients

@@ -427,7 +427,6 @@ function [Matches, Distances, MatchedBpMags, MatchedRpMags, MatchProb] = matchSt
 
             Pastro = 1 - exp(-0.5 .* (PlxSig.^2 + MuSig.^2));
 
-
             % Galaxy candidate punishment
             QsoFlag = logical(InQsoCand(IndGood));
             GalaxyFlag = logical(InGalaxyCand(IndGood));
