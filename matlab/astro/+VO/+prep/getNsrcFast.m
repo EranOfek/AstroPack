@@ -7,7 +7,7 @@ function Nsrc = getNsrcFast(CatName)
 % Input  : - Catalog base name (e.g., 'DECaLS10').
 %            HDF5 files must be in the current directory.
 % Output : - Matrix [HTM_index, Nsrc] with source count per cell.
-% Author : Dana + Claude (Mar 2026)
+% Author : Dana Kovaleva + Claude (Mar 2026)
 % Example: Nsrc = VO.prep.getNsrcFast('DECaLS10');
 
     Dir = dir(sprintf('%s_htm_*.hdf5', CatName));

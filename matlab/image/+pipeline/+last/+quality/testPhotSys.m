@@ -53,6 +53,10 @@ function Result = testPhotSys(Args)
     %            'OverlayTrend' - Binned trend line on scatter plots:
     %                        'median' (default), 'mean', or 'none'.
     %            'TrendBinWidth' - Magnitude bin width for trend line. Default is 0.5.
+    %            'TileOrder' - Crop tiling order in mosaic plots:
+    %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
+    %                        'rowmajor' (new pipeline) - left-to-right, row by row.
+    %                        Default is 'rowmajor'.
     %            'Verbose' - Print progress messages. Default is true.
     % Output : - Result struct with fields:
     %            .PC     - struct with PC_all{Nvisits}(1xNcrop) PhotCalibTrans per mode
@@ -86,12 +90,15 @@ function Result = testPhotSys(Args)
     %          % Disable original mag overlay and trend lines:
     %          R = pipeline.last.quality.testPhotSys('ShowOrigMag', false, ...
     %              'OverlayTrend', 'none');
+    %
+    %          % Use new pipeline tiling order for mosaic plots:
+    %          R = pipeline.last.quality.testPhotSys('TileOrder', 'rowmajor');
 
     arguments
         Args.DataDir        = '/home/dana/222625v1'
         Args.OutDir         = ''
         Args.Visits         = 1:20
-        Args.Modes          = {'percrop', 'refshape', 'refzp'}
+        Args.Modes          = {'percrop', 'refshape', 'refzp', 'refzp_raw'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
@@ -109,6 +116,7 @@ function Result = testPhotSys(Args)
         Args.ShowOrigMag logical = true  % Overlay original (non-AB) mag scatter on AB panels
         Args.OverlayTrend   = 'median'  % 'median' | 'mean' | 'none' — binned trend line on scatter plots
         Args.TrendBinWidth  = 0.5       % mag bin width for trend line
+        Args.TileOrder      = 'rowmajor'  % 'colmajor' (old) | 'rowmajor' (new pipeline)
         Args.Verbose logical = true
     end
 
@@ -133,24 +141,57 @@ function Result = testPhotSys(Args)
     end
     AI = cell(Nvisits, 1);
 
+    % Glob Cat files once, then filter per visit by parsing LAST filename:
+    % ..._<visit>_<mount>_<crop>_sci_proc_Cat_<ver>.fits
+    % Only Cat files are needed — calibration uses catalog + header, not pixels.
+    AllCatFiles = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Cat_1.fits'));
+    AllImFiles  = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Image_1.fits'));
+
     for Iv = 1:Nvisits
-        VStr = sprintf('%03d', Args.Visits(Iv));
-        ImPattern  = fullfile(Args.DataDir, sprintf('*_%s_001_*_proc_Image_1.fits', VStr));
-        CatPattern = fullfile(Args.DataDir, sprintf('*_%s_001_*_proc_Cat_1.fits', VStr));
+        VisitNum = Args.Visits(Iv);
+        VStr = sprintf('%03d', VisitNum);
 
-        ImFiles  = io.files.filelist(ImPattern);
-        CatFiles = io.files.filelist(CatPattern);
+        % Extract visit number: 7th underscore-delimited token from end
+        CatKeep = false(numel(AllCatFiles), 1);
+        for If = 1:numel(AllCatFiles)
+            [~, Name] = fileparts(AllCatFiles{If});
+            Tokens = strsplit(Name, '_');
+            if numel(Tokens) >= 7
+                CatKeep(If) = str2double(Tokens{end-6}) == VisitNum;
+            end
+        end
+        ImKeep = false(numel(AllImFiles), 1);
+        for If = 1:numel(AllImFiles)
+            [~, Name] = fileparts(AllImFiles{If});
+            Tokens = strsplit(Name, '_');
+            if numel(Tokens) >= 7
+                ImKeep(If) = str2double(Tokens{end-6}) == VisitNum;
+            end
+        end
+        CatFiles = AllCatFiles(CatKeep);
+        ImFiles  = AllImFiles(ImKeep);
 
-        if isempty(ImFiles)
+        if isempty(CatFiles)
             if Args.Verbose
                 fprintf('  Visit %s: no files, skipping\n', VStr);
             end
             continue;
         end
 
-        AI{Iv} = AstroImage(ImFiles, 'Cat', CatFiles);
+        % Build AstroImage with Header from Image FITS (HDU 1, no pixels)
+        % and catalog from Cat FITS — skips loading image/mask/PSF data
+        Ncf = numel(CatFiles);
+        AIv = AstroImage([1, Ncf]);
+        for Ic = 1:Ncf
+            AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
+            if Ic <= numel(ImFiles)
+                AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
+            end
+        end
+        AI{Iv} = AIv;
+
         if Args.Verbose
-            fprintf('  Visit %s: %d crops\n', VStr, numel(AI{Iv}));
+            fprintf('  Visit %s: %d crops\n', VStr, Ncf);
         end
     end
 
@@ -186,7 +227,11 @@ function Result = testPhotSys(Args)
                 t0 = tic;
 
                 % Fresh copy — AstroImage is a handle class
+                tcopy = tic;
                 AIcopy = AI{Iv}.copy();
+                if Args.Verbose
+                    fprintf('    copy: %.1f s, ', toc(tcopy));
+                end
 
                 [Res, PC_all{Iv}] = imProc.calib.fitPhotCalibTrans(AIcopy, ...
                     'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
@@ -206,7 +251,7 @@ function Result = testPhotSys(Args)
                 end
             end
 
-            save(OutFile, 'PC_all', 'Cats_all', '-v7.3');
+            save(OutFile, 'PC_all', 'Cats_all');
             if Args.Verbose
                 fprintf('Saved %s\n', OutFile);
             end
@@ -240,51 +285,87 @@ function Result = testPhotSys(Args)
     % ================================================================
     % EPOCH MATCHING — per crop, per mode
     % ================================================================
-    if Args.Verbose
-        fprintf('\n=== Epoch Matching ===\n');
-    end
+    MSFile = fullfile(Args.OutDir, 'MS_all.mat');
 
-    Result.MS = struct();
+    if exist(MSFile, 'file') && ~Args.ForceRecalc
+        if Args.Verbose
+            fprintf('Loading cached %s\n', MSFile);
+        end
+        S = load(MSFile, 'MS_all');
+        Result.MS = S.MS_all;
+    else
+        if Args.Verbose
+            fprintf('\n=== Epoch Matching ===\n');
+        end
 
-    for Im = 1:Nmodes
-        Mode = Args.Modes{Im};
+        Result.MS = struct();
 
-        for Ic = Args.CropsToAnalyze
-            % Collect catalogs for this crop across epochs
-            CatList = AstroCatalog.empty(0, Nvisits);
-            ValidEpochs = false(Nvisits, 1);
+        for Im = 1:Nmodes
+            Mode = Args.Modes{Im};
 
-            for Iv = 1:Nvisits
-                if isempty(Result.Cats.(Mode){Iv})
+            for Ic = Args.CropsToAnalyze
+                % Collect catalogs for this crop across epochs
+                CatList = AstroCatalog.empty(0, Nvisits);
+                ValidEpochs = false(Nvisits, 1);
+
+                for Iv = 1:Nvisits
+                    if isempty(Result.Cats.(Mode){Iv})
+                        continue;
+                    end
+                    if Ic <= numel(Result.Cats.(Mode){Iv})
+                        CatList(Iv) = Result.Cats.(Mode){Iv}(Ic);
+                        ValidEpochs(Iv) = true;
+                    end
+                end
+
+                if sum(ValidEpochs) < 3
+                    if Args.Verbose
+                        fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
+                    end
                     continue;
                 end
-                if Ic <= numel(Result.Cats.(Mode){Iv})
-                    CatList(Iv) = Result.Cats.(Mode){Iv}(Ic);
-                    ValidEpochs(Iv) = true;
-                end
-            end
 
-            if sum(ValidEpochs) < 3
+                % Match across epochs — we only need the MatchedSources object
+                % Use unifiedCatalogsIntoMatched directly to avoid mergeCatalogs'
+                % sortrows-by-Dec which fails when FitPM=false
+                MS = MatchedSources;
+                MS = MS.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
+                    'MatchedColums', Args.MatchedColumns, ...
+                    'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
+
+                % Flag bad photometry
+                MS = MS.setBadPhotToNan('BadFlags', Args.BadFlags, ...
+                    'MagField', 'MAG_PSF', 'CreateNewObj', false);
+
+                % Apply relative ZP correction to original (non-AB) mag fields
+                % only — AB magnitudes already carry the calibrated ZP
+                for Imf = 1:numel(Args.MagFields)
+                    OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
+                    if strcmp(OrigField, Args.MagFields{Imf}); continue; end
+                    if ~isfield(MS.Data, OrigField); continue; end
+                    ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
+                    if isfield(MS.Data, ErrField)
+                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField}, ...
+                            'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
+                    else
+                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField});
+                    end
+                    MS = MS.applyZP(Rzp, 'ApplyToMagField', {OrigField});
+                end
+
+                Result.MS.(Mode){Ic} = MS;
+
                 if Args.Verbose
-                    fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
+                    fprintf('  %s crop %02d: %d matched sources\n', ...
+                        Mode, Ic, MS.Nsrc);
                 end
-                continue;
             end
+        end
 
-            % Match across epochs — we only need the MatchedSources object
-            % Use unifiedCatalogsIntoMatched directly to avoid mergeCatalogs'
-            % sortrows-by-Dec which fails when FitPM=false
-            MS = MatchedSources;
-            MS = MS.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
-                'MatchedColums', Args.MatchedColumns, ...
-                'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
-
-            Result.MS.(Mode){Ic} = MS;
-
-            if Args.Verbose
-                fprintf('  %s crop %02d: %d matched sources\n', ...
-                    Mode, Ic, MS.Nsrc);
-            end
+        MS_all = Result.MS;
+        save(MSFile, 'MS_all');
+        if Args.Verbose
+            fprintf('Saved %s\n', MSFile);
         end
     end
 
@@ -349,7 +430,7 @@ function Result = testPhotSys(Args)
                         end
                         ValidBins = isfinite(TrendOrig);
                         plot(BinCenters(ValidBins), TrendOrig(ValidBins), '--', ...
-                            'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+                            'Color', [0.5 0.5 0.5], 'LineWidth', 2.5);
                     end
                 end
             end
@@ -440,15 +521,15 @@ function Result = testPhotSys(Args)
                         continue;
                     end
 
-                    % Both MatchedSources have same source ordering per crop
-                    % (same matching), so sources align by column index
+                    % Sources align by column index — same input catalogs,
+                    % same matching radius and algorithm
                     Nsrc = min(MS_pc.Nsrc, MS_other.Nsrc);
-                    Mag_pc = MS_pc.Data.(MagField)(:, 1:Nsrc);
+                    Mag_pc    = MS_pc.Data.(MagField)(:, 1:Nsrc);
                     Mag_other = MS_other.Data.(MagField)(:, 1:Nsrc);
 
-                    Std_pc = nanstd(Mag_pc, 0, 1);
+                    Std_pc    = nanstd(Mag_pc, 0, 1);
                     Std_other = nanstd(Mag_other, 0, 1);
-                    MedMag = nanmedian(Mag_pc, 1);
+                    MedMag    = nanmedian(Mag_pc, 1);
 
                     allMedMag = [allMedMag, MedMag];
                     allDeltaStd = [allDeltaStd, Std_pc - Std_other];
@@ -510,7 +591,9 @@ function Result = testPhotSys(Args)
             if isempty(Result.PC.(Mode){VisitIdx}); continue; end
             subplot(1, Nmodes, Im);
             Result.PC.(Mode){VisitIdx}.plotZPMap('NewFigure', false, ...
-                'CLim', CLim, 'PhotSys', Mode, 'RefCrop', Args.RefCrop);
+                'CLim', CLim, 'SmoothSigma', 0, ...
+                'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
+                'TileOrder', Args.TileOrder);
             title(Mode);
         end
     end
