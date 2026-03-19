@@ -247,8 +247,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagNPsfShape logical = true;
         Args.SecondMomSoftLim = 1.2;
-        Args.SecondMomHardLim = 2.7;
-        Args.SecondMomAsymLim = 1.0;
+        Args.SecondMomHardLim = 5.5;
+        Args.SecondMomAsymLim = 5;
         Args.OmniDirectionThreshold = [0.7 57.0];
         Args.PeakDistThreshold = 3.0;
         Args.ContaminationBackRatio = 0.1;
@@ -427,22 +427,20 @@ function TranCat = flagNonTransients(Obj, Args)
         if exist('N_X2', 'var') && exist('N_Y2', 'var')
             N_GoodPSF = ...
                       (N_X2 < Args.SecondMomSoftLim) & ...
-                      (N_Y2 < Args.SecondMomSoftLim) & ...
-                      (abs(N_X2-N_Y2) < Args.SecondMomAsymLim);
+                      (N_Y2 < Args.SecondMomSoftLim);
         end
 
         if CandCat.isColumn('R_X2')
             R_X2 = CandCat.getCol('R_X2');
         end
+
         if CandCat.isColumn('R_Y2')
             R_Y2 = CandCat.getCol('R_Y2');
         end
         
         if exist('R_X2', 'var') && exist('R_Y2', 'var')
-            R_GoodPSF = ...
-                      (R_X2 < Args.SecondMomHardLim) & ...
-                      (R_Y2 < Args.SecondMomHardLim) & ...
-                      (abs(R_X2-R_Y2) < Args.SecondMomAsymLim);
+            R_GoodPSF = (R_X2 < Args.SecondMomHardLim) ...
+                & (R_Y2 < Args.SecondMomHardLim);
         end
 
         % Get star matched candidates
@@ -462,12 +460,12 @@ function TranCat = flagNonTransients(Obj, Args)
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
-            % 4sig for nuclear check, dirty, I know
+            % 5sig for nuclear check, dirty, I know
             % TODO: rather than doing this here, match2Galaxies should be
             % extended to determined if a source is nuclear or not,
             % probably best to write a dedicated matchTransients2Galaxies
             % function which uses the N, R, and D catalogs
-            NuclearCand = GalDist < PointLimit*4/3; 
+            NuclearCand = GalDist < PointLimit*5/3; 
         else
             NuclearCand = false(NumCand,1);
         end
@@ -650,15 +648,12 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagDPSFShape
             X2 = CandCat.getCol('X2');
             Y2 = CandCat.getCol('Y2');
-            CHI2DOF = CandCat.getCol('PSF_CHI2DOF');
 
             X2Y2 = [X2(:),Y2(:)];
 
             ProbD = mvnpdf(X2Y2, Args.PSFShapeXYMeanD, Args.PSFShapeCovD);
 
             PassesD = ProbD > (1-Args.PSFShapeConfThreshD);
-            PassesD = PassesD | (~PassesD & ...
-                (X2 < 1.85) & (Y2 < 1.85) & (CHI2DOF < 1.0));
             PSFShapeFlagged = ~PassesD;
             FilterFlags = FilterFlags + PSFShapeFlagged.*2.^BD_TF.name2bit('DPSFShape');
         end        
@@ -673,8 +668,8 @@ function TranCat = flagNonTransients(Obj, Args)
             R_Passes_PSFShape = R_Passes_PSF_Global;
 
             % Use hard limits on global shape no matter local results.
-            N_Passes_HardLim =  (N_X2 < Args.SecondMomHardLim) & ...
-                                (N_Y2 < Args.SecondMomHardLim);
+            N_Passes_HardLim = (N_X2 < Args.SecondMomHardLim) ...
+                & (N_Y2 < Args.SecondMomHardLim);
 
             ContaminationFlux = zeros(NumCand,1);
 
@@ -695,7 +690,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % User the smaller PSF between N and R
                 N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
                 R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
-                PSFSize_Min = min(N_PSFSize,R_PSFSize);
+                PSFSize_Min = min(N_PSFSize,R_PSFSize)-2.0;
                 PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
                 if Args.OverWritePSFLimit
@@ -857,23 +852,23 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Test local shape. Only use local shape if global fails or
             % candidate is near saturated pixels.
-            if  any(N_Passes_HardLim)
+            %if  any(N_Passes_HardLim)
               
-                % Test if candidate is on emission peak in PSF stamp and
-                % gradient consistent with circular direction.
-                GDIRCVAR = CandCat.getCol('GDIRCVAR');
-                GDIRERROR = CandCat.getCol('GDIRERROR');
-                PassesGDir = (GDIRCVAR > Args.OmniDirectionThreshold(1)) & ...
-                             (GDIRERROR < Args.OmniDirectionThreshold(2));
+            % Test if candidate is on emission peak in PSF stamp and
+            % gradient consistent with circular direction.
+            GDIRCVAR = CandCat.getCol('GDIRCVAR');
+            GDIRERROR = CandCat.getCol('GDIRERROR');
+            PassesGDir = (GDIRCVAR > Args.OmniDirectionThreshold(1)) & ...
+                         (GDIRERROR < Args.OmniDirectionThreshold(2));
 
-                PeakDist = CandCat.getCol('PEAK_DIST');
-                PassesPeak = PeakDist < Args.PeakDistThreshold;
+            PeakDist = CandCat.getCol('PEAK_DIST');
+            PassesPeak = PeakDist < Args.PeakDistThreshold;
 
-                N_Passes_Local_Circ = (PassesPeak & PassesGDir & ...
-                                     (R_GoodPSF | IsolatedCand));
+            N_Passes_Local_Circ = (PassesPeak & PassesGDir & ...
+                                 (R_GoodPSF | IsolatedCand));
 
-                N_Passes_PSFShape = N_Passes_PSFShape | N_Passes_Local_Circ;
-            end
+            N_Passes_PSFShape = N_Passes_PSFShape | N_Passes_Local_Circ;
+            %end
 
             Passes_PSFShape = N_Passes_PSFShape & R_Passes_PSFShape;
 
@@ -995,9 +990,9 @@ function TranCat = flagNonTransients(Obj, Args)
             % Relax flagging for galaxy-star confusion if candidate is
             % nuclear and the number of matched galaxies is equal or higher
             % than the number of matched stars.
-            NStars = CandCat.getCol('STAR_N');
-            NGal = CandCat.getCol('GAL_N');
-            ExcludeGalaxy = NuclearCand & (NGal >= NStars);
+            Star_Prob = CandCat.getCol('STAR_PROB');
+            Gal_Prob = CandCat.getCol('GAL_PROB');
+            ExcludeGalaxy = (Star_Prob < Gal_Prob);
 
             IsStar = StarCand & ~ExcludeGalaxy;
 
