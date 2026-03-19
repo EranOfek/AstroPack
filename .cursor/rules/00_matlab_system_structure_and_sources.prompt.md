@@ -34,22 +34,28 @@ CORE TERMINOLOGY (STRICT)
 
 PROJECT ROOT STRUCTURE
 All MATLAB source code lives under:
-astropack/Matlab
-
-All MATLAB tests live under:
-astropack/MatlabTests
-
-Source and tests are never mixed.
+matlab/
 
 MAJOR DOMAIN MODULES
-MATLAB code is organized using packages:
+MATLAB code is organized using packages and classes.
+Examples for packages:
 +ultrasat
-+last
++pipeline
 +planner
 +mission
 +astropack
++imUtil
++imProc
++lcUtil
++astro
++celestial
++telescope
 
-Each package represents a domain, not a technical layer.
+In many cases we are using sub packages.
+Packages represent a topic. For example +astro/+cosmo/ contains functions related to cosmology.
+Class dir name start with "@"
+Some classes may live insode a package.
+
 
 CODING PRINCIPLES (MANDATORY)
 - Clarity over cleverness
@@ -70,5 +76,29 @@ When generating or modifying MATLAB code:
 - Respect existing structure
 - Do not invent new architectural layers
 - Ask before changing boundaries
+
+NAMING CONENTION
+- Function names should by clear and represent what they are doing
+- First letter in function name or method name must be lowre case letter.
+- All variable names should start with upper case letter.
+- Class names should start with upper case letter.
+- Class property name should start with upper case letter.
+
+INPUT ARGUMENTS
+- When ever there is need for input arguments with default values, the arguments block should be used
+- When keyword,value input argument are needed, the variable name containing the arguments will be named Args
+
+
+HELP SECTION
+- Each function should contain help section
+- The first line in the help is always a single line description of the code
+- For example on help format check existing functions.
+
+
+UNIT TESTS
+- Each package may contain a unitTest.m function.
+- unitTest.m function may test one or more functions in the package.
+- unitTest return true if sucssfull and will issue an error if failed.
+
 
 END OF FILE
