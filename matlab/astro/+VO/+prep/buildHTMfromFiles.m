@@ -1,7 +1,7 @@
 function buildHTMfromFiles(Args)
-% Build an HTM catalog from local or remote FITS files
+% Build an HTM catalog from local or remote data files
 % Package: VO.prep
-% Description: Processes a collection of FITS files into an
+% Description: Processes a collection of FITS or text files into an
 %              HTM-structured HDF5 catalog. Files are processed by
 %              declination band to limit memory usage. Supports
 %              downloading from remote URLs with caching and resume.
@@ -69,7 +69,7 @@ function buildHTMfromFiles(Args)
 %            'Verbose'      - Print progress. Default: true.
 %
 % Output : null
-% Author : Dana + Claude (Mar 2026)
+% Author : Dana Kovaleva (Mar 2026)
 % Example:
 %   % DECaLS DR10 example:
 %   VO.prep.buildHTMfromFiles(...
