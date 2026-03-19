@@ -1073,7 +1073,7 @@ classdef AstroDiff < AstroImage
 
                 Args.includePVdist logical      = true;
                 Args.includeGradientDir logical = true;
-        
+                        
             end
 
             Nobj = numel(Obj);
@@ -1154,6 +1154,8 @@ classdef AstroDiff < AstroImage
                 Args.FilterFunc = @imProc.sub.flagNonTransients;
                 Args.ConfigFile = '';
                 Args.injectedSrcs = [];
+                Args.OverWritePSFLimit = true;
+
         
             end
 
@@ -1162,7 +1164,9 @@ classdef AstroDiff < AstroImage
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = Args.FilterFunc(Obj(Iobj), ...
                     'ConfigFile', Args.ConfigFile, ...
-                    'injectedSrcs', Args.injectedSrcs);
+                    'injectedSrcs', Args.injectedSrcs,...
+                    'OverWritePSFLimit', Args.OverWritePSFLimit...
+                    );
             end
         end
         
