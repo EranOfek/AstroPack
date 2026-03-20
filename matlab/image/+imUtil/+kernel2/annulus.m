@@ -49,12 +49,12 @@ end
 
 
 [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(1), (1:1:SizeXY(2))-PosXY(2) );
-MatR        = sqrt(MatX.^2 + MatY.^2);
+MatR2        = MatX.^2 + MatY.^2;
 
 K = zeros(SizeXY(2),SizeXY(1),Ntemp);
 for I=1:1:Ntemp
     Tmp = zeros(SizeXY(2),SizeXY(1));
-    Tmp(MatR<Radii(I,2) & MatR>Radii(I,1)) = 1;
+    Tmp(MatR2<Radii(I,2).^2 & MatR2>Radii(I,1).^2) = 1;
     
     K(:,:,I) =  Tmp./sum(Tmp,'all');
     
