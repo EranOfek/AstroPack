@@ -79,20 +79,18 @@ function Result = aerosolTransmission(Lambda, ParamMatrix, Args)
         error('Zenith angles out of range [0, 90] degrees');
     end
 
-    % Initialize result matrix
+    % Calculate airmasses for all zenith angles at once (vectorized)
+    Airmasses = astro.transmission.airmassSMARTS(ZenithAngles);
+    Am_aerosol = Airmasses.aerosol(:)';  % [1 x N]
+
+    % Group by unique (TauAod500, AngstromExponent) pairs, broadcast with airmass
+    NonZA = [TauAod500, AngstromExponent];
+    [UniqNonZA, ~, Ic] = unique(NonZA, 'rows');
     Result = zeros(NumWavelengths, NumParamSets);
-
-    % Calculate transmission for each parameter set
-    for i = 1:NumParamSets
-        % Calculate airmass for aerosol
-        Airmasses = astro.transmission.airmassSMARTS(ZenithAngles(i));
-        Am_aerosol = Airmasses.aerosol;
-
-        % Calculate aerosol optical depth using Angstrom law
-        TauLambda = astro.atmosphere.aerosolScattering(Lambda, TauAod500(i), AngstromExponent(i), 'Ang');
-
-        % Calculate transmission
-        Result(:, i) = exp(-Am_aerosol .* TauLambda);
+    for ig = 1:size(UniqNonZA, 1)
+        Mask = (Ic == ig);
+        TauLambda = astro.atmosphere.aerosolScattering(Lambda, UniqNonZA(ig,1), UniqNonZA(ig,2), 'Ang');  % [Nwave x 1]
+        Result(:, Mask) = exp(-Am_aerosol(Mask) .* TauLambda);  % implicit expansion
     end
 
     % Store in persistent cache if enabled

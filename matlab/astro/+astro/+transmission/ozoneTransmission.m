@@ -98,20 +98,17 @@ function Result = ozoneTransmission(Lambda, ParamMatrix, Args)
     % Loschmidt scaling
     Absorption_coeff = constant.Loschmidt * OzoneCrossSection;
 
-    % Initialize result matrix
+    % Calculate airmasses for all zenith angles at once (vectorized)
+    Airmasses = astro.transmission.airmassSMARTS(ZenithAngles);
+    Am_ozone = Airmasses.ozone(:)';  % [1 x N]
+
+    % Compute optical depth per unique DobsonUnits, then broadcast with airmass
+    UniqDU = unique(OzoneAtmCm);
     Result = zeros(NumWavelengths, NumParamSets);
-
-    % Calculate transmission for each parameter set
-    for i = 1:NumParamSets
-        % Calculate airmass for ozone
-        Airmasses = astro.transmission.airmassSMARTS(ZenithAngles(i));
-        Am_ozone = Airmasses.ozone;
-
-        % Calculate optical depth
-        TauOzone = Absorption_coeff * OzoneAtmCm(i);
-
-        % Calculate transmission
-        Result(:, i) = exp(-Am_ozone .* TauOzone);
+    for id = 1:numel(UniqDU)
+        Mask = (OzoneAtmCm == UniqDU(id));
+        TauOzone = Absorption_coeff * UniqDU(id);  % [Nwave x 1]
+        Result(:, Mask) = exp(-Am_ozone(Mask) .* TauOzone);  % implicit expansion
     end
 
     % Store in persistent cache if enabled
