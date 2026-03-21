@@ -1,4 +1,4 @@
-function Result = testPhotSys(Args)
+function Result = testPhotCalib(Args)
     % Compare PhotSys modes by epoch-to-epoch photometric repeatability
     % Description: For each PhotSys mode, calibrates all visits of the same
     %              field independently using fitPhotCalibTrans, then matches
@@ -7,12 +7,18 @@ function Result = testPhotSys(Args)
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
     %
-    %              PhotSys modes:
-    %                'percrop'   - Each crop uses its own fitted transmission (default pipeline).
-    %                'refshape'  - Reference crop's spectral shape, per-crop Norm + Tran2D.
-    %                'refzp'     - Full reference params (incl. Norm), center-normalized Tran2D.
-    %                'refzp_raw' - Same as refzp but without Tran2D center-normalization.
+    %              PhotSys modes (per-epoch — each epoch calibrated independently):
+    %                'percrop'    - Each crop uses its own fitted transmission (default pipeline).
+    %                'refshape'   - Reference crop's spectral shape, per-crop Norm + Tran2D.
+    %                'refzp'      - Full reference params (incl. Norm), center-normalized Tran2D.
+    %                'refzp_raw'  - Same as refzp but without Tran2D center-normalization.
     %              RefCrop=0 uses weighted mean (1/RMS^2) of all crops instead of a single reference.
+    %
+    %              Visit-level modes (single transmission derived from all epochs):
+    %                'visitref'     - Weighted mean of RefCrop's transmission across all epochs.
+    %                                 Per-crop Tran2D preserved, center-normalized. Per-epoch Norm.
+    %                'visitref_raw' - Same but without Tran2D center-normalization.
+    %              These modes reuse percrop calibration as base and recompute magnitudes.
     %
     %              Plots generated (when Plot=true):
     %                1. Mag vs Std scatter — one panel per mode. Shows epoch-to-epoch
@@ -66,33 +72,37 @@ function Result = testPhotSys(Args)
     %            .CLim   - color limits used for ZP mosaic plots
     % Author : D. Kovaleva (Mar 2026)
     % Example: % Run all defaults (3 modes, 20 visits, all crops):
-    %          R = pipeline.last.quality.testPhotSys();
+    %          R = pipeline.last.quality.testPhotCalib();
     %
     %          % Compare only percrop vs refzp on specific crops:
-    %          R = pipeline.last.quality.testPhotSys('Modes', {'percrop','refzp'}, ...
+    %          R = pipeline.last.quality.testPhotCalib('Modes', {'percrop','refzp'}, ...
     %              'CropsToAnalyze', [10 19]);
     %
     %          % Use weighted mean transmission instead of single reference crop:
-    %          R = pipeline.last.quality.testPhotSys('RefCrop', 0);
+    %          R = pipeline.last.quality.testPhotCalib('RefCrop', 0);
     %
     %          % Include refzp_raw (without Tran2D normalization):
-    %          R = pipeline.last.quality.testPhotSys('Modes', ...
+    %          R = pipeline.last.quality.testPhotCalib('Modes', ...
     %              {'percrop','refzp','refzp_raw'});
     %
     %          % Force recalculation with custom CalibArgs:
-    %          R = pipeline.last.quality.testPhotSys('ForceRecalc', true, ...
+    %          R = pipeline.last.quality.testPhotCalib('ForceRecalc', true, ...
     %              'CalibArgs', {'UseTran2D', false});
     %
     %          % Custom data directory, fewer visits, mean trend line:
-    %          R = pipeline.last.quality.testPhotSys('DataDir', '/path/to/data', ...
+    %          R = pipeline.last.quality.testPhotCalib('DataDir', '/path/to/data', ...
     %              'Visits', 1:5, 'OverlayTrend', 'mean');
     %
     %          % Disable original mag overlay and trend lines:
-    %          R = pipeline.last.quality.testPhotSys('ShowOrigMag', false, ...
+    %          R = pipeline.last.quality.testPhotCalib('ShowOrigMag', false, ...
     %              'OverlayTrend', 'none');
     %
+    %          % Compare visit-level modes (single transmission from all epochs):
+    %          R = pipeline.last.quality.testPhotCalib('Modes', ...
+    %              {'percrop', 'visitref', 'visitref_raw'});
+    %
     %          % Use new pipeline tiling order for mosaic plots:
-    %          R = pipeline.last.quality.testPhotSys('TileOrder', 'rowmajor');
+    %          R = pipeline.last.quality.testPhotCalib('TileOrder', 'rowmajor');
 
     arguments
         Args.DataDir        = '/home/dana/222625v1'
@@ -198,12 +208,24 @@ function Result = testPhotSys(Args)
     % ================================================================
     % CALIBRATE EACH MODE — save PC + calibrated catalogs
     % ================================================================
+    % Visit-level modes derive a single transmission from all epochs
+    % and recompute magnitudes. They reuse percrop calibration as base.
+    VisitModes = {'visitref', 'visitref_raw'};
+    PerEpochModes = setdiff(Args.Modes, VisitModes, 'stable');
+    HasVisitModes = any(ismember(Args.Modes, VisitModes));
+
+    % Ensure percrop is calibrated if visit-level modes need it
+    if HasVisitModes && ~ismember('percrop', PerEpochModes)
+        PerEpochModes = ['percrop', PerEpochModes];
+    end
+
     Result.PC   = struct();
     Result.Cats = struct();
     Result.FitRMS = struct();
 
-    for Im = 1:Nmodes
-        Mode = Args.Modes{Im};
+    % --- Per-epoch modes (percrop, refshape, refzp, refzp_raw) ---
+    for Im = 1:numel(PerEpochModes)
+        Mode = PerEpochModes{Im};
         OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
 
         if exist(OutFile, 'file') && ~Args.ForceRecalc
@@ -238,16 +260,16 @@ function Result = testPhotSys(Args)
                     'Verbose', false, Args.CalibArgs{:});
 
                 % Extract calibrated catalogs (lightweight)
-                Ncrop = numel(Res);
-                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop);
-                for Ic = 1:Ncrop
+                Ncrop_v = numel(Res);
+                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
+                for Ic = 1:Ncrop_v
                     Cats_all{Iv}(Ic) = Res(Ic).CatData;
                 end
 
                 if Args.Verbose
                     Nsuccess = sum([PC_all{Iv}.Success]);
-                    fprintf('  Visit %03d: %d/%d success, %.1f s\n', ...
-                        Args.Visits(Iv), Nsuccess, Ncrop, toc(t0));
+                    fprintf('  Epoch %03d: %d/%d success, %.1f s\n', ...
+                        Args.Visits(Iv), Nsuccess, Ncrop_v, toc(t0));
                 end
             end
 
@@ -272,13 +294,120 @@ function Result = testPhotSys(Args)
         Result.FitRMS.(Mode) = RMSmat;
     end
 
+    % --- Visit-level modes (visitref, visitref_raw) ---
+    % Use percrop calibration as base. Average RefCrop's transmission
+    % parameters across all epochs, then recompute magnitudes.
+    for Im = 1:numel(Args.Modes)
+        Mode = Args.Modes{Im};
+        if ~ismember(Mode, VisitModes); continue; end
+
+        OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
+
+        if exist(OutFile, 'file') && ~Args.ForceRecalc
+            if Args.Verbose
+                fprintf('Loading cached %s\n', OutFile);
+            end
+            S = load(OutFile, 'PC_all', 'Cats_all');
+            Result.PC.(Mode)   = S.PC_all;
+            Result.Cats.(Mode) = S.Cats_all;
+        else
+            if Args.Verbose
+                fprintf('\n=== Visit-level mode: %s ===\n', Mode);
+            end
+
+            % Collect transmission parameters across epochs (weighted mean)
+            RefCropIdx = Args.RefCrop;
+            AllParams  = [];
+            AllWeights = [];
+            for Iv = 1:Nvisits
+                if isempty(Result.PC.percrop{Iv}); continue; end
+                if RefCropIdx == 0
+                    % Average over all successful crops and all epochs
+                    CropRange = 1:numel(Result.PC.percrop{Iv});
+                else
+                    CropRange = RefCropIdx;
+                end
+                for Ic = CropRange
+                    if Ic > numel(Result.PC.percrop{Iv}); continue; end
+                    PC_rc = Result.PC.percrop{Iv}(Ic);
+                    if PC_rc.Success && PC_rc.TransModel.RMS > 0
+                        P = PC_rc.TransModel.getAllFunPar();
+                        AllParams  = [AllParams; P.Val(:)'];
+                        AllWeights = [AllWeights; 1 ./ PC_rc.TransModel.RMS.^2];
+                    end
+                end
+            end
+
+            if isempty(AllParams)
+                warning('testPhotCalib:NoVisitRef', ...
+                    'No successful crops across epochs. Skipping %s.', Mode);
+                continue;
+            end
+
+            W = AllWeights / sum(AllWeights);
+            VisitRefParams = (W' * AllParams)';  % [Npar x 1]
+
+            if Args.Verbose
+                if RefCropIdx == 0
+                    fprintf('  Visit-averaged over all crops from %d fits\n', size(AllParams, 1));
+                else
+                    fprintf('  Visit-averaged RefCrop=%d from %d epochs\n', ...
+                        RefCropIdx, size(AllParams, 1));
+                end
+            end
+
+            DoNormTran2D = strcmp(Mode, 'visitref');
+
+            % Reuse percrop PC objects; recompute catalogs with visit reference
+            PC_all   = Result.PC.percrop;  % same PhotCalibTrans objects
+            Cats_all = cell(Nvisits, 1);
+
+            for Iv = 1:Nvisits
+                if isempty(AI{Iv}); continue; end
+                if isempty(PC_all{Iv}); continue; end
+
+                AIcopy = AI{Iv}.copy();
+                Ncrop_v = numel(PC_all{Iv});
+                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
+
+                for Ic = 1:Ncrop_v
+                    if ~PC_all{Iv}(Ic).Success
+                        Cats_all{Iv}(Ic) = AstroCatalog;
+                        continue;
+                    end
+                    Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
+                        AIcopy(Ic).CatData, ...
+                        'MagSystem', 'AB', ...
+                        'RefTransParams', VisitRefParams, ...
+                        'UseRefNorm', false, ...
+                        'NormTran2D', DoNormTran2D);
+                end
+
+                if Args.Verbose
+                    fprintf('  Epoch %03d: magnitudes recomputed\n', Args.Visits(Iv));
+                end
+            end
+
+            save(OutFile, 'PC_all', 'Cats_all');
+            if Args.Verbose
+                fprintf('Saved %s\n', OutFile);
+            end
+            Result.PC.(Mode)   = PC_all;
+            Result.Cats.(Mode) = Cats_all;
+        end
+
+        % Reuse percrop RMS (same fit, different magnitude computation)
+        Result.FitRMS.(Mode) = Result.FitRMS.percrop;
+    end
+
     if Args.Verbose
         fprintf('\n=== Fit RMS Summary ===\n');
-        fprintf('%-10s %8s %8s %8s\n', 'Mode', 'Median', 'Mean', 'Max');
+        fprintf('%-12s %8s %8s %8s\n', 'Mode', 'Median', 'Mean', 'Max');
         for Im = 1:Nmodes
             Mode = Args.Modes{Im};
+            if ~isfield(Result.FitRMS, Mode); continue; end
             vals = Result.FitRMS.(Mode)(isfinite(Result.FitRMS.(Mode)));
-            fprintf('%-10s %8.4f %8.4f %8.4f\n', Mode, median(vals), mean(vals), max(vals));
+            fprintf('%-12s %8.4f %8.4f %8.4f\n', Mode, median(vals), mean(vals), max(vals));
         end
     end
 

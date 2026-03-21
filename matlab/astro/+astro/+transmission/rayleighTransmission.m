@@ -78,20 +78,17 @@ function Result = rayleighTransmission(Lambda, ParamMatrix, Args)
         error('Zenith angles out of range [0, 90] degrees');
     end
 
-    % Initialize result matrix
+    % Calculate airmasses for all zenith angles at once (vectorized)
+    Airmasses = astro.transmission.airmassSMARTS(ZenithAngles);
+    Am_rayleigh = Airmasses.rayleigh(:)';  % [1 x N]
+
+    % Compute optical depth per unique pressure, then broadcast with airmass
+    UniqP = unique(Pressure);
     Result = zeros(NumWavelengths, NumParamSets);
-
-    % Calculate transmission for each parameter set
-    for i = 1:NumParamSets
-        % Calculate airmass for Rayleigh scattering
-        Airmasses = astro.transmission.airmassSMARTS(ZenithAngles(i));
-        Am_rayleigh = Airmasses.rayleigh;
-
-        % Calculate Rayleigh optical depth using AstroPack rayleighScattering
-        TauRayleigh = astro.atmosphere.rayleighScattering(Lambda, Pressure(i), 'Ang');
-
-        % Calculate transmission
-        Result(:, i) = exp(-Am_rayleigh .* TauRayleigh);
+    for ip = 1:numel(UniqP)
+        Mask = (Pressure == UniqP(ip));
+        TauRayleigh = astro.atmosphere.rayleighScattering(Lambda, UniqP(ip), 'Ang');  % [Nwave x 1]
+        Result(:, Mask) = exp(-Am_rayleigh(Mask) .* TauRayleigh);  % implicit expansion
     end
 
     % Store in persistent cache if enabled
