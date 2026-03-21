@@ -89,7 +89,7 @@ classdef KDTreeCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'Type' - search type:
             %                   'M' - use matlab KT tree.
-            %                       faster for lare number of coordinate to
+            %                       faster for large number of coordinate to
             %                       search.
             %                   'K' - use KDTree
             %                   If empty, choose method automatically.
