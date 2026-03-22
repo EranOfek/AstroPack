@@ -1,6 +1,6 @@
 function Result=conjunctionsStars(Table, Args)
     % Search for conjunctions between a Solar system object and GAIA stars
-    % Input  : - An Astrocatalog object containing the ephemeris for a
+    % Input  : - An Astrocatalog object or table object containing the ephemeris for a
     %            Solar system object. Can be generated using celestial.SolarSys.jpl_horizons
     %          * ...,key,val,...
     %            Check code
@@ -16,7 +16,7 @@ function Result=conjunctionsStars(Table, Args)
     %          Result = celestial.conjunctions.conjunctionsStars(EphemCat);
 
     arguments
-        Table AstroCatalog   % JD, RA, Dec, Delta, r, Mag,
+        Table             % JD, RA, Dec, Delta, r, Mag,
         Args.ObsCoo          = [35 32];
         Args.ObjName         = '';   % object name to add to Result
         
@@ -45,16 +45,29 @@ function Result=conjunctionsStars(Table, Args)
     
     Ngaia = numel(Args.GAIA_Cols);
     
-    Nrow = sizeCatalog(Table);
     
-    Coo  = getLonLat(Table,'rad');
-    RA   = Coo(:,1);
-    Dec  = Coo(:,2);
-    [CosX, CosY, CosZ] = celestial.coo.coo2cosined(RA, Dec);
-    JD   = getCol(Table, Args.ColJD);
-    Delta = getCol(Table, 'Delta');
-    r     = getCol(Table, 'r');
-    MagEp = getCol(Table, Args.EphemColMag);
+    
+    if isa(Table, 'AstroCatalog')
+        Nrow = sizeCatalog(Table);
+
+        Coo  = getLonLat(Table,'rad');
+        RA   = Coo(:,1);
+        Dec  = Coo(:,2);
+        [CosX, CosY, CosZ] = celestial.coo.coo2cosined(RA, Dec);
+        JD   = getCol(Table, Args.ColJD);
+        Delta = getCol(Table, 'Delta');
+        r     = getCol(Table, 'r');
+        MagEp = getCol(Table, Args.EphemColMag);
+    else
+        % table format
+        Nrow  = size(Table,1);
+        RA    = Table.RA;
+        Dec   = Table.Dec;
+        JD    = Table.Date;
+        Delta = Table.delta;
+        r     = Table.r;
+        MagEp = Table.APmag;
+    end
     
     OcculterRadius = convert.length('km','au',Args.OcculterRadius);  % [au]
     

@@ -38,7 +38,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
 
-        Args.ForcedPhotCat               = 'WDEDR3';
+        Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
@@ -59,7 +59,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         
 
         Args.Logger                      = [];
-        Args.Sa
+        %Args.Sa
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
