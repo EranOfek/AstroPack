@@ -32,6 +32,7 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
      AI.Image=single(zeros(1726,1726));
      AI.ImageData.Image = imUtil.streaks.addLineToImage(AI.ImageData.Image,...
         [1345,678,998,109; 1845,478,1098,509],[30 20], 3 ,[-3,1]);
+     AI.PSF=imUtil.kernel2.gauss;
      im=AI.Image;
      AI=imProc.image.xcorrWithPSF(AI);
      [segs,phot,parfit]=imUtil.streaks.detectStreaksLSD(im,AI.Image)
