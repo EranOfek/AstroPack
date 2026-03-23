@@ -53,7 +53,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.constructPSF_cutoutsArgs cell = {};
         Args.SumMethod                 = 'median';
         
-        Args.SmoothWings logical       = true;
+        Args.SmoothWings logical       = false;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressWidth             = 3;
         

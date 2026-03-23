@@ -259,7 +259,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % measure PSF
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
-        Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',2}; % {'CropByQuantile',true,'Quantile',0.5}
+        Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
         Args.RadiusPSF                 = 12;
         Args.AperRadius                = [2, 4, 6];
         Args.Annulus                   = [10 12];
