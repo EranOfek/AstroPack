@@ -1,5 +1,6 @@
 function Result = polygon_boolean_operations(P0, P1, Args)
     % Check intersection and containment of spherical polygons 
+    %     NB: based on rasterization to healpix 
     %     Comparison of too large polygons at high resolution would lead 
     %     to a crash in the cone search function 
     % Input  : - P0 - a polygon: Nx2 array of [RA, Dec] in degrees 

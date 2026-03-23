@@ -133,10 +133,13 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
 
         if isempty(T)                       
             if Args.Verbosity > 0
-                fprintf('No images ar found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+                fprintf('No images are found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
-            
+            if Args.Verbosity > 0
+                fprintf('%d images are found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+            end
+        
         StackImages = [];
         
         for Imount = 1:10      % loop on LAST mounts
@@ -153,7 +156,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         TabEpoch  = TabMountCam(Grp == Iepoch, :);
                         Nim = height(TabEpoch);
                         if Args.Verbosity > 1
-                            fprintf('M%dC%d epoch %d: %d images found\n',Imount,Icam,Iepoch,Nim);
+                            fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
                         end
                         
                         % 2. select exposures by specific obs. time, time span, etc.
@@ -168,22 +171,29 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % T2 = T2(quality condition,:)
                         Nim = height(TabEpoch);   
                         if Args.Verbosity > 1
-                            fprintf('M%dC%d epoch %d: %d images selected\n',Imount,Icam,Iepoch,Nim);
+                            fprintf('M%dC%d epoch %d: %d images selected according to the time and quality criteria \n',Imount,Icam,Iepoch,Nim);
                         end
+                        
                         % if the total coverage is incomplete, skip to the next epoch                                                 
                         Coverage = []; RasterC = []; Icrop = 1;
                         while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved 
                             CropPoly = [TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
-                                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];
+                                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];                                                                   
                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             % if this crop does not overlap with the reference region, deselect it
                             Coverage(Icrop) = sum(ismember(Raster,Raster0));
                             if Coverage(Icrop) < 1
                                 TabEpoch(Icrop,:) = [];
                             else
-                                RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
-                                Icrop = Icrop + 1;
-                            end                           
+                                RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];                                
+                            end
+                            % TEMPORARY: check the new overlap function:    
+                            Flag = celestial.polygon.isSpherePolyIntersect(P0(:,1), P0(:,2), ...
+                                double(CropPoly(:,1)), double(CropPoly(:,2)));
+                            if ( Coverage(Icrop) < 1 && Flag > 0 ) || (Coverage(Icrop) > 0 && Flag < 1 )
+                                cprintf('red','crop %d: coverage estimate mismatch \n', Icrop);
+                            end
+                            Icrop = Icrop + 1;
                         end
                         
                         Nim = height(TabEpoch);                   
@@ -213,7 +223,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                              AI(Icrop).CatData.JD = AI(Icrop).julday;                                
                         end
                         
-                        % check WCS
+                        % check if WCS is present in all the selected crops 
                         if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
                             if Args.Verbosity > 1
                                 fprintf('WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
@@ -282,7 +292,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end % mount
         
         % 5. coadd the epochs from different telescopes and cameras                
-        if ~exist('StackImages','var')
+        if isempty(StackImages)
             if Args.Verbosity > 0
                 cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
             end
