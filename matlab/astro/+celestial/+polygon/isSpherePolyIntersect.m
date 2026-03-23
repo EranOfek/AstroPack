@@ -1,4 +1,4 @@
-function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Args)
+function [Flag, OverlapArea] = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Args)
     % Test intersection of convex spherical polygons.
     %   The function test if one polygon (in set 1) intersects all the polygons
     %   in set 2. If set 1 and set 2 has the same number of polygons, then test
@@ -15,6 +15,7 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
     %
     % Input  : - Matrix of longitudes for polygon set 1. Size is [Nvert1,Npoly1].
     %            Each column contains one polygon.
+    %            Verteces must be ordered.
     %          - Matrix of latitudes  for polygon set 1. Size is [Nvert1,Npoly1].
     %          - Matrix of longitudes for polygon set 2. Size is [Nvert2,Npoly2].
     %            Each column contains one polygon.
@@ -28,8 +29,11 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
     %            'UseMex' - A logical indicating if to use mex version.
     %                       Default is true.
     %
-    % Output : Logical column vector of length Ncmp, where:
-    %          Ncmp = max(Npoly1,Npoly2), provided one of them is 1 or both are equal.
+    % Output : - Logical column vector of length Ncmp, where:
+    %            Ncmp = max(Npoly1,Npoly2), provided one of them is 1 or both are equal.
+    %          - The area overlap : area of poly1 intersecting poly2
+    %            divided by the area of poly1.
+    %            This is available only for 'UseMex' false.
     %
     % Method:
     %     The function tests intersection between convex polygons on the
@@ -101,7 +105,7 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
     %
     % Author : ChatGPT + Eran Ofek (Mar 2026)
     % Example:
-    %    LonPoly1=[1;1;0;0]; LatPoly1=[1;0;1;0]; LonPoly2=rand(4,100); LatPoly2=rand(4,100);           
+    %    LonPoly1=[0;1;1;0]; LatPoly1=[0;0;1;1]; LonPoly2=rand(4,100); LatPoly2=rand(4,100);           
     %    Flag = celestial.polygon.isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
 
     
@@ -117,9 +121,9 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
 
     if Args.UseMex
         Flag = celestial.polygon.mex.isSpherePolyIntersect_mex(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Args.IsDeg, Args.IncludeEdge);
+        OverlapArea = NaN;
     else
     
-        
         if ~isequal(size(LonPoly1), size(LatPoly1))
             error('LonPoly1 and LatPoly1 must have identical size.');
         end
@@ -141,16 +145,9 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
         end
         
         Ncmp = max(Npoly1, Npoly2);
+        Ipoly1 = min(1:Ncmp, Npoly1);
+        Ipoly2 = min(1:Ncmp, Npoly2);
         
-        if Npoly1 == 1 && Ncmp > 1
-            LonPoly1 = repmat(LonPoly1, 1, Ncmp);
-            LatPoly1 = repmat(LatPoly1, 1, Ncmp);
-        end
-        
-        if Npoly2 == 1 && Ncmp > 1
-            LonPoly2 = repmat(LonPoly2, 1, Ncmp);
-            LatPoly2 = repmat(LatPoly2, 1, Ncmp);
-        end
         
         if Args.IsDeg
             Factor = pi ./ 180;
@@ -225,7 +222,9 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
         
         Inside12 = false(1, Ncmp);
         for Ivert = 1:Nvert1
-            S12 = Nx2 .* X1(Ivert, :) + Ny2 .* Y1(Ivert, :) + Nz2 .* Z1(Ivert, :);
+            S12 = Nx2(:, Ipoly2) .* X1(Ivert, Ipoly1) + ...
+                  Ny2(:, Ipoly2) .* Y1(Ivert, Ipoly1) + ...
+                  Nz2(:, Ipoly2) .* Z1(Ivert, Ipoly1);
             if Args.IncludeEdge
                 Inside12 = Inside12 | all(S12 >= -Tol, 1);
             else
@@ -235,7 +234,9 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
         
         Inside21 = false(1, Ncmp);
         for Ivert = 1:Nvert2
-            S21 = Nx1 .* X2(Ivert, :) + Ny1 .* Y2(Ivert, :) + Nz1 .* Z2(Ivert, :);
+            S21 = Nx1(:, Ipoly1) .* X2(Ivert, Ipoly2) + ...
+                  Ny1(:, Ipoly1) .* Y2(Ivert, Ipoly2) + ...
+                  Nz1(:, Ipoly1) .* Z2(Ivert, Ipoly2);
             if Args.IncludeEdge
                 Inside21 = Inside21 | all(S21 >= -Tol, 1);
             else
@@ -246,23 +247,20 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
         Flag = Inside12 | Inside21;
         ToDo = find(~Flag);
         
-        if isempty(ToDo)
-            Flag = Flag(:);
-            return;
-        end
+        for Icmp = ToDo(:).'
+            J1 = Ipoly1(Icmp);
+            J2 = Ipoly2(Icmp);
         
-        for Ipoly = ToDo(:).'
             Found = false;
-        
             for Iedge1 = 1:Nvert1
-                U1 = [X1(Iedge1, Ipoly), Y1(Iedge1, Ipoly), Z1(Iedge1, Ipoly)];
-                U2 = [X1n(Iedge1, Ipoly), Y1n(Iedge1, Ipoly), Z1n(Iedge1, Ipoly)];
-                N1 = [Nx1(Iedge1, Ipoly), Ny1(Iedge1, Ipoly), Nz1(Iedge1, Ipoly)];
+                U1 = [X1(Iedge1, J1),  Y1(Iedge1, J1),  Z1(Iedge1, J1)];
+                U2 = [X1n(Iedge1, J1), Y1n(Iedge1, J1), Z1n(Iedge1, J1)];
+                N1 = [Nx1(Iedge1, J1), Ny1(Iedge1, J1), Nz1(Iedge1, J1)];
         
                 for Iedge2 = 1:Nvert2
-                    V1 = [X2(Iedge2, Ipoly), Y2(Iedge2, Ipoly), Z2(Iedge2, Ipoly)];
-                    V2 = [X2n(Iedge2, Ipoly), Y2n(Iedge2, Ipoly), Z2n(Iedge2, Ipoly)];
-                    N2 = [Nx2(Iedge2, Ipoly), Ny2(Iedge2, Ipoly), Nz2(Iedge2, Ipoly)];
+                    V1 = [X2(Iedge2, J2),  Y2(Iedge2, J2),  Z2(Iedge2, J2)];
+                    V2 = [X2n(Iedge2, J2), Y2n(Iedge2, J2), Z2n(Iedge2, J2)];
+                    N2 = [Nx2(Iedge2, J2), Ny2(Iedge2, J2), Nz2(Iedge2, J2)];
         
                     Xint = cross(N1, N2);
                     NormX = norm(Xint);
@@ -292,16 +290,45 @@ function Flag = isSpherePolyIntersect(LonPoly1, LatPoly1, LonPoly2, LatPoly2, Ar
                 end
             end
         
-            Flag(Ipoly) = Found;
+            Flag(Icmp) = Found;
         end
         
         Flag = Flag(:);
+        
+        if nargout < 2
+            return;
+        end
+        
+        OverlapArea = zeros(Ncmp, 1, 'like', LonPoly1);
+        
+        Poly1AreaCache = nan(1, Npoly1, 'like', LonPoly1);
+        
+        ForArea = find(Flag(:).');
+        for Icmp = ForArea
+            J1 = Ipoly1(Icmp);
+            J2 = Ipoly2(Icmp);
+        
+            PolyData1 = getPolyData(X1(:, J1), Y1(:, J1), Z1(:, J1), Nx1(:, J1), Ny1(:, J1), Nz1(:, J1));
+            PolyData2 = getPolyData(X2(:, J2), Y2(:, J2), Z2(:, J2), Nx2(:, J2), Ny2(:, J2), Nz2(:, J2));
+        
+            if isnan(Poly1AreaCache(J1))
+                Poly1AreaCache(J1) = sphereConvexPolyArea(PolyData1.Vert);
+            end
+        
+            InterVert = intersectionPolygonVertices(PolyData1, PolyData2, Tol, Args.IncludeEdge);
+        
+            if size(InterVert, 2) < 3 || Poly1AreaCache(J1) <= 0
+                OverlapArea(Icmp) = 0;
+            else
+                InterArea = sphereConvexPolyArea(InterVert);
+                OverlapArea(Icmp) = max(0, min(1, InterArea ./ Poly1AreaCache(J1)));
+            end
+        end
     end
 
 end
 
-% Aux functions:
-
+%--------------------------------------------------------------------------
 function [X, Y, Z] = sph2cartUnit(Lon, Lat)
     CosLat = cos(Lat);
     X = CosLat .* cos(Lon);
@@ -309,6 +336,7 @@ function [X, Y, Z] = sph2cartUnit(Lon, Lat)
     Z = sin(Lat);
 end
 
+%--------------------------------------------------------------------------
 function Result = pointOnArc(P, A, B, N, Tol, IncludeEdge)
     OnGreatCircle = abs(dot(N, P)) <= Tol;
     if ~OnGreatCircle
@@ -323,5 +351,137 @@ function Result = pointOnArc(P, A, B, N, Tol, IncludeEdge)
         Result = (S1 >= -Tol) && (S2 >= -Tol);
     else
         Result = (S1 > Tol) && (S2 > Tol);
+    end
+end
+
+%--------------------------------------------------------------------------
+function PolyData = getPolyData(X, Y, Z, Nx, Ny, Nz)
+    PolyData.Vert = [X(:).'; Y(:).'; Z(:).'];
+    PolyData.Norm = [Nx(:).'; Ny(:).'; Nz(:).'];
+end
+
+%--------------------------------------------------------------------------
+function Inside = pointInsideSpherePoly(P, PolyData, Tol, IncludeEdge)
+    S = sum(PolyData.Norm .* P, 1);
+    if IncludeEdge
+        Inside = all(S >= -Tol);
+    else
+        Inside = all(S > Tol);
+    end
+end
+
+%--------------------------------------------------------------------------
+function Vert = intersectionPolygonVertices(PolyData1, PolyData2, Tol, IncludeEdge)
+    Vert = zeros(3, 0, 'like', PolyData1.Vert);
+
+    % Vertices of poly1 inside poly2
+    for I = 1:size(PolyData1.Vert, 2)
+        P = PolyData1.Vert(:, I);
+        if pointInsideSpherePoly(P, PolyData2, Tol, IncludeEdge)
+            Vert = addUniquePoint(Vert, P, Tol);
+        end
+    end
+    
+    % Vertices of poly2 inside poly1
+    for I = 1:size(PolyData2.Vert, 2)
+        P = PolyData2.Vert(:, I);
+        if pointInsideSpherePoly(P, PolyData1, Tol, IncludeEdge)
+            Vert = addUniquePoint(Vert, P, Tol);
+        end
+    end
+    
+    % Edge intersections
+    Nedge1 = size(PolyData1.Vert, 2);
+    Nedge2 = size(PolyData2.Vert, 2);
+    
+    for Iedge1 = 1:Nedge1
+        U1 = PolyData1.Vert(:, Iedge1);
+        U2 = PolyData1.Vert(:, mod(Iedge1, Nedge1) + 1);
+        N1 = PolyData1.Norm(:, Iedge1);
+    
+        for Iedge2 = 1:Nedge2
+            V1 = PolyData2.Vert(:, Iedge2);
+            V2 = PolyData2.Vert(:, mod(Iedge2, Nedge2) + 1);
+            N2 = PolyData2.Norm(:, Iedge2);
+    
+            Xint = cross(N1, N2);
+            NormX = norm(Xint);
+            if NormX <= Tol
+                continue;
+            end
+    
+            Xint = Xint ./ NormX;
+    
+            if pointOnArc(Xint, U1.', U2.', N1.', Tol, IncludeEdge) && ...
+               pointOnArc(Xint, V1.', V2.', N2.', Tol, IncludeEdge)
+                Vert = addUniquePoint(Vert, Xint, Tol);
+            end
+    
+            Xint = -Xint;
+            if pointOnArc(Xint, U1.', U2.', N1.', Tol, IncludeEdge) && ...
+               pointOnArc(Xint, V1.', V2.', N2.', Tol, IncludeEdge)
+                Vert = addUniquePoint(Vert, Xint, Tol);
+            end
+        end
+    end
+    
+    if size(Vert, 2) < 3
+        return;
+    end
+    
+    % Order vertices around centroid
+    Center = sum(Vert, 2);
+    Center = Center ./ norm(Center);
+    
+    if abs(Center(1)) < 0.9
+        Ref = [1; 0; 0];
+    else
+        Ref = [0; 1; 0];
+    end
+    
+    E1 = cross(Center, Ref);
+    E1 = E1 ./ norm(E1);
+    E2 = cross(Center, E1);
+    
+    Ang = atan2(E2.' * Vert, E1.' * Vert);
+    [~, SI] = sort(Ang);
+    Vert = Vert(:, SI);
+end
+
+%--------------------------------------------------------------------------
+function Vert = addUniquePoint(Vert, P, Tol)
+    if isempty(Vert)
+        Vert = P;
+        return;
+    end
+    
+    DotVal = Vert.' * P;
+    if any(abs(1 - DotVal) < 10 .* Tol)
+        return;
+    end
+    
+    Vert(:, end+1) = P;
+end
+
+%--------------------------------------------------------------------------
+function Area = sphereConvexPolyArea(Vert)
+    Nvert = size(Vert, 2);
+    if Nvert < 3
+        Area = 0;
+        return;
+    end
+    
+    Center = sum(Vert, 2);
+    Center = Center ./ norm(Center);
+    
+    Area = 0;
+    for I = 1:Nvert
+        A = Center;
+        B = Vert(:, I);
+        C = Vert(:, mod(I, Nvert) + 1);
+    
+        Num = abs(dot(A, cross(B, C)));
+        Den = 1 + dot(A, B) + dot(B, C) + dot(C, A);
+        Area = Area + 2 .* atan2(Num, Den);
     end
 end
