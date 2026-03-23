@@ -5,20 +5,22 @@ function buildHTMfromFiles(Args)
 %              HTM-structured HDF5 catalog. Files are processed by
 %              declination band to limit memory usage. Supports
 %              downloading from remote URLs with caching and resume.
-%              Uses celestial.htm.saveHTMIndexFast for index building.
 %
-%              The function works in four steps:
+%              The function works in five steps:
 %              1. Scrape file list from URL or local directory
-%              2. Process files by Dec band: download, select columns,
-%                 build HTM cells using VO.prep.build_htm_catalog
-%              3. Build index with celestial.htm.saveHTMIndexFast
-%              4. Copy HDF5 files to TargetDir (if specified)
+%              2. Save column metadata (ColCell) upfront
+%              3. Process files by Dec band: download/read, select
+%                 columns via PostReadFun, build HTM cells using
+%                 VO.prep.build_htm_catalog. Completed grouped HDF5
+%                 files are copied to TargetDir incrementally.
+%              4. Build index with VO.prep.getNsrcFast +
+%                 celestial.htm.saveHTMIndexFast
+%              5. Copy remaining files and index to TargetDir
 %
-%              Files are downloaded one at a time and cached in
-%              DownloadDir. By default, files not needed for the
-%              next band are deleted (CleanCache). When Resume is
-%              true, CleanCache is automatically disabled to keep
-%              cached files for re-runs.
+%              When Resume is true, completed bands (all HTM cells
+%              exist in HDF5) are skipped entirely without reading
+%              source files. Downloaded files not needed by future
+%              bands are cleaned up after each band (CleanCache).
 %
 % Input  : * ...,key,val,...
 %            --- Source files ---
@@ -63,9 +65,11 @@ function buildHTMfromFiles(Args)
 %            --- Processing ---
 %            'DecBandWidth' - Dec band width [deg] for processing. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
-%                             Also disables CleanCache automatically.
+%                             Completed bands are skipped entirely
+%                             (no file reading) via checkBandComplete.
 %            'CleanCache'   - Delete cached downloads after each Dec
-%                             band. Default: true (but false when Resume).
+%                             band (including skipped bands). Default: true.
+%                             Only deletes files not needed by future bands.
 %            'Verbose'      - Print progress. Default: true.
 %
 % Output : null
@@ -117,10 +121,10 @@ function buildHTMfromFiles(Args)
     CatName     = char(Args.CatName);
     RAD         = 180 / pi;
 
-    % Disable cache cleanup when resuming — cached files avoid re-downloads
-    if Args.Resume
-        Args.CleanCache = false;
-    end
+    % Note: CleanCache is now independent of Resume. With checkBandComplete,
+    % completed bands are skipped entirely and their files are not needed.
+    % cleanDownloadCache only deletes files not needed by future bands,
+    % so files for the current (possibly incomplete) band are always kept.
 
     if ~exist(LocalDir, 'dir'),    mkdir(LocalDir); end
     if ~exist(DownloadDir, 'dir'), mkdir(DownloadDir); end
@@ -181,6 +185,31 @@ function buildHTMfromFiles(Args)
 
     TotalTic = tic;
 
+    % Save ColCell file upfront so it's available during processing
+    HDF5.save_cat_colcell(CatName, Args.ColNames, Args.ColUnits);
+    if Args.Verbose
+        fprintf('Saved column metadata: %s_htmColCell.mat\n', CatName);
+    end
+
+    % Precompute max MeanDec per grouped HDF5 file for incremental NFS copy.
+    % A grouped file is safe to copy once all bands up to its max MeanDec
+    % have been processed.
+    if ~isempty(TargetDir)
+        [HdfFileMaxDec, HdfFileNames] = precomputeFileMaxDec( ...
+            HTM, ListIndexHTM, CatName, Args.NcatInFile);
+        CopiedFiles = false(numel(HdfFileNames), 1);
+
+        % Copy ColCell file immediately
+        ColCellFile = fullfile(LocalDir, sprintf('%s_htmColCell.mat', CatName));
+        if isfile(ColCellFile)
+            tools.os.copyFileOverNFS({ColCellFile}, TargetDir, ...
+                'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            if Args.Verbose
+                fprintf('Copied: %s_htmColCell.mat\n', CatName);
+            end
+        end
+    end
+
     % File data cache: avoid re-reading files that span multiple bands.
     % FileCache{idx} holds the full numeric matrix (with RA/Dec in radians)
     % for file idx. Cleared when the file is no longer needed.
@@ -219,6 +248,11 @@ function buildHTMfromFiles(Args)
                 if BandComplete
                     if Args.Verbose
                         fprintf('  All HTM cells exist, skipping band\n');
+                    end
+                    % Clean files not needed by future bands
+                    if IsRemote && Args.CleanCache
+                        cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
+                            DownloadDir, Iband, Nbands, DecEdges, MarginDeg);
                     end
                     continue;
                 end
@@ -403,6 +437,13 @@ function buildHTMfromFiles(Args)
                 cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
                     DownloadDir, Iband, Nbands, DecEdges, MarginDeg);
             end
+
+            % Incremental NFS copy: copy HDF5 files whose cells are all
+            % in completed bands (max MeanDec <= current band upper edge)
+            if ~isempty(TargetDir)
+                CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+                    HdfFileNames, DecHiRad, LocalDir, TargetDir, Args.Verbose);
+            end
         end
 
         %------------------------------------------------------------------
@@ -416,37 +457,24 @@ function buildHTMfromFiles(Args)
         if exist(IndFileName, 'file')
             delete(IndFileName);
         end
-        Nsrc = HDF5.get_nsrc(CatName);
+        Nsrc = VO.prep.getNsrcFast(CatName);
         celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
-        HDF5.save_cat_colcell(CatName, Args.ColNames, Args.ColUnits);
-
         %------------------------------------------------------------------
-        % Step 5: Copy to TargetDir via NFS
+        % Step 5: Copy remaining files to TargetDir via NFS
         %------------------------------------------------------------------
         if ~isempty(TargetDir)
-            if Args.Verbose
-                fprintf('\nCopying HDF5 files to %s ...\n', TargetDir);
-            end
+            % Copy any HDF5 data files not yet copied (e.g., last band)
+            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+                HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
 
-            % Copy all HDF5 data files
-            HdfFiles = dir(fullfile(LocalDir, [CatName '*.hdf5']));
-            for iFile = 1:numel(HdfFiles)
-                FullPath = fullfile(LocalDir, HdfFiles(iFile).name);
-                tools.os.copyFileOverNFS({FullPath}, TargetDir, ...
+            % Copy index file
+            IndFullPath = fullfile(LocalDir, IndFileName);
+            if isfile(IndFullPath)
+                tools.os.copyFileOverNFS({IndFullPath}, TargetDir, ...
                     'RemoteUser', 'euclid', 'RemoveOrigin', true);
                 if Args.Verbose
-                    fprintf('  Copied: %s\n', HdfFiles(iFile).name);
-                end
-            end
-
-            % Copy ColCell .mat file
-            ColCellFile = fullfile(LocalDir, sprintf('%s_htmColCell.mat', CatName));
-            if isfile(ColCellFile)
-                tools.os.copyFileOverNFS({ColCellFile}, TargetDir, ...
-                    'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                if Args.Verbose
-                    fprintf('  Copied: %s_htmColCell.mat\n', CatName);
+                    fprintf('  Copied: %s\n', IndFileName);
                 end
             end
         end
@@ -456,6 +484,20 @@ function buildHTMfromFiles(Args)
         end
 
     catch ME
+        fprintf('\n*** buildHTMfromFiles ERROR ***\n');
+        fprintf('Message: %s\n', ME.message);
+        fprintf('Identifier: %s\n', ME.identifier);
+        for iStack = 1:numel(ME.stack)
+            fprintf('  %s:%d (%s)\n', ME.stack(iStack).file, ...
+                ME.stack(iStack).line, ME.stack(iStack).name);
+        end
+        if exist('Iband', 'var')
+            fprintf('Failed at band %d/%d, Dec [%.1f, %.1f]\n', ...
+                Iband, Nbands, DecEdges(Iband), DecEdges(Iband + 1));
+        end
+        if exist('idx', 'var') && exist('AllFiles', 'var') && idx <= numel(AllFiles)
+            fprintf('Last file: %s\n', AllFiles{idx});
+        end
         cd(OrigDir);
         rethrow(ME);
     end
@@ -560,7 +602,7 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
     % Returns true only if every cell whose mean Dec falls in [DecLo,DecHi)
     % either has Nsrc==0 (empty) or already exists as an HDF5 dataset.
     Complete = true;
-    FileCache = containers.Map();  % cache h5info per HDF5 file
+    InfoCache = containers.Map();  % cache h5info per HDF5 file
     for i = 1:numel(ListIndexHTM)
         IndHTM  = ListIndexHTM(i);
         MeanDec = mean(HTM(IndHTM).coo(:, 2));
@@ -572,18 +614,64 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
             Complete = false;
             return;
         end
-        if ~FileCache.isKey(FileName)
+        if ~InfoCache.isKey(FileName)
             try
-                FileCache(FileName) = h5info(FileName);
+                InfoCache(FileName) = h5info(FileName);
             catch
                 Complete = false;
                 return;
             end
         end
-        Info = FileCache(FileName);
+        Info = InfoCache(FileName);
         if ~any(strcmp({Info.Datasets.Name}, DataName))
             Complete = false;
             return;
+        end
+    end
+end
+
+
+function [MaxDec, FileNames] = precomputeFileMaxDec(HTM, ListIndexHTM, ...
+        CatName, NcatInFile)
+    % For each grouped HDF5 file, compute the maximum MeanDec among its
+    % leaf cells. A file is safe to copy when all bands up to its MaxDec
+    % have been processed.
+    FileMap = containers.Map();
+    for i = 1:numel(ListIndexHTM)
+        IndHTM = ListIndexHTM(i);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
+        [FileName, ~] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
+        if FileMap.isKey(FileName)
+            if MeanDec > FileMap(FileName)
+                FileMap(FileName) = MeanDec;
+            end
+        else
+            FileMap(FileName) = MeanDec;
+        end
+    end
+    FileNames = FileMap.keys()';
+    MaxDec = cellfun(@(k) FileMap(k), FileNames);
+end
+
+
+function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+        HdfFileNames, DecHiRad, LocalDir, TargetDir, Verbose)
+    % Copy grouped HDF5 files whose max MeanDec <= DecHiRad (all cells
+    % belong to completed bands). Skips already-copied files.
+    for i = 1:numel(HdfFileNames)
+        if CopiedFiles(i)
+            continue;
+        end
+        if HdfFileMaxDec(i) <= DecHiRad
+            FullPath = fullfile(LocalDir, HdfFileNames{i});
+            if isfile(FullPath)
+                tools.os.copyFileOverNFS({FullPath}, TargetDir, ...
+                    'RemoteUser', 'euclid', 'RemoveOrigin', true);
+                CopiedFiles(i) = true;
+                if Verbose
+                    fprintf('  Copied: %s\n', HdfFileNames{i});
+                end
+            end
         end
     end
 end

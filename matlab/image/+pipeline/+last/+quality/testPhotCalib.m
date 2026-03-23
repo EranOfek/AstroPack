@@ -27,7 +27,9 @@ function Result = testPhotCalib(Args)
     %                   AB-calibrated scatter in color.
     %                2. Std difference — Std(percrop) - Std(other) vs magnitude.
     %                   Points >0 mean the non-percrop mode is better.
-    %                3. ZP mosaic — side-by-side ZP maps for the first visit.
+    %                3. RMS & ZP-RMS mosaic — two-panel mosaic: median fit RMS
+    %                   and epoch-to-epoch center ZP std per crop.
+    %                4. ZP mosaic — side-by-side ZP maps for the first visit.
     %                Binned trend lines (median or mean) are overlaid on scatter plots.
     %
     % Input  : * ...,key,val,...
@@ -68,7 +70,8 @@ function Result = testPhotCalib(Args)
     %            .PC     - struct with PC_all{Nvisits}(1xNcrop) PhotCalibTrans per mode
     %            .Cats   - struct with Cats_all{Nvisits}(1xNcrop) AstroCatalog per mode
     %            .MS     - struct with MS{Ncrop} MatchedSources per mode
-    %            .FitRMS - struct with RMS(Nvisits x Ncrop) matrix per mode
+    %            .FitRMS - RMS(Nvisits x Ncrop) matrix (from percrop fit, identical across modes)
+    %            .ZPcenter - ZP(Nvisits x Ncrop) center ZP (Tran2D=0) per epoch/crop
     %            .CLim   - color limits used for ZP mosaic plots
     % Author : D. Kovaleva (Mar 2026)
     % Example: % Run all defaults (3 modes, 20 visits, all crops):
@@ -127,6 +130,8 @@ function Result = testPhotCalib(Args)
         Args.OverlayTrend   = 'median'  % 'median' | 'mean' | 'none' — binned trend line on scatter plots
         Args.TrendBinWidth  = 0.5       % mag bin width for trend line
         Args.TileOrder      = 'rowmajor'  % 'colmajor' (old) | 'rowmajor' (new pipeline)
+        Args.VisitRefZP     = 'epoch'    % 'crop_median' | 'crop_mean' | 'global_median' | 'global_mean' | 'epoch'
+        Args.VisitRefZPEpoch = 1         % epoch index to use when VisitRefZP='epoch'
         Args.Verbose logical = true
     end
 
@@ -221,7 +226,6 @@ function Result = testPhotCalib(Args)
 
     Result.PC   = struct();
     Result.Cats = struct();
-    Result.FitRMS = struct();
 
     % --- Per-epoch modes (percrop, refshape, refzp, refzp_raw) ---
     for Im = 1:numel(PerEpochModes)
@@ -281,17 +285,30 @@ function Result = testPhotCalib(Args)
             Result.Cats.(Mode) = Cats_all;
         end
 
-        % Fit RMS summary
-        RMSmat = nan(Nvisits, Args.Ncrop);
-        for Iv = 1:Nvisits
-            if isempty(Result.PC.(Mode){Iv}); continue; end
-            for Ic = 1:numel(Result.PC.(Mode){Iv})
-                if Result.PC.(Mode){Iv}(Ic).Success
-                    RMSmat(Iv, Ic) = Result.PC.(Mode){Iv}(Ic).TransModel.RMS;
+    end
+
+    % Fit RMS and center ZP — identical across modes (same underlying percrop fit)
+    Result.FitRMS = nan(Nvisits, Args.Ncrop);
+    Result.ZPcenter = nan(Nvisits, Args.Ncrop);
+    for Iv = 1:Nvisits
+        if isempty(Result.PC.percrop{Iv}); continue; end
+        for Ic = 1:numel(Result.PC.percrop{Iv})
+            if Result.PC.percrop{Iv}(Ic).Success
+                Result.FitRMS(Iv, Ic) = Result.PC.percrop{Iv}(Ic).TransModel.RMS;
+                % ZP at crop center with center-normalized Tran2D (=0 at center):
+                % ZP_base includes Norm but not Tran2D; subtract Tran2D(center)
+                % to get the ZP where Norm absorbs the Tran2D center offset.
+                PC_ic = Result.PC.percrop{Iv}(Ic);
+                ZPbase = PC_ic.evaluateZP();  % spectral-only, no Tran2D
+                if ~isempty(PC_ic.TransModel.Tran2DObj) && PC_ic.TransModel.UseTran2D
+                    Xc = PC_ic.TransModel.Tran2DObj.ParNX(1);
+                    Yc = PC_ic.TransModel.Tran2DObj.ParNY(1);
+                    [CenterCorr, ~] = PC_ic.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                    ZPbase = ZPbase - CenterCorr;
                 end
+                Result.ZPcenter(Iv, Ic) = ZPbase;
             end
         end
-        Result.FitRMS.(Mode) = RMSmat;
     end
 
     % --- Visit-level modes (visitref, visitref_raw) ---
@@ -358,6 +375,34 @@ function Result = testPhotCalib(Args)
 
             DoNormTran2D = strcmp(Mode, 'visitref');
 
+            % Compute target ZP per crop for ZP normalization
+            ZPc = Result.ZPcenter;  % [Nvisits x Ncrop]
+            switch Args.VisitRefZP
+                case 'crop_median'
+                    TargetZP = nanmedian(ZPc, 1);  % [1 x Ncrop]
+                case 'crop_mean'
+                    TargetZP = nanmean(ZPc, 1);
+                case 'global_median'
+                    TargetZP = repmat(nanmedian(ZPc(:)), 1, Args.Ncrop);
+                case 'global_mean'
+                    TargetZP = repmat(nanmean(ZPc(:)), 1, Args.Ncrop);
+                case 'epoch'
+                    EpIdx = Args.VisitRefZPEpoch;
+                    TargetZP = ZPc(EpIdx, :);  % [1 x Ncrop]
+                otherwise
+                    error('testPhotCalib:BadVisitRefZP', ...
+                        'Unknown VisitRefZP: %s', Args.VisitRefZP);
+            end
+
+            if Args.Verbose
+                fprintf('  VisitRefZP=%s, target ZP range: %.3f..%.3f\n', ...
+                    Args.VisitRefZP, nanmin(TargetZP), nanmax(TargetZP));
+            end
+
+            % Find Norm index in parameter vector (once)
+            AllFunPar = Result.PC.percrop{find(~cellfun(@isempty, Result.PC.percrop), 1)}(1).TransModel.getAllFunPar();
+            NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
+
             % Reuse percrop PC objects; recompute catalogs with visit reference
             PC_all   = Result.PC.percrop;  % same PhotCalibTrans objects
             Cats_all = cell(Nvisits, 1);
@@ -375,11 +420,19 @@ function Result = testPhotCalib(Args)
                         Cats_all{Iv}(Ic) = AstroCatalog;
                         continue;
                     end
+
+                    % Adjust Norm in VisitRefParams to achieve target ZP
+                    CropParams = VisitRefParams;
+                    if Ic <= size(ZPc, 2) && isfinite(ZPc(Iv, Ic)) && isfinite(TargetZP(Ic))
+                        DeltaZP = TargetZP(Ic) - ZPc(Iv, Ic);
+                        CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
+                    end
+
                     Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
                         AIcopy(Ic).CatData, ...
                         'MagSystem', 'AB', ...
-                        'RefTransParams', VisitRefParams, ...
-                        'UseRefNorm', false, ...
+                        'RefTransParams', CropParams, ...
+                        'UseRefNorm', true, ...
                         'NormTran2D', DoNormTran2D);
                 end
 
@@ -396,19 +449,13 @@ function Result = testPhotCalib(Args)
             Result.Cats.(Mode) = Cats_all;
         end
 
-        % Reuse percrop RMS (same fit, different magnitude computation)
-        Result.FitRMS.(Mode) = Result.FitRMS.percrop;
     end
 
+    % Fit RMS is identical across modes (same underlying fit)
     if Args.Verbose
         fprintf('\n=== Fit RMS Summary ===\n');
-        fprintf('%-12s %8s %8s %8s\n', 'Mode', 'Median', 'Mean', 'Max');
-        for Im = 1:Nmodes
-            Mode = Args.Modes{Im};
-            if ~isfield(Result.FitRMS, Mode); continue; end
-            vals = Result.FitRMS.(Mode)(isfinite(Result.FitRMS.(Mode)));
-            fprintf('%-12s %8.4f %8.4f %8.4f\n', Mode, median(vals), mean(vals), max(vals));
-        end
+        vals = Result.FitRMS(isfinite(Result.FitRMS));
+        fprintf('Median: %.4f   Mean: %.4f   Max: %.4f\n', median(vals), mean(vals), max(vals));
     end
 
     % ================================================================
@@ -698,6 +745,64 @@ function Result = testPhotCalib(Args)
             sgtitle(sprintf('Std difference (>0 = %s better): %s', ...
                 'non-percrop', strrep(MagField, '_', '\_')));
         end
+    end
+
+    % --- RMS & ZP-RMS Mosaics (single figure, two panels) ---
+    Nrows = 6;
+    Ncols = 4;
+    % Light-to-dark gray colormap (larger values = darker)
+    GrayMap = flipud(gray(256));  % flip so high values map to dark
+    GrayMap = GrayMap(26:230, :); % trim extremes: light gray to dark gray
+
+    RMSmat = Result.FitRMS;       % [Nvisits x Ncrop]
+    MedRMS = nanmedian(RMSmat, 1);
+    ZPstd  = nanstd(Result.ZPcenter, 0, 1);  % epoch-to-epoch ZP scatter per crop
+
+    figure('Name', 'Fit RMS & ZP RMS Mosaic', 'Position', [100, 100, 1000, 600]);
+
+    for Ipanel = 1:2
+        subplot(1, 2, Ipanel);
+
+        if Ipanel == 1
+            PlotVals = MedRMS;
+            CbLabel  = 'Median fit RMS [mag]';
+            PanelTitle = sprintf('Median fit RMS over %d epochs', Nvisits);
+        else
+            PlotVals = ZPstd;
+            CbLabel  = 'ZP std [mag]';
+            PanelTitle = sprintf('Center ZP std over %d epochs', Nvisits);
+        end
+
+        MosaicImg = nan(Nrows, Ncols);
+        for Ic = 1:Args.Ncrop
+            [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
+            if Ic <= numel(PlotVals)
+                MosaicImg(Row, Col) = PlotVals(Ic);
+            end
+        end
+
+        imagesc(MosaicImg);
+        axis xy equal tight;
+        colormap(gca, GrayMap);
+        cb = colorbar;
+        ylabel(cb, CbLabel);
+
+        hold on;
+        for Ic = 1:Args.Ncrop
+            [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
+            Val = PlotVals(Ic);
+            if isfinite(Val)
+                text(Col, Row, sprintf('%d\n%.4f', Ic, Val), ...
+                    'HorizontalAlignment', 'center', 'Color', 'w', ...
+                    'FontSize', 8, 'FontWeight', 'bold');
+            else
+                text(Col, Row, sprintf('%d', Ic), ...
+                    'HorizontalAlignment', 'center', 'Color', 'w', ...
+                    'FontSize', 8);
+            end
+        end
+        hold off;
+        title(PanelTitle);
     end
 
     % --- ZP Mosaic comparison for selected visit ---
