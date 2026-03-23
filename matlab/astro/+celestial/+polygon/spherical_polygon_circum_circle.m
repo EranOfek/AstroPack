@@ -36,6 +36,9 @@ function [RA0, Dec0, R0] = spherical_polygon_circum_circle(P, Args)
     % convert back to RA, Dec
     Dec0 = rad2deg(asin(v_mean(3)));
     RA0  = rad2deg(atan2(v_mean(2), v_mean(1)));
+    if RA0 < 0
+        RA0 = 360+RA0;
+    end
     R0   = rad2deg(radius_rad);    
     
     % plot the polygon and the circle 

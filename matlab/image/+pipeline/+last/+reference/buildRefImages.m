@@ -194,15 +194,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                 fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Iepoch);
                             end
                             continue % to the next epoch
-                        end
-                        
-                        % obviously, no more than 5 crops can overlap a reference region of the same size
-%                         if Nim > 5 % DEBUG: select just 5 crops with largest coverage
-%                             [~, Idx] = maxk(Coverage, 5);
-%                             Idx = sort(Idx);
-%                             TabEpoch = TabEpoch(Idx,:);
-%                             Nim = height(TabEpoch);
-%                         end
+                        end                        
                         
                         % 4.1 retrieve the crop images 
                         if Args.Verbosity > 1
