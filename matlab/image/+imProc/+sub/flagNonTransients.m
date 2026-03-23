@@ -1,207 +1,246 @@
 function TranCat = flagNonTransients(Obj, Args)
     %{
-    Flag transients candidates that are likely not real transients.
+    Flag transient candidates that are likely not real transients.
+
     Input   : - An AstroDiff object in which CatData is populated.
               * ...,key,val,...
-                'PixelScale' - Pizel scale in arcsec per pixel. Default is
-                        1.25.
-                'SaturatedNeighborDistanceThreshold' - Maximum distance in 
-                        which to look for neighbor candidates on saturated
-                        pixels. Default is 100.
-                'flagNegatives' - Bool on whether to flag negative
-                       candidates. Default is true.
-                'flagChi2' - Bool on whether to flag transients candidates
-                       based on how well the PSF fits to a stamp on the transient.
-                       The goodness value is a Chi2 per degrees of freedom.
+                'ConfigFile' - Path to JSON configuration file. Fields in
+                       the file override corresponding Args fields.
+                       Default is ''.
+
+                'PixelScale' - Pixel scale in arcsec per pixel.
+                       Default is 1.25.
+
+                'PointLimitSigmaFactor' - Conversion factor from FWHM to
+                       an approximate 3-sigma radius used for nuclear
+                       matching.
+                       Default is 1.2739.
+
+                'SaturatedNeighborDistanceThreshold' - Maximum distance (pix)
+                       to search for nearby saturated pixels.
+                       Default is 250.
+
+                'flagNegatives' - Flag negative candidates.
                        Default is true.
-                'Chi2dofLimitsLocal' - Local limits on Chi2 per degrees of 
-                       freedom. If 'flagChi2' is true, candidates outside 
-                       these limits are flagged. The tested Chi2 is of the 
-                       PSF fit on the candidate position in the N image. 
-                       The first two values are the lower and upper bound 
-                       applied to isolated candidates, the value is an 
-                       upper bound applied to blended canditaes.  
-                       Default is [0.1 2.0 100.0].
-                'Chi2dofLimitsGlobal' - Global limits on Chi2 per degrees
-                       of freedom. If 'flagChi2' is true, candidates outside
-                       of these limits are flagged. The tested Chi2 is the
-                       median Chi2 of all N- and R-image catalog sources 
-                       binned in magnitude. The N and R sources are binned 
-                       seprately. The N/R-image magnitude of a candidate 
-                       is used to find the corresponding median Chi2, 
-                       which is compared against the limits. These limits 
-                       are applied to blended candidates only. The first 
-                       value is the lower bound, and the second value is 
-                       the upper bound. Default is [0.0 1.2].
-                'flagSaturated' - Bool on whether to flag transients 
-                       candidates that are saturated in both reference and 
-                       new images. Default is true.
-                'flagBadPix_Hard' - Bool on whether to flag transients
-                       candidates based on hard bit mask criteria. 
+
+                'flagChi2' - Flag candidates based on PSF-fit chi2/dof.
                        Default is true.
-                'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
-                       Default is {'Interpolated', 'NaN', 'NearEdge', 
-                       'Hole', 'Negative'}.
-                'flagBadPix_Soft' - Bool on whether to flag transients
-                       candidates based on soft bit mask criteria. 
+
+                'Chi2dofLimitsLocal' - Lower and upper limits on local
+                       chi2/dof (N, R, D). Used primarily for isolated
+                       candidates.
+                       Default is [0.1 2.2].
+
+                'Chi2dofLimitsGlobal' - Lower and upper limits on global
+                       (magnitude-binned median) chi2/dof. Used primarily
+                       for blended candidates.
+                       Default is [0.1 2.5].
+
+                'flagSaturated' - Flag candidates saturated in both N and R.
                        Default is true.
-                'BadPix_Soft' - Soft bit mask criteria for bad pixels and 
-                       their threshold increment. Transients candidates are
-                       tested on whether they are more PSF- or Delta-like.
-                       Bad pixels identified in the bitmask must pass a
-                       higher threshold, incremented for each identified
-                       bad pixel type. The increment is additive.
-                       Default is {{'DarkHighVal', 1.2}, {'CR_DeltaHT', 2.9}}.
-                'flagStarMatches' - Bool on whether to flag transients
-                       candidates that have matching star positions.
+
+                'flagBadPix_Hard' - Flag candidates based on hard image
+                       bitmask criteria.
                        Default is true.
-                'flagMP' - Bool on whether to flag transients candidates
-                       that have matching minor planet postions. Default is
-                       true.
-                'flagRinging' - Bool on whether to flag transients
-                       candidates that may be caused by ringing artifacts.
+
+                'BadPix_Hard' - Cell array of bit names for hard masking.
+                       Default is {'Interpolated','NaN','NearEdge',...
+                                    'Hole','Negative'}.
+
+                'flagBadPix_Soft' - Flag candidates based on soft bitmask
+                       criteria with adaptive thresholds.
                        Default is true.
-                'flagNPsfShape' - Bool on whether to flag transients for
-                       which the N-image PSF is misshapen. Default is
-                       true.
-                'SecondMomSoftLim' - Threshold on second moments of the
-                       New image PSF. If the x^2 or y^2 moments are higher
-                       than the threshold, the PSF is deemed to be too wide
-                       or too elongated. If a candidate fails this criterium, 
-                       it is subjected to further tests, otherwise is passes. 
-                       Default is 1.2.
-                'SecondMomAsymLim' - Threshold on asymetry of the second
-                       moments of the New image PSF. If abs(x^2-y^2) is
-                       higher than the threshold, the PSF is deemed to be
-                       too elongated. If a candidate fails this criterium, 
-                       it is subjected to further tests, otherwise it passes.
-                       Default is 1.00.
-                'SecondMomHardLim' - Threshold on second moments of the New
-                       Image PSF. This threshold is applied if New image
-                       PSF fails SeconMomSoftLim or SecondMomAsymLim. If
-                       x^2 OR y^2 are higher than this limit, all
-                       candidates are flagged. Default is 2.7.
-                'OmniDirectionThreshold' - Thresholds for local directional
-                       gradient. These are applied localy in New image if
-                       the image fails the SecondMomSoftLim or SecondMomAsymLim
-                       thresholds. The first value is the minimum circular 
-                       variance of the direction gradient, and the second 
-                       value is the maximum deviation from an assumed 
-                       circular gradiant in degrees. If a candidate fails 
-                       these additional criteria, it is flagged as a false 
-                       positive. Default is [0.7 57.0].
-                'PeakDistThreshold' - Threshold for the distance between 
-                       D-image and S-image peaks. This threshold is applied 
-                       if New image PSF fails SeconMomSoftLim or SecondMomAsymLim.
-                       Default is 3.00.
-                'ContaminationFlux' - Contamination flux in units of the
-                       background. If the N image PSF fails the 
-                       SecondMomSoftLim or SecondMomAsymLim thresholds, 
-                       all N-image sources are retrieved which produce flux 
-                       above the ContaminationFlux beyond the PSF stamp.
-                       Default is 0.01;
-                'ContaminationRadius' - Contamination radius in units of
-                       the PSF half size in pixels. If the N image PSF fails 
-                       the SecondMomSoftLim or SecondMomAsymLim thresholds, 
-                       all candidates are tested wether they are within the
-                       ContaminationRadius of a contaminating N-image
-                       source. All candidates a that are, are flagged.
-                       Default is 1.5.
-                'flagDPSFShape' - Bool on whether to falg candidates that 
-                       are not PSF-like within the D image. This filter
-                       compares the second moments of the candidate's 
-                       D-image PSF against a 2D Gaussian fit derived from
-                       historical PSF shapes. Default is true.
-                'PSFShapeXYMeanD' - The mean values of the 2D Gaussian fit
-                       used when flagDPSFShape is true. 
-                       Default is [1.06919192, 1.24191919].
-                'PSFShapeCovD' - The covariance matrics of the 2D Gaussian 
-                       fit used when flagDPSFShape is true. 
-                       Default is [0.06467546, 0.02720397; 0.02720397, 0.06933742].
-                'PSFShapeConfThreshD' - The confidence level beyond which
-                       candidates are flagged after the 2D Gaussian fit 
-                       comparison when flagDPSFShape is true. 
-                       Default is 0.95.
-                'flagLimitingMag' - Bool on whether to flag candidates that
-                       are above the limiting magnitude. Candidate is
-                       filteres if it is above limiting magnitude in New
-                       and Ref. Default is true.
-                'flagPeakValley' - Bool on whether to flag candidates that
-                       are peaks (valleys) and are too close to valleys 
-                       (peaks). A peak is a candidate with a positive
-                       signal and a valley is a candidate with a negative
-                       signal. Default is true.
-                'PVDistThresh' - Distance threshold in pixels between 
-                       peaks and valleys below which to flag candidates. 
+
+                'BadPix_Soft' - Cell array of {bitName, thresholdIncrement}.
+                       Default is {{'DarkHighVal',1.2},{'CR_DeltaHT',2.9}}.
+
+                'flagSubVisit' - Flag inconsistent saturation between N and R.
+                       Default is true.
+
+                'BadPixSatRad' - Radius (pix) for local saturation check.
                        Default is 10.
-                'flagStreak' - Bool on whether to flag candidates induced
-                       by streaks (e.g. satellites). Default is true.
-                'ignoreSreakPoints' - Filters for which to ignore candidates
-                       that fail them when fitting a streak line. 
-                       Default {'BadPixelHard', 'StarMatch', 'Ringing', 
-                       'Translient', 'Streak'}.
-                'StreakDistanceThreshold' - Maximum distance from a fitted
-                       streak for which to flag candidates. Default is 20.
-                'NumStreaks' - Number of streaks to fit for. Default is 1.
-                'flagDiffSpike' - Bool on whether to flag candidates
-                       induced by diffraction spikes. Default is true.
-                'SatCentroidDistThreshold' - Maximum distance from
-                       candidate to centroid of saturated pixels. Saturation
-                       cenroid within this distance will be considered for 
-                       further testing. Default is 200.
-                'DiffSpikeSNRThreshold' - Minimum SNR of pixels along 
-                       the line between candidate and saturation centroid. 
-                       Pixels above the threshold will be counted for final
-                       decision. Default is 2.0.
-                'DiffSpikeFracThreshold' - Minimum fraction of pixels along 
-                       the line between candidate and saturation centroid 
-                       to fulfill the SNR threshold. If the fraction of 
-                       pixels alon the line fulfills this threshold, 
-                       the candidate is counted as caused by a 
-                       diffraction spike. Default is 0.5.
-                'flagDensity' - Bool on whether to flag candidates that are
-                       too close to each other, i.e., that have too many
-                       neighbors. Default is true.
-                'NeighborDistanceThreshold' - Distance threshold below
-                       which a candidates count as neighbors.
-                       Default is 100.
-                'NeighborExclude' - Filters for which to ignore candidates 
-                       as neighbors if they fail them. Default is 
-                       {'BadPixelHard', 'StarMatch', 'Ringing', 
-                       'Translient', 'Streak'}.
-                'NeighborDenThreshold' - Density threshold above which 
-                       candidates are flagged for density. The density 
-                       is calculated as the number of neighbors times 
-                       the sum of reciprocal distances to all neighbors.
-                       Default is 1.0.
-                'NeighborNumThresholdSaturated' - Threshold for the number 
-                       of neighbors at which to filter candidates if they
-                       have saturated neighbors. Default is 2.
-                'flagVariable' - Bool on whether to flag candidate that 
-                       coincide with known variable sources. Default is true.
-                'flagNuclearNoise' - Flag for nuclear noise. Nuclear 
-                       candidates are flagged if their S score is not within
-                       the top 50 percentile of all R-image coincident
-                       candidates a that are brighter by 0.5 mag than the 
-                       nuclear candidate. Default is true.
-                'BrightGalMagThresh' - Threshold on magnitude for nuclear
-                       candidates above which to increase the threshold. 
-                       Default is 17.0.
-                'BrightGalPrcThresh' - Increased top percentile threshold 
-                       for nuclear candidates above magnitude threshold. 
-                       Default is 80.
-                --- AstroZOGY ---
-                'flagScorr' - Bool on whether to flag candidates based on 
-                       source noise corrected S statistic. Default is true.
-                'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
-                'ScorrCorrectionParam' - A parameter added to Scorr. This 
-                       helps faint candidates for which the source noise is
-                       overestimated. Default is 0.7.
-                'flagTranslients' - Bool on whether to flag transients 
-                       candidates which score higher in Z2 than S2.
+
+                'BadPixSatFlux' - Flux threshold for true saturation.
+                       Default is 20000.
+
+                'flagStarMatches' - Flag candidates matched to stars.
                        Default is true.
-    Output  : - An AstroCatalog which is equal to the input catalog of AD 
-                but with additional columns.
+
+                'StarGalProbEps' - Small value to stabilize log ratios.
+                       Default is 1e-6.
+
+                'MinStarProb' - Minimum STAR_PROB when both star and galaxy
+                       probabilities exist.
+                       Default is 0.15.
+
+                'MinStarProbNoGal' - Minimum STAR_PROB when no GAL_PROB exists.
+                       Default is 0.30.
+
+                'StarGalLogRatioThresh' - Threshold on log(STAR/GAL).
+                       Default is 1.0.
+
+                'flagMP' - Flag candidates matched to minor planets.
+                       Default is true.
+
+                'MPDistThresh' - Matching radius (arcsec).
+                       Default is 10.
+
+                'flagRinging' - Flag ringing artifacts (Gabor-based).
+                       Default is true.
+
+                'flagPeakValley' - Flag peak-valley pairs in difference image.
+                       Default is true.
+
+                'PVDistThresh' - Distance threshold (pix) for peak-valley flag.
+                       Default is 10.
+
+                'flagStreak' - Flag streak-like artifacts using RANSAC.
+                       Default is true.
+
+                'ignoreStreakPoints' - Filters ignored when fitting streaks.
+                       Default is {'BadPixelHard','StarMatch','Ringing',...
+                                    'Translient','Streak'}.
+
+                'StreakDistanceThreshold' - Max distance (pix) from streak line.
+                       Default is 20.
+
+                'NumStreaks' - Number of streaks to fit.
+                       Default is 1.
+
+                'StreakRansacMinNumPts' - Candidate minimum sample sizes.
+                       Default is [7 10 13 17 20 23 27 30].
+
+                'StreakRansacNtrial' - Number of RANSAC trials.
+                       Default is 1000.
+
+                'StreakRansacMinRMS' - Minimum RMS threshold.
+                       Default is 1.0.
+
+                'flagNPsfShape' - Flag candidates with poor N-image PSF shape.
+                       Default is true.
+
+                'SecondMomSoftLim' - Soft limit on second moments.
+                       Default is 1.3.
+
+                'SecondMomHardLim' - Hard limit on second moments.
+                       Default is 5.5.
+
+                'SecondMomAsymLim' - Asymmetry threshold |X2-Y2|.
+                       Default is 5.
+
+                'OmniDirectionThreshold' - [circVar, angleErr] thresholds.
+                       Default is [0.7 57.0].
+
+                'PeakDistThreshold' - Peak alignment threshold (pix).
+                       Default is 3.0.
+
+                'ContaminationBackRatio' - Tail flux relative to background.
+                       Default is 0.1.
+
+                'ContaminationMag' - Required log flux ratio for passing.
+                       Default is 0.48.
+
+                'ContaminationRadius' - Matching radius in PSF units.
+                       Default is 1.5.
+
+                'ContaminatorBlendChi2Thresh' - Chi2 threshold for blended
+                       contaminators.
+                       Default is 6.5.
+
+                'flagDPSFShape' - Flag candidates based on D-image PSF shape.
+                       Default is false.
+
+                'PSFShapeXYMeanD' - Mean of Gaussian model in (X2,Y2).
+                       Default is [1.06919192,1.24191919].
+
+                'PSFShapeCovD' - Covariance matrix of Gaussian model.
+                       Default is [0.06467546,0.02720397;
+                                   0.02720397,0.06933742].
+
+                'PSFShapeConfThreshD' - Confidence threshold.
+                       Default is 0.95.
+
+                'flagExtended' - Flag extended (non-PSF-like) sources.
+                       Default is true.
+
+                'ExtendedThreshold' - Threshold on SCORE vs SN_ext.
+                       Default is -0.59.
+
+                'ExtendedSatDelta' - Relaxation near saturation.
+                       Default is 0.5.
+
+                'flagLimitingMag' - Flag candidates fainter than limiting mag
+                       in both N and R.
+                       Default is true.
+
+                'flagDiffSpike' - Flag diffraction spike artifacts.
+                       Default is true.
+
+                'SatCentroidDistThreshold' - Max distance to saturated centroid.
+                       Default is 250.
+
+                'DiffSpikeSNRThreshold' - Pixel S/N threshold along spike.
+                       Default is 2.0.
+
+                'DiffSpikeFracThreshold' - Required fraction of significant pixels.
+                       Default is 0.5.
+
+                'flagDensity' - Flag candidates in crowded regions.
+                       Default is true.
+
+                'NeighborDistanceThreshold' - Neighbor radius (pix).
+                       Default is 100.
+
+                'NeighborDenThreshold' - Density threshold.
+                       Default is 1.0.
+
+                'NeighborExclude' - Filters ignored when counting neighbors.
+                       Default is {'BadPixelHard','BadPixelSoft',...
+                                    'StarMatch','Ringing',...
+                                    'Translient','Streak'}.
+
+                'flagVariable' - Flag candidates matched to variable sources.
+                       Default is true.
+
+                'flagNuclearNoise' - Flag nuclear subtraction noise.
+                       Default is true.
+
+                'BrightGalMagThresh' - Magnitude threshold for bright galaxies.
+                       Default is 17.0.
+
+                'BrightGalPrcThresh' - Percentile threshold for bright galaxies.
+                       Default is 80.
+
+                'NuclearDefaultPrcThresh' - Default percentile threshold.
+                       Default is 50.
+
+                --- AstroZOGY ---
+                'flagScorr' - Flag candidates based on Scorr statistic.
+                       Default is true.
+
+                'ScorrThreshold' - Threshold on Scorr.
+                       Default is 5.0.
+
+                'ScorrCorrectionParam' - Correction for faint sources.
+                       Default is 0.7.
+
+                'flagTranslients' - Flag candidates based on Translient model.
+                       Default is true.
+
+                'TranslientThresh' - Fixed threshold for poor PSF cases.
+                       Default is 0.48.
+
+                'TranslientExpThresh' - Exponential threshold parameters.
+                       Default is [9.76703546,-0.09972362,-0.08558244].
+
+                --- Injections ---
+                'injectedSrcs' - [RA,Dec] injected sources to ignore in some
+                       tests.
+                       Default is [].
+
+    Output  : - An AstroCatalog equal to the input catalog with additional
+                columns, including FLAGS_TRANSIENT and optional diagnostics.
+
     Author  : Ruslan Konno (Jan 2024)
     Example : AD = AstroZOGY('LAST*.fits','LAST*1*.fits');
               AD.subtractionD;
@@ -213,127 +252,129 @@ function TranCat = flagNonTransients(Obj, Args)
     arguments
         Obj AstroDiff
 
-        Args.ConfigFile = '';
+        % General
+        Args.ConfigFile char = ''
+        Args.PixelScale double = 1.25
+        Args.PointLimitSigmaFactor double = 1.2739   % converts FWHM to ~3 sigma radius
+        Args.injectedSrcs double = []
 
-        Args.PixelScale = 1.25;
-        Args.SaturatedNeighborDistanceThreshold = 250;
-    
-        Args.flagNegatives logical = true;
+        % Negative candidates
+        Args.flagNegatives logical = true
 
-        Args.flagChi2 logical = true;
-        Args.Chi2dofLimitsLocal = [0.1 2.2];
-        Args.Chi2dofLimitsGlobal = [0.1 2.5];
-        
-        Args.flagSaturated logical = true;
+        % Chi2 filters
+        Args.flagChi2 logical = true
+        Args.Chi2dofLimitsLocal (1,2) double = [0.1 2.2]
+        Args.Chi2dofLimitsGlobal (1,2) double = [0.1 2.5]
 
-        Args.flagBadPix_Hard logical  = true;
-        Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-            'Hole', 'Negative'};
+        % Saturation / mask neighborhood
+        Args.flagSaturated logical = true
+        Args.SaturatedNeighborDistanceThreshold double = 250
 
-        Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'DarkHighVal', 1.2}, ...
-            {'CR_DeltaHT',2.9}};
+        % Hard bad-pixel filters
+        Args.flagBadPix_Hard logical = true
+        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative'}
 
-        Args.flagSubVisit = true;
-        Args.BadPixSatRad = 10;
-        Args.BadPixSatFlux = 20000;
+        % Soft bad-pixel filters
+        Args.flagBadPix_Soft logical = true
+        Args.BadPix_Soft cell = {{'DarkHighVal',1.2},{'CR_DeltaHT',2.9}}
 
-        Args.flagStarMatches logical = true;
+        % Sub-visit / asymmetric saturation handling
+        Args.flagSubVisit logical = true
+        Args.BadPixSatRad double = 10
+        Args.BadPixSatFlux double = 20000
 
-        Args.flagMP logical = true;
-        Args.MPDistThresh = 10;
+        % External matches
+        Args.flagStarMatches logical = true
+        Args.flagMP logical = true
+        Args.MPDistThresh double = 10
+        Args.flagVariable logical = true
 
-        Args.flagRinging logical = true;
+        % Star/galaxy classification
+        Args.StarGalProbEps double = 1e-6
+        Args.MinStarProb double = 0.15
+        Args.MinStarProbNoGal double = 0.30
+        Args.StarGalLogRatioThresh double = 1.0
 
-        Args.flagNPsfShape logical = true;
-        Args.SecondMomSoftLim = 1.3;
-        Args.SecondMomHardLim = 5.5;
-        Args.SecondMomAsymLim = 5;
-        Args.OmniDirectionThreshold = [0.7 57.0];
-        Args.PeakDistThreshold = 3.0;
-        Args.ContaminationBackRatio = 0.1;
-        Args.ContaminationMag = 0.48;
-        Args.ContaminationRadius = 1.5;
+        % D-image artifact filters
+        Args.flagRinging logical = true
+        Args.flagPeakValley logical = true
+        Args.PVDistThresh double = 10
 
-        Args.flagDPSFShape logical = false;
-        Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
-        Args.PSFShapeCovD = [0.06467546, 0.02720397;...
-            0.02720397, 0.06933742];
-        Args.PSFShapeConfThreshD = 0.95;
+        % Streak filter
+        Args.flagStreak logical = true
+        Args.ignoreStreakPoints cell = {'BadPixelHard','StarMatch','Ringing','Translient','Streak'}
+        Args.StreakDistanceThreshold double = 20
+        Args.NumStreaks double = 1
+        Args.StreakRansacMinNumPts double = [7 10 13 17 20 23 27 30]
+        Args.StreakRansacNtrial double = 1000
+        Args.StreakRansacMinRMS double = 1.0
+        Args.StreakThresholdDistFWHMFactor double = 2.0
+        Args.StreakThresholdDistMin double = 5.0
 
-        Args.flagExtended logical = true;
-        Args.ExtendedThreshold = -0.59;
-        Args.ExtendedSatDelta = 0.5;
-        
-        Args.flagLimitingMag logical = true;
+        % N-image PSF shape
+        Args.flagNPsfShape logical = true
+        Args.SecondMomSoftLim double = 1.3
+        Args.SecondMomHardLim double = 5.5
+        Args.SecondMomAsymLim double = 5
+        Args.OmniDirectionThreshold (1,2) double = [0.7 57.0]
+        Args.PeakDistThreshold double = 3.0
 
-        Args.flagPeakValley logical = true;
-        Args.PVDistThresh = 10;
-       
-        Args.flagStreak logical = true;
-        Args.ignoreStreakPoints = {'BadPixelHard',  ...
-            'StarMatch', 'Ringing', 'Translient', 'Streak'};
-        Args.StreakDistanceThreshold = 20;
-        Args.NumStreaks = 1;
+        % Contamination logic
+        Args.ContaminationBackRatio double = 0.1
+        Args.ContaminationMag double = 0.48
+        Args.ContaminationRadius double = 1.5
+        Args.ContaminatorBlendChi2Thresh double = 6.5
+        Args.ContaminationSelfRadiusFactor double = 1.5
+        Args.ContaminationStdAnnulusMax double = 7.0
+        Args.ContaminationBackAnnulusMax double = 3.0
+        Args.ContaminationBackAnnulusFallbackMax double = 5.0
 
-        Args.flagDiffSpike logical = true;
-        Args.SatCentroidDistThreshold = 250;
-        Args.DiffSpikeSNRThreshold = 2.0;
-        Args.DiffSpikeFracThreshold = 0.5;
-        
-        Args.flagDensity logical = true;
-        Args.NeighborDistanceThreshold = 100;
-        Args.NeighborDenThreshold = 1.0;
-        Args.NeighborExclude = {'BadPixelHard', 'BadPixelSoft', ...
-            'StarMatch', 'Ringing', 'Translient', 'Streak'};
-    
-        Args.flagVariable logical = true;
+        % D-image PSF shape
+        Args.flagDPSFShape logical = false
+        Args.PSFShapeXYMeanD (1,2) double = [1.06919192, 1.24191919]
+        Args.PSFShapeCovD (2,2) double = [0.06467546, 0.02720397; 0.02720397, 0.06933742]
+        Args.PSFShapeConfThreshD double = 0.95
 
-        Args.flagNuclearNoise logical = true;
-        Args.BrightGalMagThresh = 17.0;
-        Args.BrightGalPrcThresh = 80;
+        % Extendedness
+        Args.flagExtended logical = true
+        Args.ExtendedThreshold double = -0.59
+        Args.ExtendedSatDelta double = 0.5
 
-        % --- AstroZOGY ---
-        Args.flagScorr logical = true;
-        Args.ScorrThreshold = 5.0;
-        Args.ScorrCorrectionParam = 0.7;
+        % Limiting magnitude
+        Args.flagLimitingMag logical = true
 
-        Args.flagTranslients logical = true;
-        Args.TranslientThresh = 0.48;
-        Args.TranslientExpThresh = [9.76703546, -0.09972362, -0.08558244];
+        % Diffraction spikes
+        Args.flagDiffSpike logical = true
+        Args.SatCentroidDistThreshold double = 250
+        Args.DiffSpikeSNRThreshold double = 2.0
+        Args.DiffSpikeFracThreshold double = 0.5
 
-        % --- Injections ---
-        Args.injectedSrcs = [];
+        % Density filter
+        Args.flagDensity logical = true
+        Args.NeighborDistanceThreshold double = 100
+        Args.NeighborDenThreshold double = 1.0
+        Args.NeighborExclude cell = {'BadPixelHard','BadPixelSoft','StarMatch','Ringing','Translient','Streak'}
 
+        % Nuclear noise
+        Args.flagNuclearNoise logical = true
+        Args.BrightGalMagThresh double = 17.0
+        Args.BrightGalPrcThresh double = 80
+        Args.NuclearDefaultPrcThresh double = 50
+        Args.NuclearMagBinWidth double = 0.5
+
+        % AstroZOGY
+        Args.flagScorr logical = true
+        Args.ScorrThreshold double = 5.0
+        Args.ScorrCorrectionParam double = 0.7
+
+        Args.flagTranslients logical = true
+        Args.TranslientThresh double = 0.48
+        Args.TranslientExpThresh (1,3) double = [9.76703546, -0.09972362, -0.08558244]
     end
 
-    % Don't question this madness.
+    % Don't question all this madness.
 
-    if ~isempty(Args.ConfigFile) && exist(Args.ConfigFile,'file')
-        fid = fopen(Args.ConfigFile);
-        raw = fread(fid, inf);
-        str = char(raw');
-        fclose(fid);
-    
-        config = jsondecode(str);
-    
-        configFields = fieldnames(config);
-        for i = 1:numel(configFields)
-            key = configFields{i};
-            if isfield(Args, key)
-                val = config.(key);
-    
-                % Convert 2-element column vector to row vector
-                if isnumeric(val) && isvector(val) && numel(val) == 2
-                    val = reshape(val, 1, []);  % Ensure 1x2 row vector
-                end
-    
-                Args.(key) = val;
-            else
-                warning("Unknown config field: %s", key);
-            end
-        end
-    end
+    Args = applyConfigFile(Args);
 
     Nobj = numel(Obj);
 
@@ -349,8 +390,10 @@ function TranCat = flagNonTransients(Obj, Args)
     for Iobj=Nobj:-1:1
         CandCat = Obj(Iobj).CatData;
         Score = CandCat.getCol('SCORE');
-
-        PointLimit = Obj(Iobj).PSFData.fwhm*Args.PixelScale*1.2739; % 3sig in arcsec
+    
+        % Based on sigma in arcsec.
+        PointLimit = Obj(Iobj).PSFData.fwhm ...
+            .* Args.PixelScale .* Args.PointLimitSigmaFactor;
 
         % Get size of catalog and initialize an array holding the filtering
         % summary. Array is initialized as zero and will be updates with 
@@ -363,6 +406,13 @@ function TranCat = flagNonTransients(Obj, Args)
             TranCat = CandCat;
             continue
         end
+
+        N_MAG_PSF = [];
+        R_MAG_PSF = [];
+        N_X2 = [];
+        N_Y2 = [];
+        R_X2 = [];
+        R_Y2 = [];
 
         % Initialize transients bool
         FilterFlags = zeros(NumCand,1);
@@ -426,10 +476,12 @@ function TranCat = flagNonTransients(Obj, Args)
             N_Y2 = CandCat.getCol('N_Y2');
         end
 
-        if exist('N_X2', 'var') && exist('N_Y2', 'var')
-            N_GoodPSF = ...
-                      (N_X2 < Args.SecondMomSoftLim) & ...
-                      (N_Y2 < Args.SecondMomSoftLim);
+        HasNX2Y2 = ~isempty(N_X2) && ~isempty(N_Y2);
+        if HasNX2Y2
+            N_GoodPSF = (N_X2 < Args.SecondMomSoftLim) & ...
+                        (N_Y2 < Args.SecondMomSoftLim);
+        else
+            N_GoodPSF = true(NumCand,1);
         end
 
         if CandCat.isColumn('R_X2')
@@ -439,8 +491,9 @@ function TranCat = flagNonTransients(Obj, Args)
         if CandCat.isColumn('R_Y2')
             R_Y2 = CandCat.getCol('R_Y2');
         end
-        
-        if exist('R_X2', 'var') && exist('R_Y2', 'var')
+        HasRX2Y2 = ~isempty(R_X2) && ~isempty(R_Y2);
+
+        if HasRX2Y2
             R_GoodPSF = (R_X2 < Args.SecondMomHardLim) ...
                 & (R_Y2 < Args.SecondMomHardLim);
         end
@@ -472,6 +525,44 @@ function TranCat = flagNonTransients(Obj, Args)
             NuclearCand = false(NumCand,1);
         end
 
+        Star_Prob = [];
+        Gal_Prob = [];
+
+        if CandCat.isColumn('STAR_PROB')
+            Star_Prob = CandCat.getCol('STAR_PROB');
+        end
+
+        if CandCat.isColumn('GAL_PROB')
+            Gal_Prob = CandCat.getCol('STAR_PROB');
+        end
+
+        HasStarGalProb = ~isempty(Star_Prob) && ~isempty(Gal_Prob);
+
+        IsStar = [];
+
+        if HasStarGalProb
+            Star_Prob_safe = Star_Prob;
+            Gal_Prob_safe  = Gal_Prob;
+
+            Star_Prob_safe(isnan(Star_Prob_safe)) = 0;
+            Gal_Prob_safe(isnan(Gal_Prob_safe))   = 0;
+
+            ScoreSG = log((Star_Prob_safe + Args.StarGalProbEps) ./ ...
+                          (Gal_Prob_safe  + Args.StarGalProbEps));
+
+            HasStar = ~isnan(Star_Prob);
+            HasGal  = ~isnan(Gal_Prob);
+
+            IsStarBoth = StarCand & HasStar & HasGal & ...
+                         (Star_Prob > Args.MinStarProb) & ...
+                         (ScoreSG > Args.StarGalLogRatioThresh);
+
+            IsStarNoGal = StarCand & HasStar & ~HasGal & ...
+                          (Star_Prob > Args.MinStarProbNoGal);
+
+            IsStar = IsStarBoth | IsStarNoGal;
+        end
+
         % Find injected sources if given
 
         Injections = [];
@@ -490,7 +581,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Flag negative candidates
         if Args.flagNegatives
-            FilterFlags = FilterFlags + NegCand.*2.^BD_TF.name2bit('Negative');
+            FilterFlags = setFilterBit(FilterFlags, NegCand, BD_TF, 'Negative');
         end
         
         % ----- Bad Pixels -----
@@ -514,7 +605,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             BadPixHard = N_BadPixHard | R_BadPixHard;
 
-            FilterFlags = FilterFlags + BadPixHard.*2.^BD_TF.name2bit('BadPixelHard');
+            FilterFlags = setFilterBit(FilterFlags, BadPixHard, BD_TF, 'BadPixelHard');
         end
 
         if Args.flagSubVisit
@@ -534,7 +625,7 @@ function TranCat = flagNonTransients(Obj, Args)
             R_FalseSaturation = (~N_BadPixSat & R_BadPixSat & ~R_hasHighFlux);
             FalseSaturation = N_FalseSaturation | R_FalseSaturation;
 
-            FilterFlags = FilterFlags + FalseSaturation.*2.^BD_TF.name2bit('SubVisit');
+            FilterFlags = setFilterBit(FilterFlags, FalseSaturation, BD_TF, 'SubVisit');
         end
 
         % Apply soft bit mask criteria.
@@ -558,7 +649,8 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             BadPixSoft = (SdiffSd < BPSThresh);
-            FilterFlags = FilterFlags + BadPixSoft.*2.^BD_TF.name2bit('BadPixelSoft');
+
+            FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
         end        
 
         % Flag saturated candidates
@@ -569,7 +661,8 @@ function TranCat = flagNonTransients(Obj, Args)
             % Check if candidates are saturated in New and Ref, flag these.
             Saturated = N_Saturated & R_Saturated;
 
-            FilterFlags = FilterFlags + Saturated.*2.^BD_TF.name2bit('Saturated');
+            FilterFlags = setFilterBit(FilterFlags, Saturated, BD_TF, 'Saturated');
+            
         end
 
         % ----- D artifacts -----
@@ -579,7 +672,7 @@ function TranCat = flagNonTransients(Obj, Args)
             GaborSN = CandCat.getCol('SN_GABOR');
 
             Ringing =  (abs(GaborSN) > abs(Score));
-            FilterFlags = FilterFlags + Ringing.*2.^BD_TF.name2bit('Ringing');
+            FilterFlags = setFilterBit(FilterFlags, Ringing, BD_TF, 'Ringing');
         end
 
         % Apply Peak-Valley criterium
@@ -587,7 +680,7 @@ function TranCat = flagNonTransients(Obj, Args)
             PVDist = CandCat.getCol('PV_DIST');
 
             PVFlagged = (PVDist <= Args.PVDistThresh);
-            FilterFlags = FilterFlags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
+            FilterFlags = setFilterBit(FilterFlags, PVFlagged, BD_TF, 'PVDist');
         end
         
         if Args.flagStreak
@@ -596,36 +689,42 @@ function TranCat = flagNonTransients(Obj, Args)
             NumExclude = numel(Args.ignoreStreakPoints);
 
             for IExclude = 1:NumExclude
-                BitFound = BD_TF.findBit(FilterFlags, ...
-                    Args.ignoreStreakPoints{IExclude});
+                BitFound = BD_TF.findBit(FilterFlags, Args.ignoreStreakPoints{IExclude});
                 SubSel = SubSel & ~BitFound;
             end
 
-            for IStreak=1:Args.NumStreaks
+            for IStreak = 1:Args.NumStreaks
 
                 Xt = X(SubSel);
                 Yt = Y(SubSel);
-                TDist = max(Obj(Iobj).PSFData.fwhm*2,5);
-    
-                MinNumPts = [7 10 13 17 20 23 27 30];
-                NumMinNumPts = numel(MinNumPts);
-                for IMinNumPts = NumMinNumPts:-1:1
-                    Res = tools.math.fit.ransacLinear([Xt,Yt], 'Ntrial', 1000, ...
-                        'MinRMS', 1.0,'MinNpt',MinNumPts(IMinNumPts), ...
-                        'ThresholdDist',TDist);
+
+                TDist = max( ...
+                    Obj(Iobj).PSFData.fwhm .* Args.StreakThresholdDistFWHMFactor, ...
+                    Args.StreakThresholdDistMin);
+
+                Res.Found = false;
+                for IMinNumPts = numel(Args.StreakRansacMinNumPts):-1:1
+                    Res = tools.math.fit.ransacLinear([Xt,Yt], ...
+                        'Ntrial', Args.StreakRansacNtrial, ...
+                        'MinRMS', Args.StreakRansacMinRMS, ...
+                        'MinNpt', Args.StreakRansacMinNumPts(IMinNumPts), ...
+                        'ThresholdDist', TDist);
                     if Res.Found
                         break
                     end
                 end
-    
-                if Res.Found
-                    ModY = Res.Par(1)+Xt.*Res.Par(2);
-                    Streak = abs(ModY - Yt) < Args.StreakDistanceThreshold;
-                    FilterFlags(SubSel) = FilterFlags(SubSel) + Streak.*2.^BD_TF.name2bit('Streak');
-                    SubSel(SubSel) = ~Streak;
-                else
+
+                if ~Res.Found
                     break
                 end
+
+                ModY = Res.Par(1) + Xt .* Res.Par(2);
+                Streak = abs(ModY - Yt) < Args.StreakDistanceThreshold;
+
+                FilterFlags(SubSel) = setFilterBit( ...
+                    FilterFlags(SubSel), Streak, BD_TF, 'Streak');
+
+                SubSel(SubSel) = ~Streak;
             end
         end
 
@@ -643,8 +742,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             ExtendedSource = abs(Score) - abs(SN_ext) < ExtendedThreshold;
 
-            FilterFlags = FilterFlags + ExtendedSource.*2.^BD_TF.name2bit('Extended');
-
+            FilterFlags = setFilterBit(FilterFlags, ExtendedSource, BD_TF, 'Extended');
         end
 
         if Args.flagDPSFShape
@@ -657,7 +755,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PassesD = ProbD > (1-Args.PSFShapeConfThreshD);
             PSFShapeFlagged = ~PassesD;
-            FilterFlags = FilterFlags + PSFShapeFlagged.*2.^BD_TF.name2bit('DPSFShape');
+            FilterFlags = setFilterBit(FilterFlags, PSFShapeFlagged, BD_TF, 'DPSFShape');
         end        
 
         if Args.flagNPsfShape
@@ -739,7 +837,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 R_NativeCHI2 = Obj(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
                 R_NativeContCHI2 = R_NativeCHI2(Contaminators);
-                BlendedContaminators = (R_NativeContCHI2 > 6.5);
+                BlendedContaminators = ...
+                    (R_NativeContCHI2 > Args.ContaminatorBlendChi2Thresh);
 
                 % Same for blended contaminators
                 R_NativeBlendedContRa = R_NativeContRa(BlendedContaminators);
@@ -805,16 +904,21 @@ function TranCat = flagNonTransients(Obj, Args)
                 N_Passes_Local = (NumMatchesWideCont < 1);
                 CandFluxes = CandCat.getCol('FLUX_PSF');
 
-                SelfSrcRad = 1.5*Args.PixelScale*Arcsec2Rad;
+                SelfSrcRad = Args.ContaminationSelfRadiusFactor .* ...
+                    Args.PixelScale .* Arcsec2Rad;
 
                 STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
                 BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
-                N_Passes_Local_Aper = (STD_ANNULUS < 7.0) & (abs(BACK_ANNULUS) < 3.0);
+
+                N_Passes_Local_Aper = ...
+                    (STD_ANNULUS < Args.ContaminationStdAnnulusMax) & ...
+                    (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax);
 
                 for ICand = 1:NumCand
 
                     if N_Passes_Local(ICand)
-                        N_Passes_Local(ICand) = abs(BACK_ANNULUS(ICand)) < 5.0;
+                        N_Passes_Local(ICand) = ...
+                            abs(BACK_ANNULUS(ICand)) < Args.ContaminationBackAnnulusFallbackMax;
                         continue
                     end
                     
@@ -871,12 +975,17 @@ function TranCat = flagNonTransients(Obj, Args)
             Passes_PSFShape = N_Passes_PSFShape & R_Passes_PSFShape;
 
             PSF_Flagged = ~Passes_PSFShape;
-            FilterFlags = FilterFlags + PSF_Flagged.*2.^BD_TF.name2bit('NPSFShape');
+            FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'NPSFShape');
+            
         end
 
         if Args.flagDiffSpike
 
             NearSatNotStar = NearSaturated & ~StarCand;
+
+            if ~isempty(IsStar)
+                NearSatNotStar = NearSaturated & ~IsStar;
+            end
 
             X_NearSaturated = X(NearSatNotStar);
             Y_NearSaturated = Y(NearSatNotStar);
@@ -928,7 +1037,8 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             IsDiffSpike(NearSatNotStar) = IsDiffSpikeSubSel;
-            FilterFlags = FilterFlags + IsDiffSpike.*2.^BD_TF.name2bit('DiffSpike');
+            FilterFlags = setFilterBit(FilterFlags, IsDiffSpike, BD_TF, 'DiffSpike');
+            
         end
 
         % ----- Photometry Flux -----
@@ -995,7 +1105,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 Passes_CHI2DOF_Blended;
 
             CHI2DOF_Flagged = ~Passes_CHI2DOF;
-            FilterFlags = FilterFlags + CHI2DOF_Flagged.*2.^BD_TF.name2bit('PSFChi2');
+            FilterFlags = setFilterBit(FilterFlags, CHI2DOF_Flagged, BD_TF, 'PSFChi2');
 
         end
 
@@ -1003,44 +1113,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Flag stars as non-transients
         if Args.flagStarMatches
-
-            Star_Prob = CandCat.getCol('STAR_PROB');
-            Gal_Prob  = CandCat.getCol('GAL_PROB');
-
-            EpsProb = 1e-6;
-            MinStarProb = 0.15;
-            LogRatioThresh = 1.0;
-            MinStarProbNoGal = 0.3;
-
-            % Replace NaNs safely for ratio computation only
-            Star_Prob_safe = Star_Prob;
-            Gal_Prob_safe  = Gal_Prob;
-
-            Star_Prob_safe(isnan(Star_Prob_safe)) = 0;
-            Gal_Prob_safe(isnan(Gal_Prob_safe))   = 0;
-
-            ScoreSG = log((Star_Prob_safe + EpsProb) ./ (Gal_Prob_safe + EpsProb));
-
-            % Masks
-            HasStar = ~isnan(Star_Prob);
-            HasGal  = ~isnan(Gal_Prob);
-
-            % Case 1: both exist → use proper comparison
-            IsStarBoth = StarCand & HasStar & HasGal & ...
-                         (Star_Prob > MinStarProb) & ...
-                         (ScoreSG > LogRatioThresh);
-
-            % Case 2: no galaxy info → rely on strong star evidence
-            IsStarNoGal = StarCand & HasStar & ~HasGal & ...
-                          (Star_Prob > MinStarProbNoGal);
-
-            % Case 3: no star info → never classify as star
-            % (implicitly handled)
-
-            % Final binary decision
-            IsStar = IsStarBoth | IsStarNoGal;
-
-            FilterFlags = FilterFlags + IsStar .* 2.^BD_TF.name2bit('StarMatch');
+            FilterFlags = setFilterBit(FilterFlags, IsStar, BD_TF, 'StarMatch');
         end
 
         % Flag minor planets as non-transients
@@ -1048,7 +1121,8 @@ function TranCat = flagNonTransients(Obj, Args)
             MinorPlanet = (CandCat.getCol('N_DistMP') < Args.MPDistThresh) | ...
                           (CandCat.getCol('R_DistMP') < Args.MPDistThresh);
 
-            FilterFlags = FilterFlags + MinorPlanet.*2.^BD_TF.name2bit('MPMatch');
+            FilterFlags = setFilterBit(FilterFlags, MinorPlanet, BD_TF, 'MPMatch');
+            
         end
         
         if Args.flagVariable
@@ -1130,7 +1204,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Flag variable sources, AGNs as well as stars.
             VariableSource = VariableGal | VariableStar;
             
-            FilterFlags = FilterFlags + VariableSource.*2.^BD_TF.name2bit('Variable');
+            FilterFlags = setFilterBit(FilterFlags, VariableSource, BD_TF, 'Variable');
 
         end
 
@@ -1180,7 +1254,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 (NumNeighbors.*LocalDensity >= Args.NeighborDenThreshold);
 
             % Update flags
-            FilterFlags = FilterFlags + Overdensity.*2.^BD_TF.name2bit('Overdensity');
+            FilterFlags = setFilterBit(FilterFlags, Overdensity, BD_TF, 'Overdensity');
             
         end
 
@@ -1199,7 +1273,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Only test nuclear candidates if it's detectable in R image
             RDetNuclear = (NuclearRMag < R_LIMMAG);
             BrightNuclear = (NuclearRMag < Args.BrightGalMagThresh);
-            TopPercentile = 50*ones(NumNuclear,1);
+            TopPercentile = Args.NuclearDefaultPrcThresh .* ones(NumNuclear,1);
             TopPercentile(BrightNuclear) = Args.BrightGalPrcThresh;
 
             R_MAG_PSF_4Nuc = R_MAG_PSF;
@@ -1222,7 +1296,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % magnitude in the sample and if the true image flux is the
                 % same at N epoch, it will have the lowest Score.
                 TargetRMag = NuclearRMag(INuclear);
-                DynamicBinMin = TargetRMag - 0.5;
+                DynamicBinMin = TargetRMag - Args.NuclearMagBinWidth;
                 DynamicBinMax = TargetRMag;
                 BinnedMags = (R_MAG_PSF_4Nuc > DynamicBinMin) ...
                     & (R_MAG_PSF_4Nuc < DynamicBinMax);
@@ -1257,8 +1331,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
-            FilterFlags(NuclearCand) = FilterFlags(NuclearCand) + ...
-                NuclearNoise.*2.^BD_TF.name2bit('NuclearNoise');
+            FilterFlags(NuclearCand) = setFilterBit(...
+                FilterFlags(NuclearCand), NuclearNoise, BD_TF, 'NuclearNoise');
 
         end
 
@@ -1274,7 +1348,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % and do not match to stars.
             ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
 
-            if Args.flagStarMatches
+            if ~isempty(IsStar)
                 ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
             end
 
@@ -1294,7 +1368,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 (SDiff < Args.ScorrCorrectionParam)) | ExcludeCand;
 
             ScorrFlagged = ~ScorrGood;
-            FilterFlags = FilterFlags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
+            FilterFlags = setFilterBit(FilterFlags, ScorrFlagged, BD_TF, 'Scorr');
 
         end
 
@@ -1315,7 +1389,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % and do not match to stars.
             ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
 
-            if Args.flagStarMatches
+            if ~isempty(IsStar)
                 ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
             end
 
@@ -1331,7 +1405,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 | ExcludeCand;
 
             TranslientFlagged = ~IsNotTranslient;
-            FilterFlags = FilterFlags + TranslientFlagged.*2.^BD_TF.name2bit('Translient');
+            FilterFlags = setFilterBit(FilterFlags, TranslientFlagged, BD_TF, 'Translient');
 
         end
 
@@ -1341,4 +1415,99 @@ function TranCat = flagNonTransients(Obj, Args)
             {'FLAGS_TRANSIENT'}, {''});
     end
   
+end
+
+function Args = applyConfigFile(Args)
+    %{
+    Read a JSON configuration file and override matching Args fields.
+
+    Input   : - Args structure or arguments block struct.
+                The structure must contain the field:
+                'ConfigFile' - Path to JSON configuration file. If empty or
+                       if the file does not exist, Args is returned
+                       unchanged.
+
+    Output  : - Args structure with fields updated from the JSON file.
+                Only fields already present in Args are updated.
+                Unknown configuration fields are ignored with a warning.
+
+    Description : The configuration file is parsed using jsondecode. For
+                  each field in the JSON object, the function checks whether
+                  the same field exists in Args. If it does, the value from
+                  the configuration file is copied into Args. If it does
+                  not, a warning is issued and the field is ignored.
+
+                  Numeric 2-element vectors are reshaped into row vectors
+                  before assignment. This is useful for thresholds that are
+                  expected to remain in 1x2 form.
+
+    Author  : Ruslan Konno (Mar 2026)
+    Example : Args.ConfigFile = 'flagNonTransients.json';
+              Args = applyConfigFile(Args);
+    %}    
+
+    if isempty(Args.ConfigFile) || ~exist(Args.ConfigFile, 'file')
+        return
+    end
+
+    fid = fopen(Args.ConfigFile, 'r');
+    if fid < 0
+        error('flagNonTransients:ConfigOpenFailed', ...
+            'Could not open config file: %s', Args.ConfigFile);
+    end
+
+    cleaner = onCleanup(@() fclose(fid));
+    raw = fread(fid, inf, '*char')';
+    config = jsondecode(raw);
+
+    configFields = fieldnames(config);
+    for iField = 1:numel(configFields)
+        key = configFields{iField};
+
+        if ~isfield(Args, key)
+            warning('flagNonTransients:UnknownConfigField', ...
+                'Unknown config field ignored: %s', key);
+            continue
+        end
+
+        val = config.(key);
+
+        % Keep 2-element numeric vectors row-shaped for arguments that
+        % expect 1x2 arrays.
+        if isnumeric(val) && isvector(val) && numel(val) == 2
+            val = reshape(val, 1, []);
+        end
+
+        Args.(key) = val;
+    end
+end
+
+function FilterFlags = setFilterBit(FilterFlags, Mask, BD_TF, BitName)
+    %{
+    Set a transient-filter bit for all candidates selected by a mask.
+
+    Input   : - Column vector of filter bit values for all candidates.
+              - Logical mask selecting candidates for which to set the bit.
+              - BitDictionary object for transient-filter bits.
+              - Bit name to set.
+
+    Output  : - Updated column vector of filter bit values.
+
+    Description : This is a small helper function that updates the
+                  FLAGS_TRANSIENT bitmask. For all entries where Mask is
+                  true, the bit corresponding to BitName is added to
+                  FilterFlags using the transient-filter bit dictionary.
+
+                  If Mask is empty, the function returns immediately
+                  without modifying FilterFlags.
+
+    Author  : Ruslan Konno (Mar 2026)
+    Example : FilterFlags = setFilterBit(FilterFlags, NegCand, BD_TF, ...
+                  'Negative');
+    %}    
+
+    if isempty(Mask)
+        return
+    end
+    FilterFlags = FilterFlags + Mask .* 2.^BD_TF.name2bit(BitName);
 end
