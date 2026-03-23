@@ -91,6 +91,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.PixScale = 1.25;
 
         Args.InjectedSrcs = [];
+        Args.RePopRefPSF = false;
+        Args.RePopNewPSF = false;
     end
 
     % 1: ----- Set default arguments -----
@@ -164,6 +166,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
       Status = 'All New images are empty.';
       return
     end
+   
+    if Args.RePopNewPSF
+        New = imProc.psf.populatePSF(New, 'RePopulatePSF', true,...
+            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+            'CropByQuantile', true, 'Quantile', 0.99999);
+        New = imProc.sources.psfFitPhot(New);
+        New = imProc.calib.photometricZP(New, 'CatColNameMag', 'MAG_PSF');
+    end
 
     % Only use non-empty images.
     New = New(NonEmptyNew);
@@ -205,9 +215,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     Refs = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
     NumRefs = numel(Refs);
 
-    if NumRefs < 1
+    if (NumRefs < 1) || ((NumRefs == 1) && isempty(Refs(1).Image))
         Status = 'No reference images found.';
-        return;        
+        return;
     end
 
     % Track number of matched reference images
@@ -218,6 +228,14 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % Tack number of images with no overlap to any reference image
     NoOverlap = 0;
+
+    if Args.RePopRefPSF
+        Refs = imProc.psf.populatePSF(Refs, 'RePopulatePSF', true, ...
+            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+            'CropByQuantile', true, 'Quantile', 0.99999);
+        Refs = imProc.sources.psfFitPhot(Refs);
+        Refs = imProc.calib.photometricZP(Refs, 'CatColNameMag', 'MAG_PSF');
+    end
 
     for Iobj=Nobj:-1:1
 
