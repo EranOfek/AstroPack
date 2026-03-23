@@ -63,7 +63,15 @@ function buildHTMfromFiles(Args)
 %            'DownloadDir'  - Temp directory for downloaded files.
 %                             Default: tempdir.
 %            --- Processing ---
-%            'DecBandWidth' - Dec band width [deg] for processing. Default: 5.
+%            'ProcessMode'  - Processing mode. Default: 'band'.
+%                             'band'   : accumulate all files per Dec band.
+%                                        Good for small/medium catalogs.
+%                             'perfile': process one file at a time with
+%                                        margin from neighbors. For very
+%                                        large catalogs (DECaLS, etc.) that
+%                                        would OOM in band mode. Requires
+%                                        sweep-style filenames with RA/Dec.
+%            'DecBandWidth' - Dec band width [deg] for 'band' mode. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
 %                             Completed bands are skipped entirely
 %                             (no file reading) via checkBandComplete.
@@ -108,6 +116,7 @@ function buildHTMfromFiles(Args)
         Args.LocalDir     string = string(pwd)
         Args.TargetDir    string = ""
         Args.DownloadDir  string = string(tempdir)
+        Args.ProcessMode  string = "band"   % 'band' or 'perfile'
         Args.DecBandWidth double = 5
         Args.Resume       logical = true
         Args.StartBand    double = 1
@@ -152,13 +161,16 @@ function buildHTMfromFiles(Args)
     end
 
     %------------------------------------------------------------------
-    % Step 2: Determine Dec range for each file
+    % Step 2: Determine RA/Dec range for each file
     %------------------------------------------------------------------
     FileDecRanges = nan(Nfiles, 2);
+    FileRARanges  = nan(Nfiles, 2);
     for i = 1:Nfiles
         [~, bn, ~] = fileparts(AllFiles{i});
-        [lo, hi] = parseSweepDecRange(bn);
-        FileDecRanges(i, :) = [lo, hi];
+        [declo, dechi] = parseSweepDecRange(bn);
+        FileDecRanges(i, :) = [declo, dechi];
+        [ralo, rahi] = parseSweepRaRange(bn);
+        FileRARanges(i, :) = [ralo, rahi];
     end
 
     if any(isnan(FileDecRanges(:)))
@@ -166,6 +178,10 @@ function buildHTMfromFiles(Args)
             'Could not parse Dec ranges from filenames. Assuming full sky per file.');
         FileDecRanges(:, 1) = -90;
         FileDecRanges(:, 2) = 90;
+    end
+    if any(isnan(FileRARanges(:)))
+        FileRARanges(:, 1) = 0;
+        FileRARanges(:, 2) = 360;
     end
 
     %------------------------------------------------------------------
@@ -210,12 +226,33 @@ function buildHTMfromFiles(Args)
         end
     end
 
-    % File data cache: avoid re-reading files that span multiple bands.
-    % FileCache{idx} holds the full numeric matrix (with RA/Dec in radians)
-    % for file idx. Cleared when the file is no longer needed.
-    FileCache = cell(Nfiles, 1);
-
     try
+    if strcmpi(Args.ProcessMode, 'perfile')
+        %==================================================================
+        % PER-FILE MODE: process one sweep file at a time with neighbors
+        %==================================================================
+        if ~isempty(TargetDir)
+            processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+                IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
+                ListIndexHTM, CatName, LocalDir, TargetDir, ...
+                HdfFileMaxDec, HdfFileNames, CopiedFiles, Args);
+        else
+            processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+                IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
+                ListIndexHTM, CatName, LocalDir, '', ...
+                [], {}, [], Args);
+        end
+
+    else
+        %==============================================================
+        % BAND MODE: accumulate all files per Dec band (original behavior)
+        %==============================================================
+
+        % File data cache: avoid re-reading files that span multiple bands.
+        % FileCache{idx} holds the full numeric matrix (with RA/Dec in radians)
+        % for file idx. Cleared when the file is no longer needed.
+        FileCache = cell(Nfiles, 1);
+
         for Iband = 1:Nbands
             DecLoDeg = DecEdges(Iband);
             DecHiDeg = DecEdges(Iband + 1);
@@ -446,42 +483,44 @@ function buildHTMfromFiles(Args)
             end
         end
 
-        %------------------------------------------------------------------
-        % Step 4: Build index
-        %------------------------------------------------------------------
-        if Args.Verbose
-            fprintf('\nBuilding HTM index ...\n');
-        end
+    end  % if perfile / else band
 
-        IndFileName = sprintf('%s_htm.hdf5', CatName);
-        if exist(IndFileName, 'file')
-            delete(IndFileName);
-        end
-        Nsrc = VO.prep.getNsrcFast(CatName);
-        celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
+    %------------------------------------------------------------------
+    % Step 4: Build index
+    %------------------------------------------------------------------
+    if Args.Verbose
+        fprintf('\nBuilding HTM index ...\n');
+    end
 
-        %------------------------------------------------------------------
-        % Step 5: Copy remaining files to TargetDir via NFS
-        %------------------------------------------------------------------
-        if ~isempty(TargetDir)
-            % Copy any HDF5 data files not yet copied (e.g., last band)
-            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-                HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
+    IndFileName = sprintf('%s_htm.hdf5', CatName);
+    if exist(IndFileName, 'file')
+        delete(IndFileName);
+    end
+    Nsrc = VO.prep.getNsrcFast(CatName);
+    celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
-            % Copy index file
-            IndFullPath = fullfile(LocalDir, IndFileName);
-            if isfile(IndFullPath)
-                tools.os.copyFileOverNFS({IndFullPath}, TargetDir, ...
-                    'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                if Args.Verbose
-                    fprintf('  Copied: %s\n', IndFileName);
-                end
+    %------------------------------------------------------------------
+    % Step 5: Copy remaining files to TargetDir via NFS
+    %------------------------------------------------------------------
+    if ~isempty(TargetDir)
+        % Copy any HDF5 data files not yet copied (e.g., last band/file)
+        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+            HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
+
+        % Copy index file
+        IndFullPath = fullfile(LocalDir, IndFileName);
+        if isfile(IndFullPath)
+            tools.os.copyFileOverNFS({IndFullPath}, TargetDir, ...
+                'RemoteUser', 'euclid', 'RemoveOrigin', true);
+            if Args.Verbose
+                fprintf('  Copied: %s\n', IndFileName);
             end
         end
+    end
 
-        if Args.Verbose
-            fprintf('Done (%.1f min total).\n', toc(TotalTic) / 60);
-        end
+    if Args.Verbose
+        fprintf('Done (%.1f min total).\n', toc(TotalTic) / 60);
+    end
 
     catch ME
         fprintf('\n*** buildHTMfromFiles ERROR ***\n');
@@ -552,6 +591,26 @@ function [DecLo, DecHi] = parseSweepDecRange(BaseName)
     end
     DecLo = parseSweepCoord(tokens{1}{1});
     DecHi = parseSweepCoord(tokens{1}{2});
+end
+
+
+function [RALo, RAHi] = parseSweepRaRange(BaseName)
+    % Parse RA range from sweep-style filename
+    % Format: sweep-{3digitRA}{p|m}{2-3digitDec}-{3digitRA}{p|m}{2-3digitDec}
+    % Example: sweep-175m030-180m025 -> RA [175, 180]
+    tokens = regexp(BaseName, ...
+        'sweep-(\d{3})[pm]\d{2,3}-(\d{3})[pm]\d{2,3}', 'tokens');
+    if isempty(tokens)
+        RALo = NaN;
+        RAHi = NaN;
+        return;
+    end
+    RALo = str2double(tokens{1}{1});
+    RAHi = str2double(tokens{1}{2});
+    % Handle wraparound (e.g., sweep-355...-005...)
+    if RAHi <= RALo
+        RAHi = RAHi + 360;
+    end
 end
 
 
@@ -651,6 +710,257 @@ function [MaxDec, FileNames] = precomputeFileMaxDec(HTM, ListIndexHTM, ...
     end
     FileNames = FileMap.keys()';
     MaxDec = cellfun(@(k) FileMap(k), FileNames);
+end
+
+
+function processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+        IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
+        ListIndexHTM, CatName, LocalDir, TargetDir, ...
+        HdfFileMaxDec, HdfFileNames, CopiedFiles, Args)
+    % Process one sweep file at a time with margin from neighbors.
+    % For each file, read it plus overlapping neighbor files, then call
+    % build_htm_catalog with RA/Dec range limited to the file's footprint.
+    % This avoids accumulating all files per band in memory.
+
+    MarginRad = MarginDeg / RAD;
+
+    for Ifile = 1:Nfiles
+        [~, bn, ext] = fileparts(AllFiles{Ifile});
+
+        % File's RA/Dec footprint
+        DecLoDeg = FileDecRanges(Ifile, 1);
+        DecHiDeg = FileDecRanges(Ifile, 2);
+        RALoDeg  = FileRARanges(Ifile, 1);
+        RAHiDeg  = FileRARanges(Ifile, 2);
+
+        DecLoRad = DecLoDeg / RAD;
+        DecHiRad = DecHiDeg / RAD;
+        RALoRad  = RALoDeg / RAD;
+        RAHiRad  = RAHiDeg / RAD;
+
+        if Args.Verbose
+            fprintf('\n[File %d/%d] %s  RA [%.0f,%.0f] Dec [%+.0f,%+.0f]\n', ...
+                Ifile, Nfiles, bn, RALoDeg, RAHiDeg, DecLoDeg, DecHiDeg);
+        end
+
+        % Check if all HTM cells for this file's footprint already exist
+        if Args.Resume
+            AllExist = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
+                DecLoRad, DecHiRad, RALoRad, RAHiRad, Args.NcatInFile);
+            if AllExist
+                if Args.Verbose
+                    fprintf('  All HTM cells exist, skipping\n');
+                end
+                continue;
+            end
+        end
+
+        FileTic = tic;
+
+        % Find neighbor files: overlap with this file's footprint + margin
+        NeighborIdx = find( ...
+            FileDecRanges(:,2) > (DecLoDeg - MarginDeg) & ...
+            FileDecRanges(:,1) < (DecHiDeg + MarginDeg) & ...
+            FileRARanges(:,2)  > (RALoDeg  - MarginDeg) & ...
+            FileRARanges(:,1)  < (RAHiDeg  + MarginDeg));
+
+        % Read primary file + neighbors
+        AllData = [];
+        for k = 1:numel(NeighborIdx)
+            idx = NeighborIdx(k);
+            [~, nbn, next] = fileparts(AllFiles{idx});
+
+            % Download if remote
+            if IsRemote
+                localFile = fullfile(DownloadDir, [nbn next]);
+                if ~exist(localFile, 'file')
+                    if Args.Verbose
+                        fprintf('  Downloading %s ...\n', nbn);
+                    end
+                    [status, ~] = system(sprintf( ...
+                        'wget -q -c -O "%s" "%s"', localFile, AllFiles{idx}));
+                    if status ~= 0
+                        fprintf('  WARNING: download failed for %s\n', nbn);
+                        continue;
+                    end
+                end
+            else
+                localFile = AllFiles{idx};
+            end
+
+            % Read with retry on corrupt files
+            [~, ~, fext] = fileparts(localFile);
+            IsText = ismember(lower(fext), {'.txt', '.csv', '.tsv', '.dat'});
+            ReadOK = false;
+            for Iattempt = 1:2
+                try
+                    if ~isempty(Args.PostReadFun)
+                        if IsText
+                            Mat = Args.PostReadFun(localFile);
+                        else
+                            T = FITS.readTable1(localFile, 'OutClass', []);
+                            Mat = Args.PostReadFun(T);
+                            clear T;
+                        end
+                    else
+                        if IsText
+                            T = readtable(localFile, 'FileType', 'text', ...
+                                'TreatAsMissing', {'null', 'NA', 'N/A', ''});
+                        else
+                            T = FITS.readTable1(localFile, 'OutClass', []);
+                        end
+                        if ~isempty(Args.Columns)
+                            T = T(:, Args.Columns);
+                        end
+                        Mat = table2array(T);
+                        clear T;
+                    end
+                    ReadOK = true;
+                    break;
+                catch ME
+                    if Iattempt == 1 && IsRemote
+                        fprintf('  WARNING: read failed (%s), re-downloading %s\n', ...
+                            ME.message, nbn);
+                        delete(localFile);
+                        [status, ~] = system(sprintf( ...
+                            'wget -q -O "%s" "%s"', localFile, AllFiles{idx}));
+                        if status ~= 0
+                            fprintf('  WARNING: re-download failed for %s\n', nbn);
+                            break;
+                        end
+                    else
+                        fprintf('  WARNING: read failed for %s (%s), skipping\n', ...
+                            nbn, ME.message);
+                    end
+                end
+            end
+            if ~ReadOK
+                continue;
+            end
+
+            % Convert coordinates to radians
+            if strcmpi(Args.CoorUnits, 'deg')
+                Mat(:, Args.ColRA)  = Mat(:, Args.ColRA)  .* (pi / 180);
+                Mat(:, Args.ColDec) = Mat(:, Args.ColDec) .* (pi / 180);
+            end
+
+            % Filter to region of interest + margin
+            InRegion = Mat(:, Args.ColDec) >= (DecLoRad - MarginRad) & ...
+                       Mat(:, Args.ColDec) <= (DecHiRad + MarginRad) & ...
+                       Mat(:, Args.ColRA)  >= (RALoRad  - MarginRad) & ...
+                       Mat(:, Args.ColRA)  <= (RAHiRad  + MarginRad);
+            Mat = Mat(InRegion, :);
+
+            AllData = [AllData; Mat]; %#ok<AGROW>
+
+            if Args.Verbose
+                fprintf('  %s: %d sources (in region)\n', nbn, size(Mat, 1));
+            end
+            clear Mat;
+        end
+
+        if isempty(AllData)
+            if Args.Verbose
+                fprintf('  No sources, skipping\n');
+            end
+            continue;
+        end
+
+        if Args.Verbose
+            fprintf('  Total: %d sources, building HTM cells ...\n', size(AllData, 1));
+        end
+
+        % Build HTM cells for this file's RA/Dec footprint only
+        VO.prep.build_htm_catalog(AllData, ...
+            'CatName', CatName, ...
+            'HTM_Level', Args.HTM_Level, ...
+            'ColRA', Args.ColRA, ...
+            'ColDec', Args.ColDec, ...
+            'ColCell', Args.ColNames, ...
+            'ColUnits', Args.ColUnits, ...
+            'DecRange', [DecLoRad, DecHiRad], ...
+            'RARange',  [RALoRad,  RAHiRad], ...
+            'HTM', HTM, ...
+            'LevelHTM', LevelHTM, ...
+            'NfilesInHDF', Args.NcatInFile, ...
+            'IndStep', Args.IndStep, ...
+            'SaveInd', false, ...
+            'CheckExist', Args.Resume);
+
+        clear AllData;
+
+        if Args.Verbose
+            fprintf('  Done (%.1f sec)\n', toc(FileTic));
+        end
+
+        % Incremental NFS copy: copy HDF5 files whose cells are all
+        % within processed file footprints (approximated by max Dec seen)
+        if ~isempty(TargetDir)
+            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+                HdfFileNames, DecHiRad, LocalDir, TargetDir, Args.Verbose);
+        end
+
+        % Clean downloaded neighbor files no longer needed.
+        % Keep files that overlap with any future file's footprint + margin.
+        if IsRemote && Args.CleanCache
+            for k = 1:numel(NeighborIdx)
+                idx = NeighborIdx(k);
+                % Check if any future file needs this neighbor
+                NeededLater = false;
+                for Ifuture = (Ifile + 1):Nfiles
+                    if FileDecRanges(idx,2) > (FileDecRanges(Ifuture,1) - MarginDeg) && ...
+                       FileDecRanges(idx,1) < (FileDecRanges(Ifuture,2) + MarginDeg) && ...
+                       FileRARanges(idx,2)  > (FileRARanges(Ifuture,1)  - MarginDeg) && ...
+                       FileRARanges(idx,1)  < (FileRARanges(Ifuture,2)  + MarginDeg)
+                        NeededLater = true;
+                        break;
+                    end
+                end
+                if ~NeededLater
+                    [~, nbn, next] = fileparts(AllFiles{idx});
+                    cachedFile = fullfile(DownloadDir, [nbn next]);
+                    if exist(cachedFile, 'file')
+                        delete(cachedFile);
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
+        DecLoRad, DecHiRad, RALoRad, RAHiRad, NcatInFile)
+    % Check if all HTM cells within an RA/Dec region already exist in HDF5.
+    Complete = true;
+    InfoCache = containers.Map();
+    for i = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(i);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
+        MeanRA  = mean(HTM(IndHTM).coo(:, 1));
+        if MeanDec < DecLoRad || MeanDec >= DecHiRad || ...
+           MeanRA  < RALoRad  || MeanRA  >= RAHiRad
+            continue;
+        end
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
+        if ~isfile(FileName)
+            Complete = false;
+            return;
+        end
+        if ~InfoCache.isKey(FileName)
+            try
+                InfoCache(FileName) = h5info(FileName);
+            catch
+                Complete = false;
+                return;
+            end
+        end
+        Info = InfoCache(FileName);
+        if ~any(strcmp({Info.Datasets.Name}, DataName))
+            Complete = false;
+            return;
+        end
+    end
 end
 
 

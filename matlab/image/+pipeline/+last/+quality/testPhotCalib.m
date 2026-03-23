@@ -1,116 +1,100 @@
 function Result = testPhotCalib(Args)
     % Compare PhotSys modes by epoch-to-epoch photometric repeatability
-    % Description: For each PhotSys mode, calibrates all visits of the same
-    %              field independently using fitPhotCalibTrans, then matches
-    %              sources across epochs per crop and computes the epoch-to-epoch
-    %              magnitude scatter (std). Lower std = better calibration mode.
+    % Description: Orchestrator that loads visit data, calibrates all requested
+    %              modes, matches sources across epochs, and generates diagnostic
+    %              plots. Each step is delegated to a standalone function in
+    %              +pipeline.+last.+quality:
+    %                loadVisitData      — load FITS into AstroImage arrays
+    %                calibratePhotModes — run calibration, compute FitRMS/ZPcenter
+    %                matchPhotEpochs    — cross-epoch source matching
+    %                plotPhotScatter    — mag vs std scatter
+    %                plotPhotStdDiff    — std difference (percrop vs others)
+    %                plotPhotMosaic     — RMS/ZP mosaics and ZP maps
+    %
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
     %
-    %              PhotSys modes (per-epoch — each epoch calibrated independently):
-    %                'percrop'    - Each crop uses its own fitted transmission (default pipeline).
-    %                'refshape'   - Reference crop's spectral shape, per-crop Norm + Tran2D.
-    %                'refzp'      - Full reference params (incl. Norm), center-normalized Tran2D.
-    %                'refzp_raw'  - Same as refzp but without Tran2D center-normalization.
-    %              RefCrop=0 uses weighted mean (1/RMS^2) of all crops instead of a single reference.
-    %
-    %              Visit-level modes (single transmission derived from all epochs):
-    %                'visitref'     - Weighted mean of RefCrop's transmission across all epochs.
-    %                                 Per-crop Tran2D preserved, center-normalized. Per-epoch Norm.
-    %                'visitref_raw' - Same but without Tran2D center-normalization.
-    %              These modes reuse percrop calibration as base and recompute magnitudes.
-    %
-    %              Plots generated (when Plot=true):
-    %                1. Mag vs Std scatter — one panel per mode. Shows epoch-to-epoch
-    %                   std vs median magnitude. When ShowOrigMag=true, original
-    %                   (instrumental) mag scatter is shown in gray underneath the
-    %                   AB-calibrated scatter in color.
-    %                2. Std difference — Std(percrop) - Std(other) vs magnitude.
-    %                   Points >0 mean the non-percrop mode is better.
-    %                3. RMS & ZP-RMS mosaic — two-panel mosaic: median fit RMS
-    %                   and epoch-to-epoch center ZP std per crop.
-    %                4. ZP mosaic — side-by-side ZP maps for the first visit.
-    %                Binned trend lines (median or mean) are overlaid on scatter plots.
-    %
     % Input  : * ...,key,val,...
-    %            'DataDir' - Directory with proc FITS files (Image + Cat).
+    %          --- Data loading (see also loadVisitData) ---
+    %            'DataDir' - Directory with all visits' FITS files in one folder.
     %                        Default is '/home/dana/222625v1'.
-    %            'OutDir' - Directory for saving cached results (.mat files).
-    %                        Default is DataDir/results.
-    %            'Visits' - Vector of visit indices to process. Default is 1:20.
-    %            'Modes' - Cell array of PhotSys modes to compare.
-    %                        Default is {'percrop','refshape','refzp'}.
-    %            'RefCrop' - Reference crop index for non-percrop modes.
-    %                        0 = weighted mean over all crops. Default is 10.
-    %            'Ncrop' - Number of crops per visit. Default is 24.
-    %            'CropsToAnalyze' - Subset of crops for epoch matching and plots.
-    %                        Default is [] (all crops).
-    %            'MatchRadius' - Cross-epoch source matching radius [arcsec]. Default is 3.
-    %            'MagFields' - Cell array of AB magnitude columns to compare.
-    %                        Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
+    %            'OutDir'  - Directory for cached results. Default is DataDir/results.
+    %            'Visits'  - Vector of visit indices (DataDir mode). Default is 1:20.
+    %            'VisitDirs' - String array of visit folder paths. When non-empty,
+    %                        overrides DataDir mode. Default is [].
+    %            'ListFile' - Path to .mat file containing visit folder lists
+    %                        (string arrays). Default is ''.
+    %            'ListFields' - Field name(s) to read from ListFile. String or
+    %                        cell array. Default is {} (all fields, concatenated).
+    %            'VisitIdx' - Indices into the folder list to load.
+    %                        Default is [] (all folders).
+    %            'FileType' - 'proc' or 'coadd'. Default is 'proc'.
+    %          --- Calibration ---
+    %            'Modes'   - Cell array of PhotSys modes. Default is
+    %                        {'percrop','refshape','refzp','refzp_raw'}.
+    %            'RefCrop' - Reference crop (0=weighted mean). Default is 10.
+    %            'Ncrop'   - Number of crops per visit. Default is 24.
+    %            'ForceRecalc' - Recalculate even if cached. Default is false.
+    %            'CalibArgs'   - Extra args for fitPhotCalibTrans. Default is {}.
+    %            'VisitRefZP'  - ZP norm for visit-level modes:
+    %                        'crop_median'|'crop_mean'|'global_median'|'global_mean'|'epoch'.
+    %                        Default is 'epoch'.
+    %            'VisitRefZPEpoch' - Epoch index for VisitRefZP='epoch'. Default is 1.
+    %          --- Epoch matching ---
+    %            'CropsToAnalyze' - Subset of crops for matching/plots.
+    %                        Default is [] (all).
+    %            'MatchRadius' - Matching radius [arcsec]. Default is 3.
+    %            'MagFields'   - AB magnitude columns. Default is
+    %                        {'MAG_AB_PSF','MAG_AB_APER_3'}.
     %            'MatchedColumns' - Columns propagated into MatchedSources.
-    %                        Must include MagFields and their original counterparts.
-    %            'BadFlags' - Flags for setBadPhotToNan. Default is {'Saturated','NearEdge','Overlap'}.
-    %            'MaxMagErr' - Max magnitude error for filtering. Default is 0.02.
-    %            'ForceRecalc' - Recalculate even if cached .mat exists. Default is false.
-    %            'CalibArgs' - Additional key-value args forwarded to fitPhotCalibTrans.
-    %                        Default is {}.
-    %            'Plot' - Generate diagnostic plots. Default is true.
-    %            'ShowOrigMag' - On AB scatter panels, overlay original (instrumental)
-    %                        mag scatter in gray for comparison. Default is true.
-    %            'OverlayTrend' - Binned trend line on scatter plots:
-    %                        'median' (default), 'mean', or 'none'.
-    %            'TrendBinWidth' - Magnitude bin width for trend line. Default is 0.5.
-    %            'TileOrder' - Crop tiling order in mosaic plots:
-    %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
-    %                        'rowmajor' (new pipeline) - left-to-right, row by row.
-    %                        Default is 'rowmajor'.
-    %            'Verbose' - Print progress messages. Default is true.
+    %            'BadFlags' - Flags for setBadPhotToNan. Default is
+    %                        {'Saturated','NearEdge','Overlap'}.
+    %            'MaxMagErr' - Max mag error for filtering. Default is 0.02.
+    %          --- Plotting ---
+    %            'Plot'     - Generate diagnostic plots. Default is true.
+    %            'ShowOrigMag' - Overlay instrumental mag scatter. Default is true.
+    %            'OverlayTrend'- Binned trend: 'median'|'mean'|'none'. Default is 'median'.
+    %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
+    %            'TileOrder' - 'colmajor'|'rowmajor'. Default is 'rowmajor'.
+    %          --- General ---
+    %            'Verbose'  - Print progress. Default is true.
     % Output : - Result struct with fields:
-    %            .PC     - struct with PC_all{Nvisits}(1xNcrop) PhotCalibTrans per mode
-    %            .Cats   - struct with Cats_all{Nvisits}(1xNcrop) AstroCatalog per mode
-    %            .MS     - struct with MS{Ncrop} MatchedSources per mode
-    %            .FitRMS - RMS(Nvisits x Ncrop) matrix (from percrop fit, identical across modes)
-    %            .ZPcenter - ZP(Nvisits x Ncrop) center ZP (Tran2D=0) per epoch/crop
-    %            .CLim   - color limits used for ZP mosaic plots
+    %            .PC       - struct per mode with PC_all{Nvisits}(1xNcrop)
+    %            .Cats     - struct per mode with Cats_all{Nvisits}(1xNcrop)
+    %            .MS       - struct per mode with MS{Ncrop} MatchedSources
+    %            .FitRMS   - [Nvisits x Ncrop] fit RMS matrix
+    %            .ZPcenter - [Nvisits x Ncrop] center ZP matrix
     % Author : D. Kovaleva (Mar 2026)
-    % Example: % Run all defaults (3 modes, 20 visits, all crops):
+    % Example: % DataDir mode (original):
     %          R = pipeline.last.quality.testPhotCalib();
     %
-    %          % Compare only percrop vs refzp on specific crops:
+    %          % Compare modes on specific crops:
     %          R = pipeline.last.quality.testPhotCalib('Modes', {'percrop','refzp'}, ...
     %              'CropsToAnalyze', [10 19]);
     %
-    %          % Use weighted mean transmission instead of single reference crop:
-    %          R = pipeline.last.quality.testPhotCalib('RefCrop', 0);
-    %
-    %          % Include refzp_raw (without Tran2D normalization):
+    %          % Visit-level mode with ZP normalization:
     %          R = pipeline.last.quality.testPhotCalib('Modes', ...
-    %              {'percrop','refzp','refzp_raw'});
+    %              {'percrop','visitref'}, 'VisitRefZP', 'crop_median');
     %
-    %          % Force recalculation with custom CalibArgs:
-    %          R = pipeline.last.quality.testPhotCalib('ForceRecalc', true, ...
-    %              'CalibArgs', {'UseTran2D', false});
+    %          % Load coadd files from .mat visit list:
+    %          R = pipeline.last.quality.testPhotCalib('DataDir', '', ...
+    %              'ListFile', '/home/dana/N3_M2C4Jul2_7_list.mat', ...
+    %              'ListFields', 'M2C4Jul2p1', 'FileType', 'coadd', ...
+    %              'OutDir', '/home/dana/results_coadd');
     %
-    %          % Custom data directory, fewer visits, mean trend line:
-    %          R = pipeline.last.quality.testPhotCalib('DataDir', '/path/to/data', ...
-    %              'Visits', 1:5, 'OverlayTrend', 'mean');
-    %
-    %          % Disable original mag overlay and trend lines:
-    %          R = pipeline.last.quality.testPhotCalib('ShowOrigMag', false, ...
-    %              'OverlayTrend', 'none');
-    %
-    %          % Compare visit-level modes (single transmission from all epochs):
-    %          R = pipeline.last.quality.testPhotCalib('Modes', ...
-    %              {'percrop', 'visitref', 'visitref_raw'});
-    %
-    %          % Use new pipeline tiling order for mosaic plots:
-    %          R = pipeline.last.quality.testPhotCalib('TileOrder', 'rowmajor');
+    %          % Explicit visit directories, coadd files:
+    %          R = pipeline.last.quality.testPhotCalib('VisitDirs', ...
+    %              ["/path/to/visit1", "/path/to/visit2"], 'FileType', 'coadd');
 
     arguments
         Args.DataDir        = '/home/dana/222625v1'
         Args.OutDir         = ''
         Args.Visits         = 1:20
+        Args.VisitDirs      = []       % string array of visit folder paths
+        Args.ListFile       = ''       % .mat file with visit folder lists
+        Args.ListFields     = {}       % field name(s) from ListFile
+        Args.VisitIdx       = []       % indices into folder list
+        Args.FileType       = 'proc'   % 'proc' | 'coadd'
         Args.Modes          = {'percrop', 'refshape', 'refzp', 'refzp_raw'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
@@ -126,17 +110,21 @@ function Result = testPhotCalib(Args)
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
         Args.Plot logical   = true
-        Args.ShowOrigMag logical = true  % Overlay original (non-AB) mag scatter on AB panels
-        Args.OverlayTrend   = 'median'  % 'median' | 'mean' | 'none' — binned trend line on scatter plots
-        Args.TrendBinWidth  = 0.5       % mag bin width for trend line
-        Args.TileOrder      = 'rowmajor'  % 'colmajor' (old) | 'rowmajor' (new pipeline)
-        Args.VisitRefZP     = 'epoch'    % 'crop_median' | 'crop_mean' | 'global_median' | 'global_mean' | 'epoch'
-        Args.VisitRefZPEpoch = 1         % epoch index to use when VisitRefZP='epoch'
+        Args.ShowOrigMag logical = true
+        Args.OverlayTrend   = 'median'
+        Args.TrendBinWidth  = 0.5
+        Args.TileOrder      = 'rowmajor'
+        Args.VisitRefZP     = 'epoch'
+        Args.VisitRefZPEpoch = 1
         Args.Verbose logical = true
     end
 
     if isempty(Args.OutDir)
-        Args.OutDir = fullfile(Args.DataDir, 'results');
+        if ~isempty(Args.DataDir)
+            Args.OutDir = fullfile(Args.DataDir, 'results');
+        else
+            Args.OutDir = fullfile(pwd, 'results');
+        end
     end
     if ~exist(Args.OutDir, 'dir')
         mkdir(Args.OutDir);
@@ -145,690 +133,82 @@ function Result = testPhotCalib(Args)
         Args.CropsToAnalyze = 1:Args.Ncrop;
     end
 
-    Nvisits = numel(Args.Visits);
-    Nmodes  = numel(Args.Modes);
+    % === Load ===
+    AI = pipeline.last.quality.loadVisitData( ...
+        'DataDir', Args.DataDir, ...
+        'Visits', Args.Visits, ...
+        'VisitDirs', Args.VisitDirs, ...
+        'ListFile', Args.ListFile, ...
+        'ListFields', Args.ListFields, ...
+        'VisitIdx', Args.VisitIdx, ...
+        'FileType', Args.FileType, ...
+        'Verbose', Args.Verbose);
 
-    % ================================================================
-    % LOAD ALL VISITS (once, reuse across modes)
-    % ================================================================
-    if Args.Verbose
-        fprintf('Loading %d visits from %s\n', Nvisits, Args.DataDir);
-    end
-    AI = cell(Nvisits, 1);
-
-    % Glob Cat files once, then filter per visit by parsing LAST filename:
-    % ..._<visit>_<mount>_<crop>_sci_proc_Cat_<ver>.fits
-    % Only Cat files are needed — calibration uses catalog + header, not pixels.
-    AllCatFiles = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Cat_1.fits'));
-    AllImFiles  = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Image_1.fits'));
-
-    for Iv = 1:Nvisits
-        VisitNum = Args.Visits(Iv);
-        VStr = sprintf('%03d', VisitNum);
-
-        % Extract visit number: 7th underscore-delimited token from end
-        CatKeep = false(numel(AllCatFiles), 1);
-        for If = 1:numel(AllCatFiles)
-            [~, Name] = fileparts(AllCatFiles{If});
-            Tokens = strsplit(Name, '_');
-            if numel(Tokens) >= 7
-                CatKeep(If) = str2double(Tokens{end-6}) == VisitNum;
-            end
-        end
-        ImKeep = false(numel(AllImFiles), 1);
-        for If = 1:numel(AllImFiles)
-            [~, Name] = fileparts(AllImFiles{If});
-            Tokens = strsplit(Name, '_');
-            if numel(Tokens) >= 7
-                ImKeep(If) = str2double(Tokens{end-6}) == VisitNum;
-            end
-        end
-        CatFiles = AllCatFiles(CatKeep);
-        ImFiles  = AllImFiles(ImKeep);
-
-        if isempty(CatFiles)
-            if Args.Verbose
-                fprintf('  Visit %s: no files, skipping\n', VStr);
-            end
-            continue;
-        end
-
-        % Build AstroImage with Header from Image FITS (HDU 1, no pixels)
-        % and catalog from Cat FITS — skips loading image/mask/PSF data
-        Ncf = numel(CatFiles);
-        AIv = AstroImage([1, Ncf]);
-        for Ic = 1:Ncf
-            AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
-            if Ic <= numel(ImFiles)
-                AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
-            end
-        end
-        AI{Iv} = AIv;
-
-        if Args.Verbose
-            fprintf('  Visit %s: %d crops\n', VStr, Ncf);
-        end
+    % Update Visits to match actual loaded count (VisitDirs mode)
+    Nvisits = numel(AI);
+    if numel(Args.Visits) ~= Nvisits
+        Args.Visits = 1:Nvisits;
     end
 
-    % ================================================================
-    % CALIBRATE EACH MODE — save PC + calibrated catalogs
-    % ================================================================
-    % Visit-level modes derive a single transmission from all epochs
-    % and recompute magnitudes. They reuse percrop calibration as base.
-    VisitModes = {'visitref', 'visitref_raw'};
-    PerEpochModes = setdiff(Args.Modes, VisitModes, 'stable');
-    HasVisitModes = any(ismember(Args.Modes, VisitModes));
+    % === Calibrate ===
+    Calib = pipeline.last.quality.calibratePhotModes(AI, ...
+        'Modes', Args.Modes, ...
+        'Visits', Args.Visits, ...
+        'RefCrop', Args.RefCrop, ...
+        'Ncrop', Args.Ncrop, ...
+        'OutDir', Args.OutDir, ...
+        'ForceRecalc', Args.ForceRecalc, ...
+        'CalibArgs', Args.CalibArgs, ...
+        'VisitRefZP', Args.VisitRefZP, ...
+        'VisitRefZPEpoch', Args.VisitRefZPEpoch, ...
+        'MagFields', Args.MagFields, ...
+        'Verbose', Args.Verbose);
 
-    % Ensure percrop is calibrated if visit-level modes need it
-    if HasVisitModes && ~ismember('percrop', PerEpochModes)
-        PerEpochModes = ['percrop', PerEpochModes];
-    end
+    % === Epoch Matching ===
+    MS = pipeline.last.quality.matchPhotEpochs(Calib.Cats, ...
+        'Modes', Args.Modes, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'MatchRadius', Args.MatchRadius, ...
+        'MatchedColumns', Args.MatchedColumns, ...
+        'MagFields', Args.MagFields, ...
+        'BadFlags', Args.BadFlags, ...
+        'MaxMagErr', Args.MaxMagErr, ...
+        'OutDir', Args.OutDir, ...
+        'ForceRecalc', Args.ForceRecalc, ...
+        'Verbose', Args.Verbose);
 
-    Result.PC   = struct();
-    Result.Cats = struct();
+    % === Assemble Result ===
+    Result.PC       = Calib.PC;
+    Result.Cats     = Calib.Cats;
+    Result.FitRMS   = Calib.FitRMS;
+    Result.ZPcenter = Calib.ZPcenter;
+    Result.MS       = MS;
 
-    % --- Per-epoch modes (percrop, refshape, refzp, refzp_raw) ---
-    for Im = 1:numel(PerEpochModes)
-        Mode = PerEpochModes{Im};
-        OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
-
-        if exist(OutFile, 'file') && ~Args.ForceRecalc
-            if Args.Verbose
-                fprintf('Loading cached %s\n', OutFile);
-            end
-            S = load(OutFile, 'PC_all', 'Cats_all');
-            Result.PC.(Mode)   = S.PC_all;
-            Result.Cats.(Mode) = S.Cats_all;
-        else
-            if Args.Verbose
-                fprintf('\n=== Calibrating: PhotSys = %s ===\n', Mode);
-            end
-            PC_all   = cell(Nvisits, 1);
-            Cats_all = cell(Nvisits, 1);
-
-            for Iv = 1:Nvisits
-                if isempty(AI{Iv})
-                    continue;
-                end
-                t0 = tic;
-
-                % Fresh copy — AstroImage is a handle class
-                tcopy = tic;
-                AIcopy = AI{Iv}.copy();
-                if Args.Verbose
-                    fprintf('    copy: %.1f s, ', toc(tcopy));
-                end
-
-                [Res, PC_all{Iv}] = imProc.calib.fitPhotCalibTrans(AIcopy, ...
-                    'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
-                    'Verbose', false, Args.CalibArgs{:});
-
-                % Extract calibrated catalogs (lightweight)
-                Ncrop_v = numel(Res);
-                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
-                for Ic = 1:Ncrop_v
-                    Cats_all{Iv}(Ic) = Res(Ic).CatData;
-                end
-
-                if Args.Verbose
-                    Nsuccess = sum([PC_all{Iv}.Success]);
-                    fprintf('  Epoch %03d: %d/%d success, %.1f s\n', ...
-                        Args.Visits(Iv), Nsuccess, Ncrop_v, toc(t0));
-                end
-            end
-
-            save(OutFile, 'PC_all', 'Cats_all');
-            if Args.Verbose
-                fprintf('Saved %s\n', OutFile);
-            end
-            Result.PC.(Mode)   = PC_all;
-            Result.Cats.(Mode) = Cats_all;
-        end
-
-    end
-
-    % Fit RMS and center ZP — identical across modes (same underlying percrop fit)
-    Result.FitRMS = nan(Nvisits, Args.Ncrop);
-    Result.ZPcenter = nan(Nvisits, Args.Ncrop);
-    for Iv = 1:Nvisits
-        if isempty(Result.PC.percrop{Iv}); continue; end
-        for Ic = 1:numel(Result.PC.percrop{Iv})
-            if Result.PC.percrop{Iv}(Ic).Success
-                Result.FitRMS(Iv, Ic) = Result.PC.percrop{Iv}(Ic).TransModel.RMS;
-                % ZP at crop center with center-normalized Tran2D (=0 at center):
-                % ZP_base includes Norm but not Tran2D; subtract Tran2D(center)
-                % to get the ZP where Norm absorbs the Tran2D center offset.
-                PC_ic = Result.PC.percrop{Iv}(Ic);
-                ZPbase = PC_ic.evaluateZP();  % spectral-only, no Tran2D
-                if ~isempty(PC_ic.TransModel.Tran2DObj) && PC_ic.TransModel.UseTran2D
-                    Xc = PC_ic.TransModel.Tran2DObj.ParNX(1);
-                    Yc = PC_ic.TransModel.Tran2DObj.ParNY(1);
-                    [CenterCorr, ~] = PC_ic.TransModel.Tran2DObj.forward(Xc, Yc, false);
-                    ZPbase = ZPbase - CenterCorr;
-                end
-                Result.ZPcenter(Iv, Ic) = ZPbase;
-            end
-        end
-    end
-
-    % --- Visit-level modes (visitref, visitref_raw) ---
-    % Use percrop calibration as base. Average RefCrop's transmission
-    % parameters across all epochs, then recompute magnitudes.
-    for Im = 1:numel(Args.Modes)
-        Mode = Args.Modes{Im};
-        if ~ismember(Mode, VisitModes); continue; end
-
-        OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
-
-        if exist(OutFile, 'file') && ~Args.ForceRecalc
-            if Args.Verbose
-                fprintf('Loading cached %s\n', OutFile);
-            end
-            S = load(OutFile, 'PC_all', 'Cats_all');
-            Result.PC.(Mode)   = S.PC_all;
-            Result.Cats.(Mode) = S.Cats_all;
-        else
-            if Args.Verbose
-                fprintf('\n=== Visit-level mode: %s ===\n', Mode);
-            end
-
-            % Collect transmission parameters across epochs (weighted mean)
-            RefCropIdx = Args.RefCrop;
-            AllParams  = [];
-            AllWeights = [];
-            for Iv = 1:Nvisits
-                if isempty(Result.PC.percrop{Iv}); continue; end
-                if RefCropIdx == 0
-                    % Average over all successful crops and all epochs
-                    CropRange = 1:numel(Result.PC.percrop{Iv});
-                else
-                    CropRange = RefCropIdx;
-                end
-                for Ic = CropRange
-                    if Ic > numel(Result.PC.percrop{Iv}); continue; end
-                    PC_rc = Result.PC.percrop{Iv}(Ic);
-                    if PC_rc.Success && PC_rc.TransModel.RMS > 0
-                        P = PC_rc.TransModel.getAllFunPar();
-                        AllParams  = [AllParams; P.Val(:)'];
-                        AllWeights = [AllWeights; 1 ./ PC_rc.TransModel.RMS.^2];
-                    end
-                end
-            end
-
-            if isempty(AllParams)
-                warning('testPhotCalib:NoVisitRef', ...
-                    'No successful crops across epochs. Skipping %s.', Mode);
-                continue;
-            end
-
-            W = AllWeights / sum(AllWeights);
-            VisitRefParams = (W' * AllParams)';  % [Npar x 1]
-
-            if Args.Verbose
-                if RefCropIdx == 0
-                    fprintf('  Visit-averaged over all crops from %d fits\n', size(AllParams, 1));
-                else
-                    fprintf('  Visit-averaged RefCrop=%d from %d epochs\n', ...
-                        RefCropIdx, size(AllParams, 1));
-                end
-            end
-
-            DoNormTran2D = strcmp(Mode, 'visitref');
-
-            % Compute target ZP per crop for ZP normalization
-            ZPc = Result.ZPcenter;  % [Nvisits x Ncrop]
-            switch Args.VisitRefZP
-                case 'crop_median'
-                    TargetZP = nanmedian(ZPc, 1);  % [1 x Ncrop]
-                case 'crop_mean'
-                    TargetZP = nanmean(ZPc, 1);
-                case 'global_median'
-                    TargetZP = repmat(nanmedian(ZPc(:)), 1, Args.Ncrop);
-                case 'global_mean'
-                    TargetZP = repmat(nanmean(ZPc(:)), 1, Args.Ncrop);
-                case 'epoch'
-                    EpIdx = Args.VisitRefZPEpoch;
-                    TargetZP = ZPc(EpIdx, :);  % [1 x Ncrop]
-                otherwise
-                    error('testPhotCalib:BadVisitRefZP', ...
-                        'Unknown VisitRefZP: %s', Args.VisitRefZP);
-            end
-
-            if Args.Verbose
-                fprintf('  VisitRefZP=%s, target ZP range: %.3f..%.3f\n', ...
-                    Args.VisitRefZP, nanmin(TargetZP), nanmax(TargetZP));
-            end
-
-            % Find Norm index in parameter vector (once)
-            AllFunPar = Result.PC.percrop{find(~cellfun(@isempty, Result.PC.percrop), 1)}(1).TransModel.getAllFunPar();
-            NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
-
-            % Reuse percrop PC objects; recompute catalogs with visit reference
-            PC_all   = Result.PC.percrop;  % same PhotCalibTrans objects
-            Cats_all = cell(Nvisits, 1);
-
-            for Iv = 1:Nvisits
-                if isempty(AI{Iv}); continue; end
-                if isempty(PC_all{Iv}); continue; end
-
-                AIcopy = AI{Iv}.copy();
-                Ncrop_v = numel(PC_all{Iv});
-                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
-
-                for Ic = 1:Ncrop_v
-                    if ~PC_all{Iv}(Ic).Success
-                        Cats_all{Iv}(Ic) = AstroCatalog;
-                        continue;
-                    end
-
-                    % Adjust Norm in VisitRefParams to achieve target ZP
-                    CropParams = VisitRefParams;
-                    if Ic <= size(ZPc, 2) && isfinite(ZPc(Iv, Ic)) && isfinite(TargetZP(Ic))
-                        DeltaZP = TargetZP(Ic) - ZPc(Iv, Ic);
-                        CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
-                    end
-
-                    Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
-                        AIcopy(Ic).CatData, ...
-                        'MagSystem', 'AB', ...
-                        'RefTransParams', CropParams, ...
-                        'UseRefNorm', true, ...
-                        'NormTran2D', DoNormTran2D);
-                end
-
-                if Args.Verbose
-                    fprintf('  Epoch %03d: magnitudes recomputed\n', Args.Visits(Iv));
-                end
-            end
-
-            save(OutFile, 'PC_all', 'Cats_all');
-            if Args.Verbose
-                fprintf('Saved %s\n', OutFile);
-            end
-            Result.PC.(Mode)   = PC_all;
-            Result.Cats.(Mode) = Cats_all;
-        end
-
-    end
-
-    % Fit RMS is identical across modes (same underlying fit)
-    if Args.Verbose
-        fprintf('\n=== Fit RMS Summary ===\n');
-        vals = Result.FitRMS(isfinite(Result.FitRMS));
-        fprintf('Median: %.4f   Mean: %.4f   Max: %.4f\n', median(vals), mean(vals), max(vals));
-    end
-
-    % ================================================================
-    % EPOCH MATCHING — per crop, per mode
-    % ================================================================
-    MSFile = fullfile(Args.OutDir, 'MS_all.mat');
-
-    if exist(MSFile, 'file') && ~Args.ForceRecalc
-        if Args.Verbose
-            fprintf('Loading cached %s\n', MSFile);
-        end
-        S = load(MSFile, 'MS_all');
-        Result.MS = S.MS_all;
-    else
-        if Args.Verbose
-            fprintf('\n=== Epoch Matching ===\n');
-        end
-
-        Result.MS = struct();
-
-        for Im = 1:Nmodes
-            Mode = Args.Modes{Im};
-
-            for Ic = Args.CropsToAnalyze
-                % Collect catalogs for this crop across epochs
-                CatList = AstroCatalog.empty(0, Nvisits);
-                ValidEpochs = false(Nvisits, 1);
-
-                for Iv = 1:Nvisits
-                    if isempty(Result.Cats.(Mode){Iv})
-                        continue;
-                    end
-                    if Ic <= numel(Result.Cats.(Mode){Iv})
-                        CatList(Iv) = Result.Cats.(Mode){Iv}(Ic);
-                        ValidEpochs(Iv) = true;
-                    end
-                end
-
-                if sum(ValidEpochs) < 3
-                    if Args.Verbose
-                        fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
-                    end
-                    continue;
-                end
-
-                % Match across epochs — we only need the MatchedSources object
-                % Use unifiedCatalogsIntoMatched directly to avoid mergeCatalogs'
-                % sortrows-by-Dec which fails when FitPM=false
-                MS = MatchedSources;
-                MS = MS.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
-                    'MatchedColums', Args.MatchedColumns, ...
-                    'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
-
-                % Flag bad photometry
-                MS = MS.setBadPhotToNan('BadFlags', Args.BadFlags, ...
-                    'MagField', 'MAG_PSF', 'CreateNewObj', false);
-
-                % Apply relative ZP correction to original (non-AB) mag fields
-                % only — AB magnitudes already carry the calibrated ZP
-                for Imf = 1:numel(Args.MagFields)
-                    OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
-                    if strcmp(OrigField, Args.MagFields{Imf}); continue; end
-                    if ~isfield(MS.Data, OrigField); continue; end
-                    ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
-                    if isfield(MS.Data, ErrField)
-                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField}, ...
-                            'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
-                    else
-                        Rzp = lcUtil.zp_meddiff(MS, 'MagField', {OrigField});
-                    end
-                    MS = MS.applyZP(Rzp, 'ApplyToMagField', {OrigField});
-                end
-
-                Result.MS.(Mode){Ic} = MS;
-
-                if Args.Verbose
-                    fprintf('  %s crop %02d: %d matched sources\n', ...
-                        Mode, Ic, MS.Nsrc);
-                end
-            end
-        end
-
-        MS_all = Result.MS;
-        save(MSFile, 'MS_all');
-        if Args.Verbose
-            fprintf('Saved %s\n', MSFile);
-        end
-    end
-
-    % ================================================================
-    % PLOTS
-    % ================================================================
+    % === Plots ===
     if ~Args.Plot
         return;
     end
 
-    % --- Mag vs Std scatter — separate panel per mode ---
-    Colors = lines(Nmodes);
+    pipeline.last.quality.plotPhotScatter(MS, ...
+        'Modes', Args.Modes, ...
+        'MagFields', Args.MagFields, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'ShowOrigMag', Args.ShowOrigMag, ...
+        'OverlayTrend', Args.OverlayTrend, ...
+        'TrendBinWidth', Args.TrendBinWidth);
 
-    for Imf = 1:numel(Args.MagFields)
-        MagField = Args.MagFields{Imf};
+    pipeline.last.quality.plotPhotStdDiff(MS, ...
+        'Modes', Args.Modes, ...
+        'MagFields', Args.MagFields, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend, ...
+        'TrendBinWidth', Args.TrendBinWidth);
 
-        figure('Name', sprintf('Mag vs Std — %s', MagField), ...
-               'Position', [50, 50, 400*Nmodes, 500]);
-
-        % Derive original (non-AB) mag field name
-        OrigMagField = '';
-        if Args.ShowOrigMag && contains(MagField, '_AB_')
-            OrigMagField = strrep(MagField, '_AB_', '_');
-        end
-
-        for Im = 1:Nmodes
-            Mode = Args.Modes{Im};
-            subplot(1, Nmodes, Im);
-            hold on;
-
-            % --- Original mag scatter (background, gray) ---
-            if ~isempty(OrigMagField)
-                allMedOrig = [];
-                allStdOrig = [];
-                for Ic = Args.CropsToAnalyze
-                    if Ic > numel(Result.MS.(Mode)) || isempty(Result.MS.(Mode){Ic})
-                        continue;
-                    end
-                    MS = Result.MS.(Mode){Ic};
-                    if ~isfield(MS.Data, OrigMagField); continue; end
-                    OrigData = MS.Data.(OrigMagField);
-                    allMedOrig = [allMedOrig, nanmedian(OrigData, 1)];
-                    allStdOrig = [allStdOrig, nanstd(OrigData, 0, 1)];
-                end
-                if ~isempty(allMedOrig)
-                    plot(allMedOrig, allStdOrig, '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 3);
-                    % Trend line for original
-                    if ~strcmp(Args.OverlayTrend, 'none')
-                        BinEdges = 9:Args.TrendBinWidth:22;
-                        BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
-                        [~, ~, BinIdx] = histcounts(allMedOrig, BinEdges);
-                        TrendOrig = nan(size(BinCenters));
-                        for Ib = 1:numel(BinCenters)
-                            Mask = BinIdx == Ib;
-                            if sum(Mask) > 5
-                                if strcmp(Args.OverlayTrend, 'median')
-                                    TrendOrig(Ib) = nanmedian(allStdOrig(Mask));
-                                else
-                                    TrendOrig(Ib) = nanmean(allStdOrig(Mask));
-                                end
-                            end
-                        end
-                        ValidBins = isfinite(TrendOrig);
-                        plot(BinCenters(ValidBins), TrendOrig(ValidBins), '--', ...
-                            'Color', [0.5 0.5 0.5], 'LineWidth', 2.5);
-                    end
-                end
-            end
-
-            % --- AB mag scatter (foreground, color) ---
-            allMedMag = [];
-            allStdMag = [];
-
-            for Ic = Args.CropsToAnalyze
-                if Ic > numel(Result.MS.(Mode)) || isempty(Result.MS.(Mode){Ic})
-                    continue;
-                end
-                MS = Result.MS.(Mode){Ic};
-
-                if ~isfield(MS.Data, MagField)
-                    continue;
-                end
-
-                MagData = MS.Data.(MagField);  % [Nepochs x Nsrc]
-                MedMag = nanmedian(MagData, 1);
-                StdMag = nanstd(MagData, 0, 1);
-
-                allMedMag = [allMedMag, MedMag];
-                allStdMag = [allStdMag, StdMag];
-            end
-
-            if ~isempty(allMedMag)
-                plot(allMedMag, allStdMag, '.', 'Color', Colors(Im,:), 'MarkerSize', 4);
-                % Trend line for AB
-                if ~strcmp(Args.OverlayTrend, 'none')
-                    BinEdges = 9:Args.TrendBinWidth:22;
-                    BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
-                    [~, ~, BinIdx] = histcounts(allMedMag, BinEdges);
-                    TrendVal = nan(size(BinCenters));
-                    for Ib = 1:numel(BinCenters)
-                        Mask = BinIdx == Ib;
-                        if sum(Mask) > 5
-                            if strcmp(Args.OverlayTrend, 'median')
-                                TrendVal(Ib) = nanmedian(allStdMag(Mask));
-                            else
-                                TrendVal(Ib) = nanmean(allStdMag(Mask));
-                            end
-                        end
-                    end
-                    ValidBins = isfinite(TrendVal);
-                    plot(BinCenters(ValidBins), TrendVal(ValidBins), '-k', 'LineWidth', 2);
-                end
-            end
-            set(gca, 'YScale', 'log');
-            box on; grid on;
-            xlabel('Median Magnitude');
-            ylabel('Std [mag]');
-            xlim([9 22]);
-            ylim([1e-3 10]);
-            title(sprintf('%s', Mode));
-        end
-        sgtitle(sprintf('Epoch-to-epoch scatter: %s', strrep(MagField, '_', '\_')));
-    end
-
-    % --- Std difference: percrop vs other modes ---
-    if ismember('percrop', Args.Modes) && Nmodes > 1
-        for Imf = 1:numel(Args.MagFields)
-            MagField = Args.MagFields{Imf};
-            OtherModes = setdiff(Args.Modes, {'percrop'}, 'stable');
-            Nother = numel(OtherModes);
-
-            figure('Name', sprintf('Std difference — %s', MagField), ...
-                   'Position', [50, 50, 400*Nother, 500]);
-
-            for Io = 1:Nother
-                Mode = OtherModes{Io};
-                allMedMag = [];
-                allDeltaStd = [];
-
-                for Ic = Args.CropsToAnalyze
-                    % Check both modes have data for this crop
-                    if Ic > numel(Result.MS.percrop) || isempty(Result.MS.percrop{Ic})
-                        continue;
-                    end
-                    if Ic > numel(Result.MS.(Mode)) || isempty(Result.MS.(Mode){Ic})
-                        continue;
-                    end
-
-                    MS_pc = Result.MS.percrop{Ic};
-                    MS_other = Result.MS.(Mode){Ic};
-
-                    if ~isfield(MS_pc.Data, MagField) || ~isfield(MS_other.Data, MagField)
-                        continue;
-                    end
-
-                    % Sources align by column index — same input catalogs,
-                    % same matching radius and algorithm
-                    Nsrc = min(MS_pc.Nsrc, MS_other.Nsrc);
-                    Mag_pc    = MS_pc.Data.(MagField)(:, 1:Nsrc);
-                    Mag_other = MS_other.Data.(MagField)(:, 1:Nsrc);
-
-                    Std_pc    = nanstd(Mag_pc, 0, 1);
-                    Std_other = nanstd(Mag_other, 0, 1);
-                    MedMag    = nanmedian(Mag_pc, 1);
-
-                    allMedMag = [allMedMag, MedMag];
-                    allDeltaStd = [allDeltaStd, Std_pc - Std_other];
-                end
-
-                subplot(1, Nother, Io);
-                if ~isempty(allMedMag)
-                    plot(allMedMag, allDeltaStd, '.', 'MarkerSize', 4);
-                    hold on;
-                    plot(xlim, [0 0], 'k--');
-                    % Overlay binned trend line
-                    if ~strcmp(Args.OverlayTrend, 'none')
-                        BinEdges = 9:Args.TrendBinWidth:22;
-                        BinCenters = BinEdges(1:end-1) + Args.TrendBinWidth/2;
-                        [~, ~, BinIdx] = histcounts(allMedMag, BinEdges);
-                        TrendVal = nan(size(BinCenters));
-                        for Ib = 1:numel(BinCenters)
-                            Mask = BinIdx == Ib;
-                            if sum(Mask) > 5
-                                if strcmp(Args.OverlayTrend, 'median')
-                                    TrendVal(Ib) = nanmedian(allDeltaStd(Mask));
-                                else
-                                    TrendVal(Ib) = nanmean(allDeltaStd(Mask));
-                                end
-                            end
-                        end
-                        ValidBins = isfinite(TrendVal);
-                        plot(BinCenters(ValidBins), TrendVal(ValidBins), '-r', 'LineWidth', 2);
-                    end
-                end
-                box on; grid on;
-                xlabel('Median Magnitude');
-                ylabel(sprintf('Std(percrop) - Std(%s) [mag]', Mode));
-                xlim([9 22]);
-                title(sprintf('percrop - %s', Mode));
-            end
-            sgtitle(sprintf('Std difference (>0 = %s better): %s', ...
-                'non-percrop', strrep(MagField, '_', '\_')));
-        end
-    end
-
-    % --- RMS & ZP-RMS Mosaics (single figure, two panels) ---
-    Nrows = 6;
-    Ncols = 4;
-    % Light-to-dark gray colormap (larger values = darker)
-    GrayMap = flipud(gray(256));  % flip so high values map to dark
-    GrayMap = GrayMap(26:230, :); % trim extremes: light gray to dark gray
-
-    RMSmat = Result.FitRMS;       % [Nvisits x Ncrop]
-    MedRMS = nanmedian(RMSmat, 1);
-    ZPstd  = nanstd(Result.ZPcenter, 0, 1);  % epoch-to-epoch ZP scatter per crop
-
-    figure('Name', 'Fit RMS & ZP RMS Mosaic', 'Position', [100, 100, 1000, 600]);
-
-    for Ipanel = 1:2
-        subplot(1, 2, Ipanel);
-
-        if Ipanel == 1
-            PlotVals = MedRMS;
-            CbLabel  = 'Median fit RMS [mag]';
-            PanelTitle = sprintf('Median fit RMS over %d epochs', Nvisits);
-        else
-            PlotVals = ZPstd;
-            CbLabel  = 'ZP std [mag]';
-            PanelTitle = sprintf('Center ZP std over %d epochs', Nvisits);
-        end
-
-        MosaicImg = nan(Nrows, Ncols);
-        for Ic = 1:Args.Ncrop
-            [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
-            if Ic <= numel(PlotVals)
-                MosaicImg(Row, Col) = PlotVals(Ic);
-            end
-        end
-
-        imagesc(MosaicImg);
-        axis xy equal tight;
-        colormap(gca, GrayMap);
-        cb = colorbar;
-        ylabel(cb, CbLabel);
-
-        hold on;
-        for Ic = 1:Args.Ncrop
-            [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
-            Val = PlotVals(Ic);
-            if isfinite(Val)
-                text(Col, Row, sprintf('%d\n%.4f', Ic, Val), ...
-                    'HorizontalAlignment', 'center', 'Color', 'w', ...
-                    'FontSize', 8, 'FontWeight', 'bold');
-            else
-                text(Col, Row, sprintf('%d', Ic), ...
-                    'HorizontalAlignment', 'center', 'Color', 'w', ...
-                    'FontSize', 8);
-            end
-        end
-        hold off;
-        title(PanelTitle);
-    end
-
-    % --- ZP Mosaic comparison for selected visit ---
-    VisitIdx = find(Args.Visits == min(Args.Visits), 1);
-    if ~isempty(Result.PC.(Args.Modes{1}){VisitIdx})
-        PCref = Result.PC.(Args.Modes{1}){VisitIdx};
-        ZPvals = nan(Args.Ncrop, 1);
-        for Ic = 1:numel(PCref)
-            if PCref(Ic).Success
-                ZPvals(Ic) = PCref(Ic).evaluateZP('X', 863, 'Y', 863);
-            end
-        end
-        CLim = [min(ZPvals) - 0.05, max(ZPvals) + 0.05];
-        Result.CLim = CLim;
-
-        figure('Position', [50, 50, 500*Nmodes, 500], ...
-               'Name', sprintf('ZP Mosaic — Visit %d', Args.Visits(VisitIdx)));
-        for Im = 1:Nmodes
-            Mode = Args.Modes{Im};
-            if isempty(Result.PC.(Mode){VisitIdx}); continue; end
-            subplot(1, Nmodes, Im);
-            Result.PC.(Mode){VisitIdx}.plotZPMap('NewFigure', false, ...
-                'CLim', CLim, 'SmoothSigma', 0, ...
-                'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
-                'TileOrder', Args.TileOrder);
-            title(Mode);
-        end
-    end
+    pipeline.last.quality.plotPhotMosaic(Calib, ...
+        'Modes', Args.Modes, ...
+        'Visits', Args.Visits, ...
+        'Ncrop', Args.Ncrop, ...
+        'RefCrop', Args.RefCrop, ...
+        'TileOrder', Args.TileOrder);
 end
