@@ -246,7 +246,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagRinging logical = true;
 
         Args.flagNPsfShape logical = true;
-        Args.SecondMomSoftLim = 1.2;
+        Args.SecondMomSoftLim = 1.3;
         Args.SecondMomHardLim = 5.5;
         Args.SecondMomAsymLim = 5;
         Args.OmniDirectionThreshold = [0.7 57.0];
@@ -254,8 +254,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationBackRatio = 0.1;
         Args.ContaminationMag = 0.48;
         Args.ContaminationRadius = 1.5;
-        Args.OverWritePSFLimit = true;
-        Args.OverwritePSFLimitVal = 5;
 
         Args.flagDPSFShape logical = false;
         Args.PSFShapeXYMeanD = [1.06919192, 1.24191919]
@@ -302,6 +300,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagTranslients logical = true;
         Args.TranslientThresh = 0.48;
+        Args.TranslientExpThresh = [9.76703546, -0.09972362, -0.08558244];
 
         % --- Injections ---
         Args.injectedSrcs = [];
@@ -391,6 +390,9 @@ function TranCat = flagNonTransients(Obj, Args)
             R_SN = CandCat.getCol('R_SN');
             IsolatedCand = (R_SN < 3);
             BlendedCand = ~IsolatedCand;
+
+            % These might actually be isolated.
+            AmbBlendedCand = BlendedCand & (R_MAG_PSF > R_LIMMAG);
         end
 
         % Get candidate New and Ref bits masks values
@@ -690,12 +692,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 % User the smaller PSF between N and R
                 N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
                 R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
-                PSFSize_Min = min(N_PSFSize,R_PSFSize)-2.0;
+                PSFSize_Min = min(N_PSFSize,R_PSFSize)-3.0;
                 PSFSize_Max = max(N_PSFSize,R_PSFSize);
-
-                if Args.OverWritePSFLimit
-                    PSFSize_Min = Args.OverwritePSFLimitVal;
-                end
 
                 % Recalculating the moments due to issue #701, this should change once the
                 % issue is properly fixed. TODO
@@ -741,7 +739,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 R_NativeCHI2 = Obj(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
                 R_NativeContCHI2 = R_NativeCHI2(Contaminators);
-                BlendedContaminators = (R_NativeContCHI2 > 10.0);
+                BlendedContaminators = (R_NativeContCHI2 > 6.5);
 
                 % Same for blended contaminators
                 R_NativeBlendedContRa = R_NativeContRa(BlendedContaminators);
@@ -808,9 +806,15 @@ function TranCat = flagNonTransients(Obj, Args)
                 CandFluxes = CandCat.getCol('FLUX_PSF');
 
                 SelfSrcRad = 1.5*Args.PixelScale*Arcsec2Rad;
-               
+
+                STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
+                BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
+                N_Passes_Local_Aper = (STD_ANNULUS < 7.0) & (abs(BACK_ANNULUS) < 3.0);
+
                 for ICand = 1:NumCand
+
                     if N_Passes_Local(ICand)
+                        N_Passes_Local(ICand) = abs(BACK_ANNULUS(ICand)) < 5.0;
                         continue
                     end
                     
@@ -830,15 +834,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
                     MagContamination = log10(CandFlux/ContaminationFlux(ICand));
                 
-                    N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag);
+                    N_Passes_Local(ICand) = (MagContamination > Args.ContaminationMag) ...
+                        & N_Passes_Local_Aper(ICand);
                 end
-
-                STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
-                BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
-
-                N_Passes_Local_Aper = (STD_ANNULUS < 7.0) & (abs(BACK_ANNULUS) < 3.0);
-
-                N_Passes_Local = N_Passes_Local & N_Passes_Local_Aper;
 
                 % Update candidates as passing if they are not near any
                 % contaminating sources.
@@ -949,6 +947,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Get local Chi2
             N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
+            R_CHI2DOF_Local = CandCat.getCol('R_PSF_CHI2DOF');
             D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
 
             % Test global Chi2
@@ -968,14 +967,32 @@ function TranCat = flagNonTransients(Obj, Args)
                 & R_Passes_CHI2DOF_Global & Passes_CHI2DOF_D;
 
             % Test local Chi2
-            Passes_CHI2DOF_Local = ...
+            N_Passes_CHI2DOF_Local = ...
                 (N_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
                 (N_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
 
+            R_Passes_CHI2DOF_Local = ...
+                (R_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
+                (R_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
+            
             % For isolated candidates, apply local test.
+            Passes_CHI2DOF_Isolated = N_Passes_CHI2DOF_Local & IsolatedCand;
+
             % For blended candidates, apply global test.
-            Passes_CHI2DOF = (Passes_CHI2DOF_Local & IsolatedCand) | ...
-                (Passes_CHI2DOF_Global & BlendedCand);
+            Passes_CHI2DOF_Blended = Passes_CHI2DOF_Global ...
+                & BlendedCand;
+
+            % Test ambigiously blended candidate. If a non-ambigious
+            % blended candidate passes the blended condition, it is fine.
+            % If an ambigious blended candidate passes the blended
+            % condition, it has an extra condition to pass.
+            Passes_CHI2DOF_Blended = Passes_CHI2DOF_Blended & ...
+                (~AmbBlendedCand ...
+                | (AmbBlendedCand ...
+                & (N_Passes_CHI2DOF_Local | ~R_Passes_CHI2DOF_Local)));
+
+            Passes_CHI2DOF = Passes_CHI2DOF_Isolated | ...
+                Passes_CHI2DOF_Blended;
 
             CHI2DOF_Flagged = ~Passes_CHI2DOF;
             FilterFlags = FilterFlags + CHI2DOF_Flagged.*2.^BD_TF.name2bit('PSFChi2');
@@ -1252,12 +1269,29 @@ function TranCat = flagNonTransients(Obj, Args)
             Scorr = CandCat.getCol('S_CORR');
             SDiff = abs(Score) - abs(Scorr);
 
+            % Exclude isolated candidates unless PSF shape is poor.
+            % Exclude also galaxy matched candidates that are not nuclear
+            % and do not match to stars.
+            ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
+
+            if Args.flagStarMatches
+                ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
+            end
+
+            if exist('IsolatedCand', 'var')
+                ExcludeCand = ExcludeCand | IsolatedCand;
+            end
+
+            if exist('N_Passes_PSF_Global','var')
+                ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
+            end
+
             % Test if Score is higher than Scorr (has to be), Scorr is
             % above threshold and the difference between Score and Scorr is
             % below threshold.
             ScorrGood = (abs(Score) >= abs(Scorr)) ...
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
-                (SDiff < Args.ScorrCorrectionParam));
+                (SDiff < Args.ScorrCorrectionParam)) | ExcludeCand;
 
             ScorrFlagged = ~ScorrGood;
             FilterFlags = FilterFlags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
@@ -1269,21 +1303,31 @@ function TranCat = flagNonTransients(Obj, Args)
             S2_AIC = CandCat.getCol('S2_AIC');
             Z2_AIC = CandCat.getCol('Z2_AIC');
             AIC_Diff = S2_AIC - Z2_AIC;
+            AIC_Diff_Thresh = ...
+                Args.TranslientExpThresh(1)...
+                .*exp(Args.TranslientExpThresh(1)*Score)...
+                +Args.TranslientExpThresh(3);
+
+            AIC_Diff_Thresh(~N_GoodPSF) = Args.TranslientThresh;
 
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
             ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
 
+            if Args.flagStarMatches
+                ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
+            end
+
             if exist('IsolatedCand', 'var')
                 ExcludeCand = ExcludeCand | IsolatedCand;
             end
 
-            if exist('N_Passes_PSF_Global','var')
-                ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
-            end
+            %if exist('N_Passes_PSF_Global','var')
+            %    ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
+            %end
 
-            IsNotTranslient = (AIC_Diff < Args.TranslientThresh) ...
+            IsNotTranslient = (AIC_Diff < AIC_Diff_Thresh) ...
                 | ExcludeCand;
 
             TranslientFlagged = ~IsNotTranslient;
