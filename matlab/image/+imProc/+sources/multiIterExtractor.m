@@ -224,6 +224,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %            'detectStreaksLSDArgs' - A cell array of arguments to pass
     %                   to imUtil.streaks.detectStreaksLSD
     %                   Default is {}.
+    %            ---
+    %            'UseMex' - Default is false.
     %
     % Output : - (Result) An AstroImage array, same size as the
     %            input Obj, in which the Image, Back, Var, PSF and
@@ -344,6 +346,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
+
+        Args.UseMex                        = false;
     end
     
     % check consistency
@@ -548,7 +552,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end
             
             % PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
 
             
             % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression

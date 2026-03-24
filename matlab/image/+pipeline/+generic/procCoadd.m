@@ -133,6 +133,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   the MergedCat input argument to the catalog of the
     %                   coadd image.
     %                   Default is {'Nobs'}.
+    %            'UseMex' - Default is false.
     % Output : - A vector of AstroImage object containing the coadd images.
     %            One image per field.
     %          - A structure array containing information regarding the
@@ -210,6 +211,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CoaddMatchMergedCat logical      = true;
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+
+        Args.UseMex                           = false;
     end
     
     SEC_DAY = 86400;
@@ -359,7 +362,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
-                                                    'AddSkyCoo',false);
+                                                    'AddSkyCoo',false, 'UseMex',Args.UseMex);
                 
             end
 
