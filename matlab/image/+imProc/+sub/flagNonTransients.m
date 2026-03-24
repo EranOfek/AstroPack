@@ -533,7 +533,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         if CandCat.isColumn('GAL_PROB')
-            Gal_Prob = CandCat.getCol('STAR_PROB');
+            Gal_Prob = CandCat.getCol('GAL_PROB');
         end
 
         HasStarGalProb = ~isempty(Star_Prob) && ~isempty(Gal_Prob);

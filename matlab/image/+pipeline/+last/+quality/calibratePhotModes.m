@@ -131,9 +131,10 @@ function Result = calibratePhotModes(AI, Args)
     % ================================================================
     % Fit RMS and center ZP (from percrop, identical across modes)
     % ================================================================
-    Result.FitRMS = nan(Nvisits, Args.Ncrop);
-    Result.ZPcenter = nan(Nvisits, Args.Ncrop);
-    for Iv = 1:Nvisits
+    NvisitsPC = numel(Result.PC.percrop);
+    Result.FitRMS = nan(NvisitsPC, Args.Ncrop);
+    Result.ZPcenter = nan(NvisitsPC, Args.Ncrop);
+    for Iv = 1:NvisitsPC
         if isempty(Result.PC.percrop{Iv}); continue; end
         for Ic = 1:numel(Result.PC.percrop{Iv})
             if Result.PC.percrop{Iv}(Ic).Success

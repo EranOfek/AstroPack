@@ -37,6 +37,7 @@ function MS = matchPhotEpochs(Cats, Args)
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
+        Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
         Args.OutDir         = ''
         Args.ForceRecalc logical = false
         Args.Verbose logical = true
@@ -118,11 +119,31 @@ function MS = matchPhotEpochs(Cats, Args)
                 MSobj = MSobj.applyZP(Rzp, 'ApplyToMagField', {OrigField});
             end
 
+            % Filter sources with too few valid epochs
+            if Args.MinEpochs > 0
+                % Count non-NaN epochs using the first mag field
+                RefField = Args.MagFields{1};
+                if isfield(MSobj.Data, RefField)
+                    Nvalid = sum(~isnan(MSobj.Data.(RefField)), 1);
+                    BadSrc = Nvalid < Args.MinEpochs;
+                    % NaN-out all fields for these sources
+                    Flds = fieldnames(MSobj.Data);
+                    for Ifl = 1:numel(Flds)
+                        MSobj.Data.(Flds{Ifl})(:, BadSrc) = NaN;
+                    end
+                end
+            end
+
             MS.(Mode){Ic} = MSobj;
 
             if Args.Verbose
-                fprintf('  %s crop %02d: %d matched sources\n', ...
-                    Mode, Ic, MSobj.Nsrc);
+                Ngood = 0;
+                RefField = Args.MagFields{1};
+                if isfield(MSobj.Data, RefField)
+                    Ngood = sum(any(~isnan(MSobj.Data.(RefField)), 1));
+                end
+                fprintf('  %s crop %02d: %d matched sources (%d with >=%d epochs)\n', ...
+                    Mode, Ic, MSobj.Nsrc, Ngood, max(Args.MinEpochs, 1));
             end
         end
     end

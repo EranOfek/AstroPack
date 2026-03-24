@@ -2,25 +2,31 @@ function buildHTMfromFiles(Args)
 % Build an HTM catalog from local or remote data files
 % Package: VO.prep
 % Description: Processes a collection of FITS or text files into an
-%              HTM-structured HDF5 catalog. Files are processed by
-%              declination band to limit memory usage. Supports
-%              downloading from remote URLs with caching and resume.
+%              HTM-structured HDF5 catalog. Supports downloading from
+%              remote URLs with caching and resume.
+%
+%              Two processing modes are available (see ProcessMode):
+%              - 'band' (default): accumulates all files per Dec band.
+%                Good for small/medium catalogs.
+%              - 'perfile': processes one sweep file at a time with
+%                margin from neighbors. For very large catalogs that
+%                would OOM in band mode (e.g., DECaLS with ~2 billion
+%                sources). Requires sweep-style filenames with RA/Dec.
 %
 %              The function works in five steps:
 %              1. Scrape file list from URL or local directory
 %              2. Save column metadata (ColCell) upfront
-%              3. Process files by Dec band: download/read, select
-%                 columns via PostReadFun, build HTM cells using
+%              3. Process sources into HTM cells via PostReadFun +
 %                 VO.prep.build_htm_catalog. Completed grouped HDF5
 %                 files are copied to TargetDir incrementally.
 %              4. Build index with VO.prep.getNsrcFast +
 %                 celestial.htm.saveHTMIndexFast
 %              5. Copy remaining files and index to TargetDir
 %
-%              When Resume is true, completed bands (all HTM cells
+%              When Resume is true, completed regions (all HTM cells
 %              exist in HDF5) are skipped entirely without reading
 %              source files. Downloaded files not needed by future
-%              bands are cleaned up after each band (CleanCache).
+%              processing are cleaned up (CleanCache).
 %
 % Input  : * ...,key,val,...
 %            --- Source files ---
@@ -73,8 +79,10 @@ function buildHTMfromFiles(Args)
 %                                        sweep-style filenames with RA/Dec.
 %            'DecBandWidth' - Dec band width [deg] for 'band' mode. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
-%                             Completed bands are skipped entirely
-%                             (no file reading) via checkBandComplete.
+%                             In band mode, completed bands are skipped
+%                             entirely (no file reading).
+%                             In perfile mode, completed file regions
+%                             are skipped.
 %            'CleanCache'   - Delete cached downloads after each Dec
 %                             band (including skipped bands). Default: true.
 %                             Only deletes files not needed by future bands.
@@ -83,9 +91,26 @@ function buildHTMfromFiles(Args)
 % Output : null
 % Author : Dana Kovaleva (Mar 2026)
 % Example:
-%   % DECaLS DR10 example:
+%   % DECaLS DR10 — band mode (small/medium catalogs):
 %   VO.prep.buildHTMfromFiles(...
 %       'SourceURL', 'https://portal.nersc.gov/cfs/cosmo/data/legacysurvey/dr10/south/sweep/10.1/', ...
+%       'ProcessMode', 'band', ...
+%       'PostReadFun', @VO.prep.decalsPostRead, ...
+%       'ColNames', {'RA','Dec','RA_IVAR','DEC_IVAR','Type', ...
+%           'Flux_g','Flux_r','Flux_i','Flux_z', ...
+%           'Flux_W1','Flux_W2','Flux_W3','Flux_W4', ...
+%           'FluxIvar_g','FluxIvar_r','FluxIvar_i','FluxIvar_z', ...
+%           'FluxIvar_W1','FluxIvar_W2','FluxIvar_W3','FluxIvar_W4', ...
+%           'MaskBits','ShapeR'}, ...
+%       'CatName', 'DECaLS10', 'HTM_Level', 9, ...
+%       'LocalDir', '/home/dana/tmp/DECaLS10/htm/', ...
+%       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
+%       'DownloadDir', '/home/dana/tmp/DECaLS10/');
+%
+%   % DECaLS DR10 — per-file mode (large catalogs, avoids OOM):
+%   VO.prep.buildHTMfromFiles(...
+%       'SourceURL', 'https://portal.nersc.gov/cfs/cosmo/data/legacysurvey/dr10/south/sweep/10.1/', ...
+%       'ProcessMode', 'perfile', ...
 %       'PostReadFun', @VO.prep.decalsPostRead, ...
 %       'ColNames', {'RA','Dec','RA_IVAR','DEC_IVAR','Type', ...
 %           'Flux_g','Flux_r','Flux_i','Flux_z', ...
@@ -119,7 +144,6 @@ function buildHTMfromFiles(Args)
         Args.ProcessMode  string = "band"   % 'band' or 'perfile'
         Args.DecBandWidth double = 5
         Args.Resume       logical = true
-        Args.StartBand    double = 1
         Args.CleanCache   logical = true
         Args.Verbose      logical = true
     end
@@ -192,6 +216,10 @@ function buildHTMfromFiles(Args)
     MarginDeg = RadiusHTM * RAD * 1.5;
 
     ListIndexHTM = LevelHTM(Args.HTM_Level).ptr;
+    Nhtm = numel(ListIndexHTM);
+
+    % Accumulate Nsrc across build_htm_catalog calls
+    Nsrc = [ListIndexHTM(:), zeros(Nhtm, 1)];
 
     DecEdges = -90 : Args.DecBandWidth : 90;
     Nbands = numel(DecEdges) - 1;
@@ -232,12 +260,12 @@ function buildHTMfromFiles(Args)
         % PER-FILE MODE: process one sweep file at a time with neighbors
         %==================================================================
         if ~isempty(TargetDir)
-            processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+            Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, TargetDir, ...
                 HdfFileMaxDec, HdfFileNames, CopiedFiles, Args);
         else
-            processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+            Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, '', ...
                 [], {}, [], Args);
@@ -286,6 +314,9 @@ function buildHTMfromFiles(Args)
                     if Args.Verbose
                         fprintf('  All HTM cells exist, skipping band\n');
                     end
+                    % Fill Nsrc for skipped cells from existing HDF5 files
+                    Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
+                        DecLoRad, DecHiRad, CatName, Args.NcatInFile, TargetDir);
                     % Clean files not needed by future bands
                     if IsRemote && Args.CleanCache
                         cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
@@ -448,7 +479,7 @@ function buildHTMfromFiles(Args)
             end
 
             % Build HTM for this Dec band
-            VO.prep.build_htm_catalog(AllData, ...
+            BandNsrc = VO.prep.build_htm_catalog(AllData, ...
                 'CatName', CatName, ...
                 'HTM_Level', Args.HTM_Level, ...
                 'ColRA', Args.ColRA, ...
@@ -462,6 +493,9 @@ function buildHTMfromFiles(Args)
                 'IndStep', Args.IndStep, ...
                 'SaveInd', false, ...
                 'CheckExist', Args.Resume);
+
+            % Merge per-band Nsrc into cumulative Nsrc
+            Nsrc = mergeNsrc(Nsrc, BandNsrc);
 
             clear AllData;
 
@@ -486,7 +520,15 @@ function buildHTMfromFiles(Args)
     end  % if perfile / else band
 
     %------------------------------------------------------------------
-    % Step 4: Build index
+    % Step 4: Copy remaining data files to TargetDir via NFS
+    %------------------------------------------------------------------
+    if ~isempty(TargetDir)
+        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+            HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
+    end
+
+    %------------------------------------------------------------------
+    % Step 5: Build index from accumulated Nsrc (no HDF5 scan needed)
     %------------------------------------------------------------------
     if Args.Verbose
         fprintf('\nBuilding HTM index ...\n');
@@ -496,18 +538,14 @@ function buildHTMfromFiles(Args)
     if exist(IndFileName, 'file')
         delete(IndFileName);
     end
-    Nsrc = VO.prep.getNsrcFast(CatName);
     celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
-    %------------------------------------------------------------------
-    % Step 5: Copy remaining files to TargetDir via NFS
-    %------------------------------------------------------------------
-    if ~isempty(TargetDir)
-        % Copy any HDF5 data files not yet copied (e.g., last band/file)
-        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-            HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
+    if Args.Verbose
+        fprintf('Total sources: %d\n', sum(Nsrc(:, 2)));
+    end
 
-        % Copy index file
+    % Copy index file to TargetDir
+    if ~isempty(TargetDir)
         IndFullPath = fullfile(LocalDir, IndFileName);
         if isfile(IndFullPath)
             tools.os.copyFileOverNFS({IndFullPath}, TargetDir, ...
@@ -713,7 +751,7 @@ function [MaxDec, FileNames] = precomputeFileMaxDec(HTM, ListIndexHTM, ...
 end
 
 
-function processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+function Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
         IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
         ListIndexHTM, CatName, LocalDir, TargetDir, ...
         HdfFileMaxDec, HdfFileNames, CopiedFiles, Args)
@@ -751,6 +789,9 @@ function processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 if Args.Verbose
                     fprintf('  All HTM cells exist, skipping\n');
                 end
+                % Fill Nsrc for skipped cells from existing HDF5 files
+                Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
+                    DecLoRad, DecHiRad, CatName, Args.NcatInFile, TargetDir);
                 continue;
             end
         end
@@ -871,7 +912,7 @@ function processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
         end
 
         % Build HTM cells for this file's RA/Dec footprint only
-        VO.prep.build_htm_catalog(AllData, ...
+        FileNsrc = VO.prep.build_htm_catalog(AllData, ...
             'CatName', CatName, ...
             'HTM_Level', Args.HTM_Level, ...
             'ColRA', Args.ColRA, ...
@@ -886,6 +927,9 @@ function processPerFile(AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
             'IndStep', Args.IndStep, ...
             'SaveInd', false, ...
             'CheckExist', Args.Resume);
+
+        % Merge per-file Nsrc into cumulative Nsrc
+        Nsrc = mergeNsrc(Nsrc, FileNsrc);
 
         clear AllData;
 
@@ -982,6 +1026,68 @@ function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
                     fprintf('  Copied: %s\n', HdfFileNames{i});
                 end
             end
+        end
+    end
+end
+
+
+function Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
+        DecLoRad, DecHiRad, CatName, NcatInFile, TargetDir)
+    % Fill Nsrc entries for cells in a Dec range by reading HDF5 metadata.
+    % Tries local files first, then TargetDir (remote). Used when Resume
+    % skips a band/file whose cells were written in a previous run.
+    InfoCache = containers.Map();
+    for i = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(i);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
+        if MeanDec < DecLoRad || MeanDec >= DecHiRad
+            continue;
+        end
+        Pos = Nsrc(:, 1) == IndHTM;
+        if any(Pos) && Nsrc(Pos, 2) > 0
+            continue;  % already have a count
+        end
+        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
+        % Try local file first, then remote
+        if ~isfile(FileName) && ~isempty(TargetDir)
+            FileName = fullfile(TargetDir, FileName);
+        end
+        if ~isfile(FileName)
+            continue;
+        end
+        if ~InfoCache.isKey(FileName)
+            try
+                InfoCache(FileName) = h5info(FileName);
+            catch
+                continue;
+            end
+        end
+        Info = InfoCache(FileName);
+        Idx = strcmp({Info.Datasets.Name}, DataName);
+        if any(Idx)
+            DsSize = Info.Datasets(Idx).Dataspace.Size;
+            if any(Pos)
+                Nsrc(Pos, 2) = DsSize(end);
+            end
+        end
+    end
+end
+
+
+function Nsrc = mergeNsrc(Nsrc, NewNsrc)
+    % Merge Nsrc from a build_htm_catalog call into the cumulative Nsrc.
+    % Both are [IndHTM, Nsrc] matrices. For matching IndHTM, take the
+    % maximum count (build_htm_catalog returns the final count per cell).
+    if isempty(NewNsrc)
+        return;
+    end
+    for k = 1:size(NewNsrc, 1)
+        if isnan(NewNsrc(k, 2)) || NewNsrc(k, 2) == 0
+            continue;
+        end
+        Pos = Nsrc(:, 1) == NewNsrc(k, 1);
+        if any(Pos)
+            Nsrc(Pos, 2) = max(Nsrc(Pos, 2), NewNsrc(k, 2));
         end
     end
 end

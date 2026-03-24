@@ -25,6 +25,7 @@ function plotPhotScatter(MS, Args)
         Args.ShowOrigMag logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
+        Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
     end
 
     Nmodes = numel(Args.Modes);
@@ -65,6 +66,10 @@ function plotPhotScatter(MS, Args)
                     MSobj = MS.(Mode){Ic};
                     if ~isfield(MSobj.Data, OrigMagField); continue; end
                     OrigData = MSobj.Data.(OrigMagField);
+                    if Args.MinEpochs > 0
+                        Good = sum(~isnan(OrigData), 1) >= Args.MinEpochs;
+                        OrigData = OrigData(:, Good);
+                    end
                     allMedOrig = [allMedOrig, nanmedian(OrigData, 1)];
                     allStdOrig = [allStdOrig, nanstd(OrigData, 0, 1)];
                 end
@@ -93,6 +98,10 @@ function plotPhotScatter(MS, Args)
                 if ~isfield(MSobj.Data, MagField); continue; end
 
                 MagData = MSobj.Data.(MagField);
+                if Args.MinEpochs > 0
+                    Good = sum(~isnan(MagData), 1) >= Args.MinEpochs;
+                    MagData = MagData(:, Good);
+                end
                 allMedMag = [allMedMag, nanmedian(MagData, 1)];
                 allStdMag = [allStdMag, nanstd(MagData, 0, 1)];
             end

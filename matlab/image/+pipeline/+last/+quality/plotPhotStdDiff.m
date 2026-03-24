@@ -22,6 +22,7 @@ function plotPhotStdDiff(MS, Args)
         Args.CropsToAnalyze = []
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
+        Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
     end
 
     if ~ismember('percrop', Args.Modes) || numel(Args.Modes) < 2
@@ -66,6 +67,14 @@ function plotPhotStdDiff(MS, Args)
                 Nsrc = min(MS_pc.Nsrc, MS_other.Nsrc);
                 Mag_pc    = MS_pc.Data.(MagField)(:, 1:Nsrc);
                 Mag_other = MS_other.Data.(MagField)(:, 1:Nsrc);
+
+                % Filter sources with too few valid epochs
+                if Args.MinEpochs > 0
+                    Good = sum(~isnan(Mag_pc), 1) >= Args.MinEpochs & ...
+                           sum(~isnan(Mag_other), 1) >= Args.MinEpochs;
+                    Mag_pc    = Mag_pc(:, Good);
+                    Mag_other = Mag_other(:, Good);
+                end
 
                 Std_pc    = nanstd(Mag_pc, 0, 1);
                 Std_other = nanstd(Mag_other, 0, 1);
