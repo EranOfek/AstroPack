@@ -28,6 +28,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
+    %            'AnnulusRad' - If UseMex is true, then this is the
+    %                   background annulus width. Default is 3.
     %            'backgroundCubeArgs' - A cell array of additional
     %                   arguments to pass to imUtil.sources.backgroundCube
     %                   Default is {}.
@@ -94,6 +96,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Std        = [];   % vector or cube
         Args.Back       = [];
         Args.FitRadius  = 3;
+        Args.AnnulusRad              = 3;
         Args.backgroundCubeArgs cell = {};
         
         Args.Xinit      = [];
@@ -124,27 +127,35 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     % background treatment
     % 1. do nothing
     % 2. subtract and return
-    % 3. measure in first image [NaN] - same for std!
+    % 3.Back
+    % measure in first image [NaN] - same for std!
     % 4. fit?    
-    if isempty(Args.Back) || isempty(Args.Std)
-        % calculate background and std
-        [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:}, 'Squeeze',false);
-    else
-        if ndims(Args.Back)<3
-            Back = permute(Args.Back(:), [3 2 1]);
+
+    % if Args.UseMex
+    %     % about x6 faster
+    %     [Cube1,Back1,Std1,Npix1] = imUtil.sources.mex.annulus_median(Cube, Args.AnnulusRad, 0);
+    % else
+        if isempty(Args.Back) || isempty(Args.Std)
+            % calculate background and std
+            [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:}, 'Squeeze',false);
         else
-            Back = Args.Back;
+            if ndims(Args.Back)<3
+                Back = permute(Args.Back(:), [3 2 1]);
+            else
+                Back = Args.Back;
+            end
+            if ndims(Args.Std)<3
+                Std = permute(Args.Std(:),[3 2 1]);
+            else
+                Std = Args.Std;
+            end
         end
-        if ndims(Args.Std)<3
-            Std = permute(Args.Std(:),[3 2 1]);
-        else
-            Std = Args.Std;
-        end
-    end
-        
-    % subtract background
-    Cube = Cube - Back;
-    
+            
+        % subtract background
+        Cube = Cube - Back;
+    %end
+
+
     FitRadius2 = Args.FitRadius.^2;
        
     Xcenter = Nx.*0.5 + 0.5;
@@ -314,9 +325,17 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
     
     FluxMethod = 'wsumall'; %'medall';
     
-    % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
-    ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+    %UseMex = true;
+    if UseMex
+        % x5 times faster:
+        PSFr = repmat(PSF,[1, 1, numel(DX)]);
+        ShiftedPSF = imUtil.trans.mex.shift_lanczos3(PSFr,DX,DY);
+    else
+        % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
+        ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+    end
     
+
     switch FluxMethod
         case 'wsumall'
             WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
@@ -338,15 +357,18 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
         Dof      = [];
     else                   % use stamp cutout
 
-        if UseMex
-            [Flag, ResidStd] = cubeResidStd_Radius(single(VecXrel), single(VecYrel), single(DX), single(DY), Resid, single(real(Std)), single(FitRadius2));
-        else
+        %if UseMex
+            % current version not faster!
+            %[Flag, ResidStd] = imUtil.image.mex.cubeResidStd_Radius(single(VecXrel), single(VecYrel), single(DX), single(DY), Resid, single(real(Std)), single(FitRadius2));
+        %else
+            
             MatX     = permute(VecXrel - DX(:),[3 2 1]);
             MatY     = permute(VecYrel - DY(:),[2 3 1]);
             MatR2    = MatX.^2 + MatY.^2;
             Flag     = MatR2<FitRadius2;
             ResidStd = Flag.*Resid./Std;
-        end
+            
+        %end
 
         Dof      = squeeze(sum(Flag,[1 2]) - 3);
         

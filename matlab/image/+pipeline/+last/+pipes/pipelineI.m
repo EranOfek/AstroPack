@@ -60,6 +60,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
         Args.Logger                      = [];
         %Args.Sa
+
+        % 
+        Args.UseMex                      = false;
+
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -132,17 +136,19 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
                                                     'JD',JD,...
                                                     'ColCell',Args.ColCell,...
-                                                    'AddSkyCoo',false);  % 466 s
+                                                    'UseMex',Args.UseMex,...
+                                                    'AddSkyCoo',false);  % 466 s (with UseMex=false)
        
     else
-        %tic;
+        tic;
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
                                                     'ColCell',Args.ColCell,...
-                                                    'AddSkyCoo',false);  % 119 s (on 16 cores)
+                                                    'UseMex',Args.UseMex,...
+                                                    'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
         end
-        %toc
+        toc
     end
 
     % solve astrometry of all images
@@ -244,17 +250,18 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % Such that we can use the photometric calibration of the coadd
     % for the individual images.
     
-    % coadd images
+    % coadd images 
     % Only coaddition: 56 s 
-    % only multiIterationPSF: 35 s
-    % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s 
+    % only multiIterationPSF: 35 s (UseMex=false)
+    % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s (UseMex=false)
     % (93 s with parfor)
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'CatName',CatName,...
                                               'ShiftXY',ShiftInfo,...
                                               'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
-                                              'IsShiftXYfiltered',true);
+                                              'IsShiftXYfiltered',true,...
+                                              'UseMex',Args.UseMex);
     
     % tic;
     % parfor Isub=1:1:Nsub

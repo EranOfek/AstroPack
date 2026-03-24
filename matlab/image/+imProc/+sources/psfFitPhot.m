@@ -57,6 +57,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            'FindSrc' - A logical indicating if to search for sources if
     %                   catalog is empty. Default is false.
     %            'Method' - Default is 'old'.
+    %            'UseMex' - Default is false.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'}
@@ -101,6 +102,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         
         Args.FindSrc logical         = false;
         Args.Method                  = 'old'; 
+        Args.UseMex                  = false;
     end
     
     ResultObj = Obj;
@@ -176,7 +178,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             end
             
             % subtract Background
-            ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;
+            ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;  %Not clear why this line is needed?
             
             % get Cube of stamps around sources
             [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
@@ -198,6 +200,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     'MaxIter',Args.MaxIter,...
                                                                     'Xinit', Xinit,...
                                                                     'Yinit', Yinit,...
+                                                                    'UseMex',Args.UseMex,...
                                                                      Args.psfPhotCubeArgs{:});
                     
                 case 'new'    % appears unstable, so in fact we don't use it                                                         
