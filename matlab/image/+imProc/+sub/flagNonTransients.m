@@ -291,9 +291,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Star/galaxy classification
         Args.StarGalProbEps double = 1e-6
-        Args.MinStarProb double = 0.15
+        Args.MinStarProb double = 0.10
         Args.MinStarProbNoGal double = 0.01
-        Args.StarGalLogRatioThresh double = 1.0
+        Args.StarGalLogRatioThresh double = 0.85
 
         % D-image artifact filters
         Args.flagRinging logical = true
@@ -1363,7 +1363,8 @@ function TranCat = flagNonTransients(Obj, Args)
             % Test if Score is higher than Scorr (has to be), Scorr is
             % above threshold and the difference between Score and Scorr is
             % below threshold.
-            ScorrGood = (abs(Score) >= abs(Scorr)) ...
+            ScorrGood = (sign(Scorr) == sign(Score) ) ...
+                & (abs(Score) >= abs(Scorr)) ...
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
                 (SDiff < Args.ScorrCorrectionParam)) | ExcludeCand;
 
