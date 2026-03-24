@@ -25,7 +25,7 @@ function plotPhotStdDiff(MS, Args)
         Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
     end
 
-    if ~ismember('percrop', Args.Modes) || numel(Args.Modes) < 2
+    if ~ismember('percrop', Args.Modes) || ~isfield(MS, 'percrop') || numel(Args.Modes) < 2
         return;
     end
 

@@ -10,6 +10,7 @@ function Result = testPhotCalib(Args)
     %                plotPhotScatter    — mag vs std scatter
     %                plotPhotStdDiff    — std difference (percrop vs others)
     %                plotPhotMosaic     — RMS/ZP mosaics and ZP maps
+    %                plotPhotResiduals  — calibrator fit residuals vs magnitude
     %
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
@@ -53,6 +54,8 @@ function Result = testPhotCalib(Args)
     %            'MinEpochs' - Min non-NaN epochs per source. Sources with
     %                        fewer valid detections are NaN-ed out. 0 = no
     %                        filter. Default is 0.
+    %            'ApplyRelZP' - Apply zp_meddiff relative ZP correction to
+    %                        original (non-AB) magnitudes. Default is true.
     %          --- Plotting ---
     %            'Plot'     - Generate diagnostic plots. Default is true.
     %            'ShowOrigMag' - Overlay instrumental mag scatter. Default is true.
@@ -88,9 +91,28 @@ function Result = testPhotCalib(Args)
     %          % Explicit visit directories, coadd files:
     %          R = pipeline.last.quality.testPhotCalib('VisitDirs', ...
     %              ["/path/to/visit1", "/path/to/visit2"], 'FileType', 'coadd');
-
+    %
+    %          % Replotting with other arguments (within the scope of performed calibration):
+    %
+    %{         
+                 S = load('/home/dana/results_coadd/MS_all.mat');
+                 Modes = {'percrop', 'visitref'};
+                 pipeline.last.quality.plotPhotScatter(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
+                 pipeline.last.quality.plotPhotStdDiff(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
+    %}
+    %
+    %{
+                 R = pipeline.last.quality.testPhotCalib('DataDir', '', ...
+                    'ListFile', '~/N3_M2C4Jul2_7_list.mat', ...
+                    'ListFields', {'M2C4Jul2p1'},  'FileType', 'coadd', ...
+                    'OutDir', '/home/dana/results_coadd', 'TileOrder', 'colmajor',...
+                    'ForceRecalc', true, 'Modes', {'percrop','refzp', 'visitref'},...
+                    'VisitRefZP', 'global_median');
+    %}
+    %
+                 
     arguments
-        Args.DataDir        = '/home/dana/222625v1'
+        Args.DataDir        = '~/222625v1'
         Args.OutDir         = ''
         Args.Visits         = 1:20
         Args.VisitDirs      = []       % string array of visit folder paths
@@ -111,6 +133,7 @@ function Result = testPhotCalib(Args)
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
         Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
+        Args.ApplyRelZP logical = true  % Apply zp_meddiff to original (non-AB) mags
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
         Args.Plot logical   = true
@@ -179,6 +202,7 @@ function Result = testPhotCalib(Args)
         'BadFlags', Args.BadFlags, ...
         'MaxMagErr', Args.MaxMagErr, ...
         'MinEpochs', Args.MinEpochs, ...
+        'ApplyRelZP', Args.ApplyRelZP, ...
         'OutDir', Args.OutDir, ...
         'ForceRecalc', Args.ForceRecalc, ...
         'Verbose', Args.Verbose);
@@ -218,4 +242,10 @@ function Result = testPhotCalib(Args)
         'Ncrop', Args.Ncrop, ...
         'RefCrop', Args.RefCrop, ...
         'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotResiduals(Calib.PC, ...
+        'Modes', Args.Modes, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend, ...
+        'TrendBinWidth', Args.TrendBinWidth);
 end
