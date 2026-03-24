@@ -9,4 +9,5 @@
 %          - Vector of shifts in Y direction.
 % Output : - A cube of shifted images.
 % Author : Eran Ofek (2026 Jan) 
+% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -march=native -mavx2 -mfma -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' shift_lanczos3.cpp
 % Example: ShiftedCube=imUtil.trans.mex.shift_lanczos3(Cube,DX,DY);

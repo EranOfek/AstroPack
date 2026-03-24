@@ -193,18 +193,42 @@ static void shift_stack_sep_simd(
     }
 }
 
-static void readShiftVectorToDouble(const mxArray* A, int N, std::vector<double>& out) {
+// New helper: replicate a single 2-D image into many shifted output slices
+template <typename T>
+static void shift_matrix_to_cube_sep_simd(
+    const T* inData, T* outData,
+    int M, int K, int L,
+    const double* Dx, const double* Dy
+) {
+    const mwSize sliceStride = (mwSize)M * (mwSize)K;
+
+#if defined(_OPENMP)
+    #pragma omp parallel
+#endif
+    {
+        std::vector<T> tmp((size_t)M * (size_t)K);
+
+#if defined(_OPENMP)
+        #pragma omp for schedule(static)
+#endif
+        for (int n = 0; n < L; ++n) {
+            T* out = outData + (mwSize)n * sliceStride;
+            shift_one_image_sep_simd<T>(inData, out, M, K, Dx[n], Dy[n], tmp.data());
+        }
+    }
+}
+
+static void readShiftVectorToDouble(const mxArray* A, std::vector<double>& out) {
     if (!isRealSingleOrDouble(A)) die("Dx/Dy must be real single or double.");
     const mwSize nEl = mxGetNumberOfElements(A);
-    if ((int)nEl != N) die("Dx and Dy must have length N (number of images).");
-    out.resize((size_t)N);
+    out.resize((size_t)nEl);
 
     if (mxIsDouble(A)) {
         const double* p = (const double*)mxGetData(A);
-        std::copy(p, p + N, out.begin());
+        std::copy(p, p + nEl, out.begin());
     } else {
         const float* p = (const float*)mxGetData(A);
-        for (int i = 0; i < N; ++i) out[i] = (double)p[i];
+        for (mwSize i = 0; i < nEl; ++i) out[(size_t)i] = (double)p[i];
     }
 }
 
@@ -225,26 +249,68 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     const int K = (int)dims[1];
     const int N = (nd == 3) ? (int)dims[2] : 1;
 
-    // Read shifts (Dx/Dy can be single/double regardless of A class)
+    // Read shifts
     std::vector<double> Dx, Dy;
-    readShiftVectorToDouble(DxA, N, Dx);
-    readShiftVectorToDouble(DyA, N, Dy);
+    readShiftVectorToDouble(DxA, Dx);
+    readShiftVectorToDouble(DyA, Dy);
 
-    // Output same size/class as input
+    if (Dx.size() != Dy.size()) die("Dx and Dy must have the same number of elements.");
+
+    const mwSize nShift = (mwSize)Dx.size();
+    if (nShift == 0) die("Dx and Dy must not be empty.");
+
     const mxClassID cid = mxGetClassID(A);
-    if (nd == 2) {
-        plhs[0] = mxCreateNumericMatrix((mwSize)M, (mwSize)K, cid, mxREAL);
-    } else {
-        plhs[0] = mxCreateNumericArray(3, dims, cid, mxREAL);
-    }
 
-    if (cid == mxDOUBLE_CLASS) {
-        const double* in = (const double*)mxGetData(A);
-        double* out = (double*)mxGetData(plhs[0]);
-        shift_stack_sep_simd<double>(in, out, M, K, N, Dx.data(), Dy.data());
+    // Cases:
+    // 1) A is 3-D cube: numel(Dx)=numel(Dy)=N
+    // 2) A is 2-D matrix:
+    //    - one shift -> output MxK
+    //    - multiple shifts -> output MxKxL
+    if (nd == 3) {
+        if ((int)nShift != N) die("For 3-D input, Dx and Dy must have length N (number of images).");
+
+        plhs[0] = mxCreateNumericArray(3, dims, cid, mxREAL);
+
+        if (cid == mxDOUBLE_CLASS) {
+            const double* in = (const double*)mxGetData(A);
+            double* out = (double*)mxGetData(plhs[0]);
+            shift_stack_sep_simd<double>(in, out, M, K, N, Dx.data(), Dy.data());
+        } else {
+            const float* in = (const float*)mxGetData(A);
+            float* out = (float*)mxGetData(plhs[0]);
+            shift_stack_sep_simd<float>(in, out, M, K, N, Dx.data(), Dy.data());
+        }
     } else {
-        const float* in = (const float*)mxGetData(A);
-        float* out = (float*)mxGetData(plhs[0]);
-        shift_stack_sep_simd<float>(in, out, M, K, N, Dx.data(), Dy.data());
+        if (nShift == 1) {
+            plhs[0] = mxCreateNumericMatrix((mwSize)M, (mwSize)K, cid, mxREAL);
+
+            if (cid == mxDOUBLE_CLASS) {
+                const double* in = (const double*)mxGetData(A);
+                double* out = (double*)mxGetData(plhs[0]);
+                std::vector<double> tmp((size_t)M * (size_t)K);
+                shift_one_image_sep_simd<double>(in, out, M, K, Dx[0], Dy[0], tmp.data());
+            } else {
+                const float* in = (const float*)mxGetData(A);
+                float* out = (float*)mxGetData(plhs[0]);
+                std::vector<float> tmp((size_t)M * (size_t)K);
+                shift_one_image_sep_simd<float>(in, out, M, K, Dx[0], Dy[0], tmp.data());
+            }
+        } else {
+            mwSize outDims[3];
+            outDims[0] = (mwSize)M;
+            outDims[1] = (mwSize)K;
+            outDims[2] = nShift;
+            plhs[0] = mxCreateNumericArray(3, outDims, cid, mxREAL);
+
+            if (cid == mxDOUBLE_CLASS) {
+                const double* in = (const double*)mxGetData(A);
+                double* out = (double*)mxGetData(plhs[0]);
+                shift_matrix_to_cube_sep_simd<double>(in, out, M, K, (int)nShift, Dx.data(), Dy.data());
+            } else {
+                const float* in = (const float*)mxGetData(A);
+                float* out = (float*)mxGetData(plhs[0]);
+                shift_matrix_to_cube_sep_simd<float>(in, out, M, K, (int)nShift, Dx.data(), Dy.data());
+            }
+        }
     }
 }
