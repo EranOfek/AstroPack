@@ -56,7 +56,7 @@ function [Result] = applyZP_AperCorr(Obj, Args)
         Args.FunAperCorr               = @median;
         Args.FunAperCorrArgs           = {1,'omitnan'};
 
-        Args.ColSN                     = 'SN';
+        Args.ColSN                     = 'SN_3';
         Args.MinSN                     = 50;
         Args.MaxSN                     = 1000;
         Args.AddAperCorrCol            = true;
