@@ -30,6 +30,7 @@ static inline double sinc_pi(double x) {
     const double pix = PI * x;
     return std::sin(pix) / pix;
 }
+
 static inline double lanczos3(double x) {
     const double ax = std::abs(x);
     if (ax >= (double)A_LANCZOS) return 0.0;
@@ -50,9 +51,45 @@ static inline void weights_lanczos3(double frac01, double w[TAPS]) {
     }
 }
 
-// ---------- SIMD helpers: out[i] += w * in[i] ----------
+// ============================================================
+// SIMD AXPY kernels
+// out[i] += w * in[i]
+// Dispatch order:
+//   AVX-512F -> AVX -> scalar
+// AVX2 is naturally covered by the AVX path for this FP kernel.
+// FMA is used whenever __FMA__ is available.
+// ============================================================
+
 static inline void axpy_f32(float* out, const float* in, int n, float w) {
-#if defined(__AVX2__)
+#if defined(__AVX512F__)
+    __m512 vw = _mm512_set1_ps(w);
+    int i = 0;
+    for (; i + 16 <= n; i += 16) {
+        __m512 vo = _mm512_loadu_ps(out + i);
+        __m512 vi = _mm512_loadu_ps(in  + i);
+    #if defined(__FMA__)
+        vo = _mm512_fmadd_ps(vi, vw, vo);
+    #else
+        vo = _mm512_add_ps(vo, _mm512_mul_ps(vi, vw));
+    #endif
+        _mm512_storeu_ps(out + i, vo);
+    }
+
+    __m256 vw256 = _mm256_set1_ps(w);
+    for (; i + 8 <= n; i += 8) {
+        __m256 vo = _mm256_loadu_ps(out + i);
+        __m256 vi = _mm256_loadu_ps(in  + i);
+    #if defined(__FMA__)
+        vo = _mm256_fmadd_ps(vi, vw256, vo);
+    #else
+        vo = _mm256_add_ps(vo, _mm256_mul_ps(vi, vw256));
+    #endif
+        _mm256_storeu_ps(out + i, vo);
+    }
+
+    for (; i < n; ++i) out[i] += w * in[i];
+
+#elif defined(__AVX__)
     __m256 vw = _mm256_set1_ps(w);
     int i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -66,13 +103,42 @@ static inline void axpy_f32(float* out, const float* in, int n, float w) {
         _mm256_storeu_ps(out + i, vo);
     }
     for (; i < n; ++i) out[i] += w * in[i];
+
 #else
     for (int i = 0; i < n; ++i) out[i] += w * in[i];
 #endif
 }
 
 static inline void axpy_f64(double* out, const double* in, int n, double w) {
-#if defined(__AVX2__)
+#if defined(__AVX512F__)
+    __m512d vw = _mm512_set1_pd(w);
+    int i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m512d vo = _mm512_loadu_pd(out + i);
+        __m512d vi = _mm512_loadu_pd(in  + i);
+    #if defined(__FMA__)
+        vo = _mm512_fmadd_pd(vi, vw, vo);
+    #else
+        vo = _mm512_add_pd(vo, _mm512_mul_pd(vi, vw));
+    #endif
+        _mm512_storeu_pd(out + i, vo);
+    }
+
+    __m256d vw256 = _mm256_set1_pd(w);
+    for (; i + 4 <= n; i += 4) {
+        __m256d vo = _mm256_loadu_pd(out + i);
+        __m256d vi = _mm256_loadu_pd(in  + i);
+    #if defined(__FMA__)
+        vo = _mm256_fmadd_pd(vi, vw256, vo);
+    #else
+        vo = _mm256_add_pd(vo, _mm256_mul_pd(vi, vw256));
+    #endif
+        _mm256_storeu_pd(out + i, vo);
+    }
+
+    for (; i < n; ++i) out[i] += w * in[i];
+
+#elif defined(__AVX__)
     __m256d vw = _mm256_set1_pd(w);
     int i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -86,6 +152,7 @@ static inline void axpy_f64(double* out, const double* in, int n, double w) {
         _mm256_storeu_pd(out + i, vo);
     }
     for (; i < n; ++i) out[i] += w * in[i];
+
 #else
     for (int i = 0; i < n; ++i) out[i] += w * in[i];
 #endif
@@ -193,7 +260,6 @@ static void shift_stack_sep_simd(
     }
 }
 
-// New helper: replicate a single 2-D image into many shifted output slices
 template <typename T>
 static void shift_matrix_to_cube_sep_simd(
     const T* inData, T* outData,
@@ -241,6 +307,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     const mxArray* DyA = prhs[2];
 
     if (!isRealSingleOrDouble(A)) die("First input must be real single or double.");
+
     const mwSize nd = mxGetNumberOfDimensions(A);
     if (nd != 2 && nd != 3) die("First input must be 2-D (M x K) or 3-D (M x K x N).");
 
@@ -249,23 +316,17 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     const int K = (int)dims[1];
     const int N = (nd == 3) ? (int)dims[2] : 1;
 
-    // Read shifts
     std::vector<double> Dx, Dy;
     readShiftVectorToDouble(DxA, Dx);
     readShiftVectorToDouble(DyA, Dy);
 
     if (Dx.size() != Dy.size()) die("Dx and Dy must have the same number of elements.");
-
     const mwSize nShift = (mwSize)Dx.size();
     if (nShift == 0) die("Dx and Dy must not be empty.");
 
     const mxClassID cid = mxGetClassID(A);
 
-    // Cases:
-    // 1) A is 3-D cube: numel(Dx)=numel(Dy)=N
-    // 2) A is 2-D matrix:
-    //    - one shift -> output MxK
-    //    - multiple shifts -> output MxKxL
+    // 3-D input: one shift per slice
     if (nd == 3) {
         if ((int)nShift != N) die("For 3-D input, Dx and Dy must have length N (number of images).");
 
@@ -280,7 +341,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
             float* out = (float*)mxGetData(plhs[0]);
             shift_stack_sep_simd<float>(in, out, M, K, N, Dx.data(), Dy.data());
         }
-    } else {
+    }
+    // 2-D input: scalar shift -> matrix, vector shifts -> cube
+    else {
         if (nShift == 1) {
             plhs[0] = mxCreateNumericMatrix((mwSize)M, (mwSize)K, cid, mxREAL);
 
