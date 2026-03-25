@@ -62,7 +62,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         %Args.Sa
 
         % 
-        Args.UseMex                      = true;
+        Args.UseMex                      = false;
 
     end
     RAD        = 180./pi;
