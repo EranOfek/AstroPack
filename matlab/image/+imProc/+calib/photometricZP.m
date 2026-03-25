@@ -258,14 +258,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         if IsGoodImage(Iobj)
             if isa(Args.CatName, 'AstroCatalog')
                 % skip get astrometric cat
+                PhotCat = Args.CatName;
                 if isscalar(Args.CatName)
-                    PhotCat = Args.CatName;
                     Npc     = numel(PhotCat);
                     Ipc     = 1; %min(Npc, Iobj);
                 else
                     if numel(Args.CatName)~=numel(Obj)
                         error('Number of catalogs in CatName is not consistent');
                     end
+                    Ipc = Iobj;
                 end
             else
                 % RA/Dec bounding box
@@ -303,6 +304,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             % match Cat against reference (photometric) catalog
             %PhotCat(Ipc).sortrows('Dec');
             PhotCat(Ipc).sortrows('Dec');
+          
             %Cat.sortrows('Dec');
 
             ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
@@ -539,7 +541,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 %InstMag = Cat.getCol(UsedColMag);
                 DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
                 Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
-
+              
                 % OLD CODE:
                 % if ischar(Args.MagColName2update)
                 %     MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));

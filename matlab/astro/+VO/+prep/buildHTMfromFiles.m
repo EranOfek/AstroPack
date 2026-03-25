@@ -154,10 +154,9 @@ function buildHTMfromFiles(Args)
     CatName     = char(Args.CatName);
     RAD         = 180 / pi;
 
-    % Note: CleanCache is now independent of Resume. With checkBandComplete,
-    % completed bands are skipped entirely and their files are not needed.
-    % cleanDownloadCache only deletes files not needed by future bands,
-    % so files for the current (possibly incomplete) band are always kept.
+    % Note: CleanCache is independent of Resume. cleanDownloadCache only
+    % deletes files not needed by future bands/files, so files for the
+    % current (possibly incomplete) processing are always kept.
 
     if ~exist(LocalDir, 'dir'),    mkdir(LocalDir); end
     if ~exist(DownloadDir, 'dir'), mkdir(DownloadDir); end
@@ -219,7 +218,8 @@ function buildHTMfromFiles(Args)
     Nhtm = numel(ListIndexHTM);
 
     % Accumulate Nsrc across build_htm_catalog calls
-    Nsrc = [ListIndexHTM(:), zeros(Nhtm, 1)];
+    % NaN = not yet processed; 0 = processed but empty; >0 = has sources
+    Nsrc = [ListIndexHTM(:), nan(Nhtm, 1)];
 
     DecEdges = -90 : Args.DecBandWidth : 90;
     Nbands = numel(DecEdges) - 1;
@@ -235,12 +235,11 @@ function buildHTMfromFiles(Args)
         fprintf('Saved column metadata: %s_htmColCell.mat\n', CatName);
     end
 
-    % Precompute max MeanDec per grouped HDF5 file for incremental NFS copy.
-    % A grouped file is safe to copy once all bands up to its max MeanDec
-    % have been processed.
+    % Precompute cell lists per grouped HDF5 file for incremental NFS copy.
+    % A grouped file is copied once all its cells have been processed.
     if ~isempty(TargetDir)
-        [HdfFileMaxDec, HdfFileNames] = precomputeFileMaxDec( ...
-            HTM, ListIndexHTM, CatName, Args.NcatInFile);
+        [HdfFileCells, HdfFileNames] = precomputeFileCells( ...
+            ListIndexHTM, CatName, Args.NcatInFile);
         CopiedFiles = false(numel(HdfFileNames), 1);
 
         % Copy ColCell file immediately
@@ -254,21 +253,38 @@ function buildHTMfromFiles(Args)
         end
     end
 
+    % Load completion log for Resume: tracks which source files have been
+    % fully processed. More reliable than checking HTM cells, because
+    % empty cells leave no HDF5 dataset.
+    CompletionLog = fullfile(LocalDir, sprintf('%s_completed.mat', CatName));
+    if Args.Resume && isfile(CompletionLog)
+        tmp = load(CompletionLog, 'CompletedFiles');
+        CompletedFiles = tmp.CompletedFiles;
+        if Args.Verbose
+            fprintf('Loaded completion log: %d files already processed\n', ...
+                numel(CompletedFiles));
+        end
+    else
+        CompletedFiles = {};
+    end
+
     try
     if strcmpi(Args.ProcessMode, 'perfile')
         %==================================================================
         % PER-FILE MODE: process one sweep file at a time with neighbors
         %==================================================================
         if ~isempty(TargetDir)
-            Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+            [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, CompletionLog, ...
+                AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, TargetDir, ...
-                HdfFileMaxDec, HdfFileNames, CopiedFiles, Args);
+                HdfFileCells, HdfFileNames, CopiedFiles, Args);
         else
-            Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+            [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, CompletionLog, ...
+                AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, '', ...
-                [], {}, [], Args);
+                {}, {}, [], Args);
         end
 
     else
@@ -305,14 +321,14 @@ function buildHTMfromFiles(Args)
                     Iband, Nbands, DecLoDeg, DecHiDeg, numel(OverlapIdx));
             end
 
-            % When resuming, check if all HTM cells for this band already
-            % exist in HDF5 — if so, skip reading source files entirely
+            % When resuming, check if all source files for this band were
+            % already processed in a previous run
             if Args.Resume
-                BandComplete = checkBandComplete(CatName, HTM, ...
-                    ListIndexHTM, DecLoRad, DecHiRad, Args.NcatInFile);
-                if BandComplete
+                BandFileNames = AllFiles(OverlapIdx);
+                AllDone = all(ismember(BandFileNames, CompletedFiles));
+                if AllDone
                     if Args.Verbose
-                        fprintf('  All HTM cells exist, skipping band\n');
+                        fprintf('  All files processed, skipping band\n');
                     end
                     % Fill Nsrc for skipped cells from existing HDF5 files
                     Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
@@ -499,6 +515,15 @@ function buildHTMfromFiles(Args)
 
             clear AllData;
 
+            % Mark band files as completed
+            for k = 1:numel(OverlapIdx)
+                idx = OverlapIdx(k);
+                if ~ismember(AllFiles{idx}, CompletedFiles)
+                    CompletedFiles{end+1} = AllFiles{idx}; %#ok<AGROW>
+                end
+            end
+            save(CompletionLog, 'CompletedFiles');
+
             if Args.Verbose
                 fprintf('  Band done (%.1f min)\n', toc(BandTic) / 60);
             end
@@ -510,10 +535,10 @@ function buildHTMfromFiles(Args)
             end
 
             % Incremental NFS copy: copy HDF5 files whose cells are all
-            % in completed bands (max MeanDec <= current band upper edge)
+            % Copy grouped HDF5 files where all cells have been processed
             if ~isempty(TargetDir)
-                CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-                    HdfFileNames, DecHiRad, LocalDir, TargetDir, Args.Verbose);
+                CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
+                    HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
             end
         end
 
@@ -523,8 +548,8 @@ function buildHTMfromFiles(Args)
     % Step 4: Copy remaining data files to TargetDir via NFS
     %------------------------------------------------------------------
     if ~isempty(TargetDir)
-        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-            HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
+        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
+            HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
     end
 
     %------------------------------------------------------------------
@@ -538,6 +563,8 @@ function buildHTMfromFiles(Args)
     if exist(IndFileName, 'file')
         delete(IndFileName);
     end
+    % Replace any remaining NaN (unprocessed cells) with 0
+    Nsrc(isnan(Nsrc(:, 2)), 2) = 0;
     celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
     if Args.Verbose
@@ -694,10 +721,10 @@ end
 
 
 function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
-        DecLoRad, DecHiRad, NcatInFile)
+        DecLoRad, DecHiRad, NcatInFile, TargetDir)
     % Check if all HTM cells for a Dec band already exist in HDF5.
     % Returns true only if every cell whose mean Dec falls in [DecLo,DecHi)
-    % either has Nsrc==0 (empty) or already exists as an HDF5 dataset.
+    % already exists as an HDF5 dataset (locally or on TargetDir).
     Complete = true;
     InfoCache = containers.Map();  % cache h5info per HDF5 file
     for i = 1:numel(ListIndexHTM)
@@ -707,19 +734,24 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
             continue;
         end
         [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
-        if ~isfile(FileName)
+        % Try local first, then remote
+        ActualFile = FileName;
+        if ~isfile(ActualFile) && ~isempty(TargetDir)
+            ActualFile = fullfile(TargetDir, FileName);
+        end
+        if ~isfile(ActualFile)
             Complete = false;
             return;
         end
-        if ~InfoCache.isKey(FileName)
+        if ~InfoCache.isKey(ActualFile)
             try
-                InfoCache(FileName) = h5info(FileName);
+                InfoCache(ActualFile) = h5info(ActualFile);
             catch
                 Complete = false;
                 return;
             end
         end
-        Info = InfoCache(FileName);
+        Info = InfoCache(ActualFile);
         if ~any(strcmp({Info.Datasets.Name}, DataName))
             Complete = false;
             return;
@@ -728,33 +760,31 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
 end
 
 
-function [MaxDec, FileNames] = precomputeFileMaxDec(HTM, ListIndexHTM, ...
+function [FileCells, FileNames] = precomputeFileCells(ListIndexHTM, ...
         CatName, NcatInFile)
-    % For each grouped HDF5 file, compute the maximum MeanDec among its
-    % leaf cells. A file is safe to copy when all bands up to its MaxDec
-    % have been processed.
+    % For each grouped HDF5 file, collect the list of HTM cell indices
+    % it contains. Used to check whether all cells have been processed,
+    % so the file can be copied to remote and deleted locally.
     FileMap = containers.Map();
     for i = 1:numel(ListIndexHTM)
         IndHTM = ListIndexHTM(i);
-        MeanDec = mean(HTM(IndHTM).coo(:, 2));
         [FileName, ~] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
         if FileMap.isKey(FileName)
-            if MeanDec > FileMap(FileName)
-                FileMap(FileName) = MeanDec;
-            end
+            FileMap(FileName) = [FileMap(FileName), IndHTM];
         else
-            FileMap(FileName) = MeanDec;
+            FileMap(FileName) = IndHTM;
         end
     end
     FileNames = FileMap.keys()';
-    MaxDec = cellfun(@(k) FileMap(k), FileNames);
+    FileCells = FileMap.values()';
 end
 
 
-function Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
+function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, CompletionLog, ...
+        AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
         IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
         ListIndexHTM, CatName, LocalDir, TargetDir, ...
-        HdfFileMaxDec, HdfFileNames, CopiedFiles, Args)
+        HdfFileCells, HdfFileNames, CopiedFiles, Args)
     % Process one sweep file at a time with margin from neighbors.
     % For each file, read it plus overlapping neighbor files, then call
     % build_htm_catalog with RA/Dec range limited to the file's footprint.
@@ -781,19 +811,15 @@ function Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARang
                 Ifile, Nfiles, bn, RALoDeg, RAHiDeg, DecLoDeg, DecHiDeg);
         end
 
-        % Check if all HTM cells for this file's footprint already exist
-        if Args.Resume
-            AllExist = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
-                DecLoRad, DecHiRad, RALoRad, RAHiRad, Args.NcatInFile);
-            if AllExist
-                if Args.Verbose
-                    fprintf('  All HTM cells exist, skipping\n');
-                end
-                % Fill Nsrc for skipped cells from existing HDF5 files
-                Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
-                    DecLoRad, DecHiRad, CatName, Args.NcatInFile, TargetDir);
-                continue;
+        % Check if this file was already processed in a previous run
+        if Args.Resume && ismember(AllFiles{Ifile}, CompletedFiles)
+            if Args.Verbose
+                fprintf('  Already processed, skipping\n');
             end
+            % Fill Nsrc for skipped cells from existing HDF5 files
+            Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
+                DecLoRad, DecHiRad, CatName, Args.NcatInFile, TargetDir);
+            continue;
         end
 
         FileTic = tic;
@@ -938,11 +964,15 @@ function Nsrc = processPerFile(Nsrc, AllFiles, Nfiles, FileDecRanges, FileRARang
         end
 
         % Incremental NFS copy: copy HDF5 files whose cells are all
-        % within processed file footprints (approximated by max Dec seen)
+        % Copy grouped HDF5 files where all cells have been processed
         if ~isempty(TargetDir)
-            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-                HdfFileNames, DecHiRad, LocalDir, TargetDir, Args.Verbose);
+            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
+                HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
         end
+
+        % Mark this file as completed in the log
+        CompletedFiles{end+1} = AllFiles{Ifile}; %#ok<AGROW>
+        save(CompletionLog, 'CompletedFiles');
 
         % Clean downloaded neighbor files no longer needed.
         % Keep files that overlap with any future file's footprint + margin.
@@ -974,8 +1004,9 @@ end
 
 
 function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
-        DecLoRad, DecHiRad, RALoRad, RAHiRad, NcatInFile)
+        DecLoRad, DecHiRad, RALoRad, RAHiRad, NcatInFile, TargetDir)
     % Check if all HTM cells within an RA/Dec region already exist in HDF5.
+    % Checks local files first, then TargetDir (remote).
     Complete = true;
     InfoCache = containers.Map();
     for i = 1:numel(ListIndexHTM)
@@ -987,19 +1018,24 @@ function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
             continue;
         end
         [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
-        if ~isfile(FileName)
+        % Try local first, then remote
+        ActualFile = FileName;
+        if ~isfile(ActualFile) && ~isempty(TargetDir)
+            ActualFile = fullfile(TargetDir, FileName);
+        end
+        if ~isfile(ActualFile)
             Complete = false;
             return;
         end
-        if ~InfoCache.isKey(FileName)
+        if ~InfoCache.isKey(ActualFile)
             try
-                InfoCache(FileName) = h5info(FileName);
+                InfoCache(ActualFile) = h5info(ActualFile);
             catch
                 Complete = false;
                 return;
             end
         end
-        Info = InfoCache(FileName);
+        Info = InfoCache(ActualFile);
         if ~any(strcmp({Info.Datasets.Name}, DataName))
             Complete = false;
             return;
@@ -1008,15 +1044,27 @@ function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
 end
 
 
-function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
-        HdfFileNames, DecHiRad, LocalDir, TargetDir, Verbose)
-    % Copy grouped HDF5 files whose max MeanDec <= DecHiRad (all cells
-    % belong to completed bands). Skips already-copied files.
+function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
+        HdfFileNames, Nsrc, LocalDir, TargetDir, Verbose)
+    % Copy grouped HDF5 files where all cells have been processed.
+    % A cell is considered processed when its Nsrc entry is > 0 or it
+    % has been confirmed (Nsrc set by build_htm_catalog or fillNsrcFromHDF5).
+    % HdfFileCells{i} is the list of HTM indices belonging to file i.
     for i = 1:numel(HdfFileNames)
         if CopiedFiles(i)
             continue;
         end
-        if HdfFileMaxDec(i) <= DecHiRad
+        % Check if all cells in this file have been processed
+        CellIndices = HdfFileCells{i};
+        AllProcessed = true;
+        for j = 1:numel(CellIndices)
+            Pos = Nsrc(:, 1) == CellIndices(j);
+            if ~any(Pos) || isnan(Nsrc(Pos, 2))
+                AllProcessed = false;
+                break;
+            end
+        end
+        if AllProcessed
             FullPath = fullfile(LocalDir, HdfFileNames{i});
             if isfile(FullPath)
                 tools.os.copyFileOverNFS({FullPath}, TargetDir, ...
@@ -1076,18 +1124,23 @@ end
 
 function Nsrc = mergeNsrc(Nsrc, NewNsrc)
     % Merge Nsrc from a build_htm_catalog call into the cumulative Nsrc.
-    % Both are [IndHTM, Nsrc] matrices. For matching IndHTM, take the
-    % maximum count (build_htm_catalog returns the final count per cell).
+    % Both are [IndHTM, Nsrc] matrices. NewNsrc has NaN for cells outside
+    % the processed range; 0 for empty cells; >0 for populated cells.
+    % We skip NaN entries (not processed) but accept 0 (confirmed empty).
     if isempty(NewNsrc)
         return;
     end
     for k = 1:size(NewNsrc, 1)
-        if isnan(NewNsrc(k, 2)) || NewNsrc(k, 2) == 0
-            continue;
+        if isnan(NewNsrc(k, 2))
+            continue;  % cell was outside the processed range
         end
         Pos = Nsrc(:, 1) == NewNsrc(k, 1);
         if any(Pos)
-            Nsrc(Pos, 2) = max(Nsrc(Pos, 2), NewNsrc(k, 2));
+            if isnan(Nsrc(Pos, 2))
+                Nsrc(Pos, 2) = NewNsrc(k, 2);
+            else
+                Nsrc(Pos, 2) = max(Nsrc(Pos, 2), NewNsrc(k, 2));
+            end
         end
     end
 end

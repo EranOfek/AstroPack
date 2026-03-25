@@ -16,6 +16,7 @@ function MS = matchPhotEpochs(Cats, Args)
     %            'MagFields' - AB magnitude columns. Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
     %            'BadFlags'  - Flags for setBadPhotToNan. Default is {'Saturated','NearEdge','Overlap'}.
     %            'MaxMagErr' - Max mag error for ZP correction. Default is 0.02.
+    %            'MinEpochs' - Min non-NaN epochs per source; 0 = no filter. Default is 0.
     %            'OutDir'    - Directory for cached MS_all.mat. Default is '' (no caching).
     %            'ForceRecalc' - Recompute even if cached. Default is false.
     %            'Verbose'   - Print progress. Default is true.
@@ -37,7 +38,8 @@ function MS = matchPhotEpochs(Cats, Args)
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
-        Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
+        Args.MinEpochs      = 0
+        Args.ApplyRelZP logical = true  % Apply zp_meddiff to original (non-AB) mags
         Args.OutDir         = ''
         Args.ForceRecalc logical = false
         Args.Verbose logical = true
@@ -53,12 +55,26 @@ function MS = matchPhotEpochs(Cats, Args)
     end
 
     if ~isempty(MSFile) && exist(MSFile, 'file') && ~Args.ForceRecalc
-        if Args.Verbose
-            fprintf('Loading cached %s\n', MSFile);
+        try
+            S = load(MSFile, 'MS_all');
+            MissingModes = setdiff(Args.Modes, fieldnames(S.MS_all));
+            if isempty(MissingModes)
+                if Args.Verbose
+                    fprintf('Loaded cached %s\n', MSFile);
+                end
+                MS = S.MS_all;
+                return;
+            else
+                if Args.Verbose
+                    fprintf('Cache %s missing modes: %s — rematching\n', ...
+                        MSFile, strjoin(MissingModes, ', '));
+                end
+            end
+        catch ME
+            if Args.Verbose
+                fprintf('Cache %s corrupt (%s) — rematching\n', MSFile, ME.message);
+            end
         end
-        S = load(MSFile, 'MS_all');
-        MS = S.MS_all;
-        return;
     end
 
     if Args.Verbose
@@ -70,17 +86,22 @@ function MS = matchPhotEpochs(Cats, Args)
 
     for Im = 1:Nmodes
         Mode = Args.Modes{Im};
+        if ~isfield(Cats, Mode)
+            if Args.Verbose
+                fprintf('  Mode %s: no catalogs, skipping\n', Mode);
+            end
+            MS.(Mode) = cell(1, Args.Ncrop);
+            continue;
+        end
         Nvisits = numel(Cats.(Mode));
+        MS.(Mode) = cell(1, Args.Ncrop);
 
         for Ic = Args.CropsToAnalyze
-            % Collect catalogs for this crop across epochs
             CatList = AstroCatalog.empty(0, Nvisits);
             ValidEpochs = false(Nvisits, 1);
 
             for Iv = 1:Nvisits
-                if isempty(Cats.(Mode){Iv})
-                    continue;
-                end
+                if isempty(Cats.(Mode){Iv}); continue; end
                 if Ic <= numel(Cats.(Mode){Iv})
                     CatList(Iv) = Cats.(Mode){Iv}(Ic);
                     ValidEpochs(Iv) = true;
@@ -94,7 +115,6 @@ function MS = matchPhotEpochs(Cats, Args)
                 continue;
             end
 
-            % Match across epochs
             MSobj = MatchedSources;
             MSobj = MSobj.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
                 'MatchedColums', Args.MatchedColumns, ...
@@ -105,28 +125,28 @@ function MS = matchPhotEpochs(Cats, Args)
                 'MagField', 'MAG_PSF', 'CreateNewObj', false);
 
             % Apply relative ZP correction to original (non-AB) mag fields
-            for Imf = 1:numel(Args.MagFields)
-                OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
-                if strcmp(OrigField, Args.MagFields{Imf}); continue; end
-                if ~isfield(MSobj.Data, OrigField); continue; end
-                ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
-                if isfield(MSobj.Data, ErrField)
-                    Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', {OrigField}, ...
-                        'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
-                else
-                    Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', {OrigField});
+            if Args.ApplyRelZP
+                for Imf = 1:numel(Args.MagFields)
+                    OrigField = strrep(Args.MagFields{Imf}, '_AB_', '_');
+                    if strcmp(OrigField, Args.MagFields{Imf}); continue; end
+                    if ~isfield(MSobj.Data, OrigField); continue; end
+                    ErrField = strrep(OrigField, 'MAG_', 'MAGERR_');
+                    if isfield(MSobj.Data, ErrField)
+                        Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', {OrigField}, ...
+                            'MagErrField', {ErrField}, 'MaxMagErr', Args.MaxMagErr);
+                    else
+                        Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', {OrigField});
+                    end
+                    MSobj = MSobj.applyZP(Rzp, 'ApplyToMagField', {OrigField});
                 end
-                MSobj = MSobj.applyZP(Rzp, 'ApplyToMagField', {OrigField});
             end
 
             % Filter sources with too few valid epochs
             if Args.MinEpochs > 0
-                % Count non-NaN epochs using the first mag field
                 RefField = Args.MagFields{1};
                 if isfield(MSobj.Data, RefField)
                     Nvalid = sum(~isnan(MSobj.Data.(RefField)), 1);
                     BadSrc = Nvalid < Args.MinEpochs;
-                    % NaN-out all fields for these sources
                     Flds = fieldnames(MSobj.Data);
                     for Ifl = 1:numel(Flds)
                         MSobj.Data.(Flds{Ifl})(:, BadSrc) = NaN;
@@ -150,9 +170,14 @@ function MS = matchPhotEpochs(Cats, Args)
 
     if ~isempty(MSFile)
         MS_all = MS;
-        save(MSFile, 'MS_all');
-        if Args.Verbose
-            fprintf('Saved %s\n', MSFile);
+        try
+            save(MSFile, 'MS_all', '-v7.3');
+            if Args.Verbose
+                fprintf('Saved %s\n', MSFile);
+            end
+        catch ME
+            warning('matchPhotEpochs:SaveFailed', ...
+                'Failed to save %s: %s', MSFile, ME.message);
         end
     end
 end

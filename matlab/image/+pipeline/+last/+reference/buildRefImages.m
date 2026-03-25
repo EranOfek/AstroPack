@@ -54,7 +54,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         Args.CoaddFunction     = @imProc.stack.coaddW; % a handle to coadder of registered images 
         Args.StackMethod       = 'sigmaclip';
-        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[3 3]};
+        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');

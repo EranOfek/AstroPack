@@ -72,14 +72,32 @@ function Result = calibratePhotModes(AI, Args)
             OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
         end
 
+        UseCache = false;
         if ~isempty(OutFile) && exist(OutFile, 'file') && ~Args.ForceRecalc
-            if Args.Verbose
-                fprintf('Loading cached %s\n', OutFile);
+            try
+                S = load(OutFile, 'PC_all', 'Cats_all');
+                if isfield(S, 'PC_all') && isfield(S, 'Cats_all') && ...
+                   numel(S.PC_all) == Nvisits
+                    Result.PC.(Mode)   = S.PC_all;
+                    Result.Cats.(Mode) = S.Cats_all;
+                    UseCache = true;
+                    if Args.Verbose
+                        fprintf('Loaded cached %s (%d visits)\n', OutFile, numel(S.PC_all));
+                    end
+                else
+                    if Args.Verbose
+                        fprintf('Cache %s has %d visits, need %d — recalibrating\n', ...
+                            OutFile, numel(S.PC_all), Nvisits);
+                    end
+                end
+            catch ME
+                if Args.Verbose
+                    fprintf('Cache %s corrupt (%s) — recalibrating\n', OutFile, ME.message);
+                end
             end
-            S = load(OutFile, 'PC_all', 'Cats_all');
-            Result.PC.(Mode)   = S.PC_all;
-            Result.Cats.(Mode) = S.Cats_all;
-        else
+        end
+
+        if ~UseCache
             if Args.Verbose
                 fprintf('\n=== Calibrating: PhotSys = %s ===\n', Mode);
             end
@@ -118,9 +136,14 @@ function Result = calibratePhotModes(AI, Args)
             end
 
             if ~isempty(OutFile)
-                save(OutFile, 'PC_all', 'Cats_all');
-                if Args.Verbose
-                    fprintf('Saved %s\n', OutFile);
+                try
+                    save(OutFile, 'PC_all', 'Cats_all', '-v7.3');
+                    if Args.Verbose
+                        fprintf('Saved %s\n', OutFile);
+                    end
+                catch ME
+                    warning('calibratePhotModes:SaveFailed', ...
+                        'Failed to save %s: %s', OutFile, ME.message);
                 end
             end
             Result.PC.(Mode)   = PC_all;
@@ -173,14 +196,32 @@ function Result = calibratePhotModes(AI, Args)
             OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
         end
 
+        UseCache = false;
         if ~isempty(OutFile) && exist(OutFile, 'file') && ~Args.ForceRecalc
-            if Args.Verbose
-                fprintf('Loading cached %s\n', OutFile);
+            try
+                S = load(OutFile, 'PC_all', 'Cats_all');
+                if isfield(S, 'PC_all') && isfield(S, 'Cats_all') && ...
+                   numel(S.PC_all) == Nvisits
+                    Result.PC.(Mode)   = S.PC_all;
+                    Result.Cats.(Mode) = S.Cats_all;
+                    UseCache = true;
+                    if Args.Verbose
+                        fprintf('Loaded cached %s (%d visits)\n', OutFile, numel(S.PC_all));
+                    end
+                else
+                    if Args.Verbose
+                        fprintf('Cache %s has %d visits, need %d — recalibrating\n', ...
+                            OutFile, numel(S.PC_all), Nvisits);
+                    end
+                end
+            catch ME
+                if Args.Verbose
+                    fprintf('Cache %s corrupt (%s) — recalibrating\n', OutFile, ME.message);
+                end
             end
-            S = load(OutFile, 'PC_all', 'Cats_all');
-            Result.PC.(Mode)   = S.PC_all;
-            Result.Cats.(Mode) = S.Cats_all;
-        else
+        end
+
+        if ~UseCache
             if Args.Verbose
                 fprintf('\n=== Visit-level mode: %s ===\n', Mode);
             end
@@ -294,9 +335,14 @@ function Result = calibratePhotModes(AI, Args)
             end
 
             if ~isempty(OutFile)
-                save(OutFile, 'PC_all', 'Cats_all');
-                if Args.Verbose
-                    fprintf('Saved %s\n', OutFile);
+                try
+                    save(OutFile, 'PC_all', 'Cats_all', '-v7.3');
+                    if Args.Verbose
+                        fprintf('Saved %s\n', OutFile);
+                    end
+                catch ME
+                    warning('calibratePhotModes:SaveFailed', ...
+                        'Failed to save %s: %s', OutFile, ME.message);
                 end
             end
             Result.PC.(Mode)   = PC_all;
