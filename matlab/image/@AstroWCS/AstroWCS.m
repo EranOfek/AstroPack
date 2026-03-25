@@ -2402,7 +2402,7 @@ classdef AstroWCS < Component
             %                   evaluation. Default is false.
             % Output : - Distorted X coordinate vector
             %          - Distorted Y coordinate vector
-            % Author : Yossi Shvartzvald (December 2021)
+            % Author : Yossi Shvartzvald (December 2021) 
             % Example: [Xd,Yd]  = AstroWCS.forwardDistortion(PV,1,1);
 
             arguments
@@ -2454,10 +2454,9 @@ classdef AstroWCS < Component
                 end
             end
 
-
             if Args.UseMex
-                Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower);
-                Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
+                Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
+                Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
             else
                 Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
                 Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);
