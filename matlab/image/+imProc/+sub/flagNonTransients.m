@@ -291,8 +291,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Star/galaxy classification
         Args.StarGalProbEps double = 1e-6
-        Args.MinStarProb double = 0.10
-        Args.MinStarProbNoGal double = 0.01
+        Args.DefStarProb double = 0.98
+        Args.MinStarProb double = 0.25
+        Args.MinStarProbNoGal double = 0.10
         Args.StarGalLogRatioThresh double = 0.85
 
         % D-image artifact filters
@@ -369,7 +370,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagTranslients logical = true
         Args.TranslientThresh double = 0.48
-        Args.TranslientExpThresh (1,3) double = [9.76703546, -0.09972362, -0.08558244]
+        Args.TranslientExpThresh (1,3) double = [11.01831732 -0.09026018  0.09747785]
     end
 
     % Don't question all this madness.
@@ -554,8 +555,10 @@ function TranCat = flagNonTransients(Obj, Args)
             HasGal  = ~isnan(Gal_Prob);
 
             IsStarBoth = StarCand & HasStar & HasGal & ...
-                         (Star_Prob > Args.MinStarProb) & ...
-                         (ScoreSG > Args.StarGalLogRatioThresh);
+                         ((Star_Prob > Args.MinStarProb) & ...
+                         (ScoreSG > Args.StarGalLogRatioThresh)) |...
+                         ((Star_Prob > Args.DefStarProb) & ...
+                         (Star_Prob > Gal_Prob));
 
             IsStarNoGal = StarCand & HasStar & ~HasGal & ...
                           (Star_Prob > Args.MinStarProbNoGal);
@@ -1380,17 +1383,17 @@ function TranCat = flagNonTransients(Obj, Args)
             AIC_Diff = S2_AIC - Z2_AIC;
             AIC_Diff_Thresh = ...
                 Args.TranslientExpThresh(1)...
-                .*exp(Args.TranslientExpThresh(1)*Score)...
+                .*exp(Args.TranslientExpThresh(2)*Score)...
                 +Args.TranslientExpThresh(3);
 
-            AIC_Diff_Thresh(~N_GoodPSF) = Args.TranslientThresh;
+            %AIC_Diff_Thresh(~N_GoodPSF) = Args.TranslientThresh;
 
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
             ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
 
-            if ~isempty(IsStar)
+            if ~isempty(IsStar) 
                 ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
             end
 
