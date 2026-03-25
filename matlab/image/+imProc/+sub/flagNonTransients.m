@@ -291,9 +291,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Star/galaxy classification
         Args.StarGalProbEps double = 1e-6
-        Args.MinStarProb double = 0.15
-        Args.MinStarProbNoGal double = 0.30
-        Args.StarGalLogRatioThresh double = 1.0
+        Args.MinStarProb double = 0.10
+        Args.MinStarProbNoGal double = 0.01
+        Args.StarGalLogRatioThresh double = 0.85
 
         % D-image artifact filters
         Args.flagRinging logical = true
@@ -790,7 +790,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % User the smaller PSF between N and R
                 N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
                 R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
-                PSFSize_Min = min(N_PSFSize,R_PSFSize)-3.0;
+                PSFSize_Min = min(N_PSFSize,R_PSFSize)-2.0;
                 PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
                 % Recalculating the moments due to issue #701, this should change once the
@@ -1363,7 +1363,8 @@ function TranCat = flagNonTransients(Obj, Args)
             % Test if Score is higher than Scorr (has to be), Scorr is
             % above threshold and the difference between Score and Scorr is
             % below threshold.
-            ScorrGood = (abs(Score) >= abs(Scorr)) ...
+            ScorrGood = (sign(Scorr) == sign(Score) ) ...
+                & (abs(Score) >= abs(Scorr)) ...
                 & ((abs(Scorr) > Args.ScorrThreshold) | ...
                 (SDiff < Args.ScorrCorrectionParam)) | ExcludeCand;
 
