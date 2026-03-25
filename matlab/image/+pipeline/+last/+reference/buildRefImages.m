@@ -208,7 +208,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % 4.1 retrieve the crop images 
                         if Args.Verbosity > 1
-                            fprintf('M%dC%d epoch %d: %d images filtered\n',Imount,Icam,Iepoch,Nim);
+                            fprintf('M%dC%d epoch %d: %d images filtered, start dowloading and stitching..\n',Imount,Icam,Iepoch,Nim);
                         end
                         Nim = height(TabEpoch);                                               
                         AI = AstroImage([1 Nim]);
@@ -226,7 +226,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % check if WCS is present in all the selected crops 
                         if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
                             if Args.Verbosity > 1
-                                fprintf('WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+                                cfprintf('red','WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
                             end
                             continue
                         end
