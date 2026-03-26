@@ -2,20 +2,20 @@ function Result = calibratePhotModes(AI, Args)
     % Calibrate photometric modes and compute FitRMS / center ZP
     % Description: For each requested PhotSys mode, calibrates all visits
     %              using fitPhotCalibTrans. Handles per-epoch modes (percrop,
-    %              refshape, refzp, refzp_raw) and visit-level modes (visitref,
-    %              visitref_raw). Results are cached in OutDir as PC_<mode>.mat.
+    %              shapeimage, perimage, perimage_raw) and visit-level modes (perset,
+    %              perset_raw). Results are cached in OutDir as PC_<mode>.mat.
     %
     % Input  : - AI cell(Nvisits,1) of AstroImage arrays (from loadVisitData).
     %          * ...,key,val,...
     %            'Modes'    - Cell array of PhotSys modes. Default is
-    %                         {'percrop','refshape','refzp','refzp_raw'}.
+    %                         {'percrop','shapeimage','perimage','perimage_raw'}.
     %            'Visits'   - Visit index vector (for labeling). Default is 1:20.
     %            'RefCrop'  - Reference crop index (0=weighted mean). Default is 10.
     %            'Ncrop'    - Number of crops per visit. Default is 24.
     %            'OutDir'   - Directory for cached .mat files. Default is '' (no caching).
     %            'ForceRecalc' - Recompute even if cached. Default is false.
     %            'CalibArgs'   - Extra key-value args for fitPhotCalibTrans. Default is {}.
-    %            'VisitRefZP'  - ZP normalization for visit-level modes:
+    %            'VisitRefZP'  - ZP normalization for perset/perset_raw modes:
     %                            'crop_median'|'crop_mean'|'global_median'|'global_mean'|'epoch'.
     %                            Default is 'epoch'.
     %            'VisitRefZPEpoch' - Epoch index when VisitRefZP='epoch'. Default is 1.
@@ -26,15 +26,17 @@ function Result = calibratePhotModes(AI, Args)
     %            .PC       - struct with PC_all{Nvisits}(1xNcrop) per mode
     %            .Cats     - struct with Cats_all{Nvisits}(1xNcrop) per mode
     %            .FitRMS   - [Nvisits x Ncrop] matrix (from percrop fit)
-    %            .ZPcenter - [Nvisits x Ncrop] center ZP (Tran2D center-normalized)
+    %            .ZPcenter - struct per mode with [Nvisits x Ncrop] center ZP.
+    %                        Per-epoch modes share percrop values;
+    %                        perset modes store the effective target ZP.
     % Author : D. Kovaleva (Mar 2026)
     % Example: R = pipeline.last.quality.calibratePhotModes(AI);
     %          R = pipeline.last.quality.calibratePhotModes(AI, ...
-    %              'Modes', {'percrop','visitref'}, 'VisitRefZP', 'crop_median');
+    %              'Modes', {'percrop','perset'}, 'VisitRefZP', 'crop_median');
 
     arguments
         AI cell
-        Args.Modes          = {'percrop', 'refshape', 'refzp', 'refzp_raw'}
+        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'perimage_raw'}
         Args.Visits         = 1:20
         Args.RefCrop        = 10
         Args.Ncrop          = 24
@@ -50,7 +52,7 @@ function Result = calibratePhotModes(AI, Args)
     Nvisits = numel(Args.Visits);
 
     % Separate per-epoch and visit-level modes
-    VisitModes = {'visitref', 'visitref_raw'};
+    VisitModes = {'perset', 'perset_raw', 'shapeset'};
     PerEpochModes = setdiff(Args.Modes, VisitModes, 'stable');
     HasVisitModes = any(ismember(Args.Modes, VisitModes));
 
@@ -62,8 +64,13 @@ function Result = calibratePhotModes(AI, Args)
     Result.PC   = struct();
     Result.Cats = struct();
 
+    % Mapping from quality mode names to fitPhotCalibTrans PhotSys names
+    ModeToPhotSys = containers.Map( ...
+        {'percrop','shapeimage','perimage','perimage_raw'}, ...
+        {'percrop','refshape',  'refzp',   'refzp_raw'});
+
     % ================================================================
-    % Per-epoch modes (percrop, refshape, refzp, refzp_raw)
+    % Per-epoch modes (percrop, shapeimage, perimage, perimage_raw)
     % ================================================================
     for Im = 1:numel(PerEpochModes)
         Mode = PerEpochModes{Im};
@@ -117,8 +124,9 @@ function Result = calibratePhotModes(AI, Args)
                     fprintf('    copy: %.1f s, ', toc(tcopy));
                 end
 
+                PhotSysName = ModeToPhotSys(Mode);
                 [Res, PC_all{Iv}] = imProc.calib.fitPhotCalibTrans(AIcopy, ...
-                    'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
+                    'PhotSys', PhotSysName, 'RefCrop', Args.RefCrop, ...
                     'Verbose', false, Args.CalibArgs{:});
 
                 % Extract calibrated catalogs (lightweight)
@@ -152,11 +160,11 @@ function Result = calibratePhotModes(AI, Args)
     end
 
     % ================================================================
-    % Fit RMS and center ZP (from percrop, identical across modes)
+    % Fit RMS and center ZP (from percrop)
     % ================================================================
     NvisitsPC = numel(Result.PC.percrop);
     Result.FitRMS = nan(NvisitsPC, Args.Ncrop);
-    Result.ZPcenter = nan(NvisitsPC, Args.Ncrop);
+    ZPcenterPercrop = nan(NvisitsPC, Args.Ncrop);
     for Iv = 1:NvisitsPC
         if isempty(Result.PC.percrop{Iv}); continue; end
         for Ic = 1:numel(Result.PC.percrop{Iv})
@@ -173,9 +181,15 @@ function Result = calibratePhotModes(AI, Args)
                     [CenterCorr, ~] = PC_ic.TransModel.Tran2DObj.forward(Xc, Yc, false);
                     ZPbase = ZPbase - CenterCorr;
                 end
-                Result.ZPcenter(Iv, Ic) = ZPbase;
+                ZPcenterPercrop(Iv, Ic) = ZPbase;
             end
         end
+    end
+
+    % Store per-mode ZPcenter: per-epoch modes share percrop values
+    Result.ZPcenter = struct();
+    for Im = 1:numel(PerEpochModes)
+        Result.ZPcenter.(PerEpochModes{Im}) = ZPcenterPercrop;
     end
 
     if Args.Verbose
@@ -185,7 +199,7 @@ function Result = calibratePhotModes(AI, Args)
     end
 
     % ================================================================
-    % Visit-level modes (visitref, visitref_raw)
+    % Visit-level modes (perset, perset_raw)
     % ================================================================
     for Im = 1:numel(Args.Modes)
         Mode = Args.Modes{Im};
@@ -266,35 +280,39 @@ function Result = calibratePhotModes(AI, Args)
                 end
             end
 
-            DoNormTran2D = strcmp(Mode, 'visitref');
-
-            % Compute target ZP per crop
-            ZPc = Result.ZPcenter;
-            switch Args.VisitRefZP
-                case 'crop_median'
-                    TargetZP = nanmedian(ZPc, 1);
-                case 'crop_mean'
-                    TargetZP = nanmean(ZPc, 1);
-                case 'global_median'
-                    TargetZP = repmat(nanmedian(ZPc(:)), 1, Args.Ncrop);
-                case 'global_mean'
-                    TargetZP = repmat(nanmean(ZPc(:)), 1, Args.Ncrop);
-                case 'epoch'
-                    EpIdx = Args.VisitRefZPEpoch;
-                    TargetZP = ZPc(EpIdx, :);
-                otherwise
-                    error('calibratePhotModes:BadVisitRefZP', ...
-                        'Unknown VisitRefZP: %s', Args.VisitRefZP);
-            end
-
-            if Args.Verbose
-                fprintf('  VisitRefZP=%s, target ZP range: %.3f..%.3f\n', ...
-                    Args.VisitRefZP, nanmin(TargetZP), nanmax(TargetZP));
-            end
+            IsShapeset = strcmp(Mode, 'shapeset');
+            DoNormTran2D = strcmp(Mode, 'perset');
 
             % Find Norm index in parameter vector (once)
             AllFunPar = Result.PC.percrop{find(~cellfun(@isempty, Result.PC.percrop), 1)}(1).TransModel.getAllFunPar();
             NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
+
+            % Compute target ZP per crop (not used for shapeset)
+            ZPc = ZPcenterPercrop;
+            TargetZP = nan(1, Args.Ncrop);
+            if ~IsShapeset
+                switch Args.VisitRefZP
+                    case 'crop_median'
+                        TargetZP = nanmedian(ZPc, 1);
+                    case 'crop_mean'
+                        TargetZP = nanmean(ZPc, 1);
+                    case 'global_median'
+                        TargetZP = repmat(nanmedian(ZPc(:)), 1, Args.Ncrop);
+                    case 'global_mean'
+                        TargetZP = repmat(nanmean(ZPc(:)), 1, Args.Ncrop);
+                    case 'epoch'
+                        EpIdx = Args.VisitRefZPEpoch;
+                        TargetZP = ZPc(EpIdx, :);
+                    otherwise
+                        error('calibratePhotModes:BadVisitRefZP', ...
+                            'Unknown VisitRefZP: %s', Args.VisitRefZP);
+                end
+
+                if Args.Verbose
+                    fprintf('  VisitRefZP=%s, target ZP range: %.3f..%.3f\n', ...
+                        Args.VisitRefZP, nanmin(TargetZP), nanmax(TargetZP));
+                end
+            end
 
             % Reuse percrop PC objects; recompute catalogs with visit reference
             PC_all   = Result.PC.percrop;
@@ -314,19 +332,37 @@ function Result = calibratePhotModes(AI, Args)
                         continue;
                     end
 
-                    % Adjust Norm in VisitRefParams to achieve target ZP
-                    CropParams = VisitRefParams;
-                    if Ic <= size(ZPc, 2) && isfinite(ZPc(Iv, Ic)) && isfinite(TargetZP(Ic))
-                        DeltaZP = TargetZP(Ic) - ZPc(Iv, Ic);
-                        CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
-                    end
+                    if IsShapeset
+                        % shapeset: visit-averaged shape, per-crop Norm and Tran2D
+                        Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
+                            AIcopy(Ic).CatData, ...
+                            'MagSystem', 'AB', ...
+                            'RefTransParams', VisitRefParams, ...
+                            'UseRefNorm', false, ...
+                            'NormTran2D', false);
+                    else
+                        % perset/perset_raw: adjusted Norm to target ZP
+                        % Compute baseline center ZP using visit-averaged shape
+                        % (not percrop's) with this crop's Tran2D
+                        ZPvisitBase = PC_all{Iv}(Ic).evaluateZP( ...
+                            'RefTransParams', VisitRefParams, ...
+                            'UseRefNorm', true, ...
+                            'NormTran2D', DoNormTran2D);
+                        % ZPvisitBase = ZP at center with VisitRefParams (unadjusted Norm)
 
-                    Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
-                        AIcopy(Ic).CatData, ...
-                        'MagSystem', 'AB', ...
-                        'RefTransParams', CropParams, ...
-                        'UseRefNorm', true, ...
-                        'NormTran2D', DoNormTran2D);
+                        CropParams = VisitRefParams;
+                        if isfinite(ZPvisitBase) && Ic <= numel(TargetZP) && isfinite(TargetZP(Ic))
+                            DeltaZP = TargetZP(Ic) - ZPvisitBase;
+                            CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
+                        end
+
+                        Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
+                            AIcopy(Ic).CatData, ...
+                            'MagSystem', 'AB', ...
+                            'RefTransParams', CropParams, ...
+                            'UseRefNorm', true, ...
+                            'NormTran2D', DoNormTran2D);
+                    end
                 end
 
                 if Args.Verbose
@@ -347,6 +383,22 @@ function Result = calibratePhotModes(AI, Args)
             end
             Result.PC.(Mode)   = PC_all;
             Result.Cats.(Mode) = Cats_all;
+
+            if IsShapeset
+                % shapeset uses percrop's own Norm — same ZPcenter
+                Result.ZPcenter.(Mode) = ZPcenterPercrop;
+            else
+                % perset: TargetZP replicated across epochs
+                Result.ZPcenter.(Mode) = repmat(TargetZP, NvisitsPC, 1);
+            end
+
+            % Store visit-level params for ZP mosaic rendering
+            Result.PersetInfo.(Mode).VisitRefParams = VisitRefParams;
+            Result.PersetInfo.(Mode).NormIdx = NormIdx;
+            Result.PersetInfo.(Mode).TargetZP = TargetZP;
+            Result.PersetInfo.(Mode).ZPcenterPercrop = ZPcenterPercrop;
+            Result.PersetInfo.(Mode).DoNormTran2D = DoNormTran2D;
+            Result.PersetInfo.(Mode).IsShapeset = IsShapeset;
         end
     end
 end

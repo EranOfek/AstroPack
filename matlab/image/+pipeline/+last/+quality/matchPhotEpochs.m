@@ -23,7 +23,7 @@ function MS = matchPhotEpochs(Cats, Args)
     % Output : - MS struct with MS.(mode){crop} = MatchedSources.
     % Author : D. Kovaleva (Mar 2026)
     % Example: MS = pipeline.last.quality.matchPhotEpochs(Calib.Cats, ...
-    %              'Modes', {'percrop','refzp'});
+    %              'Modes', {'percrop','perimage'});
 
     arguments
         Cats struct

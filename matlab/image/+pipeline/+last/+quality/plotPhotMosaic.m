@@ -16,7 +16,7 @@ function plotPhotMosaic(CalibResult, Args)
     % Output : - CalibResult.CLim is NOT modified (caller can read it from
     %            the figure if needed).
     % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.plotPhotMosaic(Calib, 'Modes', {'percrop','refzp'});
+    % Example: pipeline.last.quality.plotPhotMosaic(Calib, 'Modes', {'percrop','perimage'});
 
     arguments
         CalibResult struct
@@ -39,7 +39,7 @@ function plotPhotMosaic(CalibResult, Args)
 
     RMSmat = CalibResult.FitRMS;
     MedRMS = nanmedian(RMSmat, 1);
-    ZPstd  = nanstd(CalibResult.ZPcenter, 0, 1);
+    ZPstd  = nanstd(CalibResult.ZPcenter.percrop, 0, 1);
 
     figure('Name', 'Fit RMS & ZP RMS Mosaic', 'Position', [100, 100, 1000, 600]);
 
@@ -90,24 +90,18 @@ function plotPhotMosaic(CalibResult, Args)
 
     % --- ZP Mosaic comparison for selected visit ---
     VisitIdx = find(Args.Visits == min(Args.Visits), 1);
-    % Find first mode that has PC data for this visit
-    FirstMode = '';
-    for Itmp = 1:Nmodes
-        M = Args.Modes{Itmp};
-        if isfield(CalibResult.PC, M) && ~isempty(CalibResult.PC.(M){VisitIdx})
-            FirstMode = M;
-            break;
-        end
-    end
-    if ~isempty(FirstMode)
-        PCref = CalibResult.PC.(FirstMode){VisitIdx};
+    VisitModes = {'perset', 'perset_raw', 'shapeset'};
+
+    % Determine CLim from percrop ZPs
+    if isfield(CalibResult.PC, 'percrop') && ~isempty(CalibResult.PC.percrop{VisitIdx})
+        PCref = CalibResult.PC.percrop{VisitIdx};
         ZPvals = nan(Args.Ncrop, 1);
         for Ic = 1:numel(PCref)
             if PCref(Ic).Success
                 ZPvals(Ic) = PCref(Ic).evaluateZP('X', 863, 'Y', 863);
             end
         end
-        CLim = [min(ZPvals) - 0.05, max(ZPvals) + 0.05];
+        CLim = [nanmin(ZPvals) - 0.05, nanmax(ZPvals) + 0.05];
 
         figure('Position', [50, 50, 500*Nmodes, 500], ...
                'Name', sprintf('ZP Mosaic — Visit %d', Args.Visits(VisitIdx)));
@@ -116,10 +110,93 @@ function plotPhotMosaic(CalibResult, Args)
             if ~isfield(CalibResult.PC, Mode); continue; end
             if isempty(CalibResult.PC.(Mode){VisitIdx}); continue; end
             subplot(1, Nmodes, Im);
-            CalibResult.PC.(Mode){VisitIdx}.plotZPMap('NewFigure', false, ...
-                'CLim', CLim, 'SmoothSigma', 0, ...
-                'PhotSys', Mode, 'RefCrop', Args.RefCrop, ...
-                'TileOrder', Args.TileOrder);
+
+            if ismember(Mode, VisitModes) && isfield(CalibResult, 'PersetInfo') && ...
+               isfield(CalibResult.PersetInfo, Mode)
+                % Visit-level modes: evaluate ZP per crop with visit-averaged
+                % shape and per-crop Tran2D
+                Info = CalibResult.PersetInfo.(Mode);
+                PCvis = CalibResult.PC.(Mode){VisitIdx};
+                SubImgSize = 1550;
+                GridN = 50;
+
+                MosaicFull = nan(Nrows * GridN, Ncols * GridN);
+                for Ic = 1:min(Args.Ncrop, numel(PCvis))
+                    if ~PCvis(Ic).Success; continue; end
+
+                    CropParams = Info.VisitRefParams;
+                    if Info.IsShapeset
+                        % shapeset: per-crop Norm, no Tran2D normalization
+                        UseRefNorm = false;
+                    else
+                        % perset/perset_raw: adjusted Norm to target ZP
+                        % Compute baseline ZP from visit-averaged shape (not percrop)
+                        UseRefNorm = true;
+                        ZPvisitBase = PCvis(Ic).evaluateZP( ...
+                            'RefTransParams', Info.VisitRefParams, ...
+                            'UseRefNorm', true, ...
+                            'NormTran2D', Info.DoNormTran2D);
+                        if isfinite(ZPvisitBase) && Ic <= numel(Info.TargetZP) && ...
+                           isfinite(Info.TargetZP(Ic))
+                            DeltaZP = Info.TargetZP(Ic) - ZPvisitBase;
+                            CropParams(Info.NormIdx) = ...
+                                Info.VisitRefParams(Info.NormIdx) * 10^(DeltaZP / 2.5);
+                        end
+                    end
+
+                    Xvec = linspace(1, SubImgSize, GridN);
+                    Yvec = linspace(1, SubImgSize, GridN);
+                    [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+
+                    ZP = PCvis(Ic).evaluateZP('X', Xgrid(:), 'Y', Ygrid(:), ...
+                        'RefTransParams', CropParams, ...
+                        'UseRefNorm', UseRefNorm, ...
+                        'NormTran2D', Info.DoNormTran2D);
+                    ZPgrid = reshape(ZP, GridN, GridN);
+
+                    [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
+                    RowRange = (Row-1)*GridN + (1:GridN);
+                    ColRange = (Col-1)*GridN + (1:GridN);
+                    MosaicFull(RowRange, ColRange) = ZPgrid;
+                end
+
+                imagesc(MosaicFull);
+                axis xy equal tight;
+                colormap(gca, jet);
+                caxis(CLim);
+                colorbar;
+                hold on;
+                for Icol = 1:Ncols-1
+                    Xline = Icol * GridN + 0.5;
+                    plot([Xline, Xline], [0.5, Nrows*GridN+0.5], 'w-', 'LineWidth', 0.5);
+                end
+                for Irow = 1:Nrows-1
+                    Yline = Irow * GridN + 0.5;
+                    plot([0.5, Ncols*GridN+0.5], [Yline, Yline], 'w-', 'LineWidth', 0.5);
+                end
+                for Ilbl = 1:Args.Ncrop
+                    [RowL, ColL] = PhotCalibTrans.cropID2RowCol(Ilbl, Nrows, Ncols, Args.TileOrder);
+                    text((ColL - 0.5) * GridN, (RowL - 0.5) * GridN, sprintf('%d', Ilbl), ...
+                        'HorizontalAlignment', 'center', 'Color', 'w', ...
+                        'FontSize', 8, 'FontWeight', 'bold');
+                end
+                hold off;
+            else
+                % Per-epoch modes: use plotZPMap with the actual PC objects
+                % Map quality mode names to plotZPMap PhotSys names
+                PhotSysMap = containers.Map( ...
+                    {'percrop','shapeimage','perimage','perimage_raw'}, ...
+                    {'percrop','refshape',  'refzp',   'refzp_raw'});
+                if PhotSysMap.isKey(Mode)
+                    PhotSysName = PhotSysMap(Mode);
+                else
+                    PhotSysName = 'percrop';
+                end
+                CalibResult.PC.(Mode){VisitIdx}.plotZPMap('NewFigure', false, ...
+                    'CLim', CLim, 'SmoothSigma', 0, ...
+                    'PhotSys', PhotSysName, 'RefCrop', Args.RefCrop, ...
+                    'TileOrder', Args.TileOrder);
+            end
             title(Mode);
         end
     end

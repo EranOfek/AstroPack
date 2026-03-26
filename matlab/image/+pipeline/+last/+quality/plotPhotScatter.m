@@ -15,7 +15,7 @@ function plotPhotScatter(MS, Args)
     %            'OverlayTrend'- 'median'|'mean'|'none'. Default is 'median'.
     %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
     % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.plotPhotScatter(MS, 'Modes', {'percrop','refzp'});
+    % Example: pipeline.last.quality.plotPhotScatter(MS, 'Modes', {'percrop','perimage'});
 
     arguments
         MS struct
@@ -75,14 +75,6 @@ function plotPhotScatter(MS, Args)
                 end
                 if ~isempty(allMedOrig)
                     plot(allMedOrig, allStdOrig, '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 3);
-                    if ~strcmp(Args.OverlayTrend, 'none')
-                        TrendFun = str2func(['nan' Args.OverlayTrend]);
-                        R = timeSeries.bin.binningFast([allMedOrig(:), allStdOrig(:)], ...
-                            Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
-                        ValidBins = R(:,2) >= 5;
-                        plot(R(ValidBins,1), R(ValidBins,3), '--', ...
-                            'Color', [0.5 0.5 0.5], 'LineWidth', 2.5);
-                    end
                 end
             end
 
@@ -108,6 +100,18 @@ function plotPhotScatter(MS, Args)
 
             if ~isempty(allMedMag)
                 plot(allMedMag, allStdMag, '.', 'Color', Colors(Im,:), 'MarkerSize', 4);
+
+                % Grey trend (original mags) — over all dots, under black line
+                if ~isempty(OrigMagField) && ~isempty(allMedOrig) && ~strcmp(Args.OverlayTrend, 'none')
+                    TrendFun = str2func(['nan' Args.OverlayTrend]);
+                    Rorig = timeSeries.bin.binningFast([allMedOrig(:), allStdOrig(:)], ...
+                        Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
+                    ValidBinsOrig = Rorig(:,2) >= 5;
+                    plot(Rorig(ValidBinsOrig,1), Rorig(ValidBinsOrig,3), '--', ...
+                        'Color', [0.5 0.5 0.5], 'LineWidth', 2.5);
+                end
+
+                % Black trend (AB mags) — on top
                 if ~strcmp(Args.OverlayTrend, 'none')
                     TrendFun = str2func(['nan' Args.OverlayTrend]);
                     R = timeSeries.bin.binningFast([allMedMag(:), allStdMag(:)], ...
