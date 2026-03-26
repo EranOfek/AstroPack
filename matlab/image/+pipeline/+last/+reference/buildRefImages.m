@@ -226,7 +226,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % check if WCS is present in all the selected crops 
                         if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
                             if Args.Verbosity > 1
-                                cfprintf('red','WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+                                cprintf('red','WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
                             end
                             continue
                         end
