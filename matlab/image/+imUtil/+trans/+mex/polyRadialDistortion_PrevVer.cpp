@@ -1,6 +1,7 @@
 #include "mex.h"
 #include <cmath>
 #include <cstdint>
+#include <type_traits>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -48,12 +49,6 @@ inline T powInt0to5Scalar(const T Base, const int P)
 }
 
 template <typename T>
-inline T getPowerValue(const T* Pwr, const bool IsScalar, const mwSize k)
-{
-    return IsScalar ? Pwr[0] : Pwr[k];
-}
-
-template <typename T>
 bool getSmallIntPowers(const T* Pwr, const mwSize M, int* OutIntPwr)
 {
     for (mwSize k = 0; k < M; ++k)
@@ -70,30 +65,6 @@ bool getSmallIntPowers(const T* Pwr, const mwSize M, int* OutIntPwr)
     }
 
     return true;
-}
-
-template <typename T>
-bool getSmallIntPowersMaybeScalar(const T* Pwr, const bool IsScalar, const mwSize M, int* OutIntPwr)
-{
-    if (IsScalar)
-    {
-        const T V = Pwr[0];
-        const int IV = static_cast<int>(V);
-
-        if (V != static_cast<T>(IV) || IV < 0 || IV > 5)
-        {
-            return false;
-        }
-
-        for (mwSize k = 0; k < M; ++k)
-        {
-            OutIntPwr[k] = IV;
-        }
-
-        return true;
-    }
-
-    return getSmallIntPowers(Pwr, M, OutIntPwr);
 }
 
 template <typename T>
@@ -127,65 +98,6 @@ bool getUnitStepSequence01(const T* Pwr, const mwSize M, int& StartVal)
     }
 
     return true;
-}
-
-template <typename T>
-bool getUnitStepSequence01MaybeScalar(const T* Pwr, const bool IsScalar, const mwSize M, int& StartVal)
-{
-    if (M == 0)
-    {
-        StartVal = 0;
-        return true;
-    }
-
-    if (IsScalar)
-    {
-        // Repeated scalar value is only a unit-step sequence for M==1
-        if (M != 1)
-        {
-            return false;
-        }
-
-        if (Pwr[0] == T(0))
-        {
-            StartVal = 0;
-            return true;
-        }
-        else if (Pwr[0] == T(1))
-        {
-            StartVal = 1;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    return getUnitStepSequence01(Pwr, M, StartVal);
-}
-
-template <typename Func>
-inline void runParallelChunks(const mwSize N, Func&& F)
-{
-#ifdef _OPENMP
-#pragma omp parallel
-    {
-        const int Tid = omp_get_thread_num();
-        const int NThreads = omp_get_num_threads();
-
-        const mwSize Chunk = (N + static_cast<mwSize>(NThreads) - 1) / static_cast<mwSize>(NThreads);
-        const mwSize I0 = static_cast<mwSize>(Tid) * Chunk;
-        const mwSize I1 = (I0 + Chunk < N) ? (I0 + Chunk) : N;
-
-        if (I0 < I1)
-        {
-            F(I0, I1);
-        }
-    }
-#else
-    F(0, N);
-#endif
 }
 
 // ============================================================================
@@ -346,7 +258,6 @@ void scalarKernelSeqRArray(
     const T* X, const T* Y, const T* R,
     const T* CoefX,
     const T* X_Xpower, const T* X_Ypower, const T* X_Rpower,
-    const bool X_RpowerIsScalar,
     const int* XPowInt, const int* YPowInt, const int* RPowInt,
     bool XSeq, int XSeqStart,
     bool YSeq, int YSeqStart,
@@ -380,8 +291,7 @@ void scalarKernelSeqRArray(
                             (YSmallInt ? powInt0to5Scalar(Yi, YPowInt[k]) : fastPowScalar(Yi, X_Ypower[k]));
 
             const T RTerm = RSeq ? RSeqVal :
-                            (RSmallInt ? powInt0to5Scalar(Ri, RPowInt[k]) :
-                             fastPowScalar(Ri, getPowerValue(X_Rpower, X_RpowerIsScalar, k)));
+                            (RSmallInt ? powInt0to5Scalar(Ri, RPowInt[k]) : fastPowScalar(Ri, X_Rpower[k]));
 
             SumVal += CoefX[k] * XTerm * YTerm * RTerm;
 
@@ -526,7 +436,6 @@ void scalarKernelGenericRArray(
     const T* X, const T* Y, const T* R,
     const T* CoefX,
     const T* X_Xpower, const T* X_Ypower, const T* X_Rpower,
-    const bool X_RpowerIsScalar,
     mwSize I0, mwSize I1, mwSize M,
     T* Xd)
 {
@@ -542,7 +451,7 @@ void scalarKernelGenericRArray(
             SumVal += CoefX[k] *
                       fastPowScalar(Xi, X_Xpower[k]) *
                       fastPowScalar(Yi, X_Ypower[k]) *
-                      fastPowScalar(Ri, getPowerValue(X_Rpower, X_RpowerIsScalar, k));
+                      fastPowScalar(Ri, X_Rpower[k]);
         }
 
         Xd[i] = SumVal;
@@ -770,7 +679,6 @@ void avxKernelSeqRArray(
     const T* X, const T* Y, const T* R,
     const T* CoefX,
     const T* X_Xpower, const T* X_Ypower, const T* X_Rpower,
-    const bool X_RpowerIsScalar,
     const int* XPowInt, const int* YPowInt, const int* RPowInt,
     bool XSeq, int XSeqStart,
     bool YSeq, int YSeqStart,
@@ -824,7 +732,6 @@ void avxKernelSeqRArray(
     }
 
     scalarKernelSeqRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
-                             X_RpowerIsScalar,
                              XPowInt, YPowInt, RPowInt,
                              XSeq, XSeqStart, YSeq, YSeqStart, RSeq, RSeqStart,
                              XSmallInt, YSmallInt, RSmallInt,
@@ -847,7 +754,6 @@ void computePolyRadialDistortion(
     const T* X_Xpower,
     const T* X_Ypower,
     const T* X_Rpower,
-    const bool X_RpowerIsScalar,
     const mwSize N,
     const mwSize M,
     T* Xd)
@@ -861,7 +767,7 @@ void computePolyRadialDistortion(
 
     const bool XSmallInt = getSmallIntPowers(X_Xpower, M, XPowInt);
     const bool YSmallInt = getSmallIntPowers(X_Ypower, M, YPowInt);
-    const bool RSmallInt = getSmallIntPowersMaybeScalar(X_Rpower, X_RpowerIsScalar, M, RPowInt);
+    const bool RSmallInt = getSmallIntPowers(X_Rpower, M, RPowInt);
 
     int XSeqStart = 0;
     int YSeqStart = 0;
@@ -869,7 +775,7 @@ void computePolyRadialDistortion(
 
     const bool XSeq = getUnitStepSequence01(X_Xpower, M, XSeqStart);
     const bool YSeq = getUnitStepSequence01(X_Ypower, M, YSeqStart);
-    const bool RSeq = getUnitStepSequence01MaybeScalar(X_Rpower, X_RpowerIsScalar, M, RSeqStart);
+    const bool RSeq = getUnitStepSequence01(X_Rpower, M, RSeqStart);
 
     const bool UseSeqBranch = XSeq || YSeq || (!RScalarIsOne && RSeq);
 
@@ -880,22 +786,16 @@ void computePolyRadialDistortion(
 #if defined(__AVX2__)
             if ((XSmallInt || XSeq) && (YSmallInt || YSeq))
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    avxKernelSeqR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, XPowInt, YPowInt,
-                                      XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
-                                      I0, I1, M, Xd);
-                });
+                avxKernelSeqR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, XPowInt, YPowInt,
+                                  XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
+                                  0, N, M, Xd);
             }
             else
 #endif
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    scalarKernelSeqR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, XPowInt, YPowInt,
-                                         XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
-                                         I0, I1, M, Xd);
-                });
+                scalarKernelSeqR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, XPowInt, YPowInt,
+                                     XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
+                                     0, N, M, Xd);
             }
 
             mxFree(XPowInt); mxFree(YPowInt); mxFree(RPowInt);
@@ -925,29 +825,23 @@ void computePolyRadialDistortion(
             {
                 for (mwSize k = 0; k < M; ++k)
                 {
-                    CoefEff[k] = CoefX[k] * fastPowScalar(RScalar, getPowerValue(X_Rpower, X_RpowerIsScalar, k));
+                    CoefEff[k] = CoefX[k] * fastPowScalar(RScalar, X_Rpower[k]);
                 }
             }
 
 #if defined(__AVX2__)
             if ((XSmallInt || XSeq) && (YSmallInt || YSeq))
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    avxKernelSeqScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, XPowInt, YPowInt,
-                                           XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
-                                           I0, I1, M, Xd);
-                });
+                avxKernelSeqScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, XPowInt, YPowInt,
+                                       XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
+                                       0, N, M, Xd);
             }
             else
 #endif
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    scalarKernelSeqScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, XPowInt, YPowInt,
-                                              XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
-                                              I0, I1, M, Xd);
-                });
+                scalarKernelSeqScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, XPowInt, YPowInt,
+                                          XSeq, XSeqStart, YSeq, YSeqStart, XSmallInt, YSmallInt,
+                                          0, N, M, Xd);
             }
 
             mxFree(CoefEff);
@@ -959,28 +853,20 @@ void computePolyRadialDistortion(
 #if defined(__AVX2__)
             if ((XSmallInt || XSeq) && (YSmallInt || YSeq) && (RSmallInt || RSeq))
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    avxKernelSeqRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
-                                          X_RpowerIsScalar,
-                                          XPowInt, YPowInt, RPowInt,
-                                          XSeq, XSeqStart, YSeq, YSeqStart, RSeq, RSeqStart,
-                                          XSmallInt, YSmallInt, RSmallInt,
-                                          I0, I1, M, Xd);
-                });
+                avxKernelSeqRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
+                                      XPowInt, YPowInt, RPowInt,
+                                      XSeq, XSeqStart, YSeq, YSeqStart, RSeq, RSeqStart,
+                                      XSmallInt, YSmallInt, RSmallInt,
+                                      0, N, M, Xd);
             }
             else
 #endif
             {
-                runParallelChunks(N, [&](mwSize I0, mwSize I1)
-                {
-                    scalarKernelSeqRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
-                                             X_RpowerIsScalar,
-                                             XPowInt, YPowInt, RPowInt,
-                                             XSeq, XSeqStart, YSeq, YSeqStart, RSeq, RSeqStart,
-                                             XSmallInt, YSmallInt, RSmallInt,
-                                             I0, I1, M, Xd);
-                });
+                scalarKernelSeqRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
+                                         XPowInt, YPowInt, RPowInt,
+                                         XSeq, XSeqStart, YSeq, YSeqStart, RSeq, RSeqStart,
+                                         XSmallInt, YSmallInt, RSmallInt,
+                                         0, N, M, Xd);
             }
 
             mxFree(XPowInt); mxFree(YPowInt); mxFree(RPowInt);
@@ -993,15 +879,9 @@ void computePolyRadialDistortion(
         if (RScalarIsOne)
         {
 #if defined(__AVX2__)
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                avxKernelSmallR1<T>(X, Y, CoefX, XPowInt, YPowInt, I0, I1, M, Xd);
-            });
+            avxKernelSmallR1<T>(X, Y, CoefX, XPowInt, YPowInt, 0, N, M, Xd);
 #else
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                scalarKernelSmallR1<T>(X, Y, CoefX, XPowInt, YPowInt, I0, I1, M, Xd);
-            });
+            scalarKernelSmallR1<T>(X, Y, CoefX, XPowInt, YPowInt, 0, N, M, Xd);
 #endif
         }
         else if (RIsScalar)
@@ -1013,15 +893,9 @@ void computePolyRadialDistortion(
             }
 
 #if defined(__AVX2__)
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                avxKernelSmallScalarR<T>(X, Y, CoefEff, XPowInt, YPowInt, I0, I1, M, Xd);
-            });
+            avxKernelSmallScalarR<T>(X, Y, CoefEff, XPowInt, YPowInt, 0, N, M, Xd);
 #else
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                scalarKernelSmallScalarR<T>(X, Y, CoefEff, XPowInt, YPowInt, I0, I1, M, Xd);
-            });
+            scalarKernelSmallScalarR<T>(X, Y, CoefEff, XPowInt, YPowInt, 0, N, M, Xd);
 #endif
 
             mxFree(CoefEff);
@@ -1029,15 +903,9 @@ void computePolyRadialDistortion(
         else
         {
 #if defined(__AVX2__)
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                avxKernelSmallRArray<T>(X, Y, R, CoefX, XPowInt, YPowInt, RPowInt, I0, I1, M, Xd);
-            });
+            avxKernelSmallRArray<T>(X, Y, R, CoefX, XPowInt, YPowInt, RPowInt, 0, N, M, Xd);
 #else
-            runParallelChunks(N, [&](mwSize I0, mwSize I1)
-            {
-                scalarKernelSmallRArray<T>(X, Y, R, CoefX, XPowInt, YPowInt, RPowInt, I0, I1, M, Xd);
-            });
+            scalarKernelSmallRArray<T>(X, Y, R, CoefX, XPowInt, YPowInt, RPowInt, 0, N, M, Xd);
 #endif
         }
 
@@ -1047,32 +915,22 @@ void computePolyRadialDistortion(
 
     if (RScalarIsOne)
     {
-        runParallelChunks(N, [&](mwSize I0, mwSize I1)
-        {
-            scalarKernelGenericR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, I0, I1, M, Xd);
-        });
+        scalarKernelGenericR1<T>(X, Y, CoefX, X_Xpower, X_Ypower, 0, N, M, Xd);
     }
     else if (RIsScalar)
     {
         T* CoefEff = static_cast<T*>(mxMalloc(M * sizeof(T)));
         for (mwSize k = 0; k < M; ++k)
         {
-            CoefEff[k] = CoefX[k] * fastPowScalar(RScalar, getPowerValue(X_Rpower, X_RpowerIsScalar, k));
+            CoefEff[k] = CoefX[k] * fastPowScalar(RScalar, X_Rpower[k]);
         }
 
-        runParallelChunks(N, [&](mwSize I0, mwSize I1)
-        {
-            scalarKernelGenericScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, I0, I1, M, Xd);
-        });
+        scalarKernelGenericScalarR<T>(X, Y, CoefEff, X_Xpower, X_Ypower, 0, N, M, Xd);
         mxFree(CoefEff);
     }
     else
     {
-        runParallelChunks(N, [&](mwSize I0, mwSize I1)
-        {
-            scalarKernelGenericRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower,
-                                         X_RpowerIsScalar, I0, I1, M, Xd);
-        });
+        scalarKernelGenericRArray<T>(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower, 0, N, M, Xd);
     }
 
     mxFree(XPowInt);
@@ -1181,15 +1039,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     const mwSize M = mxGetNumberOfElements(CoefX);
     checkVectorLength(X_Xpower, M, "X_Xpower");
     checkVectorLength(X_Ypower, M, "X_Ypower");
-
-    const mwSize NRPow = mxGetNumberOfElements(X_Rpower);
-    const bool X_RpowerIsScalar = (NRPow == 1);
-    if (!X_RpowerIsScalar && NRPow != M)
-    {
-        mexErrMsgIdAndTxt("polyRadialDistortion1:SizeMismatch",
-                          "X_Rpower must be scalar or contain exactly %llu elements.",
-                          static_cast<unsigned long long>(M));
-    }
+    checkVectorLength(X_Rpower, M, "X_Rpower");
 
     const mwSize* DimsX = mxGetDimensions(X);
     const mwSize NdimsX = mxGetNumberOfDimensions(X);
@@ -1206,8 +1056,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         const double* PRp = static_cast<const double*>(mxGetData(X_Rpower));
         double* Xdp       = static_cast<double*>(mxGetData(plhs[0]));
 
-        computePolyRadialDistortion<double>(Xp, Yp, Rp, RIsScalar, Cp, PXp, PYp, PRp,
-                                            X_RpowerIsScalar, N, M, Xdp);
+        computePolyRadialDistortion<double>(Xp, Yp, Rp, RIsScalar, Cp, PXp, PYp, PRp, N, M, Xdp);
     }
     else
     {
@@ -1220,7 +1069,6 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         const float* PRp = static_cast<const float*>(mxGetData(X_Rpower));
         float* Xdp       = static_cast<float*>(mxGetData(plhs[0]));
 
-        computePolyRadialDistortion<float>(Xp, Yp, Rp, RIsScalar, Cp, PXp, PYp, PRp,
-                                           X_RpowerIsScalar, N, M, Xdp);
+        computePolyRadialDistortion<float>(Xp, Yp, Rp, RIsScalar, Cp, PXp, PYp, PRp, N, M, Xdp);
     }
 }

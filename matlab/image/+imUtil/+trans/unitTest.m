@@ -16,6 +16,12 @@ function Result = unitTest()
     if max(abs(Xd1-Xd0),[],'all')>1e-14
         error('Problem with imUtil.trans.mex.polyRadialDistortion');
     end
+
+    Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^0),1); Xd0=reshape(Xd0,size(X));
+    Xd1 = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, 0);
+    if max(abs(Xd1-Xd0),[],'all')>1e-14
+        error('Problem with imUtil.trans.mex.polyRadialDistortion');
+    end
    
     R = 1;
     Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)),1); Xd0=reshape(Xd0,size(X));
