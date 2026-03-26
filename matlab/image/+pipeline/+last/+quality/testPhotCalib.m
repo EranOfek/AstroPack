@@ -16,6 +16,8 @@ function Result = testPhotCalib(Args)
     %                plotPhotResidualsBg — residuals vs 1/Flux (additive background check)
     %                plotPhotResidualsXY — residuals vs X, Y position
     %                plotPhotResidualsAirmass — residuals vs airmass
+    %                plotPhotTransmission — transmission curves per mode
+    %                plotPhotIntegralT  — integral T mosaic + T vs epoch time series
     %
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
@@ -33,7 +35,9 @@ function Result = testPhotCalib(Args)
     %                8. Calibrator residuals vs 1/Flux (additive background check,
     %                   with linear fit and bg estimate; top axis shows MAG_AB).
     %                9. Calibrator residuals vs X, Y position.
-    %               10. Calibrator residuals vs airmass (all + per-epoch/crop median).
+    %               10. Calibrator residuals vs airmass (median shift + linear fit).
+    %               11. Transmission curves per mode (per-crop + reference overlay).
+    %               12. Integral T mosaic (per crop) + T vs epoch time series.
     %
     % Input  : * ...,key,val,...
     %          --- Data loading (see also loadVisitData) ---
@@ -105,6 +109,8 @@ function Result = testPhotCalib(Args)
     %            .PersetInfo - struct per visit-level mode with VisitRefParams,
     %                        NormIdx, TargetZP, ZPcenterPercrop, DoNormTran2D,
     %                        IsShapeset. Used by plotPhotMosaic for ZP rendering.
+    %          The full Result struct is also saved as OutDir/Result.mat
+    %          (before plotting, so it survives plot errors).
     % Author : D. Kovaleva (Mar 2026)
     % Example: % DataDir mode (original):
     %          R = pipeline.last.quality.testPhotCalib();
@@ -139,13 +145,22 @@ function Result = testPhotCalib(Args)
     %          pipeline.last.quality.plotPhotScatter(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
     %          pipeline.last.quality.plotPhotStdDiff(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
     %
-    %          % Standalone calibrator diagnostics from cached PC:
+    %          % Load full Result from saved .mat (includes PersetInfo):
+    %          S = load('results/Result.mat'); R = S.Result;
+    %
+    %          % Standalone calibrator diagnostics:
     %          pipeline.last.quality.plotPhotResiduals(R.PC);
     %          pipeline.last.quality.plotPhotResidualsRMS(R.PC);
     %          pipeline.last.quality.plotPhotResidualsColor(R.PC, 'PlotMagColor', true);
     %          pipeline.last.quality.plotPhotResidualsBg(R.PC);
     %          pipeline.last.quality.plotPhotResidualsXY(R.PC, 'Normalize', true);
     %          pipeline.last.quality.plotPhotResidualsAirmass(R.PC);
+    %
+    %          % Transmission plots (R struct needed for visit-level modes):
+    %          pipeline.last.quality.plotPhotTransmission(R, ...
+    %              'Modes', {'percrop','perset'});
+    %          pipeline.last.quality.plotPhotIntegralT(R.PC);
+    %          pipeline.last.quality.plotPhotIntegralT(R.PC, 'MosaicEpoch', 5);
     %
     %          % Replotting with other arguments (within the scope of performed calibration):
     %
@@ -175,7 +190,7 @@ function Result = testPhotCalib(Args)
         Args.ListFields     = {}       % field name(s) from ListFile
         Args.VisitIdx       = []       % indices into folder list
         Args.FileType       = 'proc'   % 'proc' | 'coadd'
-        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'perimage_raw'}
+        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'shapeset', 'perset'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
@@ -272,6 +287,18 @@ function Result = testPhotCalib(Args)
     end
     Result.MS       = MS;
 
+    % === Save full Result ===
+    ResultFile = fullfile(Args.OutDir, 'Result.mat');
+    try
+        save(ResultFile, 'Result', '-v7.3');
+        if Args.Verbose
+            fprintf('Saved %s\n', ResultFile);
+        end
+    catch ME
+        warning('testPhotCalib:SaveFailed', ...
+            'Failed to save %s: %s', ResultFile, ME.message);
+    end
+
     % === Plots ===
     if ~Args.Plot
         return;
@@ -325,4 +352,14 @@ function Result = testPhotCalib(Args)
     pipeline.last.quality.plotPhotResidualsAirmass(Calib.PC, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'OverlayTrend', Args.OverlayTrend);
+
+    pipeline.last.quality.plotPhotTransmission(Calib, ...
+        'Modes', Args.Modes, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'RefCrop', Args.RefCrop);
+
+    pipeline.last.quality.plotPhotIntegralT(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
 end

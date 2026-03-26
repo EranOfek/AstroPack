@@ -128,6 +128,12 @@ function plotPhotScatter(MS, Args)
             ylim([1e-3 10]);
             title(sprintf('%s', Mode));
         end
-        sgtitle(sprintf('Epoch-to-epoch scatter: %s', strrep(MagField, '_', '\_')));
+        sgtitle(sprintf('Epoch-to-epoch scatter: %s', strrep(MagField, '_', '\_')), ...
+            'FontSize', 11);
+        % Shrink subplots to increase gap between title and plot
+        for Isub = 1:Nmodes
+            ax = subplot(1, Nmodes, Isub);
+            ax.Position(4) = ax.Position(4) * 0.88;
+        end
     end
 end
