@@ -2455,7 +2455,13 @@ classdef AstroWCS < Component
             end
 
             if Args.UseMex
+                if isscalar(X_Rpower)
+                    X_Rpower = repmat(X_Rpower, size(X_Xpower));
+                end
                 Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
+                if isscalar(Y_Rpower)
+                    Y_Rpower = repmat(Y_Rpower, size(Y_Xpower));
+                end
                 Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
             else
                 Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
