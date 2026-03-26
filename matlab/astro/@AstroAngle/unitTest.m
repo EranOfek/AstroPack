@@ -1,6 +1,5 @@
 function Result = unitTest
     % unitTest for the AstroAngle class
-    io.msgStyle(LogLevel.Test, '@start', 'AstroAngle test started')
     
     
     % Constructor
@@ -66,6 +65,5 @@ function Result = unitTest
     D = A.tan;    
     
     
-    io.msgStyle(LogLevel.Test, '@passed', 'AstroAngle test passed')
     Result = true;
 end

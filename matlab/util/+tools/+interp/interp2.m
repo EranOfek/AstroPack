@@ -51,7 +51,7 @@ function [Zout] = interp2(Xin, Yin, Z, Xout, Yout, Method, ExtrapVal)
 
     else
         % call matlab built in interp2
-        Zout = intrep2(Xin, Yin, Z, Xout, Yout, Method, ExtrapVal);
+        Zout = interp2(Xin, Yin, Z, Xout, Yout, Method, ExtrapVal);
     end
 
 
