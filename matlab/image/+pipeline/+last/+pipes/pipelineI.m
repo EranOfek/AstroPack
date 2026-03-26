@@ -62,7 +62,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         %Args.Sa
 
         % 
-        Args.UseMex                      = false;
+        Args.UseMex                      = true;
 
     end
     RAD        = 180./pi;
@@ -262,7 +262,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'PropShiftXY','ShiftXY',...
                                               'IsShiftXYfiltered',true,...
                                               'UseMex',Args.UseMex);
-    
+
     % tic;
     % parfor Isub=1:1:Nsub
     %     [Coadd(:,Isub)] = pipeline.generic.procCoadd(AllSI(:,Isub), Args.procCoaddArgs{:},...

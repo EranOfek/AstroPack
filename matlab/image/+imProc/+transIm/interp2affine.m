@@ -101,7 +101,13 @@ function Result=interp2affine(Obj, AffineTran, Args)
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
                         %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
                     otherwise
+                        % 73s for mex_cubic 90s for mex_lanczos3
+                        %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2(single(VecX), single(VecY), Obj(Iobj).(Args.DataProp{Iprop}), single(FullRefX), single(FullRefY), 'mex_lanczos3');
+
+                        % 76s
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                        
+                        % old:
                         %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                 end
             end
