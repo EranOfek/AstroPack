@@ -2399,7 +2399,7 @@ classdef AstroWCS < Component
             %            'plusXY_bool' - Add X,Y to the poliniomial. (e.g. in TAN-SIP)
             %                            Default is false.
             %            'UseMex' - Use fast mex poly distortion
-            %                   evaluation. Default is false.
+            %                   evaluation. Default is true.
             % Output : - Distorted X coordinate vector
             %          - Distorted Y coordinate vector
             % Author : Yossi Shvartzvald (December 2021) 
@@ -2411,7 +2411,7 @@ classdef AstroWCS < Component
                 Y
                 Args.R            = 1;
                 Args.plusXY_bool  = false;
-                Args.UseMex       = false;
+                Args.UseMex       = true;
             end
             
             if ~isempty(PV.PolyCoefX)
@@ -2455,18 +2455,13 @@ classdef AstroWCS < Component
             end
 
             if Args.UseMex
-                if isscalar(X_Rpower)
-                    X_Rpower = repmat(X_Rpower, size(X_Xpower));
-                end
                 Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
-                if isscalar(Y_Rpower)
-                    Y_Rpower = repmat(Y_Rpower, size(Y_Xpower));
-                end
                 Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
+                Xd=reshape(Xd,size(X));
+                Yd=reshape(Yd,size(Y));
             else
                 Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
-                Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);
-  
+                Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);  
                 % reshape to the same shape of X and Y
                 Xd=reshape(Xd,size(X));
                 Yd=reshape(Yd,size(Y));
