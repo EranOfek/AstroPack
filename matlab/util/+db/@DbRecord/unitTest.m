@@ -1,6 +1,5 @@
 function Result = unitTest()
     % DbRecord.unitTest   
-    io.msgStyle(LogLevel.Test, '@start', 'DbRecord test started');
     
     %------------------- Test Constructor and convert2 with TEXT data
 
@@ -130,6 +129,5 @@ function Result = unitTest()
     assert(all(size(R3.Data) == size(R.Data)));
     
     % Done
-    io.msgStyle(LogLevel.Test, '@passed', 'DbRecord test passed');
     Result = true;
 end

@@ -13,7 +13,7 @@ function plotPhotStdDiff(MS, Args)
     %            'OverlayTrend'- 'median'|'mean'|'none'. Default is 'median'.
     %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
     % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.plotPhotStdDiff(MS, 'Modes', {'percrop','refzp'});
+    % Example: pipeline.last.quality.plotPhotStdDiff(MS, 'Modes', {'percrop','perimage'});
 
     arguments
         MS struct
@@ -104,6 +104,11 @@ function plotPhotStdDiff(MS, Args)
             title(sprintf('percrop - %s', Mode));
         end
         sgtitle(sprintf('Std difference (>0 = non-percrop better): %s', ...
-            strrep(MagField, '_', '\_')));
+            strrep(MagField, '_', '\_')), 'FontSize', 11);
+        % Shrink subplots to make room for sgtitle above Y exponent
+        for Isub = 1:Nother
+            ax = subplot(1, Nother, Isub);
+            ax.Position(4) = ax.Position(4) * 0.92;
+        end
     end
 end

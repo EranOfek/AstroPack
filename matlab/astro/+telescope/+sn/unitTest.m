@@ -1,21 +1,11 @@
-% Package Unit-Test
-%
-% ### Requirements for SNR Unit Test
-%
-%    i = Installer
-%    i.install({'cats', 'PicklesStellarSpec', 'SpecGalQSO'})
-%
-%
-
-
 function Result = unitTest()
     % telescope.sn Unit-Test
     
-	io.msgStyle(LogLevel.Test, '@start', 'telescope.sn test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'telescope.sn test started');
     
     snr_unitTest();
     
-	io.msgStyle(LogLevel.Test, '@passed', 'telescope.sn test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'telescope.sn test passed');
 	Result = true;
 end
 
@@ -26,11 +16,11 @@ end
 function Result = snr_unitTest()
 
 	%
-	io.msgStyle(LogLevel.Test, '@start', 'telescope.sn.snr test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'telescope.sn.snr test started');
    
 
     % Basic form
-    telescope.sn.snr()
+    telescope.sn.snr();
 
     %
     curr_effFWHM = 12;
@@ -45,7 +35,7 @@ function Result = snr_unitTest()
 
     [curr_SN] = telescope.sn.snr('FWHM', curr_effFWHM, 'TargetSpec', Curr_Spec,...
                               'FilterFamily','ULTRASAT',...
-                              'ClearAper',1,'Trans',1,'Reflection',1,'QE',1)
+                              'ClearAper',1,'Trans',1,'Reflection',1,'QE',1);
 
      
     % Fails because Filter is still missing @Eran
@@ -59,16 +49,7 @@ function Result = snr_unitTest()
 %         Specs.name(numel(T_BB)+Idwarf) = {Spec_all_MS_stars(Idwarf).ObjName};
 %     end
 %     
-	io.msgStyle(LogLevel.Test, '@passed', 'telescope.sn.snr test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'telescope.sn.snr test passed');
 	Result = true;
 end
-
-
-%--------------------------------------------------------------------------
-
-
-%--------------------------------------------------------------------------
-
-
-%--------------------------------------------------------------------------
 

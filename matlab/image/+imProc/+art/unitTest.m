@@ -2,7 +2,6 @@ function Result = unitTest()
     % imProc.art.unitTest
     % Example: imUtil.art.unitTest
     % Author : A.M. Krasilshchikov (2024 Jun)     
-    io.msgLog(LogLevel.Test, 'imProc.art.unitTest started');
     
     %
     cprintf('blue','Source injection test:\n');
@@ -70,6 +69,5 @@ function Result = unitTest()
 
     % MatchRes = VO.search.search_sortedlat_multi([ObjLon, ObjLat], RA, Dec, Args.SearchRadius*Arcsec2Rad);
     %
-    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
     Result = true;
 end

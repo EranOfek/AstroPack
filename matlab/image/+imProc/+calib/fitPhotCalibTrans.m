@@ -492,13 +492,32 @@ function CalibArgs = predefCalibArgs(Args)
     %              calibration. Users can override individual fields,
     %              then pass the cell array as 'CalibArgs' to
     %              fitPhotCalibTrans.
-    % Input  : 
-    %            * ...,key,val,...
-    %            See PhotCalibTrans.calibrate fields.
+    % Input  : * ...,key,val,...
+    %            'Lambda'           - Wavelength grid [Ang]. Default (3000:20:11000)'.
+    %            'SearchRadius'     - Calibrator match radius [arcsec]. Default 2.
+    %            'MagRange'         - Calibrator mag range [min max]. Default [11.5 15.5].
+    %            'FilterNegFlux'    - Remove negative-flux sources. Default true.
+    %            'MinSN2'           - Min SN_2 for calibrators (0=skip). Default 10.
+    %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
+    %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
+    %            'OptSeqName'       - Optimization sequence name. Default 'LAST_NormLin'.
+    %            'CustomOptSeq'     - Custom opt sequence (overrides OptSeqName). Default [].
+    %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_4_xt'.
+    %            'UseTran2D'        - Enable Tran2D. Default true.
+    %            'WeightingMode'    - Weighting mode. Default 'spectral'.
+    %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
+    %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
+    %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
+    %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
+    %            'PerSourceAirmass' - Enable per-source airmass. Default false.
+    %            'AperCorrMethod'   - Aperture corr method. Default 'median'.
+    %            'AperCorrSNColName'- S/N column for aper corr. Default 'SN'.
+    %            'AperCorrMinSN'    - Min S/N for aper corr. Default 30.
     % Output : - Cell array of key-value pairs for PhotCalibTrans.calibrate.
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
+    %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
 
     arguments
         % Wavelength grid
@@ -507,6 +526,8 @@ function CalibArgs = predefCalibArgs(Args)
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
         Args.MagRange         = [11.5 15.5]
+        Args.FilterNegFlux logical = true % Remove sources with negative flux
+        Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
