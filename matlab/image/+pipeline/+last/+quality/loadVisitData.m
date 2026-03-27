@@ -63,10 +63,10 @@ function AI = loadVisitData(Args)
         return;
     end
 
-    % VisitDirs mode — each directory is one visit
+    % VisitDirs mode — each directory is one epoch
     Nvisits = numel(Dirs);
     if Args.Verbose
-        fprintf('Loading %d visits (%s files)\n', Nvisits, Args.FileType);
+        fprintf('Loading %d epochs (%s files)\n', Nvisits, Args.FileType);
     end
 
     CatPattern = sprintf('*_sci_%s_Cat_1.fits', Args.FileType);
@@ -77,7 +77,7 @@ function AI = loadVisitData(Args)
         D = char(Dirs(Iv));
         if ~exist(D, 'dir')
             if Args.Verbose
-                fprintf('  Visit %d: directory not found, skipping: %s\n', Iv, D);
+                fprintf('  Epoch %d: directory not found, skipping: %s\n', Iv, D);
             end
             continue;
         end
@@ -87,7 +87,7 @@ function AI = loadVisitData(Args)
 
         if isempty(CatFiles)
             if Args.Verbose
-                fprintf('  Visit %d: no %s Cat files in %s\n', Iv, Args.FileType, D);
+                fprintf('  Epoch %d: no %s Cat files in %s\n', Iv, Args.FileType, D);
             end
             continue;
         end
@@ -103,7 +103,7 @@ function AI = loadVisitData(Args)
         AI{Iv} = AIv;
 
         if Args.Verbose
-            fprintf('  Visit %d: %d crops from %s\n', Iv, Ncf, D);
+            fprintf('  Epoch %d: %d crops from %s\n', Iv, Ncf, D);
         end
     end
 end

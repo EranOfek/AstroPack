@@ -95,13 +95,35 @@ function plotPhotStdDiff(MS, Args)
                         Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
                     ValidBins = R(:,2) >= 5;
                     plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
+
+                    % Annotate min/max trend values with reference bin
+                    TrendVals = R(ValidBins, 3);
+                    TrendMags = R(ValidBins, 1);
+                    TrendCounts = R(ValidBins, 2);
+                    if ~isempty(TrendVals)
+                        [MaxVal, MaxIdx] = max(TrendVals);
+                        [MinVal, MinIdx] = min(TrendVals);
+                        text(0.02, 0.97, sprintf('max: %.4f @ mag %.1f (N=%d)\nmin: %.4f @ mag %.1f (N=%d)', ...
+                            MaxVal, TrendMags(MaxIdx), TrendCounts(MaxIdx), ...
+                            MinVal, TrendMags(MinIdx), TrendCounts(MinIdx)), ...
+                            'Units', 'normalized', 'VerticalAlignment', 'top', ...
+                            'FontSize', 8, 'BackgroundColor', 'w');
+                    end
+
+                    % Print bin counts to console
+                    fprintf('  %s vs percrop — %s bins:\n', Mode, MagField);
+                    for Ib = 1:size(R, 1)
+                        if R(Ib, 2) > 0
+                            fprintf('    mag %.1f: N=%d, trend=%.5f\n', R(Ib,1), R(Ib,2), R(Ib,3));
+                        end
+                    end
                 end
             end
             box on; grid on;
             xlabel('Median Magnitude');
             ylabel(sprintf('Std(percrop) - Std(%s) [mag]', Mode));
             xlim([9 22]);
-            title(sprintf('percrop - %s', Mode));
+            title(sprintf('percrop - %s  (%d sources)', Mode, numel(allDeltaStd)));
         end
         sgtitle(sprintf('Std difference (>0 = non-percrop better): %s', ...
             strrep(MagField, '_', '\_')), 'FontSize', 11);

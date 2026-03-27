@@ -51,32 +51,24 @@ function Result = calibratePhotModes(AI, Args)
 
     Nvisits = numel(Args.Visits);
 
-    % Separate per-epoch and visit-level modes
+    % Separate derived modes from percrop
+    DerivedPerEpochModes = {'shapeimage', 'perimage', 'perimage_raw'};
     VisitModes = {'perset', 'perset_raw', 'shapeset'};
-    PerEpochModes = setdiff(Args.Modes, VisitModes, 'stable');
-    HasVisitModes = any(ismember(Args.Modes, VisitModes));
+    AllDerived = [DerivedPerEpochModes, VisitModes];
 
-    % Ensure percrop is calibrated if visit-level modes need it
-    if HasVisitModes && ~ismember('percrop', PerEpochModes)
-        PerEpochModes = ['percrop', PerEpochModes];
-    end
+    % Ensure percrop is always calibrated
+    NeedPercrop = any(ismember(Args.Modes, AllDerived)) || ismember('percrop', Args.Modes);
 
     Result.PC   = struct();
     Result.Cats = struct();
 
-    % Mapping from quality mode names to fitPhotCalibTrans PhotSys names
-    ModeToPhotSys = containers.Map( ...
-        {'percrop','shapeimage','perimage','perimage_raw'}, ...
-        {'percrop','refshape',  'refzp',   'refzp_raw'});
-
     % ================================================================
-    % Per-epoch modes (percrop, shapeimage, perimage, perimage_raw)
+    % Step 1: Calibrate percrop (the only actual calibration)
     % ================================================================
-    for Im = 1:numel(PerEpochModes)
-        Mode = PerEpochModes{Im};
+    if NeedPercrop
         OutFile = '';
         if ~isempty(Args.OutDir)
-            OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
+            OutFile = fullfile(Args.OutDir, 'PC_percrop.mat');
         end
 
         UseCache = false;
@@ -85,8 +77,8 @@ function Result = calibratePhotModes(AI, Args)
                 S = load(OutFile, 'PC_all', 'Cats_all');
                 if isfield(S, 'PC_all') && isfield(S, 'Cats_all') && ...
                    numel(S.PC_all) == Nvisits
-                    Result.PC.(Mode)   = S.PC_all;
-                    Result.Cats.(Mode) = S.Cats_all;
+                    Result.PC.percrop   = S.PC_all;
+                    Result.Cats.percrop = S.Cats_all;
                     UseCache = true;
                     if Args.Verbose
                         fprintf('Loaded cached %s (%d visits)\n', OutFile, numel(S.PC_all));
@@ -106,7 +98,7 @@ function Result = calibratePhotModes(AI, Args)
 
         if ~UseCache
             if Args.Verbose
-                fprintf('\n=== Calibrating: PhotSys = %s ===\n', Mode);
+                fprintf('\n=== Calibrating: PhotSys = percrop ===\n');
             end
             PC_all   = cell(Nvisits, 1);
             Cats_all = cell(Nvisits, 1);
@@ -117,19 +109,16 @@ function Result = calibratePhotModes(AI, Args)
                 end
                 t0 = tic;
 
-                % Fresh copy — AstroImage is a handle class
                 tcopy = tic;
                 AIcopy = AI{Iv}.copy();
                 if Args.Verbose
                     fprintf('    copy: %.1f s, ', toc(tcopy));
                 end
 
-                PhotSysName = ModeToPhotSys(Mode);
                 [Res, PC_all{Iv}] = imProc.calib.fitPhotCalibTrans(AIcopy, ...
-                    'PhotSys', PhotSysName, 'RefCrop', Args.RefCrop, ...
+                    'PhotSys', 'percrop', 'RefCrop', Args.RefCrop, ...
                     'Verbose', false, Args.CalibArgs{:});
 
-                % Extract calibrated catalogs (lightweight)
                 Ncrop_v = numel(Res);
                 Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
                 for Ic = 1:Ncrop_v
@@ -154,9 +143,105 @@ function Result = calibratePhotModes(AI, Args)
                         'Failed to save %s: %s', OutFile, ME.message);
                 end
             end
-            Result.PC.(Mode)   = PC_all;
+            Result.PC.percrop   = PC_all;
+            Result.Cats.percrop = Cats_all;
+        end
+    end
+
+    % ================================================================
+    % Step 2: Derived per-epoch modes (reuse percrop PC, recompute mags)
+    % ================================================================
+    % addMag settings per mode (matching fitPhotCalibTrans logic):
+    %   shapeimage:   RefTransParams=RefParamVec, UseRefNorm=false,  NormTran2D=false
+    %   perimage:     RefTransParams=RefParamVec, UseRefNorm=true,   NormTran2D=true
+    %   perimage_raw: RefTransParams=RefParamVec, UseRefNorm=true,   NormTran2D=false
+    DerivedSettings = struct( ...
+        'shapeimage',   struct('UseRefNorm', false, 'NormTran2D', false), ...
+        'perimage',     struct('UseRefNorm', true,  'NormTran2D', true), ...
+        'perimage_raw', struct('UseRefNorm', true,  'NormTran2D', false));
+
+    for Im = 1:numel(Args.Modes)
+        Mode = Args.Modes{Im};
+        if ~isfield(DerivedSettings, Mode); continue; end
+
+        OutFile = '';
+        if ~isempty(Args.OutDir)
+            OutFile = fullfile(Args.OutDir, sprintf('PC_%s.mat', Mode));
+        end
+
+        UseCache = false;
+        if ~isempty(OutFile) && exist(OutFile, 'file') && ~Args.ForceRecalc
+            try
+                S = load(OutFile, 'Cats_all');
+                if isfield(S, 'Cats_all') && numel(S.Cats_all) == Nvisits
+                    Result.Cats.(Mode) = S.Cats_all;
+                    UseCache = true;
+                    if Args.Verbose
+                        fprintf('Loaded cached %s (%d visits)\n', OutFile, numel(S.Cats_all));
+                    end
+                end
+            catch ME
+                if Args.Verbose
+                    fprintf('Cache %s corrupt (%s) — recomputing\n', OutFile, ME.message);
+                end
+            end
+        end
+
+        if ~UseCache
+            if Args.Verbose
+                fprintf('\n=== Derived mode: %s (reusing percrop PC) ===\n', Mode);
+            end
+
+            Sett = DerivedSettings.(Mode);
+            PC_all   = Result.PC.percrop;
+            Cats_all = cell(Nvisits, 1);
+
+            for Iv = 1:Nvisits
+                if isempty(AI{Iv}); continue; end
+                if isempty(PC_all{Iv}); continue; end
+
+                % Build RefParamVec per epoch from this epoch's RefCrop
+                RefParamVec = buildRefParamVec(PC_all{Iv}, Args.RefCrop);
+                if isempty(RefParamVec); continue; end
+
+                AIcopy = AI{Iv}.copy();
+                Ncrop_v = numel(PC_all{Iv});
+                Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
+
+                for Ic = 1:Ncrop_v
+                    if ~PC_all{Iv}(Ic).Success
+                        Cats_all{Iv}(Ic) = AstroCatalog;
+                        continue;
+                    end
+                    Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
+                        AIcopy(Ic).CatData, ...
+                        'MagSystem', 'AB', ...
+                        'RefTransParams', RefParamVec, ...
+                        'UseRefNorm', Sett.UseRefNorm, ...
+                        'NormTran2D', Sett.NormTran2D);
+                end
+
+                if Args.Verbose
+                    fprintf('  Epoch %03d: magnitudes recomputed (%s)\n', Args.Visits(Iv), Mode);
+                end
+            end
+
+            if ~isempty(OutFile)
+                try
+                    save(OutFile, 'Cats_all', '-v7.3');
+                    if Args.Verbose
+                        fprintf('Saved %s\n', OutFile);
+                    end
+                catch ME
+                    warning('calibratePhotModes:SaveFailed', ...
+                        'Failed to save %s: %s', OutFile, ME.message);
+                end
+            end
             Result.Cats.(Mode) = Cats_all;
         end
+
+        % PC objects are shared with percrop
+        Result.PC.(Mode) = Result.PC.percrop;
     end
 
     % ================================================================
@@ -186,10 +271,11 @@ function Result = calibratePhotModes(AI, Args)
         end
     end
 
-    % Store per-mode ZPcenter: per-epoch modes share percrop values
+    % Store per-mode ZPcenter: percrop + derived per-epoch modes share percrop values
     Result.ZPcenter = struct();
-    for Im = 1:numel(PerEpochModes)
-        Result.ZPcenter.(PerEpochModes{Im}) = ZPcenterPercrop;
+    PerEpochNames = setdiff(Args.Modes, VisitModes, 'stable');
+    for Im = 1:numel(PerEpochNames)
+        Result.ZPcenter.(PerEpochNames{Im}) = ZPcenterPercrop;
     end
 
     if Args.Verbose
@@ -280,6 +366,13 @@ function Result = calibratePhotModes(AI, Args)
                 end
             end
 
+            % Identify observational parameter indices — these vary per epoch
+            % and should not be averaged; restored from each epoch's percrop fit
+            FirstPC = Result.PC.percrop{find(~cellfun(@isempty, Result.PC.percrop), 1)}(1);
+            AllFunPar = FirstPC.TransModel.getAllFunPar();
+            ObsParNames = {'ZenithAngle_deg', 'Temperature', 'Pressure', 'AirMass'};
+            ObsParIdx = find(ismember(AllFunPar.Name, ObsParNames));
+
             IsShapeset = strcmp(Mode, 'shapeset');
             DoNormTran2D = strcmp(Mode, 'perset');
 
@@ -332,28 +425,29 @@ function Result = calibratePhotModes(AI, Args)
                         continue;
                     end
 
+                    % Restore observational params from this epoch's percrop fit
+                    EpochPar = PC_all{Iv}(Ic).TransModel.getAllFunPar();
+                    CropParams = VisitRefParams;
+                    CropParams(ObsParIdx) = EpochPar.Val(ObsParIdx);
+
                     if IsShapeset
                         % shapeset: visit-averaged shape, per-crop Norm and Tran2D
                         Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
                             AIcopy(Ic).CatData, ...
                             'MagSystem', 'AB', ...
-                            'RefTransParams', VisitRefParams, ...
+                            'RefTransParams', CropParams, ...
                             'UseRefNorm', false, ...
                             'NormTran2D', false);
                     else
                         % perset/perset_raw: adjusted Norm to target ZP
-                        % Compute baseline center ZP using visit-averaged shape
-                        % (not percrop's) with this crop's Tran2D
                         ZPvisitBase = PC_all{Iv}(Ic).evaluateZP( ...
-                            'RefTransParams', VisitRefParams, ...
+                            'RefTransParams', CropParams, ...
                             'UseRefNorm', true, ...
                             'NormTran2D', DoNormTran2D);
-                        % ZPvisitBase = ZP at center with VisitRefParams (unadjusted Norm)
 
-                        CropParams = VisitRefParams;
                         if isfinite(ZPvisitBase) && Ic <= numel(TargetZP) && isfinite(TargetZP(Ic))
                             DeltaZP = TargetZP(Ic) - ZPvisitBase;
-                            CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
+                            CropParams(NormIdx) = CropParams(NormIdx) * 10^(DeltaZP / 2.5);
                         end
 
                         Cats_all{Iv}(Ic) = PC_all{Iv}(Ic).addMag( ...
@@ -400,5 +494,35 @@ function Result = calibratePhotModes(AI, Args)
             Result.PersetInfo.(Mode).DoNormTran2D = DoNormTran2D;
             Result.PersetInfo.(Mode).IsShapeset = IsShapeset;
         end
+    end
+end
+
+% =========================================================================
+function RefParamVec = buildRefParamVec(PCarray, RefCrop)
+    % Build reference parameter vector from a PC array (single epoch)
+    % or weighted mean across all successful crops (RefCrop=0).
+    % Input  : - PCarray: 1xNcrop PhotCalibTrans array (single epoch)
+    %          - RefCrop: reference crop index, or 0 for weighted mean
+    % Output : - RefParamVec [Nparams x 1], or [] if no valid data
+    RefParamVec = [];
+    Nobj = numel(PCarray);
+
+    if RefCrop == 0
+        AllParams  = [];
+        AllWeights = [];
+        for Ic = 1:Nobj
+            if PCarray(Ic).Success && PCarray(Ic).TransModel.RMS > 0
+                P = PCarray(Ic).TransModel.getAllFunPar();
+                AllParams  = [AllParams; P.Val(:)'];
+                AllWeights = [AllWeights; 1 ./ PCarray(Ic).TransModel.RMS.^2];
+            end
+        end
+        if ~isempty(AllParams)
+            W = AllWeights / sum(AllWeights);
+            RefParamVec = (W' * AllParams)';
+        end
+    elseif RefCrop >= 1 && RefCrop <= Nobj && PCarray(RefCrop).Success
+        P = PCarray(RefCrop).TransModel.getAllFunPar();
+        RefParamVec = P.Val(:);
     end
 end
