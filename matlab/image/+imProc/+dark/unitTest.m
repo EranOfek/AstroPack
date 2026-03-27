@@ -1,7 +1,7 @@
 function Result = unitTest()
     % unitTest for +dark 
     % Example: Result = imProc.dark.unitTest
-    io.msgLog(LogLevel.Test, 'imProc.dark test started');
+    %io.msgLog(LogLevel.Test, 'imProc.dark test started');
     
     % identifySimilarImages
     AI = AstroImage({ones(100,100), ones(100,100)});
@@ -58,7 +58,7 @@ function Result = unitTest()
     AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
     AI.funHeader(@insertKey, {'IMTYPE','Bias'});
     AI = [AI, AstroImage({rand(100,100)})];
-    Bias = imProc.dark.bias(AI);
+    Bias = imProc.dark.bias(AI, 'GenerateID',false);
 
     % debias
     %AI = imProc.dark.debias(AI);
@@ -73,6 +73,6 @@ function Result = unitTest()
         error('Problem with overscan subtraction');
     end
     
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.dark test passed');
+    %io.msgStyle(LogLevel.Test, '@passed', 'imProc.dark test passed');
     Result = true;
 end
