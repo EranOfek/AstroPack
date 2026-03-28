@@ -1,14 +1,5 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
     % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     % testing usim simulation utility:
     
@@ -35,26 +26,8 @@ function Result = unitTest()
         end
     end
     imagesc('XData',Rad,'YData',Lam,'CData',ContRad)
-    
-%     func_unitTest();
-    
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+        
 	Result = true;
     
     !rm SimImage* 
 end
-
-%--------------------------------------------------------------------------
-
-
-function Result = func_unitTest_()
-	% Function Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
-   
-	io.msgStyle(LogLevel.Test, '@passed', 'passed');
-	Result = true;
-end
-
-
-%--------------------------------------------------------------------------
-

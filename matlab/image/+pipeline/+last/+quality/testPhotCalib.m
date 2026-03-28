@@ -11,9 +11,33 @@ function Result = testPhotCalib(Args)
     %                plotPhotStdDiff    — std difference (percrop vs others)
     %                plotPhotMosaic     — RMS/ZP mosaics and ZP maps
     %                plotPhotResiduals  — calibrator fit residuals vs magnitude
+    %                plotPhotResidualsRMS — calibrator residual RMS vs magnitude
+    %                plotPhotResidualsColor — calibrator residuals vs GAIA BP-RP color
+    %                plotPhotResidualsBg — residuals vs 1/Flux (additive background check)
+    %                plotPhotResidualsXY — residuals vs X, Y position
+    %                plotPhotResidualsAirmass — residuals vs airmass
+    %                plotPhotTransmission — transmission curves per mode
+    %                plotPhotIntegralT  — integral T mosaic + T vs epoch time series
     %
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
+    %
+    %              Plots generated (when Plot=true):
+    %                1. Mag vs Std scatter — epoch-to-epoch std vs magnitude per mode.
+    %                2. Std difference — Std(percrop) - Std(other) vs magnitude.
+    %                3. RMS & ZP mosaic — median fit RMS and center ZP std per crop.
+    %                4. ZP map mosaic — side-by-side ZP maps for first visit.
+    %                   Per-epoch modes show spatial ZP from PC objects.
+    %                   Visit-level modes evaluate ZP with adjusted params.
+    %                5. Calibrator residuals vs magnitude (percrop only).
+    %                6. Calibrator residual RMS vs magnitude (binned RMS + median).
+    %                7. Calibrator residuals vs GAIA BP-RP color (+optional mag-color).
+    %                8. Calibrator residuals vs 1/Flux (additive background check,
+    %                   with linear fit and bg estimate; top axis shows MAG_AB).
+    %                9. Calibrator residuals vs X, Y position.
+    %               10. Calibrator residuals vs airmass (median shift + linear fit).
+    %               11. Transmission curves per mode (per-crop + reference overlay).
+    %               12. Integral T mosaic (per crop) + T vs epoch time series.
     %
     % Input  : * ...,key,val,...
     %          --- Data loading (see also loadVisitData) ---
@@ -31,13 +55,22 @@ function Result = testPhotCalib(Args)
     %                        Default is [] (all folders).
     %            'FileType' - 'proc' or 'coadd'. Default is 'proc'.
     %          --- Calibration ---
-    %            'Modes'   - Cell array of PhotSys modes. Default is
-    %                        {'percrop','refshape','refzp','refzp_raw'}.
+    %            'Modes'   - Cell array of PhotSys modes:
+    %                        Per-epoch (each epoch calibrated independently):
+    %                          'percrop'      - per-crop transmission (default pipeline)
+    %                          'shapeimage'   - RefCrop spectral shape, per-crop Norm + Tran2D
+    %                          'perimage'     - RefCrop full params, center-normalized Tran2D
+    %                          'perimage_raw' - same without Tran2D center-normalization
+    %                        Visit-level (single transmission from all epochs):
+    %                          'shapeset'     - visit-averaged shape, per-crop Norm + Tran2D
+    %                          'perset'       - visit-averaged shape, adjusted Norm, center-normalized Tran2D
+    %                          'perset_raw'   - same without Tran2D center-normalization
+    %                        Default is {'percrop','shapeimage','perimage','perimage_raw'}.
     %            'RefCrop' - Reference crop (0=weighted mean). Default is 10.
     %            'Ncrop'   - Number of crops per visit. Default is 24.
     %            'ForceRecalc' - Recalculate even if cached. Default is false.
     %            'CalibArgs'   - Extra args for fitPhotCalibTrans. Default is {}.
-    %            'VisitRefZP'  - ZP norm for visit-level modes:
+    %            'VisitRefZP'  - ZP norm for perset/perset_raw modes:
     %                        'crop_median'|'crop_mean'|'global_median'|'global_mean'|'epoch'.
     %                        Default is 'epoch'.
     %            'VisitRefZPEpoch' - Epoch index for VisitRefZP='epoch'. Default is 1.
@@ -69,18 +102,28 @@ function Result = testPhotCalib(Args)
     %            .Cats     - struct per mode with Cats_all{Nvisits}(1xNcrop)
     %            .MS       - struct per mode with MS{Ncrop} MatchedSources
     %            .FitRMS   - [Nvisits x Ncrop] fit RMS matrix
-    %            .ZPcenter - [Nvisits x Ncrop] center ZP matrix
+    %            .ZPcenter - struct per mode with [Nvisits x Ncrop] center ZP.
+    %                        Per-epoch modes share percrop values;
+    %                        perset modes store the effective target ZP;
+    %                        shapeset stores percrop values (per-crop Norm).
+    %            .PersetInfo - struct per visit-level mode with VisitRefParams,
+    %                        NormIdx, TargetZP, ZPcenterPercrop, DoNormTran2D,
+    %                        IsShapeset. Used by plotPhotMosaic for ZP rendering.
+    %          The full Result struct is also saved as OutDir/Result.mat
+    %          (before plotting, so it survives plot errors).
     % Author : D. Kovaleva (Mar 2026)
     % Example: % DataDir mode (original):
     %          R = pipeline.last.quality.testPhotCalib();
     %
     %          % Compare modes on specific crops:
-    %          R = pipeline.last.quality.testPhotCalib('Modes', {'percrop','refzp'}, ...
+    %          R = pipeline.last.quality.testPhotCalib('Modes', {'percrop','perimage'}, ...
     %              'CropsToAnalyze', [10 19]);
     %
-    %          % Visit-level mode with ZP normalization:
+    %          % Visit-level modes:
     %          R = pipeline.last.quality.testPhotCalib('Modes', ...
-    %              {'percrop','visitref'}, 'VisitRefZP', 'crop_median');
+    %              {'percrop','perset'}, 'VisitRefZP', 'crop_median');
+    %          R = pipeline.last.quality.testPhotCalib('Modes', ...
+    %              {'percrop','shapeset'});
     %
     %          % Load coadd files from .mat visit list:
     %          R = pipeline.last.quality.testPhotCalib('DataDir', '', ...
@@ -92,11 +135,38 @@ function Result = testPhotCalib(Args)
     %          R = pipeline.last.quality.testPhotCalib('VisitDirs', ...
     %              ["/path/to/visit1", "/path/to/visit2"], 'FileType', 'coadd');
     %
+    %          % Skip zp_meddiff on original mags (requires ForceRecalc):
+    %          R = pipeline.last.quality.testPhotCalib('ApplyRelZP', false, ...
+    %              'ForceRecalc', true);
+    %
+    %          % --- Standalone replotting from cached results ---
+    %          S = load('results/MS_all.mat');
+    %          Modes = {'percrop','perimage'};
+    %          pipeline.last.quality.plotPhotScatter(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
+    %          pipeline.last.quality.plotPhotStdDiff(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
+    %
+    %          % Load full Result from saved .mat (includes PersetInfo):
+    %          S = load('results/Result.mat'); R = S.Result;
+    %
+    %          % Standalone calibrator diagnostics:
+    %          pipeline.last.quality.plotPhotResiduals(R.PC);
+    %          pipeline.last.quality.plotPhotResidualsRMS(R.PC);
+    %          pipeline.last.quality.plotPhotResidualsColor(R.PC, 'PlotMagColor', true);
+    %          pipeline.last.quality.plotPhotResidualsBg(R.PC);
+    %          pipeline.last.quality.plotPhotResidualsXY(R.PC, 'Normalize', true);
+    %          pipeline.last.quality.plotPhotResidualsAirmass(R.PC);
+    %
+    %          % Transmission plots (R struct needed for visit-level modes):
+    %          pipeline.last.quality.plotPhotTransmission(R, ...
+    %              'Modes', {'percrop','perset'});
+    %          pipeline.last.quality.plotPhotIntegralT(R.PC);
+    %          pipeline.last.quality.plotPhotIntegralT(R.PC, 'MosaicEpoch', 5);
+    %
     %          % Replotting with other arguments (within the scope of performed calibration):
     %
     %{         
                  S = load('/home/dana/results_coadd/MS_all.mat');
-                 Modes = {'percrop', 'visitref'};
+                 Modes = {'percrop', 'perset'};
                  pipeline.last.quality.plotPhotScatter(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
                  pipeline.last.quality.plotPhotStdDiff(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
     %}
@@ -106,7 +176,7 @@ function Result = testPhotCalib(Args)
                     'ListFile', '~/N3_M2C4Jul2_7_list.mat', ...
                     'ListFields', {'M2C4Jul2p1'},  'FileType', 'coadd', ...
                     'OutDir', '/home/dana/results_coadd', 'TileOrder', 'colmajor',...
-                    'ForceRecalc', true, 'Modes', {'percrop','refzp', 'visitref'},...
+                    'ForceRecalc', true, 'Modes', {'percrop','perimage', 'perset'},...
                     'VisitRefZP', 'global_median');
     %}
     %
@@ -120,7 +190,7 @@ function Result = testPhotCalib(Args)
         Args.ListFields     = {}       % field name(s) from ListFile
         Args.VisitIdx       = []       % indices into folder list
         Args.FileType       = 'proc'   % 'proc' | 'coadd'
-        Args.Modes          = {'percrop', 'refshape', 'refzp', 'refzp_raw'}
+        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'shapeset', 'perset'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
@@ -212,7 +282,22 @@ function Result = testPhotCalib(Args)
     Result.Cats     = Calib.Cats;
     Result.FitRMS   = Calib.FitRMS;
     Result.ZPcenter = Calib.ZPcenter;
+    if isfield(Calib, 'PersetInfo')
+        Result.PersetInfo = Calib.PersetInfo;
+    end
     Result.MS       = MS;
+
+    % === Save full Result ===
+    ResultFile = fullfile(Args.OutDir, 'Result.mat');
+    try
+        save(ResultFile, 'Result', '-v7.3');
+        if Args.Verbose
+            fprintf('Saved %s\n', ResultFile);
+        end
+    catch ME
+        warning('testPhotCalib:SaveFailed', ...
+            'Failed to save %s: %s', ResultFile, ME.message);
+    end
 
     % === Plots ===
     if ~Args.Plot
@@ -244,8 +329,37 @@ function Result = testPhotCalib(Args)
         'TileOrder', Args.TileOrder);
 
     pipeline.last.quality.plotPhotResiduals(Calib.PC, ...
-        'Modes', Args.Modes, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'OverlayTrend', Args.OverlayTrend, ...
         'TrendBinWidth', Args.TrendBinWidth);
+
+%    pipeline.last.quality.plotPhotResidualsRMS(Calib.PC, ...
+%        'CropsToAnalyze', Args.CropsToAnalyze);
+
+    pipeline.last.quality.plotPhotResidualsColor(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend, ...
+        'Verbose', Args.Verbose);
+
+    pipeline.last.quality.plotPhotResidualsBg(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend);
+
+    pipeline.last.quality.plotPhotResidualsXY(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend);
+
+    pipeline.last.quality.plotPhotResidualsAirmass(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend);
+
+    pipeline.last.quality.plotPhotTransmission(Calib, ...
+        'Modes', Args.Modes, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'RefCrop', Args.RefCrop);
+
+    pipeline.last.quality.plotPhotIntegralT(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
 end

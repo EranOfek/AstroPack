@@ -2,6 +2,44 @@ function Result = unitTest()
     % Unit-Test for imUtil.trans package
     % Example: imUtil.trans.unitTest
 
+    %% imUtil.trans.mex.polyRadialDistortion
+    CoefX = rand(5,1);
+    X     = rand(1e2, 1e2);
+    Y     = rand(1e2, 1e2);
+    R     = rand(1e2, 1e2);
+    X_Xpower = (0:1:4).';
+    X_Ypower = (0:1:4).';
+    X_Rpower = (0:1:4).';
+    
+    Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)),1); Xd0=reshape(Xd0,size(X));
+    Xd1 = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower);
+    if max(abs(Xd1-Xd0),[],'all')>1e-14
+        error('Problem with imUtil.trans.mex.polyRadialDistortion');
+    end
+
+    Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^0),1); Xd0=reshape(Xd0,size(X));
+    Xd1 = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, 0);
+    if max(abs(Xd1-Xd0),[],'all')>1e-14
+        error('Problem with imUtil.trans.mex.polyRadialDistortion');
+    end
+   
+    R = 1;
+    Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)),1); Xd0=reshape(Xd0,size(X));
+    Xd1 = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower);                               
+    if max(abs(Xd1-Xd0),[],'all')>1e-14
+        error('Problem with imUtil.trans.mex.polyRadialDistortion');
+    end
+    
+    X_Xpower = rand(5,1);
+    R        = rand(1, 1e4);
+    Xd0 = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((R(:).').^X_Rpower(:)),1); Xd0=reshape(Xd0,size(X));
+    Xd1 = imUtil.trans.mex.polyRadialDistortion(X, Y, R, CoefX, X_Xpower, X_Ypower, X_Rpower);                               
+    if max(abs(Xd1-Xd0),[],'all')>1e-14
+        error('Problem with imUtil.trans.mex.polyRadialDistortion');
+    end
+
+				
+
     %% imUtil.shift.shift_fft / shift_interp / mex.shift_lanczos3
     Nkernel = 2;
     Cube = single(imUtil.kernel2.gauss(1.5.*ones(Nkernel,1)));

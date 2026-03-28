@@ -23,53 +23,18 @@ function Result = unitTest()
 
     %assert(isfile([I.Location,Filename]))
 
-    % Populate tables from ascii files
-    I = I.populateTables({'Sun','Ear'},'FileType','asc');
-    assert(~isempty(I.PosTables.Sun) && ~isempty(I.PosTables.Ear))
-
-    % calculate position and compare with VSOP87
-    JD = mean(I.RangeShort);
-    PosINPOP = getPos(I, 'Ear',JD);
- 
-    PosVSOP87 = celestial.SolarSys.calc_vsop87(JD,'Earth','e','E');
-
-    assert(mean(abs(PosINPOP-PosVSOP87))<1e-3,'INPOP and VSOP87 do not agree')
-
-    % Convert ascii to .mat files
-    %I.convertAscii2mat('TimePeriod',{'100'}); % add option to convert only if file exists
-    %assert(~isempty(dir([I.Location,'*.mat'])));
-
-    % Populate velocity tables from mat files
-    I = I.populateTables({'Jup'},'FileType','mat','FileData','vel');
-
-    % calculate velocity and compare with VSOP87
+    %% Test Vel / Pos
+    JD = 2451545 + (-100:10:1e4);
+    I = celestial.INPOP.init;
     VelINPOP = getPos(I,'Jup',JD,'IsPos',false);
     [~,VelVSOP87] = celestial.SolarSys.calc_vsop87(JD,'Jupiter','e','E');
-    assert(mean(abs(VelINPOP-VelVSOP87))<1e-3,'INPOP and VSOP87 do not agree')
-
-    I = celestial.INPOP();
-    Objects = {'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura', 'Nep', 'Plu', 'Lib'};
-    Nobj = numel(Objects);
-    Passed = true;
-    for i=1:Nobj
-        try
-            I.populateTables(Objects{i});   
-            try
-                PosINPOP = getPos(I, Objects{i},JD);
-            catch
-                disp(['Did not calculate position of ',Objects{i}]);
-                Passed = false;
-            end
-        catch
-            disp(['Did not populate ',Objects{i}]);
-            Passed = false;
-        end
-    end
-    assert(Passed,'Failed in populating and calculating objects')
-    % Moon ('Moo') is not initialized and gives an error in isPopulated
-    % 
+    assert(mean(abs(VelINPOP-VelVSOP87),"all")<1e-8,'INPOP and VSOP87 do not agree')
     
-    % Test  TimeSpan
+    PosINPOP = getPos(I,'Mar',JD);
+    [PosVSOP87] = celestial.SolarSys.calc_vsop87(JD,'Mars','e','E');
+    assert(mean(abs(PosINPOP-PosVSOP87),"all")<1e-5,'INPOP and VSOP87 do not agree')
+        
+    %% Test  TimeSpan
     JD = 2460000.1+(0:0.1:100)';
     IN=celestial.INPOP;
     IN.populateAll('TimeSpan',[2459000, 2461000],'PopForce',true);

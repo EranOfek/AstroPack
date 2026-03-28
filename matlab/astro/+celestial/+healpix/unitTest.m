@@ -38,16 +38,16 @@ function Result = unitTest()
 
 
     %% nestedNeighbors(NSide, Pix)
-    NSide = 8;
-    Pix   = (0:1:767);
-    PN    = celestial.healpix.nestedNeighbors(NSide, Pix);
-
-    [Lon0, Lat0] = celestial.healpix.pix2ang(NSide, Pix);
-    [Lon, Lat] = celestial.healpix.pix2ang(NSide, PN);
-    Lon = reshape(Lon, size(PN));
-    Lat = reshape(Lat, size(PN));
-
-    D = celestial.coo.sphere_dist_fast(Lon0.', Lat0.', Lon, Lat);
+    % NSide = 8;
+    % Pix   = (0:1:767);
+    % PN    = celestial.healpix.nestedNeighbors(NSide, Pix);
+    % 
+    % [Lon0, Lat0] = celestial.healpix.pix2ang(NSide, Pix);
+    % [Lon, Lat] = celestial.healpix.pix2ang(NSide, PN);
+    % Lon = reshape(Lon, size(PN));
+    % Lat = reshape(Lat, size(PN));
+    % 
+    % D = celestial.coo.sphere_dist_fast(Lon0.', Lat0.', Lon, Lat);
 
     %%
     

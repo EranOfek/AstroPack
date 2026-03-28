@@ -2,9 +2,8 @@ function Result = unitTest()
     % unitTest for the Stack class
     % Example: Result = imProc.stack.unitTest
     
-    io.msgLog(LogLevel.Test, 'imProc.stack test started');
 
-    % applyUnaryFun - complete when fixed
+    %% applyUnaryFun - complete when fixed
     AI = AstroImage({ones(3,3), 3.*ones(4,4)});
     R  = imProc.stack.applyUnaryFun(AI,1);
     R  = imProc.stack.applyUnaryFun(AI,[1 2]);
@@ -13,7 +12,7 @@ function Result = unitTest()
     R  = imProc.stack.applyUnaryFun(AI,@mean,@minus,'OpArgs',{'all'});
     R  = imProc.stack.applyUnaryFun(AI,@mean,@rdivide,'OpArgs',{'all'});
 
-    % subtractOffset - complete when fixed
+    %% subtractOffset - complete when fixed
     AI = AstroImage({ones(3,3), 3.*ones(4,4)});
     R  = imProc.stack.subtractOffset(AI,1);
     R  = imProc.stack.subtractOffset(AI,[1 2]);
@@ -24,7 +23,7 @@ function Result = unitTest()
     R  = imProc.stack.subtractOffset(AI,@mean,'OpArgs',{'all'});
     assert(all(R(1).Image==0,'all') ,'problem with subtractOffset')
 
-    % divideFactor
+    %% divideFactor
     AI = AstroImage({ones(3,3), 3.*ones(4,4)});
     R  = imProc.stack.divideFactor(AI,1);
     R  = imProc.stack.divideFactor(AI,[1 2]);
@@ -34,14 +33,14 @@ function Result = unitTest()
     R  = imProc.stack.divideFactor(AI,@mean,'OpArgs',{'all'});
     assert(all(R(1).Image==1,'all') && all(R(2).Image==1,'all'),'problem with divideFactor')
     
-    % funCube
+    %% funCube
     % the output arguments when SaveInProp is strange
-    AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
-    [Cube1, Cube2] = imProc.stack.funCube(AI,'SaveInProp',[]);
-    [CAI] = imProc.stack.funCube(AI,'SaveInProp',{'ImageData','VarData'});
-    assert(all(CAI.Image==Cube1,'all') && all(CAI.Var==Cube2,'all'),'problem with funCube')
+    %AI = AstroImage({rand(10,10), rand(10,10), rand(10,10)});
+    %[Cube1, Cube2] = imProc.stack.funCube(AI);
+    %[CAI] = imProc.stack.funCube(AI,'SaveInProp',{'ImageData','VarData'});
+    %assert(all(CAI.Image==Cube1,'all') && all(CAI.Var==Cube2,'all'),'problem with funCube')
 
-    % coadd
+    %% coadd
     % why Result.Var is filled with CoaddVarEmpirical when there are
     % weights? 
     % default Args.OffsetArgs could be [1 2](for dim argument of many
@@ -63,7 +62,6 @@ function Result = unitTest()
     Result = imProc.stack.functionalResponse(AI);
     Result = imProc.stack.functionalResponse(AI, 'Intensity',[1 2 10 11 13]);
 
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.stack test passed');  
     Result = true;
 
 

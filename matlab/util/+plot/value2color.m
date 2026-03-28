@@ -1,6 +1,5 @@
 function [Color]=value2color(Vec,ColorMap)
-%--------------------------------------------------------------------------
-% value2color function                                            plotting
+% value2color function                                            
 % Description: 
 % Input  : - A coloumn vector of values.
 %          - A color map. Default is 'jet'.

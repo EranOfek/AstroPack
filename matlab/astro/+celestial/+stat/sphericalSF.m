@@ -18,6 +18,9 @@ function [BinCenter, SFW, ErrSFW, SF] = sphericalSF(RA, Dec, RM, ErrRM, Args)
     % Output : - (BinCenter) Angular bin centers [deg]
     %          - (SFW) Weighted unbiased structure function
     %          - (ErrSFW) Error on the weighted unbiased structure function
+    %            Note that this is estimate may be underestimate due to
+    %            multi counting of pairs. Better to use Bootstrap
+    %            estimators.
     %          - (SF) Unweighted structure function
     % Author : Eran Ofek + ChatGPT (Mar 2026)
     % Example: [BinCenter, SFW, SF] = celestial.stat.sphericalSF(RA.*RAD, Dec.*RAD, RM, ErrRM);

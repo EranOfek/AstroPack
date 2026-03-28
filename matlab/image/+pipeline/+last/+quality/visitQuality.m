@@ -47,7 +47,7 @@ function [Summary, AllSI, Coadd, MS] = visitQuality(AllSI, Coadd, MS, Args)
         AllSI      = pwd;
         Coadd      = [];
         MS         = [];
-        Args.HeadKeys          = {'LIMMAG'};
+        Args.HeadKeys          = {'FWHM','FWHM_A','FWHM_B','FWHM_TH','MED_X2','MED_Y2','MED_XY','PH_RMS','LIMMAG','BACKMAG','PT_RMS','PT_CHI2','PT_DOF','APCOR_PS','AST_NSRC','AST_ARMS'};
         Args.ColTest           = {'XPEAK',[1 1716], false; 'YPEAK',[1 1716], false; 'X1',[1 1716], true; 'Y1',[1 1716],true; 'X',[1 1716],true; 'Y',[1 1716],true}
         
         Args.Overlap           = {};

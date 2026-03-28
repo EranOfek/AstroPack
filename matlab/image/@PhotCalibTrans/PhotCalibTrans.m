@@ -235,6 +235,8 @@ classdef PhotCalibTrans < Component
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
                 Args.MagRange         = [11.5 15.5]
+                Args.FilterNegFlux logical = true
+                Args.MinSN2           = 10
                 Args.FunListName      = 'DefaultLASTFunList'
                 Args.CustomFunList    = []
                 Args.OptSeqName       = 'LAST_NormLin'
@@ -409,6 +411,8 @@ classdef PhotCalibTrans < Component
             Obj.selectCalibrators(CurrentCat, ...
                 'SearchRadius', Args.SearchRadius, ...
                 'MagRange', Args.MagRange, ...
+                'FilterNegFlux', Args.FilterNegFlux, ...
+                'MinSN2', Args.MinSN2, ...
                 'Verbose', Args.Verbose);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
@@ -677,6 +681,10 @@ classdef PhotCalibTrans < Component
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
             %            'FluxColName' - Flux column name to compare with. Default is 'FLUX_APER_3'.
+            %            'FilterNegFlux' - Remove sources with negative flux in
+            %                        FluxColName. Default is true.
+            %            'MinSN2'   - Minimum SN_2 value for calibrators. Set to 0
+            %                        to skip this filter. Default is 10.
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
             %            'Verbose' - Enable verbose output. Default is true.
@@ -707,7 +715,9 @@ classdef PhotCalibTrans < Component
                 Args.FilterBadFlags logical = true
                 Args.FluxColName = 'FLUX_APER_3'
                 Args.MagColName = 'MAG_APER_3'
-                Args.SpFluxCol = [7, 349, 350, 692]  % [flux_start, flux_end, error_start, error_end]
+                Args.FilterNegFlux logical = true     % Remove sources with negative flux
+                Args.MinSN2 = 10                      % Minimum SN_2 for calibrators (0 to skip)
+                Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
                 Args.Verbose logical = true
             end
 
@@ -814,7 +824,27 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Filter 4: Unique matches only (exclude sources with multiple identifications)
+            % Filter 4: Negative flux
+            if Args.FilterNegFlux && ismember(Args.FluxColName, Tab.Properties.VariableNames)
+                NegFluxMask = Tab.(Args.FluxColName) > 0;
+                GoodMask = GoodMask & NegFluxMask;
+                if Args.Verbose
+                    fprintf('  Negative flux filter (%s): %d sources passed\n', ...
+                            Args.FluxColName, sum(GoodMask));
+                end
+            end
+
+            % Filter 5: SN_2 minimum
+            if Args.MinSN2 > 0 && ismember('SN_2', Tab.Properties.VariableNames)
+                SN2Mask = Tab.SN_2 >= Args.MinSN2;
+                GoodMask = GoodMask & SN2Mask;
+                if Args.Verbose
+                    fprintf('  SN_2 filter (>=%g): %d sources passed\n', ...
+                            Args.MinSN2, sum(GoodMask));
+                end
+            end
+
+            % Filter 6: Unique matches only (exclude sources with multiple identifications)
             UniqueMatchMask = (NmatchAll == 1);
             GoodMask = GoodMask & UniqueMatchMask;
 

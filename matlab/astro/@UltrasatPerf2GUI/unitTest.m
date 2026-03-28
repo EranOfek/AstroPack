@@ -1,7 +1,6 @@
 function Result = unitTest()
     % UltrasatPerf2GUI unitTest
     
-    io.msgLog(LogLevel.Test, 'UltrasatPerf2GUI test started');
 
     % Create object and load UP from file (P90_UP_test_60_ZP_Var_Cern_21.mat)
     UG = UltrasatPerf2GUI();
@@ -37,6 +36,5 @@ function Result = unitTest()
     % Make sure we don't have errors
     assert(~startsWith(Result.message, 'error: '));
             
-    io.msgLog(LogLevel.Test, 'UltrasatPerf2GUI test passed');
     Result = true;
 end
