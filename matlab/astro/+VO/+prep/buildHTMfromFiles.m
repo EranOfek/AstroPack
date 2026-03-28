@@ -127,15 +127,16 @@ function buildHTMfromFiles(Args)
 %       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
 %       'DownloadDir', '/home/dana/tmp/DECaLS10/');
 %
-%   % PS1DR2 — pre-converted FITS, per-file mode:
-%   % Step 1: Convert CSV to FITS (one-time)
-%   %   VO.prep.ps1dr2CsvToFits('~/tmp/PS1DR2/csv/', '~/tmp/PS1DR2/fits/');
+%   % PS1DR2 — pre-converted HDF5, per-file mode:
+%   % Step 1: Convert CSV to HDF5 (one-time)
+%   %   VO.prep.ps1dr2CsvToHdf5('~/tmp/PS1DR2/csv/', '~/tmp/PS1DR2/hdf5/');
 %   % Step 2: Build HTM catalog
 %   VO.prep.buildHTMfromFiles(...
-%       'SourceDir', '~/tmp/PS1DR2/fits/', ...
-%       'FilePattern', '*.fits', ...
+%       'SourceDir', '~/tmp/PS1DR2/hdf5/', ...
+%       'FilePattern', '*.hdf5', ...
 %       'ProcessMode', 'perfile', ...
 %       'ParseRangeFun', @VO.prep.ps1dr2ParseRange, ...
+%       'PostReadFun', @VO.prep.ps1dr2ReadHdf5, ...
 %       'CoorUnits', 'rad', ...
 %       'ColNames', {'RA','Dec','raerr','decerr', ...
 %           'objinfoflag','qualityflag','epochmean','posmeanchisq', ...
@@ -429,17 +430,17 @@ function buildHTMfromFiles(Args)
                         fprintf('  Reading %s ...\n', bn);
                     end
                     [~, ~, fext] = fileparts(localFile);
-                    IsText = ismember(lower(fext), {'.txt', '.csv', '.tsv', '.dat'});
+                    IsFits = strcmpi(fext, '.fits') || strcmpi(fext, '.fit');
 
                     % Select columns / transform (with retry on corrupt files)
                     ReadOK = false;
                     for Iattempt = 1:2
                         try
                             if ~isempty(Args.PostReadFun)
-                                % For text files, pass filename to PostReadFun
-                                % (avoids slow readtable on large files).
-                                % For FITS, pass table as before.
-                                if IsText
+                                % For FITS, pass table to PostReadFun.
+                                % For all other formats (text, HDF5, etc.),
+                                % pass filename — PostReadFun handles I/O.
+                                if ~IsFits
                                     Mat = Args.PostReadFun(localFile);
                                 else
                                     T = FITS.readTable1(localFile, 'OutClass', []);
@@ -447,11 +448,11 @@ function buildHTMfromFiles(Args)
                                     clear T;
                                 end
                             else
-                                if IsText
+                                if IsFits
+                                    T = FITS.readTable1(localFile, 'OutClass', []);
+                                else
                                     T = readtable(localFile, 'FileType', 'text', ...
                                         'TreatAsMissing', {'null', 'NA', 'N/A', ''});
-                                else
-                                    T = FITS.readTable1(localFile, 'OutClass', []);
                                 end
                                 if ~isempty(Args.Columns)
                                     T = T(:, Args.Columns);
@@ -897,12 +898,12 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
 
             % Read with retry on corrupt files
             [~, ~, fext] = fileparts(localFile);
-            IsText = ismember(lower(fext), {'.txt', '.csv', '.tsv', '.dat'});
+            IsFits = strcmpi(fext, '.fits') || strcmpi(fext, '.fit');
             ReadOK = false;
             for Iattempt = 1:2
                 try
                     if ~isempty(Args.PostReadFun)
-                        if IsText
+                        if ~IsFits
                             Mat = Args.PostReadFun(localFile);
                         else
                             T = FITS.readTable1(localFile, 'OutClass', []);
@@ -910,11 +911,11 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
                             clear T;
                         end
                     else
-                        if IsText
+                        if IsFits
+                            T = FITS.readTable1(localFile, 'OutClass', []);
+                        else
                             T = readtable(localFile, 'FileType', 'text', ...
                                 'TreatAsMissing', {'null', 'NA', 'N/A', ''});
-                        else
-                            T = FITS.readTable1(localFile, 'OutClass', []);
                         end
                         if ~isempty(Args.Columns)
                             T = T(:, Args.Columns);
