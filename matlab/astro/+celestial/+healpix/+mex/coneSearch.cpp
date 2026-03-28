@@ -16,7 +16,9 @@ void mexFunction(int nlhs, mxArray *plhs[],
                  int nrhs, const mxArray *prhs[])
 {
     if (nrhs < 4)
-        mexErrMsgTxt("Usage: pix = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [scheme])");
+        mexErrMsgTxt("Usage: pix = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [scheme]) \n" 
+                "or [pix, pixlon, pixlat] = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [scheme])"
+                );
 
     // Inputs
     int64_t nside = (int64_t) mxGetScalar(prhs[0]);
@@ -46,12 +48,29 @@ void mexFunction(int nlhs, mxArray *plhs[],
     // Query
     std::vector<int64> pixels;
     hp.query_disc_inclusive(center, radius, pixels);
-
-    // Output MATLAB array
+    
     mwSize npix = pixels.size();
+    
+    // --- Output 1: pixel indices ---
     plhs[0] = mxCreateNumericMatrix(npix, 1, mxINT64_CLASS, mxREAL);
     int64_t* out = (int64_t*) mxGetData(plhs[0]);
-
     for (mwSize i = 0; i < npix; i++)
         out[i] = pixels[i];
+
+    // --- Optional outputs: pixel coordinates ---
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateDoubleMatrix(npix, 1, mxREAL); // PixLon
+        double* outLon = mxGetPr(plhs[1]);
+        plhs[2] = mxCreateDoubleMatrix(npix, 1, mxREAL); // PixLat
+        double* outLat = mxGetPr(plhs[2]);
+
+        for (mwSize i = 0; i < npix; i++) {
+            pointing ptg = hp.pix2ang(pixels[i]);
+            double th = ptg.theta; // radians
+            double ph = ptg.phi;   // radians
+
+            outLon[i] = ph * 180.0 / M_PI;          // RA
+            outLat[i] = 90.0 - th * 180.0 / M_PI;   // Dec
+        }  
+    }
 }
