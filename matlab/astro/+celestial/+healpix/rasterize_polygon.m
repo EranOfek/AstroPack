@@ -5,7 +5,8 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     %          * ...,key,val,... 
     %          'Nside'      - desired raster resolution
     %          'Resolution' - desired raster resolution [arcsec]
-    %          'Plot'       - boolean (plot an illustration)
+    %          'CheckPlot'  - boolean (plot an illustration)
+    %          'UseMex'     - boolean (def. true)
     % Output : - indices of the HEALpix pixels filling the polygon
     %          - Nside of the HEALpix in the raster
     % Author : A.M. Krassilchtchikov (2025 May) 
@@ -16,6 +17,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
         Args.Nside      = 2^16; 
         Args.Resolution = 5;       % [arcsec]  
         Args.CheckPlot  = false;
+        Args.UseMex     = true;
     end
     RAD = 180/pi;
     NsideRad = [2, 27.585653017957394; ...     % radius of healpix in deg
@@ -49,11 +51,18 @@ function [Result, Nside] = rasterize_polygon(P, Args)
         error('Either Nside or Resolution must be defined');
     end
     % search all the HEALpix at this resolution within the given radius from the center:
-    [Ind,PixLon,PixLat] = celestial.healpix.coneSearch(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
-    % for Nside >  65536 = 2^16 need to employ a more accurate function: 
-%     [Ind] = celestial.healpix.coneSearchRecur(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
-    % determine which of them are actually inside the polygon: 
-    Inside = celestial.search.isPointInsidePolygon(PixLon*RAD, PixLat*RAD, P); 
+    if Args.UseMex
+        [Ind,PixLon,PixLat] = celestial.healpix.mex.coneSearch(Nside,RA0,Dec0,R0);
+        % determine which of them are actually inside the polygon: 
+        Inside = celestial.search.isPointInsidePolygon(PixLon, PixLat, P); 
+    else
+        [Ind,PixLon,PixLat] = celestial.healpix.coneSearch(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
+         % for Nside >  65536 = 2^16 need to employ a more accurate function:
+         % [Ind] = celestial.healpix.coneSearchRecur(Nside,RA0,Dec0,R0,'CooUnits','deg','RadiusUnits','deg');
+        % determine which of them are actually inside the polygon:
+        Inside = celestial.search.isPointInsidePolygon(PixLon*RAD, PixLat*RAD, P);
+    end
+    
     Result = Ind(Inside>0);
     % graphical check:
     if Args.CheckPlot
