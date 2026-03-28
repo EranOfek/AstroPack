@@ -35,9 +35,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
     }
 
     // Convert coordinates
-    double theta = (90.0 - dec) * M_PI / 180.0;
-    double phi   = ra * M_PI / 180.0;
-    double radius = radius_deg * M_PI / 180.0;
+    double rad = 180.0/M_PI;
+    double theta = (90.0 - dec) / rad;
+    double phi   = ra / rad;
+    double radius = radius_deg / rad;
 
     pointing center(theta, phi);
 
@@ -69,8 +70,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
             double th = ptg.theta; // radians
             double ph = ptg.phi;   // radians
 
-            outLon[i] = ph * 180.0 / M_PI;          // RA
-            outLat[i] = 90.0 - th * 180.0 / M_PI;   // Dec
+            outLon[i] = ph * rad;          // RA
+            outLat[i] = 90.0 - th * rad;   // Dec
         }  
     }
 }
