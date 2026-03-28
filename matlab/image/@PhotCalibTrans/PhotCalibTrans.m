@@ -75,6 +75,10 @@ classdef PhotCalibTrans < Component
     %                    Applied to magnitudes by addMag (when ApplyAperCorr=true).
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
+    %     applyConstBand - Apply constant-band correction to AB magnitudes.
+    %                      Replaces fitted atmospheric params with global values,
+    %                      computes scalar ΔZP per crop. Called by addMag when
+    %                      ApplyConstBand=true, or standalone.
     %     addZP - Add position-dependent ZP column to catalog
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
@@ -235,8 +239,8 @@ classdef PhotCalibTrans < Component
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
                 Args.MagRange         = [11.5 15.5]
-                Args.FilterNegFlux logical = true
-                Args.MinSN2           = 10
+                Args.FilterNegFlux logical = false
+                Args.MinSN2           = 0
                 Args.FunListName      = 'DefaultLASTFunList'
                 Args.CustomFunList    = []
                 Args.OptSeqName       = 'LAST_NormLin'
@@ -715,8 +719,8 @@ classdef PhotCalibTrans < Component
                 Args.FilterBadFlags logical = true
                 Args.FluxColName = 'FLUX_APER_3'
                 Args.MagColName = 'MAG_APER_3'
-                Args.FilterNegFlux logical = true     % Remove sources with negative flux
-                Args.MinSN2 = 10                      % Minimum SN_2 for calibrators (0 to skip)
+                Args.FilterNegFlux logical = false    % Remove sources with negative flux
+                Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
                 Args.Verbose logical = true
             end
@@ -2502,6 +2506,10 @@ classdef PhotCalibTrans < Component
                 Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode)
                 Args.NormTran2D logical = true    % If true, center-normalize Tran2D in refzp mode
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
+                Args.ApplyConstBand logical = false  % Apply constant-band correction after AB mags
+                Args.ConstBandParams = []            % Struct or .mat path for constant band params
+                Args.ConstBandOutputMode = 'newcol'  % 'newcol' or 'replace'
+                Args.ConstBandPrefix = 'MAG_CB_'     % Prefix for constant-band mag columns
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -2663,6 +2671,127 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Apply constant-band correction if requested
+            if Args.ApplyConstBand
+                CatObj = Obj.applyConstBand(CatObj, ...
+                    'ConstBandParams', Args.ConstBandParams, ...
+                    'MagColPrefix', MagPrefix, ...
+                    'OutputMode', Args.ConstBandOutputMode, ...
+                    'OutputPrefix', Args.ConstBandPrefix);
+            end
+
+        end
+
+        function CatObj = applyConstBand(Obj, CatObj, Args)
+            % Apply constant-band correction to calibrated magnitudes.
+            %   Converts per-crop AB magnitudes to a standardized bandpass by
+            %   replacing fitted atmospheric parameters with global constant
+            %   values. ZenithAngle and Temperature are taken from the
+            %   observation (Obj.AirMass, Obj.Temp). Norm and Tran2D cancel
+            %   (they are wavelength-independent and already in MAG_AB).
+            %   The correction is a scalar ΔZP per crop:
+            %     ΔZP = 2.5*log10(∫T_const(λ)×λ dλ / ∫T_crop(λ)×λ dλ)
+            %     MAG_CB = MAG_AB + ΔZP
+            % Input  : - PhotCalibTrans object (must have fitted TransModel).
+            %          - AstroCatalog object with MAG_AB columns from addMag.
+            %          * ...,key,val,...
+            %            'ConstBandParams' - Struct with global atmospheric
+            %                        parameter values. Field names must match
+            %                        parameter Descriptions in CompositeFun
+            %                        (e.g., Pressure_mbar, DobsonUnits,
+            %                        TauAod500, AngstromExponent, PWV_cm).
+            %                        Or path to .mat file containing the struct.
+            %            'MagColPrefix' - Prefix of magnitude columns to
+            %                        convert. Default is 'MAG_AB_'.
+            %            'OutputMode' - 'newcol' creates new columns with
+            %                        OutputPrefix; 'replace' overwrites the
+            %                        original MAG columns. Default is 'newcol'.
+            %            'OutputPrefix' - Prefix for new columns when
+            %                        OutputMode='newcol'. Default is 'MAG_CB_'.
+            % Output : - AstroCatalog with constant-band magnitude columns.
+            % Author : D. Kovaleva (Mar 2026)
+            % Example: Cat = PC.applyConstBand(Cat, 'ConstBandParams', CBP);
+            %          Cat = PC.applyConstBand(Cat, 'ConstBandParams', 'ConstBand_LAST.mat');
+            %          Cat = PC.applyConstBand(Cat, 'ConstBandParams', CBP, 'OutputMode', 'replace');
+
+            arguments
+                Obj
+                CatObj
+                Args.ConstBandParams = []       % Struct or .mat path
+                Args.MagColPrefix = 'MAG_AB_'
+                Args.OutputMode = 'newcol'      % 'newcol' or 'replace'
+                Args.OutputPrefix = 'MAG_CB_'
+            end
+
+            if isempty(Args.ConstBandParams)
+                warning('PhotCalibTrans:applyConstBand:NoParams', ...
+                    'ConstBandParams not provided — skipping constant band correction');
+                return;
+            end
+
+            % Load ConstBandParams from .mat if path given
+            if ischar(Args.ConstBandParams) || isstring(Args.ConstBandParams)
+                S = load(Args.ConstBandParams, 'ConstBandParams');
+                CBP = S.ConstBandParams;
+            else
+                CBP = Args.ConstBandParams;
+            end
+
+            Lambda = Obj.TransWvl;
+            LambdaNm = Lambda / 10;  % nm for photon integral
+
+            % --- Evaluate T_atm_crop (fitted atmospheric, Norm=1, no Tran2D) ---
+            CropModel = Obj.TransModel.copy();
+            AllPar = CropModel.getAllFunPar();
+
+            % Set Norm=1 to isolate atmospheric transmission
+            NormIdx = find(strcmp(AllPar.Name, 'Norm'), 1);
+            if ~isempty(NormIdx)
+                AllPar.Val(NormIdx) = 1.0;
+            end
+            CropModel.setAllFunPar(AllPar);
+            T_crop = CropModel.evaluateAllFunParInput(Lambda, AllPar.Val');
+
+            % --- Build T_const (replace atmospheric params with global values) ---
+            ConstPar = AllPar;
+            Fields = fieldnames(CBP);
+            for If = 1:numel(Fields)
+                Idx = find(strcmp(ConstPar.Name, Fields{If}));
+                if ~isempty(Idx)
+                    ConstPar.Val(Idx) = CBP.(Fields{If});
+                end
+            end
+            T_const = CropModel.evaluateAllFunParInput(Lambda, ConstPar.Val');
+
+            % --- Compute ΔZP ---
+            IntCrop  = trapz(Lambda, T_crop(:) .* LambdaNm(:));
+            IntConst = trapz(Lambda, T_const(:) .* LambdaNm(:));
+
+            if IntCrop <= 0 || IntConst <= 0
+                warning('PhotCalibTrans:applyConstBand:BadIntegral', ...
+                    'Non-positive transmission integral — skipping constant band');
+                return;
+            end
+
+            DeltaZP = 2.5 * log10(IntConst / IntCrop);
+
+            % --- Apply to magnitude columns ---
+            Tab = CatObj.Table;
+            AllColNames = Tab.Properties.VariableNames;
+            MagCols = AllColNames(startsWith(AllColNames, Args.MagColPrefix));
+
+            for Ic = 1:numel(MagCols)
+                MagVals = Tab.(MagCols{Ic}) + DeltaZP;
+
+                if strcmpi(Args.OutputMode, 'replace')
+                    Tab.(MagCols{Ic}) = MagVals;
+                else
+                    NewColName = strrep(MagCols{Ic}, Args.MagColPrefix, Args.OutputPrefix);
+                    Tab.(NewColName) = MagVals;
+                end
+            end
+
+            CatObj.Catalog = Tab;
         end
 
         function CatObj = addZP(Obj, CatObj, Args)
@@ -3466,6 +3595,125 @@ classdef PhotCalibTrans < Component
                 % Generic: take last 2 chars of column name
                 Tag = FluxColName(max(1, end-1):end);
                 KeyName = ['APCOR_', Tag];
+            end
+        end
+        function CBP = buildConstBandParams(PCArray, Args)
+            % Build constant-band parameters from an array of fitted PhotCalibTrans objects.
+            %   Extracts fitted atmospheric parameters (excluding Norm,
+            %   ZenithAngle_deg, Temperature_C) from each object's TransModel
+            %   and computes robust median across all successful fits.
+            %   Optionally saves to .mat file with date in filename.
+            % Input  : - PCArray — array or cell array of PhotCalibTrans objects
+            %            (e.g., from cached PC_percrop.mat across many images).
+            %            Cell arrays are flattened; non-Success objects are skipped.
+            %          * ...,key,val,...
+            %            'Method'     - 'median' or 'mean'. Default is 'median'.
+            %            'OutputPath' - Directory for output .mat. Default is '' (no save).
+            %            'OutputName' - Filename prefix. Default is 'ConstBandParams_LAST'.
+            %                        Date suffix appended automatically.
+            %            'ExcludeParams' - Parameter names to exclude beyond
+            %                        Norm/ZenithAngle/Temperature. Default is {}.
+            %            'Verbose'    - Print summary. Default is true.
+            % Output : - ConstBandParams struct with one field per parameter.
+            %            Also contains .CreatedDate, .NObjects, .Method metadata.
+            % Author : D. Kovaleva (Mar 2026)
+            % Example: % From cached PC files:
+            %          S1 = load('results/PC_percrop.mat'); PC1 = S1.PC_all;
+            %          S2 = load('results2/PC_percrop.mat'); PC2 = S2.PC_all;
+            %          CBP = PhotCalibTrans.buildConstBandParams([PC1(:); PC2(:)]);
+            %          CBP = PhotCalibTrans.buildConstBandParams(PC1, ...
+            %              'OutputPath', '~/matlab/data/spec/Telescope/LAST');
+
+            arguments
+                PCArray
+                Args.Method = 'median'
+                Args.OutputPath = ''
+                Args.OutputName = 'ConstBandParams_LAST'
+                Args.ExcludeParams cell = {}
+                Args.Verbose logical = true
+            end
+
+            % Flatten cell arrays
+            if iscell(PCArray)
+                PCArray = [PCArray{:}];
+            end
+            PCArray = PCArray(:);
+
+            % Parameters to always exclude
+            AlwaysExclude = {'Norm', 'ZenithAngle_deg', 'Temperature_C'};
+            ExcludeSet = [AlwaysExclude, Args.ExcludeParams(:)'];
+
+            % Collect fitted parameter values from all successful objects
+            ParamValues = [];   % [Nobj x Nparams]
+            ParamNames = {};
+            Nobj = 0;
+
+            for Ipc = 1:numel(PCArray)
+                PC = PCArray(Ipc);
+                if ~PC.Success || isempty(PC.TransModel)
+                    continue;
+                end
+
+                AllPar = PC.TransModel.getAllFunPar();
+
+                % On first successful object, set up parameter names
+                if isempty(ParamNames)
+                    % Select: fitted AND not excluded
+                    KeepMask = AllPar.FitPar(:);
+                    for Ie = 1:numel(ExcludeSet)
+                        KeepMask = KeepMask & ~strcmp(AllPar.Name, ExcludeSet{Ie});
+                    end
+                    KeepIdx = find(KeepMask);
+                    ParamNames = AllPar.Name(KeepIdx);
+                    ParamValues = nan(numel(PCArray), numel(KeepIdx));
+                end
+
+                Nobj = Nobj + 1;
+                for Ip = 1:numel(KeepIdx)
+                    Idx = find(strcmp(AllPar.Name, ParamNames{Ip}), 1);
+                    if ~isempty(Idx)
+                        ParamValues(Nobj, Ip) = AllPar.Val(Idx);
+                    end
+                end
+            end
+
+            ParamValues = ParamValues(1:Nobj, :);
+
+            % Compute robust statistic
+            CBP = struct();
+            for Ip = 1:numel(ParamNames)
+                Vals = ParamValues(:, Ip);
+                Vals = Vals(isfinite(Vals));
+                switch lower(Args.Method)
+                    case 'median'
+                        CBP.(ParamNames{Ip}) = median(Vals);
+                    case 'mean'
+                        CBP.(ParamNames{Ip}) = mean(Vals);
+                end
+            end
+
+            % Metadata
+            CBP.CreatedDate = datestr(now, 'yyyy-mm-dd');
+            CBP.NObjects = Nobj;
+            CBP.Method = Args.Method;
+
+            if Args.Verbose
+                fprintf('ConstBandParams from %d objects (%s):\n', Nobj, Args.Method);
+                for Ip = 1:numel(ParamNames)
+                    fprintf('  %-25s = %.6g\n', ParamNames{Ip}, CBP.(ParamNames{Ip}));
+                end
+            end
+
+            % Save if OutputPath specified
+            if ~isempty(Args.OutputPath)
+                DateStr = datestr(now, 'yyyymmdd');
+                FileName = sprintf('%s_%s.mat', Args.OutputName, DateStr);
+                FullPath = fullfile(Args.OutputPath, FileName);
+                ConstBandParams = CBP; %#ok<NASGU>
+                save(FullPath, 'ConstBandParams');
+                if Args.Verbose
+                    fprintf('Saved: %s\n', FullPath);
+                end
             end
         end
     end
