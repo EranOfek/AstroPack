@@ -23,7 +23,8 @@ function [Result] = plot(Pix, Args)
     %
     RAD = 180/pi;
     
-    figure(1); clf; hold on
+%     figure(1); 
+    figure;clf; hold on
     
     if Args.PlotOnMap
         axesm('aitoff', 'Frame', 'on', 'Grid', 'on');
