@@ -41,8 +41,4 @@ function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
         PixLon    = Factor.*PixLon;
         PixLat    = Factor.*PixLat;
     end
-
-    
-
-
 end
