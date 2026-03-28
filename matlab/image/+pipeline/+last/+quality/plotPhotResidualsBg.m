@@ -35,9 +35,9 @@ function plotPhotResidualsBg(PC, Args)
         return;
     end
 
-    allInvFlux = [];
-    allRes     = [];
-    allMagAB   = [];
+    AllInvFlux = [];
+    AllRes     = [];
+    AllMagAB   = [];
 
     Nvisits = numel(PC.percrop);
     for Iv = 1:Nvisits
@@ -76,13 +76,13 @@ function plotPhotResidualsBg(PC, Args)
             end
 
             ValidMask = isfinite(Residuals) & isfinite(Flux) & Flux > 0;
-            allInvFlux = [allInvFlux; 1 ./ Flux(ValidMask)];
-            allRes     = [allRes; Residuals(ValidMask)];
-            allMagAB   = [allMagAB; MagAB(ValidMask)];
+            AllInvFlux = [AllInvFlux; 1 ./ Flux(ValidMask)];
+            AllRes     = [AllRes; Residuals(ValidMask)];
+            AllMagAB   = [AllMagAB; MagAB(ValidMask)];
         end
     end
 
-    if isempty(allInvFlux)
+    if isempty(AllInvFlux)
         warning('plotPhotResidualsBg:NoData', 'No valid data found.');
         return;
     end
@@ -92,15 +92,15 @@ function plotPhotResidualsBg(PC, Args)
            'Position', [50, 50, 600, 500]);
     hold on;
 
-    plot(allInvFlux, allRes, '.', 'MarkerSize', 2);
+    plot(AllInvFlux, AllRes, '.', 'MarkerSize', 2);
     plot(xlim, [0 0], 'k--');
 
     % Binned trend
     if ~strcmp(Args.OverlayTrend, 'none')
-        XRange = [min(allInvFlux), max(allInvFlux)];
+        XRange = [min(AllInvFlux), max(AllInvFlux)];
         BinWidth = diff(XRange) / Args.NTrendBins;
         TrendFun = str2func(['nan' Args.OverlayTrend]);
-        R = timeSeries.bin.binningFast([allInvFlux(:), allRes(:)], ...
+        R = timeSeries.bin.binningFast([AllInvFlux(:), AllRes(:)], ...
             BinWidth, XRange, {'MidBin', @numel, TrendFun});
         ValidBins = R(:,2) >= 5;
         plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
@@ -109,8 +109,8 @@ function plotPhotResidualsBg(PC, Args)
     % Linear fit: Residual = slope * (1/Flux) + intercept
     % slope = -1.086 * bg
     if Args.FitLine
-        P = polyfit(allInvFlux, allRes, 1);
-        XFit = linspace(min(allInvFlux), max(allInvFlux), 100);
+        P = polyfit(AllInvFlux, AllRes, 1);
+        XFit = linspace(min(AllInvFlux), max(AllInvFlux), 100);
         plot(XFit, polyval(P, XFit), '-b', 'LineWidth', 2);
 
         BgEstimate = -P(1) / 1.086;
@@ -136,16 +136,16 @@ function plotPhotResidualsBg(PC, Args)
                'YAxisLocation', 'right', 'Color', 'none', 'YTick', []);
     ax2.XLim = ax1.XLim;
 
-    ValidAB = isfinite(allMagAB);
+    ValidAB = isfinite(AllMagAB);
     if any(ValidAB)
         % Place ticks at integer AB magnitudes
-        MagTicks = ceil(min(allMagAB(ValidAB))):floor(max(allMagAB(ValidAB)));
+        MagTicks = ceil(min(AllMagAB(ValidAB))):floor(max(AllMagAB(ValidAB)));
         % For each mag tick, find median 1/Flux of sources near that mag
         InvFluxTicks = nan(size(MagTicks));
         for It = 1:numel(MagTicks)
-            Near = abs(allMagAB - MagTicks(It)) < 0.5;
+            Near = abs(AllMagAB - MagTicks(It)) < 0.5;
             if sum(Near) >= 3
-                InvFluxTicks(It) = nanmedian(allInvFlux(Near));
+                InvFluxTicks(It) = nanmedian(AllInvFlux(Near));
             end
         end
         KeepTicks = isfinite(InvFluxTicks) & ...

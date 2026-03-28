@@ -23,15 +23,15 @@ function plotPhotResidualsRMS(PC, Args)
         Args.MagField       = 'MAG_AB'
         Args.BinWidth       = 0.5
         Args.MinCount       = 10
-        Args.ShowScatter logical = true
+        Args.ShowScatter logical = false
     end
 
     if ~isfield(PC, 'percrop')
         return;
     end
 
-    allMag = [];
-    allRes = [];
+    AllMag = [];
+    AllRes = [];
 
     Nvisits = numel(PC.percrop);
     for Iv = 1:Nvisits
@@ -74,12 +74,12 @@ function plotPhotResidualsRMS(PC, Args)
             end
 
             ValidMask = isfinite(Residuals) & isfinite(Mag);
-            allMag = [allMag; Mag(ValidMask)];
-            allRes = [allRes; Residuals(ValidMask)];
+            AllMag = [AllMag; Mag(ValidMask)];
+            AllRes = [AllRes; Residuals(ValidMask)];
         end
     end
 
-    if isempty(allMag)
+    if isempty(AllMag)
         return;
     end
 
@@ -90,26 +90,25 @@ function plotPhotResidualsRMS(PC, Args)
 
     % Scatter of individual |residuals|
     if Args.ShowScatter
-        plot(allMag, abs(allRes), '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 2);
+        plot(AllMag, abs(AllRes), '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 2);
     end
 
     % Binned RMS
-    MagRange = [floor(min(allMag)), ceil(max(allMag))];
-    R = timeSeries.bin.binningFast([allMag(:), allRes(:)], ...
+    MagRange = [floor(min(AllMag)), ceil(max(AllMag))];
+    R = timeSeries.bin.binningFast([AllMag(:), AllRes(:)], ...
         Args.BinWidth, MagRange, {'MidBin', @numel, @nanstd});
     ValidBins = R(:,2) >= Args.MinCount;
-    plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
+    HRMS = plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
 
-    % Binned median |residual| for comparison
-    Rmed = timeSeries.bin.binningFast([allMag(:), abs(allRes(:))], ...
-        Args.BinWidth, MagRange, {'MidBin', @numel, @nanmedian});
-    ValidBinsMed = Rmed(:,2) >= Args.MinCount;
-    plot(Rmed(ValidBinsMed,1), Rmed(ValidBinsMed,3), '--b', 'LineWidth', 1.5);
-
-    legend({'|Residual|', 'RMS (std)', 'Median |Residual|'}, ...
-        'Location', 'northwest');
+    % % Binned median |residual| for comparison
+    % Rmed = timeSeries.bin.binningFast([AllMag(:), abs(AllRes(:))], ...
+    %     Args.BinWidth, MagRange, {'MidBin', @numel, @nanmedian});
+    % ValidBinsMed = Rmed(:,2) >= Args.MinCount;
+    % hMed = plot(Rmed(ValidBinsMed,1), Rmed(ValidBinsMed,3), '--b', 'LineWidth', 1.5);
 
     set(gca, 'YScale', 'log');
+    yl = ylim;
+    ylim([yl(1) - 0.0005, yl(2) + 0.00075]);
     box on; grid on;
     if strcmp(Args.MagField, 'instrumental')
         xlabel('-2.5 log_{10}(Flux)');
@@ -117,6 +116,8 @@ function plotPhotResidualsRMS(PC, Args)
         xlabel(strrep(Args.MagField, '_', '\_'));
     end
     ylabel('Residual RMS [mag]');
-    title(sprintf('Calibrator residual RMS vs magnitude (%d calibrators, %d epochs)', ...
-        numel(allRes), Nvisits));
+    Th = title(sprintf('Calibrator residual RMS vs magnitude (%d calibrators, %d epochs)', ...
+        numel(AllRes), Nvisits));
+    Th.Units = 'normalized';
+    Th.Position(2) = Th.Position(2) + 0.03;
 end

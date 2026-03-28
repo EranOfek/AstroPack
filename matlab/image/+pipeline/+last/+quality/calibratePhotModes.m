@@ -327,7 +327,12 @@ function Result = calibratePhotModes(AI, Args)
             end
 
             % Collect transmission parameters across epochs (weighted mean)
-            RefCropIdx = Args.RefCrop;
+            % For global ZP modes, also average spectral shape over all crops
+            if ismember(Args.VisitRefZP, {'global_median', 'global_mean'})
+                RefCropIdx = 0;
+            else
+                RefCropIdx = Args.RefCrop;
+            end
             AllParams  = [];
             AllWeights = [];
             for Iv = 1:Nvisits

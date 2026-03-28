@@ -29,9 +29,9 @@ function plotPhotResidualsXY(PC, Args)
         return;
     end
 
-    allX   = [];
-    allY   = [];
-    allRes = [];
+    AllX   = [];
+    AllY   = [];
+    AllRes = [];
 
     Nvisits = numel(PC.percrop);
     for Iv = 1:Nvisits
@@ -69,13 +69,13 @@ function plotPhotResidualsXY(PC, Args)
             end
 
             ValidMask = isfinite(Residuals) & isfinite(X) & isfinite(Y);
-            allX   = [allX; X(ValidMask)];
-            allY   = [allY; Y(ValidMask)];
-            allRes = [allRes; Residuals(ValidMask)];
+            AllX   = [AllX; X(ValidMask)];
+            AllY   = [AllY; Y(ValidMask)];
+            AllRes = [AllRes; Residuals(ValidMask)];
         end
     end
 
-    if isempty(allRes)
+    if isempty(AllRes)
         return;
     end
 
@@ -93,21 +93,21 @@ function plotPhotResidualsXY(PC, Args)
         hold on;
 
         if Ipanel == 1
-            PosData = allX;
+            PosData = AllX;
             PosLabel = 'X [pix]';
         else
-            PosData = allY;
+            PosData = AllY;
             PosLabel = 'Y [pix]';
         end
 
-        plot(PosData, allRes, '.', 'MarkerSize', 2);
+        plot(PosData, AllRes, '.', 'MarkerSize', 2);
         plot(xlim, [0 0], 'k--');
 
         if ~strcmp(Args.OverlayTrend, 'none')
             XRange = [min(PosData), max(PosData)];
             BinWidth = diff(XRange) / Args.NTrendBins;
             TrendFun = str2func(['nan' Args.OverlayTrend]);
-            R = timeSeries.bin.binningFast([PosData(:), allRes(:)], ...
+            R = timeSeries.bin.binningFast([PosData(:), AllRes(:)], ...
                 BinWidth, XRange, {'MidBin', @numel, TrendFun});
             ValidBins = R(:,2) >= 5;
             plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
@@ -121,5 +121,5 @@ function plotPhotResidualsXY(PC, Args)
         end
     end
     sgtitle(sprintf('Residuals vs position (%d calibrators, %d epochs)', ...
-        numel(allRes), Nvisits));
+        numel(AllRes), Nvisits));
 end

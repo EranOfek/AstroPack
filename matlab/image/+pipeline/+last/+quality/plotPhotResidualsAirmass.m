@@ -32,8 +32,8 @@ function plotPhotResidualsAirmass(PC, Args)
     end
 
     % Collect individual residuals with airmass
-    allAM  = [];
-    allRes = [];
+    AllAM  = [];
+    AllRes = [];
 
     Nvisits = numel(PC.percrop);
     for Iv = 1:Nvisits
@@ -71,13 +71,13 @@ function plotPhotResidualsAirmass(PC, Args)
             end
 
             ValidMask = isfinite(Residuals);
-            allAM  = [allAM; repmat(AM, sum(ValidMask), 1)];
-            allRes = [allRes; Residuals(ValidMask)];
+            AllAM  = [AllAM; repmat(AM, sum(ValidMask), 1)];
+            AllRes = [AllRes; Residuals(ValidMask)];
 
         end
     end
 
-    if isempty(allRes)
+    if isempty(AllRes)
         return;
     end
 
@@ -91,27 +91,27 @@ function plotPhotResidualsAirmass(PC, Args)
     figure('Name', 'Residuals vs Airmass', 'Position', [50, 50, 600, 500]);
     hold on;
 
-    plot(allAM, allRes, '.', 'MarkerSize', 2);
+    plot(AllAM, AllRes, '.', 'MarkerSize', 2);
     plot(xlim, [0 0], 'k--');
 
     % Binned median trend
-    AMRange = [min(allAM), max(allAM)];
+    AMRange = [min(AllAM), max(AllAM)];
     BinWidth = max(diff(AMRange) / Args.NTrendBins, 0.01);
-    R = timeSeries.bin.binningFast([allAM(:), allRes(:)], ...
+    R = timeSeries.bin.binningFast([AllAM(:), AllRes(:)], ...
         BinWidth, AMRange, {'MidBin', @numel, @nanmedian});
     ValidBins = R(:,2) >= 5;
     plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
 
     % Show median shift value
-    MedShift = nanmedian(allRes);
+    MedShift = nanmedian(AllRes);
     plot(xlim, [MedShift MedShift], '--m', 'LineWidth', 1.5);
     text(0.05, 0.95, sprintf('median shift = %.4f mag', MedShift), ...
         'Units', 'normalized', 'VerticalAlignment', 'top', ...
         'FontSize', 10, 'BackgroundColor', 'w');
 
     if Args.FitLine
-        P = polyfit(allAM, allRes, 1);
-        XFit = linspace(min(allAM), max(allAM), 100);
+        P = polyfit(AllAM, AllRes, 1);
+        XFit = linspace(min(AllAM), max(AllAM), 100);
         plot(XFit, polyval(P, XFit), '-b', 'LineWidth', 2);
         text(0.05, 0.85, sprintf('slope = %.4f', P(1)), ...
             'Units', 'normalized', 'VerticalAlignment', 'top', ...
@@ -125,5 +125,5 @@ function plotPhotResidualsAirmass(PC, Args)
         ylim(Args.YLim);
     end
     title(sprintf('Residuals vs airmass (%d calibrators, %d epochs)', ...
-        numel(allRes), Nvisits));
+        numel(AllRes), Nvisits));
 end

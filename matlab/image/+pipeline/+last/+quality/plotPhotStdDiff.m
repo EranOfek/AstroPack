@@ -41,8 +41,8 @@ function plotPhotStdDiff(MS, Args)
         for Io = 1:Nother
             Mode = OtherModes{Io};
             if ~isfield(MS, Mode); continue; end
-            allMedMag = [];
-            allDeltaStd = [];
+            AllMedMag = [];
+            AllDeltaStd = [];
 
             CropsToUse = Args.CropsToAnalyze;
             if isempty(CropsToUse)
@@ -80,18 +80,18 @@ function plotPhotStdDiff(MS, Args)
                 Std_other = nanstd(Mag_other, 0, 1);
                 MedMag    = nanmedian(Mag_pc, 1);
 
-                allMedMag = [allMedMag, MedMag];
-                allDeltaStd = [allDeltaStd, Std_pc - Std_other];
+                AllMedMag = [AllMedMag, MedMag];
+                AllDeltaStd = [AllDeltaStd, Std_pc - Std_other];
             end
 
             subplot(1, Nother, Io);
-            if ~isempty(allMedMag)
-                plot(allMedMag, allDeltaStd, '.', 'MarkerSize', 4);
+            if ~isempty(AllMedMag)
+                plot(AllMedMag, AllDeltaStd, '.', 'MarkerSize', 4);
                 hold on;
                 plot(xlim, [0 0], 'k--');
                 if ~strcmp(Args.OverlayTrend, 'none')
                     TrendFun = str2func(['nan' Args.OverlayTrend]);
-                    R = timeSeries.bin.binningFast([allMedMag(:), allDeltaStd(:)], ...
+                    R = timeSeries.bin.binningFast([AllMedMag(:), AllDeltaStd(:)], ...
                         Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
                     ValidBins = R(:,2) >= 5;
                     plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
@@ -123,7 +123,7 @@ function plotPhotStdDiff(MS, Args)
             xlabel('Median Magnitude');
             ylabel(sprintf('Std(percrop) - Std(%s) [mag]', Mode));
             xlim([9 22]);
-            title(sprintf('percrop - %s  (%d sources)', Mode, numel(allDeltaStd)));
+            title(sprintf('percrop - %s  (%d sources)', Mode, numel(AllDeltaStd)));
         end
         sgtitle(sprintf('Std difference (>0 = non-percrop better): %s', ...
             strrep(MagField, '_', '\_')), 'FontSize', 11);

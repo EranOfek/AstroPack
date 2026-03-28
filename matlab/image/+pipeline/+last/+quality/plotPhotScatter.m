@@ -57,8 +57,8 @@ function plotPhotScatter(MS, Args)
 
             % --- Original mag scatter (background, gray) ---
             if ~isempty(OrigMagField)
-                allMedOrig = [];
-                allStdOrig = [];
+                AllMedOrig = [];
+                AllStdOrig = [];
                 for Ic = CropsToUse
                     if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic})
                         continue;
@@ -70,17 +70,17 @@ function plotPhotScatter(MS, Args)
                         Good = sum(~isnan(OrigData), 1) >= Args.MinEpochs;
                         OrigData = OrigData(:, Good);
                     end
-                    allMedOrig = [allMedOrig, nanmedian(OrigData, 1)];
-                    allStdOrig = [allStdOrig, nanstd(OrigData, 0, 1)];
+                    AllMedOrig = [AllMedOrig, nanmedian(OrigData, 1)];
+                    AllStdOrig = [AllStdOrig, nanstd(OrigData, 0, 1)];
                 end
-                if ~isempty(allMedOrig)
-                    plot(allMedOrig, allStdOrig, '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 3);
+                if ~isempty(AllMedOrig)
+                    plot(AllMedOrig, AllStdOrig, '.', 'Color', [0.75 0.75 0.75], 'MarkerSize', 3);
                 end
             end
 
             % --- AB mag scatter (foreground, color) ---
-            allMedMag = [];
-            allStdMag = [];
+            AllMedMag = [];
+            AllStdMag = [];
 
             for Ic = CropsToUse
                 if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic})
@@ -94,17 +94,17 @@ function plotPhotScatter(MS, Args)
                     Good = sum(~isnan(MagData), 1) >= Args.MinEpochs;
                     MagData = MagData(:, Good);
                 end
-                allMedMag = [allMedMag, nanmedian(MagData, 1)];
-                allStdMag = [allStdMag, nanstd(MagData, 0, 1)];
+                AllMedMag = [AllMedMag, nanmedian(MagData, 1)];
+                AllStdMag = [AllStdMag, nanstd(MagData, 0, 1)];
             end
 
-            if ~isempty(allMedMag)
-                plot(allMedMag, allStdMag, '.', 'Color', Colors(Im,:), 'MarkerSize', 4);
+            if ~isempty(AllMedMag)
+                plot(AllMedMag, AllStdMag, '.', 'Color', Colors(Im,:), 'MarkerSize', 4);
 
                 % Grey trend (original mags) — over all dots, under black line
-                if ~isempty(OrigMagField) && ~isempty(allMedOrig) && ~strcmp(Args.OverlayTrend, 'none')
+                if ~isempty(OrigMagField) && ~isempty(AllMedOrig) && ~strcmp(Args.OverlayTrend, 'none')
                     TrendFun = str2func(['nan' Args.OverlayTrend]);
-                    Rorig = timeSeries.bin.binningFast([allMedOrig(:), allStdOrig(:)], ...
+                    Rorig = timeSeries.bin.binningFast([AllMedOrig(:), AllStdOrig(:)], ...
                         Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
                     ValidBinsOrig = Rorig(:,2) >= 5;
                     plot(Rorig(ValidBinsOrig,1), Rorig(ValidBinsOrig,3), '--', ...
@@ -114,7 +114,7 @@ function plotPhotScatter(MS, Args)
                 % Black trend (AB mags) — on top
                 if ~strcmp(Args.OverlayTrend, 'none')
                     TrendFun = str2func(['nan' Args.OverlayTrend]);
-                    R = timeSeries.bin.binningFast([allMedMag(:), allStdMag(:)], ...
+                    R = timeSeries.bin.binningFast([AllMedMag(:), AllStdMag(:)], ...
                         Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
                     ValidBins = R(:,2) >= 5;
                     plot(R(ValidBins,1), R(ValidBins,3), '-k', 'LineWidth', 2);

@@ -60,9 +60,9 @@ function plotPhotResidualsColor(PC, Args)
         return;
     end
 
-    allColor = [];
-    allRes   = [];
-    allMag   = [];
+    AllColor = [];
+    AllRes   = [];
+    AllMag   = [];
 
     Nvisits = numel(PC.percrop);
 
@@ -188,13 +188,13 @@ function plotPhotResidualsColor(PC, Args)
             end
 
             ValidMask = isfinite(Residuals) & isfinite(Color);
-            allColor = [allColor; Color(ValidMask)];
-            allRes   = [allRes; Residuals(ValidMask)];
-            allMag   = [allMag; Mag(ValidMask)];
+            AllColor = [AllColor; Color(ValidMask)];
+            AllRes   = [AllRes; Residuals(ValidMask)];
+            AllMag   = [AllMag; Mag(ValidMask)];
         end
     end
 
-    if isempty(allColor)
+    if isempty(AllColor)
         warning('plotPhotResidualsColor:NoData', 'No valid color-residual pairs found.');
         return;
     end
@@ -208,13 +208,13 @@ function plotPhotResidualsColor(PC, Args)
     subplot(1, Npanels, 1);
     hold on;
 
-    plot(allColor, allRes, '.', 'MarkerSize', 2);
+    plot(AllColor, AllRes, '.', 'MarkerSize', 2);
     plot(xlim, [0 0], 'k--');
 
     if ~strcmp(Args.OverlayTrend, 'none')
-        ColorRange = [floor(min(allColor)*5)/5, ceil(max(allColor)*5)/5];
+        ColorRange = [floor(min(AllColor)*5)/5, ceil(max(AllColor)*5)/5];
         TrendFun = str2func(['nan' Args.OverlayTrend]);
-        R = timeSeries.bin.binningFast([allColor(:), allRes(:)], ...
+        R = timeSeries.bin.binningFast([AllColor(:), AllRes(:)], ...
             Args.TrendBinWidth, ColorRange, {'MidBin', @numel, TrendFun});
         ValidBins = R(:,2) >= 5;
         plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
@@ -230,20 +230,20 @@ function plotPhotResidualsColor(PC, Args)
     if ~isempty(Args.YLim)
         ylim(Args.YLim);
     end
-    title(sprintf('Residual vs color (%d points)', numel(allColor)));
+    title(sprintf('Residual vs color (%d points)', numel(AllColor)));
 
     % Panel 2: Color vs Magnitude (CMD)
     if Args.PlotMagColor
         subplot(1, Npanels, 2);
         hold on;
 
-        ValidMC = isfinite(allMag) & isfinite(allColor);
-        plot(allMag(ValidMC), allColor(ValidMC), '.', 'MarkerSize', 2);
+        ValidMC = isfinite(AllMag) & isfinite(AllColor);
+        plot(AllMag(ValidMC), AllColor(ValidMC), '.', 'MarkerSize', 2);
 
         if ~strcmp(Args.OverlayTrend, 'none')
-            MagRange = [floor(min(allMag(ValidMC))), ceil(max(allMag(ValidMC)))];
+            MagRange = [floor(min(AllMag(ValidMC))), ceil(max(AllMag(ValidMC)))];
             TrendFun = str2func(['nan' Args.OverlayTrend]);
-            R = timeSeries.bin.binningFast([allMag(ValidMC), allColor(ValidMC)], ...
+            R = timeSeries.bin.binningFast([AllMag(ValidMC), AllColor(ValidMC)], ...
                 Args.TrendBinWidth, MagRange, {'MidBin', @numel, TrendFun});
             ValidBins = R(:,2) >= 5;
             plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);

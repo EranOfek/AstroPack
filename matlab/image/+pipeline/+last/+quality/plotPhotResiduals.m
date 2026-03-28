@@ -42,8 +42,8 @@ function plotPhotResiduals(PC, Args)
            'Position', [50, 50, 600, 500]);
     hold on;
 
-    allMag = [];
-    allRes = [];
+    AllMag = [];
+    AllRes = [];
 
     Nvisits = numel(PC.percrop);
     for Iv = 1:Nvisits
@@ -96,19 +96,19 @@ function plotPhotResiduals(PC, Args)
             end
 
             ValidMask = isfinite(Residuals) & isfinite(Mag);
-            allMag = [allMag; Mag(ValidMask)];
-            allRes = [allRes; Residuals(ValidMask)];
+            AllMag = [AllMag; Mag(ValidMask)];
+            AllRes = [AllRes; Residuals(ValidMask)];
         end
     end
 
-    if ~isempty(allMag)
-        plot(allMag, allRes, '.', 'MarkerSize', 2);
+    if ~isempty(AllMag)
+        plot(AllMag, AllRes, '.', 'MarkerSize', 2);
         plot(xlim, [0 0], 'k--');
 
         if ~strcmp(Args.OverlayTrend, 'none')
-            MagRange = [floor(min(allMag)), ceil(max(allMag))];
+            MagRange = [floor(min(AllMag)), ceil(max(AllMag))];
             TrendFun = str2func(['nan' Args.OverlayTrend]);
-            R = timeSeries.bin.binningFast([allMag(:), allRes(:)], ...
+            R = timeSeries.bin.binningFast([AllMag(:), AllRes(:)], ...
                 Args.TrendBinWidth, MagRange, {'MidBin', @numel, TrendFun});
             ValidBins = R(:,2) >= 5;
             plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
@@ -130,5 +130,5 @@ function plotPhotResiduals(PC, Args)
         ylim(Args.YLim);
     end
     title(sprintf('Calibrator fit residuals (%d calibrators, %d epochs)', ...
-        numel(allMag), Nvisits));
+        numel(AllMag), Nvisits));
 end
