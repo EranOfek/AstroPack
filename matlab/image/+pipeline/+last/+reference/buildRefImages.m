@@ -105,7 +105,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-        Raster0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.RasterResolution);
+%         Raster0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.RasterResolution);
+        Raster0 = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
         
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
@@ -177,9 +178,10 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         % if the total coverage is incomplete, skip to the next epoch                                                 
                         Coverage = []; RasterC = []; Icrop = 1;
                         while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved 
-                            CropPoly = [TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
-                                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)];                                                                   
-                            Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
+                            CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
+                                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);                                                                   
+%                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
+                            Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);
                             % if this crop does not overlap with the reference region, deselect it
                             Coverage(Icrop) = sum(ismember(Raster,Raster0));
                             if Coverage(Icrop) < 1
