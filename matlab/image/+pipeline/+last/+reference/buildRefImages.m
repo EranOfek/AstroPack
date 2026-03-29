@@ -27,11 +27,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
                        
-        Args.RefNumbers  = []; % [150000 150001] or [150000:150020]; input ref. image numbers 
+        Args.RefNumbers  = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
-        Args.Naxis1            = 1726;  % the pixel size of a reference image:  
-        Args.Naxis2            = 1726;  % NOTE: will be reduced to 1716 for the new LAST pipeline   
+        Args.Naxis1            = 1716;  % the pixel size of a reference image   
+        Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
         
         Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
         Args.interp2wcsArgs    = {'Sampling',1,'CreateNewObj',true};  % probably 'Sampling',5 is enough? (def. 20)
