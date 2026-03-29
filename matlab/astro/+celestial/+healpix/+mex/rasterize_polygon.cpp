@@ -1,6 +1,6 @@
-// mex rasterize_polygon.cpp -I/home/kra/ExternalLib/Healpix_3.83/src/cxx/Healpix_cxx \
-//                    -I/home/kra/ExternalLib/Healpix_3.83/src/cxx/cxxsupport \
-//                    -L/home/kra/ExternalLib/Healpix_3.83/lib /home/kra/ExternalLib/Healpix_3.83/lib/libhealpix_cxx.a \
+// mex rasterize_polygon.cpp -I/home/sasha/ExternalLib/Healpix_3.83/src/cxx/Healpix_cxx \
+//                    -I/home/sasha/ExternalLib/Healpix_3.83/src/cxx/cxxsupport \
+//                    -L/home/sasha/ExternalLib/Healpix_3.83/lib /home/sasha/ExternalLib/Healpix_3.83/lib/libhealpix_cxx.a \
 //                    -lstdc++ CXXFLAGS="\$CXXFLAGS -std=c++11"
 // important: the Healpix library must be compiled with the -fPIX option
 
@@ -31,8 +31,13 @@ void mexFunction(int nlhs, mxArray *plhs[],
         );
 
     // --- Input polygon ---
+    
+    if (!mxIsDouble(prhs[0])) {
+    mexErrMsgTxt("Input polygon must be of type double");
+    }
+    
     const mxArray* P = prhs[0];
-
+   
     if (mxGetN(P) != 2)
         mexErrMsgTxt("P must be an Nx2 matrix: [RA, Dec]");
 

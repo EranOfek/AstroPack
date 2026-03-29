@@ -181,11 +181,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
                                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);                                                                   
 %                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
-%                             try
                             Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);
-%                             catch ME
-%                                 CropPoly
-%                             end
                             % if this crop does not overlap with the reference region, deselect it
                             Coverage(Icrop) = sum(ismember(Raster,Raster0));
                             if Coverage(Icrop) < 1
