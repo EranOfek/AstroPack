@@ -66,9 +66,9 @@ function ps1dr2CsvToHdf5(CsvDir, Hdf5Dir, Args)
         FileTic = tic;
 
         % Read CSV (no header, 56 numeric columns)
-        fid = fopen(CsvPath, 'r');
-        C = textscan(fid, Fmt, 'Delimiter', Delim);
-        fclose(fid);
+        Fid = fopen(CsvPath, 'r');
+        C = textscan(Fid, Fmt, 'Delimiter', Delim);
+        fclose(Fid);
 
         Nrows = numel(C{1});
         if Nrows == 0
@@ -78,8 +78,8 @@ function ps1dr2CsvToHdf5(CsvDir, Hdf5Dir, Args)
 
         % Assemble numeric matrix
         Mat = zeros(Nrows, Ncols);
-        for k = 1:Ncols
-            Mat(:, k) = C{k};
+        for K = 1:Ncols
+            Mat(:, K) = C{K};
         end
         clear C;
 
@@ -98,12 +98,20 @@ function ps1dr2CsvToHdf5(CsvDir, Hdf5Dir, Args)
         Mat(:, 1) = Mat(:, 1) .* (pi / 180);
         Mat(:, 2) = Mat(:, 2) .* (pi / 180);
 
-        % Write HDF5
+        % Write HDF5 with Dec/RA range as attributes
+        MinDec = min(Mat(:, 2));
+        MaxDec = max(Mat(:, 2));
+        MinRA  = min(Mat(:, 1));
+        MaxRA  = max(Mat(:, 1));
         if isfile(Hdf5Path)
             delete(Hdf5Path);
         end
         h5create(Hdf5Path, '/data', size(Mat));
         h5write(Hdf5Path, '/data', Mat);
+        h5writeatt(Hdf5Path, '/data', 'MinDec', MinDec);
+        h5writeatt(Hdf5Path, '/data', 'MaxDec', MaxDec);
+        h5writeatt(Hdf5Path, '/data', 'MinRA', MinRA);
+        h5writeatt(Hdf5Path, '/data', 'MaxRA', MaxRA);
         clear Mat;
 
         Nconverted = Nconverted + 1;

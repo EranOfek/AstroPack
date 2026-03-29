@@ -76,11 +76,12 @@ function buildHTMfromFiles(Args)
 %                                        margin from neighbors. For very
 %                                        large catalogs (DECaLS, etc.) that
 %                                        would OOM in band mode.
-%            'ParseRangeFun'- Function handle for custom filename parsing:
-%                             [DecLo,DecHi,RALo,RAHi] = fun(basename).
+%            'ParseRangeFun'- Function handle for custom file range parsing:
+%                             [DecLo,DecHi,RALo,RAHi] = fun(filepath).
+%                             Returns ranges in degrees.
 %                             If empty (default), uses built-in sweep-style
-%                             parser. Required for non-sweep filenames
-%                             (e.g., PS1DR2 *_S01_P01 convention).
+%                             filename parser. Use for files with embedded
+%                             range metadata (e.g., HDF5 attributes).
 %            'DecBandWidth' - Dec band width [deg] for 'band' mode. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
 %                             In band mode, completed bands are skipped
@@ -206,8 +207,8 @@ function buildHTMfromFiles(Args)
         AllFiles = scrapeFileList(char(Args.SourceURL), char(Args.FilePattern));
         IsRemote = true;
     elseif strlength(Args.SourceDir) > 0
-        d = dir(fullfile(char(Args.SourceDir), char(Args.FilePattern)));
-        AllFiles = fullfile({d.folder}, {d.name});
+        D = dir(fullfile(char(Args.SourceDir), char(Args.FilePattern)));
+        AllFiles = fullfile({D.folder}, {D.name});
         IsRemote = false;
     else
         error('VO:prep:buildHTMfromFiles', 'Specify SourceURL or SourceDir');
@@ -223,17 +224,17 @@ function buildHTMfromFiles(Args)
     %------------------------------------------------------------------
     FileDecRanges = nan(Nfiles, 2);
     FileRARanges  = nan(Nfiles, 2);
-    for i = 1:Nfiles
-        [~, bn, ~] = fileparts(AllFiles{i});
+    for Ifile = 1:Nfiles
+        [~, Bn, ~] = fileparts(AllFiles{Ifile});
         if ~isempty(Args.ParseRangeFun)
-            [declo, dechi, ralo, rahi] = Args.ParseRangeFun(bn);
-            FileDecRanges(i, :) = [declo, dechi];
-            FileRARanges(i, :)  = [ralo, rahi];
+            [DecLo, DecHi, RALo, RAHi] = Args.ParseRangeFun(AllFiles{Ifile});
+            FileDecRanges(Ifile, :) = [DecLo, DecHi];
+            FileRARanges(Ifile, :)  = [RALo, RAHi];
         else
-            [declo, dechi] = parseSweepDecRange(bn);
-            FileDecRanges(i, :) = [declo, dechi];
-            [ralo, rahi] = parseSweepRaRange(bn);
-            FileRARanges(i, :) = [ralo, rahi];
+            [DecLo, DecHi] = parseSweepDecRange(Bn);
+            FileDecRanges(Ifile, :) = [DecLo, DecHi];
+            [RALo, RAHi] = parseSweepRaRange(Bn);
+            FileRARanges(Ifile, :) = [RALo, RAHi];
         end
     end
 
@@ -299,8 +300,8 @@ function buildHTMfromFiles(Args)
     % empty cells leave no HDF5 dataset.
     CompletionLog = fullfile(LocalDir, sprintf('%s_completed.mat', CatName));
     if Args.Resume && isfile(CompletionLog)
-        tmp = load(CompletionLog, 'CompletedFiles');
-        CompletedFiles = tmp.CompletedFiles;
+        Tmp = load(CompletionLog, 'CompletedFiles');
+        CompletedFiles = Tmp.CompletedFiles;
         if Args.Verbose
             fprintf('Loaded completion log: %d files already processed\n', ...
                 numel(CompletedFiles));
@@ -334,8 +335,8 @@ function buildHTMfromFiles(Args)
         %==============================================================
 
         % File data cache: avoid re-reading files that span multiple bands.
-        % FileCache{idx} holds the full numeric matrix (with RA/Dec in radians)
-        % for file idx. Cleared when the file is no longer needed.
+        % FileCache{Idx} holds the full numeric matrix (with RA/Dec in radians)
+        % for file Idx. Cleared when the file is no longer needed.
         FileCache = cell(Nfiles, 1);
 
         for Iband = 1:Nbands
@@ -389,48 +390,48 @@ function buildHTMfromFiles(Args)
             AllData = [];
             MarginRad = MarginDeg / RAD;
 
-            for k = 1:numel(OverlapIdx)
-                idx = OverlapIdx(k);
-                [~, bn, ext] = fileparts(AllFiles{idx});
+            for K = 1:numel(OverlapIdx)
+                Idx = OverlapIdx(K);
+                [~, Bn, Ext] = fileparts(AllFiles{Idx});
 
                 % Use cached data if available
-                if ~isempty(FileCache{idx})
-                    Mat = FileCache{idx};
+                if ~isempty(FileCache{Idx})
+                    Mat = FileCache{Idx};
                     if Args.Verbose
                         fprintf('  [%d/%d] Using cached %s\n', ...
-                            k, numel(OverlapIdx), bn);
+                            K, numel(OverlapIdx), Bn);
                     end
                 else
                     % Download if remote
                     if IsRemote
-                        localFile = fullfile(DownloadDir, [bn ext]);
-                        if ~exist(localFile, 'file')
+                        LocalFile = fullfile(DownloadDir, [Bn Ext]);
+                        if ~exist(LocalFile, 'file')
                             if Args.Verbose
                                 fprintf('  [%d/%d] Downloading %s ...\n', ...
-                                    k, numel(OverlapIdx), bn);
+                                    K, numel(OverlapIdx), Bn);
                             end
-                            [status, ~] = system(sprintf( ...
-                                'wget -q -c -O "%s" "%s"', localFile, AllFiles{idx}));
-                            if status ~= 0
-                                fprintf('  WARNING: download failed for %s\n', bn);
+                            [Status, ~] = system(sprintf( ...
+                                'wget -q -c -O "%s" "%s"', LocalFile, AllFiles{Idx}));
+                            if Status ~= 0
+                                fprintf('  WARNING: download failed for %s\n', Bn);
                                 continue;
                             end
                         else
                             if Args.Verbose
                                 fprintf('  [%d/%d] Using downloaded %s\n', ...
-                                    k, numel(OverlapIdx), bn);
+                                    K, numel(OverlapIdx), Bn);
                             end
                         end
                     else
-                        localFile = AllFiles{idx};
+                        LocalFile = AllFiles{Idx};
                     end
 
                     % Read table (FITS or text)
                     if Args.Verbose
-                        fprintf('  Reading %s ...\n', bn);
+                        fprintf('  Reading %s ...\n', Bn);
                     end
-                    [~, ~, fext] = fileparts(localFile);
-                    IsFits = strcmpi(fext, '.fits') || strcmpi(fext, '.fit');
+                    [~, ~, Fext] = fileparts(LocalFile);
+                    IsFits = strcmpi(Fext, '.fits') || strcmpi(Fext, '.fit');
 
                     % Select columns / transform (with retry on corrupt files)
                     ReadOK = false;
@@ -441,17 +442,17 @@ function buildHTMfromFiles(Args)
                                 % For all other formats (text, HDF5, etc.),
                                 % pass filename — PostReadFun handles I/O.
                                 if ~IsFits
-                                    Mat = Args.PostReadFun(localFile);
+                                    Mat = Args.PostReadFun(LocalFile);
                                 else
-                                    T = FITS.readTable1(localFile, 'OutClass', []);
+                                    T = FITS.readTable1(LocalFile, 'OutClass', []);
                                     Mat = Args.PostReadFun(T);
                                     clear T;
                                 end
                             else
                                 if IsFits
-                                    T = FITS.readTable1(localFile, 'OutClass', []);
+                                    T = FITS.readTable1(LocalFile, 'OutClass', []);
                                 else
-                                    T = readtable(localFile, 'FileType', 'text', ...
+                                    T = readtable(LocalFile, 'FileType', 'text', ...
                                         'TreatAsMissing', {'null', 'NA', 'N/A', ''});
                                 end
                                 if ~isempty(Args.Columns)
@@ -465,17 +466,17 @@ function buildHTMfromFiles(Args)
                         catch ME
                             if Iattempt == 1 && IsRemote
                                 fprintf('  WARNING: read failed (%s), deleting and re-downloading %s\n', ...
-                                    ME.message, bn);
-                                delete(localFile);
-                                [status, ~] = system(sprintf( ...
-                                    'wget -q -O "%s" "%s"', localFile, AllFiles{idx}));
-                                if status ~= 0
-                                    fprintf('  WARNING: re-download failed for %s, skipping\n', bn);
+                                    ME.message, Bn);
+                                delete(LocalFile);
+                                [Status, ~] = system(sprintf( ...
+                                    'wget -q -O "%s" "%s"', LocalFile, AllFiles{Idx}));
+                                if Status ~= 0
+                                    fprintf('  WARNING: re-download failed for %s, skipping\n', Bn);
                                     break;
                                 end
                             else
                                 fprintf('  WARNING: read failed for %s (%s), skipping\n', ...
-                                    bn, ME.message);
+                                    Bn, ME.message);
                             end
                         end
                     end
@@ -491,10 +492,10 @@ function buildHTMfromFiles(Args)
 
                     % Cache if file spans multiple bands
                     NbandsForFile = sum( ...
-                        FileDecRanges(idx,2) > (DecEdges(1:end-1)' - MarginDeg) & ...
-                        FileDecRanges(idx,1) < (DecEdges(2:end)' + MarginDeg));
+                        FileDecRanges(Idx,2) > (DecEdges(1:end-1)' - MarginDeg) & ...
+                        FileDecRanges(Idx,1) < (DecEdges(2:end)' + MarginDeg));
                     if NbandsForFile > 1
-                        FileCache{idx} = Mat;
+                        FileCache{Idx} = Mat;
                     end
                 end
 
@@ -515,11 +516,11 @@ function buildHTMfromFiles(Args)
             if Iband < Nbands
                 NextBandLoDeg = DecEdges(Iband + 1);
                 NextBandHiDeg = DecEdges(end);
-                for idx = 1:Nfiles
-                    if ~isempty(FileCache{idx}) && ...
-                       (FileDecRanges(idx,2) <= (NextBandLoDeg - MarginDeg) || ...
-                        FileDecRanges(idx,1) >= (NextBandHiDeg + MarginDeg))
-                        FileCache{idx} = [];
+                for Idx = 1:Nfiles
+                    if ~isempty(FileCache{Idx}) && ...
+                       (FileDecRanges(Idx,2) <= (NextBandLoDeg - MarginDeg) || ...
+                        FileDecRanges(Idx,1) >= (NextBandHiDeg + MarginDeg))
+                        FileCache{Idx} = [];
                     end
                 end
             else
@@ -557,10 +558,10 @@ function buildHTMfromFiles(Args)
             clear AllData;
 
             % Mark band files as completed
-            for k = 1:numel(OverlapIdx)
-                idx = OverlapIdx(k);
-                if ~ismember(AllFiles{idx}, CompletedFiles)
-                    CompletedFiles{end+1} = AllFiles{idx}; %#ok<AGROW>
+            for K = 1:numel(OverlapIdx)
+                Idx = OverlapIdx(K);
+                if ~ismember(AllFiles{Idx}, CompletedFiles)
+                    CompletedFiles{end+1} = AllFiles{Idx}; %#ok<AGROW>
                 end
             end
             save(CompletionLog, 'CompletedFiles');
@@ -632,16 +633,16 @@ function buildHTMfromFiles(Args)
         fprintf('\n*** buildHTMfromFiles ERROR ***\n');
         fprintf('Message: %s\n', ME.message);
         fprintf('Identifier: %s\n', ME.identifier);
-        for iStack = 1:numel(ME.stack)
-            fprintf('  %s:%d (%s)\n', ME.stack(iStack).file, ...
-                ME.stack(iStack).line, ME.stack(iStack).name);
+        for IStack = 1:numel(ME.stack)
+            fprintf('  %s:%d (%s)\n', ME.stack(IStack).file, ...
+                ME.stack(IStack).line, ME.stack(IStack).name);
         end
         if exist('Iband', 'var')
             fprintf('Failed at band %d/%d, Dec [%.1f, %.1f]\n', ...
                 Iband, Nbands, DecEdges(Iband), DecEdges(Iband + 1));
         end
-        if exist('idx', 'var') && exist('AllFiles', 'var') && idx <= numel(AllFiles)
-            fprintf('Last file: %s\n', AllFiles{idx});
+        if exist('Idx', 'var') && exist('AllFiles', 'var') && Idx <= numel(AllFiles)
+            fprintf('Last file: %s\n', AllFiles{Idx});
         end
         cd(OrigDir);
         rethrow(ME);
@@ -657,28 +658,28 @@ function FileList = scrapeFileList(BaseURL, Pattern)
     % Scrape HTML directory listing for file URLs matching Pattern
     if ~endsWith(BaseURL, '/'), BaseURL = [BaseURL '/']; end
 
-    tmpFile = [tempname '.html'];
-    [status, ~] = system(sprintf('wget -q -O "%s" "%s"', tmpFile, BaseURL));
-    if status ~= 0
+    TmpFile = [tempname '.html'];
+    [Status, ~] = system(sprintf('wget -q -O "%s" "%s"', TmpFile, BaseURL));
+    if Status ~= 0
         error('VO:prep:buildHTMfromFiles', ...
             'Failed to download directory listing from %s', BaseURL);
     end
 
-    html = fileread(tmpFile);
-    delete(tmpFile);
+    Html = fileread(TmpFile);
+    delete(TmpFile);
 
     RegexPat = ['^' regexptranslate('wildcard', Pattern) '$'];
-    tokens = regexp(html, 'href="([^"]*)"', 'tokens');
+    Tokens = regexp(Html, 'href="([^"]*)"', 'tokens');
 
     FileList = {};
-    for i = 1:numel(tokens)
-        fname = tokens{i}{1};
-        [~, bn, ext] = fileparts(fname);
-        if ~isempty(regexp([bn ext], RegexPat, 'once'))
-            if startsWith(fname, 'http')
-                FileList{end+1} = fname; %#ok<AGROW>
+    for Itoken = 1:numel(Tokens)
+        Fname = Tokens{Itoken}{1};
+        [~, Bn, Ext] = fileparts(Fname);
+        if ~isempty(regexp([Bn Ext], RegexPat, 'once'))
+            if startsWith(Fname, 'http')
+                FileList{end+1} = Fname; %#ok<AGROW>
             else
-                FileList{end+1} = [BaseURL fname]; %#ok<AGROW>
+                FileList{end+1} = [BaseURL Fname]; %#ok<AGROW>
             end
         end
     end
@@ -688,15 +689,15 @@ end
 function [DecLo, DecHi] = parseSweepDecRange(BaseName)
     % Parse Dec range from sweep-style filename
     % Format: sweep-{3digitRA}{p|m}{2-3digitDec}-{3digitRA}{p|m}{2-3digitDec}
-    tokens = regexp(BaseName, ...
+    Tokens = regexp(BaseName, ...
         'sweep-\d{3}([pm]\d{2,3})-\d{3}([pm]\d{2,3})', 'tokens');
-    if isempty(tokens)
+    if isempty(Tokens)
         DecLo = NaN;
         DecHi = NaN;
         return;
     end
-    DecLo = parseSweepCoord(tokens{1}{1});
-    DecHi = parseSweepCoord(tokens{1}{2});
+    DecLo = parseSweepCoord(Tokens{1}{1});
+    DecHi = parseSweepCoord(Tokens{1}{2});
 end
 
 
@@ -704,15 +705,15 @@ function [RALo, RAHi] = parseSweepRaRange(BaseName)
     % Parse RA range from sweep-style filename
     % Format: sweep-{3digitRA}{p|m}{2-3digitDec}-{3digitRA}{p|m}{2-3digitDec}
     % Example: sweep-175m030-180m025 -> RA [175, 180]
-    tokens = regexp(BaseName, ...
+    Tokens = regexp(BaseName, ...
         'sweep-(\d{3})[pm]\d{2,3}-(\d{3})[pm]\d{2,3}', 'tokens');
-    if isempty(tokens)
+    if isempty(Tokens)
         RALo = NaN;
         RAHi = NaN;
         return;
     end
-    RALo = str2double(tokens{1}{1});
-    RAHi = str2double(tokens{1}{2});
+    RALo = str2double(Tokens{1}{1});
+    RAHi = str2double(Tokens{1}{2});
     % Handle wraparound (e.g., sweep-355...-005...)
     if RAHi <= RALo
         RAHi = RAHi + 360;
@@ -735,26 +736,26 @@ function cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
     % Delete cached downloads not needed for the next band
     if Iband < Nbands
         NextDecHiDeg = DecEdges(Iband + 2);
-        for k = 1:numel(OverlapIdx)
-            idx = OverlapIdx(k);
+        for K = 1:numel(OverlapIdx)
+            Idx = OverlapIdx(K);
             % File not needed if it doesn't overlap with next band + margin
             NextBandLoDeg = DecEdges(Iband + 1);
-            if FileDecRanges(idx, 2) <= (NextBandLoDeg - MarginDeg) || ...
-               FileDecRanges(idx, 1) >= (NextDecHiDeg + MarginDeg)
-                [~, bn, ext] = fileparts(AllFiles{idx});
-                cachedFile = fullfile(DownloadDir, [bn ext]);
-                if exist(cachedFile, 'file')
-                    delete(cachedFile);
+            if FileDecRanges(Idx, 2) <= (NextBandLoDeg - MarginDeg) || ...
+               FileDecRanges(Idx, 1) >= (NextDecHiDeg + MarginDeg)
+                [~, Bn, Ext] = fileparts(AllFiles{Idx});
+                CachedFile = fullfile(DownloadDir, [Bn Ext]);
+                if exist(CachedFile, 'file')
+                    delete(CachedFile);
                 end
             end
         end
     else
         % Last band: clean all cached files
-        for k = 1:numel(OverlapIdx)
-            [~, bn, ext] = fileparts(AllFiles{OverlapIdx(k)});
-            cachedFile = fullfile(DownloadDir, [bn ext]);
-            if exist(cachedFile, 'file')
-                delete(cachedFile);
+        for K = 1:numel(OverlapIdx)
+            [~, Bn, Ext] = fileparts(AllFiles{OverlapIdx(K)});
+            CachedFile = fullfile(DownloadDir, [Bn Ext]);
+            if exist(CachedFile, 'file')
+                delete(CachedFile);
             end
         end
     end
@@ -768,8 +769,8 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
     % already exists as an HDF5 dataset (locally or on TargetDir).
     Complete = true;
     InfoCache = containers.Map();  % cache h5info per HDF5 file
-    for i = 1:numel(ListIndexHTM)
-        IndHTM  = ListIndexHTM(i);
+    for Ihtm = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(Ihtm);
         MeanDec = mean(HTM(IndHTM).coo(:, 2));
         if MeanDec < DecLoRad || MeanDec >= DecHiRad
             continue;
@@ -807,8 +808,8 @@ function [FileCells, FileNames] = precomputeFileCells(ListIndexHTM, ...
     % it contains. Used to check whether all cells have been processed,
     % so the file can be copied to remote and deleted locally.
     FileMap = containers.Map();
-    for i = 1:numel(ListIndexHTM)
-        IndHTM = ListIndexHTM(i);
+    for Ihtm = 1:numel(ListIndexHTM)
+        IndHTM = ListIndexHTM(Ihtm);
         [FileName, ~] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
         if FileMap.isKey(FileName)
             FileMap(FileName) = [FileMap(FileName), IndHTM];
@@ -834,7 +835,7 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
     MarginRad = MarginDeg / RAD;
 
     for Ifile = 1:Nfiles
-        [~, bn, ext] = fileparts(AllFiles{Ifile});
+        [~, Bn, Ext] = fileparts(AllFiles{Ifile});
 
         % File's RA/Dec footprint
         DecLoDeg = FileDecRanges(Ifile, 1);
@@ -849,7 +850,7 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
 
         if Args.Verbose
             fprintf('\n[File %d/%d] %s  RA [%.0f,%.0f] Dec [%+.0f,%+.0f]\n', ...
-                Ifile, Nfiles, bn, RALoDeg, RAHiDeg, DecLoDeg, DecHiDeg);
+                Ifile, Nfiles, Bn, RALoDeg, RAHiDeg, DecLoDeg, DecHiDeg);
         end
 
         % Check if this file was already processed in a previous run
@@ -874,47 +875,47 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
 
         % Read primary file + neighbors
         AllData = [];
-        for k = 1:numel(NeighborIdx)
-            idx = NeighborIdx(k);
-            [~, nbn, next] = fileparts(AllFiles{idx});
+        for K = 1:numel(NeighborIdx)
+            Idx = NeighborIdx(K);
+            [~, Nbn, Next] = fileparts(AllFiles{Idx});
 
             % Download if remote
             if IsRemote
-                localFile = fullfile(DownloadDir, [nbn next]);
-                if ~exist(localFile, 'file')
+                LocalFile = fullfile(DownloadDir, [Nbn Next]);
+                if ~exist(LocalFile, 'file')
                     if Args.Verbose
-                        fprintf('  Downloading %s ...\n', nbn);
+                        fprintf('  Downloading %s ...\n', Nbn);
                     end
-                    [status, ~] = system(sprintf( ...
-                        'wget -q -c -O "%s" "%s"', localFile, AllFiles{idx}));
-                    if status ~= 0
-                        fprintf('  WARNING: download failed for %s\n', nbn);
+                    [Status, ~] = system(sprintf( ...
+                        'wget -q -c -O "%s" "%s"', LocalFile, AllFiles{Idx}));
+                    if Status ~= 0
+                        fprintf('  WARNING: download failed for %s\n', Nbn);
                         continue;
                     end
                 end
             else
-                localFile = AllFiles{idx};
+                LocalFile = AllFiles{Idx};
             end
 
             % Read with retry on corrupt files
-            [~, ~, fext] = fileparts(localFile);
-            IsFits = strcmpi(fext, '.fits') || strcmpi(fext, '.fit');
+            [~, ~, Fext] = fileparts(LocalFile);
+            IsFits = strcmpi(Fext, '.fits') || strcmpi(Fext, '.fit');
             ReadOK = false;
             for Iattempt = 1:2
                 try
                     if ~isempty(Args.PostReadFun)
                         if ~IsFits
-                            Mat = Args.PostReadFun(localFile);
+                            Mat = Args.PostReadFun(LocalFile);
                         else
-                            T = FITS.readTable1(localFile, 'OutClass', []);
+                            T = FITS.readTable1(LocalFile, 'OutClass', []);
                             Mat = Args.PostReadFun(T);
                             clear T;
                         end
                     else
                         if IsFits
-                            T = FITS.readTable1(localFile, 'OutClass', []);
+                            T = FITS.readTable1(LocalFile, 'OutClass', []);
                         else
-                            T = readtable(localFile, 'FileType', 'text', ...
+                            T = readtable(LocalFile, 'FileType', 'text', ...
                                 'TreatAsMissing', {'null', 'NA', 'N/A', ''});
                         end
                         if ~isempty(Args.Columns)
@@ -928,17 +929,17 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
                 catch ME
                     if Iattempt == 1 && IsRemote
                         fprintf('  WARNING: read failed (%s), re-downloading %s\n', ...
-                            ME.message, nbn);
-                        delete(localFile);
-                        [status, ~] = system(sprintf( ...
-                            'wget -q -O "%s" "%s"', localFile, AllFiles{idx}));
-                        if status ~= 0
-                            fprintf('  WARNING: re-download failed for %s\n', nbn);
+                            ME.message, Nbn);
+                        delete(LocalFile);
+                        [Status, ~] = system(sprintf( ...
+                            'wget -q -O "%s" "%s"', LocalFile, AllFiles{Idx}));
+                        if Status ~= 0
+                            fprintf('  WARNING: re-download failed for %s\n', Nbn);
                             break;
                         end
                     else
                         fprintf('  WARNING: read failed for %s (%s), skipping\n', ...
-                            nbn, ME.message);
+                            Nbn, ME.message);
                     end
                 end
             end
@@ -962,7 +963,7 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
             AllData = [AllData; Mat]; %#ok<AGROW>
 
             if Args.Verbose
-                fprintf('  %s: %d sources (in region)\n', nbn, size(Mat, 1));
+                fprintf('  %s: %d sources (in region)\n', Nbn, size(Mat, 1));
             end
             clear Mat;
         end
@@ -1018,24 +1019,24 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
         % Clean downloaded neighbor files no longer needed.
         % Keep files that overlap with any future file's footprint + margin.
         if IsRemote && Args.CleanCache
-            for k = 1:numel(NeighborIdx)
-                idx = NeighborIdx(k);
+            for K = 1:numel(NeighborIdx)
+                Idx = NeighborIdx(K);
                 % Check if any future file needs this neighbor
                 NeededLater = false;
                 for Ifuture = (Ifile + 1):Nfiles
-                    if FileDecRanges(idx,2) > (FileDecRanges(Ifuture,1) - MarginDeg) && ...
-                       FileDecRanges(idx,1) < (FileDecRanges(Ifuture,2) + MarginDeg) && ...
-                       FileRARanges(idx,2)  > (FileRARanges(Ifuture,1)  - MarginDeg) && ...
-                       FileRARanges(idx,1)  < (FileRARanges(Ifuture,2)  + MarginDeg)
+                    if FileDecRanges(Idx,2) > (FileDecRanges(Ifuture,1) - MarginDeg) && ...
+                       FileDecRanges(Idx,1) < (FileDecRanges(Ifuture,2) + MarginDeg) && ...
+                       FileRARanges(Idx,2)  > (FileRARanges(Ifuture,1)  - MarginDeg) && ...
+                       FileRARanges(Idx,1)  < (FileRARanges(Ifuture,2)  + MarginDeg)
                         NeededLater = true;
                         break;
                     end
                 end
                 if ~NeededLater
-                    [~, nbn, next] = fileparts(AllFiles{idx});
-                    cachedFile = fullfile(DownloadDir, [nbn next]);
-                    if exist(cachedFile, 'file')
-                        delete(cachedFile);
+                    [~, Nbn, Next] = fileparts(AllFiles{Idx});
+                    CachedFile = fullfile(DownloadDir, [Nbn Next]);
+                    if exist(CachedFile, 'file')
+                        delete(CachedFile);
                     end
                 end
             end
@@ -1050,8 +1051,8 @@ function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
     % Checks local files first, then TargetDir (remote).
     Complete = true;
     InfoCache = containers.Map();
-    for i = 1:numel(ListIndexHTM)
-        IndHTM  = ListIndexHTM(i);
+    for Ihtm = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(Ihtm);
         MeanDec = mean(HTM(IndHTM).coo(:, 2));
         MeanRA  = mean(HTM(IndHTM).coo(:, 1));
         if MeanDec < DecLoRad || MeanDec >= DecHiRad || ...
@@ -1090,29 +1091,29 @@ function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
     % Copy grouped HDF5 files where all cells have been processed.
     % A cell is considered processed when its Nsrc entry is > 0 or it
     % has been confirmed (Nsrc set by build_htm_catalog or fillNsrcFromHDF5).
-    % HdfFileCells{i} is the list of HTM indices belonging to file i.
-    for i = 1:numel(HdfFileNames)
-        if CopiedFiles(i)
+    % HdfFileCells{Ihdf} is the list of HTM indices belonging to file Ihdf.
+    for Ihdf = 1:numel(HdfFileNames)
+        if CopiedFiles(Ihdf)
             continue;
         end
         % Check if all cells in this file have been processed
-        CellIndices = HdfFileCells{i};
+        CellIndices = HdfFileCells{Ihdf};
         AllProcessed = true;
-        for j = 1:numel(CellIndices)
-            Pos = Nsrc(:, 1) == CellIndices(j);
+        for J = 1:numel(CellIndices)
+            Pos = Nsrc(:, 1) == CellIndices(J);
             if ~any(Pos) || isnan(Nsrc(Pos, 2))
                 AllProcessed = false;
                 break;
             end
         end
         if AllProcessed
-            FullPath = fullfile(LocalDir, HdfFileNames{i});
+            FullPath = fullfile(LocalDir, HdfFileNames{Ihdf});
             if isfile(FullPath)
                 tools.os.copyFileOverNFS({FullPath}, TargetDir, ...
                     'RemoteUser', 'euclid', 'RemoveOrigin', true);
-                CopiedFiles(i) = true;
+                CopiedFiles(Ihdf) = true;
                 if Verbose
-                    fprintf('  Copied: %s\n', HdfFileNames{i});
+                    fprintf('  Copied: %s\n', HdfFileNames{Ihdf});
                 end
             end
         end
@@ -1126,8 +1127,8 @@ function Nsrc = fillNsrcFromHDF5(Nsrc, HTM, ListIndexHTM, ...
     % Tries local files first, then TargetDir (remote). Used when Resume
     % skips a band/file whose cells were written in a previous run.
     InfoCache = containers.Map();
-    for i = 1:numel(ListIndexHTM)
-        IndHTM  = ListIndexHTM(i);
+    for Ihtm = 1:numel(ListIndexHTM)
+        IndHTM  = ListIndexHTM(Ihtm);
         MeanDec = mean(HTM(IndHTM).coo(:, 2));
         if MeanDec < DecLoRad || MeanDec >= DecHiRad
             continue;
@@ -1171,16 +1172,16 @@ function Nsrc = mergeNsrc(Nsrc, NewNsrc)
     if isempty(NewNsrc)
         return;
     end
-    for k = 1:size(NewNsrc, 1)
-        if isnan(NewNsrc(k, 2))
+    for K = 1:size(NewNsrc, 1)
+        if isnan(NewNsrc(K, 2))
             continue;  % cell was outside the processed range
         end
-        Pos = Nsrc(:, 1) == NewNsrc(k, 1);
+        Pos = Nsrc(:, 1) == NewNsrc(K, 1);
         if any(Pos)
             if isnan(Nsrc(Pos, 2))
-                Nsrc(Pos, 2) = NewNsrc(k, 2);
+                Nsrc(Pos, 2) = NewNsrc(K, 2);
             else
-                Nsrc(Pos, 2) = max(Nsrc(Pos, 2), NewNsrc(k, 2));
+                Nsrc(Pos, 2) = max(Nsrc(Pos, 2), NewNsrc(K, 2));
             end
         end
     end
