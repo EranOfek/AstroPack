@@ -1,7 +1,7 @@
 function Result = unitTest()
     % Base.unitTest
     
-    io.msgLog(LogLevel.Test, 'Base test started');
+    %io.msgLog(LogLevel.Test, 'Base test started');
 
     % Test copyObject() - @Chen: Removed
     % O.S. : consider scraping some methods, there is no need for copyObj, just
@@ -46,6 +46,6 @@ function Result = unitTest()
     a.setProps(args);
     assert(a.UserData == args.UserData);
 
-    io.msgLog(LogLevel.Test, 'Base test passed');
+    %io.msgLog(LogLevel.Test, 'Base test passed');
     Result = true;
 end

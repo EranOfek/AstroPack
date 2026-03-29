@@ -22,7 +22,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(:,1) = LonPoly1;
     LatPoly2(:,1) = LatPoly1;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1])), 'Test 1 failed');
 
 
@@ -41,7 +41,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:numel(LonB),2) = LonB;
     LatPoly2(1:numel(LatB),2) = LatB;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1 1])), 'Test 2 failed');
 
 
@@ -64,7 +64,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:numel(LonC),3) = LonC;
     LatPoly2(1:numel(LatC),3) = LatC;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1 1 0])), 'Test 3 failed');
 
 
@@ -83,7 +83,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:numel(LonB),2) = LonB;
     LatPoly2(1:numel(LatB),2) = LatB;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isempty(PolyFlag), 'Test 4 failed');
 
 
@@ -101,7 +101,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:numel(LonFar),2) = LonFar;
     LatPoly2(1:numel(LatFar),2) = LatFar;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1 0])), 'Test 5 failed');
 
 
@@ -113,7 +113,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:3,1) = LonPoly1;
     LatPoly2(1:3,1) = LatPoly1;
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1])), 'Test 6 failed');
 
 
@@ -129,7 +129,7 @@ function Result=test_whichPolygonsTilesPoly()
     LonPoly2(1:2,2) = [0.1; 0.2];
     LatPoly2(1:2,2) = [0.1; 0.2];
 
-    PolyFlag = whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
+    PolyFlag = celestial.polygon.whichPolygonsTilesPoly(LonPoly1, LatPoly1, LonPoly2, LatPoly2);
     assert(isequal(PolyFlag(:).', logical([1 0])), 'Test 7 failed');
 
 

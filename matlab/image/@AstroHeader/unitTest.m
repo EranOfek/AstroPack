@@ -6,7 +6,7 @@ function Result = unitTest()
     % -Add output checks for:
     %     -everything
 
-    io.msgStyle(LogLevel.Test, '@start', 'AstroHeader test started')
+    %io.msgStyle(LogLevel.Test, '@start', 'AstroHeader test started')
 
     % Change to data directory
     DataSampleDir = tools.os.getTestDataDir;
@@ -40,8 +40,8 @@ function Result = unitTest()
     if Val~=300
         error('getVal incorrect read');
     end
-    [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME','UseDict',false)
-    [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false)
+    [Val, Key, Comment, Nfound] = getVal(H, 'EXPTIME','UseDict',false);
+    [Val, Key, Comment, Nfound] = getVal(H, 'AEXPTIME','UseDict',false);
     if ~isnan(Val)
         error('getVal incorrect read');
     end
@@ -57,16 +57,16 @@ function Result = unitTest()
     end
     
     H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-    deleteKey(H,{'EXPTIME','A','COMMENT'})
-    deleteKey(H,{'EXPTIME','A','SKYSUB\d'}) % use regexp
+    deleteKey(H,{'EXPTIME','A','COMMENT'});
+    deleteKey(H,{'EXPTIME','A','SKYSUB\d'}); % use regexp
     [Result,C] = getStructKey(H, {'EXPTIME','A'});
     if ~isnan(Result.EXPTIME)
         error('deleteKey failed');
     end
     
     H=AstroHeader('WFPC2ASSNu5780205bx.fits');
-    H.insertKey('stam')
-    H.insertKey({'A','','';'B','',''},'end-1')
+    H.insertKey('stam');
+    H.insertKey({'A','','';'B','',''},'end-1');
     [Result,C] = getStructKey(H, {'stam'});
     if ~isempty(Result.stam)
         error('insertKey failed');
@@ -83,7 +83,7 @@ function Result = unitTest()
     if ~all(R)
         error('isKeyVal failed');
     end
-    R = isKeyVal([H;H], 'KSPOTS','on')
+    R = isKeyVal([H;H], 'KSPOTS','on');
     if any(R)
         error('isKeyVal failed');
     end
@@ -142,7 +142,7 @@ function Result = unitTest()
     
     cd(PWD);      
 
-    io.msgStyle(LogLevel.Test, '@passed', 'AstroHeader test passed')
+    %io.msgStyle(LogLevel.Test, '@passed', 'AstroHeader test passed')
     Result = true;
 
 end

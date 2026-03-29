@@ -156,7 +156,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.interp2affineArgs cell           = {};
         Args.interp2wcsArgs cell              = {};
 
-        Args.StackMethod                      = 'sigmaclip';      
+        Args.StackMethod                      = 'sigmaclip';  
+        Args.coadd_WRobustArgs                = {};
         Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
 
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -326,25 +327,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % 2. RegisteredImages has no header so no JD...
 
             %Args.StackMethod = 'sigmaclip';
-            %tic;
-            [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+            switch Args.StackMethod
+                case 'wrobust'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',false, 'ZP',[], Args.coadd_WRobustArgs{:});
+                otherwise
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
+            end
 
-            %toc
-
-% Args.StackMethod = 'wrobust';
-% tic;
-% Nrim = numel(RegisteredImages);
-% 
-%             [Coadd(Ifields)] = imProc.stack.coaddW(RegisteredImages, Args.coaddArgs{:},...
-%                                                                                                  'Cube',PreAllocCube,...
-%                                                                                                  'StackMethod',Args.StackMethod,...
-%                                                                                                  'FluxMatch',ones(Nrim,1, 'like',RegisteredImages(1).ImageData.Data),...
-%                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
-% 
-%             toc
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 

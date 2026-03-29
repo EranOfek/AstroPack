@@ -1,7 +1,7 @@
 function Result = unitTest(Obj)
 	% Dictionary unit test
 	
-	io.msgStyle(LogLevel.Test, '@start', 'Dictionary test passed')
+	%io.msgStyle(LogLevel.Test, '@start', 'Dictionary test passed')
 	
 	% Create test dictionary
 	St.EXPTIME = {'AEXPTIME','EXPTIME','EXPOSURE'};
@@ -15,6 +15,6 @@ function Result = unitTest(Obj)
 	[Key, AltConv, AllAlt, FlagKey] = D.searchAlt('AEXPTIME')
 	
 	
-	io.msgStyle(LogLevel.Test, '@passed', 'Dictionary test passed')
+	%io.msgStyle(LogLevel.Test, '@passed', 'Dictionary test passed')
 	Result = true;
 end

@@ -2,17 +2,17 @@ function Result = unitTest
     % unitTest for Tran2D class
     % Example: Tran2D.unitTest
 
-    io.msgLog(LogLevel.Test, 'testing Tran2D constructors');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D constructors');
     T=Tran2D;
 
     TC = Tran2D;
     TC = Tran2D(2);
     TC = Tran2D('cheby1_3_c1','cheby1_2');
 
-    io.msgLog(LogLevel.Test, 'testing Tran2D design_matrix');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D design_matrix');
     [Hx,Hy]=design_matrix(T,rand(10,2));
 
-    io.msgLog(LogLevel.Test, 'testing Tran2D nfuns');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D nfuns');
     [NfunX,NfunY]=nfuns(T);
     Ans=isParKnown(T);
     TC=Tran2D; 
@@ -32,7 +32,7 @@ function Result = unitTest
     TC.ParY(8)=0.001;
     XY = [1 2; 1.1, 0.2; 0.3, 2.1];
 
-    io.msgLog(LogLevel.Test, 'testing Tran2D forward, backward');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D forward, backward');
     [Xf,Yf]=forward(TC,XY);
     [X,Y]=backward(TC,[Xf, Yf]);
 
@@ -41,24 +41,24 @@ function Result = unitTest
     end
 
     % symbolic representations
-    io.msgLog(LogLevel.Test, 'testing Tran2D functionals2simPoly');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D functionals2simPoly');
     TC=Tran2D;
     [CX,CY,PX,PY]=Tran2D.functionals2symPoly(TC.ColCell,TC.FunX,TC.FunY,TC.FunNX,TC.FunNY);
-    io.msgLog(LogLevel.Test, 'testing Tran2D symPoly');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D symPoly');
     [CX,CY,PX,PY]=symPoly(TC);
     TC = Tran2D;
     TC.symPoly;
     TC.ParX = ones(1,10);
     TC.ParY = ones(1,10);
     TC.polyCoef;
-    io.msgLog(LogLevel.Test, 'testing Tran2D symPoly2deg');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D symPoly2deg');
     [PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg]=symPoly2deg(TC);
     TC.ParX = ones(1,10);
     TC.ParY = ones(1,10);
     TC.polyRep;
 
     % selected_trans
-    io.msgLog(LogLevel.Test, 'testing Tran2D selected_trans');
+    %io.msgLog(LogLevel.Test, 'testing Tran2D selected_trans');
     [FunX,FunY,ColCell]=Tran2D.selected_trans('cheby1_3_c1');
 
     % tran2d2wcs
@@ -84,17 +84,17 @@ function Result = unitTest
     TC.ParY(1) = 2; TC.ParY(3)=1.01; TC.ParY(5)=0.01; TC.ParY(8)=0.001;
     % Calculate the numerical value of the polynomials coef.
     % The coef. are populated in: TC.PolyRep.PolyParX, PolyParY:
-    [PolyCoefX, PolyCoefY, PX, PY] = TC.polyCoef
+    [PolyCoefX, PolyCoefY, PX, PY] = TC.polyCoef;
     % Return the X and Y poly deg vectors of the polynomial representations
     % and populate them in PolyRep:
-    [PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg]=symPoly2deg(TC)
+    [PolyX_Xdeg,PolyX_Ydeg,PolyY_Xdeg,PolyY_Ydeg]=symPoly2deg(TC);
 
     % Update the PolyRep polynomial representation property
     TC=polyRep(TC,true)
 
 
 
-    io.msgStyle(LogLevel.Test, '@passed', 'Tran2D test passed');
+    %io.msgStyle(LogLevel.Test, '@passed', 'Tran2D test passed');
 
     Result = true;
 
