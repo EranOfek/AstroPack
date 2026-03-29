@@ -68,9 +68,9 @@ function [Coadd, CoaddVar]=wcoaddRobust(Image, Back, Args)
 
     if Args.UseMex
         if nargout>1
-            [Coadd, CoaddVar] = imUtil.stack.mex.wcoaddRobust_mex(Image, B, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
+            [Coadd, CoaddVar] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
         else
-            [Coadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, B, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
+            [Coadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
         end
     else
         % matlab version

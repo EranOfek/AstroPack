@@ -140,7 +140,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                                     'AddSkyCoo',false);  % 466 s (with UseMex=false)
        
     else
-        tic;
+        %tic;
         parfor Iobj=1:1:Nobj
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
@@ -148,7 +148,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                                     'UseMex',Args.UseMex,...
                                                     'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
         end
-        toc
+        %toc
     end
 
     % solve astrometry of all images
@@ -243,18 +243,25 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % be included
     [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
     
+    %tic;
+    for Isub=1:1:Nsub
+        [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
+        %[Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+    end
+    %toc
 
     % The following logic is applied:
     % MatchedSources and photometric calibration is done only after
     % the photometric calibration of the coadd image
     % Such that we can use the photometric calibration of the coadd
     % for the individual images.
-    
+   
     % coadd images 
     % Only coaddition: 56 s 
     % only multiIterationPSF: 35 s (UseMex=false)
     % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s (UseMex=false)
     % (93 s with parfor)
+    tic;
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'CatName',CatName,...
                                               'ShiftXY',ShiftInfo,...
@@ -262,6 +269,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'PropShiftXY','ShiftXY',...
                                               'IsShiftXYfiltered',true,...
                                               'UseMex',Args.UseMex);
+    toc
 
     % tic;
     % parfor Isub=1:1:Nsub
@@ -342,7 +350,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % photometric calibration
     %tic;
     for Isub=1:1:Nsub
-        [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
+        %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
         [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
     end
     %toc

@@ -325,11 +325,26 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
+            %Args.StackMethod = 'sigmaclip';
+            %tic;
             [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
 
+            %toc
+
+% Args.StackMethod = 'wrobust';
+% tic;
+% Nrim = numel(RegisteredImages);
+% 
+%             [Coadd(Ifields)] = imProc.stack.coaddW(RegisteredImages, Args.coaddArgs{:},...
+%                                                                                                  'Cube',PreAllocCube,...
+%                                                                                                  'StackMethod',Args.StackMethod,...
+%                                                                                                  'FluxMatch',ones(Nrim,1, 'like',RegisteredImages(1).ImageData.Data),...
+%                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
+% 
+%             toc
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 

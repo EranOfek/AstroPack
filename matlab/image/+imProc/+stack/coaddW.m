@@ -145,6 +145,9 @@ function [Result] = coaddW(Obj, Args)
         
     % weighted coadd
     switch Args.StackMethod
+        % case 'wrobust'
+        %     [Coadd, CoaddVar] = imUtil.stack.wcoaddRobust(ImageCube, [], 'Var',VarCube, 'F',Args.FluxMatch, 'ZP',[],'ZP0',25,'RemoveMinMax',true,'Niter',1,'SigmaClip',[1 1], 'StdMethod',1);
+
         case 'wmean'
             if isempty(VarCube)
                 error('Can not calc wmean without the variance cube');

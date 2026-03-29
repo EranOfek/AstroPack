@@ -2458,11 +2458,24 @@ classdef AstroWCS < Component
                 %if isscalar(X_Rpower)
                 %    X_Rpower = repmat(X_Rpower, size(X_Xpower));
                 %end
+                if ~strcmp(class(CoefX),class(X))
+                    CoefX = cast(CoefX, 'like',X);
+                    CoefY = cast(CoefY, 'like',Y);
+                end
+                if ~strcmp(class(X), class(X_Xpower))
+                    X_Xpower = cast(X_Xpower, 'like',X);
+                    X_Ypower = cast(X_Ypower, 'like',X);
+                    X_Rpower = cast(X_Rpower, 'like',X);
+                    Y_Xpower = cast(Y_Xpower, 'like',Y);
+                    Y_Ypower = cast(Y_Ypower, 'like',Y);
+                    Y_Rpower = cast(Y_Rpower, 'like',Y);
+                end
                 Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
                 %if isscalar(Y_Rpower)
                 %    Y_Rpower = repmat(Y_Rpower, size(Y_Xpower));
                 %end
                 Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
+                
             else
                 Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
                 Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);  
