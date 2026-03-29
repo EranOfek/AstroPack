@@ -22,6 +22,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
     %                         predefCalibArgs() or manually. Default is {}.
+    %            'ApplyConstBand' - Apply constant-band correction after
+    %                         computing AB magnitudes. Adds MAG_CB_* columns
+    %                         (or overwrites MAG_AB_* if ConstBandOutputMode='replace').
+    %                         Default is false.
+    %            'ConstBandParams' - Struct or .mat path with global atmospheric
+    %                         parameters for constant band. Build via
+    %                         PhotCalibTrans.buildConstBandParams(PCArray) for
+    %                         aggregate, or with 'Source','single' for a single
+    %                         reference crop. Required when ApplyConstBand=true.
+    %            'ConstBandOutputMode' - 'newcol' or 'replace'. Default is 'newcol'.
+    %            'ConstBandPrefix' - Column prefix for newcol mode. Default is 'MAG_CB_'.
     % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
     %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array

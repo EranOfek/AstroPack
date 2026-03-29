@@ -20,6 +20,7 @@ classdef PhotCalibTrans < Component
     %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
+    %   DeltaZP_CB - Constant-band ΔZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   AirMass, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %
     % Example:
@@ -76,10 +77,19 @@ classdef PhotCalibTrans < Component
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
     %     applyConstBand - Apply constant-band correction to AB magnitudes.
-    %                      Replaces fitted atmospheric params with global values,
+    %                      Replaces fitted atmospheric params with global ConstBandParams,
     %                      computes scalar ΔZP per crop. Called by addMag when
-    %                      ApplyConstBand=true, or standalone.
+    %                      ApplyConstBand=true, or standalone. Stores ΔZP in
+    %                      Obj.DeltaZP_CB, written to header as PT_DZP.
     %     addZP - Add position-dependent ZP column to catalog
+    %   Static Methods:
+    %     buildConstBandParams - Build ConstBandParams struct from fitted
+    %                      PhotCalibTrans objects. Extracts fitted atmospheric params
+    %                      (excluding Norm, ZenithAngle, Temperature).
+    %                      Source='aggregate' (default): robust median/mean across objects.
+    %                      Source='single': extract from one object directly.
+    %                      Usage: CBP = PhotCalibTrans.buildConstBandParams(PCArray);
+    %                             CBP = PhotCalibTrans.buildConstBandParams(PC, 'Source', 'single');
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -130,6 +140,9 @@ classdef PhotCalibTrans < Component
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
         AperCorrColNames = {}   % Cell array of flux column names corresponding to AperCorr entries
         AperCorrNStars = 0      % Number of stars used for aperture correction calculation
+
+        % Constant band
+        DeltaZP_CB = NaN        % Constant-band delta ZP [mag] (set by applyConstBand)
 
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
@@ -2012,6 +2025,15 @@ classdef PhotCalibTrans < Component
                 HeaderObj = HeaderObj.replaceVal('APCOR_N', Obj.AperCorrNStars);
             end
 
+            % Constant-band delta ZP
+            if isfinite(Obj.DeltaZP_CB)
+                HeaderObj = HeaderObj.replaceVal('PT_DZP', Obj.DeltaZP_CB);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'PT_DZP: Constant-band delta ZP [mag]';
+                end
+            end
+
             % Write HISTORY comments at the end if requested
             if Args.WriteComments
                 % Trim to actual size
@@ -2689,9 +2711,9 @@ classdef PhotCalibTrans < Component
             %   values. ZenithAngle and Temperature are taken from the
             %   observation (Obj.AirMass, Obj.Temp). Norm and Tran2D cancel
             %   (they are wavelength-independent and already in MAG_AB).
-            %   The correction is a scalar ΔZP per crop:
-            %     ΔZP = 2.5*log10(∫T_const(λ)×λ dλ / ∫T_crop(λ)×λ dλ)
-            %     MAG_CB = MAG_AB + ΔZP
+            %   The correction is a scalar delta ZP per crop:
+            %     delta ZP = 2.5*log10(∫T_const(λ)×λ dλ / ∫T_crop(λ)×λ dλ)
+            %     MAG_CB = MAG_AB + delta ZP
             % Input  : - PhotCalibTrans object (must have fitted TransModel).
             %          - AstroCatalog object with MAG_AB columns from addMag.
             %          * ...,key,val,...
@@ -2740,30 +2762,37 @@ classdef PhotCalibTrans < Component
             Lambda = Obj.TransWvl;
             LambdaNm = Lambda / 10;  % nm for photon integral
 
-            % --- Evaluate T_atm_crop (fitted atmospheric, Norm=1, no Tran2D) ---
-            CropModel = Obj.TransModel.copy();
-            AllPar = CropModel.getAllFunPar();
+            % TODO: PerSourceAirmass mode requires per-source delta ZP (each source
+            %       has its own ZenithAngle and thus its own T_atm_crop). Currently
+            %       computes a single scalar delta ZP per crop assuming shared airmass.
+            if Obj.PerSourceAirmass
+                warning('PhotCalibTrans:applyConstBand:PerSourceAirmass', ...
+                    'PerSourceAirmass mode not yet supported — using single-airmass delta ZP');
+            end
 
-            % Set Norm=1 to isolate atmospheric transmission
+            % --- Evaluate T_atm_crop (fitted atmospheric, Norm=1, no Tran2D) ---
+            AllPar = Obj.TransModel.getAllFunPar();
+
+            % Build crop parameter vector with Norm=1
+            CropParVec = AllPar.Val(:)';
             NormIdx = find(strcmp(AllPar.Name, 'Norm'), 1);
             if ~isempty(NormIdx)
-                AllPar.Val(NormIdx) = 1.0;
+                CropParVec(NormIdx) = 1.0;
             end
-            CropModel.setAllFunPar(AllPar);
-            T_crop = CropModel.evaluateAllFunParInput(Lambda, AllPar.Val');
+            T_crop = Obj.TransModel.evaluateAllFunParInput(Lambda, CropParVec);
 
             % --- Build T_const (replace atmospheric params with global values) ---
-            ConstPar = AllPar;
+            ConstParVec = CropParVec;
             Fields = fieldnames(CBP);
             for If = 1:numel(Fields)
-                Idx = find(strcmp(ConstPar.Name, Fields{If}));
+                Idx = find(strcmp(AllPar.Name, Fields{If}));
                 if ~isempty(Idx)
-                    ConstPar.Val(Idx) = CBP.(Fields{If});
+                    ConstParVec(Idx) = CBP.(Fields{If});
                 end
             end
-            T_const = CropModel.evaluateAllFunParInput(Lambda, ConstPar.Val');
+            T_const = Obj.TransModel.evaluateAllFunParInput(Lambda, ConstParVec);
 
-            % --- Compute ΔZP ---
+            % --- Compute delta ZP ---
             IntCrop  = trapz(Lambda, T_crop(:) .* LambdaNm(:));
             IntConst = trapz(Lambda, T_const(:) .* LambdaNm(:));
 
@@ -2774,6 +2803,7 @@ classdef PhotCalibTrans < Component
             end
 
             DeltaZP = 2.5 * log10(IntConst / IntCrop);
+            Obj.DeltaZP_CB = DeltaZP;
 
             % --- Apply to magnitude columns ---
             Tab = CatObj.Table;
@@ -3598,16 +3628,23 @@ classdef PhotCalibTrans < Component
             end
         end
         function CBP = buildConstBandParams(PCArray, Args)
-            % Build constant-band parameters from an array of fitted PhotCalibTrans objects.
+            % Build constant-band parameters from fitted PhotCalibTrans objects.
             %   Extracts fitted atmospheric parameters (excluding Norm,
-            %   ZenithAngle_deg, Temperature_C) from each object's TransModel
-            %   and computes robust median across all successful fits.
+            %   ZenithAngle_deg, Temperature_C) from each object's TransModel.
+            %   Two modes controlled by 'Source':
+            %     'aggregate' (default) — robust median/mean across all objects.
+            %     'single' — extract from a single object directly (no aggregation).
             %   Optionally saves to .mat file with date in filename.
-            % Input  : - PCArray — array or cell array of PhotCalibTrans objects
-            %            (e.g., from cached PC_percrop.mat across many images).
+            % Input  : - PCArray — array or cell array of PhotCalibTrans objects.
+            %            For Source='single', a single object (or the first
+            %            successful object in the array is used).
             %            Cell arrays are flattened; non-Success objects are skipped.
             %          * ...,key,val,...
-            %            'Method'     - 'median' or 'mean'. Default is 'median'.
+            %            'Source'     - 'aggregate' (median/mean across objects)
+            %                        or 'single' (extract from one object).
+            %                        Default is 'aggregate'.
+            %            'Method'     - 'median' or 'mean' (for aggregate mode).
+            %                        Default is 'median'.
             %            'OutputPath' - Directory for output .mat. Default is '' (no save).
             %            'OutputName' - Filename prefix. Default is 'ConstBandParams_LAST'.
             %                        Date suffix appended automatically.
@@ -3617,15 +3654,19 @@ classdef PhotCalibTrans < Component
             % Output : - ConstBandParams struct with one field per parameter.
             %            Also contains .CreatedDate, .NObjects, .Method metadata.
             % Author : D. Kovaleva (Mar 2026)
-            % Example: % From cached PC files:
-            %          S1 = load('results/PC_percrop.mat'); PC1 = S1.PC_all;
-            %          S2 = load('results2/PC_percrop.mat'); PC2 = S2.PC_all;
-            %          CBP = PhotCalibTrans.buildConstBandParams([PC1(:); PC2(:)]);
-            %          CBP = PhotCalibTrans.buildConstBandParams(PC1, ...
+            % Example: % Aggregate from cached PC files:
+            %          S = load('results/PC_percrop.mat');
+            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all);
+            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all, ...
             %              'OutputPath', '~/matlab/data/spec/Telescope/LAST');
+            %
+            %          % Single crop (e.g., crop 10 of visit 1):
+            %          CBP = PhotCalibTrans.buildConstBandParams(PC_all{1}(10), ...
+            %              'Source', 'single');
 
             arguments
                 PCArray
+                Args.Source = 'aggregate'       % 'aggregate' or 'single'
                 Args.Method = 'median'
                 Args.OutputPath = ''
                 Args.OutputName = 'ConstBandParams_LAST'
@@ -3643,64 +3684,103 @@ classdef PhotCalibTrans < Component
             AlwaysExclude = {'Norm', 'ZenithAngle_deg', 'Temperature_C'};
             ExcludeSet = [AlwaysExclude, Args.ExcludeParams(:)'];
 
-            % Collect fitted parameter values from all successful objects
-            ParamValues = [];   % [Nobj x Nparams]
-            ParamNames = {};
-            Nobj = 0;
-
-            for Ipc = 1:numel(PCArray)
-                PC = PCArray(Ipc);
-                if ~PC.Success || isempty(PC.TransModel)
-                    continue;
+            % --- Single mode: extract from one object ---
+            if strcmpi(Args.Source, 'single')
+                % Find first successful object
+                PC = [];
+                for Ipc = 1:numel(PCArray)
+                    if PCArray(Ipc).Success && ~isempty(PCArray(Ipc).TransModel)
+                        PC = PCArray(Ipc);
+                        break;
+                    end
+                end
+                if isempty(PC)
+                    error('PhotCalibTrans:buildConstBandParams:NoFit', ...
+                        'No successful fit found in input');
                 end
 
                 AllPar = PC.TransModel.getAllFunPar();
-
-                % On first successful object, set up parameter names
-                if isempty(ParamNames)
-                    % Select: fitted AND not excluded
-                    KeepMask = AllPar.FitPar(:);
-                    for Ie = 1:numel(ExcludeSet)
-                        KeepMask = KeepMask & ~strcmp(AllPar.Name, ExcludeSet{Ie});
-                    end
-                    KeepIdx = find(KeepMask);
-                    ParamNames = AllPar.Name(KeepIdx);
-                    ParamValues = nan(numel(PCArray), numel(KeepIdx));
-                end
-
-                Nobj = Nobj + 1;
-                for Ip = 1:numel(KeepIdx)
-                    Idx = find(strcmp(AllPar.Name, ParamNames{Ip}), 1);
-                    if ~isempty(Idx)
-                        ParamValues(Nobj, Ip) = AllPar.Val(Idx);
+                CBP = struct();
+                for Ip = 1:numel(AllPar.Name)
+                    Name = AllPar.Name{Ip};
+                    if AllPar.FitPar(Ip) && ~ismember(Name, ExcludeSet)
+                        CBP.(Name) = AllPar.Val(Ip);
                     end
                 end
-            end
 
-            ParamValues = ParamValues(1:Nobj, :);
+                CBP.CreatedDate = datestr(now, 'yyyy-mm-dd');
+                CBP.NObjects = 1;
+                CBP.Method = 'single';
 
-            % Compute robust statistic
-            CBP = struct();
-            for Ip = 1:numel(ParamNames)
-                Vals = ParamValues(:, Ip);
-                Vals = Vals(isfinite(Vals));
-                switch lower(Args.Method)
-                    case 'median'
-                        CBP.(ParamNames{Ip}) = median(Vals);
-                    case 'mean'
-                        CBP.(ParamNames{Ip}) = mean(Vals);
+                if Args.Verbose
+                    ParamNames = fieldnames(CBP);
+                    fprintf('ConstBandParams from single object:\n');
+                    for Ip = 1:numel(ParamNames)
+                        if isnumeric(CBP.(ParamNames{Ip})) && isscalar(CBP.(ParamNames{Ip}))
+                            fprintf('  %-25s = %.6g\n', ParamNames{Ip}, CBP.(ParamNames{Ip}));
+                        end
+                    end
                 end
-            end
 
-            % Metadata
-            CBP.CreatedDate = datestr(now, 'yyyy-mm-dd');
-            CBP.NObjects = Nobj;
-            CBP.Method = Args.Method;
+            else
+                % --- Aggregate mode: collect from all objects ---
+                ParamValues = [];   % [Nobj x Nparams]
+                ParamNames = {};
+                KeepIdx = [];
+                Nobj = 0;
 
-            if Args.Verbose
-                fprintf('ConstBandParams from %d objects (%s):\n', Nobj, Args.Method);
+                for Ipc = 1:numel(PCArray)
+                    PC = PCArray(Ipc);
+                    if ~PC.Success || isempty(PC.TransModel)
+                        continue;
+                    end
+
+                    AllPar = PC.TransModel.getAllFunPar();
+
+                    % On first successful object, set up parameter names
+                    if isempty(ParamNames)
+                        KeepMask = AllPar.FitPar(:);
+                        for Ie = 1:numel(ExcludeSet)
+                            KeepMask = KeepMask & ~strcmp(AllPar.Name, ExcludeSet{Ie});
+                        end
+                        KeepIdx = find(KeepMask);
+                        ParamNames = AllPar.Name(KeepIdx);
+                        ParamValues = nan(numel(PCArray), numel(KeepIdx));
+                    end
+
+                    Nobj = Nobj + 1;
+                    for Ip = 1:numel(KeepIdx)
+                        Idx = find(strcmp(AllPar.Name, ParamNames{Ip}), 1);
+                        if ~isempty(Idx)
+                            ParamValues(Nobj, Ip) = AllPar.Val(Idx);
+                        end
+                    end
+                end
+
+                ParamValues = ParamValues(1:Nobj, :);
+
+                % Compute robust statistic
+                CBP = struct();
                 for Ip = 1:numel(ParamNames)
-                    fprintf('  %-25s = %.6g\n', ParamNames{Ip}, CBP.(ParamNames{Ip}));
+                    Vals = ParamValues(:, Ip);
+                    Vals = Vals(isfinite(Vals));
+                    switch lower(Args.Method)
+                        case 'median'
+                            CBP.(ParamNames{Ip}) = median(Vals);
+                        case 'mean'
+                            CBP.(ParamNames{Ip}) = mean(Vals);
+                    end
+                end
+
+                CBP.CreatedDate = datestr(now, 'yyyy-mm-dd');
+                CBP.NObjects = Nobj;
+                CBP.Method = Args.Method;
+
+                if Args.Verbose
+                    fprintf('ConstBandParams from %d objects (%s):\n', Nobj, Args.Method);
+                    for Ip = 1:numel(ParamNames)
+                        fprintf('  %-25s = %.6g\n', ParamNames{Ip}, CBP.(ParamNames{Ip}));
+                    end
                 end
             end
 
