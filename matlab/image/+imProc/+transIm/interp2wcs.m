@@ -11,6 +11,8 @@ function Result=interp2wcs(Obj, Ref, Args)
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
     %                   Default is 'cubic'.
+    %            'InterpMethodBackVar' - Interpolation method for Back and
+    %                   Var. Default is 'linear'.
     %            'InterpMethodMask' - Interpolation method for the mask
     %                   image. Default is 'nearest'.
     %            'DataProp' - data properties in the AstroImage to
@@ -36,6 +38,7 @@ function Result=interp2wcs(Obj, Ref, Args)
         Obj AstroImage
         Ref
         Args.InterpMethod             = 'cubic';  % 'makima'
+        Args.InterpMethodBackVar      = 'linear';
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
@@ -95,6 +98,8 @@ function Result=interp2wcs(Obj, Ref, Args)
                 switch Args.DataProp{Iprop}
                     case 'Mask'
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    case {'Back','Var'}
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
                     otherwise
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                 end

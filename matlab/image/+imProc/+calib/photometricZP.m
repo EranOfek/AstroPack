@@ -307,265 +307,270 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
           
             %Cat.sortrows('Dec');
 
-            ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
-                                                                          'RadiusUnits',Args.RadiusUnits,...
-                                                                          'CooType','sphere',...
-                                                                          Args.matchReturnIndicesArgs{:});
+            if Cat.sizeCatalog==0
+                % no sources in catalog
 
-            MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+            else
 
-
-
-            % fit flux/mag to ref catalog magnitudes
-            %AllArgs.Method = 'simpleold';
-            switch lower(Args.Method)
-                case 'simple'
-                    % fit ZP and color terms
-
-                    [CatMag,~,~,UsedColMag]       = Cat.getColDic(Args.CatColNameMag);
-                    [CatMagErr,~,~,UsedColMagErr] = Cat.getColDic(Args.CatColNameMagErr);
-                    ResFit(Iobj).UsedColMag       = UsedColMag{1};
-                    ResFit(Iobj).UsedColMagErr    = UsedColMagErr{1};
-
-                    if isempty(Args.MaxSN)
-                        SN = zeros(size(CatMag));      
-                    else
-                        SN = Cat.getCol(Args.CatColNameSN);
-                    end
-
-                    if Args.UseWidth
+                ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
+                                                                              'RadiusUnits',Args.RadiusUnits,...
+                                                                              'CooType','sphere',...
+                                                                              Args.matchReturnIndicesArgs{:});
+    
+                MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+    
+    
+    
+                % fit flux/mag to ref catalog magnitudes
+                %AllArgs.Method = 'simpleold';
+                switch lower(Args.Method)
+                    case 'simple'
+                        % fit ZP and color terms
+    
+                        [CatMag,~,~,UsedColMag]       = Cat.getColDic(Args.CatColNameMag);
+                        [CatMagErr,~,~,UsedColMagErr] = Cat.getColDic(Args.CatColNameMagErr);
+                        ResFit(Iobj).UsedColMag       = UsedColMag{1};
+                        ResFit(Iobj).UsedColMagErr    = UsedColMagErr{1};
+    
+                        if isempty(Args.MaxSN)
+                            SN = zeros(size(CatMag));      
+                        else
+                            SN = Cat.getCol(Args.CatColNameSN);
+                        end
+    
+                        if Args.UseWidth
+                            CatXY2         = Cat.getCol({'X2','Y2'});
+                            % removing negative measurments
+                            CatXY2(CatXY2<0) = NaN;
+                            Width          = sqrt(sum(CatXY2,2));
+                            %MedW           = median(Width,1,'omitnan');
+                        else
+                            Width = [];
+                        end
+    
+                        RefMag         = MatchedPhotCat.getCol(Args.RefColNameMag);
+                        RefMagErr      = MatchedPhotCat.getCol(Args.RefColNameMagErr);
+                        RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
+                        RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
+    
+                        if Args.IsErrSN
+                            RefMagErr      = 1.086./RefMagErr;
+                            RefMagBandsErr = 1.086./RefMagBandsErr;
+                        end
+                        %CatXY          = Cat.getCol({'X','Y'});
+    
+                        switch lower(Args.MagSys)
+                            case 'vega'
+                                % do nothing GAIA is already in Vega sys
+                            case 'ab'
+                                %if 1==0
+                                %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
+                                VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
+    
+                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+    
+                                %I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                                I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+    
+                                %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                                I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                %end
+                            otherwise
+                                error('Unknown MagSys option');
+                        end
+    
+    
+                        % calculate all colors
+                        [Nsrc, Nband] = size(RefMagBands);
+    
+    
+                        if size(RefMagBandsErr,2)==1
+                            % Color has a single column
+                            Color = RefMag - RefMagBands;
+                        else
+                            % Color has multiple columns
+                            Color = diff(RefMagBands, 1, 2);
+                        end
+    
+                        
+                        [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr);
+                        if Rzp.Ndof<2
+                            [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr.*2);
+                        end
+                        ResFit(Iobj).Par = Rzp.Par;
+    
+                        %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                        ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
+                        ResFit(Iobj).MagSys = Args.MagSys;
+                        ResFit(Iobj).Resid  = Rzp.AllResid; %Y - H*ResFit(Iobj).Par;
+                        ResFit(Iobj).RefMag = RefMag;
+                        ResFit(Iobj).InstMag = CatMag;
+                        ResFit(Iobj).RefColor = Color;
+                        ResFit(Iobj).Width  = Width;
+                        ResFit(Iobj).MedC   = Rzp.MeanVec(2);
+                        if Args.UseWidth
+                            ResFit(Iobj).MedW   = Rzp.MeanVec(4);
+                        else
+                            ResFit(Iobj).MedW   = NaN;
+                        end
+                        ResFit(Iobj).Flag   = Rzp.FlagGood;
+                        ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(ResFit(Iobj).Flag));
+                        ResFit(Iobj).Chi2   = sum(ResFit(Iobj).Resid(ResFit(Iobj).Flag).^2 ./VarY(ResFit(Iobj).Flag));
+                        ResFit(Iobj).Nsrc   = sum(ResFit(Iobj).Flag);
+    
+                        if ~Args.UseWidth && Args.ColorOrder==1
+                            ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag - Par(1) - Par(2).*(Color-MedC);
+                        else
+                            error('Unsupported option');
+                        end
+    
+                        % estimate limiting magnitude
+                        if isempty(Args.LimMagSN)
+                            ResFit(Iobj).LimMag = NaN;
+                        else
+                            %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
+                            % select only positive S/N:
+                            Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
+                            ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
+                            ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+                        end
+    
+                        % photometric calibration plot
+                        %semilogy(RefMag,[ResFit(Iobj).Fun(ResFit(1).Par, CatMag, Color, ResFit(Iobj).MedC )-RefMag],'.')
+                    case 'simpleold'
+                        % fit ZP and color term
+                        % FFU - add cleaning
+    
+                        CatMag         = Cat.getCol(Args.CatColNameMag);
+                        CatMagErr      = Cat.getCol(Args.CatColNameMagErr);
+    
+                        if isempty(Args.MaxSN)
+                            SN = zeros(size(CatMag));      
+                        else
+                            SN = Cat.getCol(Args.CatColNameSN);
+                        end
+    
                         CatXY2         = Cat.getCol({'X2','Y2'});
                         % removing negative measurments
                         CatXY2(CatXY2<0) = NaN;
                         Width          = sqrt(sum(CatXY2,2));
-                        %MedW           = median(Width,1,'omitnan');
-                    else
-                        Width = [];
-                    end
-
-                    RefMag         = MatchedPhotCat.getCol(Args.RefColNameMag);
-                    RefMagErr      = MatchedPhotCat.getCol(Args.RefColNameMagErr);
-                    RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
-                    RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
-
-                    if Args.IsErrSN
-                        RefMagErr      = 1.086./RefMagErr;
-                        RefMagBandsErr = 1.086./RefMagBandsErr;
-                    end
-                    %CatXY          = Cat.getCol({'X','Y'});
-
-                    switch lower(Args.MagSys)
-                        case 'vega'
-                            % do nothing GAIA is already in Vega sys
-                        case 'ab'
-                            %if 1==0
-                            %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
-                            VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
-
-                            GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
-
-                            %I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                            I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                            RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
-
-                            %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                            I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                            RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
-                            %end
-                        otherwise
-                            error('Unknown MagSys option');
-                    end
-
-
-                    % calculate all colors
-                    [Nsrc, Nband] = size(RefMagBands);
-
-
-                    if size(RefMagBandsErr,2)==1
-                        % Color has a single column
-                        Color = RefMag - RefMagBands;
-                    else
-                        % Color has multiple columns
-                        Color = diff(RefMagBands, 1, 2);
-                    end
-
-                    
-                    [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr);
-                    if Rzp.Ndof<2
-                        [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr.*2);
-                    end
-                    ResFit(Iobj).Par = Rzp.Par;
-
-                    %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
-                    ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
-                    ResFit(Iobj).MagSys = Args.MagSys;
-                    ResFit(Iobj).Resid  = Rzp.AllResid; %Y - H*ResFit(Iobj).Par;
-                    ResFit(Iobj).RefMag = RefMag;
-                    ResFit(Iobj).InstMag = CatMag;
-                    ResFit(Iobj).RefColor = Color;
-                    ResFit(Iobj).Width  = Width;
-                    ResFit(Iobj).MedC   = Rzp.MeanVec(2);
-                    if Args.UseWidth
-                        ResFit(Iobj).MedW   = Rzp.MeanVec(4);
-                    else
-                        ResFit(Iobj).MedW   = NaN;
-                    end
-                    ResFit(Iobj).Flag   = Rzp.FlagGood;
-                    ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(ResFit(Iobj).Flag));
-                    ResFit(Iobj).Chi2   = sum(ResFit(Iobj).Resid(ResFit(Iobj).Flag).^2 ./VarY(ResFit(Iobj).Flag));
-                    ResFit(Iobj).Nsrc   = sum(ResFit(Iobj).Flag);
-
-                    if ~Args.UseWidth && Args.ColorOrder==1
-                        ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag - Par(1) - Par(2).*(Color-MedC);
-                    else
-                        error('Unsupported option');
-                    end
-
-                    % estimate limiting magnitude
-                    if isempty(Args.LimMagSN)
-                        ResFit(Iobj).LimMag = NaN;
-                    else
-                        %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
-                        % select only positive S/N:
-                        Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
-                        ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
-                        ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
-                    end
-
-                    % photometric calibration plot
-                    %semilogy(RefMag,[ResFit(Iobj).Fun(ResFit(1).Par, CatMag, Color, ResFit(Iobj).MedC )-RefMag],'.')
-                case 'simpleold'
-                    % fit ZP and color term
-                    % FFU - add cleaning
-
-                    CatMag         = Cat.getCol(Args.CatColNameMag);
-                    CatMagErr      = Cat.getCol(Args.CatColNameMagErr);
-
-                    if isempty(Args.MaxSN)
-                        SN = zeros(size(CatMag));      
-                    else
-                        SN = Cat.getCol(Args.CatColNameSN);
-                    end
-
-                    CatXY2         = Cat.getCol({'X2','Y2'});
-                    % removing negative measurments
-                    CatXY2(CatXY2<0) = NaN;
-                    Width          = sqrt(sum(CatXY2,2));
-                    MedW           = median(Width,1,'omitnan');
-
-                    RefMag         = MatchedPhotCat.getCol(Args.RefColNameMag);
-                    RefMagErr      = MatchedPhotCat.getCol(Args.RefColNameMagErr);
-                    RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
-                    RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
-
-                    %CatXY          = Cat.getCol({'X','Y'});
-
-                    switch lower(Args.MagSys)
-                        case 'vega'
-                            % do nothing GAIA is already in Vega sys
-                        case 'ab'
-                            %if 1==0
-                            %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
-                            VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
-                            
-
-                            GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
-
-                            I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                            RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
-
-                            I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                            RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
-                            %end
-                        otherwise
-                            error('Unknown MagSys option');
-                    end
-
-
-                    % calculate all colors
-                    [Nsrc, Nband] = size(RefMagBands);
-
-
-                    if size(RefMagBandsErr,2)==1
-                        % Color has a single column
-                        Color = RefMag - RefMagBands;
-                    else
-                        % Color has multiple columns
-                        Color = diff(RefMagBands, 1, 2);
-                    end
-
-
-                    H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW]; % CatXY];
-                    ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag - Par(1) - Par(2).*Color - Par(3).*Color.^2 - Par(4).*(Width-MedW);
-                    %ResFit(Iobj).Fun = @(Par, InstMag, Color) InstMag + Par(1) + Par(2).*Color;
-
-                    Y     = RefMag - CatMag;
-                    %Y     = RefMagBands(:,1) - CatMag;
-                    ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
-                    Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
-
-                    ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
-                    if ~isreal(ResFit(Iobj).Par )
-                        'a'
-                    end
-                    %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
-                    ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
-                    ResFit(Iobj).MagSys = Args.MagSys;
-                    ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
-                    ResFit(Iobj).RefMag = RefMag;
-                    ResFit(Iobj).InstMag = CatMag;
-                    ResFit(Iobj).RefColor = Color;
-                    ResFit(Iobj).Width  = Width;
-                    ResFit(Iobj).MedW   = MedW;
-                    ResFit(Iobj).Flag   = Flag;
-                    ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(Flag));
-                    ResFit(Iobj).Chi2   = sum((ResFit(Iobj).Resid(Flag)./ErrY(Flag)).^2);
-                    ResFit(Iobj).Nsrc   = sum(Flag);
-
-                    % estimate limiting magnitude
-                    if isempty(Args.LimMagSN)
-                        ResFit(Iobj).LimMag = NaN;
-                    else
-                        ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, MedW, MedW), 1);
-                        ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
-                    end
-
-                otherwise
-                    error('Unknown Method option');
-            end
-
-
-            if Args.UpdateMagCols
-
-                
-                %InstMag = Cat.getCol(UsedColMag);
-                DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
-                Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
-              
-                % OLD CODE:
-                % if ischar(Args.MagColName2update)
-                %     MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));
-                % else
-                %     MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
-                % end
-                % 
-                % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
-                % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
-                % 
-                % Cat.Catalog(:,MagColFlag) = ResFit(Iobj).Fun(ResFit(Iobj).Par, Cat.Catalog(:,MagColFlag), Args.CatMagColor, ResFit(Iobj).MedC);
-                % 
-
-
-                % This should happen automatically, but we are doing this for
-                % readability and order
-                if isa(Result, 'AstroImage')
-                    Result(Iobj).CatData = Cat;
-                else
-                    Result(Iobj) = Cat;
+                        MedW           = median(Width,1,'omitnan');
+    
+                        RefMag         = MatchedPhotCat.getCol(Args.RefColNameMag);
+                        RefMagErr      = MatchedPhotCat.getCol(Args.RefColNameMagErr);
+                        RefMagBands    = MatchedPhotCat.getCol(Args.RefColNameMagBands);
+                        RefMagBandsErr = MatchedPhotCat.getCol(Args.RefColNameMagBandsErr);
+    
+                        %CatXY          = Cat.getCol({'X','Y'});
+    
+                        switch lower(Args.MagSys)
+                            case 'vega'
+                                % do nothing GAIA is already in Vega sys
+                            case 'ab'
+                                %if 1==0
+                                %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
+                                VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
+                                
+    
+                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+    
+                                I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
+                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+    
+                                I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                %end
+                            otherwise
+                                error('Unknown MagSys option');
+                        end
+    
+    
+                        % calculate all colors
+                        [Nsrc, Nband] = size(RefMagBands);
+    
+    
+                        if size(RefMagBandsErr,2)==1
+                            % Color has a single column
+                            Color = RefMag - RefMagBands;
+                        else
+                            % Color has multiple columns
+                            Color = diff(RefMagBands, 1, 2);
+                        end
+    
+    
+                        H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW]; % CatXY];
+                        ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag - Par(1) - Par(2).*Color - Par(3).*Color.^2 - Par(4).*(Width-MedW);
+                        %ResFit(Iobj).Fun = @(Par, InstMag, Color) InstMag + Par(1) + Par(2).*Color;
+    
+                        Y     = RefMag - CatMag;
+                        %Y     = RefMagBands(:,1) - CatMag;
+                        ErrY  = sqrt(CatMagErr.^2 + sum(RefMagBandsErr.^2, 2));
+                        Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
+    
+                        ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
+                        % if ~isreal(ResFit(Iobj).Par )
+                        %     'a'
+                        % end
+                        %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                        ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
+                        ResFit(Iobj).MagSys = Args.MagSys;
+                        ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
+                        ResFit(Iobj).RefMag = RefMag;
+                        ResFit(Iobj).InstMag = CatMag;
+                        ResFit(Iobj).RefColor = Color;
+                        ResFit(Iobj).Width  = Width;
+                        ResFit(Iobj).MedW   = MedW;
+                        ResFit(Iobj).Flag   = Flag;
+                        ResFit(Iobj).RMS    = imUtil.background.rstd(ResFit(Iobj).Resid(Flag));
+                        ResFit(Iobj).Chi2   = sum((ResFit(Iobj).Resid(Flag)./ErrY(Flag)).^2);
+                        ResFit(Iobj).Nsrc   = sum(Flag);
+    
+                        % estimate limiting magnitude
+                        if isempty(Args.LimMagSN)
+                            ResFit(Iobj).LimMag = NaN;
+                        else
+                            ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, MedW, MedW), 1);
+                            ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+                        end
+    
+                    otherwise
+                        error('Unknown Method option');
                 end
 
-            end
 
+                if Args.UpdateMagCols
+    
+                    
+                    %InstMag = Cat.getCol(UsedColMag);
+                    DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
+                    Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
+                  
+                    % OLD CODE:
+                    % if ischar(Args.MagColName2update)
+                    %     MagColFlag = ~cellfun(@isempty, regexp(Cat.ColNames, Args.MagColName2update, 'match'));
+                    % else
+                    %     MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
+                    % end
+                    % 
+                    % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                    % %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                    % 
+                    % Cat.Catalog(:,MagColFlag) = ResFit(Iobj).Fun(ResFit(Iobj).Par, Cat.Catalog(:,MagColFlag), Args.CatMagColor, ResFit(Iobj).MedC);
+                    % 
+    
+    
+                    % This should happen automatically, but we are doing this for
+                    % readability and order
+                    if isa(Result, 'AstroImage')
+                        Result(Iobj).CatData = Cat;
+                    else
+                        Result(Iobj) = Cat;
+                    end
+
+                end
+            end
 
             if Args.UpdateHeader && isa(Result, 'AstroImage')
                 % write to header the following information:
@@ -594,35 +599,42 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 end
                 ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
                 
-                
                 if Args.ColorOrder==1 && ~Args.UseWidth
                     Keys = {'PH_ZP','PH_COL1','PH_MEDC','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
-                    Vals = {ResFit(Iobj).ZP,...
-                            ResFit(Iobj).Par(2),...
-                            ResFit(Iobj).MedC,...
-                            ResFit(Iobj).RMS,...
-                            ResFit(Iobj).Nsrc,...
-                            ResFit(Iobj).MagSys,...
-                            ResFit(Iobj).LimMag,...
-                            ResFit(Iobj).BackMag,...
-                            ResFit(Iobj).UsedColMag,...
-                            ResFit(Iobj).UsedColMagErr};
+                    if isempty(ResFit(Iobj).ZP)
+                        Vals = num2cell(nan(size(Keys)));
+                    else
+                        Vals = {ResFit(Iobj).ZP,...
+                                ResFit(Iobj).Par(2),...
+                                ResFit(Iobj).MedC,...
+                                ResFit(Iobj).RMS,...
+                                ResFit(Iobj).Nsrc,...
+                                ResFit(Iobj).MagSys,...
+                                ResFit(Iobj).LimMag,...
+                                ResFit(Iobj).BackMag,...
+                                ResFit(Iobj).UsedColMag,...
+                                ResFit(Iobj).UsedColMagErr};
+                    end
                 else
 
                     Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
-                    Vals = {ResFit(Iobj).ZP,...
-                            ResFit(Iobj).Par(2),...
-                            ResFit(Iobj).Par(3),...
-                            ResFit(Iobj).Par(4),...
-                            ResFit(Iobj).MedC,...
-                            ResFit(Iobj).MedW,...
-                            ResFit(Iobj).RMS,...
-                            ResFit(Iobj).Nsrc,...
-                            ResFit(Iobj).MagSys,...
-                            ResFit(Iobj).LimMag,...
-                            ResFit(Iobj).BackMag,...
-                            ResFit(Iobj).UsedColMag,...
-                            ResFit(Iobj).UsedColMagErr};
+                    if isempty(ResFit(Iobj).ZP)
+                        Vals = num2cell(nan(size(Keys)));
+                    else
+                        Vals = {ResFit(Iobj).ZP,...
+                                ResFit(Iobj).Par(2),...
+                                ResFit(Iobj).Par(3),...
+                                ResFit(Iobj).Par(4),...
+                                ResFit(Iobj).MedC,...
+                                ResFit(Iobj).MedW,...
+                                ResFit(Iobj).RMS,...
+                                ResFit(Iobj).Nsrc,...
+                                ResFit(Iobj).MagSys,...
+                                ResFit(Iobj).LimMag,...
+                                ResFit(Iobj).BackMag,...
+                                ResFit(Iobj).UsedColMag,...
+                                ResFit(Iobj).UsedColMagErr};
+                    end
                 end
                     
                 %Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);

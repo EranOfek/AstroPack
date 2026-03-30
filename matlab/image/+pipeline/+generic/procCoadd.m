@@ -275,6 +275,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
+        
         FlagGood = Args.IsGood(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
@@ -292,9 +293,17 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.UseShift
                 
                 if Args.UseInterp2
-                    RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
+                    if strcmp(Args.StackMethod, 'wrobust')
+
+                        RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
+                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+                                                                    'DataProp',{'Image','Back','Var','Mask'},...
+                                                                    Args.interp2affineArgs{:});
+                    else
+                        RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
                                                                     'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                                     Args.interp2affineArgs{:});
+                    end
                 else
             
             
@@ -330,6 +339,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',false, 'ZP',[], Args.coadd_WRobustArgs{:});
+                    MidJD = NaN;
                 otherwise
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
@@ -367,14 +377,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
 
+            
             if Args.FindStars
+                
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
                                                     'AddSkyCoo',false, 'UseMex',Args.UseMex);
                 
             end
 
             % astrometry / refine
-            if Args.RefineAstrometry
+            if Args.RefineAstrometry && Coadd(Ifields).CatData.sizeCatalog>0
                 if isa(Args.CatName, 'AstroCatalog')
                     AstrometricCat = Args.CatName(Ifields);
                 else

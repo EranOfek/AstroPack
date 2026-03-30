@@ -1,4 +1,3 @@
-
 function Result = unitTest()
     % Unit-Test
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
@@ -11,9 +10,7 @@ function Result = unitTest()
     %%%%%%%%%%%%%%%%%%%%
 
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
-    io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
-    io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
-
+   
     % Required on Windows, need to compile it with mex in this folder
     addpath('external/str2doubles/str2doubles');
 
@@ -147,6 +144,5 @@ function Result = unitTest()
 %   LDB.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
     
     % Done
-    io.msgStyle(LogLevel.Test, '@passed', 'AstroDb test passed')
     Result = true;
 end

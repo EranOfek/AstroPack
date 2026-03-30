@@ -329,7 +329,11 @@ function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF,
     if UseMex
         % x5 times faster:
         %PSFr = repmat(PSF,[1, 1, numel(DX)]);
-        ShiftedPSF = imUtil.trans.mex.shift_lanczos3(PSF,DX,DY);
+        if isempty(DX)
+            ShiftedPSF = zeros([size(PSF),0], 'like',PSF);
+        else
+            ShiftedPSF = imUtil.trans.mex.shift_lanczos3(PSF,DX,DY);
+        end
     else
         % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
         ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);

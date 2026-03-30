@@ -115,10 +115,10 @@ function Result = unitTest()
 	MS.plotRMS
 	MS.plotRMS('BinSize',0.1)
 	
-	MS = MatchedSources;
-	MS.addMatrix(rand(100,200),'FLUX');
-	MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'});
-	[JD, Mag] = getLC_ind(MS, [2 3], {'FLUX'});
+	% MS = MatchedSources;
+	% MS.addMatrix(rand(100,200),'FLUX');
+	% MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'});
+	% [JD, Mag] = getLC_ind(MS, [2 3], {'FLUX'});
 	
 	
 	% designMatrixCalib

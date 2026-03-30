@@ -1,7 +1,9 @@
 function Result = unitTest(Obj)
 	%
-	io.msgStyle(LogLevel.Test, '@start', 'constant test started');
 	
-	io.msgStyle(LogLevel.Test, '@passed', 'constant test passed');
+    if abs(constant.c-299792458e2)>eps
+        error('Problem with constant class');
+    end
+
 	Result = true;
 end
