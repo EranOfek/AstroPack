@@ -96,7 +96,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fits_get_img_size(fptr, 10, naxes, &status); checkStatus(status);
 
     if (naxis == 0)
-        mexErrMsgTxt("HDU has no image");
+        mexErrMsgTxt("The requested HDU has no image");
 
     std::vector<mwSize> dims(naxis);
     long nelements = 1;
