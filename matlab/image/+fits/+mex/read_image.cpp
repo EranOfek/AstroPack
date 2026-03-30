@@ -61,6 +61,134 @@ int find_image_hdu(fitsfile* fptr)
     return -1;
 }
 
+
+// mxArray* readHeaderCell(fitsfile* fptr)
+// {
+//     int status = 0, nkeys = 0;
+// 
+//     fits_get_hdrspace(fptr, &nkeys, NULL, &status);
+//     checkStatus(status);
+// 
+//     mxArray* cell = mxCreateCellMatrix(nkeys, 3);
+// 
+//     char card[FLEN_CARD];
+// 
+//     for (int i = 1; i <= nkeys; i++) {
+//         fits_read_record(fptr, i, card, &status);
+//         checkStatus(status);
+// 
+//         char key[FLEN_KEYWORD], value[FLEN_VALUE], comment[FLEN_COMMENT];
+//         fits_parse_record(card, key, value, comment, &status);
+// 
+//         // Column 0: key
+//         mxSetCell(cell, (i-1) + 0*nkeys, mxCreateString(key));
+// 
+//         // Column 1: value
+//         mxSetCell(cell, (i-1) + 1*nkeys, mxCreateString(value));
+// 
+//         // Column 2: comment
+//         mxSetCell(cell, (i-1) + 2*nkeys, mxCreateString(comment));
+//     }
+// 
+//     return cell;
+// }
+
+// mxArray* readHeaderCell(fitsfile* fptr)
+// {
+//     int status = 0, nkeys = 0;
+// 
+//     fits_get_hdrspace(fptr, &nkeys, NULL, &status);
+//     checkStatus(status);
+// 
+//     mxArray* cell = mxCreateCellMatrix(nkeys, 3);
+// 
+//     char key[FLEN_KEYWORD];
+//     char value[FLEN_VALUE];
+//     char comment[FLEN_COMMENT];
+// 
+//     for (int i = 1; i <= nkeys; i++) {
+// 
+//         fits_read_keyn(fptr, i, key, value, comment, &status);
+//         checkStatus(status);
+// 
+//         // MATLAB is column-major: index = row + col*nrows
+//         int row = i - 1;
+// 
+//         mxSetCell(cell, row + 0*nkeys, mxCreateString(key));
+//         mxSetCell(cell, row + 1*nkeys, mxCreateString(value));
+//         mxSetCell(cell, row + 2*nkeys, mxCreateString(comment));
+//     }
+// 
+//     return cell;
+// }
+
+mxArray* readHeaderCell(fitsfile* fptr)
+{
+    int status = 0, nkeys = 0;
+
+    fits_get_hdrspace(fptr, &nkeys, NULL, &status);
+    checkStatus(status);
+
+    mxArray* cell = mxCreateCellMatrix(nkeys, 3);
+
+    char key[FLEN_KEYWORD];
+    char comment[FLEN_COMMENT];
+
+    for (int i = 1; i <= nkeys; i++) {
+
+        char value_str[FLEN_VALUE];
+        fits_read_keyn(fptr, i, key, value_str, comment, &status);
+        checkStatus(status);
+
+        int row = i - 1;
+
+        // --- Column 1: keyword ---
+        mxSetCell(cell, row + 0*nkeys, mxCreateString(key));
+
+        // --- Column 2: value (typed) ---
+        mxArray* val = nullptr;
+
+        int status2 = 0;
+
+        // Try double
+        double dval;
+        if (fits_read_key(fptr, TDOUBLE, key, &dval, NULL, &status2) == 0) {
+            val = mxCreateDoubleScalar(dval);
+        }
+        else {
+            status2 = 0;
+
+            // Try logical
+            int lval;
+            if (fits_read_key(fptr, TLOGICAL, key, &lval, NULL, &status2) == 0) {
+                val = mxCreateLogicalScalar(lval);
+            }
+            else {
+                status2 = 0;
+
+                // Try string
+                char sval[FLEN_VALUE];
+                if (fits_read_key(fptr, TSTRING, key, sval, NULL, &status2) == 0) {
+                    val = mxCreateString(sval);
+                }
+                else {
+                    status2 = 0;
+                    val = mxCreateString("");  // fallback
+                }
+            }
+        }
+
+        mxSetCell(cell, row + 1*nkeys, val);
+
+        // --- Column 3: comment ---
+        mxSetCell(cell, row + 2*nkeys, mxCreateString(comment));
+    }
+
+    return cell;
+}
+
+/////////
+
 void mexFunction(int nlhs, mxArray* plhs[],
                  int nrhs, const mxArray* prhs[])
 {
@@ -126,6 +254,17 @@ void mexFunction(int nlhs, mxArray* plhs[],
             
             fits_read_img(fptr, TUSHORT, 1, nelements,
                     NULL, data, NULL, &status);
+            
+            // Output 2: header (optional)
+            if (nlhs >= 2) {
+                plhs[1] = readHeaderCell(fptr);
+            }
+            
+            // Output 3: HDU number used (optional)
+            if (nlhs >= 3) {
+                plhs[2] = mxCreateDoubleScalar((double)hdu);
+            }
+            
             fits_close_file(fptr, &status);
             checkStatus(status);
             
@@ -166,6 +305,16 @@ void mexFunction(int nlhs, mxArray* plhs[],
         fits_read_img(fptr, TDOUBLE, 1, nelements,
                       NULL, dptr, &anynul, &status);
         checkStatus(status);
+    }
+    
+    // Output 2: header (optional)
+    if (nlhs >= 2) {
+        plhs[1] = readHeaderCell(fptr);
+    }
+    
+    // Output 3: HDU number used (optional)
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateDoubleScalar((double)hdu);
     }
 
     fits_close_file(fptr, &status);
