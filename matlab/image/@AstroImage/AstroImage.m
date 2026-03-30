@@ -212,6 +212,7 @@ classdef AstroImage < Component
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
             %                   interpretation. Default is false.
+            %            'UseMex' - Use a Mex version of FITS image reader. Defaults is false 
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Jun 2021)
             % Example:
@@ -256,6 +257,7 @@ classdef AstroImage < Component
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
                 
+                Args.UseMex                   = false;
             end
             
             if isempty(FileNames)
@@ -308,7 +310,8 @@ classdef AstroImage < Component
                                                                         'Scale',Args.Scale,...
                                                                         'ReadHeader',Args.ReadHeader,...
                                                                         'DataProp','ImageData',...
-                                                                        'FileNames',FN);
+                                                                        'FileNames',FN,...
+                                                                        'UseMex',Args.UseMex);
                                                                         
                         % Other data properties
                         ListProp  = {'Back','Var','Mask', 'Exp', 'PSF','Cat'};
@@ -332,7 +335,8 @@ classdef AstroImage < Component
                                                                             'UseRegExp',Args.UseRegExp,...
                                                                             'Scale',Args.(ListScale{Ilist}),...
                                                                             'ReadHeader',false,...
-                                                                            'DataProp',ListData{Ilist});
+                                                                            'DataProp',ListData{Ilist},...
+                                                                            'UseMex',Args.UseMex);
                                 catch
                                     warning('Fail reading data product %s - likely does not exist in directory', ListProp{Ilist});
                                 end
@@ -470,6 +474,7 @@ classdef AstroImage < Component
             %            'FileNames' - A cell array of file names to write
             %                   in the ImageComponent.FileName property.
             %                   Default is {}.
+            %            'UseMex' - use Mex version of FITS file reader (def. false) 
             % Outout : - An AstroImage object with the images stored in the
             %            requested field.
             % Author : Eran Ofek (Apr 2021)
@@ -494,6 +499,7 @@ classdef AstroImage < Component
                 Args.DataProp               = 'ImageData';
                 Args.ReadHeader             = true;
                 Args.FileNames              = {};
+                Args.UseMex                 = false;
             end
             
             try
@@ -504,7 +510,8 @@ classdef AstroImage < Component
                                                  'CCDSEC',Args.CCDSEC,...
                                                  'IsTable',false,...
                                                  'ReadHeader',Args.ReadHeader,...
-                                                 'UseRegExp',Args.UseRegExp);
+                                                 'UseRegExp',Args.UseRegExp,...
+                                                 'UseMex',Args.UseMex);
                         
                     case {'cat','catdata'}
                         ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
