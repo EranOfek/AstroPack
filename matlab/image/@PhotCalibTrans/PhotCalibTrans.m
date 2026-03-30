@@ -2654,7 +2654,9 @@ classdef PhotCalibTrans < Component
                         if isnan(Obj.AperCorr(AperIdx)) && ~Args.UpdateMagIfFail
                             % Skip: correction failed but user chose not to NaN magnitudes
                         else
-                            Mag = Mag + Obj.AperCorr(AperIdx);
+                            % Subtract: AperCorr = MagAper - MagRef > 0 for smaller apertures,
+                            % so corrected = Mag - AperCorr brings magnitude toward reference level
+                            Mag = Mag - Obj.AperCorr(AperIdx);
                         end
                     end
                 end
@@ -2806,22 +2808,20 @@ classdef PhotCalibTrans < Component
             Obj.DeltaZP_CB = DeltaZP;
 
             % --- Apply to magnitude columns ---
-            Tab = CatObj.Table;
-            AllColNames = Tab.Properties.VariableNames;
+            AllColNames = CatObj.ColNames;
             MagCols = AllColNames(startsWith(AllColNames, Args.MagColPrefix));
 
             for Ic = 1:numel(MagCols)
-                MagVals = Tab.(MagCols{Ic}) + DeltaZP;
+                ColIdx = CatObj.colname2ind(MagCols{Ic});
+                MagVals = CatObj.Catalog(:, ColIdx) + DeltaZP;
 
                 if strcmpi(Args.OutputMode, 'replace')
-                    Tab.(MagCols{Ic}) = MagVals;
+                    CatObj.Catalog(:, ColIdx) = MagVals;
                 else
                     NewColName = strrep(MagCols{Ic}, Args.MagColPrefix, Args.OutputPrefix);
-                    Tab.(NewColName) = MagVals;
+                    CatObj = CatObj.insertCol(MagVals, Inf, NewColName, {});
                 end
             end
-
-            CatObj.Catalog = Tab;
         end
 
         function CatObj = addZP(Obj, CatObj, Args)

@@ -18,6 +18,7 @@ function Result = testPhotCalib(Args)
     %                plotPhotResidualsAirmass — residuals vs airmass
     %                plotPhotTransmission — transmission curves per mode
     %                plotPhotIntegralT  — integral T mosaic + T vs epoch time series
+    %                plotPhotFWHM       — FWHM from headers vs epoch
     %
     %              Calibration results are cached in OutDir as PC_<mode>.mat;
     %              delete or use ForceRecalc=true to recompute.
@@ -38,6 +39,7 @@ function Result = testPhotCalib(Args)
     %               10. Calibrator residuals vs airmass (median shift + linear fit).
     %               11. Transmission curves per mode (per-crop + reference overlay).
     %               12. Integral T mosaic (per crop) + T vs epoch time series.
+    %               13. FWHM from headers vs epoch (per crop + median).
     %
     % Input  : * ...,key,val,...
     %          --- Data loading (see also loadVisitData) ---
@@ -88,9 +90,17 @@ function Result = testPhotCalib(Args)
     %                        fewer valid detections are NaN-ed out. 0 = no
     %                        filter. Default is 0.
     %            'ApplyRelZP' - Apply zp_meddiff relative ZP correction to
-    %                        original (non-AB) magnitudes. Default is true.
+    %                        original (non-AB) magnitudes. Default is false.
+    %          --- Calibration: ConstBand ---
+    %            'ApplyConstBand' - Add MAG_CB_* columns via constant-band
+    %                        correction. Default is false.
+    %            'ConstBandParams' - CBP struct from buildConstBandParams,
+    %                        .mat file path, or PC_all cell for auto-building.
+    %                        Default is [].
     %          --- Plotting ---
     %            'Plot'     - Generate diagnostic plots. Default is true.
+    %            'SaveFig'  - Save all figures to OutDir/figures/ as .fig
+    %                        and .jpg. Default is false.
     %            'ShowOrigMag' - Overlay instrumental mag scatter. Default is true.
     %            'OverlayTrend'- Binned trend: 'median'|'mean'|'none'. Default is 'median'.
     %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
@@ -160,6 +170,19 @@ function Result = testPhotCalib(Args)
     %          pipeline.last.quality.plotPhotTransmission(R, ...
     %              'Modes', {'percrop','perset'});
     %          pipeline.last.quality.plotPhotIntegralT(R.PC);
+    %
+    %          % FWHM (requires AI from loadVisitData, not from Result.mat):
+    %          AI = pipeline.last.quality.loadVisitData('DataDir', '', ...
+    %              'ListFile', '~/list.mat', 'ListFields', 'field1', 'FileType', 'coadd');
+    %          pipeline.last.quality.plotPhotFWHM(AI);
+    %
+    %          % ConstBand mode:
+    %          CBP = PhotCalibTrans.buildConstBandParams(R.PC.percrop, 'Verbose', true);
+    %          R = pipeline.last.quality.testPhotCalib(..., ...
+    %              'ApplyConstBand', true, 'ConstBandParams', CBP);
+    %
+    %          % Save all figures:
+    %          R = pipeline.last.quality.testPhotCalib(..., 'SaveFig', true);
     %          pipeline.last.quality.plotPhotIntegralT(R.PC, 'MosaicEpoch', 5);
     %
     %          % Replotting with other arguments (within the scope of performed calibration):
@@ -203,10 +226,13 @@ function Result = testPhotCalib(Args)
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
         Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
-        Args.ApplyRelZP logical = true  % Apply zp_meddiff to original (non-AB) mags
+        Args.ApplyRelZP logical = false  % Apply zp_meddiff to original (non-AB) mags
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
+        Args.ApplyConstBand logical = false  % Add MAG_CB_* columns via constant-band correction
+        Args.ConstBandParams = []            % CBP struct, or .mat path, or PC_all cell for building CBP
         Args.Plot logical   = true
+        Args.SaveFig logical = false  % Save all figures to OutDir as .fig and .jpg
         Args.ShowOrigMag logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
@@ -228,6 +254,37 @@ function Result = testPhotCalib(Args)
     end
     if isempty(Args.CropsToAnalyze)
         Args.CropsToAnalyze = 1:Args.Ncrop;
+    end
+
+    % Expand MagFields and MatchedColumns for ConstBand mode
+    if Args.ApplyConstBand
+        CbFields = strrep(Args.MagFields, 'MAG_AB_', 'MAG_CB_');
+        Args.MagFields = [Args.MagFields, CbFields];
+        Args.MatchedColumns = [Args.MatchedColumns, CbFields];
+    end
+
+    % Build ConstBandParams if needed
+    CBP = [];
+    if Args.ApplyConstBand
+        if isstruct(Args.ConstBandParams)
+            CBP = Args.ConstBandParams;
+        elseif ischar(Args.ConstBandParams) || isstring(Args.ConstBandParams)
+            if ~isempty(Args.ConstBandParams)
+                S = load(char(Args.ConstBandParams));
+                if isfield(S, 'CBP')
+                    CBP = S.CBP;
+                elseif isfield(S, 'PC_all')
+                    CBP = PhotCalibTrans.buildConstBandParams(S.PC_all, 'Verbose', Args.Verbose);
+                end
+            end
+        elseif iscell(Args.ConstBandParams)
+            % Cell array of PC_all — build CBP directly
+            CBP = PhotCalibTrans.buildConstBandParams(Args.ConstBandParams, 'Verbose', Args.Verbose);
+        end
+        if isempty(CBP)
+            warning('testPhotCalib:NoCBP', 'Cannot build ConstBandParams. Disabling ConstBand.');
+            Args.ApplyConstBand = false;
+        end
     end
 
     % === Load ===
@@ -256,12 +313,14 @@ function Result = testPhotCalib(Args)
         'OutDir', Args.OutDir, ...
         'ForceRecalc', Args.ForceRecalc, ...
         'CalibArgs', Args.CalibArgs, ...
+        'ApplyConstBand', Args.ApplyConstBand, ...
+        'ConstBandParams', CBP, ...
         'VisitRefZP', Args.VisitRefZP, ...
         'VisitRefZPEpoch', Args.VisitRefZPEpoch, ...
         'MagFields', Args.MagFields, ...
         'Verbose', Args.Verbose);
 
-    % === Epoch Matching ===
+    %
     MS = pipeline.last.quality.matchPhotEpochs(Calib.Cats, ...
         'Modes', Args.Modes, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
@@ -321,11 +380,31 @@ function Result = testPhotCalib(Args)
         'TrendBinWidth', Args.TrendBinWidth, ...
         'MinEpochs', Args.MinEpochs);
 
+    % ConstBand: compare AB vs CB for each aperture type
+    if Args.ApplyConstBand
+        AbFields = Args.MagFields(contains(Args.MagFields, '_AB_'));
+        CbFields = strrep(AbFields, '_AB_', '_CB_');
+        for If = 1:numel(AbFields)
+            pipeline.last.quality.plotPhotStdDiff(MS, ...
+                'Modes', Args.Modes, ...
+                'CompareFields', {AbFields{If}, CbFields{If}}, ...
+                'CropsToAnalyze', Args.CropsToAnalyze, ...
+                'OverlayTrend', Args.OverlayTrend, ...
+                'TrendBinWidth', Args.TrendBinWidth, ...
+                'MinEpochs', Args.MinEpochs);
+        end
+    end
+
     pipeline.last.quality.plotPhotMosaic(Calib, ...
         'Modes', Args.Modes, ...
         'Visits', Args.Visits, ...
         'Ncrop', Args.Ncrop, ...
         'RefCrop', Args.RefCrop, ...
+        'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotFWHM(AI, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
         'TileOrder', Args.TileOrder);
 
     pipeline.last.quality.plotPhotResiduals(Calib.PC, ...
@@ -362,4 +441,22 @@ function Result = testPhotCalib(Args)
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
         'TileOrder', Args.TileOrder);
+
+    % Save all open figures
+    if Args.SaveFig
+        FigDir = fullfile(Args.OutDir, 'figures');
+        if ~exist(FigDir, 'dir'); mkdir(FigDir); end
+        AllFigs = findall(0, 'Type', 'figure');
+        for If = 1:numel(AllFigs)
+            Fig = AllFigs(If);
+            if ~isvalid(Fig); continue; end
+            FigName = matlab.lang.makeValidName(Fig.Name);
+            if isempty(FigName); FigName = sprintf('fig_%d', Fig.Number); end
+            savefig(Fig, fullfile(FigDir, [FigName '.fig']));
+            saveas(Fig, fullfile(FigDir, [FigName '.jpg']));
+        end
+        if Args.Verbose
+            fprintf('Saved %d figures to %s\n', numel(AllFigs), FigDir);
+        end
+    end
 end

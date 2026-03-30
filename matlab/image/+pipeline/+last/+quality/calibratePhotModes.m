@@ -43,6 +43,8 @@ function Result = calibratePhotModes(AI, Args)
         Args.OutDir         = ''
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
+        Args.ApplyConstBand logical = false
+        Args.ConstBandParams = []
         Args.VisitRefZP     = 'epoch'
         Args.VisitRefZPEpoch = 1
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
@@ -117,6 +119,8 @@ function Result = calibratePhotModes(AI, Args)
 
                 [Res, PC_all{Iv}] = imProc.calib.fitPhotCalibTrans(AIcopy, ...
                     'PhotSys', 'percrop', 'RefCrop', Args.RefCrop, ...
+                    'ApplyConstBand', Args.ApplyConstBand, ...
+                    'ConstBandParams', Args.ConstBandParams, ...
                     'Verbose', false, Args.CalibArgs{:});
 
                 Ncrop_v = numel(Res);
