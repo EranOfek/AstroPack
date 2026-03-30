@@ -104,10 +104,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
         dims[i] = (mwSize)naxes[i];
         nelements *= naxes[i];
     }
-
-    // Disable automatic scaling (we control it)
-    fits_set_bscale(fptr, 1.0, 0.0, &status);
-    checkStatus(status);
+    
+    mexPrintf("Bitpix: %d \n",bitpix);
 
     int anynul = 0;
 
@@ -116,6 +114,26 @@ void mexFunction(int nlhs, mxArray* plhs[],
     void* data = nullptr;
 
     bool native_ok = true;
+        
+    if (bitpix == SHORT_IMG) {
+        double bzero = 0.0;
+        fits_read_key(fptr, TDOUBLE, "BZERO", &bzero, NULL, &status);
+        if (status) status = 0;
+        
+        if (bzero == 32768.0) {
+            // unsigned 16-bit path
+            mxArray* out = mxCreateNumericArray(naxis, dims.data(), mxUINT16_CLASS, mxREAL);
+            unsigned short* data = (unsigned short*)mxGetData(out);
+            
+            fits_read_img(fptr, TUSHORT, 1, nelements,
+                    NULL, data, NULL, &status);
+            fits_close_file(fptr, &status);
+            checkStatus(status);
+            
+            plhs[0] = out;
+            return;
+        }
+    }
 
     try {
         mxClassID classid = bitpix_to_mxclass(bitpix);
