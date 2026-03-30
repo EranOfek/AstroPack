@@ -112,7 +112,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
     void* data = nullptr;
 
     bool native_ok = true;
-        
+
+    // this is a separate case of uint16 coded as int16 and BZERO=32768.0
     if (bitpix == SHORT_IMG) {
         double bzero = 0.0;
         fits_read_key(fptr, TDOUBLE, "BZERO", &bzero, NULL, &status);
@@ -157,7 +158,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
 
     // -------- Fallback to double --------
     if (!native_ok) {
-        mexPrintf("Falling back to double read\n");
+        mexPrintf("Native FITS format not found, falling back to double\n");
 
         out = mxCreateNumericArray(naxis, dims.data(), mxDOUBLE_CLASS, mxREAL);
         double* dptr = mxGetPr(out);
