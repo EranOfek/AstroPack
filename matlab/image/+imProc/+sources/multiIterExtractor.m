@@ -266,7 +266,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.AperRadius                = [2, 4, 6];
         Args.Annulus                   = [10 12];
         Args.ThresholdPSF              = 100;
-        Args.RangeSN                   = [100 1000];
+        Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
         Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
@@ -405,7 +405,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'InitPsfArgs',Args.InitPsfArgs,...
                                                    'RePopulatePSF',true);
     end
-    
+
+
 
     % delete the object's input catalog 
     % if the catalog is not removed, it may conflict with the new ones 
@@ -466,191 +467,214 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
         end
 
-        for Iiter=1:1:Niter     
+        SizePSF = size(AI.PSFData.DataPSF);
+        % if isempty(size(AI.PSFData.DataPSF))
+        %     % no PSF / revert to anal;ytical PSF
+        %     FindWithEmpiricalPSF = false;
+        % else
+        %     FindWithEmpiricalPSF = Args.FindWithEmpiricalPSF;
+        % end
+        if isempty(AI.PSFData.DataPSF)
+            % No PSF - do not look for stars!
 
-            if Iiter==1
-                SearchStreaks = Args.SearchStreaks;
-            else
-                SearchStreaks = false;
-            end
-            % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians                     
-            % in each case the sources identified as CRs are removed from the catalog
-            % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
-            %     2. When a PSF stamp is used for source detection, the output catalog does not contain SN_3, just SN_1 and SN_2!                
-            if Args.FindWithEmpiricalPSF                   
-                
-                if Iiter==1
-                    SizePSF = size(AI.PSFData.DataPSF);
-                    if ~isempty(Args.ConvFunExtendedPSF)
-                        ConvExtended = Args.ConvFunExtendedPSF(Args.ConvFunExtendedPSF_Args{:}, SizePSF);
-                        PSFTemplate = repmat(single(0), [SizePSF, 3]);
-                        PSFTemplate(:,:,3) = conv2(AI.PSFData.DataPSF, ConvExtended, 'same');
-                    else
-                        PSFTemplate = repmat(single(0), [SizePSF, 2]);
-                    end
-                    
-                    PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection                 
-                    PSFTemplate(:,:,2) = AI.PSFData.DataPSF; % the empirical PSF
-                    
-                    % check the information content overlap between the PSF
-                    % and extended PSF:
-                    % tools.math.filter.infoOverlapFilters(squeeze(PSFTemplate(:,:,3)),squeeze(PSFTemplate(:,:,2)))
-
-                    %PSFTemplate = AI.PSF; % the empirical PSF
-                    
-                end
-
-                [AI,Streaks] = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
-                                                          'RemoveEdgeDist',Args.RemoveEdgeDist,...
-                                                          'MomPar',{'MomRadius',Args.MomRadius(Iiter), 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus},...
-                                                          'Psf',PSFTemplate,...
-                                                          'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
-                                                          'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell,...
-                                                          'ColNamesX',Args.ColNamesX,...
-                                                          'ColNamesY',Args.ColNamesY,...
-                                                          'BitDict',Args.BitDict,...
-                                                          'JD',JD,...
-                                                          'ZP',Args.ZP,...
-                                                          'SearchStreaks',SearchStreaks,...
-                                                          'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
-               
-                ColSN = 'SN_2';   
-                AI.Streaks = Streaks;
-                %clear PSFTemplate
-            else
-                [AI,Streaks] = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
-                                                          'RemoveEdgeDist',Args.RemoveEdgeDist,...
-                                                          'MomPar',{'MomRadius',Args.MomRadius(Iiter), 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus},...
-                                                          'PsfFunPar',Args.PsfFunPar,...
-                                                          'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
-                                                          'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
-                                                          'ColCell',Args.ColCell,...
-                                                          'BitDict',Args.BitDict,...
-                                                          'JD',JD,...
-                                                          'ZP',Args.ZP,...
-                                                          'SearchStreaks',SearchStreaks,...
-                                                          'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
-               
-                AI.Streaks = Streaks;
-                ColSN = 'SN_2';
-            end                         
-            
-            NumSrc = height(AI.CatData.Catalog);
-            
-            if Args.Verbose
-                fprintf('Iter. %d: S/N > %d, mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
-                                    Iiter,Args.Threshold(Iiter),mean(AI.Back,'all','omitnan'),mean(AI.Var,'all','omitnan'),NumSrc);
-            end            
-            % insert a column with iteration number into the source catalog
-            %AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
-            
-            % measure the PSF (if we believe that the PSF is flux-dependent?) or use the previous one 
-            ReCalcPSF = any(Args.ReCalcPsfIter==Iiter);
-            if ReCalcPSF || isempty(AI.PSF)
-                AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:});                
-            end
-            
-            % PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
-
-            
-            % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
-            if Args.UsePSFInterpolant
-                ShiftedPSF = imUtil.trans.shift_interp(AI.SPFData.Data, Res.DX, Res.DY, 'Norm',true);
-            else
-                ShiftedPSF = Res.ShiftedPSF;
-                % already done in PSF construction
-                %ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, Args.suppressEdgesArgs{:}); 
-            end            
+        else
+            for Iiter=1:1:Niter     
     
-            % subtract the newly found and measured sources:
-            % 1. construct a source image
-            % 2. subtract the source image from the current image
-            [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
-                                                                        'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
-           
-            SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), permute(CubePSF,[2,1,3]),XY,...
-                                                                        'Oversample',[],'Subtract',false);  
-            SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
-            Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
-            
-            
-            % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
-            %if Args.RemoveMasked
-            %    Ind = AI.Mask > 0;                
-            %    Subtracted(Ind) = AI.Back(Ind);
-            %end
-
-            % NOT CLEAR WHAT IS THIS FOR?
-            % optionaly set pixels with reconstructed source PSFs to the background values 
-            %if Args.RemovePSFCore
-            %    Ind = SourceImage(:,:,Iiter) > 0;
-            %    Subtracted(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
-            %end              
+                if Iiter==1
+                    SearchStreaks = Args.SearchStreaks;
+                else
+                    SearchStreaks = false;
+                end
+                % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians                     
+                % in each case the sources identified as CRs are removed from the catalog
+                % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
+                %     2. When a PSF stamp is used for source detection, the output catalog does not contain SN_3, just SN_1 and SN_2!                
+                if Args.FindWithEmpiricalPSF                   
+                    
+                    if Iiter==1
                         
-            Cat(Iiter)                   = AI.CatData; 
-            
-            % add PITER to catalog
-            Nsrc = size(Cat(Iiter).Catalog, 1);
-            Cat(Iiter).insertCol(Iiter.*ones(Nsrc,1),Inf, Args.ColPITER,'');
-            
-            AI.Image                     = Subtracted; % replace the image with the subtracted image
-            
-            if ExtraOutput
-                SubtractedImage(:,:,Iiter)   = Subtracted; % populate the array of subtracted images 
-            end
-
-            % re-measure background at each Iter > 1 if Args.ReCalcBack = true and add source noise to the variance                
-            ReCalcBackIterI = any(Args.ReCalcBackIter==Iiter); % re-calc backgroun in Iiter iteration
-            if ReCalcBackIterI
-                FlagBack         = ReCalcBackIterI | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
-                Result(FlagBack) = imProc.background.backVar(Result, Args.backVarArgs{:});
-            end
-            
-            % add local variance from the sources revealed at all the previous iterations
-            % This is not enough - for bright stars the PSF is more
-            % extended and the star edges are not subtracted
-            AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
-            AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
-
-
-            if Iiter==1 && Args.AddBackNoise
-                % Add noise/back around bright sources
-                %GK = imUtil.kernel2.gauss(FWHM);
-                %AI.Var  = conv2(AI.Var, GK, 'same'); 
-                LK = imUtil.kernel2.lorentzian(4,[101 101]);
-                CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
-                CK = CK./max(CK,[],'all');
-                EdgesVarMap = repmat(single(0), SizeImage);
-                ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
-                LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
-                %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
-                %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
-                %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
+                        if ~isempty(Args.ConvFunExtendedPSF)
+                            ConvExtended = Args.ConvFunExtendedPSF(Args.ConvFunExtendedPSF_Args{:}, SizePSF);
+                            PSFTemplate = repmat(single(0), [SizePSF, 3]);
+                            PSFTemplate(:,:,3) = conv2(AI.PSFData.DataPSF, ConvExtended, 'same');
+                        else
+                            PSFTemplate = repmat(single(0), [SizePSF, 2]);
+                        end
+                        
+                        PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection                 
+                        PSFTemplate(:,:,2) = AI.PSFData.DataPSF; % the empirical PSF
+                        
+                        % check the information content overlap between the PSF
+                        % and extended PSF:
+                        % tools.math.filter.infoOverlapFilters(squeeze(PSFTemplate(:,:,3)),squeeze(PSFTemplate(:,:,2)))
+    
+                        %PSFTemplate = AI.PSF; % the empirical PSF
+                        
+                    end
+    
+                    [AI,Streaks] = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
+                                                              'RemoveEdgeDist',Args.RemoveEdgeDist,...
+                                                              'MomPar',{'MomRadius',Args.MomRadius(Iiter), 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus},...
+                                                              'Psf',PSFTemplate,...
+                                                              'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
+                                                              'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
+                                                              'ColCell',Args.ColCell,...
+                                                              'ColNamesX',Args.ColNamesX,...
+                                                              'ColNamesY',Args.ColNamesY,...
+                                                              'BitDict',Args.BitDict,...
+                                                              'JD',JD,...
+                                                              'ZP',Args.ZP,...
+                                                              'SearchStreaks',SearchStreaks,...
+                                                              'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
+                   
+                    ColSN = 'SN_2';   
+                    AI.Streaks = Streaks;
+                    %clear PSFTemplate
+                else
+                    [AI,Streaks] = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
+                                                              'RemoveEdgeDist',Args.RemoveEdgeDist,...
+                                                              'MomPar',{'MomRadius',Args.MomRadius(Iiter), 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus},...
+                                                              'PsfFunPar',Args.PsfFunPar,...
+                                                              'FlagCR',Args.FlagCR,'maskCR_Args',Args.maskCR_Args,...
+                                                              'FlagDiffXY',Args.FlagDiffXY, 'maskDiffXY_Args',Args.maskDiffXY_Args,...
+                                                              'ColCell',Args.ColCell,...
+                                                              'BitDict',Args.BitDict,...
+                                                              'JD',JD,...
+                                                              'ZP',Args.ZP,...
+                                                              'SearchStreaks',SearchStreaks,...
+                                                              'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
+                   
+                    AI.Streaks = Streaks;
+                    ColSN = 'SN_2';
+                end % if Args.FindWithEmpiricalPSF                             
                 
-                MinFluxFlag = ColData(:,3)>1e5;
-                EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
-                %AI.Back(AI.Image>5000) = 5000;
-                ConvBright = conv2(EdgesVarMap, LK, 'same');
-                ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
-                AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
-                AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
-            end
-            
-
-            % write region files with extracted objects 
-            if Args.WriteDs9Regions
-                writeDS9region(AI, Args);
-            end 
-
-
-            % Yes - this is needed
-            % Should be replaced with a cleaner way...
-            AI.CatData = []; 
-
-        end % end of iterations  
-
+                NumSrc = height(AI.CatData.Catalog);
+                
+                if Args.Verbose
+                    fprintf('Iter. %d: S/N > %d, mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
+                                        Iiter,Args.Threshold(Iiter),mean(AI.Back,'all','omitnan'),mean(AI.Var,'all','omitnan'),NumSrc);
+                end            
+                % insert a column with iteration number into the source catalog
+                %AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
+                
+                % measure the PSF (if we believe that the PSF is flux-dependent?) or use the previous one 
+                ReCalcPSF = any(Args.ReCalcPsfIter==Iiter);
+                if ReCalcPSF 
+                    %|| isempty(AI.PSF)
+                    AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:});                
+                end
+                
+                % PSF photometry
+                [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+    
+                
+                % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
+                if Args.UsePSFInterpolant
+                    ShiftedPSF = imUtil.trans.shift_interp(AI.SPFData.Data, Res.DX, Res.DY, 'Norm',true);
+                    
+                else
+                    if isempty(Res)
+                        ShiftedPSF = [];
+                    else
+                        ShiftedPSF = Res.ShiftedPSF;
+                    end
+                    % already done in PSF construction
+                    %ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, Args.suppressEdgesArgs{:}); 
+                end            
+        
+                % subtract the newly found and measured sources:
+                % 1. construct a source image
+                % 2. subtract the source image from the current image
+                if isempty(ShiftedPSF)
+                    % deals with no stars found in iteration
+                    SourceImage(:,:,Iiter) = repmat(single(0), SizeImage);
+                else
+    
+                    [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
+                                                                                'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
+                   
+                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), permute(CubePSF,[2,1,3]),XY,...
+                                                                                'Oversample',[],'Subtract',false);  
+                    SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
+                end
+                Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
+                
+                
+                % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
+                %if Args.RemoveMasked
+                %    Ind = AI.Mask > 0;                
+                %    Subtracted(Ind) = AI.Back(Ind);
+                %end
+    
+                % NOT CLEAR WHAT IS THIS FOR?
+                % optionaly set pixels with reconstructed source PSFs to the background values 
+                %if Args.RemovePSFCore
+                %    Ind = SourceImage(:,:,Iiter) > 0;
+                %    Subtracted(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
+                %end              
+                            
+                Cat(Iiter)                   = AI.CatData; 
+                
+                % add PITER to catalog
+                Nsrc = size(Cat(Iiter).Catalog, 1);
+                Cat(Iiter).insertCol(Iiter.*ones(Nsrc,1),Inf, Args.ColPITER,'');
+                
+                AI.Image                     = Subtracted; % replace the image with the subtracted image
+                
+                if ExtraOutput
+                    SubtractedImage(:,:,Iiter)   = Subtracted; % populate the array of subtracted images 
+                end
+    
+                % re-measure background at each Iter > 1 if Args.ReCalcBack = true and add source noise to the variance                
+                ReCalcBackIterI = any(Args.ReCalcBackIter==Iiter); % re-calc backgroun in Iiter iteration
+                if ReCalcBackIterI
+                    FlagBack         = ReCalcBackIterI | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
+                    Result(FlagBack) = imProc.background.backVar(Result, Args.backVarArgs{:});
+                end
+                
+                % add local variance from the sources revealed at all the previous iterations
+                % This is not enough - for bright stars the PSF is more
+                % extended and the star edges are not subtracted
+                AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
+                AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
+    
+    
+                if Iiter==1 && Args.AddBackNoise
+                    % Add noise/back around bright sources
+                    %GK = imUtil.kernel2.gauss(FWHM);
+                    %AI.Var  = conv2(AI.Var, GK, 'same'); 
+                    LK = imUtil.kernel2.lorentzian(4,[101 101]);
+                    CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
+                    CK = CK./max(CK,[],'all');
+                    EdgesVarMap = repmat(single(0), SizeImage);
+                    ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                    LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
+                    %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
+                    %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
+                    %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
+                    
+                    MinFluxFlag = ColData(:,3)>1e5;
+                    EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
+                    %AI.Back(AI.Image>5000) = 5000;
+                    ConvBright = conv2(EdgesVarMap, LK, 'same');
+                    ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
+                    AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
+                    AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
+                end % if Iiter==1 && Args.AddBackNoise
+                
+    
+                % write region files with extracted objects 
+                if Args.WriteDs9Regions
+                    writeDS9region(AI, Args);
+                end 
+    
+    
+                % Yes - this is needed
+                % Should be replaced with a cleaner way...
+                AI.CatData = []; 
+    
+            end % for Iiter=1:1:Niter    
+        end % if isempty(AI.PSFData.DataPSF)
         
         if ~isempty(Args.RedoUpIter)
             if Niter<=Args.RedoUpIter
@@ -716,7 +740,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         else
             % merge the catalogs of objects extracted at all the iterations
             Result(Iobj).CatData = merge(Cat);
-        end
+        end % if ~isempty(Args.RedoUpIter)
 
 
 
@@ -762,7 +786,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         if Args.Verbose
             fprintf('Total %d objects extracted \n',height(Result(Iobj).CatData.Catalog));
         end
-    end    
+    end  % for Iobj=1:1:Nobj
     % Find diffraction spikes?    
     % Cleaning?     
 end

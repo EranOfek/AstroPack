@@ -158,7 +158,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SNdiff                    = 0;  % if empty skip
         Args.moment2Args cell          = {};
         Args.DeltaSigma                = 0.5;   % if empty skip
-        Args.SigmaQuantile             = [0.1 0.7];
+        Args.SigmaQuantile             = [0.05 0.8];
 
         Args.NighRadius                = 7;     % if empty skip
         Args.MinNumGoodPsf             = 5;

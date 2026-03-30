@@ -1,7 +1,6 @@
 function Result = unitTest()
     % unitTest for imProc.flat
     % Example : Result = imProc.flat.unitTest;
-    io.msgLog(LogLevel.Test, 'imProc.flat test started');
 
     AI = AstroImage({rand(100,100)});
 
@@ -19,10 +18,10 @@ function Result = unitTest()
     
     % flat
     AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
-    Res = imProc.flat.flat(AI,'FilterKey',[], 'IsFlat',[]); %should't this function add to header data {'IMTYPE','Flat',''})?
+    Res = imProc.flat.flat(AI,'FilterKey',[], 'IsFlat',[], 'GenerateID',false); %should't this function add to header data {'IMTYPE','Flat',''})?
 
     AI.setKeyVal('FILTER','filter');
-    Res2 = imProc.flat.flat(AI, 'IsFlat',[]);  
+    Res2 = imProc.flat.flat(AI, 'IsFlat',[], 'GenerateID',false);  
     
     if ~all(Res.Image==Res2.Image,'all')
         error('Problem with flat');
@@ -30,7 +29,7 @@ function Result = unitTest()
     
     AI=AstroImage({ones(100,100), ones(100,100)});
     AI(1).Image(1,1) = 0;AI(2).Image(1,1) = 0;
-    Res = imProc.flat.flat(AI,'FilterKey',[],'FlatLowVal_Threshold',4, 'IsFlat',[]);
+    Res = imProc.flat.flat(AI,'FilterKey',[],'FlatLowVal_Threshold',4, 'IsFlat',[], 'GenerateID',false);
     [ResultNaN, ~,~] = findBit(Res.MaskData, {'NaN'});
     [Resultlow, ~,~] = findBit(Res.MaskData, {'NaN','FlatLowVal'},'Method','any');
     if ~ResultNaN(1,1) && ~all(Resultlow,'all')
@@ -41,8 +40,6 @@ function Result = unitTest()
     %AI=AstroImage({rand(100,100), rand(100,100), rand(100,100), rand(100,100), rand(100,100)});
     %Res = imProc.flat.deflat(AI,'FlatArgs',{'FilterKey',[]},'IsFlat',[1 1 0 0]); 
     
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed'); 
    
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.flat test passed');    
     Result = true;
 end

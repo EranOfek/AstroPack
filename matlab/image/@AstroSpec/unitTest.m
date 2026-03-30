@@ -1,7 +1,7 @@
 function Result = unitTest
     % unitTest for AstroSpec
 
-    io.msgStyle(LogLevel.Test, '@start', 'AstroSpec test started')
+    %io.msgStyle(LogLevel.Test, '@start', 'AstroSpec test started')
 
     DataSampleDir = tools.os.getTestDataDir;
     PWD = pwd;

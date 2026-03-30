@@ -111,8 +111,8 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
                                                                                                   'FieldName',ImageFieldName);
         % go over images and calc background
         Nsub = numel(SubImage);
-        BackSmall = nan(Nsub,1);
-        VarSmall  = nan(Nsub,1);
+        BackSmall = nan(Nsub,1, 'like',Image);
+        VarSmall  = nan(Nsub,1, 'like',Image);
         for Isub=1:1:Nsub
             [BackSmall(Isub), VarSmall(Isub)] = imUtil.background.backVarScalar(SubImage{Isub}, 'Method', Args.Method, 'MethodArgs',Args.MethodArgs, 'RN2',Args.RN2, 'Dilute',Args.Dilute);
         end

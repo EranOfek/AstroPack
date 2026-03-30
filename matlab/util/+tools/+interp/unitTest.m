@@ -13,7 +13,7 @@ function Result = unitTest()
     A=interp2(Xin,Yin, Z, XoutM, YoutM, 'linear');
     A1=tools.interp.mex.interp2_bilinear_mex(Xin, Yin, Z, XoutM, YoutM);
     %max(abs(A-A1)./Z,[],'all')
-    if max(abs(A0-A1)./Z,[],'all')>1e-12
+    if max(abs(A-A1)./Z,[],'all')>1e-12
         error('Problem with tools.interp.mex.interp2_bilinear_mex');
     end
 

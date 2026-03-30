@@ -8,6 +8,8 @@ function Result=interp2affine(Obj, AffineTran, Args)
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
     %                   Default is 'cubic'.
+    %            'InterpMethodBackVar' - Interpolation method for Back and
+    %                   Var. Default is 'linear'.
     %            'InterpMethodMask' - Interpolation method for the mask
     %                   image. Default is 'nearest'.
     %            'DataProp' - data properties in the AstroImage to
@@ -35,8 +37,9 @@ function Result=interp2affine(Obj, AffineTran, Args)
     arguments
         Obj AstroImage
         AffineTran
-        Args.InterpMethod             = 'cubic';
-        Args.InterpMethodMask         = 'nearest';
+        Args.InterpMethod             = 'cubic'; %'mex_lanczos3';
+        Args.InterpMethodBackVar      = 'linear'; %'mex_bilinear';
+        Args.InterpMethodMask         = 'nearest'; %'mex_nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
         Args.CopyPSF logical          = true;
@@ -69,11 +72,11 @@ function Result=interp2affine(Obj, AffineTran, Args)
     for Iobj=1:1:Nobj
         Iref = min(Iobj, Nref);
         
-        SizeIm = size(Obj(Iobj).Image);
+        SizeIm = size(Obj(Iobj).ImageData.Data);
         CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
         
-        VecX = (1:1:SizeIm(2));
-        VecY = (1:1:SizeIm(1));
+        VecX = cast((1:1:SizeIm(2)), 'like',Obj(Iobj).ImageData.Data);
+        VecY = cast((1:1:SizeIm(1)), 'like',VecX);
         [MatX, MatY] = meshgrid(VecX, VecY);
         
         switch class(AffineTran)
@@ -98,14 +101,16 @@ function Result=interp2affine(Obj, AffineTran, Args)
             if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}))
                 switch Args.DataProp{Iprop}
                     case 'Mask'
-                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                        Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
                         %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    case {'Back','Var'}
+                        Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
                     otherwise
                         % 73s for mex_cubic 90s for mex_lanczos3
                         %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2(single(VecX), single(VecY), Obj(Iobj).(Args.DataProp{Iprop}), single(FullRefX), single(FullRefY), 'mex_lanczos3');
 
                         % 76s
-                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                        Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                         
                         % old:
                         %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
