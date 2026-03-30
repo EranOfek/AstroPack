@@ -545,6 +545,8 @@ classdef AstroImage < Component
             %            'ReadHeader' - A logical indicating if to read the
             %                   header. Default is 1.
             %            'HDU' - HDU number to read. Default is 1.
+            %            'UseMex' - employ a MeX version of FITS image
+            %            reader (def. false)
             % Output : - An AstroImage array of sub images.
             % AUthor : Eran Ofek (Dec 2021)
             % Example: Obj = AstroImage.readByCCDSEC(FileName, [1 100 1 100;101 200 101 200])
@@ -554,6 +556,7 @@ classdef AstroImage < Component
                 CCDSEC
                 Args.ReadHeader logical    = true;
                 Args.HDU                   = 1;
+                Args.UseMex                = false;
             end
             
             Nsec = size(CCDSEC,1);
@@ -566,7 +569,7 @@ classdef AstroImage < Component
             
             Obj = AstroImage([Nsec 1]);
             for Isec=1:1:Nsec
-                Obj(Isec).Image = FITS.read1(FileName,Args.HDU, 'CCDSEC', CCDSEC(Isec,:));
+                Obj(Isec).Image = FITS.read1(FileName,Args.HDU, 'CCDSEC', CCDSEC(Isec,:),'UseMex',Args.UseMex);
                 Obj(Isec).HeaderData.Data = HeadCell;
             end
             
@@ -616,6 +619,8 @@ classdef AstroImage < Component
             %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
             %                   Ymin Ymax]. If empty, read the entire image.
             %                   Default is [].
+            %            'UseMex' - use a Mex FITS image reader (def.
+            %            false)
             % Output : - An AstroImage object populated with the loaded
             %            images and metadata.
             % Author : Eran Ofek (Jul 2022)
@@ -628,6 +633,7 @@ classdef AstroImage < Component
                 Args.HDU         = 1;
                 Args.FileType    = [];
                 Args.CCDSEC      = [];
+                Args.UseMex      = false;
             end
             
             Nprod = numel(Args.ReadProd);
@@ -656,14 +662,14 @@ classdef AstroImage < Component
                                     T = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',true);
                                     Result.CatData = AstroCatalog(T);
                                 case 'Image'
-                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.(Args.ReadProd{Iprod}) = Im;
                                     Result.HeaderData.Data        = Header;
                                 case 'PSF'
-                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false);
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.PSFData.DataPSF = Im;
                                 otherwise
-                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.(Args.ReadProd{Iprod}) = Im;
                             end
                             
