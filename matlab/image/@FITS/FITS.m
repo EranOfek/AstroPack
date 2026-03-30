@@ -279,39 +279,45 @@ classdef FITS < handle
             %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
             %                   If empty read entire image.
             %                   Default is empty.
+            %            'UseMex' - use a mex function based on a C++ fitsio library (def. false)
             % Output : - Image.
             %          - A 3 column cell array of header entries.
+            %          - the number of HDUs in FITS file (regular version) or the HDU that was actually read (MeX version) 
             % Author : Eran Ofek
             % Example: [Image,HeadCell,Nhdu]=FITS.read1(FileName,HDUnum)
             
             arguments
                 FileName char
-                HDUnum             = 1;
-                Args.CCDSEC        = [];
+                HDUnum             = 1
+                Args.CCDSEC        = []
+                Args.UseMex        = false
             end
                          
-            Fptr = matlab.io.fits.openFile(FileName);
-            %Fptr = matlab.io.fits.openDiskFile(FileName);
-            matlab.io.fits.movAbsHDU(Fptr, HDUnum);
-
-            if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
-                % read full image
-                Image = matlab.io.fits.readImg(Fptr);
+            if Args.UseMex
+                [Image, HeadCell, Nhdu] = fits.mex.read_image(FileName, HDUnum-1, Args.CCDSEC);  
             else
-                % read image section
-                % set up start/end pixel positions
-                EndPix   = fliplr(Args.CCDSEC([2,4]));
-                StartPix = fliplr(Args.CCDSEC([1,3]));
-
-                Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+                Fptr = matlab.io.fits.openFile(FileName);
+                %Fptr = matlab.io.fits.openDiskFile(FileName);
+                matlab.io.fits.movAbsHDU(Fptr, HDUnum);
+                
+                if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
+                    % read full image
+                    Image = matlab.io.fits.readImg(Fptr);
+                else
+                    % read image section
+                    % set up start/end pixel positions
+                    EndPix   = fliplr(Args.CCDSEC([2,4]));
+                    StartPix = fliplr(Args.CCDSEC([1,3]));
+                    
+                    Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+                end
+                if nargout>1
+                    % read header
+                    [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
+                end
+                
+                matlab.io.fits.closeFile(Fptr);
             end
-            if nargout>1
-                % read header
-                [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
-            end
-
-            matlab.io.fits.closeFile(Fptr);
-
         end
         
         function [Cube] = read2cube(List,HDUnum,Args)
@@ -324,6 +330,7 @@ classdef FITS < handle
             %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
             %                   If empty read entire image.
             %                   Default is empty.
+            %            'UseMex' - use a Mex-based FITS reader (def. false)
             % Output : - A cube of images. Image index is in 3rd dimension.
             % Author : Eran Ofek
             % Example: [Cube]=read2cube(List,HDUnum);
@@ -332,6 +339,7 @@ classdef FITS < handle
                 List
                 HDUnum         = 1;
                 Args.CCDSEC    = [];
+                Args.UseMex    = false;
             end
             if ~iscell(List)
                 List = io.files.filelist(List);
@@ -343,7 +351,7 @@ classdef FITS < handle
             for Imax=1:1:Nmax
                 Ilist = min(Nlist,Imax);
                 Ihdu  = min(Nhdu,Imax);
-                [Image] = FITS.read1(List{Ilist},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC);
+                [Image] = FITS.read1(List{Ilist},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                 if Imax==1
                     SizeIm = size(Image);
                     Cube = zeros(SizeIm(1),SizeIm(2), Nmax);
@@ -1441,6 +1449,7 @@ classdef FITS < handle
             %            'ReadHead'- Read header into SIM. Default is true.
             %            'HDUnum' - Index of HDU. Default is 1.
             %            'PopWCS' - Populate WCS. Default is true.
+            %            'UseMex' - use a MEX-based FITS reader (def. false)
             % Output: - A SIM object with the FITS images.
             % Example: S=FITS.read2sim('Image*.fits');
             %          S=FITS.read2sim('Image6[15-28].fits');
@@ -1456,6 +1465,7 @@ classdef FITS < handle
                 Args.ExecField            = SIM.ImageField;   % read into field
                 Args.ReadHead             = true;
                 Args.PopWCS(1,1) logical  = true;
+                Args.UseMex               = false;
             end
             
             HeaderField = HEAD.HeaderField;
@@ -1493,9 +1503,9 @@ classdef FITS < handle
                     Isim = Isim + 1;
                     % Read image to SIM
                     if (isempty(Args.CCDSEC))
-                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu));
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'UseMex',Args.UseMex);
                     else
-                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC(min(Iim,Nccdsec),:));
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC(min(Iim,Nccdsec),:),'UseMex',Args.UseMex);
                     end
                     Sim(Isim).(FileField) = ListIm{Iim};
 
@@ -2269,6 +2279,7 @@ classdef FITS < handle
             %            'ReadHead' - Read the header. Default is true.
             %            'CCDSEC' - [xmin xmax ymin ymax] to read.
             %                   If empty read all. Default is empty.
+            %            'UseMex' - use the Mex FITS reader function (def. false) 
             % Output : - A FITS object with the Data andHeader fields
             %            populated.
             % Author : Eran Ofek (Mar 2021)
@@ -2280,6 +2291,7 @@ classdef FITS < handle
                 HDUnum                   = [];
                 Args.ReadHead logical    = true;
                 Args.CCDSEC double       = [];  % Inf for the entire image [Xmin xmax ymin ymax]
+                Args.UseMex              = false;
             end
             
             if ~isempty(FileName)
@@ -2300,9 +2312,9 @@ classdef FITS < handle
                 if ~isempty(Obj(Iobj).File)
                     
                     if Args.ReadHead
-                        [Obj(Iobj).Data, Obj(Iobj).Header] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC);
+                        [Obj(Iobj).Data, Obj(Iobj).Header] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC,'UseMex',Args.UseMex);
                     else
-                        [Obj(Iobj).Data] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC);
+                        [Obj(Iobj).Data] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC,'UseMex',Args.UseMex);
                     end
                     
                     %Data = fitsread(Obj(Iobj).File,PixelRegion);

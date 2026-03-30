@@ -65,6 +65,7 @@ classdef ImageIO < Component
             %            'readTableArgs' - A cell array of additional
             %                   arguments to pass to FITS.readTable1.
             %                   Default is {}.
+            %            'UseMex' - use a Mex FITS reader (def. false)
             % Output : - An ImageIO object.
             % Example: I = ImageIO
             %          I = ImageIO([2, 2]);
@@ -84,6 +85,7 @@ classdef ImageIO < Component
                 Args.UseRegExp(1,1) logical  = false;
                 Args.CCDSEC                  = [];
                 Args.readTableArgs cell      = {};
+                Args.UseMex                  = false;
             end
             
             
@@ -131,9 +133,9 @@ classdef ImageIO < Component
                 for Iobj=1:1:Nobj
                     Obj(Iobj) = ImageIO([]);
                     if Args.ReadHeader
-                        [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs);
+                        [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
                     else
-                        Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs);
+                        Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
                     end
                     Obj(Iobj).IsTable = Args.IsTable;
                     Obj(Iobj).CCDSEC  = Args.CCDSEC;
@@ -170,12 +172,13 @@ classdef ImageIO < Component
             %            'readTableArgs' - A cell array of additional
             %                   arguments to pass to FITS.readTable1.
             %                   Default is {}.
+            %            'UseMex' - use a MeX FITS reader (def. false)
             % Output : - Data. Either image matrix, or table of table data.
             %          - Header (3 columns cell array).
             % Author : Eran Ofek (Apr 2021)
             % Example: [D,H]=ImageIO.read1('asu.fit','IsTable',1);
             %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
-            %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10]);
+            %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10],'UseMex',true);
             %          [D]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
             %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','ReadData',false);
             
@@ -187,6 +190,7 @@ classdef ImageIO < Component
                 Args.IsTable(1,1) logical    = false;
                 Args.CCDSEC                  = [];
                 Args.readTableArgs cell      = {};
+                Args.UseMex                  = false;
             end
             
             if isempty(Args.HDU)
@@ -222,9 +226,9 @@ classdef ImageIO < Component
                             %Data = table2array(Data);
                         else
                             if Args.ReadData && nargout<2
-                                [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC);
+                                [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                             else
-                                [Data, Header] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC);
+                                [Data, Header] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                             end
                         end
                     end
