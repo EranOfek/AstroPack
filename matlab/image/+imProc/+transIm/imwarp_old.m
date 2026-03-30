@@ -1,5 +1,6 @@
-function Result = imwarp(Obj, Trans, Args)
+function Result = imwarp_old(Obj, Trans, Args)
     % Apply the imwarp function on AstroImage object
+    %   Obsoloete: use imProc.transIm.interp2 instead.
     %   The Header, CatData, and PSF are not transformed.
     % Input  : - An AstroImage object
     %          - A transformation information, or reference.

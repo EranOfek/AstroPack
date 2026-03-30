@@ -1,5 +1,6 @@
 function Result=interp2affine(Obj, AffineTran, Args)
     % Transform an image by an affine transformation, using interp2.
+    %   Obsoloete: use imProc.transIm.interp2 instead.
     % Input  : - An AstroImage object.
     %          - An affine2d, or affinetform2d object, or a two column
     %            matrix. If a two column matrix, then the columns are the X
@@ -35,7 +36,7 @@ function Result=interp2affine(Obj, AffineTran, Args)
     %          AIreg=imProc.transIm.interp2affine(AI, [3 3])
 
     arguments
-        Obj AstroImage
+        Obj 
         AffineTran
         Args.InterpMethod             = 'cubic'; %'mex_lanczos3';
         Args.InterpMethodBackVar      = 'linear'; %'mex_bilinear';
@@ -68,9 +69,10 @@ function Result=interp2affine(Obj, AffineTran, Args)
     Nprop = numel(Args.DataProp);
 
     Nobj=numel(Obj);
+    Nref=numel(TransRef); % relevant for non-numeric classes
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
-        Iref = min(Iobj, Nref);
+        
         
         SizeIm = size(Obj(Iobj).ImageData.Data);
         CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
@@ -81,9 +83,11 @@ function Result=interp2affine(Obj, AffineTran, Args)
         
         switch class(AffineTran)
             case 'affine2d'
+                Iref = min(Iobj, Nref);
                 [FullRefX, FullRefY] = transformPointsForward(AffineTran(Iref), MatX, MatY);
                 
             case 'affinetform2d'
+                Iref = min(Iobj, Nref);
                 [FullRefX, FullRefY] = transformPointsForward(AffineTran(Iref), MatX, MatY);
                 
             otherwise
