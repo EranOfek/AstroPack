@@ -104,9 +104,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         dims[i] = (mwSize)naxes[i];
         nelements *= naxes[i];
     }
-    
-    mexPrintf("Bitpix: %d \n",bitpix);
-
+        
     int anynul = 0;
 
     // -------- Attempt native read --------
