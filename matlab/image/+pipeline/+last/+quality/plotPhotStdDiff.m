@@ -19,10 +19,17 @@ function plotPhotStdDiff(MS, Args)
         MS struct
         Args.Modes cell
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
+        Args.CompareFields cell = {}  % e.g., {'MAG_AB_PSF','MAG_CB_PSF'} — compare fields within same mode
         Args.CropsToAnalyze = []
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
         Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
+    end
+
+    % Two modes: compare modes (original) or compare fields within a mode
+    if ~isempty(Args.CompareFields) && numel(Args.CompareFields) == 2
+        plotFieldDiff(MS, Args);
+        return;
     end
 
     if ~ismember('percrop', Args.Modes) || ~isfield(MS, 'percrop') || numel(Args.Modes) < 2
@@ -133,4 +140,85 @@ function plotPhotStdDiff(MS, Args)
             ax.Position(4) = ax.Position(4) * 0.92;
         end
     end
+end
+
+% =========================================================================
+function plotFieldDiff(MS, Args)
+    % Compare Std of two magnitude fields within the same mode
+    % e.g., Std(MAG_AB_PSF) - Std(MAG_CB_PSF)
+    FieldA = Args.CompareFields{1};
+    FieldB = Args.CompareFields{2};
+    Mode = Args.Modes{1};
+
+    if ~isfield(MS, Mode); return; end
+
+    CropsToUse = Args.CropsToAnalyze;
+    if isempty(CropsToUse)
+        CropsToUse = 1:numel(MS.(Mode));
+    end
+
+    AllMedMag = [];
+    AllDeltaStd = [];
+
+    for Ic = CropsToUse
+        if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic}); continue; end
+        MSobj = MS.(Mode){Ic};
+        if ~isfield(MSobj.Data, FieldA) || ~isfield(MSobj.Data, FieldB); continue; end
+
+        MagA = MSobj.Data.(FieldA);
+        MagB = MSobj.Data.(FieldB);
+
+        if Args.MinEpochs > 0
+            Good = sum(~isnan(MagA), 1) >= Args.MinEpochs & ...
+                   sum(~isnan(MagB), 1) >= Args.MinEpochs;
+            MagA = MagA(:, Good);
+            MagB = MagB(:, Good);
+        end
+
+        StdA = nanstd(MagA, 0, 1);
+        StdB = nanstd(MagB, 0, 1);
+        MedMag = nanmedian(MagA, 1);
+
+        AllMedMag = [AllMedMag, MedMag];
+        AllDeltaStd = [AllDeltaStd, StdA - StdB];
+    end
+
+    % Extract short names for labels (e.g., 'AB' and 'CB')
+    TokA = strsplit(FieldA, '_'); LabelA = TokA{2};
+    TokB = strsplit(FieldB, '_'); LabelB = TokB{2};
+    AperType = strjoin(TokA(3:end), '\_');
+
+    figure('Name', sprintf('Std difference — %s vs %s (%s)', LabelA, LabelB, AperType), ...
+           'Position', [50, 50, 600, 500]);
+
+    if ~isempty(AllMedMag)
+        plot(AllMedMag, AllDeltaStd, '.', 'MarkerSize', 4);
+        hold on;
+        plot(xlim, [0 0], 'k--');
+        if ~strcmp(Args.OverlayTrend, 'none')
+            TrendFun = str2func(['nan' Args.OverlayTrend]);
+            R = timeSeries.bin.binningFast([AllMedMag(:), AllDeltaStd(:)], ...
+                Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
+            ValidBins = R(:,2) >= 5;
+            plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
+
+            TrendVals = R(ValidBins, 3);
+            TrendMags = R(ValidBins, 1);
+            TrendCounts = R(ValidBins, 2);
+            if ~isempty(TrendVals)
+                [MaxVal, MaxIdx] = max(TrendVals);
+                [MinVal, MinIdx] = min(TrendVals);
+                text(0.02, 0.97, sprintf('max: %.4f @ mag %.1f (N=%d)\nmin: %.4f @ mag %.1f (N=%d)', ...
+                    MaxVal, TrendMags(MaxIdx), TrendCounts(MaxIdx), ...
+                    MinVal, TrendMags(MinIdx), TrendCounts(MinIdx)), ...
+                    'Units', 'normalized', 'VerticalAlignment', 'top', ...
+                    'FontSize', 8, 'BackgroundColor', 'w');
+            end
+        end
+    end
+    box on; grid on;
+    xlabel('Median Magnitude');
+    ylabel(sprintf('Std(%s) - Std(%s) [mag]', LabelA, LabelB));
+    xlim([9 22]);
+    title(sprintf('%s - %s (%s, %d sources)', LabelA, LabelB, AperType, numel(AllDeltaStd)));
 end

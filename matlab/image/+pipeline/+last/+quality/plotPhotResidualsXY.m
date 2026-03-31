@@ -5,7 +5,7 @@ function plotPhotResidualsXY(PC, Args)
     %              position-dependent systematics.
     %              Uses percrop calibration only.
     %
-    % Input  : - PC struct with PC.percrop{Iv}(Ic) PhotCalibTrans arrays.
+    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays.
     %          * ...,key,val,...
     %            'CropsToAnalyze' - Crop indices. Default is [] (all).
     %            'Normalize'   - Plot Residual/MagErr. Default is false.
@@ -17,7 +17,7 @@ function plotPhotResidualsXY(PC, Args)
     %          pipeline.last.quality.plotPhotResidualsXY(R.PC, 'Normalize', true);
 
     arguments
-        PC struct
+        PC
         Args.CropsToAnalyze = []
         Args.Normalize logical = false
         Args.OverlayTrend   = 'median'
@@ -25,7 +25,8 @@ function plotPhotResidualsXY(PC, Args)
         Args.YLim           = []
     end
 
-    if ~isfield(PC, 'percrop')
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
@@ -33,18 +34,18 @@ function plotPhotResidualsXY(PC, Args)
     AllY   = [];
     AllRes = [];
 
-    Nvisits = numel(PC.percrop);
+    Nvisits = numel(PCcell);
     for Iv = 1:Nvisits
-        if isempty(PC.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
 
         CropsToUse = Args.CropsToAnalyze;
         if isempty(CropsToUse)
-            CropsToUse = 1:numel(PC.percrop{Iv});
+            CropsToUse = 1:numel(PCcell{Iv});
         end
 
         for Ic = CropsToUse
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            PCobj = PC.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success || isempty(PCobj.SourceData); continue; end
 
             Tab = PCobj.SourceData.Table;

@@ -2654,7 +2654,9 @@ classdef PhotCalibTrans < Component
                         if isnan(Obj.AperCorr(AperIdx)) && ~Args.UpdateMagIfFail
                             % Skip: correction failed but user chose not to NaN magnitudes
                         else
-                            Mag = Mag + Obj.AperCorr(AperIdx);
+                            % Subtract: AperCorr = MagAper - MagRef > 0 for smaller apertures,
+                            % so corrected = Mag - AperCorr brings magnitude toward reference level
+                            Mag = Mag - Obj.AperCorr(AperIdx);
                         end
                     end
                 end
@@ -2760,7 +2762,6 @@ classdef PhotCalibTrans < Component
             end
 
             Lambda = Obj.TransWvl;
-            LambdaNm = Lambda / 10;  % nm for photon integral
 
             % TODO: PerSourceAirmass mode requires per-source delta ZP (each source
             %       has its own ZenithAngle and thus its own T_atm_crop). Currently
@@ -2793,8 +2794,8 @@ classdef PhotCalibTrans < Component
             T_const = Obj.TransModel.evaluateAllFunParInput(Lambda, ConstParVec);
 
             % --- Compute delta ZP ---
-            IntCrop  = trapz(Lambda, T_crop(:) .* LambdaNm(:));
-            IntConst = trapz(Lambda, T_const(:) .* LambdaNm(:));
+            IntCrop  = trapz(Lambda, T_crop(:) .* Lambda(:));
+            IntConst = trapz(Lambda, T_const(:) .* Lambda(:));
 
             if IntCrop <= 0 || IntConst <= 0
                 warning('PhotCalibTrans:applyConstBand:BadIntegral', ...
@@ -2806,22 +2807,20 @@ classdef PhotCalibTrans < Component
             Obj.DeltaZP_CB = DeltaZP;
 
             % --- Apply to magnitude columns ---
-            Tab = CatObj.Table;
-            AllColNames = Tab.Properties.VariableNames;
+            AllColNames = CatObj.ColNames;
             MagCols = AllColNames(startsWith(AllColNames, Args.MagColPrefix));
 
             for Ic = 1:numel(MagCols)
-                MagVals = Tab.(MagCols{Ic}) + DeltaZP;
+                ColIdx = CatObj.colname2ind(MagCols{Ic});
+                MagVals = CatObj.Catalog(:, ColIdx) + DeltaZP;
 
                 if strcmpi(Args.OutputMode, 'replace')
-                    Tab.(MagCols{Ic}) = MagVals;
+                    CatObj.Catalog(:, ColIdx) = MagVals;
                 else
                     NewColName = strrep(MagCols{Ic}, Args.MagColPrefix, Args.OutputPrefix);
-                    Tab.(NewColName) = MagVals;
+                    CatObj = CatObj.insertCol(MagVals, Inf, NewColName, {});
                 end
             end
-
-            CatObj.Catalog = Tab;
         end
 
         function CatObj = addZP(Obj, CatObj, Args)

@@ -8,7 +8,7 @@ function plotPhotResidualsBg(PC, Args)
     %              estimate.
     %              Uses percrop calibration only (fit is identical across modes).
     %
-    % Input  : - PC struct with PC.percrop{Iv}(Ic) PhotCalibTrans arrays
+    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays
     %            (from calibratePhotModes .PC output or Result.PC).
     %          * ...,key,val,...
     %            'CropsToAnalyze' - Crop indices. Default is [] (all).
@@ -22,7 +22,7 @@ function plotPhotResidualsBg(PC, Args)
     %          pipeline.last.quality.plotPhotResidualsBg(R.PC, 'CropsToAnalyze', 10);
 
     arguments
-        PC struct
+        PC
         Args.CropsToAnalyze = []
         Args.FitLine logical = true
         Args.OverlayTrend   = 'median'
@@ -31,7 +31,8 @@ function plotPhotResidualsBg(PC, Args)
         Args.XLim           = []
     end
 
-    if ~isfield(PC, 'percrop')
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
@@ -39,18 +40,18 @@ function plotPhotResidualsBg(PC, Args)
     AllRes     = [];
     AllMagAB   = [];
 
-    Nvisits = numel(PC.percrop);
+    Nvisits = numel(PCcell);
     for Iv = 1:Nvisits
-        if isempty(PC.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
 
         CropsToUse = Args.CropsToAnalyze;
         if isempty(CropsToUse)
-            CropsToUse = 1:numel(PC.percrop{Iv});
+            CropsToUse = 1:numel(PCcell{Iv});
         end
 
         for Ic = CropsToUse
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            PCobj = PC.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success || isempty(PCobj.SourceData); continue; end
 
             Tab = PCobj.SourceData.Table;
