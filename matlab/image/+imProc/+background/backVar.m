@@ -94,11 +94,11 @@ function [Result] = backVar(Obj, Args)
         Args.CreateNewObj = false;
 
         Args.ImageProp    = 'ImageData';
-        Args.ImagePropIn  = 'Image';
+        Args.ImagePropIn  = 'Data';
         Args.BackProp     = 'BackData';
-        Args.BackPropIn   = 'Image';
+        Args.BackPropIn   = 'Data';
         Args.VarProp      = 'VarData';
-        Args.VarPropIn    = 'Image';
+        Args.VarPropIn    = 'Data';
         
     end
 
@@ -149,7 +149,7 @@ function [Result] = backVar(Obj, Args)
                 StdBack  = std(BackSmall, [],'all');
                 MeanVar = mean(VarSmall, 'all');
                 MinBack = min(BackSmall, [], 'all');
-                MaxBack = min(BackSmall, [], 'all');
+                MaxBack = max(BackSmall, [], 'all');
 
                 if Args.UseFastMedian
                     MedBack = fast_median(BackSmall(:));
