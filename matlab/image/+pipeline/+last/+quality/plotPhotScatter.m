@@ -40,8 +40,12 @@ function plotPhotScatter(MS, Args)
 
         % Derive original (non-AB) mag field name
         OrigMagField = '';
-        if Args.ShowOrigMag && contains(MagField, '_AB_')
-            OrigMagField = strrep(MagField, '_AB_', '_');
+        if Args.ShowOrigMag
+            if contains(MagField, '_AB_')
+                OrigMagField = strrep(MagField, '_AB_', '_');
+            elseif contains(MagField, '_CB_')
+                OrigMagField = strrep(MagField, '_CB_', '_');
+            end
         end
 
         for Im = 1:Nmodes

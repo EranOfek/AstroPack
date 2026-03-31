@@ -5,7 +5,7 @@ function plotPhotResidualsRMS(PC, Args)
     %              Bins by magnitude and computes RMS of residuals per bin.
     %              Shows calibration accuracy as a function of brightness.
     %
-    % Input  : - PC struct with PC.percrop{Iv}(Ic) PhotCalibTrans arrays.
+    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays.
     %          * ...,key,val,...
     %            'CropsToAnalyze' - Crop indices. Default is [] (all).
     %            'MagField'    - Magnitude for x-axis: 'MAG_AB' (default),
@@ -18,7 +18,7 @@ function plotPhotResidualsRMS(PC, Args)
     %          pipeline.last.quality.plotPhotResidualsRMS(R.PC, 'MagField', 'instrumental');
 
     arguments
-        PC struct
+        PC
         Args.CropsToAnalyze = []
         Args.MagField       = 'MAG_AB'
         Args.BinWidth       = 0.5
@@ -26,25 +26,26 @@ function plotPhotResidualsRMS(PC, Args)
         Args.ShowScatter logical = false
     end
 
-    if ~isfield(PC, 'percrop')
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
     AllMag = [];
     AllRes = [];
 
-    Nvisits = numel(PC.percrop);
+    Nvisits = numel(PCcell);
     for Iv = 1:Nvisits
-        if isempty(PC.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
 
         CropsToUse = Args.CropsToAnalyze;
         if isempty(CropsToUse)
-            CropsToUse = 1:numel(PC.percrop{Iv});
+            CropsToUse = 1:numel(PCcell{Iv});
         end
 
         for Ic = CropsToUse
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            PCobj = PC.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success || isempty(PCobj.SourceData); continue; end
 
             Tab = PCobj.SourceData.Table;

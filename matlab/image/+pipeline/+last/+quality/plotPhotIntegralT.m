@@ -21,7 +21,7 @@ function plotPhotIntegralT(PC, Args)
     %          pipeline.last.quality.plotPhotIntegralT(R, 'MosaicEpoch', 5);
 
     arguments
-        PC struct
+        PC
         Args.MosaicEpoch    = 1
         Args.CropsToAnalyze = []
         Args.Ncrop          = 24
@@ -29,35 +29,30 @@ function plotPhotIntegralT(PC, Args)
         Args.WvlRange       = []
     end
 
-    % Handle both R and R.PC
-    if isfield(PC, 'PC')
-        PCdata = PC.PC;
-    else
-        PCdata = PC;
-    end
-
-    if ~isfield(PCdata, 'percrop')
+    % Resolve input to cell array of PhotCalibTrans arrays
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
-    Nvisits = numel(PCdata.percrop);
+    Nvisits = numel(PCcell);
     CropsToUse = Args.CropsToAnalyze;
 
     % Find first valid epoch to determine crop count
-    FirstValid = find(~cellfun(@isempty, PCdata.percrop), 1);
+    FirstValid = find(~cellfun(@isempty, PCcell), 1);
     if isempty(FirstValid); return; end
     if isempty(CropsToUse)
-        CropsToUse = 1:numel(PCdata.percrop{FirstValid});
+        CropsToUse = 1:numel(PCcell{FirstValid});
     end
     Ncrop = numel(CropsToUse);
 
     % Compute integral T for all epochs and crops
     Tmat = nan(Nvisits, Args.Ncrop);
     for Iv = 1:Nvisits
-        if isempty(PCdata.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
         for Ic = CropsToUse
-            if Ic > numel(PCdata.percrop{Iv}); continue; end
-            PCobj = PCdata.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success; continue; end
             if isempty(Args.WvlRange)
                 Tmat(Iv, Ic) = PCobj.integralTransmission();
@@ -117,14 +112,28 @@ function plotPhotIntegralT(PC, Args)
     EpochVec = 1:Nvisits;
     Cmap = lines(Ncrop);
 
+    % Central crops: bold solid; edge crops: thin dashed
+    switch lower(Args.TileOrder)
+        case 'colmajor'
+            CentralCrops = [8 9 10 11 14 15 16 17];
+        case 'rowmajor'
+            CentralCrops = [6 7 10 11 14 15 18 19];
+        otherwise
+            CentralCrops = [];
+    end
+
     for Iic = 1:Ncrop
         Ic = CropsToUse(Iic);
-        plot(EpochVec, Tmat(:, Ic), '-', 'LineWidth', 0.5, 'Color', [Cmap(Iic,:) 0.4]);
+        if ismember(Ic, CentralCrops)
+            plot(EpochVec, Tmat(:, Ic), '-', 'LineWidth', 1.5, 'Color', [Cmap(Iic,:) 0.7]);
+        else
+            plot(EpochVec, Tmat(:, Ic), '--', 'LineWidth', 0.5, 'Color', [Cmap(Iic,:) 0.3]);
+        end
     end
 
     % Median over all crops (bold)
     MedT = nanmedian(Tmat(:, CropsToUse), 2);
-    plot(EpochVec, MedT, '-k', 'LineWidth', 2.5);
+    plot(EpochVec, MedT, '-k', 'LineWidth', 3.5);
 
     box on; grid on;
     xlabel('Epoch');
