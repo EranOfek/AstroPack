@@ -109,7 +109,8 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     %                    'M_RA','M_DEC','M_HA','M_JRA','M_JDEC','M_JHA','AZ','ALT','AIRMASS','TRK_RA','TRK_DEC','MNTTEMP','FOCUS','PREVFOCUS'}.
     %            'TableForDB' - If true, return a table with image quality
     %                   status/flags (TableForDB). Default is true.
-    %            
+    %            'UseMex2readFITSImages - Use a MeX function to read FITS images. Default is false.
+    %
     % Output : - Updated AstroImage object.
     %            Contains only good images, updateds in the header,
     %            and optionally single precision format.
@@ -190,7 +191,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
                                             'ID_RAW'};
         Args.TableForDB                  = true; % if given then update table with header + results.
 
-        
+        Args.UseMex2readFITSImages       = false;
     end
     TableForDB = Args.TableForDB;
     Nim = NaN;
@@ -204,7 +205,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
         Images = AI.getFileNames;
     else
         % assume input is a list of images
-        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
+        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC, 'UseMex', Args.UseMex2readFITSImages);
 
         % Add Time string to header:
         Literals = AstroFileName.parseString2literals(Images);
