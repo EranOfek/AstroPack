@@ -264,7 +264,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s (UseMex=false)
     % (93 s with parfor)
     
-    tic;
+    %tic;
     % Phot calib is done later (after adding airmass columns):
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'SubBack',false,...
@@ -277,7 +277,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'UseMex',Args.UseMex,...
                                               'PhotCalibSimple',false,...
                                               'PhotCalibTrans',false);
-    toc
+    %toc
 
     % tic;
     % parfor Isub=1:1:Nsub
@@ -365,9 +365,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Coadd images
     % Photometric calibration of coadd images:
-    tic;
+    %tic;
     [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
-    toc
+    %toc
 
 
     % proapage photometric calibration to individual images
