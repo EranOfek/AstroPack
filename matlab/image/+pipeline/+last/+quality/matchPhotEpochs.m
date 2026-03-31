@@ -30,7 +30,7 @@ function MS = matchPhotEpochs(Cats, Args)
         Args.Modes cell
         Args.CropsToAnalyze = []
         Args.Ncrop          = 24
-        Args.MatchRadius    = 3
+        Args.MatchRadius    = 1
         Args.MatchedColumns = {'RA','Dec','X1','Y1','SN', ...
                                'MAG_AB_PSF','MAG_AB_APER_3', ...
                                'MAG_PSF','MAG_APER_3', ...
@@ -38,8 +38,8 @@ function MS = matchPhotEpochs(Cats, Args)
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
-        Args.MinEpochs      = 0
-        Args.ApplyRelZP logical = true  % Apply zp_meddiff to original (non-AB) mags
+        Args.MinEpochs      = 3
+        Args.ApplyRelZP logical = false  % Apply zp_meddiff to original (non-AB) mags
         Args.OutDir         = ''
         Args.ForceRecalc logical = false
         Args.Verbose logical = true
@@ -103,22 +103,45 @@ function MS = matchPhotEpochs(Cats, Args)
             for Iv = 1:Nvisits
                 if isempty(Cats.(Mode){Iv}); continue; end
                 if Ic <= numel(Cats.(Mode){Iv})
-                    CatList(Iv) = Cats.(Mode){Iv}(Ic);
-                    ValidEpochs(Iv) = true;
+                    Cat = Cats.(Mode){Iv}(Ic);
+                    try
+                        [Nr, ~] = Cat.sizeCatalog;
+                        if Nr > 0
+                            CatList(Iv) = Cat;
+                            ValidEpochs(Iv) = true;
+                        end
+                    catch
+                        % Skip catalogs that can't be queried
+                    end
                 end
             end
 
-            if sum(ValidEpochs) < 3
+            if sum(ValidEpochs) < Args.MinEpochs
                 if Args.Verbose
-                    fprintf('  %s crop %d: <3 valid epochs, skipping\n', Mode, Ic);
+                    fprintf('  %s crop %d: <%d valid epochs, skipping\n', ...
+                        Mode, Ic, Args.MinEpochs);
                 end
                 continue;
             end
 
             MSobj = MatchedSources;
-            MSobj = MSobj.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
-                'MatchedColums', Args.MatchedColumns, ...
-                'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
+            try
+                MSobj = MSobj.unifiedCatalogsIntoMatched(CatList(ValidEpochs).', ...
+                    'MatchedColums', Args.MatchedColumns, ...
+                    'Radius', Args.MatchRadius, 'RadiusUnits', 'arcsec');
+            catch ME
+                if Args.Verbose
+                    fprintf('  %s crop %d: matching failed (%s), skipping\n', Mode, Ic, ME.message);
+                    % Diagnose: check each catalog
+                    ValidIdx = find(ValidEpochs);
+                    for Ivc = 1:numel(ValidIdx)
+                        C = CatList(ValidIdx(Ivc));
+                        fprintf('    epoch %d: class=%s, istable=%d, size=[%d %d]\n', ...
+                            ValidIdx(Ivc), class(C.Catalog), istable(C.Catalog), size(C.Catalog));
+                    end
+                end
+                continue;
+            end
 
             % Flag bad photometry
             MSobj = MSobj.setBadPhotToNan('BadFlags', Args.BadFlags, ...

@@ -1,4 +1,4 @@
-function [Result] = coaddHeader(Obj, Args)
+function [Result, MidJD] = coaddHeader(Obj, Args)
     % A utility function for preparing a header of a coadd image from an AstroImage array.
     %     The function update the ExpTime and JD.
     % Input  : - An AstroImage array
@@ -71,15 +71,16 @@ function [Result] = coaddHeader(Obj, Args)
         
         StKey      = Obj.getStructKey(Args.KeyExpTime);
         VecExpTime = [StKey.(Args.KeyExpTime)].';
-        
+
         VecJD      = julday(Obj);
+        MidJD = sum(VecJD.*VecExpTime)/sum(VecExpTime);
         InfoCell = {'IMTYPE',Type,'';...
                     'FILTER',Filter,'';...
                     'NCOADD',Nim,'Number of coadded images';...
                     'COADDOP',Args.StackMethod,'Coaddition method';...
                     'AVNCOADD',mean(Args.CoaddN,'all'),'Mean number of coadded images per pixel';...
                     'MINCOADD',min(Args.CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
-                    'MIDJD',sum(VecJD.*VecExpTime)/sum(VecExpTime),'Weighted Mean time of observations';...
+                    'MIDJD',MidJD,'Weighted Mean time of observations';...
                     'MINJD',min(VecJD),'MIDJD of first coadded observation';...
                     'MAXJD',max(VecJD),'MIDJD of last coadded observation'};
                
@@ -93,6 +94,8 @@ function [Result] = coaddHeader(Obj, Args)
             Result = replaceVal(Result, 'EXPTIME', {mean(VecExpTime)});
         end
 
+    else
+        MidJD = NaN;
     end
     
     % Update header ImagePath parameters

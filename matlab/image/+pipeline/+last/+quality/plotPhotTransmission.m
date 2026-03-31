@@ -20,7 +20,7 @@ function plotPhotTransmission(PC, Args)
     %              'Modes', {'percrop','shapeimage','perset'});
 
     arguments
-        PC struct
+        PC
         Args.Modes          = {'percrop'}
         Args.EpochIdx       = 1
         Args.CropsToAnalyze = []
@@ -31,15 +31,25 @@ function plotPhotTransmission(PC, Args)
     VisitModes = {'perset', 'perset_raw', 'shapeset'};
     RefModes   = {'shapeimage', 'perimage', 'perimage_raw'};
 
-    % Get PC sub-struct (handle both R.PC and R directly)
+    % Resolve input: Result struct, PC struct, or raw PhotCalibTrans array
     PersetInfo = [];
-    if isfield(PC, 'PC')
+    if isstruct(PC) && isfield(PC, 'PC')
+        % Full Result struct
         if isfield(PC, 'PersetInfo')
             PersetInfo = PC.PersetInfo;
         end
         PCdata = PC.PC;
-    else
+    elseif isstruct(PC)
+        % PC struct (with mode fields)
         PCdata = PC;
+    elseif isa(PC, 'PhotCalibTrans')
+        % Raw PhotCalibTrans array — wrap as percrop
+        PCdata.percrop = {PC};
+    elseif iscell(PC)
+        % Cell array of PhotCalibTrans arrays
+        PCdata.percrop = PC;
+    else
+        return;
     end
 
     Angstrom = char(197);

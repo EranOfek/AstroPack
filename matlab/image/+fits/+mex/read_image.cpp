@@ -1,5 +1,5 @@
 // compiled with mex read_image.cpp -lcfitsio
-// after sudo apt install libcfitsio-dev 
+// after sudo apt install libcfitsio-dev  
 #include "mex.h"
 #include "fitsio.h"
 #include <vector>

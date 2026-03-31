@@ -2471,11 +2471,17 @@ classdef PipelineDemon < Component
 
                 Status.WriteI = true;
 
-                % Move images to raw/ dir
-                RawImageListFinal = FN_I.genPath('PathType','raw');
-                io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
-
-                Status.MoveRaw = true;
+                % Move images to raw/ dir                
+                if Args.MoveNew2Raw     
+                    RawImageListFinal = FN_I.genPath('PathType','raw');
+                    io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+                    
+                    Status.MoveRaw = true;
+                else
+                    RawImageListFinal = FN_I.genPath;
+                    Status.MoveRaw = false;
+                end
+                    
 
                 % Pipeline II
 
@@ -2797,7 +2803,7 @@ classdef PipelineDemon < Component
                 
 
                 Args.StartJD       = 0;           % refers only to Science observations: JD, or [D M Y]
-                Args.EndJD         = Inf;            % if <0, then this is the number of nighst to reduce after StarJD
+                Args.EndJD         = Inf;         % if <0, then this is the number of nighst to reduce after StarJD
                 
                 Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
                 
@@ -2838,6 +2844,9 @@ classdef PipelineDemon < Component
 
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
+                
+                Args.MoveNew2Raw       = true;
+                Args.DebugMode         = false;
             end
             RAD = 180./pi;
             SEC_DAY = 86400;
@@ -2979,6 +2988,9 @@ classdef PipelineDemon < Component
                         RepackRaw = Args.RepackRaw && FilesUncomp;
                         
                         RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
+                        if Args.DebugMode
+                            RawImageList = RawImageList + ".fz";
+                        end
                         NimagesInVisit = numel(RawImageList);
     
                         % log

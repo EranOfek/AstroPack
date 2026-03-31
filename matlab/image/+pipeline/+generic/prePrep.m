@@ -109,7 +109,8 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     %                    'M_RA','M_DEC','M_HA','M_JRA','M_JDEC','M_JHA','AZ','ALT','AIRMASS','TRK_RA','TRK_DEC','MNTTEMP','FOCUS','PREVFOCUS'}.
     %            'TableForDB' - If true, return a table with image quality
     %                   status/flags (TableForDB). Default is true.
-    %            
+    %            'UseMex2readFITSImages - Use a MeX function to read FITS images. Default is false.
+    %
     % Output : - Updated AstroImage object.
     %            Contains only good images, updateds in the header,
     %            and optionally single precision format.
@@ -189,7 +190,6 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
                                             'FIELDID','COUNTER','NODENUMB','MOUNTNUM','CAMNUM',...
                                             'ID_RAW'};
         Args.TableForDB                  = true; % if given then update table with header + results.
-
         
     end
     TableForDB = Args.TableForDB;

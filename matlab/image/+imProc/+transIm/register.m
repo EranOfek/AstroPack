@@ -1,4 +1,4 @@
-function [Result] = interp2(Obj, TransRef, Args)
+function [Result] = register(Obj, TransRef, Args)
     % Interpolate/register images in AstroImage into a new reference frame.
     %   Register images to a common frame.
     % Input  : - AstroImage/AstroDiff/AstroZOGY object containing images.
@@ -19,20 +19,27 @@ function [Result] = interp2(Obj, TransRef, Args)
     %                   Var. Default is 'linear'.
     %            'InterpMethodMask' - Interpolation method for the mask
     %                   image. Default is 'nearest'.
-    %            'DataProp' - data properties in the AstroImage to
-    %                   interpolate.
-    %                   Default is {'Image','Mask'}.
+    %            'DataProp' - A cell array or string array of
+    %                   data properties in the AstroImage to register.
+    %                   Default is {'ImageData','MaskData'}.
+    %            'DataPropIn' - Data property of ImageComponent. 
+    %                   Default is 'Data'.
     %            'ExtrapVal' - Extrapolation value. Default is NaN.
     %            --- Other properties ---
-    %            'CopyPSF' - Copy PSF from input image. Default is true.
+    %            'CreateNewObj' - When copying the WCS, PSF, Header, create
+    %                   new object. Default is true.
+    %            'WCS' - An optional (single element) AstroWCS or AstroImage to insert (WCS) into the registered image.
+    %                   If empty, then do not insert WCS.
+    %                   Default is [].
+    %            'CopyPSF' - Copy PSF from input image.
+    %                   If the 'WCS' argument is not provided, then this
+    %                   argument will be set to false.
+    %                   Default is true.
     %            'CopyWCS' - Copy WCS from input image. Default is true.
     %            'CopyHeader' - Copy Header from input image. Default is true.
     %                   If CopyWCS is true, then will update header by the
     %                   WCS.
-    %            'CreateNewObj' - A logical indicating if the copy
-    %                   operations of PSF, WCS, Header will be create a new
-    %                   copy of the handle object.
-    %                   Default is true.
+    %            'CopyFilename' - Copy file name. Default is true.
     %            --- Aux ---
     %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
     %                   The WCS is evaluated with this steps and
@@ -41,7 +48,7 @@ function [Result] = interp2(Obj, TransRef, Args)
     %                   Default is 20.
     % Output : - An AstroImage object containing the registered images.
     % Author : Eran Ofek (2026 Mar) 
-    % Example: R=imProc.transIm(AI, AI(1));
+    % Example: R=imProc.transIm.register(AI, AI(1));
 
     arguments
         Obj
@@ -50,20 +57,43 @@ function [Result] = interp2(Obj, TransRef, Args)
         Args.InterpMethodBackVar      = 'mex_bilinear'; % 'linear'; %'mex_bilinear';
         Args.InterpMethodMask         = 'mex_nearest'; % 'nearest'; %'mex_nearest';
         Args.ExtrapVal                = NaN; % for mex_ interpolation options this is always NaN
-        Args.DataPropOut              = {'ImageData','MaskData'};
+        Args.DataProp                 = {'ImageData','MaskData'};
         Args.DataPropIn               = 'Data';
+        %Args.KeyBack                  = [];
+        %Args.KeyVar                   = [];
 
-        Args.CopyPSF logical          = true;
-        Args.CopyWCS logical          = true;
-        Args.CopyHeader logical       = true;
-        Args.CreateNewObj logical     = true;
-        Args.CopyFilename logical     = true;
+        Args.CreateNewObj             = true;
+        Args.WCS                      = [];
+        Args.CopyPSF                  = true;
+        Args.CopyWCS                  = true;
+        Args.CopyHeader               = true;
+        Args.CopyFilename             = true;
 
         Args.Sampling                 = 20;
+
+    end
+
+    if (isnumeric(TransRef) || isa(TransRef,'affine2d') || isa(TranbsRef, 'affinetform2d')) && isempty(Args.WCS)
+        error('When TransRef is %s WCS argument must be provided',class(TransRef));
+    end
+
+    if isempty(Args.WCS)
+        Args.CopyWCS = false;
+    else
+        if numel(Args.WCS)>1
+            error('Args.WCS must be a single element AstroWCS or AstroImage');
+        end
     end
 
 
+    if isnumeric(TransRef)
+        % for numeric TransRef - count number of rows:
+        Nref = size(TransRef,1);
+    else
+        Nref = numel(TransRef);
+    end
     Nprop = numel(Args.DataProp);
+    Nwcs = numel(Args.WCS);
     Nobj = numel(Obj);
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
@@ -94,7 +124,7 @@ function [Result] = interp2(Obj, TransRef, Args)
                 % WCS in AstroImage:
                 [RefX, RefY, X, Y] = Obj(Iref).WCS.xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
         
-                SizeRefIm = size(Ref(Iref).Image);
+                SizeRefIm = size(Ref(Iref).ImageData.Data);
                 VecRefX = (1:1:SizeRefIm(2));
                 VecRefY = (1:1:SizeRefIm(1));
         
@@ -102,18 +132,19 @@ function [Result] = interp2(Obj, TransRef, Args)
                 FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
 
             case {'affine2d', 'affinetform2d'}
-                VecX = cast((1:1:SizeIm(2)), 'like',Obj(Iobj).ImageData.Data);
-                VecY = cast((1:1:SizeIm(1)), 'like',VecX);
+                Iref = min(Iobj, Nref);
                 [MatX, MatY] = meshgrid(VecX, VecY);
-                [FullRefX, FullRefY] = transformPointsForward(AffineTran(Iref), MatX, MatY);
+                [FullRefX, FullRefY] = transformPointsForward(TransRef(Iref), MatX, MatY);
                 
-              
             otherwise
                 % assume numeric input
-                switch size(AffineTran,2)
+                switch size(TransRef,2)
                     case 2
-                        FullRefX = MatX - AffineTran(Iref,1);
-                        FullRefY = MatY - AffineTran(Iref,2);
+                        Iref = min(Iobj, Nref);
+                        [MatX, MatY] = meshgrid(VecX, VecY);
+                        FullRefX = MatX - TransRef(Iref,1);
+                        FullRefY = MatY - TransRef(Iref,2);
+                        
                     otherwise
                         error('Numeric transformation - only two columns option is supported');
                 end
@@ -121,35 +152,67 @@ function [Result] = interp2(Obj, TransRef, Args)
 
         % Interpolation        
         for Iprop=1:1:Nprop
-            if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}))
+            if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn))
                 switch Args.DataProp{Iprop}
-                    case 'Mask'
-                        Result(Iobj).(Args.DataPropOut{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataPropOut{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
-                    case {'Back','Var'}
-                        Result(Iobj).(Args.DataPropOut{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataPropOut{Iprop}).(Args.DataProp), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
+                    case 'MaskData'
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    case {'BackData','VarData'}
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
                     otherwise
                         % Image part:
-                        Result(Iobj).(Args.DataPropOut{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataPropOut{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                 end
             end
         end % for Iprop=1:1:Nprop
 
         % Fill the other proprties of the regsitered object:
         if Args.CopyPSF
+            if isempty(Args.WCS)
+
             if Args.CreateNewObj
                 Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
             else
                 Result(Iobj).PSFData = Obj(Iobj).PSFData;
             end
         end
+        % WCS
         if Args.CopyWCS
-            if Args.CreateNewObj
-                Result(Iobj).WCS = RefWCS(Iref).copy;
+            if isempty(Args.WCS)
+                % Args.WCS is empty - take WCS from TransRef object:
+                if isa(TransRef, 'AstroWCS')
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = TransRef(Iref).copy;
+                    else
+                        Result(Iobj).WCS = TransRef(Iref);
+                    end
+                else
+                     % TransRef is AstroImage/AstroDiff/AstroZOGY
+                     if Args.CreateNewObj
+                         Result(Iobj).WCS = TransRef(Iref).WCS.copy;
+                     else
+                         Result(Iobj).WCS = TransRef(Iref).WCS;
+                     end
+                end
             else
-                Result(Iobj).WCS = RefWCS(Iref);
+                % copy WCS from Args.WCS
+                if isa(Args.WCS, 'AstroWCS')
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = Args.WCS.copy;
+                    else
+                        Result(Iobj).WCS = Args.WCS;
+                    end
+                else
+                    % Args.WCS is an AstroImage/AstroDiff/AstroZOGY
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = Args.WCS.WCS.copy;
+                    else
+                        Result(Iobj).WCS = Args.WCS.WCS;
+                    end
+                end
+
             end
-            %Result(Iobj).WCS = Obj(Iobj).WCS.copy;
         end
+
         if Args.CopyFilename
             Result(Iobj).ImageData.FileName = Obj(Iref).ImageData.FileName;
         end
