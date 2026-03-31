@@ -14,8 +14,8 @@ function [Result] = unitTest(Args)
         Args.CalibDir          = '/mnt/marvin/LAST.01.01.01/calib/'
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
 %         Args.StartImage        = 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
-        Args.StartJD           = 0;   % [8 7 2025]
-        Args.EndJD             = Inf; % [8 7 2025]
+        Args.StartJD           = 0;   % [8 7 2025 01 28 0]
+        Args.EndJD             = Inf; % [8 7 2025 01 38 0]
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
     end
     % arrange a local folder to store results 
