@@ -2472,8 +2472,8 @@ classdef PipelineDemon < Component
                 Status.WriteI = true;
 
                 % Move images to raw/ dir
-                if Args.MoveNew2Raw
-                    RawImageListFinal = FN_I.genPath('PathType','raw');
+                RawImageListFinal = FN_I.genPath('PathType','raw');
+                if Args.MoveNew2Raw                    
                     io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
                     
                     Status.MoveRaw = true;
