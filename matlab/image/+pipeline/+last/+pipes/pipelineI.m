@@ -9,7 +9,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
-        Args.prePrepArgs                   = {}; % e.g., {'UseMex2readFITSImages',true};
+        Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
         Args.basicCalibArgs                = {};
         Args.KeyMidJD                      = 'MIDJD';
 
