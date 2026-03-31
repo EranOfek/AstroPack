@@ -1,6 +1,6 @@
 % Read an image from a FITS or FITS.fz file
 % A special case of INT16 and BZERO = 32768 employed for UINT16 values is treated as well
-% Compiled with: mex read_image.cpp CXX=g++-9 -lcfitsio (after sudo apt install libcfitsio-dev)
+% Compiled with: mex read_image.cpp -lcfitsio (after sudo apt install libcfitsio-dev)
 % Input  : - file name (*fits or *fits.fz)
 %          - HDU number 
 %          NB: if the number is 0, the function will scan all the HDU and read the first image found  
