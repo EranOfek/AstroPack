@@ -2478,7 +2478,7 @@ classdef PipelineDemon < Component
                     
                     Status.MoveRaw = true;
                 else
-                    RawImageListFinal = RawImageList;
+                    RawImageListFinal = FN_I.genPath;
                     Status.MoveRaw = false;
                 end
                     
