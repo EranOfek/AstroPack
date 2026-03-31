@@ -21,7 +21,7 @@ function plotPhotIntegralT(PC, Args)
     %          pipeline.last.quality.plotPhotIntegralT(R, 'MosaicEpoch', 5);
 
     arguments
-        PC struct
+        PC
         Args.MosaicEpoch    = 1
         Args.CropsToAnalyze = []
         Args.Ncrop          = 24
@@ -29,35 +29,30 @@ function plotPhotIntegralT(PC, Args)
         Args.WvlRange       = []
     end
 
-    % Handle both R and R.PC
-    if isfield(PC, 'PC')
-        PCdata = PC.PC;
-    else
-        PCdata = PC;
-    end
-
-    if ~isfield(PCdata, 'percrop')
+    % Resolve input to cell array of PhotCalibTrans arrays
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
-    Nvisits = numel(PCdata.percrop);
+    Nvisits = numel(PCcell);
     CropsToUse = Args.CropsToAnalyze;
 
     % Find first valid epoch to determine crop count
-    FirstValid = find(~cellfun(@isempty, PCdata.percrop), 1);
+    FirstValid = find(~cellfun(@isempty, PCcell), 1);
     if isempty(FirstValid); return; end
     if isempty(CropsToUse)
-        CropsToUse = 1:numel(PCdata.percrop{FirstValid});
+        CropsToUse = 1:numel(PCcell{FirstValid});
     end
     Ncrop = numel(CropsToUse);
 
     % Compute integral T for all epochs and crops
     Tmat = nan(Nvisits, Args.Ncrop);
     for Iv = 1:Nvisits
-        if isempty(PCdata.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
         for Ic = CropsToUse
-            if Ic > numel(PCdata.percrop{Iv}); continue; end
-            PCobj = PCdata.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success; continue; end
             if isempty(Args.WvlRange)
                 Tmat(Iv, Ic) = PCobj.integralTransmission();

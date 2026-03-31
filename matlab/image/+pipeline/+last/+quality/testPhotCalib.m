@@ -1,50 +1,46 @@
 function Result = testPhotCalib(Args)
-    % Compare PhotSys modes by epoch-to-epoch photometric repeatability
-    % Description: Orchestrator that loads visit data, calibrates all requested
-    %              modes, matches sources across epochs, and generates diagnostic
-    %              plots. Each step is delegated to a standalone function in
-    %              +pipeline.+last.+quality:
+    % Master orchestrator for photometric calibration quality analysis
+    % Description: Combines two tasks:
+    %   Task A (stability): epoch-to-epoch photometric stability analysis.
+    %     Loads multi-epoch data, calibrates, cross-matches across epochs,
+    %     and plots stability diagnostics. Also available standalone via
+    %     pipeline.last.quality.testPhotStability.
+    %   Task B (fit quality): calibration fit diagnostics per epoch.
+    %     Residuals vs magnitude, color, position, airmass, background.
+    %     Does not require cross-matching. Also available standalone via
+    %     pipeline.last.quality.testPhotFitQuality.
+    %
+    %              Delegated functions in +pipeline.+last.+quality:
     %                loadVisitData      — load FITS into AstroImage arrays
     %                calibratePhotModes — run calibration, compute FitRMS/ZPcenter
+    %                extractHeaderData  — extract FWHM, AIRMASS, etc. from headers
     %                matchPhotEpochs    — cross-epoch source matching
-    %                plotPhotScatter    — mag vs std scatter
-    %                plotPhotStdDiff    — std difference (percrop vs others)
-    %                plotPhotMosaic     — RMS/ZP mosaics and ZP maps
-    %                plotPhotResiduals  — calibrator fit residuals vs magnitude
-    %                plotPhotResidualsRMS — calibrator residual RMS vs magnitude
-    %                plotPhotResidualsColor — calibrator residuals vs GAIA BP-RP color
-    %                plotPhotResidualsBg — residuals vs 1/Flux (additive background check)
-    %                plotPhotResidualsXY — residuals vs X, Y position
-    %                plotPhotResidualsAirmass — residuals vs airmass
-    %                plotPhotTransmission — transmission curves per mode
-    %                plotPhotIntegralT  — integral T mosaic + T vs epoch time series
-    %                plotPhotFWHM       — FWHM from headers vs epoch
+    %                testPhotFitQuality — fit quality diagnostics (Task B)
+    %                testPhotStability  — stability analysis (Task A)
     %
-    %              Calibration results are cached in OutDir as PC_<mode>.mat;
-    %              delete or use ForceRecalc=true to recompute.
+    %              Stability plots (Task A):
+    %                1. Mag vs Std scatter per mode.
+    %                2. Std difference between modes (or AB vs CB).
+    %                3. RMS & ZP mosaic per crop.
+    %                4. ZP map mosaic per mode.
+    %                5. Transmission curves per mode.
+    %                6. Integral T mosaic + T vs epoch.
+    %                7. FWHM vs epoch.
+    %              Fit quality plots (Task B, via testPhotFitQuality):
+    %                8. Calibrator residuals vs magnitude.
+    %                9. Calibrator residual RMS vs magnitude.
+    %               10. Calibrator residuals vs GAIA BP-RP color.
+    %               11. Calibrator residuals vs 1/Flux (background check).
+    %               12. Calibrator residuals vs X-XPEAK, Y-YPEAK.
+    %               13. Calibrator residuals vs airmass.
     %
-    %              Plots generated (when Plot=true):
-    %                1. Mag vs Std scatter — epoch-to-epoch std vs magnitude per mode.
-    %                2. Std difference — Std(percrop) - Std(other) vs magnitude.
-    %                3. RMS & ZP mosaic — median fit RMS and center ZP std per crop.
-    %                4. ZP map mosaic — side-by-side ZP maps for first visit.
-    %                   Per-epoch modes show spatial ZP from PC objects.
-    %                   Visit-level modes evaluate ZP with adjusted params.
-    %                5. Calibrator residuals vs magnitude (percrop only).
-    %                6. Calibrator residual RMS vs magnitude (binned RMS + median).
-    %                7. Calibrator residuals vs GAIA BP-RP color (+optional mag-color).
-    %                8. Calibrator residuals vs 1/Flux (additive background check,
-    %                   with linear fit and bg estimate; top axis shows MAG_AB).
-    %                9. Calibrator residuals vs X, Y position.
-    %               10. Calibrator residuals vs airmass (median shift + linear fit).
-    %               11. Transmission curves per mode (per-crop + reference overlay).
-    %               12. Integral T mosaic (per crop) + T vs epoch time series.
-    %               13. FWHM from headers vs epoch (per crop + median).
+    %              Cached in OutDir: PC_<mode>.mat, MS_all.mat, Result.mat.
+    %              Use ForceRecalc=true to recompute.
     %
     % Input  : * ...,key,val,...
     %          --- Data loading (see also loadVisitData) ---
     %            'DataDir' - Directory with all visits' FITS files in one folder.
-    %                        Default is '/home/dana/222625v1'.
+    %                        Default is '~/222625v1'.
     %            'OutDir'  - Directory for cached results. Default is DataDir/results.
     %            'Visits'  - Vector of visit indices (DataDir mode). Default is 1:20.
     %            'VisitDirs' - String array of visit folder paths. When non-empty,
@@ -111,6 +107,8 @@ function Result = testPhotCalib(Args)
     %            .PC       - struct per mode with PC_all{Nvisits}(1xNcrop)
     %            .Cats     - struct per mode with Cats_all{Nvisits}(1xNcrop)
     %            .MS       - struct per mode with MS{Ncrop} MatchedSources
+    %            .HeaderData - struct with [Nepochs x Ncrop] matrices per keyword
+    %                        (FWHM, AIRMASS, EXPTIME, JD, BACK_IM by default)
     %            .FitRMS   - [Nvisits x Ncrop] fit RMS matrix
     %            .ZPcenter - struct per mode with [Nvisits x Ncrop] center ZP.
     %                        Per-epoch modes share percrop values;
@@ -149,41 +147,32 @@ function Result = testPhotCalib(Args)
     %          R = pipeline.last.quality.testPhotCalib('ApplyRelZP', false, ...
     %              'ForceRecalc', true);
     %
-    %          % --- Standalone replotting from cached results ---
-    %          S = load('results/MS_all.mat');
-    %          Modes = {'percrop','perimage'};
-    %          pipeline.last.quality.plotPhotScatter(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
-    %          pipeline.last.quality.plotPhotStdDiff(S.MS_all, 'Modes', Modes, 'MinEpochs', 15);
-    %
-    %          % Load full Result from saved .mat (includes PersetInfo):
+    %          % --- Standalone tasks from cached results ---
     %          S = load('results/Result.mat'); R = S.Result;
     %
-    %          % Standalone calibrator diagnostics:
-    %          pipeline.last.quality.plotPhotResiduals(R.PC);
-    %          pipeline.last.quality.plotPhotResidualsRMS(R.PC);
-    %          pipeline.last.quality.plotPhotResidualsColor(R.PC, 'PlotMagColor', true);
-    %          pipeline.last.quality.plotPhotResidualsBg(R.PC);
-    %          pipeline.last.quality.plotPhotResidualsXY(R.PC, 'Normalize', true);
-    %          pipeline.last.quality.plotPhotResidualsAirmass(R.PC);
-    %
-    %          % Transmission plots (R struct needed for visit-level modes):
-    %          pipeline.last.quality.plotPhotTransmission(R, ...
-    %              'Modes', {'percrop','perset'});
+    %          % Stability plots only (from cached MS):
+    %          pipeline.last.quality.plotPhotScatter(R.MS, 'Modes', {'percrop'}, 'MinEpochs', 15);
+    %          pipeline.last.quality.plotPhotStdDiff(R.MS, 'Modes', {'percrop','perimage'});
+    %          pipeline.last.quality.plotPhotMosaic(R, 'Modes', {'percrop'});
+    %          pipeline.last.quality.plotPhotTransmission(R, 'Modes', {'percrop'});
     %          pipeline.last.quality.plotPhotIntegralT(R.PC);
+    %          pipeline.last.quality.plotPhotFWHM(R);  % uses R.HeaderData
     %
-    %          % FWHM (requires AI from loadVisitData, not from Result.mat):
-    %          AI = pipeline.last.quality.loadVisitData('DataDir', '', ...
-    %              'ListFile', '~/list.mat', 'ListFields', 'field1', 'FileType', 'coadd');
-    %          pipeline.last.quality.plotPhotFWHM(AI);
+    %          % Fit quality only (from cached PC):
+    %          pipeline.last.quality.testPhotFitQuality(R.PC);
+    %          pipeline.last.quality.testPhotFitQuality(R.PC, ...
+    %              'ExtraXFields', {'FLAGS','PSF_CHI2DOF'});
+    %
+    %          % Fit quality from single AstroImage (calibrates internally):
+    %          pipeline.last.quality.testPhotFitQuality(AI);
     %
     %          % ConstBand mode:
     %          CBP = PhotCalibTrans.buildConstBandParams(R.PC.percrop, 'Verbose', true);
     %          R = pipeline.last.quality.testPhotCalib(..., ...
-    %              'ApplyConstBand', true, 'ConstBandParams', CBP);
+    %              'ApplyConstBand', true, 'ConstBandParams', CBP, 'ForceRecalc', true);
     %
     %          % Save all figures:
     %          R = pipeline.last.quality.testPhotCalib(..., 'SaveFig', true);
-    %          pipeline.last.quality.plotPhotIntegralT(R.PC, 'MosaicEpoch', 5);
     %
     %          % Replotting with other arguments (within the scope of performed calibration):
     %
@@ -304,6 +293,11 @@ function Result = testPhotCalib(Args)
         Args.Visits = 1:Nvisits;
     end
 
+    % Extract header metadata
+    HeaderData = pipeline.last.quality.extractHeaderData(AI, ...
+        'Ncrop', Args.Ncrop, 'Verbose', Args.Verbose);
+    end
+
     % === Calibrate ===
     Calib = pipeline.last.quality.calibratePhotModes(AI, ...
         'Modes', Args.Modes, ...
@@ -344,7 +338,8 @@ function Result = testPhotCalib(Args)
     if isfield(Calib, 'PersetInfo')
         Result.PersetInfo = Calib.PersetInfo;
     end
-    Result.MS       = MS;
+    Result.MS         = MS;
+    Result.HeaderData = HeaderData;
 
     % === Save full Result ===
     ResultFile = fullfile(Args.OutDir, 'Result.mat');
@@ -363,6 +358,7 @@ function Result = testPhotCalib(Args)
         return;
     end
 
+    % Stability plots (epoch-to-epoch scatter, mosaics, transmission, FWHM)
     pipeline.last.quality.plotPhotScatter(MS, ...
         'Modes', Args.Modes, ...
         'MagFields', Args.MagFields, ...
@@ -380,7 +376,6 @@ function Result = testPhotCalib(Args)
         'TrendBinWidth', Args.TrendBinWidth, ...
         'MinEpochs', Args.MinEpochs);
 
-    % ConstBand: compare AB vs CB for each aperture type
     if Args.ApplyConstBand
         AbFields = Args.MagFields(contains(Args.MagFields, '_AB_'));
         CbFields = strrep(AbFields, '_AB_', '_CB_');
@@ -402,36 +397,6 @@ function Result = testPhotCalib(Args)
         'RefCrop', Args.RefCrop, ...
         'TileOrder', Args.TileOrder);
 
-    pipeline.last.quality.plotPhotFWHM(AI, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'Ncrop', Args.Ncrop, ...
-        'TileOrder', Args.TileOrder);
-
-    pipeline.last.quality.plotPhotResiduals(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'OverlayTrend', Args.OverlayTrend, ...
-        'TrendBinWidth', Args.TrendBinWidth);
-
-    pipeline.last.quality.plotPhotResidualsRMS(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze);
-
-    pipeline.last.quality.plotPhotResidualsColor(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'OverlayTrend', Args.OverlayTrend, ...
-        'Verbose', Args.Verbose);
-
-    pipeline.last.quality.plotPhotResidualsBg(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'OverlayTrend', Args.OverlayTrend);
-
-    pipeline.last.quality.plotPhotResidualsXY(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'OverlayTrend', Args.OverlayTrend);
-
-    pipeline.last.quality.plotPhotResidualsAirmass(Calib.PC, ...
-        'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'OverlayTrend', Args.OverlayTrend);
-
     pipeline.last.quality.plotPhotTransmission(Calib, ...
         'Modes', Args.Modes, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
@@ -441,6 +406,19 @@ function Result = testPhotCalib(Args)
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
         'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotFWHM(HeaderData, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
+
+    % Fit quality diagnostics (residuals, background, airmass, color)
+    pipeline.last.quality.testPhotFitQuality(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'OverlayTrend', Args.OverlayTrend, ...
+        'TrendBinWidth', Args.TrendBinWidth, ...
+        'SaveFig', false, ...
+        'Verbose', Args.Verbose);
 
     % Save all open figures
     if Args.SaveFig

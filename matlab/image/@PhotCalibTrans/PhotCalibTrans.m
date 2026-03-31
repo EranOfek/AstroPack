@@ -2762,7 +2762,6 @@ classdef PhotCalibTrans < Component
             end
 
             Lambda = Obj.TransWvl;
-            LambdaNm = Lambda / 10;  % nm for photon integral
 
             % TODO: PerSourceAirmass mode requires per-source delta ZP (each source
             %       has its own ZenithAngle and thus its own T_atm_crop). Currently
@@ -2795,8 +2794,8 @@ classdef PhotCalibTrans < Component
             T_const = Obj.TransModel.evaluateAllFunParInput(Lambda, ConstParVec);
 
             % --- Compute delta ZP ---
-            IntCrop  = trapz(Lambda, T_crop(:) .* LambdaNm(:));
-            IntConst = trapz(Lambda, T_const(:) .* LambdaNm(:));
+            IntCrop  = trapz(Lambda, T_crop(:) .* Lambda(:));
+            IntConst = trapz(Lambda, T_const(:) .* Lambda(:));
 
             if IntCrop <= 0 || IntConst <= 0
                 warning('PhotCalibTrans:applyConstBand:BadIntegral', ...

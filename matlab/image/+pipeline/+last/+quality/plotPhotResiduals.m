@@ -5,7 +5,7 @@ function plotPhotResiduals(PC, Args)
     %              vs magnitude. Overlays a binned trend line.
     %              Shows magnitude-dependent systematics in the calibration fit.
     %
-    % Input  : - PC struct with PC.percrop{Iv}(Ic) PhotCalibTrans arrays
+    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays
     %            (from calibratePhotModes .PC output or Result.PC).
     %            Calibration residuals are identical across modes (same
     %            underlying percrop fit), so only percrop is plotted.
@@ -25,7 +25,7 @@ function plotPhotResiduals(PC, Args)
     %          pipeline.last.quality.plotPhotResiduals(R.PC, 'MagField', 'instrumental');
 
     arguments
-        PC struct
+        PC
         Args.CropsToAnalyze = []
         Args.MagField       = 'MAG_AB'
         Args.Normalize logical = false  % Plot Residual/MagErr instead of Residual
@@ -34,7 +34,8 @@ function plotPhotResiduals(PC, Args)
         Args.YLim           = []
     end
 
-    if ~isfield(PC, 'percrop')
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
@@ -45,18 +46,18 @@ function plotPhotResiduals(PC, Args)
     AllMag = [];
     AllRes = [];
 
-    Nvisits = numel(PC.percrop);
+    Nvisits = numel(PCcell);
     for Iv = 1:Nvisits
-        if isempty(PC.percrop{Iv}); continue; end
+        if isempty(PCcell{Iv}); continue; end
 
         CropsToUse = Args.CropsToAnalyze;
         if isempty(CropsToUse)
-            CropsToUse = 1:numel(PC.percrop{Iv});
+            CropsToUse = 1:numel(PCcell{Iv});
         end
 
         for Ic = CropsToUse
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            PCobj = PC.percrop{Iv}(Ic);
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success; continue; end
             if isempty(PCobj.SourceData); continue; end
 

@@ -8,7 +8,7 @@ function plotPhotResidualsColor(PC, Args)
     %              Cross-match is done once per crop (calibrators are the
     %              same across epochs for a given crop).
     %
-    % Input  : - PC struct with PC.percrop{Iv}(Ic) PhotCalibTrans arrays
+    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays
     %            (from calibratePhotModes .PC output or Result.PC).
     %          * ...,key,val,...
     %            'CropsToAnalyze' - Crop indices. Default is [] (all).
@@ -42,7 +42,7 @@ function plotPhotResidualsColor(PC, Args)
     %              'PlotMagColor', true, 'MagField', 'instrumental');
 
     arguments
-        PC struct
+        PC
         Args.CropsToAnalyze = []
         Args.GaiaCat        = 'GAIADR3'
         Args.ColorCol       = 'bp_rp'
@@ -56,7 +56,8 @@ function plotPhotResidualsColor(PC, Args)
         Args.Verbose logical = true
     end
 
-    if ~isfield(PC, 'percrop')
+    PCcell = pipeline.last.quality.resolvePC(PC);
+    if isempty(PCcell)
         return;
     end
 
@@ -64,15 +65,15 @@ function plotPhotResidualsColor(PC, Args)
     AllRes   = [];
     AllMag   = [];
 
-    Nvisits = numel(PC.percrop);
+    Nvisits = numel(PCcell);
 
     % Find first valid visit to determine crop count
-    FirstValid = find(~cellfun(@isempty, PC.percrop), 1);
+    FirstValid = find(~cellfun(@isempty, PCcell), 1);
     if isempty(FirstValid); return; end
 
     CropsToUse = Args.CropsToAnalyze;
     if isempty(CropsToUse)
-        CropsToUse = 1:numel(PC.percrop{FirstValid});
+        CropsToUse = 1:numel(PCcell{FirstValid});
     end
 
     MatchRadiusRad = Args.MatchRadius / 206264.806;  % arcsec to radians
@@ -82,10 +83,10 @@ function plotPhotResidualsColor(PC, Args)
         % Use the first valid epoch to get calibrator positions
         RefPCobj = [];
         for Iv = 1:Nvisits
-            if isempty(PC.percrop{Iv}); continue; end
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            if PC.percrop{Iv}(Ic).Success && ~isempty(PC.percrop{Iv}(Ic).SourceData)
-                RefPCobj = PC.percrop{Iv}(Ic);
+            if isempty(PCcell{Iv}); continue; end
+            if Ic > numel(PCcell{Iv}); continue; end
+            if PCcell{Iv}(Ic).Success && ~isempty(PCcell{Iv}(Ic).SourceData)
+                RefPCobj = PCcell{Iv}(Ic);
                 break;
             end
         end
@@ -143,9 +144,9 @@ function plotPhotResidualsColor(PC, Args)
 
         % --- Collect residuals from all epochs for this crop ---
         for Iv = 1:Nvisits
-            if isempty(PC.percrop{Iv}); continue; end
-            if Ic > numel(PC.percrop{Iv}); continue; end
-            PCobj = PC.percrop{Iv}(Ic);
+            if isempty(PCcell{Iv}); continue; end
+            if Ic > numel(PCcell{Iv}); continue; end
+            PCobj = PCcell{Iv}(Ic);
             if ~PCobj.Success || isempty(PCobj.SourceData); continue; end
 
             TabEp = PCobj.SourceData.Table;
