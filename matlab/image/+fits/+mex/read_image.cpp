@@ -1,4 +1,4 @@
-// compiled with mex read_image.cpp CXX=g++-9 -lcfitsio
+// compiled with mex read_image.cpp -lcfitsio
 // after sudo apt install libcfitsio-dev 
 #include "mex.h"
 #include "fitsio.h"
@@ -215,21 +215,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
     
     std::vector<mwSize> dims(naxis);
     long nelements = 1;
-            
+    
     for (int i = 0; i < naxis; i++) {
         dims[i] = (mwSize)(lpixel[i] - fpixel[i] + 1);
-    }    
-    // Swap X/Y for MATLAB
-    if (naxis >= 2) {
-        std::swap(dims[0], dims[1]);
-    }    
-    for (int i = 0; i < naxis; i++)
         nelements *= dims[i];
-    
-//     mexPrintf("BITPIX=%d, NAXIS=%d, nelements=%d\n", bitpix, naxis, nelements);
-//     for (int i = 0; i < naxis; i++){
-//         mexPrintf("naxes[%d]=%ld\n", i, naxes[i]);        
-//     }
+    }
     
     // -------- Attempt native read --------
     mxArray* out = nullptr;
@@ -248,17 +238,9 @@ void mexFunction(int nlhs, mxArray* plhs[],
             mxArray* out = mxCreateNumericArray(naxis, dims.data(), mxUINT16_CLASS, mxREAL);
             unsigned short* data = (unsigned short*)mxGetData(out);
                         
-            std::vector<long> fpixel_sw = fpixel;
-            std::vector<long> lpixel_sw = lpixel;            
-            
-            if (naxis >= 2) {
-                std::swap(fpixel_sw[0], fpixel_sw[1]);
-                std::swap(lpixel_sw[0], lpixel_sw[1]);                 
-            }
-            
             fits_read_subset(fptr, TUSHORT,
-                    fpixel_sw.data(),
-                    lpixel_sw.data(),
+                    fpixel.data(),
+                    lpixel.data(),
                     inc.data(),
                     NULL,
                     data,
@@ -291,18 +273,10 @@ void mexFunction(int nlhs, mxArray* plhs[],
         data = mxGetData(out);
 
         int status_try = 0;
-        
-        std::vector<long> fpixel_sw = fpixel;
-        std::vector<long> lpixel_sw = lpixel;
-        
-        if (naxis >= 2) {
-            std::swap(fpixel_sw[0], fpixel_sw[1]);
-            std::swap(lpixel_sw[0], lpixel_sw[1]);
-        }
 
         fits_read_subset(fptr, datatype,
-                fpixel_sw.data(),
-                lpixel_sw.data(),
+                fpixel.data(),
+                lpixel.data(),
                 inc.data(),
                 NULL,
                 data,
@@ -327,17 +301,9 @@ void mexFunction(int nlhs, mxArray* plhs[],
         out = mxCreateNumericArray(naxis, dims.data(), mxDOUBLE_CLASS, mxREAL);
         double* dptr = mxGetPr(out);
 
-        std::vector<long> fpixel_sw = fpixel;
-        std::vector<long> lpixel_sw = lpixel;
-
-        if (naxis >= 2) {
-            std::swap(fpixel_sw[0], fpixel_sw[1]);
-            std::swap(lpixel_sw[0], lpixel_sw[1]);
-        }
-
         fits_read_subset(fptr, TDOUBLE,
-                fpixel_sw.data(),
-                lpixel_sw.data(),
+                fpixel.data(),
+                lpixel.data(),
                 inc.data(),
                 NULL,
                 data,
