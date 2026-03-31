@@ -147,16 +147,19 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.JD                               = [];
         Args.IsGood                           = [];
         Args.MinNumCoadd                      = 10;
-        Args.ShiftXY                          = [];
+        Args.ShiftXY                          = [];  % if empty, then, register by WCS.
         Args.PropShiftXY                      = 'ShiftXY';
         Args.IsShiftXYfiltered                = true;
         Args.UseMultiIterPSF                  = true;
-        Args.UseShift logical                 = true;
-        Args.UseInterp2 logical               = true;
-        Args.interp2affineArgs cell           = {};
-        Args.interp2wcsArgs cell              = {};
+        % --- registration ---
+        Args.registerArgs                     = {};
+ 
+        %Args.UseShift logical                 = true;
+        %Args.UseInterp2 logical               = true;
+        %Args.interp2affineArgs cell           = {};
+        %Args.interp2wcsArgs cell              = {};
 
-        Args.StackMethod                      = 'sigmaclip';  
+        Args.StackMethod                      = 'wrobust'; %'sigmaclip';  
         Args.coadd_WRobustArgs                = {};
         Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
 
@@ -281,52 +284,65 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
             % coadd images Args.MinNumCoadd
         
-            if isstruct(Args.ShiftXY)
-                ShiftXY = Args.ShiftXY.(Args.PropShiftXY);
+            if isempty(Args.ShiftXY)
+                % register by the WCS of the fisrt available image:
+                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+                                                       Args.registerArgs{:},...
+                                                       'DataProp',{'ImageData','BackData','VarData','MaskData'});
             else
-                ShiftXY = Args.ShiftXY;
+                % Register images by Args.ShiftXY
+                if isstruct(Args.ShiftXY)
+                    ShiftXY = Args.ShiftXY.(Args.PropShiftXY);
+                else
+                    ShiftXY = Args.ShiftXY;
+                end
+                if ~Args.IsShiftXYfiltered
+                    ShiftXY = ShiftXY(FlagGood,:);
+                end
+                % register images
+                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
+                                                       'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+                                                       Args.registerArgs{:},...
+                                                       'DataProp',{'ImageData','BackData','VarData','MaskData'});
             end
-            if ~Args.IsShiftXYfiltered
-                ShiftXY = ShiftXY(FlagGood,:);
-            end
-            
-            if Args.UseShift
-                
-                if Args.UseInterp2
-                    if strcmp(Args.StackMethod, 'wrobust')
 
-                        RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
-                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
-                                                                    'DataProp',{'Image','Back','Var','Mask'},...
-                                                                    Args.interp2affineArgs{:});
-                    else
-                        RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
-                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
-                                                                    Args.interp2affineArgs{:});
-                    end
-                else
-            
-            
-                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY,...
-                                                     'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
-                                                     'FillValues',0,...
-                                                     'ReplaceNaN',true,...
-                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
-                end
-            
-            else
-                % Use WCS:
-                if Args.UseInterp2
-                    RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
-                                                                 Args.interp2wcsArgs{:});
-                else
-                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
-                                                     'TransWCS',true,...
-                                                     'FillValues',0,...
-                                                     'ReplaceNaN',true,...
-                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
-                end
-            end
+            % if Args.UseShift
+            % 
+            %     if Args.UseInterp2
+            %         if strcmp(Args.StackMethod, 'wrobust')
+            % 
+            %             RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
+            %                                                         'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+            %                                                         'DataProp',{'Image','Back','Var','Mask'},...
+            %                                                         Args.interp2affineArgs{:});
+            %         else
+            %             RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY,...
+            %                                                         'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+            %                                                         Args.interp2affineArgs{:});
+            %         end
+            %     else
+            % 
+            % 
+            %         RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY,...
+            %                                          'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+            %                                          'FillValues',0,...
+            %                                          'ReplaceNaN',true,...
+            %                                          'CreateNewObj',~Args.ReturnRegisteredAllSI);
+            %     end
+            % 
+            % else
+            %     % Use WCS:
+            %     if Args.UseInterp2
+            %         RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+            %                                                      Args.interp2wcsArgs{:});
+            %     else
+            %         RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+            %                                          'TransWCS',true,...
+            %                                          'FillValues',0,...
+            %                                          'ReplaceNaN',true,...
+            %                                          'CreateNewObj',~Args.ReturnRegisteredAllSI);
+            %     end
+            %end
 
 
 
