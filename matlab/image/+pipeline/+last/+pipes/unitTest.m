@@ -13,9 +13,9 @@ function [Result] = unitTest(Args)
         Args.RAWImageDir       = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/'
         Args.CalibDir          = '/mnt/marvin/LAST.01.01.01/calib/'
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
-        Args.StartImage        = 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
-        Args.StartJD           = 0;   % [24 4 2023]
-        Args.EndJD             = Inf; % [25 4 2023]
+%         Args.StartImage        = 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
+        Args.StartJD           = 0;   % [8 7 2025]
+        Args.EndJD             = Inf; % [8 7 2025]
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
     end
     % arrange a local folder to store results 
@@ -37,6 +37,8 @@ function [Result] = unitTest(Args)
     D.main('StopWhenDone',true,'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'},'StopButton',false,...
         'StartJD', Args.StartJD, 'EndJD', Args.EndJD, ...
         'RegenCalib', Args.RegenCalib, ...
-        'pipelineIArgs', {'UseParfor',true,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} } );
+        'pipelineIArgs', {'UseParfor',true,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
+        'MoveNew2Raw',false,...
+        'DebugMode',true);
     % 
 end
