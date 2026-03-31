@@ -190,8 +190,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
                                             'FIELDID','COUNTER','NODENUMB','MOUNTNUM','CAMNUM',...
                                             'ID_RAW'};
         Args.TableForDB                  = true; % if given then update table with header + results.
-
-        Args.UseMex2readFITSImages       = false;
+        
     end
     TableForDB = Args.TableForDB;
     Nim = NaN;
@@ -205,7 +204,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
         Images = AI.getFileNames;
     else
         % assume input is a list of images
-        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC, 'UseMex', Args.UseMex2readFITSImages);
+        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
 
         % Add Time string to header:
         Literals = AstroFileName.parseString2literals(Images);
