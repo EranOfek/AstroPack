@@ -2,6 +2,36 @@ function [Result] = perfTest()
     % perfTest for imUtil.image
     % Example: imUtil.image.perfTest
 
+
+    %%
+    VecXrel = (1:1:25);
+    VecYrel = (1:1:25);
+    DX      = rand(1000,1);
+    DY      = rand(1000,1);
+    Std     = rand(1,1,1000)+1;
+    FitRadius2 = 9;
+    Resid      = rand(25,25,1000);
+
+    Nsim = 1000;
+    tic;
+    for i=1:Nsim
+        [Flag1, ResidStd1] = imUtil.image.mex.cubeResidStd_Radius(VecXrel, VecYrel, DX, DY, Resid, real(Std), FitRadius2);
+    end
+    T2=toc;
+
+    tic;
+    for i=1:Nsim
+        MatX     = permute(VecXrel - DX(:),[3 2 1]);
+        MatY     = permute(VecYrel - DY(:),[2 3 1]);
+        MatR2    = MatX.^2 + MatY.^2;
+        Flag     = MatR2<FitRadius2;
+        ResidStd = Flag.*Resid./Std;
+    end
+    T1=toc;
+
+    fprintf('imUtil.image.mex.cubeResidStd_Radius is x %f faster than matlab\n',T1./T2);
+
+
     %% imUtil.image.ind2sub_fast / imUtil.image.mex.ind2sub_mex
     Size = [100 120];
     Npt  = 1e3;

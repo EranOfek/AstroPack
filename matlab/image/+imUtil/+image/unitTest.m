@@ -5,7 +5,35 @@ function Result = unitTest()
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
-    
+    %%
+
+    VecXrel = (1:1:25);
+    VecYrel = (1:1:25);
+    DX      = rand(1000,1);
+    DY      = rand(1000,1);
+    Std     = rand(1,1,1000)+1;
+    FitRadius2 = 9;
+    Resid      = rand(25,25,1000);
+
+    [Flag1, ResidStd1] = imUtil.image.mex.cubeResidStd_Radius(VecXrel, VecYrel, DX, DY, Resid, real(Std), FitRadius2);
+
+    MatX     = permute(VecXrel - DX(:),[3 2 1]);
+    MatY     = permute(VecYrel - DY(:),[2 3 1]);
+    MatR2    = MatX.^2 + MatY.^2;
+    Flag     = MatR2<FitRadius2;
+    ResidStd = Flag.*Resid./Std;
+
+    if max(abs(Flag-Flag1),[],'all')>eps | max(abs(ResidStd-ResidStd1),[],'all')>eps
+        error('Problem with imUtil.image.mex.cubeResidStd_Radius');
+    end
+
+
+            
+
+
+
+    %%
+
     % sub2ind_fast
     Ind=imUtil.image.sub2ind_fast([3 3],2,2);
     if Ind~=5
