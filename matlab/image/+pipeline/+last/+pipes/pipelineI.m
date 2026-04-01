@@ -35,6 +35,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
+        Args.StackMethod                   = 'wrobust';  % 'sigmaclip';
+        Args.coadd_WRobustArgs             = {};
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
 
@@ -150,6 +152,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         end
         %toc
     end
+    % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+    AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true);
+            
 
     % solve astrometry of all images
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
@@ -261,17 +266,21 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % only multiIterationPSF: 35 s (UseMex=false)
     % coadd+multiIterPSF+astrometry+PhotCalibSimple : 95 s (UseMex=false)
     % (93 s with parfor)
-    Args.StackMethod = 'wrobust';  % 'sigmaclip';
-    tic;
+    
+    %tic;
+    % Phot calib is done later (after adding airmass columns):
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
+                                              'SubBack',false,...
                                               'CatName',CatName,...
                                               'ShiftXY',ShiftInfo,...
                                               'IsGood',IsGood,...
                                               'PropShiftXY','ShiftXY',...
                                               'IsShiftXYfiltered',true,...
                                               'StackMethod',Args.StackMethod,...
-                                              'UseMex',Args.UseMex);
-    toc
+                                              'UseMex',Args.UseMex,...
+                                              'PhotCalibSimple',false,...
+                                              'PhotCalibTrans',false);
+    %toc
 
     % tic;
     % parfor Isub=1:1:Nsub
@@ -359,9 +368,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Coadd images
     % Photometric calibration of coadd images:
-    tic;
+    %tic;
     [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
-    toc
+    %toc
 
 
     % proapage photometric calibration to individual images

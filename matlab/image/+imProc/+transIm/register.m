@@ -59,6 +59,8 @@ function [Result] = register(Obj, TransRef, Args)
         Args.ExtrapVal                = NaN; % for mex_ interpolation options this is always NaN
         Args.DataProp                 = {'ImageData','MaskData'};
         Args.DataPropIn               = 'Data';
+        %Args.KeyBack                  = [];
+        %Args.KeyVar                   = [];
 
         Args.CreateNewObj             = true;
         Args.WCS                      = [];
