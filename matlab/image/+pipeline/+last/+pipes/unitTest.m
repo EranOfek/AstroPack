@@ -18,6 +18,7 @@ function [Result] = unitTest(Args)
         Args.TimeInterval      = 450  % [s] 
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
     end
+    
     % arrange a local folder to store results 
     Args.LocalPath = tools.os.relPath2absPath(Args.LocalPath);    
     if ~isfolder(Args.LocalPath)
@@ -52,6 +53,7 @@ function [Result] = unitTest(Args)
            );
     D.RefPath = Args.RefPath;
     D.LogPath = strcat(Args.LocalPath,'/','log/');
+    
     % run the pipeline
     D.main('StopWhenDone',true,'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'},'StopButton',false,...
         'StartJD', StartJD, 'EndJD', EndJD, ...
