@@ -76,15 +76,16 @@ function Result=perfTest()
     W = rand(1e3,3)+2;
     tic;for i=1:Nsim,[M,S]=tools.math.stat.mex.wmedianStd_mex(R,W);end, T1=toc;
     Err = 1./sqrt(W);
-    tic;for i=1:Nsim,[M1]=tools.math.stat.wmedian(R,Err);end, T2=toc;
+    tic;for i=1:Nsim,[M1]=tools.math.stat.wmedian(R,Err); S1=std(R); end, T2=toc;
     fprintf('tools.math.stat.mex.wmedianStd_mex is x %f faster compared to tools.math.stat.wmedian\n',T2./T1);
 
 
-    %% tools.math.stat.mex.wmedian_mex
+    %% tools.math.stat.mex.wMeanStd_mex
     Nsim=1e4;
     R = rand(1e3,3);
     W = rand(1e3,3)+2;
     tic;for i=1:Nsim,[M,S,E]=tools.math.stat.mex.wMeanStd_mex(R,W);end, T1=toc;
+    %tic;for i=1:Nsim,[M,S,E]=wMeanStd_mex(R,W);end, T1=toc;
     Err = 1./sqrt(W);
     tic;for i=1:Nsim,[M1,E1,S1]=tools.math.stat.wmean(R,Err);end, T2=toc;
     fprintf('tools.math.stat.mex.WmeanStd_mex is x %f faster compared to tools.math.stat.wmean\n',T2./T1);

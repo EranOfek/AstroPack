@@ -401,13 +401,11 @@ void runKernelSimple(const T* Image,
                      const InputAccessor<T>& Var,
                      const FAccessor<T>& Facc,
                      T* Coadd,
-                     T* CoaddVar,
-                     float* Ncoadd) {
+                     T* CoaddVar) {
     #pragma omp parallel for schedule(static)
     for (mwIndex p = 0; p < static_cast<mwIndex>(S.Npix); ++p) {
         double sw = 0.0;
         double swx = 0.0;
-        mwSize nused = 0;
 
         for (mwSize k = 0; k < S.Nim; ++k) {
             T I  = Image[p + k * S.Npix];
@@ -428,7 +426,6 @@ void runKernelSimple(const T* Image,
 
             sw  += W;
             swx += W * X;
-            ++nused;
         }
 
         if (sw == 0.0) {
@@ -437,10 +434,6 @@ void runKernelSimple(const T* Image,
         } else {
             Coadd[p] = static_cast<T>(swx / sw);
             if (CoaddVar) CoaddVar[p] = static_cast<T>(1.0 / sw);
-        }
-
-        if (Ncoadd) {
-            Ncoadd[p] = static_cast<float>(nused);
         }
     }
 }
@@ -457,8 +450,7 @@ void runKernelGeneral(const T* Image,
                       T SigmaLow,
                       T SigmaHigh,
                       T* Coadd,
-                      T* CoaddVar,
-                      float* Ncoadd) {
+                      T* CoaddVar) {
     #pragma omp parallel
     {
         std::vector<T> val(S.Nim);
@@ -497,7 +489,6 @@ void runKernelGeneral(const T* Image,
             if (nvalid == 0) {
                 Coadd[p] = NaNVal<T>();
                 if (CoaddVar) CoaddVar[p] = NaNVal<T>();
-                if (Ncoadd) Ncoadd[p] = 0.0f;
                 continue;
             }
 
@@ -506,7 +497,6 @@ void runKernelGeneral(const T* Image,
                 if (nvalid == 0) {
                     Coadd[p] = NaNVal<T>();
                     if (CoaddVar) CoaddVar[p] = NaNVal<T>();
-                    if (Ncoadd) Ncoadd[p] = 0.0f;
                     continue;
                 }
             }
@@ -572,7 +562,6 @@ void runKernelGeneral(const T* Image,
             if (nvalid == 0) {
                 Coadd[p] = NaNVal<T>();
                 if (CoaddVar) CoaddVar[p] = NaNVal<T>();
-                if (Ncoadd) Ncoadd[p] = 0.0f;
                 continue;
             }
 
@@ -580,9 +569,6 @@ void runKernelGeneral(const T* Image,
                 Coadd[p] = finalCenter;
                 if (CoaddVar) {
                     CoaddVar[p] = static_cast<T>(1.0 / static_cast<double>(finalSumW));
-                }
-                if (Ncoadd) {
-                    Ncoadd[p] = static_cast<float>(nvalid);
                 }
                 continue;
             }
@@ -593,14 +579,10 @@ void runKernelGeneral(const T* Image,
             if (!computeWeightedMean(val.data(), wgt.data(), keep.data(), S.Nim, center, sumW)) {
                 Coadd[p] = NaNVal<T>();
                 if (CoaddVar) CoaddVar[p] = NaNVal<T>();
-                if (Ncoadd) Ncoadd[p] = 0.0f;
             } else {
                 Coadd[p] = center;
                 if (CoaddVar) {
                     CoaddVar[p] = static_cast<T>(1.0 / static_cast<double>(sumW));
-                }
-                if (Ncoadd) {
-                    Ncoadd[p] = static_cast<float>(nvalid);
                 }
             }
         }
@@ -608,7 +590,7 @@ void runKernelGeneral(const T* Image,
 }
 
 template <typename T>
-void runKernel(const mxArray* prhs[], int nrhs, mxArray* plhs[], bool wantVar, bool wantNcoadd) {
+void runKernel(const mxArray* prhs[], int nrhs, mxArray* plhs[], bool wantVar) {
     const mxArray* AImage = prhs[0];
     Size3 S = getImageSize(AImage);
 
@@ -655,17 +637,10 @@ void runKernel(const mxArray* prhs[], int nrhs, mxArray* plhs[], bool wantVar, b
         CoaddVar = static_cast<T*>(mxGetData(plhs[1]));
     }
 
-    float* Ncoadd = nullptr;
-    if (wantNcoadd) {
-        plhs[2] = mxCreateNumericArray(2, odims, mxSINGLE_CLASS, mxREAL);
-        Ncoadd = static_cast<float*>(mxGetData(plhs[2]));
-    }
-
     if (!RemoveMinMax && Niter == 0) {
-        runKernelSimple<T>(Image, S, Back, Var, Facc, Coadd, CoaddVar, Ncoadd);
+        runKernelSimple<T>(Image, S, Back, Var, Facc, Coadd, CoaddVar);
     } else {
-        runKernelGeneral<T>(Image, S, Back, Var, Facc, RemoveMinMax, Niter, StdMethod, SigmaLow, SigmaHigh,
-                            Coadd, CoaddVar, Ncoadd);
+        runKernelGeneral<T>(Image, S, Back, Var, Facc, RemoveMinMax, Niter, StdMethod, SigmaLow, SigmaHigh, Coadd, CoaddVar);
     }
 }
 
@@ -674,20 +649,19 @@ void runKernel(const mxArray* prhs[], int nrhs, mxArray* plhs[], bool wantVar, b
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1 || nrhs > 10) {
         mexErrMsgIdAndTxt("wcoaddRobust_mex:Inputs",
-            "Usage: [Coadd, CoaddVar, Ncoadd] = wcoaddRobust_mex(Image, Back, Var, F, ZP, ZP0, RemoveMinMax, Niter, SigmaClip, StdMethod)");
+            "Usage: [Coadd, CoaddVar] = wcoaddRobust_mex(Image, Back, Var, F, ZP, ZP0, RemoveMinMax, Niter, SigmaClip, StdMethod)");
     }
 
-    if (nlhs > 3) {
+    if (nlhs > 2) {
         mexErrMsgIdAndTxt("wcoaddRobust_mex:Outputs", "Too many output arguments.");
     }
 
     bool wantVar = (nlhs >= 2);
-    bool wantNcoadd = (nlhs >= 3);
 
     if (mxIsSingle(prhs[0])) {
-        runKernel<float>(prhs, nrhs, plhs, wantVar, wantNcoadd);
+        runKernel<float>(prhs, nrhs, plhs, wantVar);
     } else if (mxIsDouble(prhs[0])) {
-        runKernel<double>(prhs, nrhs, plhs, wantVar, wantNcoadd);
+        runKernel<double>(prhs, nrhs, plhs, wantVar);
     } else {
         mexErrMsgIdAndTxt("wcoaddRobust_mex:Type", "Image must be single or double.");
     }
