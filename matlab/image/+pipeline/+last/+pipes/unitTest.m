@@ -6,16 +6,16 @@ function [Result] = unitTest(Args)
     %
     % Output : - 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
-    % Example: 
+    % Example: pipeline.last.pipes.unitTest('StartTime',[8 7 2025 01 28 0]);
     % 
     arguments
         Args.LocalPath         = '~/LASTunitTest';
         Args.RAWImageDir       = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/'
-        Args.CalibDir          = '/mnt/marvin/LAST.01.01.01/calib/'
+        Args.CalibDir          = [] % '/mnt/marvin/LAST.01.01.01/calib/'
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
-%         Args.StartImage        = 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
-        Args.StartJD           = 0;   % [8 7 2025 01 28 0]
-        Args.EndJD             = Inf; % [8 7 2025 01 38 0]
+        Args.StartImage        = [] % 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
+        Args.StartTime         = [] % [2025 8 7 01 28 0] or 2025.3456
+        Args.TimeInterval      = 450  % [s] 
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
     end
     % arrange a local folder to store results 
@@ -23,7 +23,26 @@ function [Result] = unitTest(Args)
     if ~isfolder(Args.LocalPath)
         mkdir(Args.LocalPath);
     end
-    cd(Args.LocalPath);
+    % determine calib directory
+    if isempty(Args.CalibDir)
+        Args.CalibDir = regexprep(Args.RAWImageDir, '^(.*LAST\.\d{2}\.\d{2}\.\d{2}).*$', '$1/calib/');
+    end
+    % if an explicit start image is given, override Args.StartTime:
+    if isempty(Args.StartImage)
+        if isempty(Args.StartTime)
+            StartJD = 0;
+            EndJD   = Inf;
+        else
+            StartJD = celestial.time.date2jd(Args.StartTime);
+            EndJD   = StartJD + Args.TimeInterval/3600/24;
+        end
+    else
+        Tokens    = regexp(Args.StartImage, 'LAST\.\d+\.\d+\.\d+_(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})(\d{2})', 'tokens');
+        TimeParts = str2double(Tokens{1});
+        StartJD   = celestial.time.date2jd([TimeParts(1) TimeParts(2) TimeParts(3) TimeParts(4) TimeParts(5) TimeParts(6)-10]); 
+        EndJD     = StartJD + Args.TimeInterval/3600/24;    
+    end
+        
     % create the daemon and configure paths 
     D=pipeline.last.pipes.PipelineDemon;
     D.setPath(Args.LocalPath,...
@@ -35,10 +54,11 @@ function [Result] = unitTest(Args)
     D.LogPath = strcat(Args.LocalPath,'/','log/');
     % run the pipeline
     D.main('StopWhenDone',true,'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'},'StopButton',false,...
-        'StartJD', Args.StartJD, 'EndJD', Args.EndJD, ...
+        'StartJD', StartJD, 'EndJD', EndJD, ...
         'RegenCalib', Args.RegenCalib, ...
         'pipelineIArgs', {'UseParfor',true,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
         'MoveNew2Raw',false,...
         'DebugMode',true);
     % 
+    Result = 'Passed';
 end
