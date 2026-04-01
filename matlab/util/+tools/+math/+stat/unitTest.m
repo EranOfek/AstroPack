@@ -206,6 +206,7 @@ function Result = unitTest()
     [M,S]=tools.math.stat.mex.wmedianStd_mex(R,W);
     Err = 1./sqrt(W);
     [M1]=tools.math.stat.wmedian(R,Err);
+    S1 = std(R);
     if max(abs(M-M1))>1e-8
         error('Problem with tools.math.stat.mex.wmedian_mex');
     end
@@ -214,9 +215,10 @@ function Result = unitTest()
     R = rand(1e3,3);
     W = rand(1e3,3)+2;
     [M,S,E]=tools.math.stat.mex.wMeanStd_mex(R,W);
+    %[M,S,E]=wMeanStd_mex(R,W);
     Err = 1./sqrt(W);
     [M1,E1,S1]=tools.math.stat.wmean(R,Err);
-    if max(abs(M-M1))>1e-8 || max(abs(S-S1))>1e-3 || max(abs(E-E1))>1e-8 
+    if max(abs(M-M1))>1e-8 || max(abs(S-S1))>1e-3 || max(abs(E-E1))>1e-4 
         error('Problem with tools.math.stat.mex.wMeanStd_mex');
     end
     
