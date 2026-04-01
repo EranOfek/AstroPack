@@ -951,6 +951,8 @@ classdef AstroHeader < Component
             %            'CaseSens' - Default is true.
             %            'UseRegExp' - Use regexp (true) or strcmp (false).
             %                   Default is true.
+            %            'Algo' - Algorithm used. Default is 1.
+            %               If UseRefExp=true, then will revert to Algo=2.
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             %          deleteKey(H,{'EXPTIME','A','COMMENT'})
             %          deleteKey(H,{'EXPTIME','A','SKYSUB\d'}) % use regexp
@@ -958,28 +960,53 @@ classdef AstroHeader < Component
             arguments
                 Obj
                 ExactKeys
-                Args.CaseSens(1,1) logical    = true;
-                Args.UseRegExp(1,1) logical   = true;
+                Args.CaseSens                 = true;
+                Args.UseRegExp                = true;
+                Args.Algo                     = 1; % old
             end
-            
-            if ischar(ExactKeys)
-                ExactKeys = {ExactKeys};
+
+            if Args.UseRegExp
+                % revert to old algo:
+                Args.Algo = 2;
             end
-            Nkeys = numel(ExactKeys);
-            
-            searchFun = tools.string.stringSearchFun(Args.UseRegExp, Args.CaseSens);
-            
+
             Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                Nrow = size(Obj(Iobj).Data,1);
-                Flag = false(Nrow,1);
-                for Ikeys=1:1:Nkeys
-                    % in principle can use ismember (but no regexp)
-                    NewFlag = searchFun( Obj(Iobj).Data(:,Obj(Iobj).ColKey), ExactKeys{Ikeys});
-                    Flag = Flag | NewFlag(:);
+            
+            if Args.Algo==1
+                if Args.CaseSens
+                    for Iobj=1:1:Nobj
+                        FlagToRemove   = ismember(Obj(Iobj).Data(:,1), ExactKeys);
+                        Obj(Iobj).Data = Obj(Iobj).Data(~FlagToRemove,:);
+                    end
+                else
+                    % case insensetive
+                    for Iobj=1:1:Nobj
+                        FlagToRemove   = ismember(upper(Obj(Iobj).Data(:,1)), upper(ExactKeys));
+                        Obj(Iobj).Data = Obj(Iobj).Data(~FlagToRemove,:);
+                    end
                 end
-                % remove keywords
-                Obj(Iobj).Data = Obj(Iobj).Data(~Flag,:);
+            elseif Args.Algo==2
+                % old code
+                if ischar(ExactKeys)
+                    ExactKeys = {ExactKeys};
+                end
+    
+                Nkeys = numel(ExactKeys);
+                
+                searchFun = tools.string.stringSearchFun(Args.UseRegExp, Args.CaseSens);
+                
+                
+                for Iobj=1:1:Nobj
+                    Nrow = size(Obj(Iobj).Data,1);
+                    Flag = false(Nrow,1);
+                    for Ikeys=1:1:Nkeys
+                        % in principle can use ismember (but no regexp)
+                        NewFlag = searchFun( Obj(Iobj).Data(:,Obj(Iobj).ColKey), ExactKeys{Ikeys});
+                        Flag = Flag | NewFlag(:);
+                    end
+                    % remove keywords
+                    Obj(Iobj).Data = Obj(Iobj).Data(~Flag,:);
+                end
             end
                  
         end
