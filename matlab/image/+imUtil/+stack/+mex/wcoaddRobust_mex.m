@@ -39,5 +39,6 @@
 %             The flux scale of the coadd image is always 1 (in units of
 %             'F'). If ZP is used then the ZP is ZP0.
 %           - The coadd variance image (or scalar).
+%           - A matrix (single) of the number of used images per pixel.
 % Author : Eran Ofek (Mar 2026)
 % Example: [C, Cvar] = imUtil.stack.wcoaddRobust(Im, B, 'Var',V, F_k, ZP,ZP0,true,1,[3 3],3);

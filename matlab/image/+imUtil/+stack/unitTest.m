@@ -27,7 +27,7 @@ function Result=unitTest()
     
     [C, Cvar] = imUtil.stack.wcoaddRobust(Im, B, 'UseMex',false,'Var',V, 'F',F_k, 'ZP',ZP,'ZP0',ZP0,'RemoveMinMax',RemoveMinMax,'Niter',Niter,'SigmaClip',SigmaClip, 'StdMethod',StdMethod);
     Fs = squeeze(F_k);
-    [C1, Cvar1] = imUtil.stack.mex.wcoaddRobust_mex(Im, B, V, Fs, ZP, ZP0, RemoveMinMax, Niter, SigmaClip, StdMethod);
+    [C1, Cvar1, Ncoadd] = imUtil.stack.mex.wcoaddRobust_mex(Im, B, V, Fs, ZP, ZP0, RemoveMinMax, Niter, SigmaClip, StdMethod);
 
     if max(abs(C-C1),[],'all')>100.*eps || max(abs(Cvar-Cvar1),[],'all')>100.*eps
         error('Problem with imUtil.stack.wcoaddRobust');

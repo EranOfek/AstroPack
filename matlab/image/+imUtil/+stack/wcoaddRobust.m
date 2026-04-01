@@ -1,4 +1,4 @@
-function [Coadd, CoaddVar]=wcoaddRobust(Image, Back, Args)
+function [Coadd, CoaddVar, Ncoadd]=wcoaddRobust(Image, Back, Args)
     % weighted and robust coaddition of images
     %   The function performs weighted coaddition where the weights are
     %   (F/Var), and F is the flux zeri point and Var is the background
@@ -48,8 +48,11 @@ function [Coadd, CoaddVar]=wcoaddRobust(Image, Back, Args)
     %             The flux scale of the coadd image is always 1 (in units of
     %             'F'). If ZP is used then the ZP is ZP0.
     %           - The coadd variance image (or scalar).
+    %           - A matrix (single) of the number of used images per pixel.
+    %             This is available only when using 'UseMex'=true,
+    %             otherwise, will return [].
     % Author : Eran Ofek (Mar 2026)
-    % Example: [C, Cvar] = imUtil.stack.wcoaddRobust(Im, B, 'Var',V, 'F',F_k, 'ZP',ZP,'ZP0',ZP0,'RemoveMinMax',RemoveMinMax,'Niter',Niter,'SigmaClip',SigmaClip, 'StdMethod',StdMethod);
+    % Example: [C, Cvar,Ncoadd] = imUtil.stack.wcoaddRobust(Im, B, 'Var',V, 'F',F_k, 'ZP',ZP,'ZP0',ZP0,'RemoveMinMax',RemoveMinMax,'Niter',Niter,'SigmaClip',SigmaClip, 'StdMethod',StdMethod);
 
 
     arguments
@@ -67,7 +70,9 @@ function [Coadd, CoaddVar]=wcoaddRobust(Image, Back, Args)
     end
 
     if Args.UseMex
-        if nargout>1
+        if nargout==3
+            [Coadd, CoaddVar, Ncoadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
+        elseif nargout==2
             [Coadd, CoaddVar] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
         else
             [Coadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
@@ -212,6 +217,7 @@ function [Coadd, CoaddVar]=wcoaddRobust(Image, Back, Args)
             CoaddVar(SumW==0) = NaN;
         end
     end
+    Ncoadd = [];
 end
 
 
