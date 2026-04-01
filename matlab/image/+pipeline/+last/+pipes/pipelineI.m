@@ -152,6 +152,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         end
         %toc
     end
+    % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+    AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true);
+            
 
     % solve astrometry of all images
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
