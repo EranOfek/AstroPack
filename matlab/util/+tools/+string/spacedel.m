@@ -1,5 +1,6 @@
 function TrimStr=spacedel(Str,Numeric)
 % recursively delete all spaces from a string.
+%   Obsolete: use tools.string.removeChars instead.
 % Package: tools.string
 % Description: Given a string, recursively delete all spaces.
 % Input  : - A string, or a cell array of strings.

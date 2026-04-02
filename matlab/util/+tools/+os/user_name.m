@@ -15,12 +15,12 @@ function User=user_name
 
 if (isunix)
     [~,User] = system('echo $USER');
-    User     = tools.string.spacedel(User);
+    User     = tools.string.removeChars(User);
 end
 
 if (ismac)
     [~,User] = system('echo $USER');
-    User     = tools.string.spacedel(User);
+    User     = tools.string.removeChars(User);
 end
 
 User = regexprep(User,'[\b\t\n]','');

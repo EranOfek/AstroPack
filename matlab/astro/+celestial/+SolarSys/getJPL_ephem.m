@@ -310,7 +310,7 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
 
             ColNames = split(Tmp1{1},',');
             ColNames = ColNames(1:end-1);
-            ColNames = tools.string.spacedel(ColNames);
+            ColNames = tools.string.removeChars(ColNames);
             Ncol     = numel(ColNames);
 
             Tmp2 = regexp(Output.result, '\$\$SOE.+\$\$EOE','match');

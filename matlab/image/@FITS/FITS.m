@@ -148,7 +148,7 @@ classdef FITS < handle
                        end
 
                        if strcmpi(Card(KeyPos),'=') || strcmpi(Card(1:8),'CONTINUE') 
-                           HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
+                           HeadCell{Ikey,1}  = tools.string.removeChars(Card(1:KeyPos-1));
                            % Normally, the comment should start at column
                            %  32. However, Value may be a long string, and
                            %  the delimiting slash may be moved further.
