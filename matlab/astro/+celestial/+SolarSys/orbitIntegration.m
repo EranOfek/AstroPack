@@ -63,6 +63,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
             Method = 'ode45';
         end
         Method = 'ode45';
+        %Method = 'gaussjackson';
         %Method = 'rknmex';
         %Method = 'rkn1210';
         %Method = 'rkn1210v';
@@ -75,6 +76,19 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
 
                 X = FinalValues(1:3,:);
                 V = FinalValues(4:6,:);
+            case 'gaussjackson'
+                InitialValues = [X0;V0];
+            
+                [FinalTime, FinalXV, TimeVec, XVCube] = odeGaussJackson( ...
+                    @(T,XVmat) odeSecondOrderGJ(T, XVmat, Nobj, Args.INPOP, Args.TimeScale), ...
+                    JD, InitialValues, ...
+                    'Step', 0.01, ...
+                    'StoreAll', true, ...
+                    'CorrectorIters', 1);
+            
+                X = FinalXV(1:3,:);
+                V = FinalXV(4:6,:);    
+           
             case 'rkn86'
                 [Times, X, V] = tools.math.ode.rkn86(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
                                                        JD(1), JD(2), X0, V0, Args.RelTol);
@@ -159,6 +173,25 @@ function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
 
     DXVDt = DXVDt(:);
 end
+
+function Acc = odeSecondOrderGJ(T, XVmat, Nobj, ObjINPOP, TimeScale)
+    % Gauss-Jackson callback:
+    % input  XVmat : 6xNobj state matrix
+    % output Acc   : 3xNobj acceleration matrix
+
+    XVmat = reshape(XVmat, 6, Nobj);
+    X = XVmat(1:3,:);
+
+    if isempty(ObjINPOP)
+        Acc = celestial.SolarSys.ple_force(X, T, 'EqJ2000', true);
+    else
+        Acc = ObjINPOP.forceAll(T, X, ...
+            'IsEclipticOut', false, ...
+            'OutUnits', 'au', ...
+            'TimeScale', TimeScale);
+    end
+end
+
 
 function DXDt = odeSecondOrderVec(T,XVmat,Nobj, ObjINPOP, TimeScale)
     %

@@ -94,10 +94,6 @@ classdef INPOP < Base
         Tend
         Tmid
         IndVec
-        
-        EvalCache struct = struct( ...
-            'pos', struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Moo',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]), ...
-            'vel', struct('TT',[], 'Sun',[] ,'Mer',[], 'Ven',[], 'Ear',[], 'EMB',[], 'Moo',[], 'Lib',[], 'Mar',[], 'Jup',[], 'Sat',[], 'Ura',[], 'Nep',[], 'Plu',[]) );
     end
     
     
@@ -327,6 +323,7 @@ classdef INPOP < Base
                 Args.TimePeriod    = '100';   % '100' | '1000'
                 Args.FileData      = 'pos';
                 Args.MaxOrder      = Inf;
+                Args.IsTranspose   = false; % For future use
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
@@ -348,6 +345,10 @@ classdef INPOP < Base
                 Result = Result(:,1:2+Args.MaxOrder);
             end
             
+            if Args.IsTranspose
+                Result = Result.';
+            end
+
         end
         
         function convertAscii2mat(Args)
@@ -402,7 +403,7 @@ classdef INPOP < Base
                 FileName = 'inpop21a_TDB_m100_p100_asc_header.asc';
             end
             
-            FullFileName = sprintf('%s%s',INPOP.Location, FileName);
+            FullFileName = sprintf('%s%s',celestial.INPOP.Location, FileName);
             
             FID = fopen(FullFileName);
             if FID>0
@@ -455,7 +456,7 @@ classdef INPOP < Base
              end
             
             
-            Result = INPOP;
+            Result = celestial.INPOP;
             
             if IsPos
                 Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
@@ -506,75 +507,72 @@ classdef INPOP < Base
 
     end
     
-    methods  % aux/util functions   
-        function Cache = buildEvalCache(Obj, Table, Ncoo, MaxOrder)
-
-            arguments
-                Obj
-                Table
-                Ncoo (1,1) double = 3
-                MaxOrder (1,1) double = Inf
-            end
-        
-            ColDataStart = Obj.ColTend + 1;
-        
-            [Nrow, Ncol] = size(Table);
-            if mod(Nrow, Ncoo) ~= 0
-                error('Number of rows in table (%d) is not divisible by Ncoo=%d', Nrow, Ncoo);
-            end
-        
-            Nseg = Nrow ./ Ncoo;
-        
-            Norder = Ncol - ColDataStart + 1;
-            Norder = min(Norder, MaxOrder);
-            VecOrder = ColDataStart:(ColDataStart + Norder - 1);
-        
-            Tstart = Table(1:Ncoo:end, Obj.ColTstart);
-            Tend   = Table(1:Ncoo:end, Obj.ColTend);
-            Tmid   = 0.5 .* (Tstart + Tend);
-        
-            Cache = struct();
-            Cache.Tstart = Tstart;
-            Cache.Tend   = Tend;
-            Cache.Tmid   = Tmid;
-            Cache.Ncoo   = Ncoo;
-            Cache.Nseg   = Nseg;
-            Cache.Norder = Norder;
-        
-            switch Ncoo
-                case 1
-                    Cache.CoefT = Table(1:Ncoo:end, VecOrder).';
-                case 3
-                    Cache.CoefX = Table(1:3:end, VecOrder).';
-                    Cache.CoefY = Table(2:3:end, VecOrder).';
-                    Cache.CoefZ = Table(3:3:end, VecOrder).';
-                otherwise
-                    error('Unsupported Ncoo=%d', Ncoo);
-            end
-        end
-
-
-        
-
+    methods  % aux/util functions
         function Result = isPopulated(Obj, Object, FileData)
+            % Check if table for an object is populated with Chebyshev polynomials
+            % Input  : - A celestial.INPOP object.
+            %          - An object. Default is 'Ear'.
+            %          - FileData {'pos' | 'vel'}. Default is 'pos'.
+            % Output : - A logical indicating if the specific table is
+            %            populated.
+            % Author : Eran Ofek (May 2022)
+            % Example: IP.isPopulated
+            
             arguments
                 Obj
                 Object   = 'Ear';
                 FileData = 'pos';
             end
             
-            switch lower(FileData)
+            switch FileData
                 case 'pos'
-                    Result = ~isempty(Obj.PosTables.(Object)) || ~isempty(Obj.EvalCache.pos.(Object));
+                    Result = ~isempty(Obj.PosTables.(Object));
                 case 'vel'
-                    Result = ~isempty(Obj.VelTables.(Object)) || ~isempty(Obj.EvalCache.vel.(Object));
+                    Result = ~isempty(Obj.VelTables.(Object));
                 otherwise
                     error('Unknown FileData option - should be pos or vel');
             end
+            
         end
-                
+        
         function Obj = populateTables(Obj, Object, Args)
             % Populate pos/vel INPOP tables in the INPOP object.
+            %   In the INPOP object, the PosTables and VelTables contains
+            %   the pos/vel chebyshev coef. for each Solar System object.
+            %   This function read the tables from disk, in some time
+            %   range, and populate the PosTables or VelTables properties.
+            % Input  : - A single element celestial.INPOP object.
+            %          - Object name, or a cell array of object names for
+            %            which to populate the Postables/VelTables.
+            %            Possible strings: 'Sun', 'Mer',
+            %            'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura',
+            %            'Nep', 'Plu', 'Lib', and 'all'.
+            %          * ...,key,val,...
+            %            'TimeSpan' - Either '100', '1000' (years), or
+            %                   [MinJD MaxJD] vector of JD range.
+            %                   Default is '100'.
+            %            'OriginType' - File type from which to read
+            %                   tables. Default is 'ascii'.
+            %            'TimeScale' - Default is 'TDB'.
+            %            'Version' - Default is Obj.LatestVersion
+            %            'FileData' - Either ['pos'], or 'vel'. for
+            %                   positional and veocity data tables.
+            %            'FileType' - 'asc' | ['mat'].
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
+            %            'PopForce' - A logical indicating if to repopulate
+            %                   the table even if not empty.
+            %                   Default is false.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
+            % Output : - A celestial.INPOP object in which the PosTables or
+            %            VelTables are populated.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: I = celestial.INPOP;
+            %          I.populateTables;  % load 'pos' '100' years tables for Sun and Earth
+            %          I.populateTables('Mars','TimeSpan',[2451545 2451545+365]); % load data in some specific range for Mars
+            %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
             
             arguments
                 Obj
@@ -589,8 +587,7 @@ classdef INPOP < Base
                 Args.MaxOrder    = Inf;
             end
             
-            if ischar(Object) || (isstring(Object) && isscalar(Object))
-                Object = char(Object);
+            if ischar(Object)
                 switch lower(Object)
                     case 'all'
                         Object = {'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar', 'Jup', 'Sat', 'Ura', 'Nep', 'Plu', 'Lib'};
@@ -602,10 +599,10 @@ classdef INPOP < Base
             if isnumeric(Args.TimeSpan)
                 MinJD = min(Args.TimeSpan(:));
                 MaxJD = max(Args.TimeSpan(:));
-                if MinJD < Obj.RangeShort(1) || MaxJD > Obj.RangeShort(2)
+                if MinJD<Obj.RangeShort(1) || MaxJD>Obj.RangeShort(2)
                     TimePeriod = '1000';
                 else
-                    TimePeriod = '100';
+                    TimePeriod =  '100';
                 end
             else
                 TimePeriod = Args.TimeSpan;
@@ -613,65 +610,53 @@ classdef INPOP < Base
                 MaxJD = Inf;
             end
             
-            switch lower(Args.FileData)
-                case 'pos'
-                    TableStructName = 'PosTables';
-                    CacheStructName = 'pos';
-                case 'vel'
-                    TableStructName = 'VelTables';
-                    CacheStructName = 'vel';
-                otherwise
-                    error('Unknown FileData option');
-            end
-            
             Nobject = numel(Object);
-            for Iobject = 1:Nobject
-                ObjName = Object{Iobject};
-                
+            for Iobject=1:1:Nobject
+                % read data
                 switch lower(Args.OriginType)
                     case 'ascii'
-                        if ~Obj.isPopulated(ObjName, Args.FileData) || Args.PopForce
-                            Table = celestial.INPOP.loadINPOP( ...
-                                'TimeScale', Args.TimeScale, ...
-                                'Object', ObjName, ...
-                                'Version', Args.Version, ...
-                                'TimePeriod', TimePeriod, ...
-                                'FileData', Args.FileData, ...
-                                'FileType', Args.FileType, ...
-                                'MaxOrder', Args.MaxOrder);
+                        if ~Obj.isPopulated(Object{Iobject}, Args.FileData) || Args.PopForce
+                            Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+                                                          'Object',Object{Iobject},...
+                                                          'Version',Args.Version,...
+                                                          'TimePeriod',TimePeriod,...
+                                                          'FileData',Args.FileData,...
+                                                          'FileType',Args.FileType,...
+                                                          'MaxOrder',Args.MaxOrder);
                         else
                             Table = [];
                         end
+
                     otherwise
                         error('Unknown OriginType option');
                 end
-                
+
                 if ~isempty(Table)
-                    % Keep segments that overlap requested range
-                    Flag  = Table(:, Obj.ColTend) >= MinJD & Table(:, Obj.ColTstart) <= MaxJD;
-                    Table = Table(Flag, :);
-                    
-                    Obj.(TableStructName).(ObjName) = Table;
-                    
-                    if strcmpi(ObjName, 'TT')
-                        Ncoo = 1;
-                    else
-                        Ncoo = 3;
+                    % select data in some time range
+                    Flag  = Table(:,Obj.ColTstart)>=MinJD & Table(:,Obj.ColTend)<=MaxJD;
+                    Table = Table(Flag,:);
+
+                    % store data
+                    switch lower(Args.FileData)
+                        case 'pos'
+                            Obj.PosTables.(Object{Iobject}) = Table;
+                            
+                            Obj.Tstart.(Object{Iobject}) = Obj.PosTables.(Object{Iobject})(1:3:end, Obj.ColTstart);
+                            Obj.Tend.(Object{Iobject})   = Obj.PosTables.(Object{Iobject})(1:3:end, Obj.ColTend);
+                            Obj.Tmid.(Object{Iobject})   = 0.5.*(Obj.Tstart.(Object{Iobject}) + Obj.Tend.(Object{Iobject}));
+                            
+                        case 'vel'
+                            Obj.VelTables.(Object{Iobject}) = Table;
+                        otherwise
+                            error('Unknown FileData option');
                     end
                     
-                    Cache = Obj.buildEvalCache(Table, Ncoo, Args.MaxOrder);
-                    Obj.EvalCache.(CacheStructName).(ObjName) = Cache;
-                    
-                    % Keep legacy fields for compatibility if position table
-                    if strcmpi(Args.FileData, 'pos')
-                        Obj.Tstart.(ObjName) = Cache.Tstart;
-                        Obj.Tend.(ObjName)   = Cache.Tend;
-                        Obj.Tmid.(ObjName)   = Cache.Tmid;
-                    end
                 end
+                
             end
+            
         end
-    
+        
         function Obj = populateAll(Obj, Args)
             % Populate all INPOP tables
             %   In the INPOP object, the PosTables and VelTables contains
@@ -698,9 +683,9 @@ classdef INPOP < Base
             % Example: I = celestial.INPOP;
             %          I.populateAll;
             
-            arguments
+             arguments
                 Obj
-                Args.TimeSpan    = '100';
+                Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
                 Args.OriginType  = 'ascii';
                 Args.TimeScale   = 'TDB';
                 Args.Version     = Obj.LatestVersion;
@@ -708,23 +693,19 @@ classdef INPOP < Base
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
                 Args.MaxOrder    = Inf;
-            end
-            
-            Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, ...
-                                      'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType, ...
-                                      'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
-            Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, ...
-                                      'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType, ...
-                                      'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
-            Obj.populateTables('TT',  'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, ...
-                                      'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType, ...
-                                      'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             end
+             
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('TT');
         end
-
     end
     
     methods % ephemeris evaluation
-
         function Pos = getPos(Obj, Object, JD, Args)
             % Get INPOP planetary positions (or velocities or time) by evaluation of the chebyshev polynomials.
             %   This function can get the [X,Y,Z] Barycentric position [km]
@@ -748,8 +729,6 @@ classdef INPOP < Base
             %            Default is 2451545.
             %          * ...,key,val,...
             %            'TimeScale' - The JD time scale. Default is 'TDB'.
-            %                   Currently other time scales are not
-            %                   supported. Use getTT to convert TT to TDB.
             %            'OutUnits'  - 'km','cm','au',... for velocity this
             %                   is always, the same per day.
             %                   Default is 'au'.
@@ -785,7 +764,6 @@ classdef INPOP < Base
             %          Vel = I.getVel('Ear',JD);
             %          max(abs(Coo(2,:).*constant.au./1e5 - Pos(2,:)))
 
-
             arguments
                 Obj(1,1)
                 Object               = 'Ear';
@@ -795,135 +773,116 @@ classdef INPOP < Base
                 Args.OutUnits        = 'au';
                 Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
-                Args.Ncoo            = 3;   % 3 for xyz, 1 for TT
+                Args.Ncoo            = 3;  % internal argument used to evaluate pos/vel (=3) or time (=1)
                 Args.MaxOrder        = Inf;
             end
             
             if Args.IsPos
-                CacheStructName = 'pos';
-                TableName       = 'PosTables';
+                TableName = 'PosTables';
             else
-                CacheStructName = 'vel';
-                TableName       = 'VelTables';
+                % velocity
+                TableName = 'VelTables';
             end
             
-            if Args.Ncoo == 1
-                % TT-TDB is stored in seconds; leave native units untouched
+            if Args.Ncoo==1
+                % override to original ynits [s]
                 Args.OutUnits = 'km';
             end
             
-            if min(size(JD)) > 1
+            ColDataStart = 3;
+            
+            if min(size(JD))>1
+                % assume input is rows of dats [Day, Mount, Year, H M S]
                 JD = celestial.time.julday(JD);
             else
                 JD = JD(:);
             end
             Njd = numel(JD);
             
-            Cache = Obj.EvalCache.(CacheStructName).(Object);
-            if isempty(Cache)
-                if isempty(Obj.(TableName).(Object))
-                    error('%s table for object %s is not loaded - use populateTables to load table', TableName, Object);
-                end
+            [Nrow, Ncol] = size(Obj.(TableName).(Object));
+            % transposed matrix
+            %[Ncol, Nrow] = size(Obj.(TableName).(Object));
+            if mod(Nrow,3)~=0
+                error('Number of entries in table is not divided by 3');
+            end
+            
+            if isempty(Obj.(TableName).(Object))
+                error('%s table for object %s is not loaded - use populateTables to load table', TableName, Object);
+            end
+            
+            if Args.Ncoo==3
+                Tstart = Obj.Tstart.(Object);
+                Tend   = Obj.Tend.(Object);
+                Tmid   = Obj.Tmid.(Object);
+            else
+                Tstart = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTstart);
+                % transposed matrix
+                %Tstart = Obj.(TableName).(Object)(Obj.ColTstart, 1:Args.Ncoo:end);
+                Tend   = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTend);
+                % transposed matrix
+                %Tend   = Obj.(TableName).(Object)(Obj.ColTend, 1:Args.Ncoo:end);
+                Tmid   = (Tstart + Tend).*0.5;
+            end
+            
+            
+            
+            Tstep  = Tmid(2) - Tmid(1);
+            Thstep = Tstep.*0.5;
+            
+            % find the index of time for X-axis only
+            IndVec       = (1:Nrow./Args.Ncoo).';
+            % The index of the JD is measured in the Tmid vector and not in
+            % the XYZ coef. table...
+            %IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            IndJD        = ceil((JD - Tstart(1))./Tstep);
+            %ChebyOrder   = Ncol - Obj.ColTend;
+            
+            
+            Norder = Ncol - ColDataStart + 1;
+            Norder = min(Norder, Args.MaxOrder);
+            VecOrder = (ColDataStart:1:(ColDataStart+Norder-1));
+            
+            Pos   = zeros(Args.Ncoo, Njd);
+            JDTmid = (JD - Tmid(IndJD))./Thstep;
+            for Icoo=1:1:Args.Ncoo
+                % need to do for each coordinate
                 
-                % Fallback build cache on demand
-                if strcmpi(Object, 'TT')
-                    NcooFallback = 1;
-                else
-                    NcooFallback = Args.Ncoo;
-                end
-                Cache = Obj.buildEvalCache(Obj.(TableName).(Object), NcooFallback, Args.MaxOrder);
-                Obj.EvalCache.(CacheStructName).(Object) = Cache;
-            end
-            
-            if Cache.Ncoo ~= Args.Ncoo
-                error('Cached Ncoo (%d) does not match requested Ncoo (%d) for object %s', Cache.Ncoo, Args.Ncoo, Object);
-            end
-            
-            Tstart = Cache.Tstart;
-            Tend   = Cache.Tend;
-            Tmid   = Cache.Tmid;
-            Nseg   = Cache.Nseg;
-            
-            if Nseg < 1
-                error('Empty cache for object %s', Object);
-            end
-            
-            if any(JD < Tstart(1) | JD > Tend(end))
-                error('Requested JD is outside loaded ephemeris range');
-            end
-            
-            if Nseg > 1
-                Tstep = Tmid(2) - Tmid(1);
-            else
-                Tstep = Tend(1) - Tstart(1);
-            end
-            Thstep = 0.5 .* Tstep;
-            
-            IndJD = floor((JD - Tstart(1)) ./ Tstep) + 1;
-            IndJD = max(1, min(IndJD, Nseg));
-            
-            % Safety correction near boundaries / roundoff:
-            TooLow  = JD < Tstart(IndJD);
-            TooHigh = JD > Tend(IndJD);
-            IndJD(TooLow)  = max(IndJD(TooLow) - 1, 1);
-            IndJD(TooHigh) = min(IndJD(TooHigh) + 1, Nseg);
-            
-            JDTmid = (JD - Tmid(IndJD)) ./ Thstep;
-            
-            Norder = min(Cache.Norder, Args.MaxOrder);
-            ChebyEval = Obj.ChebyFun{Norder}(JDTmid);     % [Njd, Norder]
-            Tcheb     = ChebyEval(:, 1:Norder).';         % [Norder, Njd]
-            
+                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, VecOrder); %ColDataStart:end);
+                % with transposed matrix
+                %ChebyCoef    = Obj.(TableName).(Object)(VecOrder, IndJD.*Args.Ncoo+Icoo-Args.Ncoo);
 
-            Pos = zeros(Args.Ncoo, Njd);
+                % maybe need to divide by half time span
+                %ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                
+                %TTmid = ((JD - Tmid(IndJD))./Thstep);
+                %ChebyEval    = Obj.ChebyFun{Norder}(TTmid);
+                %ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
+                ChebyEval    = Obj.ChebyFun{Norder}(JDTmid);
+                
+                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);
+                % transposed matrix
+                %Pos(Icoo,:)  = sum(ChebyCoef.*(ChebyEval(:,1:Norder).'),1);
 
-            if Norder == Cache.Norder
-                if Args.Ncoo == 1
-                    CoefSel = Cache.CoefT(:, IndJD);
-                    Pos = sum(CoefSel .* Tcheb, 1);
-                else
-                    CoefSel = Cache.CoefX(:, IndJD);
-                    Pos(1,:) = sum(CoefSel .* Tcheb, 1);
-            
-                    CoefSel = Cache.CoefY(:, IndJD);
-                    Pos(2,:) = sum(CoefSel .* Tcheb, 1);
-            
-                    CoefSel = Cache.CoefZ(:, IndJD);
-                    Pos(3,:) = sum(CoefSel .* Tcheb, 1);
-                end
-            else
-                if Args.Ncoo == 1
-                    CoefSel = Cache.CoefT(1:Norder, IndJD);
-                    Pos = sum(CoefSel .* Tcheb, 1);
-                else
-                    CoefSel = Cache.CoefX(1:Norder, IndJD);
-                    Pos(1,:) = sum(CoefSel .* Tcheb, 1);
-            
-                    CoefSel = Cache.CoefY(1:Norder, IndJD);
-                    Pos(2,:) = sum(CoefSel .* Tcheb, 1);
-            
-                    CoefSel = Cache.CoefZ(1:Norder, IndJD);
-                    Pos(3,:) = sum(CoefSel .* Tcheb, 1);
-                end
             end
-
             
             switch lower(Args.OutUnits)
                 case 'au'
-                    Pos = Pos .* (1 ./ Obj.Constant.AU);
+                    % au or au/day
+                    Pos = Pos .* (1./Obj.Constant.AU);
                 case 'km'
-                    % native units
+                    % do nothing [km, or km/day]
                 case 'cm'
-                    Pos = Pos .* 1e5;
+                    % cm or cm/day
+                    Pos = Pos.*1e5;
                 otherwise
                     error('Unknown OutUnits option');
             end
             
-            if Args.IsEclipticOut && Args.Ncoo == 3
+            if Args.IsEclipticOut
                 Pos = celestial.INPOP.eqJ2000_2ecliptic(Pos);
             end
         end
-
+        
         function Vel = getVel(Obj, Object, JD, Args)
             % Get INPOP planetary velocities by evaluation of the chebyshev polynomials.
             %   This function can get the [X,Y,Z] Barycentric velocities [km]
@@ -965,7 +924,7 @@ classdef INPOP < Base
             %          I.populateTables('Ear','FileData','vel')
             %          Vel = I.getVel
             
-           arguments
+            arguments
                 Obj(1,1)
                 Object               = 'Ear';
                 JD                   = 2451545;
@@ -973,15 +932,11 @@ classdef INPOP < Base
                 Args.OutUnits        = 'au';
                 Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
+               
             end
             
-            Vel = Obj.getPos(Object, JD, ...
-                                'IsPos', false, ...
-                                'OutUnits', Args.OutUnits, ...
-                                'Algo', Args.Algo, ...
-                                'TimeScale', Args.TimeScale, ...
-                                'IsEclipticOut', Args.IsEclipticOut);
-                                
+            Vel = Obj.getPos(Object, JD, 'IsPos',false, 'OutUnits',Args.OutUnits, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+
         end
         
         function TT = getTT(Obj, JD, Args)
@@ -1014,13 +969,8 @@ classdef INPOP < Base
                 Args.TimeScale       = 'TDB';
                 Args.Algo            = 1;
             end
-             TT = Obj.getPos('TT', JD, ...
-                            'IsPos', true, ...
-                            'OutUnits', 'km', ...
-                            'Ncoo', 1, ...
-                            'Algo', Args.Algo, ...
-                            'TimeScale', Args.TimeScale);
-
+            
+            TT = Obj.getPos('TT',JD, 'IsPos',true, 'OutUnits','km', 'Ncoo',1, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale);
 
         end
     
@@ -1124,8 +1074,6 @@ classdef INPOP < Base
             %            'Bodies' - List of bodies to include in the force
             %                   calaculations. Default is 
             %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
-            %                   Don't change this, unless you understand
-            %                   what you are doing.
             %            'GM' - A vector pg G*M for the objects specified
             %                   in bodies. If empty, then will use INPOP constants
             %                   for the default bodies.
@@ -1134,7 +1082,6 @@ classdef INPOP < Base
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
             %                   Default is {}.
-            %            'IncludeSunForce' - Default is true.
             % Output : - The force that acts on the list of targets at the
             %            give times.
             %          - The force derivative (per day).
@@ -1155,12 +1102,35 @@ classdef INPOP < Base
                 Args.GM                    = [];
                 %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
                 Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
-                %Args.RefFrameBary          = true;
-                Args.IncludeSunForce       = true;
+                
             end
             Permute  = [1 3 2];
             
-           
+            % Old version
+            %SEC_DAY  = 86400;
+            %Msun   = 1.98847e33;  % [gram]
+            %G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
+            %Args.Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
+            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
+            %Mass   = Mass./Msun;   % [Msun]
+            %Args.GM     = G .* Mass;
+            
+            % use constants from INPOP:
+            %Args.Bodies = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %         Sun       Mer         Ven         EMB        Mar         Jup         Sat         Ura        Nep         Plu
+            %GM     = [00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+            
+            %     GM_Mer: 4.9125e-11
+            %     GM_Ven: 7.2435e-10
+            %     GM_EMB: 8.997e-10
+            %     GM_Mar: 9.5495e-11
+            %     GM_Jup: 2.8253e-07
+            %     GM_Sat: 8.4597e-08
+            %     GM_Ura: 1.292e-08
+            %     GM_Nep: 1.5244e-08
+            %     GM_Plu: 2.1668e-12
+            %     GM_Sun: 0.00029591
 
             if isempty(Args.GM)
                 Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep]; %, Obj.Constant.GM_Plu];
@@ -1186,22 +1156,6 @@ classdef INPOP < Base
                                          'Bodies',Args.Bodies,...
                                          'Permute',Permute);
             end
-
-            % if ~Args.RefFrameBary
-            %     % convert to Heliocentric reference frame:
-            %     Pos = Pos - Pos(:,1);
-            %     if nargout>1
-            %         Vel = Vel - Vel(:,1);
-            %     end
-            % end
-            if ~Args.IncludeSunForce
-                Pos = Pos(:,2:end);
-                Args.GM = Args.GM(2:end);
-                if nargout>1
-                    Vel = Vel(:,2:end);
-                end
-            end
-
             % Calculate the force on Target at position TargetXYZ
             
             Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets
@@ -1226,199 +1180,6 @@ classdef INPOP < Base
             end
             
         end
-
-
-        function [Force, DFDT] = forceAllHelio(Obj, JD, TargetXYZ, Args)
-            % Calculate the heliocentric force on Solar System objects.
-            %
-            % This version is similar in structure to forceAll, but assumes the
-            % target coordinates are heliocentric and returns the force in the
-            % heliocentric frame, including the indirect term.
-            %
-            % Input  : - A populated INPOP object (both Pos and Vel should
-            %            be populated).
-            %          - A vector of JD.
-            %          - A 3xN matrix with heliocentric target coordinates
-            %            (target per column).
-            %          * ...,key,val,...
-            %            'TimeScale' - The JD time scale. Default is 'TDB'.
-            %            'OutUnits'  - 'km','cm','au',... for velocity this
-            %                   is always the same per day.
-            %                   Default is 'au'.
-            %            'IsEclipticOut' - If true output is in ecliptic coords.
-            %                   Default is false.
-            %            'Bodies' - List of bodies to include in the force
-            %                   calculations. Default is
-            %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep'}
-            %            'GM' - Vector of G*M for the specified bodies.
-            %                   If empty, use INPOP constants.
-            %            'Exclude' - Bodies to exclude.
-            %                   Default is {}.
-            %            'IncludeSunForce' - Include direct solar term.
-            %                   Default is true.
-            %
-            % Output : - The heliocentric force acting on the targets at the
-            %            given times.
-            %          - The force derivative (not implemented).
-            %
-            % Notes  :
-            %   1) TargetXYZ must be heliocentric.
-            %   2) Planet positions are obtained barycentrically and then converted
-            %      internally to heliocentric positions.
-            %   3) For planets, the returned heliocentric perturbation includes
-            %      the indirect term.
-            %
-            % Author : ChatGPT, based on Eran Ofek's forceAll structure.
-        
-            arguments
-                Obj
-                JD
-                TargetXYZ
-                Args.TimeScale             = 'TDB'
-                Args.OutUnits              = 'au'
-                Args.IsEclipticOut logical = false
-                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep'}
-                Args.GM                    = []
-                Args.Exclude               = {}
-                Args.IncludeSunForce       = true
-            end
-        
-            Permute = [1 3 2];
-        
-            if isempty(Args.GM)
-                Args.GM = [Obj.Constant.GM_Sun, ...
-                           Obj.Constant.GM_Mer, ...
-                           Obj.Constant.GM_Ven, ...
-                           Obj.Constant.GM_EMB, ...
-                           Obj.Constant.GM_Mar, ...
-                           Obj.Constant.GM_Jup, ...
-                           Obj.Constant.GM_Sat, ...
-                           Obj.Constant.GM_Ura, ...
-                           Obj.Constant.GM_Nep];
-            end
-        
-            if ~isempty(Args.Exclude)
-                [Args.Bodies, IndBodies] = setdiff(Args.Bodies, Args.Exclude, 'stable');
-                Args.GM = Args.GM(IndBodies);
-            end
-        
-            %-----------------------------------------
-            % Input size handling
-            %-----------------------------------------
-            if size(TargetXYZ,1) ~= 3
-                error('TargetXYZ must be a 3xN matrix of heliocentric positions.');
-            end
-        
-            Njd = size(TargetXYZ,2);
-        
-            if isscalar(JD)
-                JD = repmat(JD, 1, Njd);
-            end
-        
-            if numel(JD) ~= Njd
-                error('JD must be scalar or have one element per target column.');
-            end
-        
-            %-----------------------------------------
-            % Get barycentric positions of requested bodies
-            %-----------------------------------------
-            if nargout > 1
-                [Pos, Vel] = getAll(Obj, JD, ...
-                             'TimeScale', Args.TimeScale, ...
-                             'OutUnits', Args.OutUnits, ...
-                             'IsEclipticOut', Args.IsEclipticOut, ...
-                             'Bodies', Args.Bodies, ...
-                             'Permute', Permute);
-            else
-                Pos = getAll(Obj, JD, ...
-                             'TimeScale', Args.TimeScale, ...
-                             'OutUnits', Args.OutUnits, ...
-                             'IsEclipticOut', Args.IsEclipticOut, ...
-                             'Bodies', Args.Bodies, ...
-                             'Permute', Permute);
-            end
-        
-            %-----------------------------------------
-            % Convert all body positions to heliocentric
-            % Assume Sun is first body if present
-            %-----------------------------------------
-            HasSun = ~isempty(Args.Bodies) && strcmpi(Args.Bodies{1}, 'Sun');
-        
-            if HasSun
-                PosSun = Pos(:,1,:);                % 3x1xN
-                PosHelio = Pos - PosSun;            % 3xNbodiesxN
-        
-                if nargout > 1
-                    VelSun = Vel(:,1,:);
-                    VelHelio = Vel - VelSun;
-                end
-            else
-                % If Sun is not included in Bodies, caller must know what they're doing.
-                % In this case, positions are assumed already heliocentric-relative
-                % only if that makes sense; otherwise this is not a standard use case.
-                PosHelio = Pos;
-                if nargout > 1
-                    VelHelio = Vel;
-                end
-            end
-        
-            %-----------------------------------------
-            % Initialize output
-            %-----------------------------------------
-            Force = zeros(3, Njd, 'like', TargetXYZ);
-        
-            %-----------------------------------------
-            % Direct solar term
-            %-----------------------------------------
-            if Args.IncludeSunForce
-                if HasSun
-                    GM_Sun = Args.GM(1);
-                else
-                    error('IncludeSunForce=true requires Sun to be included as the first body.');
-                end
-        
-                R2 = sum(TargetXYZ.^2, 1);
-                R = sqrt(R2);
-                Force = Force - GM_Sun .* TargetXYZ ./ (R.^3);
-            end
-        
-            %-----------------------------------------
-            % Planetary terms in heliocentric frame:
-            %   direct  : (rp - r)/|rp-r|^3
-            %   indirect: - rp/|rp|^3
-            %-----------------------------------------
-            if HasSun
-                IndStart = 2;
-            else
-                IndStart = 1;
-            end
-        
-            if IndStart <= numel(Args.GM)
-                PosPl = PosHelio(:, IndStart:end, :);     % 3xNplxN
-                GMPl  = Args.GM(IndStart:end);
-        
-                % direct term
-                PosRelToTarget = PosPl - reshape(TargetXYZ, [3, 1, Njd]);
-                DistToTarget = sqrt(sum(PosRelToTarget.^2, 1));
-        
-                % indirect term
-                DistPlanet = sqrt(sum(PosPl.^2, 1));
-        
-                GM3 = reshape(GMPl, [1, numel(GMPl), 1]);
-        
-                Force = Force + squeeze(sum( ...
-                            GM3 .* ( PosRelToTarget ./ (DistToTarget.^3) ...
-                                   - PosPl ./ (DistPlanet.^3) ), ...
-                            2, 'omitnan'));
-            end
-        
-            if nargout > 1
-                error('Not yet available - need also TargetV');
-                %#ok<UNRCH>
-                DFDT = [];
-            end
-        end
-
         
         function Result = compare2JPL(Obj, Args)
             % Compare INPOP to JPL horizons ephemeris
