@@ -1058,6 +1058,8 @@ classdef INPOP < Base
             %            'Bodies' - List of bodies to include in the force
             %                   calaculations. Default is 
             %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %                   Don't change this, unless you understand
+            %                   what you are doing.
             %            'GM' - A vector pg G*M for the objects specified
             %                   in bodies. If empty, then will use INPOP constants
             %                   for the default bodies.
@@ -1066,6 +1068,11 @@ classdef INPOP < Base
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
             %                   Default is {}.
+            %            'RefFrameBary' - True if reference frame is
+            %                   barycentric.
+            %                   False for heliocentric.
+            %                   Default is true.
+            %            'IncludeSunForce' - Default is true.
             % Output : - The force that acts on the list of targets at the
             %            give times.
             %          - The force derivative (per day).
@@ -1086,35 +1093,12 @@ classdef INPOP < Base
                 Args.GM                    = [];
                 %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
                 Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
-                
+                Args.RefFrameBary          = true;
+                Args.IncludeSunForce       = true;
             end
             Permute  = [1 3 2];
             
-            % Old version
-            %SEC_DAY  = 86400;
-            %Msun   = 1.98847e33;  % [gram]
-            %G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
-            %Args.Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
-            %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
-            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
-            %Mass   = Mass./Msun;   % [Msun]
-            %Args.GM     = G .* Mass;
-            
-            % use constants from INPOP:
-            %Args.Bodies = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
-            %         Sun       Mer         Ven         EMB        Mar         Jup         Sat         Ura        Nep         Plu
-            %GM     = [00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
-            
-            %     GM_Mer: 4.9125e-11
-            %     GM_Ven: 7.2435e-10
-            %     GM_EMB: 8.997e-10
-            %     GM_Mar: 9.5495e-11
-            %     GM_Jup: 2.8253e-07
-            %     GM_Sat: 8.4597e-08
-            %     GM_Ura: 1.292e-08
-            %     GM_Nep: 1.5244e-08
-            %     GM_Plu: 2.1668e-12
-            %     GM_Sun: 0.00029591
+           
 
             if isempty(Args.GM)
                 Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep]; %, Obj.Constant.GM_Plu];
@@ -1140,6 +1124,21 @@ classdef INPOP < Base
                                          'Bodies',Args.Bodies,...
                                          'Permute',Permute);
             end
+
+            if ~Args.RefFrameBary
+                % convert to Heliocentric reference frame:
+                Pos = Pos - Pos(:,1);
+                if nargout>1
+                    Vel = Vel - Vel(:,1);
+                end
+            end
+            if ~Args.IncludeSunForce
+                Pos = Pos(:,2:end);
+                if nargout>1
+                    Vel = Vel(:,2:end);
+                end
+            end
+
             % Calculate the force on Target at position TargetXYZ
             
             Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets

@@ -45,7 +45,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         V0
         Args.RelTol     = 1e-10; 
         Args.AbsTol     = 1e-10;
-        Args.INPOP      = [];   % if empty use celestial.SolarSys.ple_force
+        Args.INPOP      = celestial.INPOP.init;   % if empty use celestial.SolarSys.ple_force
         Args.TimeScale  = 'TDB';
         %Args.RefFrame   = 'eq';
     end
@@ -65,7 +65,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         Method = 'ode45';
         %Method = 'rknmex';
         %Method = 'rkn1210';
-        %Method = 'rkn1210vec';
+        %Method = 'rkn1210v';
         %Method = 'rkn86';
         switch Method
             case 'ode45'
@@ -80,9 +80,9 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
                                                        JD(1), JD(2), X0, V0, Args.RelTol);
                 X = X(end,:).';
                 V = V(end,:).';
-             case 'rkn1210vec'
+            case 'rkn1210v'
 
-                [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrderVec(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                [Times, X, V] = tools.math.ode.rkn1210v(@(T,XVmat) odeSecondOrderVec(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
                                                         [JD(1), JD(2)], X0, V0, Opts);
 
                 % Here we have a problem:
