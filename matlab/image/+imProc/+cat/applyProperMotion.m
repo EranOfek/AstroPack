@@ -39,13 +39,13 @@ function Result = applyProperMotion(Obj, EpochIn, EpochOut, Args)
         Args.ColEpochIn            = {'Epoch'};
         Args.EpochInUnits          = 'jd';
         Args.EpochOutUnits         = 'jd';
-        Args.ApplyPlx(1,1) logical = false;
-        Args.ColRA cell            = Obj(1).DefNamesRA;
-        Args.ColDec cell           = Obj(1).DefNamesDec;
-        Args.ColPM_RA cell         = Obj(1).DefNamesPMRA;
-        Args.ColPM_Dec cell        = Obj(1).DefNamesPMDec;
-        Args.ColRV cell            = Obj(1).DefNamesRV;
-        Args.ColPlx cell           = Obj(1).DefNamesPlx;
+        Args.ApplyPlx logical      = false;
+        Args.ColRA                 = Obj(1).DefNamesRA;
+        Args.ColDec                = Obj(1).DefNamesDec;
+        Args.ColPM_RA              = Obj(1).DefNamesPMRA;
+        Args.ColPM_Dec             = Obj(1).DefNamesPMDec;
+        Args.ColRV                 = Obj(1).DefNamesRV;
+        Args.ColPlx                = Obj(1).DefNamesPlx;
         Args.CreateNewObj logical  = false;
     end
     
