@@ -15,6 +15,7 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     %          'PositivePSF' - logical, whether to improve the PSF wings (edges)
     %          'FunEdge'     - a handle of a 2D function used to impove the edges 
     %          'FunEdgePars' - parameters of 'FunEdge'
+    %          'EmptyPSFsize' - size of the output empty PSF for the case when an empty PSF was given at input 
     % Output : - a cube / cell array of shifted, rescaled and fluxed PSF stamps
     %          - a 2-column (X, Y) table of whole pixel injection positions
     % Author : A.M. Krassilchtchikov (2024 May) 
@@ -36,13 +37,20 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
         Args.PositivePSF logical = false;
         Args.FunEdge             = @imUtil.kernel2.cosbell;
         Args.FunEdgePars         = [4 6];
+        Args.EmptyPSFsize        = [25 25];
     end
         
-    Nsrc = size(X1Y1,1);           % the number of input sources
+    Nsrc = size(X1Y1,1);           % get the number of input sources
     
     % whole pixel coordinates and subpixel shifts 
     XY      = max(round(X1Y1), 1); % the rounding should not produce 0
     XYshift = X1Y1 - XY; 
+    
+    % if the input PSF is empty, give an empty cube 
+    if isempty(PSF0)
+        CubePSF = zeros([Args.EmptyPSFsize 0]);
+        return
+    end
     
     % check the number of input flux values 
     if numel(Flux) == 1 
