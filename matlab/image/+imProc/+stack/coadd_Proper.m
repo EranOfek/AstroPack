@@ -1,18 +1,19 @@
-function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
-    % Weighted/robust coaddition of registeed images stored in AstroImage object.
-    %   The function works on regsitered images (e.g., using
+function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
+    % Proper coaddition (Zackay & Ofek 2017) of registered images stored in AstroImage object.
+    %   The function works on registered images (e.g., using
     %   imProc.transIm.register).
-    %   It coadd the images using the imUtil.stack.wcoaddRobust function
-    %   that include min/max rejection and sigma clipping using several
-    %   methods. The header is updated.
+    %   It coadds the images using the imUtil.properCoadd.combine_proper
+    %   function, using the image cube, variance information, flux matching
+    %   factors, and the PSF cube. The header is updated.
     % Input  : - An AstroImage/AstroZOGY/AstroDiff object.
-    %          * ...,key,val,... 
+    %          * ...,key,val,...
     %            'SubBack' - Subtract background prior to coaddition.
     %                   Default is true.
     %            'BackArgs' - A cell array of additional input arguments to
     %                   pass to the imProc.background.backVar function.
     %                   This function will be used if the Back property is
-    %                   not populated.
+    %                   not populated, and also for background estimation of
+    %                   the coadded image when 'AddBack' is true.
     %            'ScalarVar' - Logical indicating if to replace the
     %                   variance image of each input image by a scalar
     %                   variance estimated from the mean variance over the
@@ -27,24 +28,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     %                   Default is [].
     %            'ZP0' - Reference zero point to which all images are
     %                   scaled when 'ZP' is provided. Default is 25.
-    %            'RemoveMinMax' - Remove minimum and maximum values in each
-    %                   pixel stack prior to sigma clipping/coaddition.
-    %                   Default is true.
-    %            'Niter' - Number of sigma-clipping iterations.
-    %                   Default is 1.
-    %            'SigmaClip' - Two-element vector of [Low High] sigma
-    %                   clipping thresholds. Default is [2.5 2.5].
-    %            'StdMethod' - Standard-deviation / scatter estimator
-    %                   option passed to imUtil.stack.wcoaddRobust.
-    %                   Default is 3.
-    %            'CoaddUseMex' - Use MEX implementation in
-    %                   imUtil.stack.wcoaddRobust when available.
-    %                   Default is true.
     %            'AddBack' - Estimate and populate the background of the
     %                   coadded image. Default is true.
-    %            'backVarArgs' - Cell array of additional arguments to pass
-    %                   to imUtil.background.backVar when estimating the
-    %                   background/variance of the coadd. Default is {}.
     %            'AddMask' - Coadd the mask images into the output mask
     %                   image using bitwise OR. Default is true.
     %            'BitCoaddUseMex' - Use MEX implementation in
@@ -63,42 +48,38 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     %            'StackMethod' - String describing the stack method to
     %                   write to the header. If empty, the function uses its
     %                   internal method label.
-    %            'CoaddN' - Value to record in the header for the number of
-    %                   coadded images. If NaN, use the actual number of
-    %                   input images. Default is NaN.
     %            'KeyExpTime' - Header keyword containing the exposure
     %                   time. Default is 'EXPTIME'.
     %            'PreAllocCube' - Optional preallocated cube to use in
     %                   imProc.image.images2cube. Default is [].
-    % Output : - An AstroImage object containing the coadd image, mask
-    %            image and optional background and variance.
-    %          - (CoaddN) A 2D image indicating how many images were used
-    %            in each pixel.
+    % Output : - An AstroImage object containing the proper coadd image,
+    %            PSF image, mask image and optional background.
+    %          - (CoaddN) Number of input images used in the coadd.
     %          - Exposure time weighted mean of mid times of the coadd
     %            exposures (also written to header).
-    % More   : - If 'SubBack' is true and some images do not have the Back
+    % Notes   : - If 'SubBack' is true and some images do not have the Back
     %            property populated, then the function estimates the
     %            background using imProc.background.backVar.
     %          - If 'ScalarVar' is true, then the variance used in the
-    %            weighted coaddition is the mean variance of each image,
+    %            proper coaddition is the mean variance of each image,
     %            rather than the full variance image.
     %          - If 'ZP' is provided, then images are flux matched before
     %            coaddition using imProc.stack.getFluxMatch.
+    %          - The PSF cube is generated using imProc.psf.psf2cube and
+    %            is passed to imUtil.properCoadd.combine_proper.
     %          - The output mask is generated by bitwise OR of all input
     %            masks.
     %          - The output header is generated using
     %            imProc.stack.coaddHeader.
-    % Example: % Coadd all images in Obj after background subtraction:
-    %          Result = imProc.stack.coadd_WRobust(Obj);
-    %          % Coadd a CCDSEC region using two clipping iterations:
-    %          Result = imProc.stack.coadd_WRobust(Obj, 'CCDSEC',...
-    %                   [100 500 200 700], 'Niter', 2,...
-    %                   'SigmaClip', [3 3]);
-    %          % Coadd while using zero-point based flux matching:
-    %          Result = imProc.stack.coadd_WRobust(Obj, 'ZP', 'ZP', ...
+    % Author : Eran Ofek (Apr 2026)
+    % Example: % Proper coadd all images in Obj after background subtraction:
+    %          Result = imProc.stack.coadd_Proper(Obj);
+    %          % Proper coadd a CCDSEC region:
+    %          Result = imProc.stack.coadd_Proper(Obj, 'CCDSEC',...
+    %                   [100 500 200 700]);
+    %          % Proper coadd while using zero-point based flux matching:
+    %          Result = imProc.stack.coadd_Proper(Obj, 'ZP', 'ZP', ...
     %                   'ZP0', 25);
-    % See also: imUtil.stack.wcoaddRobust, imProc.image.images2cube,
-    %           imProc.stack.coaddHeader, imProc.background.backVar
 
     arguments
         Obj   % AstroImage, AstroDiff, AstroZOGY
@@ -110,13 +91,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.ZP0             = 25;
         
         %--- coadd ---
-        Args.RemoveMinMax    = true;
-        Args.Niter           = 1;
-        Args.SigmaClip       = [2.5 2.5];
-        Args.StdMethod       = 3;
-        Args.CoaddUseMex     = true;
         Args.AddBack         = true;
-        Args.backVarArgs     = {};
 
         %--- Mask ---
         Args.AddMask         = true;
@@ -129,14 +104,13 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.SumExpTime(1,1) logical                = true;
         Args.UpdateImagePathKeys logical            = true;
         Args.StackMethod                            = '';
-        Args.CoaddN                                 = NaN;
         Args.KeyExpTime                             = 'EXPTIME';
 
         %--- aux ---
         Args.PreAllocCube    = [];
 
     end
-    StackMethod = 'wrbosut';
+    StackMethod = 'proper';
     
     Nim = numel(Obj);
     DimIndex  = 3;
@@ -150,6 +124,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
                                                                                  'DataProp',{'ImageData','BackData', 'VarData', 'MaskData'},...
                                                                                  'DataPropIn','Data',...
                                                                                  'Cube',Args.PreAllocCube);
+        ImageCube = ImageCube - BackCube; % subtract background
     else
         % no background subtraction is needed
         [ImageCube, VarCube, MaskCube] = imProc.image.images2cube(Obj, 'CCDSEC',Args.CCDSEC, 'DimIndex',DimIndex,...
@@ -177,21 +152,21 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     else
         [FluxMatch,ZP0] = imProc.stack.getFluxMatch(Obj, 'ZP',Args.ZP, 'ZP0',Args.ZP0);
     end
-    % make sure Flux match ha sthe same units as the images
+    % make sure Flux match has the same units as the images
     FluxMatch = cast(FluxMatch, 'like',ImageCube);
 
     % create AstroImage for results
     Result = AstroImage;
 
     % coadd
-    [Result.ImageData.Data, Result.VarData.Data] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
-                                                                       'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
-                                                                       'UseMex',Args.CoaddUseMex);
-
+    CubePSF   = imProc.psf.psf2cube(Obj);
+    
+    [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'PsfType','center', 'Norm',true);
+    
     CoaddN = Nim;
 
     if Args.AddBack
-        Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+        Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.BackArgs{:});
     end
 
     % coadd mask

@@ -1,5 +1,6 @@
 function [Result] = coaddW(Obj, Args)
     % Weighted Stack/Coadd images in AstroImage object, based on measured Back, Var, and ZP.
+    %   OBSOLETE: use imProc.stack.coadd_WRobust/coadd_Proper instead.
     %   The coadd images are background subtracted and flux matched, and
     %   weighted by the Transmission/divided by invese variance.
     % Input  : - An AstroImage.

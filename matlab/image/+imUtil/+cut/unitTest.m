@@ -4,6 +4,24 @@ function Result = unitTest()
     
     mex_bitwise_cutouts_unitTest();
     
+    %% imUtil.cut.mex.image2cube  /  imUtil.cut.mex.cube2image
+    VX=(1:1:1716); VY=VX.';
+    Im=VX.*1.1+VY.*1.2;
+    [Sub_CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = imUtil.cut.gridSubImage([1716 1716], [256 256]);
+    
+    Sub=imUtil.cut.partition_subimage(Im,Sub_CCDSEC);
+    Cube=imUtil.cut.mex.image2cube(Im,Sub_CCDSEC);             
+    if max(abs(Sub{1}-Cube(:,:,1)),[],'all')>0
+        error('Problem with imUtil.cut.mex.image2cube');
+    end
+    
+    FullImage = imUtil.cut.mex.cube2image(Cube, Sub_CCDSEC, NoOverlapCCDSEC, NewNoOverlapCCDSEC);
+    if max(abs(Im-FullImage),[],'all')>0
+        error('Problem with imUtil.cut.mex.cube2image');
+    end
+
+
+
 
     %%
     D=rand(100,100,3);
