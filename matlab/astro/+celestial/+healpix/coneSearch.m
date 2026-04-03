@@ -4,6 +4,9 @@ function [Result,PixLon,PixLat] = coneSearch(NSide, Lon, Lat, Radius, Args)
     %   The list may contains nearby irrelevant pixels.
     %   This function use a simple annulus based search.
     %   For slower version see: celestial.healpix.coneSearchRecur
+    %
+    %   See also a faster mex version: celestial.healpix.mex.coneSearch
+    %
     % Input  : - Nside.
     %          - Longitude (scalar).
     %          - Latitude (scalar).
