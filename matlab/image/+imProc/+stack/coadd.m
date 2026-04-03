@@ -1,5 +1,6 @@
 function [Result, CoaddN, ImageCube, MidJD, SumExpTime] = coadd(ImObj, Args)
     % Coadd images in AstroImage object including pre/post normalization
+    %   OBSOLETE: use imProc.stack.coadd_WRobust/coadd_Proper instead.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'CCDSEC' - CCDSEC on which to operate:
