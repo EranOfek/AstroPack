@@ -61,10 +61,10 @@ switch lower(Args.PsfType)
     case 'center'
         % put PSF in corner
         PSF = ifftshift(ifftshift(PSF,1),2);
-        PadSize = SizeData - SizePsf;
+        PadSize = SizeData(1:2) - SizePsf(1:2);
         PSF = padarray(PSF,PadSize,0,'post');
     case 'corner'
-        PadSize = SizeData - SizePsf;
+        PadSize = SizeData(1:2) - SizePsf(1:2);
         PSF = padarray(PSF,PadSize,0,'post');
     otherwise
         error('Unknown PsfType option');

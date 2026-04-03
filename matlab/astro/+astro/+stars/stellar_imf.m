@@ -22,7 +22,7 @@ function [DnDm,CumFracN,TotalFracN,CumFracM,TotalFracM]=stellar_imf(Mass,FunType
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Apr 2006
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [DnDm,CumFracN,TotalFracN,CumFracM,TotalFracM]=AstroUtil.stars.stellar_imf(5,'Salpeter');
+% Example: [DnDm,CumFracN,TotalFracN,CumFracM,TotalFracM]=astro.stars.stellar_imf(5,'Salpeter');
 % Reliable: 2
 %--------------------------------------------------------------------------
 ColM1 = 1;
@@ -52,6 +52,7 @@ else
    % User supplied IMF
    IMF = FunType;
 end   
+
 
 %--- Find normalizing factors needed to make the mass function continuus ---
 N        = size(IMF,1);
