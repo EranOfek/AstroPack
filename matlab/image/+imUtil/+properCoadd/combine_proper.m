@@ -4,6 +4,7 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 % Description: Proper coaddition (Zackay & Ofek 2017) of images in a cube
 % Input  : - A cube of images, where the 3rd dimension is the image index.
 %          - A cube of PSFs, where the 3rd dimension is the image index.
+%            Alternatively, this can be a single PSF.
 %          * Arbitrary number of ...,key,val,... arguments.
 %            The following keywords are available:
 %            'F' - A vector of weights (one weight per image).
@@ -42,13 +43,10 @@ arguments
     Args.Norm(1,1) logical     = true;
 end
 
-
-
 SizeData = size(Data);
 SizePsf  = size(PSF);
 
 IndexDim = 3;
-
 
 % normalize PSF sum to unity
 if Args.Norm
