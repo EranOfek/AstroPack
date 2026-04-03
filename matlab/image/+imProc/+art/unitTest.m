@@ -38,15 +38,15 @@ function Result = unitTest()
     figure(1); clf; histogram(SimAI.Table.MAG_PSF,'BinWidth',0.3); ylim([1,numel(SimAI.Table.MAG_PSF)]); hold on;
     histogram(SimCat.Table.MAG_PSF,'BinWidth',0.3); 
     set(gca,'YScale','log'); xlabel Mag;ylabel N_{objects} 
-    % 
-    ds9(SimAI.Image,5) 
-    ds9.load_region('~/Simulated_it1.reg'); ds9.load_region('~/Simulated_it2.reg');ds9.load_region('~/Simulated_it3.reg');
+    %     
+%     ds9(SimAI.Image,5) 
+%     ds9.load_region('~/Simulated_it1.reg'); ds9.load_region('~/Simulated_it2.reg');ds9.load_region('~/Simulated_it3.reg');
     %
     InSrc = SimCat.Table(SimCat.Table.MAG_PSF < 19,:); % make source region with objects brighter than m 
     DS9_new.regionWrite([InSrc.Y1 InSrc.X1],'FileName','~/insrc.reg','Color','yellow','Marker','b','Size',1,'Width',4,...
                             'Precision','%.2f','PrintIndividualProp',0); 
-    ds9.load_region('~/insrc.reg')
-    ds9(SourceLess.Image,6); ds9.load_region('~/insrc.reg')
+%     ds9.load_region('~/insrc.reg')
+%     ds9(SourceLess.Image,6); ds9.load_region('~/insrc.reg')
     %    
     [Result1, ResInd, UnMatched1, UnMatched2] = imProc.match.match(SimCat, SimAI.CatData, ...
             'Radius', 1.0,'CooType','pix','ColCatX','X','ColCatY','Y','ColRefX','X1','ColRefY','Y1'); 

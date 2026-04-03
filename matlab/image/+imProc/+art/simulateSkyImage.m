@@ -33,7 +33,7 @@ function [SimAI, InjectedCat] = simulateSkyImage(Args)
         % 
         arguments
             Args.AI         = [];          % an input AI: use in it case we wish to add objects to an existing image 
-            Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
+            Args.Size       = [1716 1716]; % image size [the default size is of a LAST subimage] 
             Args.Cat        = [];          % input catalog (source positions) 
             Args.SkyCat     = true;        % the input catalog is in Sky [RA, Dec] (true) or Pixel [pix, pix] (false) coordinates
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  

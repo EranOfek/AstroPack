@@ -299,6 +299,11 @@ classdef FITS < handle
             else
                 Fptr = matlab.io.fits.openFile(FileName);
                 %Fptr = matlab.io.fits.openDiskFile(FileName);
+                
+                if endsWith(FileName, '.fz') % in the compressed FITS the HDU numbers are shifted  
+                   HDUnum = HDUnum +1; 
+                end
+                
                 matlab.io.fits.movAbsHDU(Fptr, HDUnum);
                 
                 if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
