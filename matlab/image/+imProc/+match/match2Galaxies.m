@@ -83,7 +83,7 @@ function match2Galaxies(Obj, Args)
         Args.ColLogAxisRatioPGC = 'LogAxisRatio';
         Args.ColPA1950PGC = 'PA1950';
 
-        Args.PGCEllipseTol = 1.1;
+        Args.PGCEllipseTol = 1.3;
         Args.GalAreaPenaltyScale = 30;
     end
 
@@ -205,7 +205,7 @@ function match2Galaxies(Obj, Args)
 
         if PGCCat.sizeCatalog > 0
             PGCCat.sortrows('Dec');
-            [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
+            [PGCLon, PGCLat] = PGCCat.getLonLat();
 
             MatchResPGC = VO.search.search_sortedlat_multi( ...
                 [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC .* Arcsec2Rad);
