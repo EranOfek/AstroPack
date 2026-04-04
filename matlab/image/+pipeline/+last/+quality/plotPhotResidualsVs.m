@@ -25,7 +25,7 @@ function plotPhotResidualsVs(PC, Args)
 
     arguments
         PC
-        Args.XField         = 'X-XPEAK'
+        Args.XField         = 'X'
         Args.CropsToAnalyze = []
         Args.Normalize logical = false
         Args.OverlayTrend   = 'median'
@@ -106,7 +106,7 @@ function plotPhotResidualsVs(PC, Args)
            'Position', [50, 50, 600, 500]);
     hold on;
 
-    plot(AllXval, AllRes, '.', 'MarkerSize', 2);
+    plot(AllXval, AllRes, '.', 'MarkerSize', 5);
     plot(xlim, [0 0], 'k--');
 
     if ~strcmp(Args.OverlayTrend, 'none')

@@ -71,6 +71,8 @@ function AI = loadVisitData(Args)
 
     CatPattern = sprintf('*_sci_%s_Cat_1.fits', Args.FileType);
     ImPattern  = sprintf('*_sci_%s_Image_1.fits', Args.FileType);
+    CatPatternBz2 = [CatPattern '.bz2'];
+    ImPatternBz2  = [ImPattern '.bz2'];
 
     AI = cell(Nvisits, 1);
     for Iv = 1:Nvisits
@@ -84,6 +86,23 @@ function AI = loadVisitData(Args)
 
         CatFiles = io.files.filelist(fullfile(D, CatPattern));
         ImFiles  = io.files.filelist(fullfile(D, ImPattern));
+
+        % Decompress .bz2 to local temp if no uncompressed files found
+        TmpDir = '';
+        if isempty(CatFiles)
+            CatBz2 = io.files.filelist(fullfile(D, CatPatternBz2));
+            ImBz2  = io.files.filelist(fullfile(D, ImPatternBz2));
+            if ~isempty(CatBz2)
+                TmpDir = fullfile(tempdir, sprintf('lastQual_%05d', Iv));
+                if ~exist(TmpDir, 'dir'); mkdir(TmpDir); end
+                if Args.Verbose
+                    fprintf('  Epoch %d: decompressing %d bz2 files to %s\n', ...
+                        Iv, numel(CatBz2) + numel(ImBz2), TmpDir);
+                end
+                CatFiles = decompressBz2(CatBz2, TmpDir);
+                ImFiles  = decompressBz2(ImBz2, TmpDir);
+            end
+        end
 
         if isempty(CatFiles)
             if Args.Verbose
@@ -101,6 +120,11 @@ function AI = loadVisitData(Args)
             end
         end
         AI{Iv} = AIv;
+
+        % Clean up temp files
+        if ~isempty(TmpDir)
+            rmdir(TmpDir, 's');
+        end
 
         if Args.Verbose
             fprintf('  Epoch %d: %d crops from %s\n', Iv, Ncf, D);
@@ -199,4 +223,22 @@ function AI = loadFromDataDir(Args)
             fprintf('  Visit %s: %d crops\n', VStr, Ncf);
         end
     end
+end
+
+% =========================================================================
+function OutFiles = decompressBz2(Bz2Files, TmpDir)
+    % Decompress .bz2 files to local temp directory
+    % Input  : - Cell array of .bz2 file paths
+    %          - Target directory (local, writable)
+    % Output : - Cell array of decompressed file paths
+    OutFiles = cell(size(Bz2Files));
+    for Ib = 1:numel(Bz2Files)
+        [~, Name] = fileparts(Bz2Files{Ib});  % strips .bz2, keeps .fits
+        OutFile = fullfile(TmpDir, Name);
+        [Status, ~] = system(sprintf('bunzip2 -k -c "%s" > "%s"', Bz2Files{Ib}, OutFile));
+        if Status == 0
+            OutFiles{Ib} = OutFile;
+        end
+    end
+    OutFiles = OutFiles(~cellfun(@isempty, OutFiles));
 end

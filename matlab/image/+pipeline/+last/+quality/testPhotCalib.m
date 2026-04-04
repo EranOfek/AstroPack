@@ -17,22 +17,26 @@ function Result = testPhotCalib(Args)
     %                matchPhotEpochs    — cross-epoch source matching
     %                testPhotFitQuality — fit quality diagnostics (Task B)
     %                testPhotStability  — stability analysis (Task A)
+    %                plotPhotFittedParams — fitted parameters vs epoch
+    %                plotPhotParamCorr  — parameter correlation scatter matrix
     %
     %              Stability plots (Task A):
-    %                1. Mag vs Std scatter per mode.
+    %                1. Mag vs Std scatter per mode (TwoPanels, ColorByCrop, CentralEdge).
     %                2. Std difference between modes (or AB vs CB).
     %                3. RMS & ZP mosaic per crop.
     %                4. ZP map mosaic per mode.
     %                5. Transmission curves per mode.
     %                6. Integral T mosaic + T vs epoch.
     %                7. FWHM vs epoch.
+    %                8. Fitted atmospheric parameters vs epoch (Tau, PWV, Norm).
+    %                9. Fitted parameter correlations (scatter matrix).
     %              Fit quality plots (Task B, via testPhotFitQuality):
-    %                8. Calibrator residuals vs magnitude.
-    %                9. Calibrator residual RMS vs magnitude.
-    %               10. Calibrator residuals vs GAIA BP-RP color.
-    %               11. Calibrator residuals vs 1/Flux (background check).
-    %               12. Calibrator residuals vs X-XPEAK, Y-YPEAK.
-    %               13. Calibrator residuals vs airmass.
+    %               10. Calibrator residuals vs magnitude.
+    %               11. Calibrator residual RMS vs magnitude.
+    %               12. Calibrator residuals vs GAIA BP-RP color.
+    %               13. Calibrator residuals vs 1/Flux (background check).
+    %               14. Calibrator residuals vs X-XPEAK, Y-YPEAK.
+    %               15. Calibrator residuals vs airmass.
     %
     %              Cached in OutDir: PC_<mode>.mat, MS_all.mat, Result.mat.
     %              Use ForceRecalc=true to recompute.
@@ -97,7 +101,9 @@ function Result = testPhotCalib(Args)
     %            'Plot'     - Generate diagnostic plots. Default is true.
     %            'SaveFig'  - Save all figures to OutDir/figures/ as .fig
     %                        and .jpg. Default is false.
-    %            'ShowOrigMag' - Overlay instrumental mag scatter. Default is true.
+    %            'TwoPanels' - true: separate panels for relative + calibrated
+    %                        photometry. false: both overlaid on one panel.
+    %                        Default is true.
     %            'OverlayTrend'- Binned trend: 'median'|'mean'|'none'. Default is 'median'.
     %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
     %            'TileOrder' - 'colmajor'|'rowmajor'. Default is 'rowmajor'.
@@ -222,7 +228,7 @@ function Result = testPhotCalib(Args)
         Args.ConstBandParams = []            % CBP struct, or .mat path, or PC_all cell for building CBP
         Args.Plot logical   = true
         Args.SaveFig logical = false  % Save all figures to OutDir as .fig and .jpg
-        Args.ShowOrigMag logical = true
+        Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
         Args.TileOrder      = 'rowmajor'
@@ -296,7 +302,6 @@ function Result = testPhotCalib(Args)
     % Extract header metadata
     HeaderData = pipeline.last.quality.extractHeaderData(AI, ...
         'Ncrop', Args.Ncrop, 'Verbose', Args.Verbose);
-    end
 
     % === Calibrate ===
     Calib = pipeline.last.quality.calibratePhotModes(AI, ...
@@ -363,7 +368,7 @@ function Result = testPhotCalib(Args)
         'Modes', Args.Modes, ...
         'MagFields', Args.MagFields, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'ShowOrigMag', Args.ShowOrigMag, ...
+        'TwoPanels', Args.TwoPanels, ...
         'OverlayTrend', Args.OverlayTrend, ...
         'TrendBinWidth', Args.TrendBinWidth, ...
         'MinEpochs', Args.MinEpochs);
@@ -405,6 +410,10 @@ function Result = testPhotCalib(Args)
     pipeline.last.quality.plotPhotIntegralT(Calib.PC, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotFittedParams(Calib.PC, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
         'TileOrder', Args.TileOrder);
 
     pipeline.last.quality.plotPhotFWHM(HeaderData, ...
