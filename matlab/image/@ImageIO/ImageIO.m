@@ -206,7 +206,7 @@ classdef ImageIO < Component
                 Ext = strrep(Ext,'.',''); % remove dot from extension
                 
                 switch lower(Ext)
-                    case {'fits','fit','fz'}
+                    case {'fits','fit','fz','gz','bz2'}
                         Args.FileType = 'fits';
                     case {'hdf5','h5','hd5'}
                         Args.FileType = 'hdf5';
