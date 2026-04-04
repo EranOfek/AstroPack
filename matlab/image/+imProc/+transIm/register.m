@@ -1,6 +1,8 @@
 function [Result] = register(Obj, TransRef, Args)
     % Interpolate/register images in AstroImage into a new reference frame.
     %   Register images to a common frame.
+    %   This function is not rotating the PSF of the registered image.
+    %   
     % Input  : - AstroImage/AstroDiff/AstroZOGY object containing images.
     %          - One of the following options:
     %               An AstroWCS object, or AstroImage containing AstroWCS.

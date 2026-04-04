@@ -2,6 +2,15 @@ function Result = unitTest()
     % Unit-Test for imUtil.trans package
     % Example: imUtil.trans.unitTest
 
+    %% imUtil.trans.mex.imrotate_sinc
+
+    G   = imUtil.kernel2.gauss([1.5 3 0.5]);
+    NG  = imUtil.trans.mex.imrotate_sinc(G,6);
+    NNG = imUtil.trans.mex.imrotate_sinc(NG,-6);
+    if (max(abs(G-NNG),[],'all')./max(G,[],'all'))>0.01
+        error('Problem with imUtil.trans.mex.imrotate_sinc');
+    end
+
     %% imUtil.trans.mex.polyRadialDistortion
     CoefX = rand(5,1);
     X     = rand(1e2, 1e2);

@@ -1,0 +1,483 @@
+#include "mex.h"
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <algorithm>
+
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
+
+enum class StdMode {
+    SCALAR,
+    VECTOR_NIM,
+    CUBE
+};
+
+template <typename T>
+inline double ToDouble(T x) {
+    return static_cast<double>(x);
+}
+
+inline double Rcond2x2(double A11, double A12, double A22)
+{
+    const double Det = A11 * A22 - A12 * A12;
+    if (!std::isfinite(Det) || std::abs(Det) == 0.0) {
+        return 0.0;
+    }
+
+    const double NormA1 = std::max(std::abs(A11) + std::abs(A12),
+                                   std::abs(A12) + std::abs(A22));
+    if (!(NormA1 > 0.0) || !std::isfinite(NormA1)) {
+        return 0.0;
+    }
+
+    const double NormInvA1 = std::max(std::abs(A22) + std::abs(A12),
+                                      std::abs(A12) + std::abs(A11)) / std::abs(Det);
+    if (!(NormInvA1 > 0.0) || !std::isfinite(NormInvA1)) {
+        return 0.0;
+    }
+
+    return 1.0 / (NormA1 * NormInvA1);
+}
+
+void ValidateVectorLength(const mxArray* Arr, mwSize Expected, const char* Name)
+{
+    if (mxGetNumberOfElements(Arr) != Expected) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size",
+                          "%s must contain exactly Nim elements.", Name);
+    }
+}
+
+void ValidateSameCubeSize(const mxArray* Arr, mwSize Ny, mwSize Nx, mwSize Nim, const char* Name)
+{
+    const mwSize Ndim = mxGetNumberOfDimensions(Arr);
+    const mwSize* Dims = mxGetDimensions(Arr);
+    if (Ndim != 3 || Dims[0] != Ny || Dims[1] != Nx || Dims[2] != Nim) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size",
+                          "%s must have the same size as Cube.", Name);
+    }
+}
+
+template <typename T, StdMode MODE, bool USE_RADIUS>
+void ComputeStepsKernel(
+    const T* Cube,
+    const T* Std,
+    const T* ShiftedPSF,
+    const T* PSF_Xp,
+    const T* PSF_Xm,
+    const T* PSF_Yp,
+    const T* PSF_Ym,
+    const T* SX,
+    const T* SY,
+    const T* Flux,
+    const T* DX,
+    const T* DY,
+    const T* VecXrel,
+    const T* VecYrel,
+    mwSize Ny,
+    mwSize Nx,
+    mwSize Nim,
+    double FitRadius2,
+    double MaxStep,
+    T* StepX,
+    T* StepY)
+{
+    const mwSize Npix = Ny * Nx;
+    const double Eps = std::numeric_limits<double>::epsilon();
+    const double Radius = USE_RADIUS ? std::sqrt(FitRadius2) : 0.0;
+
+    #if defined(_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (mwIndex Iim = 0; Iim < Nim; ++Iim) {
+
+        const T* CubeI       = Cube       + Iim * Npix;
+        const T* ShiftedPSFI = ShiftedPSF + Iim * Npix;
+        const T* PSF_XpI     = PSF_Xp     + Iim * Npix;
+        const T* PSF_XmI     = PSF_Xm     + Iim * Npix;
+        const T* PSF_YpI     = PSF_Yp     + Iim * Npix;
+        const T* PSF_YmI     = PSF_Ym     + Iim * Npix;
+
+        const double FluxI = ToDouble(Flux[Iim]);
+        const double DXI   = ToDouble(DX[Iim]);
+        const double DYI   = ToDouble(DY[Iim]);
+        const double SXI   = ToDouble(SX[Iim]);
+        const double SYI   = ToDouble(SY[Iim]);
+
+        double SxOut = 0.0;
+        double SyOut = 0.0;
+
+        if (!(std::isfinite(FluxI) && std::isfinite(DXI) && std::isfinite(DYI) &&
+              std::isfinite(SXI) && std::isfinite(SYI) && SXI != 0.0 && SYI != 0.0)) {
+            StepX[Iim] = static_cast<T>(0);
+            StepY[Iim] = static_cast<T>(0);
+            continue;
+        }
+
+        const double Inv2SX = 1.0 / (2.0 * SXI);
+        const double Inv2SY = 1.0 / (2.0 * SYI);
+
+        double A11 = 0.0;
+        double A12 = 0.0;
+        double A22 = 0.0;
+        double B1  = 0.0;
+        double B2  = 0.0;
+        bool AnyGood = false;
+
+        mwIndex IxStart = 0;
+        mwIndex IxEnd   = Nx - 1;
+        mwIndex IyStart = 0;
+        mwIndex IyEnd   = Ny - 1;
+
+        if constexpr (USE_RADIUS) {
+            while (IxStart < Nx && std::abs(ToDouble(VecXrel[IxStart]) - DXI) >= Radius) {
+                ++IxStart;
+            }
+            while (IxEnd > IxStart && std::abs(ToDouble(VecXrel[IxEnd]) - DXI) >= Radius) {
+                --IxEnd;
+            }
+            while (IyStart < Ny && std::abs(ToDouble(VecYrel[IyStart]) - DYI) >= Radius) {
+                ++IyStart;
+            }
+            while (IyEnd > IyStart && std::abs(ToDouble(VecYrel[IyEnd]) - DYI) >= Radius) {
+                --IyEnd;
+            }
+
+            if (IxStart >= Nx || IyStart >= Ny || IxStart > IxEnd || IyStart > IyEnd) {
+                StepX[Iim] = static_cast<T>(0);
+                StepY[Iim] = static_cast<T>(0);
+                continue;
+            }
+        }
+
+        for (mwIndex Ix = IxStart; Ix <= IxEnd; ++Ix) {
+            const double Xr = ToDouble(VecXrel[Ix]) - DXI;
+            const double Xr2 = Xr * Xr;
+
+            for (mwIndex Iy = IyStart; Iy <= IyEnd; ++Iy) {
+                if constexpr (USE_RADIUS) {
+                    const double Yr = ToDouble(VecYrel[Iy]) - DYI;
+                    const double R2 = Xr2 + Yr * Yr;
+                    if (!(R2 < FitRadius2)) {
+                        continue;
+                    }
+                }
+
+                const mwIndex Ip = Iy + Ix * Ny;
+
+                double StdVal;
+                if constexpr (MODE == StdMode::SCALAR) {
+                    StdVal = ToDouble(Std[0]);
+                } else if constexpr (MODE == StdMode::VECTOR_NIM) {
+                    StdVal = ToDouble(Std[Iim]);
+                } else {
+                    StdVal = ToDouble(Std[Iim * Npix + Ip]);
+                }
+
+                double Var = StdVal * StdVal;
+                if (!std::isfinite(Var)) {
+                    continue;
+                }
+                if (Var < Eps) {
+                    Var = Eps;
+                }
+                const double W = 1.0 / Var;
+
+                const double Resid = ToDouble(CubeI[Ip]) - ToDouble(ShiftedPSFI[Ip]) * FluxI;
+                const double dPdx  = (ToDouble(PSF_XpI[Ip]) - ToDouble(PSF_XmI[Ip])) * Inv2SX;
+                const double dPdy  = (ToDouble(PSF_YpI[Ip]) - ToDouble(PSF_YmI[Ip])) * Inv2SY;
+
+                const double Jx = FluxI * dPdx;
+                const double Jy = FluxI * dPdy;
+
+                if (!(std::isfinite(W) && std::isfinite(Resid) &&
+                      std::isfinite(Jx) && std::isfinite(Jy))) {
+                    continue;
+                }
+
+                AnyGood = true;
+
+                A11 += W * Jx * Jx;
+                A12 += W * Jx * Jy;
+                A22 += W * Jy * Jy;
+                B1  += W * Jx * Resid;
+                B2  += W * Jy * Resid;
+            }
+        }
+
+        if (AnyGood) {
+            const bool FiniteA = std::isfinite(A11) && std::isfinite(A12) && std::isfinite(A22);
+            const bool FiniteB = std::isfinite(B1)  && std::isfinite(B2);
+
+            if (FiniteA && FiniteB && Rcond2x2(A11, A12, A22) > 1e-10) {
+                const double Det = A11 * A22 - A12 * A12;
+                SxOut = ( A22 * B1 - A12 * B2 ) / Det;
+                SyOut = ( -A12 * B1 + A11 * B2 ) / Det;
+            } else {
+                SxOut = 0.0;
+                SyOut = 0.0;
+                if (std::isfinite(A11) && A11 > 0.0) {
+                    SxOut = B1 / A11;
+                }
+                if (std::isfinite(A22) && A22 > 0.0) {
+                    SyOut = B2 / A22;
+                }
+            }
+        }
+
+        if (std::isfinite(SxOut)) {
+            SxOut = ((SxOut > 0.0) ? 1.0 : ((SxOut < 0.0) ? -1.0 : 0.0)) *
+                    std::min(std::abs(SxOut), MaxStep);
+        } else {
+            SxOut = 0.0;
+        }
+
+        if (std::isfinite(SyOut)) {
+            SyOut = ((SyOut > 0.0) ? 1.0 : ((SyOut < 0.0) ? -1.0 : 0.0)) *
+                    std::min(std::abs(SyOut), MaxStep);
+        } else {
+            SyOut = 0.0;
+        }
+
+        if (!std::isfinite(SxOut)) { SxOut = 0.0; }
+        if (!std::isfinite(SyOut)) { SyOut = 0.0; }
+
+        StepX[Iim] = static_cast<T>(SxOut);
+        StepY[Iim] = static_cast<T>(SyOut);
+    }
+}
+
+template <typename T>
+void DispatchStdMode(
+    StdMode Mode,
+    bool UseFitRadius,
+    const T* Cube,
+    const T* Std,
+    const T* ShiftedPSF,
+    const T* PSF_Xp,
+    const T* PSF_Xm,
+    const T* PSF_Yp,
+    const T* PSF_Ym,
+    const T* SX,
+    const T* SY,
+    const T* Flux,
+    const T* DX,
+    const T* DY,
+    const T* VecXrel,
+    const T* VecYrel,
+    mwSize Ny,
+    mwSize Nx,
+    mwSize Nim,
+    double FitRadius2,
+    double MaxStep,
+    T* StepX,
+    T* StepY)
+{
+    if (UseFitRadius) {
+        switch (Mode) {
+            case StdMode::SCALAR:
+                ComputeStepsKernel<T, StdMode::SCALAR, true>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+            case StdMode::VECTOR_NIM:
+                ComputeStepsKernel<T, StdMode::VECTOR_NIM, true>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+            case StdMode::CUBE:
+            default:
+                ComputeStepsKernel<T, StdMode::CUBE, true>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+        }
+    } else {
+        switch (Mode) {
+            case StdMode::SCALAR:
+                ComputeStepsKernel<T, StdMode::SCALAR, false>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+            case StdMode::VECTOR_NIM:
+                ComputeStepsKernel<T, StdMode::VECTOR_NIM, false>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+            case StdMode::CUBE:
+            default:
+                ComputeStepsKernel<T, StdMode::CUBE, false>(
+                    Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym,
+                    SX, SY, Flux, DX, DY, VecXrel, VecYrel,
+                    Ny, Nx, Nim, FitRadius2, MaxStep, StepX, StepY);
+                break;
+        }
+    }
+}
+
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
+{
+    if (nrhs != 16) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Input",
+            "Expected 16 inputs: Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym, SX, SY, Flux, DX, DY, VecXrel, VecYrel, FitRadius2, MaxStep.");
+    }
+    if (nlhs != 2) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Output",
+            "Expected 2 outputs: StepX, StepY.");
+    }
+
+    const mxArray* CubeArr       = prhs[0];
+    const mxArray* StdArr        = prhs[1];
+    const mxArray* ShiftedPSFArr = prhs[2];
+    const mxArray* PSF_XpArr     = prhs[3];
+    const mxArray* PSF_XmArr     = prhs[4];
+    const mxArray* PSF_YpArr     = prhs[5];
+    const mxArray* PSF_YmArr     = prhs[6];
+    const mxArray* SXArr         = prhs[7];
+    const mxArray* SYArr         = prhs[8];
+    const mxArray* FluxArr       = prhs[9];
+    const mxArray* DXArr         = prhs[10];
+    const mxArray* DYArr         = prhs[11];
+    const mxArray* VecXrelArr    = prhs[12];
+    const mxArray* VecYrelArr    = prhs[13];
+    const mxArray* FitRadiusArr  = prhs[14];
+    const mxArray* MaxStepArr    = prhs[15];
+
+    const mxClassID ClassID = mxGetClassID(CubeArr);
+    if (!(ClassID == mxDOUBLE_CLASS || ClassID == mxSINGLE_CLASS)) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Class",
+                          "Cube must be single or double.");
+    }
+    if (mxIsComplex(CubeArr)) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Complex", "Cube must be real.");
+    }
+
+    const mxArray* SameClass[] = {
+        StdArr, ShiftedPSFArr, PSF_XpArr, PSF_XmArr, PSF_YpArr, PSF_YmArr,
+        SXArr, SYArr, FluxArr, DXArr, DYArr, VecXrelArr, VecYrelArr
+    };
+    for (mwIndex I = 0; I < sizeof(SameClass)/sizeof(SameClass[0]); ++I) {
+        if (mxGetClassID(SameClass[I]) != ClassID) {
+            mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Class",
+                              "All numeric inputs must have the same class as Cube.");
+        }
+        if (mxIsComplex(SameClass[I])) {
+            mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Complex",
+                              "All numeric inputs must be real.");
+        }
+    }
+
+    const mwSize CubeNdim = mxGetNumberOfDimensions(CubeArr);
+    const mwSize* CubeDims = mxGetDimensions(CubeArr);
+    if (CubeNdim != 3) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size", "Cube must be a 3D array.");
+    }
+
+    const mwSize Ny  = CubeDims[0];
+    const mwSize Nx  = CubeDims[1];
+    const mwSize Nim = CubeDims[2];
+
+    ValidateSameCubeSize(ShiftedPSFArr, Ny, Nx, Nim, "ShiftedPSF");
+    ValidateSameCubeSize(PSF_XpArr,     Ny, Nx, Nim, "PSF_Xp");
+    ValidateSameCubeSize(PSF_XmArr,     Ny, Nx, Nim, "PSF_Xm");
+    ValidateSameCubeSize(PSF_YpArr,     Ny, Nx, Nim, "PSF_Yp");
+    ValidateSameCubeSize(PSF_YmArr,     Ny, Nx, Nim, "PSF_Ym");
+
+    ValidateVectorLength(SXArr, Nim, "SX");
+    ValidateVectorLength(SYArr, Nim, "SY");
+    ValidateVectorLength(FluxArr, Nim, "Flux");
+    ValidateVectorLength(DXArr, Nim, "DX");
+    ValidateVectorLength(DYArr, Nim, "DY");
+    ValidateVectorLength(VecXrelArr, Nx, "VecXrel");
+    ValidateVectorLength(VecYrelArr, Ny, "VecYrel");
+
+    StdMode ThisStdMode;
+    {
+        const mwSize StdN = mxGetNumberOfElements(StdArr);
+        const mwSize StdNdim = mxGetNumberOfDimensions(StdArr);
+        const mwSize* StdDims = mxGetDimensions(StdArr);
+
+        if (StdN == 1) {
+            ThisStdMode = StdMode::SCALAR;
+        } else if (StdN == Nim &&
+                   ((StdNdim == 2 && (StdDims[0] == Nim || StdDims[1] == Nim)) ||
+                    (StdNdim == 3 && StdDims[0] == 1 && StdDims[1] == 1 && StdDims[2] == Nim))) {
+            ThisStdMode = StdMode::VECTOR_NIM;
+        } else if (StdNdim == 3 && StdDims[0] == Ny && StdDims[1] == Nx && StdDims[2] == Nim) {
+            ThisStdMode = StdMode::CUBE;
+        } else {
+            mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size",
+                              "Std must be scalar, vector of length Nim, 1x1xNim, or NyxNxxNim.");
+        }
+    }
+
+    bool UseFitRadius = false;
+    double FitRadius2 = 0.0;
+    if (!mxIsEmpty(FitRadiusArr)) {
+        if (mxGetNumberOfElements(FitRadiusArr) != 1) {
+            mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size",
+                              "FitRadius2 must be empty or scalar.");
+        }
+        FitRadius2 = mxGetScalar(FitRadiusArr);
+        UseFitRadius = true;
+    }
+
+    if (mxGetNumberOfElements(MaxStepArr) != 1) {
+        mexErrMsgIdAndTxt("psfPhotCube_step2dgn_mex:Size", "MaxStep must be scalar.");
+    }
+    const double MaxStep = mxGetScalar(MaxStepArr);
+
+    mwSize OutDims[2] = {1, Nim};
+    plhs[0] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL);
+    plhs[1] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL);
+
+    if (ClassID == mxDOUBLE_CLASS) {
+        DispatchStdMode<double>(
+            ThisStdMode, UseFitRadius,
+            static_cast<const double*>(mxGetData(CubeArr)),
+            static_cast<const double*>(mxGetData(StdArr)),
+            static_cast<const double*>(mxGetData(ShiftedPSFArr)),
+            static_cast<const double*>(mxGetData(PSF_XpArr)),
+            static_cast<const double*>(mxGetData(PSF_XmArr)),
+            static_cast<const double*>(mxGetData(PSF_YpArr)),
+            static_cast<const double*>(mxGetData(PSF_YmArr)),
+            static_cast<const double*>(mxGetData(SXArr)),
+            static_cast<const double*>(mxGetData(SYArr)),
+            static_cast<const double*>(mxGetData(FluxArr)),
+            static_cast<const double*>(mxGetData(DXArr)),
+            static_cast<const double*>(mxGetData(DYArr)),
+            static_cast<const double*>(mxGetData(VecXrelArr)),
+            static_cast<const double*>(mxGetData(VecYrelArr)),
+            Ny, Nx, Nim, FitRadius2, MaxStep,
+            static_cast<double*>(mxGetData(plhs[0])),
+            static_cast<double*>(mxGetData(plhs[1]))
+        );
+    } else {
+        DispatchStdMode<float>(
+            ThisStdMode, UseFitRadius,
+            static_cast<const float*>(mxGetData(CubeArr)),
+            static_cast<const float*>(mxGetData(StdArr)),
+            static_cast<const float*>(mxGetData(ShiftedPSFArr)),
+            static_cast<const float*>(mxGetData(PSF_XpArr)),
+            static_cast<const float*>(mxGetData(PSF_XmArr)),
+            static_cast<const float*>(mxGetData(PSF_YpArr)),
+            static_cast<const float*>(mxGetData(PSF_YmArr)),
+            static_cast<const float*>(mxGetData(SXArr)),
+            static_cast<const float*>(mxGetData(SYArr)),
+            static_cast<const float*>(mxGetData(FluxArr)),
+            static_cast<const float*>(mxGetData(DXArr)),
+            static_cast<const float*>(mxGetData(DYArr)),
+            static_cast<const float*>(mxGetData(VecXrelArr)),
+            static_cast<const float*>(mxGetData(VecYrelArr)),
+            Ny, Nx, Nim, FitRadius2, MaxStep,
+            static_cast<float*>(mxGetData(plhs[0])),
+            static_cast<float*>(mxGetData(plhs[1]))
+        );
+    }
+}

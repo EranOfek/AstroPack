@@ -56,7 +56,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            'ZP' - ZP for magnitude calculations. Default is 25.
     %            'FindSrc' - A logical indicating if to search for sources if
     %                   catalog is empty. Default is false.
-    %            'Method' - Default is 'old'.
+    %            'Method' - Default is 'old' (Better).
     %            'UseMex' - Default is false.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
