@@ -99,6 +99,7 @@ classdef AstroFileName < Component
         Product             = ["Image"];
         Version             = ["1"];
         FileType            = ["fits"];
+        Compression         = [];
         %
         SubDir              = "";
         BasePath            = "/lastdata"; %"/marvin"; %{'2022', '/marvin'; '2023','/marvin'; '2024','/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
@@ -136,7 +137,7 @@ classdef AstroFileName < Component
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Cat.forced", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
-        FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
+        FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType", "Compression"];
         PATH_FIELDS     = ["SubDir", "BasePath", "BasePathRef", "Path"];
     end
     
@@ -697,8 +698,8 @@ classdef AstroFileName < Component
             Literals = AstroFileName.parseString2literals(FileNameString, Seperator);
             
             if ~isempty(FileNameString)
-                Nfields = numel(Result.FIELDS);
-                for Ifield=1:1:Nfields
+                Nliterals = size(Literals,2);
+                for Ifield=1:1:Nliterals 
                     Result.(Result.FIELDS(Ifield)) = Literals(:,Ifield);
                 end
             end
@@ -1612,19 +1613,22 @@ classdef AstroFileName < Component
             % Input  : - A single element AstroFileName object.
             %          * ...,key,val,...
             %            'CompressionType' - Compression type to search.
-            %                   Default is '.fz'.
+            %                   Default is 'fz'.
             % Output : - A vector of logicals indicating if each file is
             %            compressed.
             % Author : Eran Ofek (Sep 2025)
 
             arguments
                 Obj(1,1)
-                Args.CompressionType = '.fz';
+                Args.CompressionType = 'fz';
             end
 
             Iobj = 1;
-            Result = contains(Obj(Iobj).FileType, Args.CompressionType);
-
+            if isempty(Obj(Iobj).Compression)
+                Result = 0;
+            else
+                Result = contains(Obj(Iobj).Compression, Args.CompressionType);
+            end
         end
 
         function Obj=compress(Obj, Type)
