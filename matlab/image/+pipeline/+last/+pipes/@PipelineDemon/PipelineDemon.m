@@ -2845,6 +2845,8 @@ classdef PipelineDemon < Component
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
                 
+                Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
+                
                 Args.MoveNew2Raw       = true;
                 Args.DebugMode         = false;
             end
@@ -2974,13 +2976,13 @@ classdef PipelineDemon < Component
     
                         % --- files compression ---
                         % Check if images are compressed
-                        if any(FN_Sci_Groups(IndStartGroup).isCompressed)
+                        if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
                             % files are compressed
-                            FN_Sci_Groups(IndStartGroup).uncompress('fz');
+                            FN_Sci_Groups(IndStartGroup).uncompress('Type','fz');
                             FilesUncomp = true;
         
                             Msg = 'Uncompress visit';
-                            Obj.writeLog(MsgV, LogLevel.Info);
+                            Obj.writeLog(Msg, LogLevel.Info);
         
                         else
                             FilesUncomp = false;
@@ -2988,9 +2990,9 @@ classdef PipelineDemon < Component
                         RepackRaw = Args.RepackRaw && FilesUncomp;
                         
                         RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
-                        if Args.DebugMode
-                            RawImageList = RawImageList + ".fz";
-                        end
+%                         if Args.DebugMode
+%                             RawImageList = RawImageList + ".fz";
+%                         end
                         NimagesInVisit = numel(RawImageList);
     
                         % log
