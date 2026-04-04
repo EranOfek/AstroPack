@@ -271,7 +271,7 @@ classdef FITS < handle
         end
         
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
-            % Read a single image from a FITS file
+            % Read a single image from a FITS, FITS.fz, FITS.bz2 or FITS.gz file
             % A static function of FITS class
             % Input  : - FITS file name.
             %          - HDU number. default is 1.
