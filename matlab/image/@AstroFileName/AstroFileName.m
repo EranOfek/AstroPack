@@ -1810,9 +1810,14 @@ classdef AstroFileName < Component
                     Literals(:,I) = Tmp;
                 end
             end
-
-            Delim = [repmat(Obj.SEPERATOR,1,Nfields-2), "."];
-            Result = join(Literals, Delim); %Obj.SEPERATOR);
+            
+            if strcmpi(Literals(end),"")
+                Delim = [repmat(Obj.SEPERATOR,1,Nfields-3), "."];
+                Result = join(Literals(1:end-1), Delim); %Obj.SEPERATOR);
+            else
+                Delim = [repmat(Obj.SEPERATOR,1,Nfields-3), ".", "."];
+                Result = join(Literals, Delim);
+            end
 
         end
 
